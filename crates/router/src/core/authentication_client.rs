@@ -1,24 +1,15 @@
-use common_utils::request::{Headers, Method, RequestContent};
-use hyperswitch_interfaces::{
-    impl_microservice_flow,
-    micro_service::MicroserviceClient,
-};
 use api_models::authentication::{
-    AuthenticationCreateRequest,
-    AuthenticationResponse,
-    AuthenticationEligibilityRequest,
-    AuthenticationEligibilityResponse,
-    AuthenticationAuthenticateRequest,
-    AuthenticationAuthenticateResponse,
-    AuthenticationSyncPostUpdateRequest,
-    AuthenticationSyncRequest,
-    AuthenticationSyncResponse,
+    AuthenticationAuthenticateRequest, AuthenticationAuthenticateResponse,
+    AuthenticationCreateRequest, AuthenticationEligibilityRequest,
+    AuthenticationEligibilityResponse, AuthenticationResponse, AuthenticationSyncPostUpdateRequest,
+    AuthenticationSyncRequest, AuthenticationSyncResponse,
 };
+use common_utils::request::{Headers, Method, RequestContent};
+use hyperswitch_interfaces::{impl_microservice_flow, micro_service::MicroserviceClient};
+use payment_methods::configs::AuthenticationServiceConfig;
 use router_env::RequestIdentifier;
 use serde::{Deserialize, Serialize};
 use url::Url;
-
-use crate::configs::settings::AuthenticationServiceConfig;
 
 pub struct AuthenticationServiceClient<'a> {
     base_url: Url,
@@ -31,12 +22,7 @@ impl<'a> AuthenticationServiceClient<'a> {
         config: &'a AuthenticationServiceConfig,
         trace: &'a RequestIdentifier,
     ) -> Result<Self, hyperswitch_interfaces::micro_service::MicroserviceClientError> {
-        let base_url = Url::parse(&config.base_url).map_err(|_| {
-            hyperswitch_interfaces::micro_service::MicroserviceClientError {
-                operation: "AuthenticationServiceClient::new".to_string(),
-                kind: hyperswitch_interfaces::micro_service::MicroserviceClientErrorKind::Transport("Invalid base_url".to_string()),
-            }
-        })?;
+        let base_url = config.base_url.0.clone();
 
         let mut parent_headers = Headers::new();
         parent_headers.insert((
@@ -78,7 +64,7 @@ pub struct AuthCreateResp(pub AuthenticationResponse);
 impl TryFrom<&AuthenticationCreateRequest> for AuthCreateReq {
     type Error = hyperswitch_interfaces::micro_service::MicroserviceClientError;
     fn try_from(req: &AuthenticationCreateRequest) -> Result<Self, Self::Error> {
-        Ok(AuthCreateReq(req.clone()))
+        Ok(Self(req.clone()))
     }
 }
 
@@ -115,7 +101,7 @@ pub struct AuthEligibilityResp(pub AuthenticationEligibilityResponse);
 impl TryFrom<&(AuthenticationEligibilityRequest, String)> for AuthEligibilityReq {
     type Error = hyperswitch_interfaces::micro_service::MicroserviceClientError;
     fn try_from(req: &(AuthenticationEligibilityRequest, String)) -> Result<Self, Self::Error> {
-        Ok(AuthEligibilityReq(req.0.clone()))
+        Ok(Self(req.0.clone()))
     }
 }
 
@@ -153,7 +139,7 @@ pub struct AuthAuthenticateResp(pub AuthenticationAuthenticateResponse);
 impl TryFrom<&AuthenticationAuthenticateRequest> for AuthAuthenticateReq {
     type Error = hyperswitch_interfaces::micro_service::MicroserviceClientError;
     fn try_from(req: &AuthenticationAuthenticateRequest) -> Result<Self, Self::Error> {
-        Ok(AuthAuthenticateReq(req.clone()))
+        Ok(Self(req.clone()))
     }
 }
 
@@ -191,7 +177,7 @@ pub struct AuthSyncResp(pub AuthenticationSyncResponse);
 impl TryFrom<&(AuthenticationSyncPostUpdateRequest, String)> for AuthSyncPostUpdateReq {
     type Error = hyperswitch_interfaces::micro_service::MicroserviceClientError;
     fn try_from(req: &(AuthenticationSyncPostUpdateRequest, String)) -> Result<Self, Self::Error> {
-        Ok(AuthSyncPostUpdateReq(req.0.clone()))
+        Ok(Self(req.0.clone()))
     }
 }
 
@@ -229,7 +215,7 @@ pub struct AuthSyncReq(pub AuthenticationSyncRequest);
 impl TryFrom<&(AuthenticationSyncRequest, String)> for AuthSyncReq {
     type Error = hyperswitch_interfaces::micro_service::MicroserviceClientError;
     fn try_from(req: &(AuthenticationSyncRequest, String)) -> Result<Self, Self::Error> {
-        Ok(AuthSyncReq(req.0.clone()))
+        Ok(Self(req.0.clone()))
     }
 }
 

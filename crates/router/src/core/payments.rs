@@ -170,7 +170,7 @@ use crate::{core::revenue_recovery::get_workflow_entries, db::storage::payment_m
 #[cfg(feature = "v1")]
 use crate::{
     core::{
-        authentication as authentication_core, unified_authentication_service::utils as uas_utils,
+        authentication as authentication_core,
         unified_connector_service::update_gateway_system_in_feature_metadata,
     },
     types::{api::authentication, BrowserInformation},
@@ -11666,16 +11666,11 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("missing authentication_id in payment_attempt")?;
 
-            let auth_config = state
-                .conf
-                .authentication_service
-                .as_ref()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Authentication service config not found")?;
+            let auth_config = &state.conf.micro_services.authentication_service;
 
             let req_identifier = router_env::RequestIdentifier::new("x-request-id");
             let client = crate::core::authentication_client::AuthenticationServiceClient::new(
-                auth_config.get_inner(),
+                auth_config,
                 &req_identifier,
             )
             .change_context(errors::ApiErrorResponse::InternalServerError)

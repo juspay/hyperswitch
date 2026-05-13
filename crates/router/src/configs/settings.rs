@@ -41,7 +41,7 @@ pub use payment_methods::configs::{
         PaymentMethodType, RequiredFieldFinal, RequiredFields, SupportedConnectorsForMandate,
         SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
     },
-    MicroServicesConfig,
+    AuthenticationServiceConfig, MicroServicesConfig,
 };
 use rand::seq::IteratorRandom;
 use redis_interface::RedisSettings;
@@ -194,14 +194,6 @@ pub struct Settings<S: SecretState> {
     pub comparison_service: Option<ComparisonServiceConfig>,
     pub authentication_service_enabled_connectors: AuthenticationServiceEnabledConnectors,
     pub save_payment_method_on_session: OnSessionConfig,
-    pub authentication_service: Option<SecretStateContainer<AuthenticationServiceConfig, S>>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default)]
-pub struct AuthenticationServiceConfig {
-    pub base_url: String,
-    pub api_key: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
