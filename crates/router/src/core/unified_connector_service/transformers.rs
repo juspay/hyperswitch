@@ -6302,12 +6302,6 @@ impl
             webhook_url: router_data.request.webhook_url.clone(),
             browser_info,
             access_token,
-            source_bank_data: router_data
-                .request
-                .source_bank_data
-                .as_ref()
-                .map(payments_grpc::SourceBankData::foreign_try_from)
-                .transpose()?,
         })
     }
 }
@@ -6419,12 +6413,6 @@ impl
             connector_payout_method_id: router_data.request.connector_transfer_method_id.clone(),
             webhook_url: router_data.request.webhook_url.clone(),
             browser_info,
-            source_bank_data: router_data
-                .request
-                .source_bank_data
-                .as_ref()
-                .map(payments_grpc::SourceBankData::foreign_try_from)
-                .transpose()?,
         })
     }
 }
@@ -6827,13 +6815,25 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                         ))?
                     }
                     api_models::payouts::BankTransfer::PixKey(pix_key) => {
-                        payments_grpc::payout_method::PayoutMethodData::PixKey(
-                            payments_grpc::PixKeyBankTransferPayout::foreign_from(pix_key),
+                        payments_grpc::payout_method::PayoutMethodData::Pix(
+                            payments_grpc::PixBankTransferPayout {
+                                bank_name: None,
+                                bank_branch: None,
+                                bank_account_number: None,
+                                pix_key: Some(pix_key.pix_key.clone()),
+                                tax_id: None,
+                            },
                         )
                     }
                     api_models::payouts::BankTransfer::PixEmv(pix_emv) => {
-                        payments_grpc::payout_method::PayoutMethodData::PixEmv(
-                            payments_grpc::PixEmvBankTransferPayout::foreign_from(pix_emv),
+                        payments_grpc::payout_method::PayoutMethodData::Pix(
+                            payments_grpc::PixBankTransferPayout {
+                                bank_name: None,
+                                bank_branch: None,
+                                bank_account_number: None,
+                                pix_key: Some(pix_emv.emv.clone()),
+                                tax_id: None,
+                            },
                         )
                     }
                 }
@@ -6978,8 +6978,8 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixBankTransfer>
             bank_name: None,
             bank_branch: item.bank_branch.clone(),
             bank_account_number: item.bank_account_number.clone(),
+            pix_key: item.pix_key.clone(),
             tax_id: item.tax_id.clone(),
-            ispb: None,
         })
     }
 }
@@ -6997,8 +6997,8 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixAccountBankTransfer>
             bank_name: None,
             bank_branch: item.bank_branch.clone(),
             bank_account_number: Some(item.bank_account_number.clone()),
+            pix_key: None,
             tax_id: item.tax_id.clone(),
-            ispb: None,
         })
     }
 }
@@ -7093,74 +7093,5 @@ impl transformers::ForeignTryFrom<&api_models::payouts::Passthrough>
             psp_token: item.psp_token.clone().expose(),
             token_type: payments_grpc::PaymentMethodType::foreign_from(item.token_type).into(),
         })
-    }
-}
-#[cfg(feature = "payouts")]
-impl transformers::ForeignTryFrom<&api_models::payouts::BankTransfer>
-    for payments_grpc::SourceBankData
-{
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(item: &api_models::payouts::BankTransfer) -> Result<Self, Self::Error> {
-        let source_bank_data = match item {
-            api_models::payouts::BankTransfer::Ach(ach) => {
-                Some(payments_grpc::source_bank_data::SourceBankData::Ach(
-                    payments_grpc::AchBankTransferPayout::foreign_try_from(ach)?,
-                ))
-            }
-            api_models::payouts::BankTransfer::Bacs(bacs) => {
-                Some(payments_grpc::source_bank_data::SourceBankData::Bacs(
-                    payments_grpc::BacsBankTransferPayout::foreign_try_from(bacs)?,
-                ))
-            }
-            api_models::payouts::BankTransfer::Sepa(sepa) => {
-                Some(payments_grpc::source_bank_data::SourceBankData::Sepa(
-                    payments_grpc::SepaBankTransferPayout::foreign_try_from(sepa)?,
-                ))
-            }
-            api_models::payouts::BankTransfer::Pix(pix) => {
-                Some(payments_grpc::source_bank_data::SourceBankData::Pix(
-                    payments_grpc::PixBankTransferPayout::foreign_try_from(pix)?,
-                ))
-            }
-            api_models::payouts::BankTransfer::PixKey(pix_key) => {
-                Some(payments_grpc::source_bank_data::SourceBankData::PixKey(
-                    payments_grpc::PixKeyBankTransferPayout::foreign_from(pix_key),
-                ))
-            }
-            api_models::payouts::BankTransfer::PixEmv(pix_emv) => {
-                Some(payments_grpc::source_bank_data::SourceBankData::PixEmv(
-                    payments_grpc::PixEmvBankTransferPayout::foreign_from(pix_emv),
-                ))
-            }
-            api_models::payouts::BankTransfer::Trustly(_) => Err(error_stack::Report::new(
-                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "Trustly bank transfer not supported for Unified Connector Service".to_string(),
-                ),
-            ))?,
-        };
-        Ok(Self { source_bank_data })
-    }
-}
-
-#[cfg(feature = "payouts")]
-impl ForeignFrom<&api_models::payouts::PixKeyBankTransfer>
-    for payments_grpc::PixKeyBankTransferPayout
-{
-    fn foreign_from(item: &api_models::payouts::PixKeyBankTransfer) -> Self {
-        Self {
-            pix_key: Some(item.pix_key.clone()),
-        }
-    }
-}
-
-#[cfg(feature = "payouts")]
-impl ForeignFrom<&api_models::payouts::PixEmvBankTransfer>
-    for payments_grpc::PixEmvBankTransferPayout
-{
-    fn foreign_from(item: &api_models::payouts::PixEmvBankTransfer) -> Self {
-        Self {
-            emv: Some(item.emv.clone()),
-        }
     }
 }
