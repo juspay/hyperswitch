@@ -2569,6 +2569,9 @@ pub fn decide_access_token_key_suffix(
         true => Some(AccessTokenUrlPath::Leg2),
         false => {
             match (current_flow_info, payment_method_type) {
+                (Some(CurrentFlowInfo::Psync { .. }), Some(enums::PaymentMethodType::PixEmv)) => {
+                    Some(AccessTokenUrlPath::Leg1)
+                }
                 // Authorize flow
                 (
                     Some(CurrentFlowInfo::Authorize { .. }),
