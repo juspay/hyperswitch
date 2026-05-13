@@ -1957,6 +1957,8 @@ Cypress.Commands.add(
     }
 
     globalState.set("paymentAmount", createPaymentBody.amount);
+    globalState.set("paymentCurrency", createPaymentBody.currency);
+    globalState.set("captureMethod", capture_method);
     globalState.set("setupFutureUsage", createPaymentBody.setup_future_usage);
     cy.request({
       method: "POST",
@@ -2868,6 +2870,16 @@ Cypress.Commands.add(
     createConfirmPaymentBody.capture_method = capture_method;
     createConfirmPaymentBody.profile_id = profile_id;
     createConfirmPaymentBody.customer_id = customer_id;
+
+    globalState.set("captureMethod", capture_method);
+    globalState.set(
+      "paymentAmount",
+      createConfirmPaymentBody.amount || (reqData && reqData.amount)
+    );
+    globalState.set(
+      "paymentCurrency",
+      createConfirmPaymentBody.currency || (reqData && reqData.currency)
+    );
 
     for (const key in reqData) {
       // Skip split_payments here - it will be added conditionally below
@@ -4276,6 +4288,14 @@ Cypress.Commands.add(
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
 
+    if (Cypress.env("PROXY_MODE") === "replay") {
+      // Skip the browser ACS dance entirely; advance payment state via a
+      // synthetic connector webhook. See fireConnectorWebhook below for the
+      // mechanism and HS-side contract.
+      cy.fireConnectorWebhook(globalState);
+      return;
+    }
+
     handleRedirection(
       "three_ds",
       { redirectionUrl, expectedUrl },
@@ -4284,6 +4304,103 @@ Cypress.Commands.add(
     );
   }
 );
+
+// MITM proxy / replay-mode helper.
+// Synthesises a connector→HS webhook to advance a pending payment to its
+// terminal state without doing the browser ACS dance. Relies on:
+//   - cypress/fixtures/create-connector-body.json setting
+//     connector_webhook_details.merchant_secret on the connector account, so
+//     HS verifies our signature against a known key (currently the literal
+//     "cypress_pilot_webhook_secret").
+//   - The signStripeWebhook task (cypress.config.js) computing HMAC-SHA256
+//     over "{timestamp}.{body}" Node-side.
+// When HS verifies the signature, its incoming-webhook flow uses
+// CallConnectorAction::HandleResponse with our payload as the response — so
+// no router→connector call is made, and no cassette is needed for the
+// post-3DS sync.
+Cypress.Commands.add("fireConnectorWebhook", (globalState) => {
+  const connectorId = globalState.get("connectorId");
+  const merchantId = globalState.get("merchantId");
+  const baseUrl = globalState.get("baseUrl");
+  // Everything below is read from globalState (not via cy.request) so this
+  // helper consumes exactly one cy.request — the webhook POST. That keeps
+  // the X-Request-ID counter aligned with what capture mode produces (where
+  // threeDsRedirection also does exactly one cy.request, the redirectionUrl
+  // content-type check). If we added an extra cy.request here, the
+  // subsequent retrieve step's X-Request-ID would drift by one and miss its
+  // cassette.
+  const piId = globalState.get("connectorTransactionID");
+  const captureMethod = globalState.get("captureMethod");
+  const amount = globalState.get("paymentAmount");
+  const currency = (globalState.get("paymentCurrency") || "USD").toLowerCase();
+
+  if (connectorId !== "stripe") {
+    throw new Error(
+      `fireConnectorWebhook: connector ${connectorId} not yet supported; only stripe is implemented in this pilot`
+    );
+  }
+  if (!piId) {
+    throw new Error(
+      `fireConnectorWebhook: connectorTransactionID is not in globalState (confirm step may have failed or not set it)`
+    );
+  }
+
+  // After 3DS the connector's webhook differs by capture_method:
+  //   automatic → payment_intent.succeeded, status: succeeded
+  //   manual    → payment_intent.amount_capturable_updated, status: requires_capture
+  // (HS maps the latter to PaymentIntentAuthorizationSuccess, which moves
+  // payment to requires_capture without triggering capture.)
+  const isManual = captureMethod === "manual";
+  const eventType = isManual
+    ? "payment_intent.amount_capturable_updated"
+    : "payment_intent.succeeded";
+  const piStatus = isManual ? "requires_capture" : "succeeded";
+
+  const event = {
+    id: `evt_pilot_${Date.now()}`,
+    object: "event",
+    type: eventType,
+    data: {
+      object: {
+        id: piId,
+        object: "payment_intent",
+        amount,
+        currency,
+        status: piStatus,
+        created: Math.floor(Date.now() / 1000),
+        metadata: {},
+      },
+    },
+  };
+  const body = JSON.stringify(event);
+  const timestamp = Math.floor(Date.now() / 1000);
+
+  cy.task("signStripeWebhook", {
+    secret: "cypress_pilot_webhook_secret",
+    timestamp,
+    body,
+  }).then((signature) => {
+    cy.task(
+      "cli_log",
+      `[webhook] firing ${eventType} for pi=${piId} → /webhooks/${merchantId}/${connectorId}`
+    );
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/webhooks/${merchantId}/${connectorId}`,
+      headers: {
+        "Content-Type": "application/json",
+        "Stripe-Signature": `t=${timestamp},v1=${signature}`,
+      },
+      body,
+      failOnStatusCode: false,
+    }).then((resp) => {
+      cy.task(
+        "cli_log",
+        `[webhook] HS responded status=${resp.status} body=${JSON.stringify(resp.body).slice(0, 200)}`
+      );
+    });
+  });
+});
 
 Cypress.Commands.add(
   "handleBankRedirectRedirection",
@@ -7440,6 +7557,16 @@ Cypress.Commands.add(
     createConfirmPaymentBody.capture_method = capture_method;
     createConfirmPaymentBody.profile_id = profile_id;
     createConfirmPaymentBody.customer_id = customer_id;
+
+    globalState.set("captureMethod", capture_method);
+    globalState.set(
+      "paymentAmount",
+      createConfirmPaymentBody.amount || (reqData && reqData.amount)
+    );
+    globalState.set(
+      "paymentCurrency",
+      createConfirmPaymentBody.currency || (reqData && reqData.currency)
+    );
 
     for (const key in reqData) {
       createConfirmPaymentBody[key] = reqData[key];

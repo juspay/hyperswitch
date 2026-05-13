@@ -1,5 +1,6 @@
 import { defineConfig } from "cypress";
 import mochawesome from "cypress-mochawesome-reporter/plugin.js";
+import crypto from "crypto";
 import fs from "fs";
 import { getTimeoutMultiplier } from "./cypress/utils/RequestBodyUtils.js";
 
@@ -31,6 +32,15 @@ export default defineConfig({
           // eslint-disable-next-line no-console
           console.log(message);
           return null;
+        },
+        // HMAC-SHA256(secret, "{timestamp}.{body}") returned as hex.
+        // Matches Stripe's webhook signing scheme (Stripe-Signature: t=ts,v1=hex).
+        // Lives Node-side because Cypress's browser context lacks node:crypto.
+        signStripeWebhook: ({ secret, timestamp, body }) => {
+          return crypto
+            .createHmac("sha256", secret)
+            .update(`${timestamp}.${body}`)
+            .digest("hex");
         },
       });
       on("after:spec", (spec, results) => {
