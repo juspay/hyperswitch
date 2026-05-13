@@ -11,6 +11,7 @@ use error_stack::{report, ResultExt};
 use hyperswitch_masking::ExposeInterface;
 use serde_json::Map;
 use superposition_provider::traits::AllFeatureProvider;
+pub use superposition_types::api::context::PutRequest as ContextPutRequest;
 
 pub use self::types::{ConfigContext, SuperpositionClientConfig, SuperpositionError, ToDocument};
 use crate::config_metrics;
@@ -18,6 +19,13 @@ use crate::config_metrics;
 /// Generate a default change reason from the config key
 fn generate_change_reason(key: &str) -> String {
     format!("Updating {key} configuration")
+}
+
+fn extract_superposition_error_message(body: &str) -> String {
+    serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|value| value.get("message")?.as_str().map(String::from))
+        .unwrap_or_else(|| body.to_string())
 }
 
 fn convert_open_feature_value(value: open_feature::Value) -> Result<serde_json::Value, String> {
@@ -337,9 +345,11 @@ impl SuperpositionClient {
         }
     }
 
-    /// Make a raw GET request to the Superposition admin API
-    pub async fn get_raw(
+    /// Make a GET request to the Superposition admin API.
+    pub async fn proxy_get(
         config: &SuperpositionClientConfig,
+        org_id: &str,
+        workspace_id: &str,
         path: &str,
         query_params: Vec<(String, String)>,
     ) -> CustomResult<serde_json::Value, SuperpositionError> {
@@ -347,8 +357,8 @@ impl SuperpositionClient {
         let response = reqwest::Client::new()
             .get(&url)
             .query(&query_params)
-            .header("x-org-id", &config.org_id)
-            .header("x-workspace", &config.workspace_id)
+            .header("x-org-id", org_id)
+            .header("x-workspace", workspace_id)
             .bearer_auth(config.token.clone().expose())
             .send()
             .await
@@ -372,11 +382,16 @@ impl SuperpositionClient {
                 response_body = %body,
                 "Superposition GET request failed"
             );
-            let err_msg = format!("GET {path} returned {status}: {body}");
-            return if status.is_client_error() {
-                Err(report!(SuperpositionError::BadRequest(err_msg)))
+            return if status == reqwest::StatusCode::NOT_FOUND {
+                Err(report!(SuperpositionError::NotFound(body)))
+            } else if status.is_client_error() {
+                Err(report!(SuperpositionError::BadRequest(
+                    extract_superposition_error_message(&body)
+                )))
             } else {
-                Err(report!(SuperpositionError::ClientError(err_msg)))
+                Err(report!(SuperpositionError::ClientError(format!(
+                    "GET {path} returned {status}: {body}"
+                ))))
             };
         }
 
@@ -387,19 +402,21 @@ impl SuperpositionClient {
         })
     }
 
-    /// Make a raw PUT request to the Superposition admin API
-    pub async fn put_raw(
+    /// Make a PUT request to the Superposition admin API.
+    pub async fn proxy_put<B: serde::Serialize>(
         config: &SuperpositionClientConfig,
+        org_id: &str,
+        workspace_id: &str,
         path: &str,
-        body: serde_json::Value,
+        body: &B,
     ) -> CustomResult<serde_json::Value, SuperpositionError> {
         let url = format!("{}{}", config.endpoint, path);
         let response = reqwest::Client::new()
             .put(&url)
-            .header("x-org-id", &config.org_id)
-            .header("x-workspace", &config.workspace_id)
+            .header("x-org-id", org_id)
+            .header("x-workspace", workspace_id)
             .bearer_auth(config.token.clone().expose())
-            .json(&body)
+            .json(body)
             .send()
             .await
             .map_err(|e| {
@@ -422,11 +439,16 @@ impl SuperpositionClient {
                 response_body = %resp_body,
                 "Superposition PUT request failed"
             );
-            let err_msg = format!("PUT {path} returned {status}: {resp_body}");
-            return if status.is_client_error() {
-                Err(report!(SuperpositionError::BadRequest(err_msg)))
+            return if status == reqwest::StatusCode::NOT_FOUND {
+                Err(report!(SuperpositionError::NotFound(resp_body)))
+            } else if status.is_client_error() {
+                Err(report!(SuperpositionError::BadRequest(
+                    extract_superposition_error_message(&resp_body)
+                )))
             } else {
-                Err(report!(SuperpositionError::ClientError(err_msg)))
+                Err(report!(SuperpositionError::ClientError(format!(
+                    "PUT {path} returned {status}: {resp_body}"
+                ))))
             };
         }
 

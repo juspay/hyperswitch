@@ -1,11 +1,55 @@
 use actix_web::{web, HttpRequest, HttpResponse};
+use external_services::superposition::ContextPutRequest;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::{api_locking, superposition_proxy},
+    core::{
+        api_locking,
+        superposition_proxy::{
+            self as superposition_proxy, ProxyCreateContextRequest, ProxyListRequest,
+        },
+    },
     services::{api, authentication as auth, authorization::permissions::Permission},
 };
+
+fn extract_proxy_headers(req: &HttpRequest) -> Result<(String, String), HttpResponse> {
+    let org_id = req
+        .headers()
+        .get("x-org-id")
+        .and_then(|v| v.to_str().ok())
+        .map(String::from)
+        .ok_or_else(|| {
+            HttpResponse::BadRequest().json(serde_json::json!({
+                "error": { "message": "missing required header: x-org-id" }
+            }))
+        })?;
+
+    let workspace_id = req
+        .headers()
+        .get("x-workspace")
+        .and_then(|v| v.to_str().ok())
+        .map(String::from)
+        .ok_or_else(|| {
+            HttpResponse::BadRequest().json(serde_json::json!({
+                "error": { "message": "missing required header: x-workspace" }
+            }))
+        })?;
+
+    Ok((org_id, workspace_id))
+}
+
+fn extract_proxy_list_request(
+    req: &HttpRequest,
+    query: web::Query<Vec<(String, String)>>,
+) -> Result<ProxyListRequest, HttpResponse> {
+    let (org_id, workspace_id) = extract_proxy_headers(req)?;
+    Ok(ProxyListRequest {
+        params: query.into_inner(),
+        org_id,
+        workspace_id,
+    })
+}
 
 #[instrument(skip_all, fields(flow = ?Flow::SuperpositionListContexts))]
 pub async fn list_contexts(
@@ -13,13 +57,19 @@ pub async fn list_contexts(
     req: HttpRequest,
     query: web::Query<Vec<(String, String)>>,
 ) -> HttpResponse {
+    let flow = Flow::SuperpositionListContexts;
+    let payload = match extract_proxy_list_request(&req, query) {
+        Ok(payload) => payload,
+        Err(response) => return response,
+    };
+
     Box::pin(api::server_wrap(
-        Flow::SuperpositionListContexts,
+        flow,
         state,
         &req,
-        query.into_inner(),
-        |state, user, params, _| async move {
-            superposition_proxy::list_contexts(state, user, params).await
+        payload,
+        |state, user, req, _| async move {
+            superposition_proxy::list_contexts(state, user, req).await
         },
         &auth::JWTAuth {
             permission: Permission::MerchantSuperpositionConfigRead,
@@ -37,13 +87,19 @@ pub async fn list_default_configs(
     req: HttpRequest,
     query: web::Query<Vec<(String, String)>>,
 ) -> HttpResponse {
+    let flow = Flow::SuperpositionListDefaultConfigs;
+    let payload = match extract_proxy_list_request(&req, query) {
+        Ok(payload) => payload,
+        Err(response) => return response,
+    };
+
     Box::pin(api::server_wrap(
-        Flow::SuperpositionListDefaultConfigs,
+        flow,
         state,
         &req,
-        query.into_inner(),
-        |state, user, params, _| async move {
-            superposition_proxy::list_default_configs(state, user, params).await
+        payload,
+        |state, user, req, _| async move {
+            superposition_proxy::list_default_configs(state, user, req).await
         },
         &auth::JWTAuth {
             permission: Permission::MerchantSuperpositionConfigRead,
@@ -61,13 +117,19 @@ pub async fn list_dimensions(
     req: HttpRequest,
     query: web::Query<Vec<(String, String)>>,
 ) -> HttpResponse {
+    let flow = Flow::SuperpositionListDimensions;
+    let payload = match extract_proxy_list_request(&req, query) {
+        Ok(payload) => payload,
+        Err(response) => return response,
+    };
+
     Box::pin(api::server_wrap(
-        Flow::SuperpositionListDimensions,
+        flow,
         state,
         &req,
-        query.into_inner(),
-        |state, user, params, _| async move {
-            superposition_proxy::list_dimensions(state, user, params).await
+        payload,
+        |state, user, req, _| async move {
+            superposition_proxy::list_dimensions(state, user, req).await
         },
         &auth::JWTAuth {
             permission: Permission::MerchantSuperpositionConfigRead,
@@ -83,15 +145,27 @@ pub async fn list_dimensions(
 pub async fn create_context(
     state: web::Data<AppState>,
     req: HttpRequest,
-    body: web::Json<serde_json::Value>,
+    body: web::Json<ContextPutRequest>,
 ) -> HttpResponse {
+    let flow = Flow::SuperpositionCreateContext;
+    let (org_id, workspace_id) = match extract_proxy_headers(&req) {
+        Ok((org_id, workspace_id)) => (org_id, workspace_id),
+        Err(response) => return response,
+    };
+
+    let payload = ProxyCreateContextRequest {
+        body: body.into_inner(),
+        org_id,
+        workspace_id,
+    };
+
     Box::pin(api::server_wrap(
-        Flow::SuperpositionCreateContext,
+        flow,
         state,
         &req,
-        body.into_inner(),
-        |state, user, body, _| async move {
-            superposition_proxy::create_context(state, user, body).await
+        payload,
+        |state, user, req, _| async move {
+            superposition_proxy::create_context(state, user, req).await
         },
         &auth::JWTAuth {
             permission: Permission::MerchantSuperpositionConfigWrite,
