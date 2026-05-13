@@ -377,6 +377,12 @@ impl UserFromToken {
                 "dimension[profile_id]" if value != self.profile_id.get_string_repr() => {
                     return Err(unauthorized());
                 }
+                "dimension[provider_merchant_id]" if value != self.merchant_id.get_string_repr() => {
+                    return Err(unauthorized());
+                }
+                "dimension[processor_merchant_id]" if value != self.merchant_id.get_string_repr() => {
+                    return Err(unauthorized());
+                }
                 _ => {}
             }
         }
@@ -411,16 +417,32 @@ impl UserFromToken {
         &self,
         context: &serde_json::Value,
     ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
+        const ALLOWED_DIMENSIONS: &[&str] = &["organization_id", "merchant_id", "profile_id","provider_merchant_id","processor_merchant_id"];
+
         let Some(context_obj) = context.as_object() else {
             return Ok(());
         };
-        let params: Vec<(String, String)> = context_obj
+
+        context_obj
+            .keys()
+            .find(|key| !ALLOWED_DIMENSIONS.contains(&key.as_str()))
+            .map_or(Ok(()), |key| {
+                Err(error_stack::report!(
+                    errors::ApiErrorResponse::InvalidRequestData {
+                        message: format!(
+                            "dimension '{key}' is not allowed in context; only organization_id, merchant_id, processor_merchant_id, provider_merchant_id and profile_id are permitted"
+                        ),
+                    }
+                ))
+            })?;
+
+        let params = context_obj
             .iter()
             .filter_map(|(k, v)| {
                 v.as_str()
                     .map(|s| (format!("dimension[{k}]"), s.to_owned()))
             })
-            .collect();
+            .collect::<Vec<_>>();
         self.validate_superposition_params(&params)
     }
 }
