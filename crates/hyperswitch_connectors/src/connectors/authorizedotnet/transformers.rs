@@ -672,7 +672,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
                     });
                     Ok(Self {
                         response,
-                        status: enums::AttemptStatus::PaymentMethodAwaited,
+                        status: enums::AttemptStatus::Failure,
                         ..item.data
                     })
                 }
