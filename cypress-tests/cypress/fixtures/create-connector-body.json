@@ -10,7 +10,7 @@
   "disabled": false,
   "payment_methods_enabled": [],
   "connector_webhook_details": {
-    "merchant_secret": "cypress_pilot_webhook_secret"
+    "merchant_secret": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
   },
   "metadata": {
     "city": "NY",

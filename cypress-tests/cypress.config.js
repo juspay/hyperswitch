@@ -42,6 +42,19 @@ export default defineConfig({
             .update(`${timestamp}.${body}`)
             .digest("hex");
         },
+        // Adyen's HMAC-SHA256 is different from Stripe's:
+        //   - Key is *hex-decoded* (Adyen stores it as a hex string, Stripe uses raw)
+        //   - Message is a colon-delimited string of 7 body fields, NOT timestamp.body
+        //   - Output is base64, NOT hex
+        //   - Signature goes inside the JSON body at
+        //     notificationItems[0].NotificationRequestItem.additionalData.hmacSignature,
+        //     not in a request header
+        signAdyenWebhook: ({ secretHex, message }) => {
+          return crypto
+            .createHmac("sha256", Buffer.from(secretHex, "hex"))
+            .update(message)
+            .digest("base64");
+        },
       });
       on("after:spec", (spec, results) => {
         // Clean up resources after each spec

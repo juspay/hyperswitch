@@ -4340,72 +4340,144 @@ Cypress.Commands.add("fireConnectorWebhook", (globalState) => {
   const amount = globalState.get("paymentAmount");
   const currency = (globalState.get("paymentCurrency") || "USD").toLowerCase();
 
-  if (connectorId !== "stripe") {
-    throw new Error(
-      `fireConnectorWebhook: connector ${connectorId} not yet supported; only stripe is implemented in this pilot`
-    );
-  }
   if (!piId) {
     throw new Error(
       `fireConnectorWebhook: connectorTransactionID is not in globalState (confirm step may have failed or not set it)`
     );
   }
 
-  // After 3DS the connector's webhook differs by capture_method:
-  //   automatic → payment_intent.succeeded, status: succeeded
-  //   manual    → payment_intent.amount_capturable_updated, status: requires_capture
-  // (HS maps the latter to PaymentIntentAuthorizationSuccess, which moves
-  // payment to requires_capture without triggering capture.)
-  const isManual = captureMethod === "manual";
-  const eventType = isManual
-    ? "payment_intent.amount_capturable_updated"
-    : "payment_intent.succeeded";
-  const piStatus = isManual ? "requires_capture" : "succeeded";
+  // The merchant_secret is set in cypress/fixtures/create-connector-body.json
+  // and stored on the merchant-connector-account during 03-ConnectorCreate.
+  // Currently 64 hex chars (32 bytes). Stripe HMACs it as raw ASCII; Adyen
+  // hex-decodes it. Same fixture value works for both.
+  const MERCHANT_SECRET =
+    "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
 
-  const event = {
-    id: `evt_pilot_${Date.now()}`,
-    object: "event",
-    type: eventType,
-    data: {
-      object: {
-        id: piId,
-        object: "payment_intent",
-        amount,
-        currency,
-        status: piStatus,
-        created: Math.floor(Date.now() / 1000),
-        metadata: {},
+  if (connectorId === "stripe") {
+    // Stripe: HMAC-SHA256 over "{timestamp}.{body}", hex output, in Stripe-Signature header.
+    const isManual = captureMethod === "manual";
+    const eventType = isManual
+      ? "payment_intent.amount_capturable_updated"
+      : "payment_intent.succeeded";
+    const piStatus = isManual ? "requires_capture" : "succeeded";
+    const event = {
+      id: `evt_pilot_${Date.now()}`,
+      object: "event",
+      type: eventType,
+      data: {
+        object: {
+          id: piId,
+          object: "payment_intent",
+          amount,
+          currency,
+          status: piStatus,
+          created: Math.floor(Date.now() / 1000),
+          metadata: {},
+        },
       },
-    },
-  };
-  const body = JSON.stringify(event);
-  const timestamp = Math.floor(Date.now() / 1000);
-
-  cy.task("signStripeWebhook", {
-    secret: "cypress_pilot_webhook_secret",
-    timestamp,
-    body,
-  }).then((signature) => {
-    cy.task(
-      "cli_log",
-      `[webhook] firing ${eventType} for pi=${piId} → /webhooks/${merchantId}/${connectorId}`
-    );
-    cy.request({
-      method: "POST",
-      url: `${baseUrl}/webhooks/${merchantId}/${connectorId}`,
-      headers: {
-        "Content-Type": "application/json",
-        "Stripe-Signature": `t=${timestamp},v1=${signature}`,
-      },
+    };
+    const body = JSON.stringify(event);
+    const timestamp = Math.floor(Date.now() / 1000);
+    cy.task("signStripeWebhook", {
+      secret: MERCHANT_SECRET,
+      timestamp,
       body,
-      failOnStatusCode: false,
-    }).then((resp) => {
+    }).then((signature) => {
       cy.task(
         "cli_log",
-        `[webhook] HS responded status=${resp.status} body=${JSON.stringify(resp.body).slice(0, 200)}`
+        `[webhook] stripe ${eventType} pi=${piId} → /webhooks/${merchantId}/${connectorId}`
       );
+      cy.request({
+        method: "POST",
+        url: `${baseUrl}/webhooks/${merchantId}/${connectorId}`,
+        headers: {
+          "Content-Type": "application/json",
+          "Stripe-Signature": `t=${timestamp},v1=${signature}`,
+        },
+        body,
+        failOnStatusCode: false,
+      }).then((resp) => {
+        cy.task(
+          "cli_log",
+          `[webhook] HS responded status=${resp.status}`
+        );
+      });
     });
-  });
+    return;
+  }
+
+  if (connectorId === "adyen") {
+    // Adyen: HMAC-SHA256 over a colon-delimited string of 7 body fields.
+    // Key is hex-decoded. Output is base64. Signature embedded in body at
+    // notificationItems[0].NotificationRequestItem.additionalData.hmacSignature.
+    // For the standard AUTHORISATION event (covers both auto and manual
+    // capture in Adyen's model — capture status is conveyed by a separate
+    // Capture event, not the auth shape):
+    const pspReference = piId;
+    const originalReference = "";
+    const merchantAccountCode = "CypressPilot";
+    const merchantReference =
+      globalState.get("connectorRequestReferenceId") ||
+      globalState.get("paymentID");
+    const amountValue = String(amount || 0);
+    const amountCurrency = (currency || "USD").toUpperCase();
+    const eventCode = "AUTHORISATION";
+    const success = "true";
+    const message = [
+      pspReference,
+      originalReference,
+      merchantAccountCode,
+      merchantReference,
+      amountValue,
+      amountCurrency,
+      eventCode,
+      success,
+    ].join(":");
+
+    cy.task("signAdyenWebhook", {
+      secretHex: MERCHANT_SECRET,
+      message,
+    }).then((signature) => {
+      const notification = {
+        notificationItems: [
+          {
+            NotificationRequestItem: {
+              additionalData: { hmacSignature: signature },
+              amount: { value: amount || 0, currency: amountCurrency },
+              pspReference,
+              originalReference: null,
+              eventCode,
+              merchantAccountCode,
+              merchantReference,
+              success,
+            },
+          },
+        ],
+      };
+      const body = JSON.stringify(notification);
+      cy.task(
+        "cli_log",
+        `[webhook] adyen ${eventCode} psp=${pspReference} → /webhooks/${merchantId}/${connectorId}`
+      );
+      cy.request({
+        method: "POST",
+        url: `${baseUrl}/webhooks/${merchantId}/${connectorId}`,
+        headers: { "Content-Type": "application/json" },
+        body,
+        failOnStatusCode: false,
+      }).then((resp) => {
+        cy.task(
+          "cli_log",
+          `[webhook] HS responded status=${resp.status}`
+        );
+      });
+    });
+    return;
+  }
+
+  throw new Error(
+    `fireConnectorWebhook: connector ${connectorId} not yet supported in this pilot`
+  );
 });
 
 // MITM proxy / replay-mode helper for non-card redirection flows.
