@@ -636,6 +636,9 @@ impl ConnectorConfig {
             Connector::Threedsecureio => Ok(connector_data.threedsecureio),
             Connector::Taxjar => Ok(connector_data.taxjar),
             Connector::Tsys => Ok(connector_data.tsys),
+            // UCS-only connector: no dashboard TOML config in hyperswitch.
+            // Auth shape and metadata are owned by the unified connector service.
+            Connector::TsysXml => Ok(None),
             Connector::Vgs => Ok(connector_data.vgs),
             Connector::Volt => Ok(connector_data.volt),
             Connector::Wellsfargo => Ok(connector_data.wellsfargo),

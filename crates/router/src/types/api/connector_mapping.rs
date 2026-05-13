@@ -512,7 +512,10 @@ impl ConnectorData {
                 | enums::Connector::Gpayments
                 | enums::Connector::Threedsecureio
                 | enums::Connector::Cardinal
-                | enums::Connector::Taxjar => {
+                | enums::Connector::Taxjar
+                // UCS-only connectors: dispatched via gRPC, no legacy
+                // boxed-connector implementation in hyperswitch_connectors.
+                | enums::Connector::TsysXml => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)

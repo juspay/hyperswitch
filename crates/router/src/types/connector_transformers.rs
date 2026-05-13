@@ -174,6 +174,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Trustpay => Self::Trustpay,
             api_enums::Connector::Trustpayments => Self::Trustpayments,
             api_enums::Connector::Tsys => Self::Tsys,
+            api_enums::Connector::TsysXml => Self::TsysXml,
             // api_enums::Connector::UnifiedAuthenticationService => {
             //     Self::UnifiedAuthenticationService
             // }

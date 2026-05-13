@@ -445,7 +445,10 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Taxjar => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Taxjar::new())))
                 }
-                enums::Connector::Cardinal => {
+                enums::Connector::Cardinal
+                // UCS-only connector: no legacy boxed-connector implementation;
+                // dispatch happens via the unified connector service over gRPC.
+                | enums::Connector::TsysXml => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)
