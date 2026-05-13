@@ -398,6 +398,36 @@ pub struct TokenizationData {
     exp_date: Secret<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayvantivMandateMetadata {
+    pub network_transaction_id: Secret<String>,
+}
+
+impl WorldpayvantivMandateMetadata {
+    fn create_mandate_reference(
+        token_data: &TokenResponse,
+        network_transaction_id: Option<Secret<String>>,
+    ) -> Option<MandateReference> {
+        let mandate_metadata = network_transaction_id.map(|ntid| {
+            let metadata = Self {
+                network_transaction_id: ntid,
+            };
+            serde_json::to_value(&metadata)
+                .ok()
+                .map(pii::SecretSerdeValue::new)
+                .unwrap_or_else(|| pii::SecretSerdeValue::new(serde_json::Value::Null))
+        });
+
+        Some(MandateReference {
+            connector_mandate_id: Some(token_data.cnp_token.peek().clone()),
+            payment_method_id: None,
+            mandate_metadata,
+            connector_mandate_request_reference_id: None,
+        })
+    }
+}
+
 #[derive(Debug)]
 struct VantivMandateDetail {
     processing_type: Option<VantivProcessingType>,
@@ -1089,21 +1119,34 @@ fn get_processing_info(
                 token: None,
             }),
             Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
+                let network_transaction_id = mandate_data
+                    .get_mandate_metadata()
+                    .as_ref()
+                    .and_then(|metadata| {
+                        serde_json::from_value::<WorldpayvantivMandateMetadata>(
+                            metadata.peek().clone(),
+                        )
+                        .ok()
+                        .map(|meta| meta.network_transaction_id)
+                    });
+
                 let card_mandate_data = request.get_card_mandate_info()?;
+                let exp_date = format!(
+                    "{}{}",
+                    card_mandate_data.card_exp_month.peek(),
+                    card_mandate_data.card_exp_year.peek()
+                )
+                .into();
+
                 Ok(VantivMandateDetail {
                     processing_type: None,
-                    network_transaction_id: None,
+                    network_transaction_id,
                     token: Some(TokenizationData {
                         cnp_token: mandate_data
                             .get_connector_mandate_id()
                             .ok_or(errors::ConnectorError::MissingConnectorMandateID)?
                             .into(),
-                        exp_date: format!(
-                            "{}{}",
-                            card_mandate_data.card_exp_month.peek(),
-                            card_mandate_data.card_exp_year.peek()
-                        )
-                        .into(),
+                        exp_date,
                     }),
                 })
             }
@@ -1945,14 +1988,24 @@ impl<F>
                         } else {
                             sale_response
                                 .token_response
-                                .clone()
-                                .map(MandateReference::from)
+                                .as_ref()
+                                .and_then(|token_data| {
+                                    WorldpayvantivMandateMetadata::create_mandate_reference(
+                                        token_data,
+                                        sale_response.network_transaction_id.clone(),
+                                    )
+                                })
                         }
                     }
                     false => sale_response
                         .token_response
-                        .clone()
-                        .map(MandateReference::from)
+                        .as_ref()
+                        .and_then(|token_data| {
+                            WorldpayvantivMandateMetadata::create_mandate_reference(
+                                token_data,
+                                sale_response.network_transaction_id.clone(),
+                            )
+                        })
                 };
 
 
@@ -2103,7 +2156,15 @@ impl<F>
                     };
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
-                    let mandate_reference_data = auth_response.token_response.clone().map(MandateReference::from);
+                    let mandate_reference_data = auth_response
+                        .token_response
+                        .as_ref()
+                        .and_then(|token_data| {
+                            WorldpayvantivMandateMetadata::create_mandate_reference(
+                                token_data,
+                                auth_response.network_transaction_id.clone(),
+                            )
+                        });
                     let connector_response = auth_response.fraud_result.as_ref().map(get_connector_response);
 
                     Ok(Self {
@@ -2239,8 +2300,13 @@ impl<F>
                     );
                     let mandate_reference_data = auth_response
                         .token_response
-                        .clone()
-                        .map(MandateReference::from);
+                        .as_ref()
+                        .and_then(|token_data| {
+                            WorldpayvantivMandateMetadata::create_mandate_reference(
+                                token_data,
+                                auth_response.network_transaction_id.clone(),
+                            )
+                        });
                     let connector_response = auth_response
                         .fraud_result
                         .as_ref()
