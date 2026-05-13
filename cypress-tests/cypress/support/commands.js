@@ -2020,14 +2020,18 @@ Cypress.Commands.add(
           expect(createPaymentBody.email, "customer.email").to.equal(
             response.body.customer.email
           );
-          expect(createPaymentBody.customer_id, "customer.id").to.equal(
-            response.body.customer.id
-          );
+          if (createPaymentBody.customer_id !== undefined) {
+            expect(createPaymentBody.customer_id, "customer.id").to.equal(
+              response.body.customer.id
+            );
+          } else {
+            expect(response.body.customer.id, "customer.id").to.be.null;
+          }
           expect(createPaymentBody.metadata, "metadata").to.deep.equal(
             response.body.metadata
           );
           expect(
-            createPaymentBody.setup_future_usage,
+            createPaymentBody.setup_future_usage ?? null,
             "setup_future_usage"
           ).to.equal(response.body.setup_future_usage);
           // If 'shipping_cost' is not included in the request, the 'amount' in 'createPaymentBody' should match the 'amount_capturable' in the response.
@@ -2181,7 +2185,7 @@ Cypress.Commands.add("createPaymentMethodTest", (globalState, data) => {
           response.body.payment_method
         );
         expect(response.body.last_used_at, "last_used_at").to.not.be.null;
-        expect(reqData.customer_id, "customer_id").to.equal(
+        expect(reqData.customer_id ?? null, "customer_id").to.equal(
           response.body.customer_id
         );
         globalState.set("paymentMethodId", response.body.payment_method_id);
@@ -2293,6 +2297,10 @@ Cypress.Commands.add(
       if (key !== "split_payments") {
         confirmBody[key] = reqData[key];
       }
+    }
+
+    if (!reqData?.setup_future_usage && confirmBody.setup_future_usage) {
+      delete confirmBody.setup_future_usage;
     }
 
     if (reqData?.split_payments && isStripeConnect(globalState)) {
@@ -3124,7 +3132,7 @@ Cypress.Commands.add(
                 );
               }
               expect(response.body.customer_id).to.equal(
-                globalState.get("customerId")
+                globalState.get("customerId") ?? null
               );
               if (
                 [
@@ -3170,7 +3178,7 @@ Cypress.Commands.add(
                 );
               }
               expect(response.body.customer_id).to.equal(
-                globalState.get("customerId")
+                globalState.get("customerId") ?? null
               );
             } else {
               // Handle other authentication types as needed
