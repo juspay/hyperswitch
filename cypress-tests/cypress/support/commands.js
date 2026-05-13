@@ -5146,11 +5146,32 @@ Cypress.Commands.add("ListMcaByMid", (globalState) => {
         "currentConnectorMcaId",
         payoutMcaId || response.body[0].merchant_connector_id
       );
+      // profileId always tracks the first connector's profile (payment profile),
+      // so payment routing tests are unaffected when a payout connector is present.
+      // payoutProfileId is stored separately and used only for payout routing configs.
       globalState.set("profileId", response.body[0].profile_id);
       if (payoutProfileId) {
         globalState.set("payoutProfileId", payoutProfileId);
       }
     }
+  });
+});
+
+// Verifies that a payout was routed to the expected connector and MCA
+Cypress.Commands.add("verifyPayoutRoutingConnector", (globalState) => {
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/payouts/${globalState.get("payoutID")}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    expect(response.body.connector).to.equal(globalState.get("connectorId"));
+    expect(response.body.merchant_connector_id).to.equal(
+      globalState.get("currentConnectorMcaId")
+    );
   });
 });
 
