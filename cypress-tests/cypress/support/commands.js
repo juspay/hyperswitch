@@ -4289,10 +4289,16 @@ Cypress.Commands.add(
     const redirectionUrl = new URL(nextActionUrl);
 
     if (Cypress.env("PROXY_MODE") === "replay") {
-      // Skip the browser ACS dance entirely; advance payment state via a
-      // synthetic connector webhook. See fireConnectorWebhook below for the
-      // mechanism and HS-side contract.
-      cy.fireConnectorWebhook(globalState);
+      // Skip the browser ACS dance entirely; advance payment state via
+      // either a synthetic connector webhook (when we have a connector
+      // PI to put in the payload) or a synthesised redirect callback
+      // (when we don't — e.g. 3DS+mandate flows where confirm doesn't
+      // surface connector_transaction_id, same as bank-redirect flows).
+      if (globalState.get("connectorTransactionID")) {
+        cy.fireConnectorWebhook(globalState);
+      } else {
+        cy.simulateRedirectCallback(globalState);
+      }
       return;
     }
 
