@@ -6,6 +6,7 @@ __pycache__/
 
 # Cassette recordings (stored in S3 for CI, not committed)
 captures/
+captures_quarantine/
 
 # mitmproxy cert store
 .mitmproxy/

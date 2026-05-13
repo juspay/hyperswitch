@@ -149,18 +149,25 @@ mandatory for the pilot.
 #### B. Capture curation — `mitm-proxy/normalize_captures.py`
 
 Post-capture cleanup script. Run between `./start.sh` and `./start_replay.sh`.
-Drops two kinds of cassette that pollute the dir but mustn't be replayed:
+Quarantines **server-UUID folders** — cassettes whose `request_id` looks like
+a server-minted UUID rather than our Cypress format (`{8hex}-{NNN}`). These
+arise when HS receives an inbound HTTP request that doesn't carry Cypress's
+X-Request-ID (e.g. the ACS form POSTing back to HS during a 3DS browser
+dance). Cypress in replay mode bypasses the browser dance entirely, so
+nothing ever asks for these cassettes — they're pure noise.
 
-1. **Server-UUID folders.** During capture, the 3DS browser dance causes the
-   ACS form to POST back to HS without carrying our `X-Request-ID`. HS mints a
-   fresh UUID for that incoming and propagates it to its connector sync
-   outbound. Cypress's bypass (A) skips the whole browser dance in replay, so
-   nothing ever asks for these cassettes.
-2. **Per-(method, path) duplicates within a single Cypress `request_id`.** See
-   [The cy.visit duplicate problem](#the-cyvisit-duplicate-problem) below.
+**Nothing is deleted.** Quarantined items go to a sibling
+`captures_quarantine/` directory mirroring the original structure. Restore
+manually if normalize misjudged:
 
-The script keeps only the cassette with the latest `captured_at` in each
-duplicate group. Replay-side matcher stays strict FIFO.
+```
+mv mitm-proxy/captures_quarantine/<path> mitm-proxy/captures/<path>
+```
+
+The script intentionally does **not** try to detect "duplicates" or
+"orphans" beyond server-UUIDs — those classifications are subtle and easy
+to get wrong with heuristics. See [the cy.visit duplicate problem](#the-cyvisit-duplicate-problem)
+below for cases that need manual curation.
 
 #### C. Small globalState additions
 
@@ -212,20 +219,34 @@ no cy.visit-induced re-execution). HS makes one POST and gets the **first**
 cassette response (FIFO), which is `pi_AAA`. The downstream retrieve cassette
 is keyed on `pi_BBB`'s URL, so the lookup misses.
 
-### Why we chose normalize-captures over alternatives
+### How we handle it: manual curation
 
-Options considered:
+We tried several automated approaches (LIFO at replay, mitm pause/resume,
+`cy.intercept`, Node-side seen-set, orphan-detection in normalize). Each
+either failed because mitm is a transparent proxy that only records — it
+doesn't block — or risked silent failures with heuristics that could
+misclassify legitimate calls.
 
-| Approach | Verdict |
-|---|---|
-| **LIFO at replay** | Empirically works because HS uses "latest wins" state, but it's a heuristic that could fail silently if any HS field used "first wins". |
-| **Pause mitm recording during cy.visit** | Doesn't help: mitm is a transparent proxy, pausing only skips writing the cassette to disk. HS still makes the real call and updates its state. |
-| **`cy.intercept` to inject the X-Request-ID into the browser-side ACS callback** | Works in principle but cross-origin intercepts on form POSTs are finicky in Cypress 14. |
-| **Skip duplicate `cy.request`s via a Node-side seen-set** | Cleanest in principle but requires caching response objects and replaying them; can break tests with non-idempotent `cy.then` handlers. |
-| **`normalize_captures.py`** ✓ | Capture happens normally (every call recorded). Post-capture script deletes earlier duplicates per (method, path), keeping the latest — which is what HS's state references anyway. Cassettes on disk become the explicit source of truth. Replay matcher stays strict FIFO. |
+**Current approach is manual:** when replay logs a MISS for a cassette
+we know belongs to a cy.visit-induced duplicate, identify it by
+`captured_at` (the earlier of the two), and move it to
+`captures_quarantine/`. Then re-run replay.
 
-The script is small (~140 lines), idempotent, and the cassettes it keeps
-exactly match what HS expects on replay. We can hand-inspect or hand-edit them.
+Concretely, for the canonical example (spec 16 context 1):
+
+```
+mitm-proxy/captures/stripe/Card_-_ThreeDS_Manual_..._Full_Capture_payme/9002d8cd-003/
+├── 000.json   ← earlier capture (orphan), quarantine this
+└── 001.json   ← latest capture, keep
+```
+
+Move `000.json` into `captures_quarantine/.../9002d8cd-003/` and replay
+will FIFO-match `001.json`.
+
+We may revisit automation later — possibilities include checking whether
+the cassette's `response.body.id` appears in any other cassette's path
+(orphans don't), or tracking `/test/start` counts per test in the mitm
+admin log. For the pilot, manual is fine.
 
 ## Running the loop
 
