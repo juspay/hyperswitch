@@ -109,30 +109,47 @@ mitm's admin server (used only for cassette folder naming, not for matching).
 Also pinned `retries: 0` in `cypress.config.js` — retries re-enter `beforeEach`,
 reset the step counter, and would desync cassette IDs.
 
-### Current pilot work (Stripe 3DS)
+### Current pilot work
 
 Three new things, captured in the current uncommitted diff:
 
-#### A. Replay-mode webhook bypass — `cypress-tests/cypress/support/commands.js`
+#### A. Replay-mode 3DS bypass — `cypress-tests/cypress/support/commands.js`
 
 When `CYPRESS_PROXY_MODE=replay`, `cy.handleRedirection` **skips the browser
-3DS dance entirely** and instead fires a signed connector webhook directly to
-HS. HS verifies the signature, runs its
-`CallConnectorAction::HandleResponse(payload)` path (no connector outbound),
-and uses the webhook body as the response. The payment advances to terminal
-state without any browser navigation or 3DS challenge.
+3DS dance entirely**. Two bypass paths exist, picked per connector:
 
-Implementation:
-- `cy.fireConnectorWebhook(globalState)` — builds a Stripe-formatted
-  `payment_intent.succeeded` (or `.amount_capturable_updated` for manual-capture
-  flows) webhook, signs it with HMAC-SHA256, POSTs to
-  `${baseUrl}/webhooks/${merchantId}/${connectorId}`.
-- `cy.task("signStripeWebhook")` (in `cypress.config.js`) does the HMAC
-  Node-side because the browser context lacks `node:crypto`.
-- The connector account's webhook secret comes from
-  `cypress/fixtures/create-connector-body.json` →
-  `connector_webhook_details.merchant_secret`. HS stores this on the
-  merchant-connector-account and uses it for signature verification.
+**(a) Synthetic connector→HS webhook** (`cy.fireConnectorWebhook`).
+Cypress builds a payload, HMAC-signs it Node-side, and POSTs it to
+`${baseUrl}/webhooks/${merchantId}/${connectorId}`. HS verifies the
+signature, runs `CallConnectorAction::HandleResponse(payload)` (no connector
+outbound), and the payment advances to terminal state.
+
+Requires HS to verify the webhook locally with an HMAC scheme we can
+replicate. Currently implemented for **stripe** and **adyen** —
+the allowlist is hard-coded in `cy.handleRedirection`'s replay branch.
+
+- Stripe — HMAC-SHA256 over `"{timestamp}.{body}"`, hex, in `Stripe-Signature` header.
+- Adyen — HMAC-SHA256 (key hex-decoded) over a 7-field colon-delimited string, base64, embedded in body.
+
+The signing tasks live in `cypress.config.js` (`signStripeWebhook`,
+`signAdyenWebhook`) because the browser context lacks `node:crypto`.
+The connector account's webhook secret comes from
+`cypress/fixtures/create-connector-body.json` →
+`connector_webhook_details.merchant_secret`.
+
+**(b) Synthetic redirect-callback** (`cy.simulateRedirectCallback`).
+For non-card redirect flows (bank_redirect, wallet) the confirm response
+has no `connector_transaction_id`, so we can't sign a webhook anyway.
+Instead Cypress POSTs to HS's
+`/payments/{id}/{merchantId}/redirect/response/{connector}` endpoint —
+HS's `PaymentRedirectSync` then force-syncs the connector, and mitm
+matches that outbound from cassette.
+
+Path (b) is also the fallback for **any connector not in the webhook
+allowlist** — including connectors with no `IncomingWebhook` impl
+(cybersource) and those whose webhook verification requires an outbound
+API call back to the connector (paypal verifies via
+`/v1/notifications/verify-webhook-signature`, which we can't replicate).
 
 Why this works: HS's `crates/router/src/core/webhooks/incoming.rs:856` has
 ```rust
@@ -422,6 +439,223 @@ rid, find the matching server-UUID cassette in `captures_quarantine/`
 These are mechanical enough that future automation could do them, but
 for the pilot the manual fix is explicit and traceable.
 
+## Validation across the extended-connectors batch
+
+The GitHub Actions cypress workflow (`.github/workflows/cypress-tests-runner.yml`)
+defines `EXTENDED_PAYMENTS_CONNECTORS_BATCH_1` + `BATCH_2` containing 7 connectors:
+`bluesnap`, `gigadat`, `loonio`, `nmi`, `paypal`, `redsys`, `zift`. This section
+tracks the capture/replay pilot's coverage across that set (plus the stripe
+baseline from above and adyen from earlier work).
+
+| Connector | Webhook strategy | Cypress scope | Capture | Replay | Cassettes | Notes |
+|---|---|---|---|---|---|---|
+| stripe | HMAC-easy (`t.body`, raw secret, hex) | Full Payment suite (45 specs) | 285/350 | 454/458 (99.1%) | — | Baseline — see Stripe-specific section above |
+| adyen | HMAC-easy (colon-joined fields, hex-decoded secret, base64) | partial | — | — | — | Wired in `WEBHOOK_BYPASS_CONNECTORS`; not yet full-suite validated |
+| bluesnap | HMAC-easy (`ts + body` no separator, raw, hex, `bls-signature` header) | 14-spec subset | 102/102 | 102/102 (100%) | 93 | Spec 14 SaveCard-3DS off-session exercises the bypass |
+| zift | No-impl (`WebhooksNotImplemented`) — pure API | 14-spec | 102/102 | 102/102 (100%) | 81 | No webhooks, no 3DS, no redirects → cleanest replay profile |
+| nmi | HMAC-easy (`t.body`, raw, hex, `webhook-signature: t=<ts>,s=<hex>`) | 14-spec | 102/102 | 102/102 (100%) | 141 | Fixed via `simulateNmiRedirectComplete` — `/redirect/complete/{connector}` with customerVaultId extracted from HS's redirect-form HTML + synthetic 3DS proof |
+| loonio | No-impl (`Ok(false)`) | 15-spec (incl. 18-BankRedirect) | 110/110 | 110/110 (100%) | 4 | Interac only; tiny cassette set |
+| gigadat | No-impl (`Ok(false)`) | 15-spec | 110/110 | 110/110 (100%) | 3 | Interac only; near-twin of loonio |
+| paypal | External-verify (outbound `/v1/notifications/verify-webhook-signature`) — bypass NOT viable | 15-spec | 110/110 | 110/110 (100%) | 106 | Uses `simulateRedirectCallback` fallback exclusively; 2 harmless MISSes in replay |
+| redsys | No-impl (`WebhooksNotImplemented`), 3DS-only | 15-spec | 110/110 | 110/110 (100%) | 75 + curated | Fixed via `simulateRedsysRedirectComplete` (synthetic `cres` to `/redirect/complete/{connector}`) + cassette-curation pass relocating browser-callback `trataPeticionREST` cassettes from server-UUID rids to cypress rids |
+
+**Aggregate across the 7 extended connectors:** 746 tests captured, **746 passing in replay = 100%** after applying connector-specific replay-mode bypasses for NMI and Redsys plus a one-shot cassette-curation pass for Redsys's browser-callback cassettes.
+
+### Parallel capture infrastructure
+
+To capture multiple connectors in parallel, run multiple HS routers paired
+with their own mitm processes on different ports:
+
+| HS port | mitm proxy | mitm admin | example log path |
+|---|---|---|---|
+| 8080 | 8888 | 8181 | `/tmp/hs.log`, `/tmp/mitm-capture-*.log` |
+| 8089 | 8889 | 8182 | `/tmp/hs2.log` |
+| 8090 | 8890 | 8183 | `/tmp/hs3.log` |
+
+Each HS instance is started with its own `ROUTER__PROXY__HTTP_URL` /
+`HTTPS_URL` pointing at the matching mitm port (same MITM CA cert,
+`use_incoming` trace header). All three HS instances share the same
+Postgres (port 5434) and Redis (6379) — cypress generates unique merchant
+IDs per run, so row collisions are unlikely; the only practical concern
+is CPU/RAM (each Chromium ≈ 500 MB).
+
+Cypress invocation per slot just varies baseURL + admin URL:
+
+```bash
+CYPRESS_CONNECTOR=<name> \
+CYPRESS_BASEURL=http://localhost:<hs_port> \
+CYPRESS_ADMINAPIKEY=test_admin \
+CYPRESS_CONNECTOR_AUTH_FILE_PATH=$(pwd)/../creds.json \
+CYPRESS_PROXY_ADMIN_URL=http://127.0.0.1:<mitm_admin> \
+[CYPRESS_PROXY_MODE=replay] \
+npx cypress run --headless --spec '...'
+```
+
+Cassette folders are per-connector (`mitm-proxy/captures/<connector>/`), so
+mitm processes serving different connectors don't collide on disk — even
+when the same mitm process serves multiple connectors sequentially (e.g.,
+zift's mitm:8888 was re-used for gigadat once zift's capture finished).
+
+### Fix history: NMI and Redsys 3DS replay (resolved)
+
+Originally NMI and Redsys 3DS tests were failing in replay (4/102 and 1/110)
+because the existing `simulateRedirectCallback` posts to
+`/redirect/response/{connector}` (PaymentRedirectSync), but **both NMI and
+Redsys actually run their post-3DS flow through `/redirect/complete/{connector}`
+(PaymentRedirectCompleteAuthorize)**. The captured cassette set was correctly
+shaped for the CompleteAuthorize path, just mis-matched by the wrong bypass
+endpoint.
+
+Resolution:
+- Added `simulateNmiRedirectComplete` / `simulateRedsysRedirectComplete` in
+  `cypress-tests/cypress/support/commands.js`. Both are gated under
+  `PROXY_MODE === "replay"` so capture-mode behaviour is bit-for-bit unchanged.
+- NMI: bypass fetches HS's redirect-form HTML, extracts the embedded
+  `customerVaultId` + `orderId`, and posts those + synthetic 3DS proof
+  (`cavv`/`eci`/etc.) to `/redirect/complete/nmi`.
+- Redsys: bypass posts a synthetic base64-encoded `cres` JSON to
+  `/redirect/complete/redsys`. mitm matches outbound HS→Redsys calls on
+  `(connector, rid, method, path)` so the body isn't validated in replay.
+- For Redsys, an additional **cassette curation pass** was required: the
+  browser ACS-callback's `trataPeticionREST` outbound captured under
+  `<test>/<server-uuid>/000.json` (because the browser POST-back doesn't
+  carry cypress's `x-request-id`) had to be relocated to
+  `<test>/<rid_prefix>-<bypass_rid>/000.json` with `request_id` rewritten.
+  Bypass rid = smallest missing cypress rid number > the first existing
+  one (so 5-step Create+Confirm tests → `-002`; 7-step Create→PM→Confirm
+  tests → `-004`). Owning rid prefix is matched via the `DS_MERCHANT_ORDER`
+  payload (decoded from the base64 `Ds_MerchantParameters` field) so multiple
+  test variants sharing a folder are disambiguated.
+
+Validated end-to-end:
+1. **Shell** against live sandbox: replicated cypress's capture-mode flow
+   via curl (NMI: extract vault_id from HS HTML; Redsys: drive the simulator
+   JS pipeline by re-implementing `submitOK()` / `envioRREQ()` in shell).
+   Verified payment → succeeded → refund → succeeded.
+2. **Shell against mitm replay**: ran the same flow but with synthetic 3DS
+   proof, confirming mitm path-only matching serves the relocated cassettes.
+3. **Cypress replay**: NMI 102/102 and Redsys 110/110.
+
+### (Historical) Known limitation: NMI/Redsys 09-RefundPayment (sync-refund)
+
+After the wider replay pass, 5 of the 746 captured tests fail — 4 on NMI
+and 1 on Redsys, all in `09-RefundPayment` at the final
+`Sync Refund Payment` step. The replay error is always
+`Error: Expecting valid response but got an error response`.
+
+**Why the standard fallback path doesn't cover it.** In replay,
+`cy.handleRedirection` either fires the synthesized webhook (for connectors
+in `WEBHOOK_BYPASS_CONNECTORS` that have a `connectorTransactionID` in
+globalState) or falls back to `cy.simulateRedirectCallback`. The fallback
+posts to `${baseUrl}/payments/{id}/{merchant}/redirect/response/{connector}`,
+which HS dispatches to `PaymentRedirectSync` — i.e., "ask the connector
+what's the current status." This is correct for connectors whose post-3DS
+finalization is sync-shaped (paypal, redsys for most flows, the bank-
+redirect connectors). But:
+
+- **NMI's** post-3DS flow is `CompleteAuthorize`-shaped, not Sync. The
+  browser ACS in capture POSTs back to
+  `/payments/{id}/{merchant}/redirect/complete/{connector}` (note
+  `complete`, not `response`), HS runs `PaymentRedirectCompleteAuthorize`,
+  and the connector outbound is a `transact.php` "sale with cavv" — not a
+  `query.php` sync. Our fallback bypass triggers the wrong shape.
+- **NMI's webhook bypass path** *would* work, but it never fires for NMI
+  3DS tests because the cassette captured at rid `-001` is a
+  "Customer Vault Add" response with an empty `transactionid`. Cypress
+  never sets `globalState.connectorTransactionID`, so the
+  `canUseWebhook` check fails and we fall through to the wrong-shape
+  fallback.
+- Even if we could route NMI through `/redirect/complete/{connector}`,
+  the captured `transact.php` "sale with cavv" cassettes live in
+  `captures/nmi/_untagged/<server-uuid>/` rather than in the test folder
+  — a consequence of the [cy.visit duplicate problem](#the-cyvisit-duplicate-problem)
+  scrambling mitm's "current test" context when the browser navigates
+  to the ACS page.
+
+**A naive fix made things worse.** Relaxing `canUseWebhook` to fire the
+webhook bypass for NMI without a `connectorTransactionID` (using a
+synthetic `transaction_id`) unconditionally tells HS "payment succeeded,"
+which breaks tests in specs 09 and 16 that expect the payment to fail at
+some step. Result: 90/102 (down from 98/102). Reverted.
+
+**A real fix needs multiple pieces:**
+1. Make the replay-mode bypass connector-aware so NMI hits
+   `/redirect/complete/{connector}` with a synthetic
+   `NmiRedirectResponseData` form body (must include at least
+   `customerVaultId` — required by the deserializer; value can be a
+   placeholder since mitm matches on (connector, rid, method, path) and
+   the body isn't compared).
+2. Relocate the `_untagged/<server-uuid>/` `transact.php` cassettes back
+   into their owning test folders at the right cypress rid. The owning
+   test can be identified by walking the post-`-001` cassette's
+   `response.transactionid` and finding the test whose `-004` (or `-005`)
+   refund cassette references the same id.
+3. Either fix the cy.visit re-injection race so future captures land in
+   the right test folder, or document a `normalize_captures.py` step
+   that moves `_untagged/` cassettes into their owning test before
+   replay.
+
+Until then, the 4 + 1 failures are accepted as a known limitation. The
+diagnostic anchor cassette for tracing is
+`mitm-proxy/captures/nmi/_untagged/019e220d-94ee-7161-a023-feeb3501765d/000.json`
+— its `request.body.orderid` and `response.body.transactionid` map to
+test prefix `a310a589` and the refund cassette
+`Card_-_Refund_flow_-_3DS_Fully_Refund_..._Create_Conf/a310a589-004/`.
+
+### Debugging lesson: replicate the real flow first, then update cypress
+
+The NMI fix was found by a debugging approach that's worth codifying for
+future connectors:
+
+> When a replay-mode bypass doesn't match capture behaviour, **don't
+> hypothesise from the cypress side first.** Reproduce what cypress is
+> *trying to fake* against the real connector, observe what HS actually
+> needs end-to-end, and then update cypress to match that ground truth.
+> Updating cypress first is reverse-engineering with too many free
+> variables.
+
+The NMI walk-through:
+1. We knew which test failed and at which step (4 tests in `09-RefundPayment`,
+   all failing at `Sync Refund Payment`).
+2. Instead of guessing at the cypress bypass, we set up a fresh merchant +
+   NMI connector via curl, ran the test's request sequence by hand against
+   the **live** NMI sandbox (with mitm in capture/pass-through mode), and
+   watched what HS did at each step.
+3. The bypass URL (`/redirect/response/{connector}`) was visibly wrong:
+   it left the payment at `requires_customer_action`. Switching to
+   `/redirect/complete/{connector}` advanced the state — but with a
+   synthetic `customerVaultId` it errored as "Invalid Customer Vault ID".
+4. Fetching the next_action redirect HTML revealed HS bakes the real
+   `customerVaultId` and `orderId` into the form fields the browser
+   posts back. That was the missing piece — cypress could read the same
+   HTML and extract them.
+5. Re-ran the curl flow with the extracted fields + synthetic 3DS proof
+   → payment succeeded, refund succeeded, sync refund succeeded.
+6. Only then did we wire `cy.simulateNmiRedirectComplete` in cypress —
+   doing exactly what the curl script did.
+
+The takeaway: when cypress (in replay) and HS (in any mode) disagree, treat
+HS as the source of truth. Replicate the cypress test's intent against the
+live connector first, prove the right shape end-to-end, *then* port that
+shape into cypress.
+
+### For future contributors / agents adding a new connector
+
+When you add capture+replay coverage for a new connector, **update the
+extended-batch table above** with one row containing your connector's
+results. Include:
+- Webhook strategy (HMAC-easy / HMAC-tricky / External-verify / No-impl)
+- Cypress scope (which specs were run, total test count)
+- Capture pass-rate and replay pass-rate
+- Cassette count
+- Any non-obvious quirks (e.g., "Spec X needs manual curation due to Y")
+
+If you're an agent spawned to capture or replay a single connector, **don't
+edit this table directly** — concurrent agent edits race. Instead, return
+your findings to the orchestrating session (test counts, cassette count,
+notable failures, any quirks worth documenting), and the orchestrator
+will update the table centrally.
+
 ## What's NOT yet validated (known unknowns)
 
 Specs that probably-just-work (no redirection, no browser dance):
@@ -461,11 +695,22 @@ read this first:
    `captures/` after normalize and compare against the mitm capture log to see
    the original calls. The script's rules are documented at the top of the
    file; add more if you find new noise patterns.
-4. **For new connectors**, you'll need to add a per-connector branch in
-   `fireConnectorWebhook` (currently throws for non-Stripe), implement the
-   connector's webhook payload format and signature scheme, and set
-   `connector_webhook_details.merchant_secret` in the connector-create fixture
-   for that connector.
+4. **For new connectors**, the decision tree is:
+   - Does the connector have an `IncomingWebhook` impl in HS that we can
+     replicate locally? Check `crates/hyperswitch_connectors/src/connectors/<connector>.rs`
+     for `get_webhook_source_verification_*`. If verification is HMAC-based
+     with a known message construction, add the connector to the
+     `WEBHOOK_BYPASS_CONNECTORS` allowlist in `cy.handleRedirection` and
+     write its signing branch in `fireConnectorWebhook` plus a `sign<X>Webhook`
+     task in `cypress.config.js`. Stripe and Adyen are the worked examples.
+   - If the connector has no webhook impl (cybersource), or verifies via
+     an outbound API call (paypal hits paypal.com), **do not allowlist it**.
+     The default `simulateRedirectCallback` path will route through HS's
+     `/redirect/response/{connector}` endpoint, which force-syncs the
+     connector — mitm matches the outbound from cassette.
+   - For both paths, set `connector_webhook_details.merchant_secret` in
+     the connector-create fixture if the bypass uses it (webhook path
+     only — redirect-callback doesn't need it).
 
 ## Open questions / future work
 
@@ -474,7 +719,10 @@ read this first:
   versioning when test code changes.
 - `normalize_captures.py` could grow heuristics for other noise patterns
   (e.g., async webhook firings that arrive after the test ends).
-- Per-connector webhook helpers — currently only Stripe is implemented.
+- More connectors. Stripe and Adyen have full webhook bypass; Cybersource
+  and PayPal go through the redirect-callback fallback. Verify the
+  fallback works end-to-end for those by running a sample non-3DS spec
+  through capture + replay.
 - A `--check` mode for `normalize_captures.py` that would fail in CI if it
   finds anything to delete (i.e., cassettes weren't captured cleanly).
 - The Cypress `PROXY_MODE=replay` branch is currently inside

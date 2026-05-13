@@ -55,6 +55,24 @@ export default defineConfig({
             .update(message)
             .digest("base64");
         },
+        // Bluesnap: HMAC-SHA256 over `${timestamp}${body}` (no separator),
+        // raw secret bytes, hex output. Signature goes in `bls-signature`
+        // header, timestamp in `bls-ipn-timestamp`. Body is form-encoded.
+        signBluesnapWebhook: ({ secret, timestamp, body }) => {
+          return crypto
+            .createHmac("sha256", secret)
+            .update(`${timestamp}${body}`)
+            .digest("hex");
+        },
+        // NMI: HMAC-SHA256 over `${timestamp}.${body}`, raw secret bytes,
+        // hex output. Signature goes in `webhook-signature: t=<ts>,s=<hex>`
+        // header. Body is JSON. Same construction as Stripe.
+        signNmiWebhook: ({ secret, timestamp, body }) => {
+          return crypto
+            .createHmac("sha256", secret)
+            .update(`${timestamp}.${body}`)
+            .digest("hex");
+        },
       });
       on("after:spec", (spec, results) => {
         // Clean up resources after each spec

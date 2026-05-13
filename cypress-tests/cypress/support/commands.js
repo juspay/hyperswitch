@@ -2918,6 +2918,18 @@ Cypress.Commands.add(
         if (response.status === 200) {
           globalState.set("paymentAmount", createConfirmPaymentBody.amount);
           globalState.set("paymentID", response.body.payment_id);
+          // Refresh connector_transaction_id so a downstream MITM-replay
+          // webhook fires keyed to THIS payment (Adyen looks up by
+          // PaymentAttemptId so the bare intent_id-vs-attempt_id distinction
+          // matters; without this set, fireConnectorWebhook would reuse the
+          // previous test's psp). Gated to replay so capture-mode behavior
+          // is bit-for-bit unchanged.
+          if (Cypress.env("PROXY_MODE") === "replay") {
+            globalState.set(
+              "connectorTransactionID",
+              response.body.connector_transaction_id
+            );
+          }
           // Store the actual setup_future_usage value from the response
           globalState.set(
             "actualSetupFutureUsage",
@@ -3087,6 +3099,16 @@ Cypress.Commands.add(
 
           globalState.set("paymentID", paymentIntentID);
           updateConnectorState(globalState, response.body.connector);
+          // Refresh connector_transaction_id so a downstream MITM-replay
+          // webhook bypass doesn't fire with a stale pi from the previous
+          // sub-test (see fireConnectorWebhook). Gated to replay so
+          // capture-mode behavior is bit-for-bit unchanged.
+          if (Cypress.env("PROXY_MODE") === "replay") {
+            globalState.set(
+              "connectorTransactionID",
+              response.body.connector_transaction_id
+            );
+          }
           const expectedConnector = getOriginalConnectorName(
             globalState.get("connectorId")
           );
@@ -3675,6 +3697,19 @@ Cypress.Commands.add(
         expect(response.headers["content-type"]).to.include("application/json");
         if (response.status === 200) {
           globalState.set("paymentID", response.body.payment_id);
+          // Surface connector_transaction_id + capture_method so the
+          // MITM-replay webhook bypass can build a connector-keyed event
+          // and pick the right event-type (auto vs manual capture).
+          // Without these, fireConnectorWebhook reuses the previous test's
+          // state and HS lands in the wrong terminal state. Gated to
+          // replay so capture-mode behavior is bit-for-bit unchanged.
+          if (Cypress.env("PROXY_MODE") === "replay") {
+            globalState.set(
+              "connectorTransactionID",
+              response.body.connector_transaction_id
+            );
+            globalState.set("captureMethod", capture_method);
+          }
 
           expect(response.body.payment_method_data, "payment_method_data").to
             .not.be.empty;
@@ -4289,13 +4324,46 @@ Cypress.Commands.add(
     const redirectionUrl = new URL(nextActionUrl);
 
     if (Cypress.env("PROXY_MODE") === "replay") {
-      // Skip the browser ACS dance entirely; advance payment state via
-      // either a synthetic connector webhook (when we have a connector
-      // PI to put in the payload) or a synthesised redirect callback
-      // (when we don't — e.g. 3DS+mandate flows where confirm doesn't
-      // surface connector_transaction_id, same as bank-redirect flows).
-      if (globalState.get("connectorTransactionID")) {
+      // Skip the browser ACS dance. Two bypass paths exist:
+      //   (a) synthesise a connector→HS webhook (fireConnectorWebhook) —
+      //       needs HS to verify the webhook locally. Only valid for
+      //       connectors whose IncomingWebhook impl uses HMAC verification
+      //       we can replicate Node-side. Currently: stripe, adyen.
+      //   (b) synthesise the redirect-callback to HS itself
+      //       (simulateRedirectCallback) — HS then force-syncs the
+      //       connector, which mitm matches from cassette. Works for any
+      //       connector that has a ConnectorRedirectResponse impl.
+      // Cybersource has no IncomingWebhook impl at all; PayPal verifies
+      // via outbound API call to paypal.com (incompatible with offline
+      // replay). Both fall through to (b).
+      const WEBHOOK_BYPASS_CONNECTORS = ["stripe", "adyen", "bluesnap", "nmi"];
+      const canUseWebhook =
+        WEBHOOK_BYPASS_CONNECTORS.includes(connectorId) &&
+        globalState.get("connectorTransactionID");
+      if (canUseWebhook) {
         cy.fireConnectorWebhook(globalState);
+      } else if (connectorId === "nmi") {
+        // NMI's 3DS flow needs CompleteAuthorize (HS endpoint
+        // `/redirect/complete/{connector}`), not PSync. The default
+        // simulateRedirectCallback path hits `/redirect/response/{connector}`
+        // which fires PaymentRedirectSync — wrong shape for NMI. HS's own
+        // redirect-form HTML (served at next_action.redirect_to_url) embeds
+        // the real customerVaultId + orderId; we fetch it, extract those,
+        // and post them back along with synthetic 3DS proof so HS can
+        // construct the right outbound call. Validated against the live
+        // NMI sandbox in mitm-proxy/README.md → "Known limitation" section.
+        cy.simulateNmiRedirectComplete(globalState, nextActionUrl);
+      } else if (connectorId === "redsys") {
+        // Redsys's 3DS flow is CompleteAuthorize-shaped — HS expects a
+        // POST to `/redirect/complete/{connector}` with a `cres` field.
+        // The cres value isn't re-validated against Redsys in replay
+        // because mitm matches outbound HS→Redsys completion calls on
+        // (connector, rid, method, path), not body. This bypass requires
+        // a one-time cassette curation pass: the captured trataPeticionREST
+        // outbound from the browser callback (originally landed under a
+        // server-UUID rid in the test folder) must be relocated to the
+        // cypress rid the bypass triggers.
+        cy.simulateRedsysRedirectComplete(globalState);
       } else {
         cy.simulateRedirectCallback(globalState);
       }
@@ -4416,9 +4484,18 @@ Cypress.Commands.add("fireConnectorWebhook", (globalState) => {
     const pspReference = piId;
     const originalReference = "";
     const merchantAccountCode = "CypressPilot";
+    // HS resolves AUTHORISATION webhooks by `PaymentAttemptId(merchantReference)`,
+    // i.e. it searches payment_attempt by attempt_id. HS sends Adyen the
+    // attempt_id (format `{intent_id}_{attempt_count}`) as `reference` on
+    // outbound /v68/payments, so Adyen echoes that back. Our synthesized
+    // webhook must use the same shape — using bare paymentID (intent id)
+    // fails the lookup and the webhook silently no-ops (HS returns 200 but
+    // doesn't transition state). We don't surface attempt_count yet, so
+    // assume 1 — true for every spec without retries.
+    const attemptCount = globalState.get("attemptCount") || 1;
     const merchantReference =
       globalState.get("connectorRequestReferenceId") ||
-      globalState.get("paymentID");
+      `${globalState.get("paymentID")}_${attemptCount}`;
     const amountValue = String(amount || 0);
     const amountCurrency = (currency || "USD").toUpperCase();
     const eventCode = "AUTHORISATION";
@@ -4475,6 +4552,112 @@ Cypress.Commands.add("fireConnectorWebhook", (globalState) => {
     return;
   }
 
+  if (connectorId === "bluesnap") {
+    // Bluesnap: HMAC-SHA256 over `${timestamp}${body}` (no separator),
+    // raw secret bytes, hex output. Signature in `bls-signature` header,
+    // timestamp in `bls-ipn-timestamp`. Body is application/x-www-form-urlencoded
+    // with camelCase keys. HS resolves the webhook by
+    // PaymentAttemptId(merchantTransactionId) — see crates/hyperswitch_connectors
+    // /src/connectors/bluesnap.rs `get_webhook_object_reference_id`. HS sends
+    // `connector_request_reference_id` to bluesnap as merchantTransactionId
+    // on the auth request, so the same value comes back here.
+    const attemptCount = globalState.get("attemptCount") || 1;
+    const merchantTransactionId =
+      globalState.get("connectorRequestReferenceId") ||
+      `${globalState.get("paymentID")}_${attemptCount}`;
+    const referenceNumber = piId;
+    const transactionType = "CHARGE";
+    const params = new URLSearchParams({
+      merchantTransactionId,
+      referenceNumber,
+      transactionType,
+    });
+    const body = params.toString();
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    cy.task("signBluesnapWebhook", {
+      secret: MERCHANT_SECRET,
+      timestamp,
+      body,
+    }).then((signature) => {
+      cy.task(
+        "cli_log",
+        `[webhook] bluesnap ${transactionType} ref=${referenceNumber} mtid=${merchantTransactionId} → /webhooks/${merchantId}/${connectorId}`
+      );
+      cy.request({
+        method: "POST",
+        url: `${baseUrl}/webhooks/${merchantId}/${connectorId}`,
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "bls-signature": signature,
+          "bls-ipn-timestamp": timestamp,
+        },
+        body,
+        failOnStatusCode: false,
+      }).then((resp) => {
+        cy.task(
+          "cli_log",
+          `[webhook] HS responded status=${resp.status}`
+        );
+      });
+    });
+    return;
+  }
+
+  if (connectorId === "nmi") {
+    // NMI: HMAC-SHA256 over `${timestamp}.${body}`, raw secret, hex output.
+    // Signature in `webhook-signature: t=<ts>,s=<hex>` header. Body is JSON.
+    // HS resolves the webhook by PaymentAttemptId(event_body.order_id) — see
+    // crates/hyperswitch_connectors/src/connectors/nmi.rs
+    // `get_webhook_object_reference_id`. HS sends `connector_request_reference_id`
+    // to NMI as `orderid` on auth, so the same value comes back here.
+    const attemptCount = globalState.get("attemptCount") || 1;
+    const orderId =
+      globalState.get("connectorRequestReferenceId") ||
+      `${globalState.get("paymentID")}_${attemptCount}`;
+    const isManual = captureMethod === "manual";
+    const actionType = isManual ? "auth" : "sale";
+    const eventType = isManual
+      ? "transaction.auth.success"
+      : "transaction.sale.success";
+    const event = {
+      event_type: eventType,
+      event_body: {
+        transaction_id: piId,
+        order_id: orderId,
+        condition: "approved",
+        action: { action_type: actionType },
+      },
+    };
+    const body = JSON.stringify(event);
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    cy.task("signNmiWebhook", {
+      secret: MERCHANT_SECRET,
+      timestamp,
+      body,
+    }).then((signature) => {
+      cy.task(
+        "cli_log",
+        `[webhook] nmi ${eventType} tx=${piId} order=${orderId} → /webhooks/${merchantId}/${connectorId}`
+      );
+      cy.request({
+        method: "POST",
+        url: `${baseUrl}/webhooks/${merchantId}/${connectorId}`,
+        headers: {
+          "Content-Type": "application/json",
+          "webhook-signature": `t=${timestamp},s=${signature}`,
+        },
+        body,
+        failOnStatusCode: false,
+      }).then((resp) => {
+        cy.task(
+          "cli_log",
+          `[webhook] HS responded status=${resp.status}`
+        );
+      });
+    });
+    return;
+  }
+
   throw new Error(
     `fireConnectorWebhook: connector ${connectorId} not yet supported in this pilot`
   );
@@ -4490,6 +4673,127 @@ Cypress.Commands.add("fireConnectorWebhook", (globalState) => {
 // connector outbound that mitm matches from cassette. The Cypress
 // X-Request-ID injected on this cy.request propagates onto the outbound,
 // keying the cassette deterministically across runs.
+// MITM proxy / replay-mode helper for NMI's 3DS flow.
+//
+// Unlike sync-style connectors, NMI's post-3DS HS endpoint is
+// /payments/{id}/{merchant}/redirect/complete/{connector} (CompleteAuthorize),
+// not /redirect/response/{connector} (Sync). In capture mode the browser
+// navigates to NMI's Cardinal Commerce ACS via HS's redirect-form HTML,
+// completes 3DS, and the ACS-driven form posts back to /redirect/complete
+// with customerVaultId, orderId, and 3DS proof (cavv, eci, etc.).
+//
+// In replay we fetch the same HS redirect-form HTML (which embeds the real
+// customerVaultId and orderId returned by NMI's vault-add response), then
+// post them to /redirect/complete/{connector} with synthetic 3DS proof.
+// mitm-replay matches outbound NMI calls on (connector, x-request-id,
+// method, path) — body content isn't compared, so synthetic cavv values
+// are fine. Verified end-to-end against the live NMI sandbox.
+Cypress.Commands.add(
+  "simulateNmiRedirectComplete",
+  (globalState, nextActionUrl) => {
+    const connectorId = globalState.get("connectorId");
+    const merchantId = globalState.get("merchantId");
+    const paymentId = globalState.get("paymentID");
+    const baseUrl = globalState.get("baseUrl");
+    const apiKey = globalState.get("apiKey");
+
+    if (!paymentId || !merchantId || !nextActionUrl) {
+      throw new Error(
+        `simulateNmiRedirectComplete: missing paymentID/merchantId/nextActionUrl in globalState`
+      );
+    }
+
+    cy.request({
+      method: "GET",
+      url: nextActionUrl,
+      failOnStatusCode: false,
+    }).then((htmlResp) => {
+      const html = htmlResp.body || "";
+      const vaultMatch = html.match(
+        /name\s*=\s*['"]customerVaultId['"][\s\S]{0,200}?value\s*=\s*['"]([^'"]+)['"]/
+      );
+      const orderMatch = html.match(
+        /name\s*=\s*['"]orderId['"][\s\S]{0,200}?value\s*=\s*['"]([^'"]+)['"]/
+      );
+      const customerVaultId = vaultMatch ? vaultMatch[1] : "";
+      const orderId = orderMatch ? orderMatch[1] : `${paymentId}_1`;
+
+      const url = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/complete/${connectorId}`;
+      const formBody = new URLSearchParams({
+        customerVaultId,
+        orderId,
+        cavv: "AAABBJg0VhI0VniQEjRWAAAAAAA=",
+        xid: "MDAwMDAwMDAwMDAwMDAwMDAwMDA=",
+        eci: "05",
+        cardHolderAuth: "verified",
+        threeDsVersion: "2.2.0",
+        directoryServerId: "F38A2E54-9527-4B79-8B97-475E25E2E6B0",
+      }).toString();
+
+      cy.task(
+        "cli_log",
+        `[redirect-complete] firing POST ${url}  vault=${customerVaultId} order=${orderId}`
+      );
+      cy.request({
+        method: "POST",
+        url,
+        headers: {
+          "api-key": apiKey,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: formBody,
+        failOnStatusCode: false,
+        followRedirect: false,
+      }).then((resp) => {
+        cy.task(
+          "cli_log",
+          `[redirect-complete] HS responded status=${resp.status}`
+        );
+      });
+    });
+  }
+);
+
+// MITM proxy / replay-mode helper for Redsys's 3DS flow.
+// POSTs to /redirect/complete/{connector} with a synthetic cres so HS runs
+// CompleteAuthorize and calls Redsys's completion endpoint. mitm matches
+// the outbound on (connector, rid, method, path) — synthetic cres is fine.
+// The cassette must exist at the cypress rid; if a capture left it under
+// a server-UUID rid (browser callback), it needs to be relocated first.
+Cypress.Commands.add("simulateRedsysRedirectComplete", (globalState) => {
+  const connectorId = globalState.get("connectorId");
+  const merchantId = globalState.get("merchantId");
+  const paymentId = globalState.get("paymentID");
+  const baseUrl = globalState.get("baseUrl");
+  const apiKey = globalState.get("apiKey");
+  if (!paymentId || !merchantId) {
+    throw new Error(
+      `simulateRedsysRedirectComplete: missing paymentID/merchantId`
+    );
+  }
+  const url = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/complete/${connectorId}`;
+  const syntheticCres =
+    "eyJhY3NUcmFuc0lEIjoiMDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIiwibWVzc2FnZVR5cGUiOiJDUmVzIiwibWVzc2FnZVZlcnNpb24iOiIyLjEuMCIsInRyYW5zU3RhdHVzIjoiWSJ9";
+  const body = new URLSearchParams({ cres: syntheticCres }).toString();
+  cy.task("cli_log", `[redirect-complete] redsys → POST ${url}`);
+  cy.request({
+    method: "POST",
+    url,
+    headers: {
+      "api-key": apiKey,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body,
+    failOnStatusCode: false,
+    followRedirect: false,
+  }).then((resp) => {
+    cy.task(
+      "cli_log",
+      `[redirect-complete] HS responded status=${resp.status}`
+    );
+  });
+});
+
 Cypress.Commands.add("simulateRedirectCallback", (globalState) => {
   const connectorId = globalState.get("connectorId");
   const merchantId = globalState.get("merchantId");
