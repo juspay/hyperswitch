@@ -320,13 +320,29 @@ shouldn't have.
 
 ## What's been validated so far (Stripe)
 
-Full Payment-spec suite (`00-CoreFlows` through `19-Wallet` plus
-`44-ExternalThreeDS`) — **172 tests, 168 passing, 4 pending** (4 are
-Stripe-unsupported wallets that skip themselves) in replay mode with
-**182 HIT / 0 MISS / 0 LIVE** after the manual curation steps below.
+**Full Payment-spec suite (45 specs, 350 tests)** validated end-to-end:
 
-Replay timing: **1:41** vs **6:36** capture (~4× speedup, with zero
-live Stripe traffic).
+- **285 passing in capture** (live Stripe sandbox).
+- **454 / 458 non-pending tests passing in replay** (~99.1%).
+- 63 tests pending — Stripe-unsupported payment methods that skip themselves.
+- 4 known failures (see below) — none introduced by the pilot.
+
+### Known failures (4 of 458, all documented)
+
+| Spec | Tests | Why it fails | Pilot-introduced? |
+|---|---|---|---|
+| `20-MandatesUsingPMID` | 1 | HS-internal state issue: after `simulateRedirectCallback`, the subsequent `cit-capture` call gets an error response from HS even though every connector cassette HITs cleanly. Browser-driven capture probably gave HS more time to settle state. | No (HS-internal) |
+| `24-PaymentMethods` | 1 | Test asserts an empty `customer_payment_methods` array but the customer carries leftover state from a prior `it()` in the same context. | No (pre-existing test design) |
+| `40-ExternalVault` | 2 | Test uses VGS as a second connector for card vaulting alongside Stripe. We only have Stripe cassettes; VGS calls fall back to LIVE and fail. Same failures occur in capture mode. | No (multi-connector test) |
+
+### Manual curation per recapture (counts)
+
+Across the full Stripe Payment suite, manual curation totals:
+- **~36 server-UUID folders** auto-quarantined by `normalize_captures.py` (no work).
+- **~10 orphan-quarantines** (move earlier-of-duplicate cassettes — see the manual-curation section below).
+- **~6 server-UUID-relocations** (move quarantined cassettes back to Cypress rids — 3DS-refund and bank-redirect tests).
+
+The README's manual-curation tables list the validated set; re-apply after each fresh capture.
 
 ### Manual curation currently required
 
