@@ -436,6 +436,9 @@ impl ApiEventMetric for ListCountriesCurrenciesResponse {}
 impl ApiEventMetric for PaymentMethodListResponse {}
 
 #[cfg(feature = "v1")]
+impl ApiEventMetric for payment_methods::ClientPaymentMethodsListResponse {}
+
+#[cfg(feature = "v1")]
 impl ApiEventMetric for payment_methods::CustomerDefaultPaymentMethodResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethod {

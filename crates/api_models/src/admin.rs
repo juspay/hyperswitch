@@ -2137,10 +2137,10 @@ pub struct MerchantConnectorDetailsWrap {
     pub creds_identifier: String,
     /// Merchant connector details type type. Base64 Encode the credentials and send it in  this type and send as a string.
     #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
-        "connector_account_details": {
+       "connector_account_details": {
             "auth_type": "HeaderKey",
             "api_key":"sk_test_xxxxxexamplexxxxxx12345"
-        },
+        }, 
         "metadata": {
             "user_defined_field_1": "sample_1",
             "user_defined_field_2": "sample_2",
