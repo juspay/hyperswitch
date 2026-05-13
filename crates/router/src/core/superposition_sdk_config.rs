@@ -1,13 +1,9 @@
-//! Module for generating SDK configuration including dynamic fields for payment methods.
-//!
-//! This module integrates with the Superposition service to provide SDK configurations
-//! enriched with dynamic field requirements for all enabled payment methods.
-
 use std::collections::HashMap;
 
 use api_models::{
-    admin::{self, PaymentMethodsEnabled},
+    admin::{PaymentMethodsEnabled},
     enums::{self as api_enums, Connector},
+    payment_methods::RequestPaymentMethodTypes,
     superposition_sdk_config::{
         DynamicFields, PaymentMethodGroup, PaymentMethodTypeWithFields, SuperPositionConfigResponse,
     },
@@ -18,19 +14,12 @@ use hyperswitch_masking::ExposeInterface;
 use serde_json::Map;
 
 use crate::{
-    configs::settings::RequiredFieldFinal,
     consts::superposition::DYNAMIC_FIELDS,
     core::errors::{self, RouterResponse, StorageErrorExt},
     routes::SessionState,
     types::domain,
 };
 
-/// Dimension keys for superposition context.
-mod dimension_keys {
-    pub const PROFILE_ID: &str = "profile_id";
-    pub const MERCHANT_ID: &str = "merchant_id";
-    pub const ORGANIZATION_ID: &str = "organization_id";
-}
 
 /// Type alias for required fields grouped by payment method type.
 type RequiredFieldsByPmType = HashMap<
@@ -101,12 +90,12 @@ fn process_mca_payment_methods(
 ) {
     if let Some(payment_methods_enabled) = &mca.payment_methods_enabled {
         for pm_secret in payment_methods_enabled {
-            match serde_json::from_value::<PaymentMethodsEnabled>(pm_secret.expose()) {
+            match serde_json::from_value::<PaymentMethodsEnabled>(pm_secret.clone().expose()) {
                 Ok(pm_enabled) => {
                     if let Some(pm_types) = &pm_enabled.payment_method_types {
                         for pm_type in pm_types {
                             process_payment_method_type(
-                                &pm_enabled.payment_method,
+                                pm_enabled.payment_method,
                                 pm_type,
                                 &mca.connector_name,
                                 required_fields_config,
@@ -125,8 +114,8 @@ fn process_mca_payment_methods(
 
 /// Processes a single payment method type and adds its required fields to the grouped data.
 fn process_payment_method_type(
-    payment_method: &api_enums::PaymentMethod,
-    pm_type: &admin::RequestPaymentMethodTypes,
+    payment_method: api_enums::PaymentMethod,
+    pm_type: &RequestPaymentMethodTypes,
     connector_name: &str,
     required_fields_config: &crate::configs::settings::RequiredFields,
     grouped_data: &mut GroupedPaymentMethods,
@@ -137,7 +126,7 @@ fn process_payment_method_type(
         Ok(connector) => {
             if let Some(required_field_final) = required_fields_config
                 .0
-                .get(payment_method)
+                .get(&payment_method)
                 .and_then(|pm_type_map| pm_type_map.0.get(&payment_method_type))
                 .and_then(|connector_fields| connector_fields.fields.get(&connector))
             {
@@ -148,7 +137,7 @@ fn process_payment_method_type(
                 );
 
                 grouped_data
-                    .entry(*payment_method)
+                    .entry(payment_method)
                     .or_default()
                     .entry(payment_method_type)
                     .or_default()
@@ -198,6 +187,17 @@ pub async fn get_superposition_sdk_config(
     platform: domain::Platform,
     profile_id: ProfileId,
 ) -> RouterResponse<SuperPositionConfigResponse> {
+    // we want resolve config with filters which is not yet available in any version of superposition yet. so we are commenting it for future usecase
+
+    // let resolved_configs = state
+    //     .superposition_service
+    //     .as_ref()
+    //     .async_map(|sp| async move { sp.as_ref().resolve_full_config(None, None).await })
+    //     .await
+    //     .transpose()
+    //     .change_context(errors::ApiErrorResponse::InternalServerError)
+    //     .attach_printable("Failed to resolve superposition sdk config")?;
+
     let merchant_account = platform.get_processor().get_account();
     let key_store = platform.get_processor().get_key_store();
 
@@ -227,19 +227,18 @@ pub async fn get_superposition_sdk_config(
     // Build dimension filter for superposition context
     let mut dimension_filter = Map::new();
     dimension_filter.insert(
-        dimension_keys::PROFILE_ID.to_string(),
+        "profile_id".to_string(),
         serde_json::Value::String(profile_id.get_string_repr().to_string()),
     );
     dimension_filter.insert(
-        dimension_keys::MERCHANT_ID.to_string(),
+        "merchant_id".to_string(),
         serde_json::Value::String(merchant_account.get_id().get_string_repr().to_string()),
     );
     dimension_filter.insert(
-        dimension_keys::ORGANIZATION_ID.to_string(),
+        "organization_id".to_string(),
         serde_json::Value::String(merchant_account.get_org_id().get_string_repr().to_string()),
     );
 
-    // Fetch cached superposition config - failures are gracefully handled (returns None)
     let raw_configs = state
         .superposition_service
         .get_cached_config(
