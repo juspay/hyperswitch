@@ -1530,106 +1530,97 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add(
-  "completeChallengeWithOtpTest",
-  (data, globalState) => {
-    const { Request: reqData, Response: resData } = data || {};
-    const threeDsData = globalState.get("threeDsData");
-    const authorizeUrl = threeDsData?.three_ds_authorize_url;
-    const acsUrl = globalState.get("acsUrl");
-    const threeDSServerTransId = globalState.get("threeDSServerTransId");
+Cypress.Commands.add("completeChallengeWithOtpTest", (data, globalState) => {
+  const { Request: reqData, Response: resData } = data || {};
+  const threeDsData = globalState.get("threeDsData");
+  const authorizeUrl = threeDsData?.three_ds_authorize_url;
+  const acsUrl = globalState.get("acsUrl");
+  const threeDSServerTransId = globalState.get("threeDSServerTransId");
 
-    if (!authorizeUrl) {
-      throw new Error(
-        "three_ds_authorize_url not found in globalState. Ensure the confirm call returned next_action.three_ds_data."
-      );
-    }
+  if (!authorizeUrl) {
+    throw new Error(
+      "three_ds_authorize_url not found in globalState. Ensure the confirm call returned next_action.three_ds_data."
+    );
+  }
 
-    if (!acsUrl) {
-      throw new Error(
-        "acs_url not found in globalState. The 3DS authentication did not return a challenge URL."
-      );
-    }
+  if (!acsUrl) {
+    throw new Error(
+      "acs_url not found in globalState. The 3DS authentication did not return a challenge URL."
+    );
+  }
 
-    const otp = reqData?.otp || "1234";
-    const accountNumber = reqData?.account_number || "5306889942833340";
-    const merchantName = reqData?.merchant_name || "Dummy Merchant";
+  const otp = reqData?.otp || "1234";
+  const accountNumber = reqData?.account_number || "5306889942833340";
+  const merchantName = reqData?.merchant_name || "Dummy Merchant";
+
+  cy.request({
+    method: "POST",
+    url: `${acsUrl}/otp`,
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: {
+      threeDSSTransId: threeDSServerTransId,
+      accountNumber: accountNumber,
+      merchantName: merchantName,
+      otp: otp,
+      sendOtp: "Confirm",
+    },
+    failOnStatusCode: false,
+  }).then((otpResponse) => {
+    logRequestId(otpResponse.headers["x-request-id"]);
+    expect(otpResponse.status, "OTP submission status").to.equal(200);
+
+    const cresMatch = otpResponse.body.match(/finalCresValue\s*=\s*'([^']+)'/);
+    const cres = cresMatch ? cresMatch[1] : null;
+    expect(cres, "CRes value from ACS").to.be.a("string");
 
     cy.request({
       method: "POST",
-      url: `${acsUrl}/otp`,
+      url: authorizeUrl,
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: {
-        threeDSSTransId: threeDSServerTransId,
-        accountNumber: accountNumber,
-        merchantName: merchantName,
-        otp: otp,
-        sendOtp: "Confirm",
-      },
+      body: { cres: cres },
       failOnStatusCode: false,
-    }).then((otpResponse) => {
-      logRequestId(otpResponse.headers["x-request-id"]);
-      expect(otpResponse.status, "OTP submission status").to.equal(200);
+    }).then((authResponse) => {
+      logRequestId(authResponse.headers["x-request-id"]);
 
-      const cresMatch = otpResponse.body.match(
-        /finalCresValue\s*=\s*'([^']+)'/
-      );
-      const cres = cresMatch ? cresMatch[1] : null;
-      expect(cres, "CRes value from ACS").to.be.a("string");
-
-      cy.request({
-        method: "POST",
-        url: authorizeUrl,
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: { cres: cres },
-        failOnStatusCode: false,
-      }).then((authResponse) => {
-        logRequestId(authResponse.headers["x-request-id"]);
-
-        cy.wrap(authResponse).then(() => {
-          if (authResponse.status === 200) {
-            if (
-              resData &&
-              resData.body &&
-              Object.keys(resData.body).length > 0
-            ) {
-              const paymentId = globalState.get("paymentID");
-              cy.request({
-                method: "GET",
-                url: `${globalState.get("baseUrl")}/payments/${paymentId}?force_sync=true`,
-                headers: {
-                  "Content-Type": "application/json",
-                  "api-key": globalState.get("apiKey"),
-                },
-                failOnStatusCode: false,
-              }).then((retrieveResponse) => {
-                logRequestId(retrieveResponse.headers["x-request-id"]);
-                for (const key in resData.body) {
-                  if (
-                    typeof resData.body[key] === "object" &&
-                    resData.body[key] !== null
-                  ) {
-                    expect(
-                      retrieveResponse.body[key],
-                      `Expected ${key} to deep equal`
-                    ).to.deep.eq(resData.body[key]);
-                  } else {
-                    expect(resData.body[key]).to.equal(
-                      retrieveResponse.body[key],
-                      `Expected ${resData.body[key]} but got ${retrieveResponse.body[key]}`
-                    );
-                  }
+      cy.wrap(authResponse).then(() => {
+        if (authResponse.status === 200) {
+          if (resData && resData.body && Object.keys(resData.body).length > 0) {
+            const paymentId = globalState.get("paymentID");
+            cy.request({
+              method: "GET",
+              url: `${globalState.get("baseUrl")}/payments/${paymentId}?force_sync=true`,
+              headers: {
+                "Content-Type": "application/json",
+                "api-key": globalState.get("apiKey"),
+              },
+              failOnStatusCode: false,
+            }).then((retrieveResponse) => {
+              logRequestId(retrieveResponse.headers["x-request-id"]);
+              for (const key in resData.body) {
+                if (
+                  typeof resData.body[key] === "object" &&
+                  resData.body[key] !== null
+                ) {
+                  expect(
+                    retrieveResponse.body[key],
+                    `Expected ${key} to deep equal`
+                  ).to.deep.eq(resData.body[key]);
+                } else {
+                  expect(resData.body[key]).to.equal(
+                    retrieveResponse.body[key],
+                    `Expected ${resData.body[key]} but got ${retrieveResponse.body[key]}`
+                  );
                 }
-              });
-            }
-          } else {
-            defaultErrorHandler(authResponse, resData);
+              }
+            });
           }
-        });
+        } else {
+          defaultErrorHandler(authResponse, resData);
+        }
       });
     });
-  }
-);
+  });
+});
 
 Cypress.Commands.add(
   "createPayoutConnectorCallTest",
