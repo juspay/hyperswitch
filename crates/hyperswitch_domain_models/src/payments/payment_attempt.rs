@@ -1707,10 +1707,7 @@ impl PaymentAttempt {
 
     /// Infer the payment type (Normal / NewMandate / SetupMandate / RecurringMandate)
     /// from the attempt's mandate state and whether this is a CIT transaction.
-    pub fn infer_payment_type(
-        &self,
-        is_cit_transaction: bool,
-    ) -> api_models::enums::PaymentType {
+    pub fn infer_payment_type(&self, is_cit_transaction: bool) -> api_models::enums::PaymentType {
         use api_models::payments::{Amount, MandateTransactionType};
         let amount = Amount::from(self.net_amount.get_order_amount());
         let mandate_type = if self.mandate_id.is_some() {

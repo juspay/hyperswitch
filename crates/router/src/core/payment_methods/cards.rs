@@ -29,7 +29,6 @@ use api_models::{
     pm_auth::PaymentMethodAuthConfig,
     surcharge_decision_configs as api_surcharge_decision_configs,
 };
-
 use common_enums::{enums::MerchantStorageScheme, ConnectorType};
 use common_utils::{
     consts,
@@ -4352,12 +4351,9 @@ pub async fn list_payment_methods(
                     .map(|d| d.to_api_mandate_data()),
                 payment_type,
                 capture_method: payment_attempt.as_ref().and_then(|pa| pa.capture_method),
-
             };
             pi.into_payment_method_list_intent_data(
-                
                 net_amount,
-               
                 pms_ctx.connector_supports_installments,
                 extra,
                 &business_profile,

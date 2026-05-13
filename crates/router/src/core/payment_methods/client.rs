@@ -6,25 +6,22 @@
 ///
 /// Auth: `SdkAuthorizationAuth` only (Authorization: base64(publishable_key:client_secret))
 use api_models::payment_methods::{
-    ClientPaymentMethodsListResponse, CustomerPaymentMethod,
-    CustomerPaymentMethodDataForClient, CustomerPaymentMethodForClient,
-    PaymentMethodListIntentDataInput, ResponsePaymentMethodsEnabledForClient,
+    ClientPaymentMethodsListResponse, CustomerPaymentMethod, CustomerPaymentMethodDataForClient,
+    CustomerPaymentMethodForClient, PaymentMethodListIntentDataInput,
+    ResponsePaymentMethodsEnabledForClient,
 };
-use common_utils::{
-    consts,
-    ext_traits::AsyncExt,
-    generate_id,
-    id_type,
-};
+use common_utils::{consts, ext_traits::AsyncExt, generate_id, id_type};
 use error_stack::ResultExt;
-use router_env::{Flow, instrument, logger, tracing};
+use router_env::{instrument, logger, tracing, Flow};
 
 use crate::{
     core::{
         configs::dimension_state,
         errors::{self, StorageErrorExt},
+        payment_methods::{
+            cards, transformers::list_customer_payment_methods_from_modular_service,
+        },
         payments::helpers,
-        payment_methods::{cards, transformers::list_customer_payment_methods_from_modular_service},
     },
     pii::PeekInterface,
     routes::{self, payment_methods::ParentPaymentMethodToken},
@@ -54,7 +51,9 @@ pub trait CustomerPaymentMethodsFetcher: Send + Sync {
 
 /// Convert a legacy `CustomerPaymentMethod` into the slimmer client-facing type.
 fn to_client_pm(pm: CustomerPaymentMethod) -> CustomerPaymentMethodForClient {
-    let payment_method_data = pm.card.map(|card| CustomerPaymentMethodDataForClient::Card(Box::new(card)));
+    let payment_method_data = pm
+        .card
+        .map(|card| CustomerPaymentMethodDataForClient::Card(Box::new(card)));
 
     CustomerPaymentMethodForClient {
         payment_token: pm.payment_token,
@@ -82,7 +81,6 @@ impl CustomerPaymentMethodsFetcher for DbCustomerPaymentMethodsFetcher {
         customer_id: &id_type::CustomerId,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>> {
-
         let customer_payment_methods_response = Box::pin(cards::list_customer_payment_method(
             state,
             platform.clone(),
@@ -100,7 +98,11 @@ impl CustomerPaymentMethodsFetcher for DbCustomerPaymentMethodsFetcher {
             }
         };
 
-        Ok(response_body.customer_payment_methods.into_iter().map(to_client_pm).collect())
+        Ok(response_body
+            .customer_payment_methods
+            .into_iter()
+            .map(to_client_pm)
+            .collect())
     }
 }
 
@@ -129,17 +131,16 @@ impl ModularCustomerPaymentMethodsFetcher {
         // Build the PaymentTokenData variant that matches the payment method type,
         // mirroring the logic in `get_pm_list_context`.
         let token_data: PaymentTokenData = match payment_method {
-            common_enums::PaymentMethod::Card => PaymentTokenData::permanent_card(
-                Some(pm_id.clone()),
-                None,
-                pm_id.clone(),
-                None,
-            ),
+            common_enums::PaymentMethod::Card => {
+                PaymentTokenData::permanent_card(Some(pm_id.clone()), None, pm_id.clone(), None)
+            }
             common_enums::PaymentMethod::Wallet => PaymentTokenData::wallet_token(pm_id.clone()),
-            common_enums::PaymentMethod::BankDebit => PaymentTokenData::BankDebit(BankDebitTokenData {
-                payment_method_id: pm_id.clone(),
-                locker_id: None,
-            }),
+            common_enums::PaymentMethod::BankDebit => {
+                PaymentTokenData::BankDebit(BankDebitTokenData {
+                    payment_method_id: pm_id.clone(),
+                    locker_id: None,
+                })
+            }
             // Fallback for PM types that don't have a specific PaymentTokenData variant.
             _ => PaymentTokenData::temporary_generic(generate_id(consts::ID_LENGTH, "token")),
         };
@@ -166,7 +167,6 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
         customer_id: &id_type::CustomerId,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>> {
-
         let merchant_id = platform.get_processor().get_account().get_id().clone();
 
         let items = list_customer_payment_methods_from_modular_service(
@@ -196,11 +196,9 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
             let requires_cvv = if self.is_connector_agnostic_mit_enabled {
                 requires_cvv_base
                     && !(self.off_session_payment_flag
-                        && (pm.psp_tokenization_enabled
-                            || pm.network_tokenization.is_some()))
+                        && (pm.psp_tokenization_enabled || pm.network_tokenization.is_some()))
             } else {
-                requires_cvv_base
-                    && !(self.off_session_payment_flag && pm.psp_tokenization_enabled)
+                requires_cvv_base && !(self.off_session_payment_flag && pm.psp_tokenization_enabled)
             };
 
             // recurring_enabled is inferred from psp_tokenization_enabled.
@@ -283,10 +281,7 @@ async fn load_payment_intent_context(
         .attach_printable("'profile_id' not set in payment intent")?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(
-            platform.get_processor().get_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -360,7 +355,6 @@ async fn fetch_enabled_payment_methods(
     platform: &domain::Platform,
     payment_intent_context: &PaymentIntentContext,
 ) -> errors::RouterResult<EnabledPmsResult> {
-
     let merchant_enabled_pms_context = Box::pin(cards::build_merchant_enabled_pms_context(
         state,
         platform,
@@ -383,10 +377,10 @@ async fn fetch_enabled_payment_methods(
     Ok(EnabledPmsResult {
         payment_methods_enabled: flat_pms,
         sdk_next_action: merchant_enabled_pms_context.sdk_next_action,
-        connector_supports_installments: merchant_enabled_pms_context.connector_supports_installments,
+        connector_supports_installments: merchant_enabled_pms_context
+            .connector_supports_installments,
     })
 }
-
 
 // ---------------------------------------------------------------------------
 // fetch_customer_payment_methods  — saved PMs for the payment's customer
@@ -404,10 +398,16 @@ fn filter_customer_pms_by_enabled(
             enabled.iter().any(|enabled_payment_method| {
                 enabled_payment_method.payment_method == customer_payment_method.payment_method
                     && match customer_payment_method.payment_method_type {
-                        Some(payment_method_type) => enabled_payment_method.payment_method_type == payment_method_type,
+                        Some(payment_method_type) => {
+                            enabled_payment_method.payment_method_type == payment_method_type
+                        }
                         // Cards may have no subtype (determined by BIN lookup at payment time).
                         // Allow them through if the merchant has any card subtype enabled.
-                        None if customer_payment_method.payment_method == common_enums::PaymentMethod::Card => true,
+                        None if customer_payment_method.payment_method
+                            == common_enums::PaymentMethod::Card =>
+                        {
+                            true
+                        }
                         None => false,
                     }
             })
@@ -429,8 +429,7 @@ async fn fetch_customer_payment_methods(
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
-    let feature_config =
-        crate::core::utils::get_feature_config(state, platform, &dimensions).await;
+    let feature_config = crate::core::utils::get_feature_config(state, platform, &dimensions).await;
 
     if feature_config.is_payment_method_modular_allowed {
         logger::info!("Fetching customer payment methods from modular service");
@@ -464,7 +463,13 @@ async fn fetch_customer_payment_methods(
             off_session_payment_flag,
             is_connector_agnostic_mit_enabled,
         }
-        .fetch(state, platform, Some(&payment_intent_context.payment_intent), customer_id, &dimensions)
+        .fetch(
+            state,
+            platform,
+            Some(&payment_intent_context.payment_intent),
+            customer_id,
+            &dimensions,
+        )
         .await
     } else {
         logger::info!("Fetching customer payment methods from DB");
@@ -491,7 +496,8 @@ pub async fn list_payment_methods_client(
     payment_id: id_type::PaymentId,
 ) -> errors::RouterResponse<ClientPaymentMethodsListResponse> {
     // 1. Load payment intent + related context
-    let payment_intent_context = load_payment_intent_context(&state, &platform, &payment_id).await?;
+    let payment_intent_context =
+        load_payment_intent_context(&state, &platform, &payment_id).await?;
 
     // 2. Fetch enabled payment methods (Gate 1 + Gate 2 + consolidation)
     let EnabledPmsResult {
@@ -510,8 +516,15 @@ pub async fn list_payment_methods_client(
         filter_customer_pms_by_enabled(customer_payment_methods, &payment_methods_enabled);
 
     // 5. Build intent_data
-    let net_amount = payment_intent_context.payment_attempt.net_amount.get_total_amount();
-    let payment_type = Some(payment_intent_context.payment_attempt.infer_payment_type(payment_intent_context.is_cit_transaction));
+    let net_amount = payment_intent_context
+        .payment_attempt
+        .net_amount
+        .get_total_amount();
+    let payment_type = Some(
+        payment_intent_context
+            .payment_attempt
+            .infer_payment_type(payment_intent_context.is_cit_transaction),
+    );
 
     let intent_data_input = PaymentMethodListIntentDataInput {
         merchant_name: platform

@@ -1987,10 +1987,16 @@ pub async fn list_customer_payment_methods_from_modular_service(
     merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
     customer_id: id_type::CustomerId,
-) -> CustomResult<Vec<payment_methods::types::PaymentMethodResponseItem>, errors::ApiErrorResponse> {
-    use payment_methods::client::list::{ListCustomerPaymentMethods, ListCustomerPaymentMethodsV1Request};
+) -> CustomResult<Vec<payment_methods::types::PaymentMethodResponseItem>, errors::ApiErrorResponse>
+{
+    use payment_methods::client::list::{
+        ListCustomerPaymentMethods, ListCustomerPaymentMethodsV1Request,
+    };
 
-    let internal_api_key = &state.conf.internal_merchant_id_profile_id_auth.internal_api_key;
+    let internal_api_key = &state
+        .conf
+        .internal_merchant_id_profile_id_auth
+        .internal_api_key;
     let mut parent_headers = Headers::new();
     parent_headers.insert((
         headers::X_PROFILE_ID.to_string(),
