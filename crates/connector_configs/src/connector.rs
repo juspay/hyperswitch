@@ -283,6 +283,8 @@ pub struct ConnectorConfig {
     pub iatapay: Option<ConnectorTomlConfig>,
     pub imerchantsolutions: Option<ConnectorTomlConfig>,
     pub itaubank: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub itaubank_payout: Option<ConnectorTomlConfig>,
     pub opennode: Option<ConnectorTomlConfig>,
     pub bambora: Option<ConnectorTomlConfig>,
     pub cybersourcedecisionmanager: Option<ConnectorTomlConfig>,
@@ -455,7 +457,7 @@ impl ConnectorConfig {
             PayoutConnectors::Worldpay => Ok(connector_data.worldpay_payout),
             PayoutConnectors::Worldpayxml => Ok(connector_data.worldpayxml_payout),
             PayoutConnectors::Envoy => Ok(connector_data.envoy_payout),
-            PayoutConnectors::Itaubank => Ok(connector_data.itaubank),
+            PayoutConnectors::Itaubank => Ok(connector_data.itaubank_payout),
         }
     }
 
