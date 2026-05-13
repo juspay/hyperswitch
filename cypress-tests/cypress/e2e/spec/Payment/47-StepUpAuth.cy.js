@@ -511,6 +511,22 @@ describe("Step-Up Auth payment flow test", () => {
           data,
           globalState
         );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      it("complete challenge with otp", { retries: 0 }, () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: complete challenge with otp");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "step_up_auth"
+        ]["ChallengeOtpCompletion"];
+
+        cy.completeChallengeWithOtpTest(data, globalState);
       });
 
       it("retrieve payment for mastercard challenge", () => {
