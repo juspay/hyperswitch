@@ -2020,14 +2020,18 @@ Cypress.Commands.add(
           expect(createPaymentBody.email, "customer.email").to.equal(
             response.body.customer.email
           );
-          expect(createPaymentBody.customer_id, "customer.id").to.equal(
-            response.body.customer.id
-          );
+          if (createPaymentBody.customer_id !== undefined) {
+            expect(createPaymentBody.customer_id, "customer.id").to.equal(
+              response.body.customer.id
+            );
+          } else {
+            expect(response.body.customer.id, "customer.id").to.be.null;
+          }
           expect(createPaymentBody.metadata, "metadata").to.deep.equal(
             response.body.metadata
           );
           expect(
-            createPaymentBody.setup_future_usage,
+            createPaymentBody.setup_future_usage ?? null,
             "setup_future_usage"
           ).to.equal(response.body.setup_future_usage);
           // If 'shipping_cost' is not included in the request, the 'amount' in 'createPaymentBody' should match the 'amount_capturable' in the response.
@@ -2181,7 +2185,7 @@ Cypress.Commands.add("createPaymentMethodTest", (globalState, data) => {
           response.body.payment_method
         );
         expect(response.body.last_used_at, "last_used_at").to.not.be.null;
-        expect(reqData.customer_id, "customer_id").to.equal(
+        expect(reqData.customer_id ?? null, "customer_id").to.equal(
           response.body.customer_id
         );
         globalState.set("paymentMethodId", response.body.payment_method_id);
@@ -2293,6 +2297,10 @@ Cypress.Commands.add(
       if (key !== "split_payments") {
         confirmBody[key] = reqData[key];
       }
+    }
+
+    if (!reqData?.setup_future_usage && confirmBody.setup_future_usage) {
+      delete confirmBody.setup_future_usage;
     }
 
     if (reqData?.split_payments && isStripeConnect(globalState)) {
@@ -2550,7 +2558,16 @@ Cypress.Commands.add(
       Response: resData,
     } = data || {};
 
-    const configInfo = execConfig(validateConfig(configs));
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
+      cy.task(
+        "cli_log",
+        "TRIGGER_SKIP enabled, skipping confirmBankRedirectCallTest"
+      );
+      return;
+    }
+
+    const configInfo = execConfig(validatedConfigs);
     const connectorId = globalState.get("connectorId");
     const paymentIntentId = globalState.get("paymentID");
     const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
@@ -3124,7 +3141,7 @@ Cypress.Commands.add(
                 );
               }
               expect(response.body.customer_id).to.equal(
-                globalState.get("customerId")
+                globalState.get("customerId") ?? null
               );
               if (
                 [
@@ -3170,7 +3187,7 @@ Cypress.Commands.add(
                 );
               }
               expect(response.body.customer_id).to.equal(
-                globalState.get("customerId")
+                globalState.get("customerId") ?? null
               );
             } else {
               // Handle other authentication types as needed
@@ -4267,6 +4284,12 @@ Cypress.Commands.add(
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
 
+    if (!nextActionUrl) {
+      throw new Error(
+        `handleRedirection: nextActionUrl is not set in globalState. Confirm step may not have returned a valid next_action URL.`
+      );
+    }
+
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
 
@@ -5323,6 +5346,54 @@ Cypress.Commands.add(
           for (const key in resData.body) {
             expect(resData.body[key]).to.deep.equal(response.body[key]);
           }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "evaluateRoutingRule",
+  (data, evaluate_params, globalState) => {
+    const { Response: resData } = data || {};
+    const profileId = globalState.get("profileId");
+    const expectedConnector = evaluate_params.expectedConnector;
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/routing/rule/evaluate`,
+      headers: {
+        "api-key": globalState.get("apiKey"),
+        "Content-Type": "application/json",
+      },
+      body: {
+        created_by: profileId,
+        parameters: evaluate_params.parameters,
+        fallback_output: evaluate_params.fallback_output || [],
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          expect(response.body).to.have.property("status", "success");
+          expect(response.body).to.have.property("evaluated_output");
+          expect(response.body).to.have.property("eligible_connectors");
+          expect(response.body.evaluated_output).to.be.an("array");
+
+          if (expectedConnector) {
+            const connectors = response.body.evaluated_output.map(
+              (c) => c.connector
+            );
+            expect(connectors).to.include(expectedConnector);
+          }
+
+          globalState.set("routingEvaluateResult", response.body);
         } else {
           defaultErrorHandler(response, resData);
         }

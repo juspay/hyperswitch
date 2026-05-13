@@ -174,6 +174,21 @@ export const connectorDetails = {
       },
     },
   },
+  routingEvaluate: {
+    Request: {
+      name: "routing evaluate",
+      description: "routing evaluate test config",
+      algorithm: {
+        type: "advanced",
+        data: [],
+      },
+      profile_id: "{{profile_id}}",
+    },
+    Response: {
+      status: 200,
+      body: {},
+    },
+  },
   deactivateDynamicRouting: {
     Request: {},
     Response: {
