@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.02.0-hotfix7.4
+
+### Bug Fixes
+
+- **payment_methods:** store connector_customer_id from batch migrate into customers.connector_customer ([#12279](https://github.com/juspay/hyperswitch/pull/12279)) ([`3144278`](https://github.com/juspay/hyperswitch/commit/3144278b1e53a483e4ea398a1bd4f55ca6ff6f15))
+
+**Full Changelog:** [`2026.04.02.0-hotfix7.3...2026.04.02.0-hotfix7.4`](https://github.com/juspay/hyperswitch/compare/2026.04.02.0-hotfix7.3...2026.04.02.0-hotfix7.4)
+
+- - -
+
 ## 2026.04.02.0-hotfix7.3
 
 ### Bug Fixes
