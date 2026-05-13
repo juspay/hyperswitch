@@ -245,7 +245,9 @@ export const connectorDetails = {
       },
       Response: {
         status: 400,
-        body: {},
+        body: {
+          error: {},
+        },
       },
     },
     PartialRefund: {
@@ -257,7 +259,9 @@ export const connectorDetails = {
       },
       Response: {
         status: 400,
-        body: {},
+        body: {
+          error: {},
+        },
       },
     },
     SyncRefund: {
