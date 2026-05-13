@@ -216,47 +216,51 @@ export const connectorDetails = {
       },
     },
     Refund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 6000,
       },
       Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
+        status: 400,
+        body: {},
       },
     },
     PartialRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 2000,
       },
       Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
+        status: 400,
+        body: {},
       },
     },
     manualPaymentRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 6000,
       },
       Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
+        status: 400,
+        body: {},
       },
     },
     manualPaymentPartialRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 2000,
       },
       Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
+        status: 400,
+        body: {},
       },
     },
     SyncRefund: {

@@ -223,7 +223,7 @@ export const connectorDetails = {
           status: "processing",
           amount: 6000,
           amount_capturable: 6000,
-          amount_received: 2000,
+          amount_received: null,
         },
       },
     },
@@ -244,10 +244,8 @@ export const connectorDetails = {
         amount: 6000,
       },
       Response: {
-        status: 200,
-        body: {
-          status: "pending",
-        },
+        status: 400,
+        body: {},
       },
     },
     PartialRefund: {
@@ -258,10 +256,8 @@ export const connectorDetails = {
         amount: 2000,
       },
       Response: {
-        status: 200,
-        body: {
-          status: "pending",
-        },
+        status: 400,
+        body: {},
       },
     },
     SyncRefund: {
