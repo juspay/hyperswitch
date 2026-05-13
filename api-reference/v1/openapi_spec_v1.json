@@ -12860,10 +12860,10 @@
           {
             "type": "object",
             "required": [
-              "pix_qr"
+              "pix"
             ],
             "properties": {
-              "pix_qr": {
+              "pix": {
                 "$ref": "#/components/schemas/PixBankTransferAdditionalData"
               }
             }
@@ -13210,10 +13210,10 @@
           {
             "type": "object",
             "required": [
-              "pix_qr"
+              "pix"
             ],
             "properties": {
-              "pix_qr": {
+              "pix": {
                 "type": "object",
                 "properties": {
                   "pix_key": {
@@ -13249,7 +13249,7 @@
                   },
                   "expiry_date": {
                     "type": "string",
-                    "description": "The expiration date and time for the PixQr code in ISO 8601 format",
+                    "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
                     "example": "2025-09-10T10:11:12Z",
                     "nullable": true
                   }
@@ -25651,7 +25651,7 @@
               },
               "raw_qr_data": {
                 "type": "string",
-                "description": "The raw QR code data (EMV copy and paste) used for Brazilian payment methods like PixQr",
+                "description": "The raw QR code data (EMV copy and paste) used for Brazilian payment methods like Pix",
                 "nullable": true
               },
               "type": {
@@ -29418,7 +29418,7 @@
           "payjustnow",
           "paypal",
           "paze",
-          "pix_qr",
+          "pix",
           "pix_key",
           "pix_emv",
           "pix_automatico_qr",
@@ -36259,7 +36259,7 @@
           },
           "expiry_date": {
             "type": "string",
-            "description": "The expiration date and time for the PixQr code in ISO 8601 format",
+            "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
             "example": "2025-09-10T10:11:12Z",
             "nullable": true
           }
