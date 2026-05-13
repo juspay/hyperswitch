@@ -1758,8 +1758,8 @@ pub struct PaymentsSurchargeCalculationData {
     pub postal_code: Option<Secret<String>>,
     /// Card BIN (first 6-8 digits, also called nicn)
     pub card_iin: String,
-    /// Previous external surcharge ID for surcharge updates (optional, used when recalculating surcharge for an existing payment)
-    pub previous_external_surcharge_id: Option<String>,
+    /// Previous connector surcharge ID for surcharge updates (optional, used when recalculating surcharge for an existing payment)
+    pub previous_connector_surcharge_id: Option<String>,
     /// Country in ISO alpha-2 format (optional, defaults to USA)
     pub country: Option<common_enums::CountryAlpha2>,
     /// wave strategy for surcharge application (optional, defaults to Apply)
@@ -1774,10 +1774,10 @@ pub enum SurchargeStrategy {
     /// Do not apply the surcharge, just return the calculated amount
     Waive,
 }
-/// Request data for notifying InterPayments of successful payment (sale)
+
 #[derive(Debug, Clone)]
 pub struct PaymentsCompleteSurchargeData {
-    /// sTxId from InterPayments (from calculation step)
+    /// transaction ID from surcharge connectors
     pub external_surcharge_id: String,
     /// Merchant transaction ID (our attempt_id)
     pub merchant_transaction_id: Option<String>,
@@ -1785,10 +1785,9 @@ pub struct PaymentsCompleteSurchargeData {
     pub amount: Option<MinorUnit>,
 }
 
-/// Request data for notifying InterPayments of refund
 #[derive(Debug, Clone)]
 pub struct PaymentsRefundSurchargeData {
-    /// sTxId from InterPayments
+    /// transaction ID from surcharge connectors
     pub external_surcharge_id: String,
     /// Currency for the refund amount
     pub currency: Option<storage_enums::Currency>,

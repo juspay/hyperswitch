@@ -7204,13 +7204,14 @@ impl
             postal_code,
             previous_connector_surcharge_id: router_data
                 .request
-                .previous_external_surcharge_id
+                .previous_connector_surcharge_id
                 .clone(),
-            country: router_data.request.country.map(|c| {
-                i32::from(
-                    payments_grpc::CountryAlpha2::from_str_name(&c.to_string()).unwrap_or_default(),
-                )
-            }),
+            country: router_data
+                .request
+                .country
+                .as_ref()
+                .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                .map(|country| country.into()),
             surcharge_strategy: router_data.request.surcharge_strategy.clone().map(|s| {
                 match s {
                     router_request_types::SurchargeStrategy::Apply => {
@@ -7253,7 +7254,7 @@ impl transformers::ForeignTryFrom<payments_grpc::SurchargeServiceCalculateRespon
 
         Ok(Self {
             surcharge_amount,
-            external_surcharge_transaction_id,
+            connector_surcharge_id: external_surcharge_transaction_id,
             surcharge_fee_percent,
             error_code: grpc_response.error.as_ref().and_then(|error_info| {
                 error_info

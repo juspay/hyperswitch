@@ -133,13 +133,12 @@ pub struct TaxCalculationResponseData {
     pub order_tax_amount: MinorUnit,
 }
 
-/// Response data for external surcharge calculation from InterPayments
 #[derive(Debug, Clone)]
 pub struct SurchargeCalculationResponseData {
     /// Transaction fee amount in minor units
     pub surcharge_amount: MinorUnit,
     /// Transaction ID from surcharge calculator connector
-    pub external_surcharge_transaction_id: String,
+    pub connector_surcharge_id: String,
     /// Transaction fee percentage (consumed by backend, NOT sent to SDK)
     pub surcharge_fee_percent: Option<
         common_utils::types::Percentage<
@@ -155,8 +154,7 @@ pub struct SurchargeCalculationResponseData {
 /// Response data for completing surcharge (sale notification)
 #[derive(Debug, Clone)]
 pub struct CompleteSurchargeResponseData {
-    /// New transaction ID from InterPayments after sale
-    pub new_external_transaction_id: String,
+    pub connector_surcharge_id: String,
 }
 
 /// Response data for refunding surcharge
