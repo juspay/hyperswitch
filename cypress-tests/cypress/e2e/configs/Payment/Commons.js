@@ -2919,8 +2919,7 @@ export const connectorDetails = {
           sdk_next_action: {
             next_action: {
               deny: {
-                message:
-                  "Card number is blocklisted",
+                message: "Card number is blocklisted",
               },
             },
           },
