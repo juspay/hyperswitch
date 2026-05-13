@@ -802,24 +802,17 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let fixed_rec_amount_in_minor = req
-            .request
-            .feature_metadata
-            .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
+        let feature_metadata = req.request.feature_metadata.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
                 field_name: "feature_metadata",
-            })?
+            },
+        )?;
+        let fixed_rec_amount_in_minor = feature_metadata
             .get_optional_fixed_recurring_mit_amount_for_pix_automatico()
             .change_context(errors::ConnectorError::InvalidDataFormat {
                 field_name: "feature_metadata.pix_automatico_additional_details",
             })?;
-        let min_rec_amount_in_minor = req
-            .request
-            .feature_metadata
-            .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "feature_metadata",
-            })?
+        let min_rec_amount_in_minor = feature_metadata
             .get_optional_min_recurring_amount_for_pix_automatico()
             .change_context(errors::ConnectorError::InvalidDataFormat {
                 field_name: "feature_metadata.pix_automatico_additional_details",
