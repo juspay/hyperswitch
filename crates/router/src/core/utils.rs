@@ -920,8 +920,8 @@ pub fn get_split_refunds(
                     };
 
                     if option_for_user_id.is_some() {
-                        Err(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "split_refunds.xendit_split_refund.for_user_id",
+                        Err(errors::ApiErrorResponse::InvalidRequestData {
+                            message: "There was a split during the payment, hence split_refunds is mandatory and should contain the for_user_id".to_string(),
                         })?
                     } else {
                         Ok(None)
