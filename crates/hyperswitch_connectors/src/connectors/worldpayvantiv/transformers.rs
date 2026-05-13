@@ -1132,12 +1132,7 @@ fn get_processing_info(
                         });
 
                 let card_mandate_data = request.get_card_mandate_info()?;
-                let exp_date = format!(
-                    "{}{}",
-                    card_mandate_data.card_exp_month.peek(),
-                    card_mandate_data.card_exp_year.peek()
-                )
-                .into();
+                let exp_date = card_mandate_data.get_expiry_date_as_mmyy()?;
 
                 Ok(VantivMandateDetail {
                     processing_type: None,

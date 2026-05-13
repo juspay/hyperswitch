@@ -272,6 +272,24 @@ pub struct CardMandateInfo {
     pub card_exp_year: Secret<String>,
 }
 
+impl CardMandateInfo {
+    pub fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.card_exp_year.peek();
+        let year_2_digit = if year.len() == 4 {
+            year.get(2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string()
+        } else if year.len() == 2 {
+            year.to_string()
+        } else {
+            return Err(errors::ConnectorError::RequestEncodingFailed);
+        };
+        let month = self.card_exp_month.peek();
+        let month_str = format!("{:0>2}", month);
+        Ok(Secret::new(format!("{}{}", month_str, year_2_digit)))
+    }
+}
+
 impl TryFrom<payment_method_data::GooglePayWalletData> for GooglePayWalletData {
     type Error = common_utils::errors::ValidationError;
 
