@@ -261,6 +261,7 @@ pub enum PaymentSource {
     MandatePayment(MandateSource),
     GooglePayPredecrypt(Box<GooglePayPredecrypt>),
     DecryptedWalletToken(DecryptedWalletToken),
+    NetworkToken(Box<NetworkTokenSource>),
 }
 
 #[derive(Debug, Serialize)]
@@ -271,6 +272,22 @@ pub struct DecryptedWalletToken {
     token_type: String,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
+    pub billing_address: Option<CheckoutAddress>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct NetworkTokenSource {
+    #[serde(rename = "type")]
+    pub source_type: String,
+    pub token: cards::CardNumber,
+    pub expiry_month: Secret<String>,
+    pub expiry_year: Secret<String>,
+    pub token_type: String,
+    pub cryptogram: Option<Secret<String>>,
+    pub eci: Option<String>,
+    pub stored: Option<bool>,
+    pub store_for_future_use: Option<bool>,
     pub billing_address: Option<CheckoutAddress>,
 }
 
@@ -817,6 +834,90 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     p_type,
                     store_for_future_use,
                 ))
+            }
+            PaymentMethodData::NetworkToken(token_data) => {
+                let token_type = match token_data.card_network {
+                    Some(enums::CardNetwork::Visa) => Ok("vts".to_string()),
+                    Some(enums::CardNetwork::Mastercard) => Ok("mdes".to_string()),
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Network token for this card network".to_string(),
+                    )),
+                }?;
+
+                #[cfg(feature = "v1")]
+                let (token, expiry_month, expiry_year, cryptogram) = (
+                    token_data.token_number,
+                    token_data.token_exp_month,
+                    token_data.token_exp_year,
+                    token_data.token_cryptogram,
+                );
+                #[cfg(feature = "v2")]
+                let (token, expiry_month, expiry_year, cryptogram) = (
+                    token_data.network_token,
+                    token_data.network_token_exp_month,
+                    token_data.network_token_exp_year,
+                    token_data.cryptogram,
+                );
+
+                let payment_source = PaymentSource::NetworkToken(Box::new(NetworkTokenSource {
+                    source_type: "network_token".to_string(),
+                    token: cards::CardNumber::from(token),
+                    expiry_month,
+                    expiry_year,
+                    token_type,
+                    cryptogram,
+                    eci: token_data.eci,
+                    stored: None,
+                    store_for_future_use,
+                    billing_address: billing_details,
+                }));
+
+                Ok((
+                    payment_source,
+                    None,
+                    None,
+                    payment_type,
+                    store_for_future_use,
+                ))
+            }
+            PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(token_data) => {
+                let token_type = match token_data.card_network {
+                    Some(enums::CardNetwork::Visa) => Ok("vts".to_string()),
+                    Some(enums::CardNetwork::Mastercard) => Ok("mdes".to_string()),
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Network token for this card network".to_string(),
+                    )),
+                }?;
+
+                let previous_id = Some(
+                    item.router_data
+                        .request
+                        .get_optional_network_transaction_id()
+                        .ok_or_else(utils::missing_field_err("network_transaction_id"))
+                        .attach_printable("Checkout unable to find NTID for MIT")?,
+                );
+
+                let p_type = match item.router_data.request.mit_category {
+                    Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
+                    Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
+                    Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
+                    _ => CheckoutPaymentType::Unscheduled,
+                };
+
+                let payment_source = PaymentSource::NetworkToken(Box::new(NetworkTokenSource {
+                    source_type: "network_token".to_string(),
+                    token: cards::CardNumber::from(token_data.network_token),
+                    expiry_month: token_data.token_exp_month,
+                    expiry_year: token_data.token_exp_year,
+                    token_type,
+                    cryptogram: None,
+                    eci: token_data.eci,
+                    stored: Some(true),
+                    store_for_future_use: None,
+                    billing_address: billing_details,
+                }));
+
+                Ok((payment_source, previous_id, Some(true), p_type, None))
             }
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("checkout"),
