@@ -206,7 +206,7 @@ describe("Merchant Redirect Method Tests - UPI", () => {
         });
 
         cy.step(
-          "Handle UPI redirect and verify return URL parameters (GET mode)",
+          "Handle UPI redirect and verify return URL parameters (GET mode)", 
           () => {
             if (!shouldContinue) {
               cy.task("cli_log", "Skipping step: Handle Redirect");
