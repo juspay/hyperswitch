@@ -377,10 +377,14 @@ impl UserFromToken {
                 "dimension[profile_id]" if value != self.profile_id.get_string_repr() => {
                     return Err(unauthorized());
                 }
-                "dimension[provider_merchant_id]" if value != self.merchant_id.get_string_repr() => {
+                "dimension[provider_merchant_id]"
+                    if value != self.merchant_id.get_string_repr() =>
+                {
                     return Err(unauthorized());
                 }
-                "dimension[processor_merchant_id]" if value != self.merchant_id.get_string_repr() => {
+                "dimension[processor_merchant_id]"
+                    if value != self.merchant_id.get_string_repr() =>
+                {
                     return Err(unauthorized());
                 }
                 _ => {}
@@ -417,7 +421,13 @@ impl UserFromToken {
         &self,
         context: &serde_json::Value,
     ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
-        const ALLOWED_DIMENSIONS: &[&str] = &["organization_id", "merchant_id", "profile_id","provider_merchant_id","processor_merchant_id"];
+        const ALLOWED_DIMENSIONS: &[&str] = &[
+            "organization_id",
+            "merchant_id",
+            "profile_id",
+            "provider_merchant_id",
+            "processor_merchant_id",
+        ];
 
         let Some(context_obj) = context.as_object() else {
             return Ok(());
