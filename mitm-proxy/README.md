@@ -320,30 +320,73 @@ shouldn't have.
 
 ## What's been validated so far (Stripe)
 
-All 18 Payment specs (`00-CoreFlows` through `17-BankTransfers`) — **153
-tests passing** in replay mode with 172 HIT / 2 MISS. The 2 MISSes are
-3DS-refund retrieves where HS's force_sync after the webhook still calls
-the connector; they fall back to LIVE Stripe (which 404s) but the tests
-pass because the assertions are tolerant. Worth fixing eventually but
-not blocking.
+All 18 Payment specs (`00-CoreFlows` through `17-BankTransfers`) —
+**153 tests passing** in replay mode with **174 HIT / 0 MISS / 0 LIVE**
+after the manual curation steps below.
 
-### Manual handpick currently required
+Replay timing: **1:40** vs **6:00** capture (~3.6× speedup, with zero
+live Stripe traffic).
 
-After running `normalize_captures.py`, **one cassette** needs to be
-quarantined by hand for the full Payment suite to replay cleanly:
+### Manual curation currently required
+
+After running `normalize_captures.py` (which auto-quarantines the obvious
+server-UUID noise), three small manual steps are needed for the full
+Payment-spec suite to replay cleanly. All three are deterministic — same
+fixes apply per recapture.
+
+**1. Quarantine spec 16's orphan confirm cassette.** Caused by Cypress's
+beforeEach refire on `cy.visit`. Two cassettes end up under the same rid;
+keep the later one, quarantine the earlier:
 
 ```
 mitm-proxy/captures/stripe/Card_-_ThreeDS_Manual_..._Full_Capture_payme/9002d8cd-003/
-├── 000.json   ← orphan from spec 16's cy.visit refire — quarantine
-└── 001.json   ← keep (subsequent retrieve references its response.id)
+├── 000.json   ← earlier captured_at — orphan, quarantine
+└── 001.json   ← later — keep (the post-3DS retrieve cassette references its response.id)
 ```
 
-How to identify the orphan more generally: look at any rid folder with
-more than 1 cassette, check the `response.body.id` of each, and see if
-that ID appears in any later cassette's `request.path`. The one that
-doesn't is the orphan.
+**2 & 3. Relocate the quarantined server-UUID cassette for each 3DS-refund test.**
+During capture, the post-3DS sync was triggered by the browser's ACS
+callback and so was recorded under a server-minted UUID. In replay our
+webhook bypass skips the browser, but HS still does a force_sync on the
+subsequent retrieve step. That retrieve fires under Cypress's deterministic
+`-003` rid, which has no cassette → MISS → LIVE.
 
-Replay timing: **1:40** vs 6:00 capture (~3.6× speedup).
+Fix: take each server-UUID cassette out of `captures_quarantine/`, move
+it back under the captures tree at `<test>/<expected-rid>/000.json`, and
+update its `request_id` field to match the folder name. Example one-liner:
+
+```bash
+jq --arg rid "a310a589-003" '.request_id = $rid' \
+  captures_quarantine/.../<server-uuid>/000.json \
+  > captures/.../a310a589-003/000.json
+rm captures_quarantine/.../<server-uuid>/000.json
+```
+
+The two tests + target rids are:
+
+| Test folder | Target rid |
+|---|---|
+| `Refund_flow_-_3DS_Fully_Refund_Card-ThreeDS_..._Create_Conf` | `a310a589-003` |
+| `Refund_flow_-_3DS_Partially_Refund_Card-ThreeDS_..._Create_` | `3787a59a-003` |
+
+(The `a310a589` / `3787a59a` hashes are stable across runs since
+they're `djb2(testTitle)`. The pi inside each cassette will vary per
+capture, but that doesn't matter — HS uses whatever it gets back.)
+
+### How we identified these
+
+For spec 16's orphan: look at any rid folder with more than 1 cassette;
+the one whose `response.body.id` does NOT appear in any later cassette's
+`request.path` is the orphan.
+
+For the 3DS-refund relocations: when replay logs a `MISS` for a GET
+with a deterministic rid, find the matching server-UUID cassette in
+quarantine (same `request.path` shape, response_id matches what
+appears in the recorded POST cassette of the same test) and relocate.
+
+These are mechanical enough that future automation is plausible — a
+smarter `normalize_captures.py` could detect them — but for the pilot
+the manual fix is small and explicit.
 
 ## What's NOT yet validated (known unknowns)
 
