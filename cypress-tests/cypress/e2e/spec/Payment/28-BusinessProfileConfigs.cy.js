@@ -379,7 +379,7 @@ describe("Config Tests", () => {
 
   // Connector-agnostic: webhook headers are Business Profile config, not connector-specific
   context("Outgoing Webhook Custom HTTP Headers", () => {
-    const shouldContinue = true;
+    let shouldContinue = true;
 
     beforeEach(function () {
       if (!shouldContinue) {
