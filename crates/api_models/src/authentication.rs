@@ -323,6 +323,20 @@ pub struct AuthenticationEligibilityResponse {
     pub acquirer_details: Option<AcquirerDetails>,
 }
 
+impl AuthenticationEligibilityResponse {
+    pub fn is_separate_authn_required(&self) -> bool {
+        match &self.eligibility_response_params {
+            Some(params) => match params {
+                EligibilityResponseParams::ThreeDsData(threeds) => threeds
+                    .maximum_supported_3ds_version
+                    .as_ref()
+                    .is_some_and(|version| version.get_major() == 2),
+            },
+            None => false,
+        }
+    }
+}
+
 #[cfg(feature = "v1")]
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationEligibilityCheckRequest {

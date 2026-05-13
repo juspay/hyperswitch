@@ -11493,10 +11493,10 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     platform: domain::Platform,
     req: api_models::payments::PaymentsExternalAuthenticationRequest,
 ) -> RouterResponse<api_models::payments::PaymentsExternalAuthenticationResponse> {
-    use super::unified_authentication_service::types::ExternalAuthentication;
-    use crate::core::unified_authentication_service::{
-        types::UnifiedAuthenticationService, utils::external_authentication_update_trackers,
-    };
+    // use super::unified_authentication_service::types::ExternalAuthentication;
+    // use crate::core::unified_authentication_service::{
+    //     types::UnifiedAuthenticationService, utils::external_authentication_update_trackers,
+    // };
 
     let db = &*state.store;
     let key_manager_state = &(&(state)).into();
@@ -11603,21 +11603,6 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     )
     .await?;
 
-    let authentication = db
-        .find_authentication_by_merchant_id_authentication_id(
-            processor_merchant_id,
-            &payment_attempt
-                .authentication_id
-                .clone()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("missing authentication_id in payment_attempt")?,
-            platform.get_processor().get_key_store(),
-            key_manager_state,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error while fetching authentication record")?;
-
     let business_profile = state
         .store
         .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), profile_id)
@@ -11675,60 +11660,73 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), &state)
             .await?
         {
-            let routing_region = uas_utils::fetch_routing_region_for_uas(
-                &state,
-                processor_merchant_id.clone(),
-                platform
-                    .get_processor()
-                    .get_account()
-                    .organization_id
-                    .clone(),
+            let authentication_id = payment_attempt
+                .authentication_id
+                .clone()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("missing authentication_id in payment_attempt")?;
+
+            let auth_config = state
+                .conf
+                .authentication_service
+                .as_ref()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Authentication service config not found")?;
+
+            let req_identifier = router_env::RequestIdentifier::new("x-request-id");
+            let client = crate::core::authentication_client::AuthenticationServiceClient::new(
+                auth_config.get_inner(),
+                &req_identifier,
             )
-            .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch routing path")?;
-            let auth_response =
-                <ExternalAuthentication as UnifiedAuthenticationService>::authentication(
+            .attach_printable("Failed to create auth client")?;
+
+            let authenticate_req = api_models::authentication::AuthenticationAuthenticateRequest {
+                authentication_id,
+                client_secret: None,
+                sdk_information: req.sdk_information.clone(),
+                device_channel: req.device_channel,
+                threeds_method_comp_ind: req.threeds_method_comp_ind,
+            };
+
+            let response =
+                crate::core::authentication_client::AuthenticationAuthenticateFlow::call(
                     &state,
-                    &business_profile,
-                    &payment_method_details.1,
-                    browser_info,
-                    Some(amount),
-                    Some(currency),
-                    authentication::MessageCategory::Payment,
-                    req.device_channel,
-                    authentication.clone(),
-                    return_url,
-                    req.sdk_information.clone(),
-                    req.threeds_method_comp_ind,
-                    optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
-                    webhook_url,
-                    &merchant_connector_account,
-                    &authentication_connector,
-                    Some(payment_intent.payment_id),
-                    authentication.force_3ds_challenge,
-                    authentication.psd2_sca_exemption_type,
-                    Some(routing_region),
+                    &client,
+                    authenticate_req,
                 )
-                .await?;
-            let authentication = Box::pin(external_authentication_update_trackers(
-                &state,
-                auth_response,
-                authentication.clone(),
-                None,
-                platform.get_processor().get_key_store(),
-                None,
-                None,
-                None,
-                None,
-                req.sdk_information
-                    .and_then(|sdk_information| sdk_information.device_details),
-                None,
-                None,
-            ))
-            .await?;
-            authentication::AuthenticationResponse::try_from(authentication)?
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to call authentication authenticate flow")?;
+
+            authentication::AuthenticationResponse {
+                trans_status: response
+                    .transaction_status
+                    .unwrap_or(common_enums::TransactionStatus::VerificationNotPerformed),
+                acs_url: response.acs_url,
+                challenge_request: response.challenge_request,
+                acs_reference_number: response.acs_reference_number,
+                acs_trans_id: response.acs_trans_id,
+                three_dsserver_trans_id: response.three_ds_server_transaction_id,
+                acs_signed_content: response.acs_signed_content,
+                challenge_request_key: None,
+                error_message: response.error_message,
+            }
         } else {
+            let authentication = db
+                .find_authentication_by_merchant_id_authentication_id(
+                    processor_merchant_id,
+                    &payment_attempt
+                        .authentication_id
+                        .clone()
+                        .ok_or(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("missing authentication_id in payment_attempt")?,
+                    platform.get_processor().get_key_store(),
+                    key_manager_state,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error while fetching authentication record")?;
             Box::pin(authentication_core::perform_authentication(
                 &state,
                 business_profile.merchant_id,

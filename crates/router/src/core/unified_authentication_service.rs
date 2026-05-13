@@ -1108,26 +1108,43 @@ pub async fn authentication_eligibility_core(
         )
         .await?;
 
-    let notification_url = match authentication_connector {
-        common_enums::AuthenticationConnectors::Juspaythreedsserver => {
-            Some(url::Url::parse(&format!(
-                "{base_url}/authentication/{merchant_id}/{authentication_id}/redirect",
-                base_url = state.base_url,
-                merchant_id = merchant_id.get_string_repr(),
-                authentication_id = authentication_id.get_string_repr()
-            )))
-            .transpose()
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse notification url")?
-        }
-        _ => authentication
-            .return_url
-            .as_ref()
-            .map(|url| url::Url::parse(url))
-            .transpose()
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse return url")?,
+    let notification_url = match authentication.return_url {
+        Some(ref url) => Some(
+            url::Url::parse(&url)
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse return url")?,
+        ),
+        None => Some(url::Url::parse(&format!(
+            "{base_url}/authentication/{merchant_id}/{authentication_id}/redirect",
+            base_url = state.base_url,
+            merchant_id = merchant_id.get_string_repr(),
+            authentication_id = authentication_id.get_string_repr()
+        )))
+        .transpose()
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse notification url")?,
     };
+
+    // let notification_url = match authentication_connector {
+    //     common_enums::AuthenticationConnectors::Juspaythreedsserver => {
+    //         Some(url::Url::parse(&format!(
+    //             "{base_url}/authentication/{merchant_id}/{authentication_id}/redirect",
+    //             base_url = state.base_url,
+    //             merchant_id = merchant_id.get_string_repr(),
+    //             authentication_id = authentication_id.get_string_repr()
+    //         )))
+    //         .transpose()
+    //         .change_context(ApiErrorResponse::InternalServerError)
+    //         .attach_printable("Failed to parse notification url")?
+    //     }
+    //     _ => authentication
+    //         .return_url
+    //         .as_ref()
+    //         .map(|url| url::Url::parse(url))
+    //         .transpose()
+    //         .change_context(ApiErrorResponse::InternalServerError)
+    //         .attach_printable("Failed to parse return url")?,
+    // };
 
     let authentication_connector_name = authentication_connector.to_string();
 
@@ -2113,6 +2130,7 @@ pub async fn authentication_sync_core(
     }
 
     // Determine whether to tokenise or not
+
     let should_disable_vault_tokenization = dimensions
         .get_should_disable_vault_tokenization(
             state.store.as_ref(),
