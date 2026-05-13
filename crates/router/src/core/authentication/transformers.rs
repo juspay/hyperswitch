@@ -242,6 +242,7 @@ where
     authentication::Authentication::foreign_from(input)
 }
 
+#[cfg(feature = "v1")]
 impl
     ForeignFrom<(
         api_models::authentication::AuthenticationResponse,
@@ -369,6 +370,7 @@ impl
     }
 }
 
+#[cfg(feature = "v1")]
 impl
     ForeignFrom<(
         api_models::authentication::AuthenticationSyncResponse,

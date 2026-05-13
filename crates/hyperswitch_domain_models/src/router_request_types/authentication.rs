@@ -196,6 +196,7 @@ pub struct AuthenticationInfo {
     pub merchant_country_code: Option<common_enums::CountryAlpha2>,
 }
 
+#[cfg(feature = "v1")]
 impl From<api_models::authentication::AuthenticationEligibilityRequest> for AuthenticationInfo {
     fn from(req: api_models::authentication::AuthenticationEligibilityRequest) -> Self {
         Self {

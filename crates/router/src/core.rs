@@ -4,6 +4,7 @@ pub mod api_locking;
 #[cfg(feature = "v1")]
 pub mod apple_pay_certificates_migration;
 pub mod authentication;
+#[cfg(feature = "v1")]
 pub mod authentication_client;
 #[cfg(feature = "v1")]
 pub mod blocklist;

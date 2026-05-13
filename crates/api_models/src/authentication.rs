@@ -323,6 +323,7 @@ pub struct AuthenticationEligibilityResponse {
     pub acquirer_details: Option<AcquirerDetails>,
 }
 
+#[cfg(feature = "v1")]
 impl AuthenticationEligibilityResponse {
     pub fn is_separate_authn_required(&self) -> bool {
         match &self.eligibility_response_params {
