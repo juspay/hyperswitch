@@ -2173,6 +2173,22 @@ fn get_additional_data(
         }
     };
 
+    let transaction_link_id = item.request.mandate_id.as_ref().and_then(|mandate_ids| {
+        mandate_ids
+            .mandate_reference_id
+            .as_ref()
+            .and_then(|mandate_ref_id| match mandate_ref_id {
+                payments::MandateReferenceId::NetworkMandateId(ref_data) => {
+                    ref_data.transaction_link_id.clone()
+                }
+                payments::MandateReferenceId::NetworkTokenWithNTI(ref_data) => {
+                    ref_data.transaction_link_id.clone()
+                }
+                payments::MandateReferenceId::ConnectorMandateId(_)
+                | payments::MandateReferenceId::CardWithLimitedData => None,
+            })
+    });
+
     Ok(Some(AdditionalData {
         authorisation_type,
         manual_capture,
@@ -2189,6 +2205,7 @@ fn get_additional_data(
         }),
         paymentdatasource,
         capture_delay_hours,
+        transaction_link_id,
         ..AdditionalData::default()
     }))
 }
@@ -3133,6 +3150,7 @@ impl
             get_recurring_processing_model(item.router_data)?;
         let browser_info = None;
         let additional_data = get_additional_data(item.router_data)?;
+
         let return_url = item.router_data.request.get_router_return_url()?;
         let payment_method_type = item.router_data.request.payment_method_type;
         let testing_data = item
@@ -4550,7 +4568,10 @@ pub fn get_adyen_response(
                 .map(|network_tx_id| network_tx_id.clone().expose())
         });
 
-    let network_txn_link_id = None; // TODO(TLID-PR2): extract from response.additional_data.transaction_link_id
+    let network_txn_link_id = response
+        .additional_data
+        .as_ref()
+        .and_then(|additional_data| additional_data.transaction_link_id.clone());
 
     let charges = match &response.splits {
         Some(split_items) => Some(construct_charge_response(response.store, split_items)),

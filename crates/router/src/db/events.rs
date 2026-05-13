@@ -1526,6 +1526,7 @@ mod tests {
             whole_connector_response: None,
             payment_channel: None,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             enable_partial_authorization: None,
             is_overcapture_enabled: None,
             enable_overcapture: None,
