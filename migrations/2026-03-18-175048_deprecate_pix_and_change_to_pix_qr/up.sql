@@ -29,11 +29,21 @@ SET metadata = (metadata - 'pix') || jsonb_build_object('pix_emv', metadata->'pi
 WHERE connector_name = 'santander' 
   AND metadata ? 'pix';
 
-UPDATE merchant_connector_account
-SET payment_methods_enabled = REPLACE(
-    payment_methods_enabled::TEXT, 
-    '"payment_method_type":"pix"', 
-    '"payment_method_type":"pix_emv"'
-)::JSONB
-WHERE connector_name = 'santander'
-  AND payment_methods_enabled::TEXT ILIKE '%"payment_method_type"%pix%';
+WITH updated_data AS (
+    SELECT 
+        id,
+        array_agg(
+            REPLACE(elem::text, '"payment_method_type":"pix"', '"payment_method_type":"pix_emv"')::json
+        ) AS new_array
+    FROM 
+        merchant_connector_account,
+        unnest(payment_methods_enabled) AS elem
+    WHERE 
+        connector_name = 'santander'
+    GROUP BY 
+        id
+)
+UPDATE merchant_connector_account m
+SET payment_methods_enabled = u.new_array
+FROM updated_data u
+WHERE m.id = u.id;
