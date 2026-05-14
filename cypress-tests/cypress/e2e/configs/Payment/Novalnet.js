@@ -817,24 +817,6 @@ export const connectorDetails = {
           },
         },
       }),
-    PaypalRedirect: {
-      Request: {
-        payment_method: "wallet",
-        payment_method_type: "paypal",
-        payment_method_data: {
-          wallet: {
-            paypal_redirect: {},
-          },
-        },
-        billing: billingAddress,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
   },
   webhook: {
     TransactionIdConfig: {
