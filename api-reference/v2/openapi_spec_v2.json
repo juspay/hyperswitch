@@ -11113,6 +11113,7 @@
           "helcim",
           "hyperpg",
           "hyperswitch_vault",
+          "interpayments",
           "inespay",
           "iatapay",
           "imerchantsolutions",
@@ -11458,6 +11459,7 @@
           "payment_method_auth",
           "authentication_processor",
           "tax_processor",
+          "surcharge_processor",
           "billing_processor",
           "vault_processor"
         ]
@@ -16170,6 +16172,7 @@
           "authentication_provider",
           "fraud_and_risk_management_provider",
           "tax_calculation_provider",
+          "surcharge_calculation_provider",
           "revenue_growth_management_platform"
         ]
       },
