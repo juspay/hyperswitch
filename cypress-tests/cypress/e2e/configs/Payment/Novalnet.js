@@ -835,26 +835,6 @@ export const connectorDetails = {
         },
       },
     },
-    PaypalRedirectMandateCIT: {
-      Request: {
-        payment_method: "wallet",
-        payment_method_type: "paypal",
-        payment_method_data: {
-          wallet: {
-            paypal_redirect: {},
-          },
-        },
-        billing: billingAddress,
-        setup_future_usage: "off_session",
-        mandate_data: singleUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
     Mifinity: getCustomExchange({
       Request: {
         payment_method: "wallet",

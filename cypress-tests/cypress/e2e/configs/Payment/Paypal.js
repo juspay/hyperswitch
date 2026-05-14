@@ -955,6 +955,27 @@ export const connectorDetails = {
         },
       },
     },
+    PaypalRedirectMandateCIT: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        billing: standardBillingAddress,
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+        setup_future_usage: "off_session",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
   },
   webhook: {
     TransactionIdConfig: {
