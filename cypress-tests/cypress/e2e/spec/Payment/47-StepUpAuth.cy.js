@@ -1,6 +1,10 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import getConnectorDetails, {
+  CONNECTOR_LISTS,
+  shouldIncludeConnector,
+} from "../../configs/Payment/Utils";
+import * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
@@ -12,16 +16,16 @@ describe("Step-Up Auth payment flow test", () => {
       .then((state) => {
         globalState = new State(state);
 
-        const baseUrl = Cypress.env("BASEURL") || Cypress.config("baseUrl");
-        if (baseUrl && baseUrl.includes("localhost")) {
+        const baseUrl = globalState.get("baseUrl");
+        if (typeof baseUrl === "string" && baseUrl.includes("localhost")) {
           skip = true;
           return;
         }
 
         if (
-          utils.shouldIncludeConnector(
+          shouldIncludeConnector(
             globalState.get("connectorId"),
-            utils.CONNECTOR_LISTS.INCLUDE.STEP_UP_AUTH
+            CONNECTOR_LISTS.INCLUDE.STEP_UP_AUTH
           )
         ) {
           skip = true;
