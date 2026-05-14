@@ -7485,7 +7485,7 @@ where
                 }
             };
 
-            let (should_call_connector, existing_connector_customer_id) =
+            let (should_call_connector, existing_connector_customer_id, generated_customer_id) =
                 customers::should_call_connector_create_customer(
                     &connector,
                     connector_customer_map,
@@ -7524,6 +7524,18 @@ where
 
                 payment_data.set_connector_customer_id(connector_customer_id);
                 Ok(customer_update)
+            } else if generated_customer_id.is_some() && existing_connector_customer_id.is_none() {
+                // Only update with generated customer ID if there's no existing connector customer
+                let customer_update: Option<hyperswitch_domain_models::customer::CustomerUpdate> = customers::update_connector_customer_in_customers(
+                    &label,
+                    connector_customer_map,
+                    generated_customer_id.clone(),
+                    initiator,
+                )
+                .await;
+
+                payment_data.set_connector_customer_id(generated_customer_id);
+                Ok(customer_update)
             } else {
                 // Customer already created in previous calls use the same value, no need to update
                 payment_data.set_connector_customer_id(
@@ -7547,7 +7559,7 @@ pub async fn call_create_connector_customer_if_required<F, Req, D>(
 ) -> RouterResult<Option<storage::CustomerUpdate>>
 where
     F: Send + Clone + Sync,
-    Req: Send + Sync,
+    Req: Send + Sync, 
 
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,

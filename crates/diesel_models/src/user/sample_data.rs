@@ -225,6 +225,7 @@ pub struct PaymentAttemptBatchNew {
     pub network_details: Option<NetworkDetails>,
     pub is_stored_credential: Option<bool>,
     pub authorized_amount: Option<MinorUnit>,
+    pub sender_payment_instrument_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -322,6 +323,7 @@ impl PaymentAttemptBatchNew {
             error_details: None,
             retry_type: None,
             installment_data: None,
+            sender_payment_instrument_id: None,
         }
     }
 }

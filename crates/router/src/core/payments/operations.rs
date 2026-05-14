@@ -670,10 +670,10 @@ where
     #[cfg(feature = "v1")]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        _state: &SessionState,
-        _payment_data: &mut D,
-        _request: Option<CustomerDetails>,
-        _provider: &domain::Provider,
+        state: &SessionState,
+        payment_data: &mut D,
+        request: Option<CustomerDetails>,
+        provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         _mandate_type: Option<api::MandateTransactionType>,
@@ -684,11 +684,18 @@ where
         ),
         errors::StorageError,
     > {
+        let customer = helpers::get_customer_if_exists(
+                    state,
+                    request.as_ref().and_then(|r| r.customer_id.as_ref()),
+                    payment_data.get_payment_intent().customer_id.as_ref(),
+                    provider,
+                )
+                .await?;
         // We don't need to fetch customer here.
         // Customer details have already been populated in the payment_intent during Confirm
         // The customer returned from this method is only used for updating connector_customer_id
         // which does not happen in case of Retrieve
-        Ok((Box::new(self), None))
+        Ok((Box::new(self), customer))
     }
 
     async fn get_connector<'a>(

@@ -4,6 +4,7 @@ use actix_web::http::header::HeaderMap;
 #[cfg(feature = "payouts")]
 use api_models::payouts::{BankRedirect, PayoutMethodData};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+use hyperswitch_masking::ExposeInterface;
 use common_enums::enums;
 #[cfg(feature = "payouts")]
 use common_utils::pii;
@@ -344,12 +345,15 @@ pub struct TruelayerPayoutRequest {
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[serde_with::skip_serializing_none]
 pub struct TruelayerBeneficiary {
     #[serde(rename = "type")]
     _type: String,
     reference: String,
-    account_holder_name: Secret<String>,
-    account_identifier: TruelayerAccountIdentifier,
+    account_holder_name: Option<Secret<String>>,
+    account_identifier: Option<TruelayerAccountIdentifier>,
+    payment_source_id: Option<String>,
+    user_id: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
@@ -377,11 +381,31 @@ impl TryFrom<&TruelayerRouterData<&PayoutsRouterData<PoFulfill>>> for TruelayerP
                         reference: normalize_payment_id(
                             item.router_data.request.payout_id.get_string_repr(),
                         ),
-                        account_holder_name: open_banking_uk_data.account_holder_name,
-                        account_identifier: TruelayerAccountIdentifier {
+                        account_holder_name: Some(open_banking_uk_data.account_holder_name),
+                        account_identifier: Some(TruelayerAccountIdentifier {
                             _type: "iban".to_string(),
                             iban: open_banking_uk_data.iban,
-                        },
+                        }),
+                        user_id: None,
+                        payment_source_id: None,
+                    },
+                })
+            }
+            PayoutMethodData::Passthrough(passthrough_data) => {
+                let metadata = TruelayerMetadata::try_from(&item.router_data.connector_meta_data)?;
+                Ok(Self {
+                    merchant_account_id: metadata.merchant_account_id,
+                    amount_in_minor: item.amount,
+                    currency: item.router_data.request.destination_currency,
+                    beneficiary: TruelayerBeneficiary {
+                        _type: "payment_source".to_string(),
+                        reference: normalize_payment_id(
+                            item.router_data.request.payout_id.get_string_repr(),
+                        ),
+                        account_holder_name: None,
+                        account_identifier: None,
+                        user_id: passthrough_data.psp_customer_id.as_ref().map(|id| id.clone().expose()),
+                        payment_source_id: Some(passthrough_data.psp_token.expose()),
                     },
                 })
             }

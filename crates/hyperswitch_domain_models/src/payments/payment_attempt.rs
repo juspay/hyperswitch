@@ -1426,6 +1426,7 @@ pub struct PaymentAttempt {
     pub retry_type: Option<storage_enums::RetryType>,
     /// Installment data selected by the customer (number of installments and billing frequency)
     pub installment_data: Option<common_types::payments::InstallmentData>,
+    pub sender_payment_instrument_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -2032,6 +2033,7 @@ pub enum PaymentAttemptUpdate {
         advice_message: Option<Option<String>>,
         recommended_action: Option<Option<storage_enums::RecommendedAction>>,
         card_network: Option<storage_enums::CardNetwork>,
+        sender_payment_instrument_id: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -2193,6 +2195,7 @@ impl PaymentAttemptUpdate {
                 merchant_connector_id,
                 routing_approach,
                 is_stored_credential,
+                // sender_payment_instrument_id,
             } => DieselPaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
                 connector,
@@ -2383,6 +2386,7 @@ impl PaymentAttemptUpdate {
                 advice_message,
                 recommended_action,
                 card_network,
+                sender_payment_instrument_id,
             } => {
                 let connector_details = ConnectorErrorDetails::new(
                     error_code.clone(),
@@ -2447,6 +2451,7 @@ impl PaymentAttemptUpdate {
                     encrypted_payment_method_data: encrypted_payment_method_data
                         .map(Encryption::from),
                     error_details,
+                    sender_payment_instrument_id,
                 }
             }
             Self::UnresolvedResponseUpdate {
@@ -2939,6 +2944,7 @@ impl behaviour::Conversion for PaymentAttempt {
             authorized_amount: self.authorized_amount,
             encrypted_payment_method_data: self.encrypted_payment_method_data.map(Encryption::from),
             retry_type: self.retry_type,
+            sender_payment_instrument_id: self.sender_payment_instrument_id,
         })
     }
 
@@ -3072,6 +3078,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 error_details: storage_model.error_details.map(Into::into),
                 retry_type: storage_model.retry_type,
                 installment_data: storage_model.installment_data,
+                sender_payment_instrument_id: storage_model.sender_payment_instrument_id,
             })
         }
         .await
@@ -3172,6 +3179,7 @@ impl behaviour::Conversion for PaymentAttempt {
             error_details: self.error_details.map(Into::into),
             retry_type: self.retry_type,
             installment_data: self.installment_data,
+            sender_payment_instrument_id: self.sender_payment_instrument_id,
         })
     }
 }
