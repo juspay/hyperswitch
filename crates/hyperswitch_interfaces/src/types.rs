@@ -11,10 +11,10 @@ use hyperswitch_domain_models::{
         merchant_connector_webhook_management::ConnectorWebhookRegister,
         payments::{
             Authorize, AuthorizeSessionToken, Balance, CalculateSurcharge, CalculateTax, Capture,
-            CompleteAuthorize, CompleteSurcharge, CreateConnectorCustomer, CreateOrder,
-            ExtendAuthorization, GenerateQr, IncrementalAuthorization, InitPayment, PSync,
-            PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing,
-            PushNotification, RefundSurcharge, SdkSessionUpdate, Session, SettlementSplitCreate,
+            CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer,
+            CreateOrder, ExtendAuthorization, GenerateQr, IncrementalAuthorization, InitPayment,
+            PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens,
+            PreProcessing, PushNotification, SdkSessionUpdate, Session, SettlementSplitCreate,
             SetupMandate, UpdateMetadata, Void,
         },
         refunds::{Execute, RSync},
@@ -56,10 +56,10 @@ use hyperswitch_domain_models::{
         FetchDisputesRequestData, GenerateQrRequestData, GiftCardBalanceCheckRequestData,
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsCompleteSurchargeData, PaymentsExtendAuthorizationData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
-        PaymentsPreProcessingData, PaymentsRefundSurchargeData, PaymentsSessionData,
+        PaymentsCaptureData, PaymentsCompleteRefundSurchrgeData, PaymentsCompleteSurchargeData,
+        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData,
         PaymentsSurchargeCalculationData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, PushNotificationRequestData, RefundsData,
         RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
@@ -77,9 +77,9 @@ use hyperswitch_domain_models::{
             GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
             SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
-        AcceptDisputeResponse, CompleteSurchargeResponseData, DefendDisputeResponse,
-        DisputeSyncResponse, FetchDisputesResponse, GiftCardBalanceCheckResponseData,
-        MandateRevokeResponseData, PaymentsResponseData, RefundSurchargeResponseData,
+        AcceptDisputeResponse, CompleteRefundSurchrgeResponseData, CompleteSurchargeResponseData,
+        DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
+        GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
         RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
         SurchargeCalculationResponseData, TaxCalculationResponseData, UploadFileResponse,
         VaultResponseData, VerifyWebhookSourceResponseData,
@@ -133,11 +133,11 @@ pub type CompleteSurchargeType = dyn ConnectorIntegration<
     PaymentsCompleteSurchargeData,
     CompleteSurchargeResponseData,
 >;
-/// Type alias for `ConnectorIntegration<RefundSurcharge, PaymentsRefundSurchargeData, RefundSurchargeResponseData>`
-pub type RefundSurchargeType = dyn ConnectorIntegration<
-    RefundSurcharge,
-    PaymentsRefundSurchargeData,
-    RefundSurchargeResponseData,
+/// Type alias for `ConnectorIntegration<CompleteRefundSurchrge, PaymentsCompleteRefundSurchrgeData, CompleteRefundSurchrgeResponseData>`
+pub type CompleteRefundSurchrgeType = dyn ConnectorIntegration<
+    CompleteRefundSurchrge,
+    PaymentsCompleteRefundSurchrgeData,
+    CompleteRefundSurchrgeResponseData,
 >;
 /// Type alias for `ConnectorIntegration<PostSessionTokens, PaymentsPostSessionTokensData, PaymentsResponseData>`
 pub type PaymentsPostSessionTokensType = dyn ConnectorIntegration<

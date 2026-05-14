@@ -72,7 +72,7 @@ pub struct CalculateSurcharge;
 pub struct CompleteSurcharge;
 
 #[derive(Debug, Clone)]
-pub struct RefundSurcharge;
+pub struct CompleteRefundSurchrge;
 
 #[derive(Debug, Clone)]
 pub struct SdkSessionUpdate;

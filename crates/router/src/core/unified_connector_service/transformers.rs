@@ -7212,18 +7212,21 @@ impl
                 .as_ref()
                 .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
                 .map(|country| country.into()),
-            surcharge_strategy: router_data.request.surcharge_strategy.clone().map(|s| {
-                match s {
-                    router_request_types::SurchargeStrategy::Apply => {
-                        payments_grpc::SurchargeStrategy::Apply
-                    }
-                    router_request_types::SurchargeStrategy::Waive => {
-                        payments_grpc::SurchargeStrategy::Waive
-                    }
-                }
-                .into()
-            }),
+            surcharge_strategy: router_data
+                .request
+                .surcharge_strategy
+                .clone()
+                .map(|s| payments_grpc::SurchargeStrategy::foreign_from(s).into()),
         })
+    }
+}
+
+impl ForeignFrom<router_request_types::SurchargeStrategy> for payments_grpc::SurchargeStrategy {
+    fn foreign_from(strategy: router_request_types::SurchargeStrategy) -> Self {
+        match strategy {
+            router_request_types::SurchargeStrategy::Apply => Self::Apply,
+            router_request_types::SurchargeStrategy::Waive => Self::Waive,
+        }
     }
 }
 

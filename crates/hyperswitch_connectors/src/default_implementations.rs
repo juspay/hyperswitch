@@ -34,9 +34,9 @@ use hyperswitch_domain_models::{
         merchant_connector_webhook_management::ConnectorWebhookRegister,
         payments::{
             Approve, AuthorizeSessionToken, CalculateSurcharge, CalculateTax, CompleteAuthorize,
-            CompleteSurcharge, CreateConnectorCustomer, CreateOrder, ExtendAuthorization,
-            GenerateQr, GiftCardBalanceCheck, IncrementalAuthorization, PostCaptureVoid,
-            PostProcessing, PostSessionTokens, PreProcessing, PushNotification, RefundSurcharge,
+            CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer, CreateOrder,
+            ExtendAuthorization, GenerateQr, GiftCardBalanceCheck, IncrementalAuthorization,
+            PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, PushNotification,
             Reject, SdkSessionUpdate, SettlementSplitCreate, UpdateMetadata,
         },
         subscriptions::{
@@ -68,14 +68,15 @@ use hyperswitch_domain_models::{
         DefendDisputeRequestData, DisputeSyncData, ExternalVaultProxyPaymentsData,
         FetchDisputesRequestData, GenerateQrRequestData, GiftCardBalanceCheckRequestData,
         MandateRevokeRequestData, PaymentsApproveData, PaymentsAuthenticateData,
-        PaymentsCancelPostCaptureData, PaymentsCompleteSurchargeData,
-        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
-        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRefundSurchargeData,
-        PaymentsRejectData, PaymentsSurchargeCalculationData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, PushNotificationRequestData, RetrieveFileRequestData,
-        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
+        PaymentsCancelPostCaptureData, PaymentsCompleteRefundSurchrgeData,
+        PaymentsCompleteSurchargeData, PaymentsExtendAuthorizationData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSurchargeCalculationData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PushNotificationRequestData,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
+        SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
@@ -85,10 +86,10 @@ use hyperswitch_domain_models::{
             GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
             SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
-        AcceptDisputeResponse, AuthenticationResponseData, CompleteSurchargeResponseData,
-        DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
-        GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
-        RefundSurchargeResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
+        AcceptDisputeResponse, AuthenticationResponseData, CompleteRefundSurchrgeResponseData,
+        CompleteSurchargeResponseData, DefendDisputeResponse, DisputeSyncResponse,
+        FetchDisputesResponse, GiftCardBalanceCheckResponseData, MandateRevokeResponseData,
+        PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
         SurchargeCalculationResponseData, TaxCalculationResponseData, UploadFileResponse,
         VaultResponseData, VerifyWebhookSourceResponseData,
     },
@@ -10837,8 +10838,11 @@ impl<const T: u8>
 impl<const T: u8> SurchargeRefund for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
-    ConnectorIntegration<RefundSurcharge, PaymentsRefundSurchargeData, RefundSurchargeResponseData>
-    for connectors::DummyConnector<T>
+    ConnectorIntegration<
+        CompleteRefundSurchrge,
+        PaymentsCompleteRefundSurchrgeData,
+        CompleteRefundSurchrgeResponseData,
+    > for connectors::DummyConnector<T>
 {
 }
 

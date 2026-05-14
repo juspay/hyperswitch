@@ -14,12 +14,12 @@ use crate::{
         AccessTokenAuth, AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         Authorize, AuthorizeSessionToken, BillingConnectorInvoiceSync,
         BillingConnectorPaymentsSync, CalculateSurcharge, CalculateTax, Capture, CompleteAuthorize,
-        CompleteSurcharge, CreateConnectorCustomer, CreateOrder, Execute, ExtendAuthorization,
-        ExternalVaultProxy, GenerateQr, GiftCardBalanceCheck, IncrementalAuthorization, PSync,
-        PaymentMethodToken, PostAuthenticate, PostCaptureVoid, PostSessionTokens, PreAuthenticate,
-        PreProcessing, ProcessIncomingWebhook, PushNotification, RSync, RefundSurcharge,
-        SdkSessionUpdate, Session, SettlementSplitCreate, SetupMandate, UpdateMetadata,
-        VerifyWebhookSource, Void,
+        CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer, CreateOrder, Execute,
+        ExtendAuthorization, ExternalVaultProxy, GenerateQr, GiftCardBalanceCheck,
+        IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostCaptureVoid,
+        PostSessionTokens, PreAuthenticate, PreProcessing, ProcessIncomingWebhook,
+        PushNotification, RSync, SdkSessionUpdate, Session, SettlementSplitCreate, SetupMandate,
+        UpdateMetadata, VerifyWebhookSource, Void,
     },
     router_request_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
@@ -42,10 +42,10 @@ use crate::{
         ExternalVaultProxyPaymentsData, GenerateQrRequestData, GiftCardBalanceCheckRequestData,
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsCompleteSurchargeData, PaymentsExtendAuthorizationData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPostSessionTokensData, PaymentsPreAuthenticateData, PaymentsPreProcessingData,
-        PaymentsRefundSurchargeData, PaymentsSessionData, PaymentsSurchargeCalculationData,
+        PaymentsCaptureData, PaymentsCompleteRefundSurchrgeData, PaymentsCompleteSurchargeData,
+        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
+        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSurchargeCalculationData,
         PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
         PushNotificationRequestData, RefundsData, SdkPaymentsSessionUpdateData,
         SettlementSplitRequestData, SetupMandateRequestData, VaultRequestData,
@@ -62,10 +62,10 @@ use crate::{
             GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
             SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
-        CompleteSurchargeResponseData, GiftCardBalanceCheckResponseData, MandateRevokeResponseData,
-        PaymentsResponseData, RefundSurchargeResponseData, RefundsResponseData,
-        SurchargeCalculationResponseData, TaxCalculationResponseData, VaultResponseData,
-        VerifyWebhookSourceResponseData,
+        CompleteRefundSurchrgeResponseData, CompleteSurchargeResponseData,
+        GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
+        RefundsResponseData, SurchargeCalculationResponseData, TaxCalculationResponseData,
+        VaultResponseData, VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -114,8 +114,11 @@ pub type SurchargeCalculationRouterData = RouterData<
 >;
 pub type CompleteSurchargeRouterData =
     RouterData<CompleteSurcharge, PaymentsCompleteSurchargeData, CompleteSurchargeResponseData>;
-pub type RefundSurchargeRouterData =
-    RouterData<RefundSurcharge, PaymentsRefundSurchargeData, RefundSurchargeResponseData>;
+pub type CompleteRefundSurchrgeRouterData = RouterData<
+    CompleteRefundSurchrge,
+    PaymentsCompleteRefundSurchrgeData,
+    CompleteRefundSurchrgeResponseData,
+>;
 pub type AccessTokenAuthenticationRouterData = RouterData<
     AccessTokenAuthentication,
     AccessTokenAuthenticationRequestData,

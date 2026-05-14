@@ -159,7 +159,7 @@ pub struct CompleteSurchargeResponseData {
 
 /// Response data for refunding surcharge
 #[derive(Debug, Clone)]
-pub struct RefundSurchargeResponseData {
+pub struct CompleteRefundSurchrgeResponseData {
     /// Surcharge amount that was refunded
     pub refund_amount: MinorUnit,
     /// Transaction ID for the refund

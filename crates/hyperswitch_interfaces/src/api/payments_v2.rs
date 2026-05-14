@@ -5,10 +5,10 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         payments::{
             Approve, Authorize, AuthorizeSessionToken, CalculateSurcharge, CalculateTax, Capture,
-            CompleteAuthorize, CompleteSurcharge, CreateConnectorCustomer, CreateOrder,
-            ExtendAuthorization, ExternalVaultProxy, GenerateQr, IncrementalAuthorization, PSync,
-            PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing,
-            PushNotification, RefundSurcharge, Reject, SdkSessionUpdate, Session,
+            CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer,
+            CreateOrder, ExtendAuthorization, ExternalVaultProxy, GenerateQr,
+            IncrementalAuthorization, PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing,
+            PostSessionTokens, PreProcessing, PushNotification, Reject, SdkSessionUpdate, Session,
             SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
         },
         Authenticate, GiftCardBalanceCheck, PostAuthenticate, PreAuthenticate,
@@ -18,18 +18,19 @@ use hyperswitch_domain_models::{
         CreateOrderRequestData, ExternalVaultProxyPaymentsData, GenerateQrRequestData,
         GiftCardBalanceCheckRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
         PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsCompleteSurchargeData,
-        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
-        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRefundSurchargeData,
-        PaymentsRejectData, PaymentsSessionData, PaymentsSurchargeCalculationData,
-        PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
-        PushNotificationRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
-        SetupMandateRequestData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsCompleteRefundSurchrgeData,
+        PaymentsCompleteSurchargeData, PaymentsExtendAuthorizationData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData,
+        PaymentsSurchargeCalculationData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, PushNotificationRequestData, SdkPaymentsSessionUpdateData,
+        SettlementSplitRequestData, SetupMandateRequestData,
     },
     router_response_types::{
-        CompleteSurchargeResponseData, GiftCardBalanceCheckResponseData, PaymentsResponseData,
-        RefundSurchargeResponseData, SurchargeCalculationResponseData, TaxCalculationResponseData,
+        CompleteRefundSurchrgeResponseData, CompleteSurchargeResponseData,
+        GiftCardBalanceCheckResponseData, PaymentsResponseData, SurchargeCalculationResponseData,
+        TaxCalculationResponseData,
     },
 };
 
@@ -162,13 +163,13 @@ pub trait CompleteSurchargeV2:
 {
 }
 
-///trait RefundSurchargeV2
-pub trait RefundSurchargeV2:
+///trait CompleteRefundSurchrgeV2
+pub trait CompleteRefundSurchrgeV2:
     ConnectorIntegrationV2<
-    RefundSurcharge,
+    CompleteRefundSurchrge,
     PaymentFlowData,
-    PaymentsRefundSurchargeData,
-    RefundSurchargeResponseData,
+    PaymentsCompleteRefundSurchrgeData,
+    CompleteRefundSurchrgeResponseData,
 >
 {
 }

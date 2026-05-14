@@ -1786,7 +1786,7 @@ pub struct PaymentsCompleteSurchargeData {
 }
 
 #[derive(Debug, Clone)]
-pub struct PaymentsRefundSurchargeData {
+pub struct PaymentsCompleteRefundSurchrgeData {
     /// transaction ID from surcharge connectors
     pub external_surcharge_id: String,
     /// Currency for the refund amount
