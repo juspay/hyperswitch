@@ -4875,7 +4875,8 @@ where
             &connector,
         )
         .await?;
-
+    
+    // pass req here
     let router_data = payment_data
         .construct_router_data(
             state,
@@ -8557,6 +8558,10 @@ where
         "PaymentSessionUpdate" => true,
         "PaymentPostSessionTokens" => true,
         "PaymentUpdateMetadata" => true,
+        "PaymentUpdate" => matches!(
+            payment_data.get_payment_intent().status,
+            storage_enums::IntentStatus::RequiresCustomerAction
+        ),
         "PaymentExtendAuthorization" => matches!(
             payment_data.get_payment_intent().status,
             storage_enums::IntentStatus::RequiresCapture

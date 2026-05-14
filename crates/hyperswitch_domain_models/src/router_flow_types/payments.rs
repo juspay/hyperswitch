@@ -94,3 +94,6 @@ pub struct GiftCardBalanceCheck;
 
 #[derive(Debug, Clone)]
 pub struct SettlementSplitCreate;
+
+#[derive(Debug, Clone)]
+pub struct UpdatePostConfirm;

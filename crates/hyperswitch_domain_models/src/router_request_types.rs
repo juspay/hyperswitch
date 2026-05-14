@@ -231,6 +231,14 @@ pub struct PaymentsUpdateMetadataData {
     pub connector_transaction_id: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct PaymentsUpdatePostConfirmData {
+    // add connector intent metadata, address, amount, currency etc
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub connector_transaction_id: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct AuthoriseIntegrityObject {
     /// Authorise amount

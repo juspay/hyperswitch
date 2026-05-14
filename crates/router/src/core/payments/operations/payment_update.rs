@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, str::FromStr};
 
 use api_models::{
     customers::CustomerDocumentDetails, enums::FrmSuggestion, mandates::RecurringDetails,
@@ -40,7 +40,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
-#[operation(operations = "all", flow = "authorize")]
+#[operation(operations = "all", flow = "update_post_confirm")]
 pub struct PaymentUpdate;
 
 type PaymentUpdateOperation<'a, F> = BoxedOperation<'a, F, api::PaymentsRequest, PaymentData<F>>;
@@ -112,6 +112,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             &[
                 storage_enums::IntentStatus::RequiresPaymentMethod,
                 storage_enums::IntentStatus::RequiresConfirmation,
+                storage_enums::IntentStatus::RequiresCustomerAction,
             ],
             "update",
         )?;
@@ -391,18 +392,38 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 (Box::new(self), amount)
             };
 
-        payment_intent.status = if request
-            .payment_method_data
-            .as_ref()
-            .is_some_and(|payment_method_data| payment_method_data.payment_method_data.is_some())
-        {
-            if request.confirm.unwrap_or(false) {
+        payment_intent.status = {
+            let connector_enum = payment_attempt
+                .connector
+                .clone()
+                .map(|c| {
+                    common_enums::connector_enums::Connector::from_str(&c)
+                        .change_context(
+                            payment_methods::errors::ApiErrorResponse::InternalServerError,
+                        )
+                        .attach_printable("Failed to parse connector enum from string")
+                })
+                .transpose()?;
+
+            // Santander supports updating a pre-authorized payment intent
+            if connector_enum.is_some_and(|c| {
+                c.supports_pre_authorize_update(payment_attempt.payment_method_type)
+            }) && payment_intent.status == storage_enums::IntentStatus::RequiresCustomerAction
+            {
                 payment_intent.status
+            } else if request
+                .payment_method_data
+                .as_ref()
+                .is_some_and(|pmd| pmd.payment_method_data.is_some())
+            {
+                if request.confirm.unwrap_or(false) {
+                    payment_intent.status
+                } else {
+                    storage_enums::IntentStatus::RequiresConfirmation
+                }
             } else {
-                storage_enums::IntentStatus::RequiresConfirmation
+                storage_enums::IntentStatus::RequiresPaymentMethod
             }
-        } else {
-            storage_enums::IntentStatus::RequiresPaymentMethod
         };
 
         payment_intent.request_external_three_ds_authentication = request
@@ -833,9 +854,24 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     == storage_enums::IntentStatus::RequiresPaymentMethod;
 
         let payment_method = payment_data.payment_attempt.payment_method;
-
+        let connector_enum = payment_data
+            .payment_attempt
+            .connector
+            .clone()
+            .map(|c| {
+                common_enums::connector_enums::Connector::from_str(&c)
+                    .change_context(payment_methods::errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse connector enum from string")
+            })
+            .transpose()?;
         let get_attempt_status = || {
-            if is_payment_method_unavailable {
+            if connector_enum.is_some_and(|c| {
+                c.supports_pre_authorize_update(payment_data.payment_attempt.payment_method_type)
+            }) && payment_data.payment_intent.status
+                == storage_enums::IntentStatus::RequiresCustomerAction
+            {
+                payment_data.payment_attempt.status
+            } else if is_payment_method_unavailable {
                 storage_enums::AttemptStatus::PaymentMethodAwaited
             } else {
                 storage_enums::AttemptStatus::ConfirmationAwaited
@@ -940,7 +976,13 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 
         let intent_status = {
             let current_intent_status = payment_data.payment_intent.status;
-            if is_payment_method_unavailable {
+            if connector_enum.is_some_and(|c| {
+                c.supports_pre_authorize_update(payment_data.payment_attempt.payment_method_type)
+            }) && payment_data.payment_intent.status
+                == storage_enums::IntentStatus::RequiresCustomerAction
+            {
+                payment_data.payment_intent.status
+            } else if is_payment_method_unavailable {
                 storage_enums::IntentStatus::RequiresPaymentMethod
             } else if !payment_data.confirm.unwrap_or(true)
                 || current_intent_status == storage_enums::IntentStatus::RequiresCustomerAction

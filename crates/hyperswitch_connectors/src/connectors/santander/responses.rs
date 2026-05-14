@@ -627,7 +627,7 @@ pub struct QrDataUrlSantander {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum SantanderUpdateMetadataResponse {
+pub enum SantanderUpdateResponse {
     Pix(Box<SantanderPixQRCodePaymentsResponse>),
     Boleto(Box<SantanderUpdateBoletoResponse>),
 }

@@ -15,6 +15,7 @@ pub mod session_flow;
 pub mod session_update_flow;
 pub mod setup_mandate_flow;
 pub mod update_metadata_flow;
+pub mod update_post_confirm_flow;
 
 use async_trait::async_trait;
 use common_enums;
