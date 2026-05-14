@@ -765,8 +765,7 @@ Cypress.Commands.add(
     always_collect_shipping_details_from_wallet_connector,
     globalState,
     profilePrefix = "profile",
-    use_billing_as_payment_method_billing = undefined,
-    expectedStatus = undefined
+    use_billing_as_payment_method_billing = undefined
   ) => {
     updateBusinessProfileBody.is_connector_agnostic_mit_enabled =
       is_connector_agnostic_mit_enabled;
