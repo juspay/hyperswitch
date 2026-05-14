@@ -857,7 +857,10 @@ async fn payments_incoming_webhook_flow(
         let resource_object = webhook_details.resource_object.clone();
         match content {
             super::gateway::WebhookContent::Direct(_) => {
-                payments::CallConnectorAction::HandleResponse(resource_object)
+                payments::CallConnectorAction::HandleResponse {
+                    resource_object,
+                    event_type: Some(event_type.into()),
+                }
             }
             super::gateway::WebhookContent::UnifiedConnectorService(_) => {
                 payments::CallConnectorAction::UCSConsumeResponse(resource_object)
