@@ -165,4 +165,207 @@ describe("Card - Payment Response Hash flow test", () => {
       });
     });
   });
+
+  context("3DS Auto-Capture - Compute and Verify HMAC-SHA512 Signature", () => {
+    it("create payment intent -> confirm 3DS -> compute HMAC-SHA512 and compare with redirect signature", () => {
+      let shouldContinue = true;
+
+      cy.step("create payment intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("payment methods call", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: payment methods call");
+          return;
+        }
+
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("confirm 3DS payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: confirm 3DS payment");
+          return;
+        }
+
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["3DSAutoCapture"];
+
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("compute and verify HMAC-SHA512 signature", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: compute and verify HMAC-SHA512");
+          return;
+        }
+
+        cy.computeAndVerifyRedirectSignature(globalState);
+      });
+    });
+  });
+
+  context("3DS Auto-Capture - Failure Scenarios for Invalid Signatures", () => {
+    it("create payment intent -> confirm 3DS -> compute HMAC -> verify tampered, wrong-key, wrong-algorithm signatures fail", () => {
+      let shouldContinue = true;
+
+      cy.step("create payment intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("payment methods call", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: payment methods call");
+          return;
+        }
+
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("confirm 3DS payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: confirm 3DS payment");
+          return;
+        }
+
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["3DSAutoCapture"];
+
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("compute and verify HMAC-SHA512 signature", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: compute and verify HMAC-SHA512");
+          return;
+        }
+
+        cy.computeAndVerifyRedirectSignature(globalState);
+      });
+
+      cy.step("verify tampered, wrong-key, and wrong-algorithm signatures fail", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: failure scenarios");
+          return;
+        }
+
+        cy.verifyTamperedSignatureFails(globalState);
+      });
+    });
+  });
+
+  context("3DS Auto-Capture - Webhook Signature Verification", () => {
+    it("create payment intent -> confirm 3DS -> verify webhook delivery signature", () => {
+      let shouldContinue = true;
+
+      cy.step("create payment intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("payment methods call", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: payment methods call");
+          return;
+        }
+
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("confirm 3DS payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: confirm 3DS payment");
+          return;
+        }
+
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["3DSAutoCapture"];
+
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("wait for webhook delivery and verify signature", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: webhook signature verification");
+          return;
+        }
+
+        cy.wait(5000);
+
+        cy.verifyWebhookSignatureHeader(globalState);
+      });
+    });
+  });
 });
