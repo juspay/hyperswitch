@@ -648,9 +648,6 @@ export const connectorDetails = {
       },
     },
     OrderDetails: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -667,16 +664,11 @@ export const connectorDetails = {
         ],
       },
       Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
+        status: 400,
+        body: no3DSNotSupportedResponseBody,
       },
     },
     OrderDetailsMultipleItems: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -698,16 +690,11 @@ export const connectorDetails = {
         ],
       },
       Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
+        status: 400,
+        body: no3DSNotSupportedResponseBody,
       },
     },
     OrderDetailsMissingProductName: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
