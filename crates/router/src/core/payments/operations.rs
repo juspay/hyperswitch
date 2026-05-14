@@ -682,12 +682,12 @@ where
         errors::StorageError,
     > {
         let customer = helpers::get_customer_if_exists(
-                    state,
-                    request.as_ref().and_then(|r| r.customer_id.as_ref()),
-                    payment_data.get_payment_intent().customer_id.as_ref(),
-                    provider,
-                )
-                .await?;
+            state,
+            request.as_ref().and_then(|r| r.customer_id.as_ref()),
+            payment_data.get_payment_intent().customer_id.as_ref(),
+            provider,
+        )
+        .await?;
         // We don't need to fetch customer here.
         // Customer details have already been populated in the payment_intent during Confirm
         // The customer returned from this method is only used for updating connector_customer_id

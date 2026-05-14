@@ -1167,7 +1167,8 @@ impl ConnectorSpecifications for Payload {
         #[cfg(feature = "v1")]
         {
             if payment_attempt.customer_acceptance.is_some()
-                && payment_attempt.setup_future_usage_applied == Some(enums::FutureUsage::OffSession)
+                && payment_attempt.setup_future_usage_applied
+                    == Some(enums::FutureUsage::OffSession)
             {
                 ConnectorCustomerAction::CallConnectorCustomer
             } else {

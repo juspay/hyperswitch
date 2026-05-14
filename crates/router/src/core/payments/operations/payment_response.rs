@@ -2537,7 +2537,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         card_network: payment_data
                                             .payment_attempt
                                             .extract_card_network(),
-                                        sender_payment_instrument_id: router_data.sender_payment_instrument_id.clone(),
+                                        sender_payment_instrument_id: router_data
+                                            .sender_payment_instrument_id
+                                            .clone(),
                                     }),
                                 ),
                             };

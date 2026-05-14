@@ -4,6 +4,7 @@ use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
+use hyperswitch_masking::ExposeInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
 
@@ -26,7 +27,6 @@ use crate::{
     },
     utils::OptionExt,
 };
-use hyperswitch_masking::ExposeInterface;
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
 #[operation(operations = "all", flow = "sync")]
@@ -507,33 +507,31 @@ async fn get_tracker_for_sync<
         .await
         .transpose()?;
 
-        let customer = if let Some(ref customer_id) = payment_intent.customer_id {
-            db.find_customer_by_customer_id_merchant_id(
-                customer_id,
-                &payment_intent.merchant_id,
-                platform.get_processor().get_key_store(),
-                storage_scheme,
-            )
-            .await
-            .ok()
-        } else {
-            None
-        };
+    let customer = if let Some(ref customer_id) = payment_intent.customer_id {
+        db.find_customer_by_customer_id_merchant_id(
+            customer_id,
+            &payment_intent.merchant_id,
+            platform.get_processor().get_key_store(),
+            storage_scheme,
+        )
+        .await
+        .ok()
+    } else {
+        None
+    };
 
-        let merchant_connector_id = payment_attempt.merchant_connector_id.clone();
+    let merchant_connector_id = payment_attempt.merchant_connector_id.clone();
 
-        let connector_customer_id = customer
-            .as_ref()
-            .and_then(|customer| {
-                customer.connector_customer.as_ref().and_then(|cc| {
-                    merchant_connector_id.and_then(|mca_id| {
-                        cc.clone().expose()
-                            .get(mca_id.get_string_repr())
-                            .and_then(|val| val.as_str().as_deref().map(String::from))
-                    })
-                })
-            });
-    
+    let connector_customer_id = customer.as_ref().and_then(|customer| {
+        customer.connector_customer.as_ref().and_then(|cc| {
+            merchant_connector_id.and_then(|mca_id| {
+                cc.clone()
+                    .expose()
+                    .get(mca_id.get_string_repr())
+                    .and_then(|val| val.as_str().as_deref().map(String::from))
+            })
+        })
+    });
 
     let payment_data = PaymentData {
         flow: PhantomData,
