@@ -1,3 +1,5 @@
+import { no3DSNotSupportedResponseBody } from "./Commons.js";
+
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "08",
@@ -59,14 +61,6 @@ const billingAddress = {
   phone: {
     number: "9123456789",
     country_code: "+91",
-  },
-};
-
-const no3DSNotSupportedResponseBody = {
-  error: {
-    type: "invalid_request",
-    message: "No threeds is not supported",
-    code: "IR_00",
   },
 };
 
@@ -692,31 +686,6 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: no3DSNotSupportedResponseBody,
-      },
-    },
-    OrderDetailsMissingProductName: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "EUR",
-        billing: billingAddress,
-        order_details: [
-          {
-            quantity: 1,
-            amount: 6000,
-          },
-        ],
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            error_type: "invalid_request",
-            code: "IR_06",
-          },
-        },
       },
     },
   },

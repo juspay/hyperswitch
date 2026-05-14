@@ -843,67 +843,6 @@ export const connectorDetails = {
         },
       },
     },
-    OrderDetails: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        order_details: [
-          {
-            product_name: "Test Product",
-            quantity: 1,
-            amount: 6000,
-          },
-        ],
-      },
-    }),
-    OrderDetailsMultipleItems: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        order_details: [
-          {
-            product_name: "Test Product 1",
-            quantity: 1,
-            amount: 3000,
-          },
-          {
-            product_name: "Test Product 2",
-            quantity: 2,
-            amount: 1500,
-          },
-        ],
-      },
-    }),
-    OrderDetailsMissingProductName: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        order_details: [
-          {
-            quantity: 1,
-            amount: 6000,
-          },
-        ],
-      },
-    }),
     CardTestingGuard: {
       FailConfirm: {
         Request: {

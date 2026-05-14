@@ -57,6 +57,14 @@ export const blockedPaymentErrorBodyForBinUnavailable = {
   },
 };
 
+export const no3DSNotSupportedResponseBody = {
+  error: {
+    type: "invalid_request",
+    message: "No threeds is not supported",
+    code: "IR_00",
+  },
+};
+
 export const customerAcceptance = {
   acceptance_type: "offline",
   accepted_at: "1963-05-03T04:07:52.723Z",
@@ -2830,6 +2838,67 @@ export const connectorDetails = {
         },
       },
     }),
+    OrderDetailsNo3DSNotSupported: (cardDetails, currency, billing) =>
+      getCustomExchange({
+        Request: {
+          payment_method: "card",
+          payment_method_data: {
+            card: cardDetails,
+          },
+          currency: currency,
+          billing: billing,
+          order_details: [
+            {
+              product_name: "Test Product",
+              quantity: 1,
+              amount: 6000,
+            },
+          ],
+        },
+        Response: {
+          status: 400,
+          body: {
+            error: {
+              type: "invalid_request",
+              message: "No threeds is not supported",
+              code: "IR_00",
+            },
+          },
+        },
+      }),
+    OrderDetailsMultipleItemsNo3DSNotSupported: (cardDetails, currency, billing) =>
+      getCustomExchange({
+        Request: {
+          payment_method: "card",
+          payment_method_data: {
+            card: cardDetails,
+          },
+          currency: currency,
+          billing: billing,
+          order_details: [
+            {
+              product_name: "Test Product 1",
+              quantity: 1,
+              amount: 3000,
+            },
+            {
+              product_name: "Test Product 2",
+              quantity: 2,
+              amount: 1500,
+            },
+          ],
+        },
+        Response: {
+          status: 400,
+          body: {
+            error: {
+              type: "invalid_request",
+              message: "No threeds is not supported",
+              code: "IR_00",
+            },
+          },
+        },
+      }),
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({
