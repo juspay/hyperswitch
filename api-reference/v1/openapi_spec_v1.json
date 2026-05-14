@@ -20525,6 +20525,28 @@
           }
         }
       },
+      "ExternalSurchargeDetails": {
+        "type": "object",
+        "description": "External surcharge details from InterPayments (stored as JSONB)",
+        "required": [
+          "external_surcharge_id",
+          "external_surcharge_amount",
+          "sale_notified"
+        ],
+        "properties": {
+          "external_surcharge_id": {
+            "type": "string",
+            "description": "sTxId from InterPayments (the last one received before confirm)"
+          },
+          "external_surcharge_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "sale_notified": {
+            "type": "boolean",
+            "description": "Whether /v1/ch/sale has been successfully called"
+          }
+        }
+      },
       "ExternalThreeDsData": {
         "type": "object",
         "required": [
@@ -37366,6 +37388,14 @@
             "description": "Merchant Connector id to be stored for billing_processor connector",
             "nullable": true
           },
+          "surcharge_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeConnectorDetails"
+              }
+            ],
+            "nullable": true
+          },
           "is_l2_l3_enabled": {
             "type": "boolean",
             "description": "Flag to enable Level 2 and Level 3 processing data for card transactions",
@@ -37746,6 +37776,14 @@
           "billing_processor_id": {
             "type": "string",
             "description": "Merchant Connector id to be stored for billing_processor connector",
+            "nullable": true
+          },
+          "surcharge_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeConnectorDetails"
+              }
+            ],
             "nullable": true
           },
           "is_l2_l3_enabled": {
@@ -41535,6 +41573,16 @@
             }
           }
         ]
+      },
+      "SurchargeConnectorDetails": {
+        "type": "object",
+        "properties": {
+          "surcharge_connector_id": {
+            "type": "string",
+            "description": "The surcharge connector ID for calculating external surcharge",
+            "nullable": true
+          }
+        }
       },
       "SurchargeDetailsResponse": {
         "type": "object",
