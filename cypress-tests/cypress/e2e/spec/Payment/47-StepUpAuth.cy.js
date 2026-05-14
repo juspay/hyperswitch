@@ -16,12 +16,6 @@ describe("Step-Up Auth payment flow test", () => {
       .then((state) => {
         globalState = new State(state);
 
-        const baseUrl = globalState.get("baseUrl");
-        if (typeof baseUrl === "string" && baseUrl.includes("localhost")) {
-          skip = true;
-          return;
-        }
-
         if (
           shouldIncludeConnector(
             globalState.get("connectorId"),
