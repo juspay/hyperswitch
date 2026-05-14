@@ -46,6 +46,7 @@ pub mod routes {
             ApplicationResponse,
         },
         types::{domain::UserEmail, storage::UserRole},
+        utils::get_payment_response_hash_key,
     };
 
     pub struct Analytics;
@@ -1816,7 +1817,7 @@ pub mod routes {
 
                 let auth_info = auth.platform.to_merchant_level_auth_info();
                 let hash_key = match &payload.return_url {
-                    Some(_) => crate::utils::get_payment_response_hash_key(
+                    Some(_) => get_payment_response_hash_key(
                         state.store.as_ref(),
                         auth.platform.get_processor().get_key_store(),
                         &auth_info,
@@ -2008,7 +2009,7 @@ pub mod routes {
 
                 let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
                 let hash_key = match &payload.return_url {
-                    Some(_) => crate::utils::get_payment_response_hash_key(
+                    Some(_) => get_payment_response_hash_key(
                         state.store.as_ref(),
                         auth.platform.get_processor().get_key_store(),
                         &auth_info,
@@ -2107,7 +2108,7 @@ pub mod routes {
 
                 let auth_info = auth.platform.to_merchant_level_auth_info();
                 let hash_key = match &payload.return_url {
-                    Some(_) => crate::utils::get_payment_response_hash_key(
+                    Some(_) => get_payment_response_hash_key(
                         state.store.as_ref(),
                         auth.platform.get_processor().get_key_store(),
                         &auth_info,
@@ -2297,7 +2298,7 @@ pub mod routes {
                     .clone();
                 let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
                 let hash_key = match &payload.return_url {
-                    Some(_) => crate::utils::get_payment_response_hash_key(
+                    Some(_) => get_payment_response_hash_key(
                         state.store.as_ref(),
                         auth.platform.get_processor().get_key_store(),
                         &auth_info,
@@ -2397,7 +2398,7 @@ pub mod routes {
 
                 let auth_info = auth.platform.to_merchant_level_auth_info();
                 let hash_key = match &payload.return_url {
-                    Some(_) => crate::utils::get_payment_response_hash_key(
+                    Some(_) => get_payment_response_hash_key(
                         state.store.as_ref(),
                         auth.platform.get_processor().get_key_store(),
                         &auth_info,
@@ -2587,7 +2588,7 @@ pub mod routes {
                     .clone();
                 let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
                 let hash_key = match &payload.return_url {
-                    Some(_) => crate::utils::get_payment_response_hash_key(
+                    Some(_) => get_payment_response_hash_key(
                         state.store.as_ref(),
                         auth.platform.get_processor().get_key_store(),
                         &auth_info,
@@ -2686,7 +2687,7 @@ pub mod routes {
 
                 let auth_info = auth.platform.to_merchant_level_auth_info();
                 let hash_key = match &payload.return_url {
-                    Some(_) => crate::utils::get_payment_response_hash_key(
+                    Some(_) => get_payment_response_hash_key(
                         state.store.as_ref(),
                         auth.platform.get_processor().get_key_store(),
                         &auth_info,
@@ -2883,7 +2884,7 @@ pub mod routes {
 
                 let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
                 let hash_key = match &payload.return_url {
-                    Some(_) => crate::utils::get_payment_response_hash_key(
+                    Some(_) => get_payment_response_hash_key(
                         state.store.as_ref(),
                         auth.platform.get_processor().get_key_store(),
                         &auth_info,
@@ -2983,7 +2984,7 @@ pub mod routes {
 
                 let auth_info = auth.platform.to_merchant_level_auth_info();
                 let hash_key = match &payload.return_url {
-                    Some(_) => crate::utils::get_payment_response_hash_key(
+                    Some(_) => get_payment_response_hash_key(
                         state.store.as_ref(),
                         auth.platform.get_processor().get_key_store(),
                         &auth_info,
@@ -3173,7 +3174,7 @@ pub mod routes {
                     .clone();
                 let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
                 let hash_key = match &payload.return_url {
-                    Some(_) => crate::utils::get_payment_response_hash_key(
+                    Some(_) => get_payment_response_hash_key(
                         state.store.as_ref(),
                         auth.platform.get_processor().get_key_store(),
                         &auth_info,

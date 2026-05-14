@@ -1508,7 +1508,7 @@ pub async fn get_payment_response_hash_key(
                     .change_context(AnalyticsError::UnknownError)?;
                 Ok(profiles
                     .first()
-                    .and_then(|p| p.payment_response_hash_key.clone()))
+                    .and_then(|profile| profile.payment_response_hash_key.clone()))
             }        
         }           
         AuthInfo::OrgLevel { .. } => Ok(None),
