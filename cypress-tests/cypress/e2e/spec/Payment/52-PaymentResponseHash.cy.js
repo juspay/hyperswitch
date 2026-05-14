@@ -1,0 +1,168 @@
+import * as fixtures from "../../../fixtures/imports";
+import State from "../../../utils/State";
+import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+
+let globalState;
+
+describe("Card - Payment Response Hash flow test", () => {
+  before("seed global state", function () {
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+        const connectorId = globalState.get("connectorId");
+
+        if (
+          utils.shouldIncludeConnector(
+            connectorId,
+            utils.CONNECTOR_LISTS.INCLUDE.PAYMENT_RESPONSE_HASH
+          )
+        ) {
+          skip = true;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
+  });
+
+  after("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
+
+  context("No3DS Auto-Capture - Verify Payment Response Hash Config", () => {
+    it("create payment intent -> confirm payment -> verify payment response hash", () => {
+      let shouldContinue = true;
+
+      cy.step("create payment intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("confirm payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: confirm payment");
+          return;
+        }
+
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSAutoCapture"];
+
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("retrieve payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: retrieve payment");
+          return;
+        }
+
+        cy.retrievePaymentCallTest({ globalState });
+      });
+
+      cy.step("verify payment response hash", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: verify payment response hash");
+          return;
+        }
+
+        cy.verifyPaymentResponseHash(globalState);
+      });
+    });
+  });
+
+  context("3DS Auto-Capture - Verify Redirect Signature", () => {
+    it("create payment intent -> confirm 3DS payment -> handle redirection -> verify redirect signature", () => {
+      let shouldContinue = true;
+
+      cy.step("create payment intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("payment methods call", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: payment methods call");
+          return;
+        }
+
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("confirm 3DS payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: confirm 3DS payment");
+          return;
+        }
+
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["3DSAutoCapture"];
+
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("handle redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: handle redirection");
+          return;
+        }
+
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        cy.handleRedirection(globalState, expected_redirection);
+      });
+
+      cy.step("verify redirect signature", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: verify redirect signature");
+          return;
+        }
+
+        cy.verifyRedirectSignature(globalState);
+      });
+    });
+  });
+});
