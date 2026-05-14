@@ -2866,7 +2866,11 @@ export const connectorDetails = {
           },
         },
       }),
-    OrderDetailsMultipleItemsNo3DSNotSupported: (cardDetails, currency, billing) =>
+    OrderDetailsMultipleItemsNo3DSNotSupported: (
+      cardDetails,
+      currency,
+      billing
+    ) =>
       getCustomExchange({
         Request: {
           payment_method: "card",
