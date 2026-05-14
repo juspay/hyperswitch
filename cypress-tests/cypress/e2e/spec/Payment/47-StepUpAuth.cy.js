@@ -27,7 +27,9 @@ describe("Step-Up Auth payment flow test", () => {
   });
 
   after("flush global state", () => {
-    cy.task("setGlobalState", globalState.data);
+    if (globalState) {
+      cy.task("setGlobalState", globalState.data);
+    }
   });
 
   context(
