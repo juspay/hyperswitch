@@ -1,3 +1,4 @@
+pub mod batch;
 pub mod transformers;
 pub mod utils;
 
@@ -58,6 +59,48 @@ pub async fn toggle_blocklist_guard(
     query: api_blocklist::ToggleBlocklistQuery,
 ) -> RouterResponse<api_blocklist::ToggleBlocklistResponse> {
     utils::toggle_blocklist_guard_for_merchant(
+        &state,
+        platform.get_processor().get_account().get_id(),
+        query,
+    )
+    .await
+    .map(services::ApplicationResponse::Json)
+}
+
+pub async fn upload_batch_blocklist(
+    state: SessionState,
+    platform: domain::Platform,
+    csv_bytes: bytes::Bytes,
+) -> RouterResponse<api_blocklist::BatchBlocklistUploadResponse> {
+    batch::initiate_batch_blocklist_upload(
+        &state,
+        platform.get_processor().get_account().get_id(),
+        csv_bytes,
+    )
+    .await
+    .map(services::ApplicationResponse::Json)
+}
+
+pub async fn get_batch_blocklist_job_status(
+    state: SessionState,
+    platform: domain::Platform,
+    job_id: String,
+) -> RouterResponse<api_blocklist::BatchBlocklistJobStatusResponse> {
+    batch::get_batch_blocklist_job_status(
+        &state,
+        platform.get_processor().get_account().get_id(),
+        &job_id,
+    )
+    .await
+    .map(services::ApplicationResponse::Json)
+}
+
+pub async fn list_batch_blocklist_jobs(
+    state: SessionState,
+    platform: domain::Platform,
+    query: api_blocklist::ListBatchBlocklistJobsQuery,
+) -> RouterResponse<api_blocklist::ListBatchBlocklistJobsResponse> {
+    batch::list_batch_blocklist_jobs(
         &state,
         platform.get_processor().get_account().get_id(),
         query,
