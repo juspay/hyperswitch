@@ -817,9 +817,6 @@ export const connectorDetails = {
       };
     },
     PaypalRedirect: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "paypal",
