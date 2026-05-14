@@ -3571,6 +3571,7 @@ pub async fn list_payment_methods_for_session(
         .map(|cpm| {
             common_types::payment_methods::AssociatedPaymentMethods {
                 payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(cpm.payment_method_token.clone()),
+                payment_method_data: None,
             }
         })
         .collect();
@@ -6277,6 +6278,7 @@ pub async fn payment_methods_session_update_payment_method(
 
     tokens.as_mut().map(|tokens| tokens.insert(0, common_types::payment_methods::AssociatedPaymentMethods {
             payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(request.payment_method_token.clone()),
+                        payment_method_data: None,
         }));
 
     // Update payment method session with associated payment methods
@@ -6556,8 +6558,29 @@ pub async fn payment_methods_session_confirm(
             .await?;
     };
 
+    let associated_pm_data = payment_method_response.payment_method_data.as_ref().and_then(|pm_data| {
+        match pm_data {
+            payment_methods::PaymentMethodResponseData::Card(card) => {
+                Some(common_types::payment_methods::AssociatedPaymentMethodData::Card(
+                    common_types::payment_methods::AssociatedCardDetails {
+                        last4_digits: card.last4_digits.clone(),
+                        card_isin: card.card_isin.clone(),
+                        card_network: card.card_network.clone(),
+                        expiry_month: card.expiry_month.clone(),
+                        expiry_year: card.expiry_year.clone(),
+                        card_type: card.card_type.clone(),
+                        card_issuer: card.card_issuer.clone(),
+                        card_holder_name: card.card_holder_name.clone(),
+                    },
+                ))
+            }
+            _ => None,
+        }
+    });
+
     let associated_payment_methods = common_types::payment_methods::AssociatedPaymentMethods {
         payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(parent_payment_method_token),
+        payment_method_data: associated_pm_data,
     };
 
     let update_payment_method_session = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {
