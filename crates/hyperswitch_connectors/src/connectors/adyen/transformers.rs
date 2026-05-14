@@ -4532,20 +4532,23 @@ pub fn get_adyen_response(
         .additional_data
         .as_ref()
         .map(|data| {
-            let mandate_ref = data.recurring_detail_reference.to_owned().map(|mandate_id| {
-                // Build mandate metadata including transaction_link_id if present
-                let metadata = data.transaction_link_id.as_ref().map(|tlid| {
-                    serde_json::json!({
-                        "transaction_link_id": tlid
-                    })
+            let mandate_ref = data
+                .recurring_detail_reference
+                .to_owned()
+                .map(|mandate_id| {
+                    // Build mandate metadata including transaction_link_id if present
+                    let metadata = data.transaction_link_id.as_ref().map(|tlid| {
+                        serde_json::json!({
+                            "transaction_link_id": tlid
+                        })
+                    });
+                    MandateReference {
+                        connector_mandate_id: Some(mandate_id.expose()),
+                        payment_method_id: None,
+                        mandate_metadata: metadata.map(hyperswitch_masking::Secret::new),
+                        connector_mandate_request_reference_id: None,
+                    }
                 });
-                MandateReference {
-                    connector_mandate_id: Some(mandate_id.expose()),
-                    payment_method_id: None,
-                    mandate_metadata: metadata.map(hyperswitch_masking::Secret::new),
-                    connector_mandate_request_reference_id: None,
-                }
-            });
             (mandate_ref, data.transaction_link_id.clone())
         })
         .unwrap_or((None, None));
