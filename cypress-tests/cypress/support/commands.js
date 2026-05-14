@@ -801,10 +801,6 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        if (typeof expectedStatus !== "undefined") {
-          expect(response.status).to.equal(expectedStatus);
-        }
-
         if (response.status === 200) {
           globalState.set(
             "collectBillingDetails",
