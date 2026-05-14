@@ -224,6 +224,15 @@ unstable features:
 cargo +nightly fmt
 ```
 
+To build and open the local API documentation in your browser:
+
+```shell
+cargo doc --no-deps --all-features --open
+```
+
+> **Tip:** Add `RUSTDOCFLAGS="--cfg docsrs"` to your environment if you want
+> feature-gated items to appear in the rendered docs.
+
 ### Code Coverage
 
 We appreciate well-tested code, so feel free to add tests when you can.
