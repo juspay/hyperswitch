@@ -6711,7 +6711,8 @@
           "confirmation_awaited",
           "device_data_collection_pending",
           "integrity_failure",
-          "expired"
+          "expired",
+          "capture_review"
         ]
       },
       "AuthenticationConnectorDetails": {
@@ -16398,7 +16399,8 @@
           "partially_authorized_and_requires_capture",
           "partially_captured_and_processing",
           "conflicted",
-          "expired"
+          "expired",
+          "review"
         ]
       },
       "Interac": {

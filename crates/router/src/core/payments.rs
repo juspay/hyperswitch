@@ -772,6 +772,7 @@ where
         eligible_connectors,
         mandate_type,
         &dimensions,
+        call_connector_action.clone(),
     )
     .await?;
 
@@ -1567,11 +1568,14 @@ where
         &payment_data.get_payment_intent().clone(),
     )?;
 
-    common_utils::fp_utils::when(!should_call_connector(&operation, &payment_data), || {
-        Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration).attach_printable(format!(
+    common_utils::fp_utils::when(
+        !should_call_connector(&operation, &payment_data, call_connector_action.clone()),
+        || {
+            Err(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration).attach_printable(format!(
             "Nti and card details based mit flow is not support for this {operation:?} payment operation"
         ))
-    })?;
+        },
+    )?;
 
     let connector_choice = operation
         .to_domain()?
@@ -4036,7 +4040,8 @@ impl ValidateStatusForOperation for &PaymentRedirectSync {
             | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
-            | common_enums::IntentStatus::Expired => {
+            | common_enums::IntentStatus::Expired
+            | common_enums::IntentStatus::Review => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
                     field_name: "status".to_string(),
@@ -9011,7 +9016,11 @@ where
 }
 
 #[cfg(feature = "v1")]
-pub fn should_call_connector<Op: Debug, F: Clone, D>(operation: &Op, payment_data: &D) -> bool
+pub fn should_call_connector<Op: Debug, F: Clone, D>(
+    operation: &Op,
+    payment_data: &D,
+    call_connector_action: CallConnectorAction,
+) -> bool
 where
     D: OperationSessionGetters<F> + Send + Sync + Clone,
 {
@@ -9027,15 +9036,36 @@ where
                 .is_none()
         }
         "PaymentStatus" => {
+            let in_progress = matches!(
+                payment_data.get_payment_intent().status,
+                storage_enums::IntentStatus::Processing
+                    | storage_enums::IntentStatus::RequiresCustomerAction
+                    | storage_enums::IntentStatus::RequiresMerchantAction
+                    | storage_enums::IntentStatus::RequiresCapture
+                    | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
+            );
+
+            // Allow only capture failure webhooks to be processed over succeeded payments.
+            // This prevents out-of-order processing issues where other webhooks (e.g., pending)
+            // could interfere with settled payments.
+            let capture_failure_webhook_over_success_payment = matches!(
+                payment_data.get_payment_intent().status,
+                storage_enums::IntentStatus::Succeeded
+            ) && matches!(
+                call_connector_action,
+                CallConnectorAction::HandleResponse {
+                    event_type: Some(
+                        storage_enums::IncomingWebhookEventType::PaymentIntentCaptureFailure
+                    ),
+                    ..
+                }
+            );
+
+            let force_sync = payment_data.get_force_sync().unwrap_or(false);
+
             payment_data.get_all_keys_required().unwrap_or(false)
-                || matches!(
-                    payment_data.get_payment_intent().status,
-                    storage_enums::IntentStatus::Processing
-                        | storage_enums::IntentStatus::RequiresCustomerAction
-                        | storage_enums::IntentStatus::RequiresMerchantAction
-                        | storage_enums::IntentStatus::RequiresCapture
-                        | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
-                ) && payment_data.get_force_sync().unwrap_or(false)
+                || (in_progress && force_sync)
+                || capture_failure_webhook_over_success_payment
         }
         "PaymentCancel" => matches!(
             payment_data.get_payment_intent().status,
@@ -9785,6 +9815,7 @@ pub async fn choose_connector<F, Req, D>(
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
     dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    call_connector_action: CallConnectorAction,
 ) -> RouterResult<Option<ConnectorCallType>>
 where
     F: Send + Clone,
@@ -9828,7 +9859,7 @@ where
         Ok(backend_input) => {
             let transaction_type = enums::TransactionType::Payment;
 
-            if should_call_connector(operation, payment_data) {
+            if should_call_connector(operation, payment_data, call_connector_action) {
                 Some(match connector_choice {
                     api::ConnectorChoice::SessionMultiple(connectors) => {
                         let routing_output = perform_session_token_routing(
