@@ -511,7 +511,6 @@ describe("Step-Up Auth payment flow test", () => {
           data,
           globalState
         );
-
       });
 
       it("retrieve payment for mastercard challenge", () => {
