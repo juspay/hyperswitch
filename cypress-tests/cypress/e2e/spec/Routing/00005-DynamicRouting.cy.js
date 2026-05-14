@@ -6,7 +6,7 @@ let globalState;
 let shouldContinue = true;
 
 describe("Dynamic Routing Test", () => {
-  context("Success-based dynamic routing with stripe as primary", () => {
+  context("Success-based dynamic routing", () => {
     before("seed global state", () => {
       shouldContinue = true;
       cy.task("getGlobalState").then((state) => {
@@ -44,10 +44,10 @@ describe("Dynamic Routing Test", () => {
 
     it("payment-routing-test", () => {
       if (!shouldContinue) return;
-      globalState.set("connectorId", "stripe");
-      globalState.set("merchantConnectorId", globalState.get("stripeMcaId"));
+      globalState.set("connectorId", "adyen");
+      globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
       const data =
-        utils.getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
+        utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
       cy.createConfirmPaymentTest(
         fixtures.createConfirmPaymentBody,
         data,
@@ -62,7 +62,7 @@ describe("Dynamic Routing Test", () => {
     });
   });
 
-  context("Elimination dynamic routing with adyen as primary", () => {
+  context("Elimination dynamic routing", () => {
     before("seed global state", () => {
       shouldContinue = true;
       cy.task("getGlobalState").then((state) => {
