@@ -322,6 +322,7 @@ impl UserRole {
         org_id: id_type::OrganizationId,
         merchant_id: Option<id_type::MerchantId>,
         profile_id: Option<id_type::ProfileId>,
+        entity_type: Option<EntityType>,
         version: Option<UserRoleVersion>,
         limit: Option<u32>,
     ) -> StorageResult<Vec<Self>> {
@@ -339,6 +340,10 @@ impl UserRole {
 
         if let Some(profile_id) = profile_id {
             query = query.filter(dsl::profile_id.eq(profile_id));
+        }
+
+        if let Some(entity_type) = entity_type {
+            query = query.filter(dsl::entity_type.eq(entity_type));
         }
 
         if let Some(version) = version {

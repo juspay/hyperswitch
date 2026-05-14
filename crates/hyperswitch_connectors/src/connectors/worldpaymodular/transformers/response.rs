@@ -1,6 +1,6 @@
 use hyperswitch_domain_models::{router_request_types::*, router_response_types::*};
 use hyperswitch_interfaces::errors::ConnectorError;
-use masking::{ExposeInterface as _, Secret};
+use hyperswitch_masking::{ExposeInterface as _, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::utils::ForeignTryFrom;

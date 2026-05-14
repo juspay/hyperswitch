@@ -1,4 +1,10 @@
 import { getCustomExchange } from "./Modifiers";
+import {
+  blockedPaymentErrorBodyForIssuingCountry,
+  blockedPaymentErrorBodyForDebitCard,
+  blockedPaymentErrorBodyForCardSubtype,
+  blockedPaymentErrorBodyForBinUnavailable,
+} from "./Commons";
 
 const ThreeDSChallengeTestCardDetails = {
   card_number: "4548817212493017",
@@ -425,6 +431,30 @@ export const connectorDetails = {
         },
       },
     },
+    SaveCardUse3DSAutoCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: ThreeDSChallengeTestCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
@@ -446,6 +476,21 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentMethodIdMandateNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: ThreeDSChallengeTestCardDetails,
+        },
+        billing: Address,
+        shipping: Address,
+        currency: "EUR",
+      },
+    },
+
     No3DSFailPayment: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -482,6 +527,84 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
+    },
+  },
+  payment_method_blocking_pm: {
+    BlockIssuingCountry: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4000000000000002",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: Address,
+        shipping: Address,
+        currency: "EUR",
+      },
+      Response: blockedPaymentErrorBodyForIssuingCountry,
+    },
+    BlockCardType: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: Address,
+        shipping: Address,
+        currency: "EUR",
+      },
+      Response: blockedPaymentErrorBodyForDebitCard,
+    },
+    BlockCardSubtype: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "378282246310005",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: Address,
+        shipping: Address,
+        currency: "EUR",
+      },
+      Response: blockedPaymentErrorBodyForCardSubtype,
+    },
+    BlockIfBinInfoUnavailable: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "6304000000000000",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: Address,
+        shipping: Address,
+        currency: "EUR",
+      },
+      Response: blockedPaymentErrorBodyForBinUnavailable,
     },
   },
 };

@@ -76,7 +76,7 @@ use hyperswitch_interfaces::{
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::{Mask as _, Maskable, PeekInterface};
+use hyperswitch_masking::{Mask as _, Maskable, PeekInterface};
 use router_env::{instrument, tracing};
 use stripe::auth_headers;
 
@@ -2416,6 +2416,8 @@ impl IncomingWebhook for Stripe {
             .parse_struct("WebhookEventTypeBody")
             .change_context(ConnectorError::WebhookReferenceIdNotFound)?;
 
+        let status = details.event_data.event_object.status;
+
         Ok(match details.event_type {
             stripe::WebhookEventType::PaymentIntentFailed => {
                 IncomingWebhookEvent::PaymentIntentFailure
@@ -2441,36 +2443,35 @@ impl IncomingWebhook for Stripe {
                     IncomingWebhookEvent::EventNotSupported
                 }
             }
-            stripe::WebhookEventType::ChargeRefundUpdated => details
-                .event_data
-                .event_object
-                .status
-                .map(|status| match status {
+            stripe::WebhookEventType::ChargeRefundUpdated => status
+                .map(|s| match s {
                     stripe::WebhookEventStatus::Succeeded => IncomingWebhookEvent::RefundSuccess,
                     stripe::WebhookEventStatus::Failed => IncomingWebhookEvent::RefundFailure,
                     _ => IncomingWebhookEvent::EventNotSupported,
                 })
                 .unwrap_or(IncomingWebhookEvent::EventNotSupported),
             stripe::WebhookEventType::SourceChargeable => IncomingWebhookEvent::SourceChargeable,
-            stripe::WebhookEventType::DisputeCreated => IncomingWebhookEvent::DisputeOpened,
-            stripe::WebhookEventType::DisputeClosed => IncomingWebhookEvent::DisputeCancelled,
-            stripe::WebhookEventType::DisputeUpdated => details
-                .event_data
-                .event_object
-                .status
+            // Dispute events: prefer object.status, fall back to event type
+            stripe::WebhookEventType::DisputeCreated => status
+                .map(Into::into)
+                .unwrap_or(IncomingWebhookEvent::DisputeOpened),
+            stripe::WebhookEventType::DisputeUpdated => status
                 .map(Into::into)
                 .unwrap_or(IncomingWebhookEvent::EventNotSupported),
+            stripe::WebhookEventType::DisputeClosed => status
+                .map(Into::into)
+                .unwrap_or(IncomingWebhookEvent::DisputeCancelled),
+            stripe::WebhookEventType::ChargeDisputeFundsWithdrawn => status
+                .map(Into::into)
+                .unwrap_or(IncomingWebhookEvent::DisputeLost),
+            stripe::WebhookEventType::ChargeDisputeFundsReinstated => status
+                .map(Into::into)
+                .unwrap_or(IncomingWebhookEvent::DisputeWon),
             stripe::WebhookEventType::PaymentIntentPartiallyFunded => {
                 IncomingWebhookEvent::PaymentIntentPartiallyFunded
             }
             stripe::WebhookEventType::PaymentIntentRequiresAction => {
                 IncomingWebhookEvent::PaymentActionRequired
-            }
-            stripe::WebhookEventType::ChargeDisputeFundsWithdrawn => {
-                IncomingWebhookEvent::DisputeLost
-            }
-            stripe::WebhookEventType::ChargeDisputeFundsReinstated => {
-                IncomingWebhookEvent::DisputeWon
             }
             stripe::WebhookEventType::Unknown
             | stripe::WebhookEventType::ChargeCaptured
@@ -2490,7 +2491,7 @@ impl IncomingWebhook for Stripe {
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         let details: stripe::WebhookEvent = request
             .body
             .parse_struct("WebhookEvent")
@@ -3338,6 +3339,7 @@ impl ConnectorSpecifications for Stripe {
 
     fn should_call_connector_customer(
         &self,
+        #[cfg(feature = "v1")]
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> bool {
         true

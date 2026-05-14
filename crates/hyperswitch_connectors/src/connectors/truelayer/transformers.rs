@@ -32,14 +32,15 @@ use hyperswitch_domain_models::{
     types::PayoutsRouterData,
 };
 use hyperswitch_interfaces::errors;
+use hyperswitch_masking::Secret;
 use josekit::jws::{JwsHeader, ES512};
-use masking::Secret;
 use openssl::{
     bn::{BigNum, BigNumContext},
     ec::{EcGroup, EcKey, EcPoint},
     ecdsa::EcdsaSig,
     hash::{hash, MessageDigest},
     nid::Nid,
+    pkey::Public,
 };
 use serde::{Deserialize, Serialize};
 
@@ -47,10 +48,9 @@ use serde::{Deserialize, Serialize};
 use crate::types::PayoutsResponseRouterData;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils,
-    utils::RouterData as OtherRouterData,
+    utils::{self, RouterData as OtherRouterData},
 };
-
+const PREFIX: &str = "/api";
 const GRANT_TYPE: &str = "client_credentials";
 pub const ALLOWED_JKUS: &[&str] = &[
     "https://webhooks.truelayer.com/.well-known/jwks",
@@ -637,18 +637,62 @@ pub fn normalize_payment_id(payment_id: &str) -> String {
         .collect()
 }
 
-pub fn is_payout_webhook_event(event: &TruelayerPayoutsWebhookEvent) -> bool {
-    matches!(
-        event,
-        TruelayerPayoutsWebhookEvent::PayoutExecuted | TruelayerPayoutsWebhookEvent::PayoutFailed
-    )
-}
-
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum TruelayerPayoutsWebhookEvent {
     PayoutExecuted,
     PayoutFailed,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum TruelayerWebhookEventType {
+    PaymentAuthorized,
+    PaymentExecuted,
+    PaymentCreditable,
+    PaymentSettled,
+    PaymentFailed,
+    PaymentSettlementStalled,
+    PaymentDisputed,
+    PaymentReversed,
+    PaymentFundsReceived,
+    RefundExecuted,
+    RefundFailed,
+    PayoutExecuted,
+    PayoutFailed,
+}
+
+impl TruelayerWebhookEventType {
+    pub fn is_payout_webhook_event(self) -> bool {
+        matches!(self, Self::PayoutExecuted | Self::PayoutFailed)
+    }
+
+    pub fn is_payment_webhook_event(self) -> bool {
+        matches!(
+            self,
+            Self::PaymentAuthorized
+                | Self::PaymentExecuted
+                | Self::PaymentSettled
+                | Self::PaymentFailed
+                | Self::PaymentCreditable
+                | Self::PaymentSettlementStalled
+                | Self::PaymentReversed
+                | Self::PaymentFundsReceived
+        )
+    }
+
+    pub fn is_refund_webhook_event(self) -> bool {
+        matches!(self, Self::RefundExecuted | Self::RefundFailed)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TruelayerWebhookEventBody {
+    #[serde(rename = "type")]
+    pub _type: TruelayerWebhookEventType,
+    pub payout_id: Option<String>,
+    pub refund_id: Option<String>,
+    pub payment_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -690,7 +734,7 @@ struct Jwk {
     y: Option<String>,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct JwsHeaderWebhooks {
     pub jku: Option<String>,
     kid: String,
@@ -719,6 +763,75 @@ fn headermap_to_hashmap(headers: &HeaderMap) -> HashMap<String, String> {
     }
 
     map
+}
+
+fn verify_signature(
+    body: &[u8],
+    jws_header: JwsHeaderWebhooks,
+    header_b64: &str,
+    signature_b64: &str,
+    headers: &HashMap<String, String>,
+    ec_key: &EcKey<Public>,
+    webhook_uri: &str,
+) -> Result<bool, error_stack::Report<errors::ConnectorError>> {
+    let tl_headers_str = jws_header.tl_headers.unwrap_or_default();
+    let mut payload: Vec<u8> = format!("{} {}\n", "POST".to_uppercase(), webhook_uri).into_bytes();
+
+    if !tl_headers_str.is_empty() {
+        let lower_headers: HashMap<String, &String> =
+            headers.iter().map(|(k, v)| (k.to_lowercase(), v)).collect();
+        for header_name in tl_headers_str.split(',') {
+            let name = header_name.trim();
+            let value = lower_headers
+                .get(&name.to_lowercase())
+                .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+            payload.extend_from_slice(format!("{}: {}\n", name, value).as_bytes());
+        }
+    }
+    payload.extend_from_slice(body);
+
+    // signing_input = base64url(header) + "." + base64url(payload)
+    let signing_input = format!("{}.{}", header_b64, URL_SAFE_NO_PAD.encode(&payload));
+
+    // Convert P1363 signature (r || s, 66 bytes each) to DER
+    let sig_bytes = URL_SAFE_NO_PAD
+        .decode(signature_b64)
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+    if sig_bytes.len() != 132 {
+        return Err(report!(
+            errors::ConnectorError::WebhookSourceVerificationFailed
+        ));
+    }
+
+    let r = BigNum::from_slice(
+        sig_bytes
+            .get(0..66)
+            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?,
+    )
+    .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+    let s = BigNum::from_slice(
+        sig_bytes
+            .get(66..)
+            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?,
+    )
+    .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+    let der_sig = EcdsaSig::from_private_components(r, s)
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
+        .to_der()
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+    // SHA-512 digest + ECDSA verify
+    let digest = hash(MessageDigest::sha512(), signing_input.as_bytes())
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+    let ecdsa_sig = EcdsaSig::from_der(&der_sig)
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+    let valid = ecdsa_sig
+        .verify(&digest, ec_key)
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+    Ok(valid)
 }
 
 impl
@@ -804,78 +917,33 @@ impl
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let webhook_uri = item.data.request.webhook_uri.to_string();
 
-        let tl_headers_str = jws_header.tl_headers.unwrap_or_default();
-        let mut payload: Vec<u8> =
-            format!("{} {}\n", "POST".to_uppercase(), webhook_uri).into_bytes();
+        let valid = verify_signature(
+            body,
+            jws_header.clone(),
+            header_b64,
+            signature_b64,
+            &headers,
+            &ec_key,
+            &(PREFIX.to_owned() + &webhook_uri),
+        )? || verify_signature(
+            body,
+            jws_header.clone(),
+            header_b64,
+            signature_b64,
+            &headers,
+            &ec_key,
+            &webhook_uri,
+        )?;
 
-        if !tl_headers_str.is_empty() {
-            let lower_headers: HashMap<String, &String> =
-                headers.iter().map(|(k, v)| (k.to_lowercase(), v)).collect();
-            for header_name in tl_headers_str.split(',') {
-                let name = header_name.trim();
-                let value = lower_headers
-                    .get(&name.to_lowercase())
-                    .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-                payload.extend_from_slice(format!("{}: {}\n", name, value).as_bytes());
-            }
-        }
-        payload.extend_from_slice(body);
-
-        // signing_input = base64url(header) + "." + base64url(payload)
-        let signing_input = format!("{}.{}", header_b64, URL_SAFE_NO_PAD.encode(&payload));
-
-        // 7. Convert P1363 signature (r || s, 66 bytes each) to DER
-        let sig_bytes = URL_SAFE_NO_PAD
-            .decode(signature_b64)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        if sig_bytes.len() != 132 {
-            return Err(report!(
-                errors::ConnectorError::WebhookSourceVerificationFailed
-            ));
-        }
-
-        let r = BigNum::from_slice(
-            sig_bytes
-                .get(0..66)
-                .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?,
-        )
-        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let s = BigNum::from_slice(
-            sig_bytes
-                .get(66..)
-                .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?,
-        )
-        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let der_sig = EcdsaSig::from_private_components(r, s)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
-            .to_der()
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-
-        // 8. SHA-512 digest + ECDSA verify
-        let digest = hash(MessageDigest::sha512(), signing_input.as_bytes())
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-
-        let ecdsa_sig = EcdsaSig::from_der(&der_sig)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-
-        let valid = ecdsa_sig
-            .verify(&digest, &ec_key)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-
-        if valid {
-            Ok(Self {
-                response: Ok(VerifyWebhookSourceResponseData {
-                    verify_webhook_status: VerifyWebhookStatus::SourceVerified,
-                }),
-                ..item.data
-            })
-        } else {
-            Ok(Self {
-                response: Ok(VerifyWebhookSourceResponseData {
-                    verify_webhook_status: VerifyWebhookStatus::SourceNotVerified,
-                }),
-                ..item.data
-            })
-        }
+        Ok(Self {
+            response: Ok(VerifyWebhookSourceResponseData {
+                verify_webhook_status: if valid {
+                    VerifyWebhookStatus::SourceVerified
+                } else {
+                    VerifyWebhookStatus::SourceNotVerified
+                },
+            }),
+            ..item.data
+        })
     }
 }

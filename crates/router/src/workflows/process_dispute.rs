@@ -42,22 +42,36 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
             .tracking_data
             .clone()
             .parse_value("ProcessDisputePTData")?;
-        let key_store = db
+
+        let provider_key_store = db
             .get_merchant_key_store_by_merchant_id(
                 &tracking_data.merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
             .await?;
+        let provider_account = db
+            .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &provider_key_store)
+            .await?;
 
-        let merchant_account = db
-            .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &key_store)
+        let processor_merchant_id = tracking_data
+            .processor_merchant_id
+            .as_ref()
+            .unwrap_or(&tracking_data.merchant_id);
+        let processor_key_store = db
+            .get_merchant_key_store_by_merchant_id(
+                processor_merchant_id,
+                &db.get_master_key().to_vec().into(),
+            )
+            .await?;
+        let processor_account = db
+            .find_merchant_account_by_merchant_id(processor_merchant_id, &processor_key_store)
             .await?;
 
         let platform = domain::Platform::new(
-            merchant_account.clone(),
-            key_store.clone(),
-            merchant_account,
-            key_store,
+            provider_account,
+            provider_key_store,
+            processor_account,
+            processor_key_store,
             None,
         );
 
@@ -79,7 +93,7 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
         // Check if the dispute already exists
         let dispute = state
             .store
-            .find_by_merchant_id_payment_id_connector_dispute_id(
+            .find_by_processor_merchant_id_payment_id_connector_dispute_id(
                 platform.get_processor().get_account().get_id(),
                 &payment_attempt.payment_id,
                 &tracking_data.dispute_payload.connector_dispute_id,
@@ -124,7 +138,9 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
                     retry_sync_task(
                         db,
                         tracking_data.connector_name,
-                        tracking_data.merchant_id,
+                        tracking_data
+                            .processor_merchant_id
+                            .unwrap_or_else(|| tracking_data.merchant_id.clone()),
                         process,
                     )
                     .await?;
@@ -147,7 +163,7 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
 pub async fn get_sync_process_schedule_time(
     db: &dyn StorageInterface,
     connector: &str,
-    merchant_id: &common_utils::id_type::MerchantId,
+    processor_merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let mapping: common_utils::errors::CustomResult<
@@ -169,7 +185,8 @@ pub async fn get_sync_process_schedule_time(
             process_data::ConnectorPTMapping::default()
         }
     };
-    let time_delta = scheduler_utils::get_schedule_time(mapping, merchant_id, retry_count);
+    let time_delta =
+        scheduler_utils::get_schedule_time(mapping, processor_merchant_id, retry_count);
 
     Ok(scheduler_utils::get_time_from_delta(time_delta))
 }
@@ -180,11 +197,12 @@ pub async fn get_sync_process_schedule_time(
 pub async fn retry_sync_task(
     db: &dyn StorageInterface,
     connector: String,
-    merchant_id: common_utils::id_type::MerchantId,
+    processor_merchant_id: common_utils::id_type::MerchantId,
     pt: storage::ProcessTracker,
 ) -> Result<bool, sch_errors::ProcessTrackerError> {
     let schedule_time =
-        get_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count + 1).await?;
+        get_sync_process_schedule_time(db, &connector, &processor_merchant_id, pt.retry_count + 1)
+            .await?;
 
     match schedule_time {
         Some(s_time) => {

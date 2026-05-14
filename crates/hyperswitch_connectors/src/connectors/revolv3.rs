@@ -66,7 +66,8 @@ impl api::ConnectorCommon for Revolv3 {
     fn get_auth_header(
         &self,
         _auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         Ok(Vec::new())
     }
 
@@ -121,7 +122,8 @@ impl webhooks::IncomingWebhook for Revolv3 {
     fn get_webhook_resource_object(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err((errors::ConnectorError::WebhooksNotImplemented).into())
     }
 }
@@ -155,7 +157,26 @@ static REVOLV3_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
             specific_features: Some(
                 api_models::feature_matrix::PaymentMethodSpecificFeatures::Card(
                     api_models::feature_matrix::CardSpecificFeatures {
-                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    },
+                ),
+            ),
+        },
+    );
+
+    revolv3_supported_payment_methods.add(
+        common_enums::PaymentMethod::Card,
+        common_enums::PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card(
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
                         no_three_ds: common_enums::FeatureStatus::Supported,
                         supported_card_networks: supported_card_network.clone(),
                     },

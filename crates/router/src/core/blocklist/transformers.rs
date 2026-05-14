@@ -1,6 +1,6 @@
 use api_models::blocklist;
 use error_stack::ResultExt;
-use masking::StrongSecret;
+use hyperswitch_masking::StrongSecret;
 use router_env::{instrument, tracing};
 
 use crate::{

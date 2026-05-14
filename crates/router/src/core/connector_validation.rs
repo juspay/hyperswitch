@@ -2,7 +2,7 @@ use api_models::enums as api_enums;
 use common_utils::pii;
 use error_stack::ResultExt;
 use external_services::http_client::client;
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use pm_auth::connector::plaid::transformers::PlaidAuthType;
 
 use crate::{core::errors, types, types::transformers::ForeignTryFrom};
@@ -255,6 +255,12 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 fiservemea::transformers::FiservemeaAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Fiservcommercehub => {
+                fiservcommercehub::transformers::FiservcommercehubAuthType::try_from(
+                    self.auth_type,
+                )?;
+                Ok(())
+            }
             api_enums::Connector::Fiuu => {
                 fiuu::transformers::FiuuAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -316,6 +322,12 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Iatapay => {
                 iatapay::transformers::IatapayAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Imerchantsolutions => {
+                imerchantsolutions::transformers::ImerchantsolutionsAuthType::try_from(
+                    self.auth_type,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Inespay => {
@@ -489,6 +501,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 revolv3::transformers::Revolv3AuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Sanlam => {
+                sanlam::transformers::SanlamAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Santander => {
                 santander::requests::SantanderAuthType::try_from(self.auth_type)?;
                 santander::requests::SantanderMetadataObject::try_from(self.connector_meta_data)?;
@@ -528,6 +544,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Truelayer => {
                 truelayer::transformers::TruelayerAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Trustly => {
+                trustly::transformers::TrustlyAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Trustpay => {

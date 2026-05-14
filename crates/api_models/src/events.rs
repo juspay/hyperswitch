@@ -9,8 +9,6 @@ mod locker_migration;
 pub mod payment;
 #[cfg(feature = "payouts")]
 pub mod payouts;
-#[cfg(feature = "recon")]
-pub mod recon;
 pub mod refund;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery;
@@ -79,6 +77,7 @@ impl_api_event_type!(
         ConvertOrganizationToPlatformRequest,
         ConvertOrganizationToPlatformResponse,
         ConnectorWebhookRegisterRequest,
+        ConnectorWebhookListResponse,
         MerchantConnectorResponse,
         MerchantConnectorId,
         MandateResponse,

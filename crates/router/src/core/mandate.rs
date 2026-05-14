@@ -179,7 +179,7 @@ pub async fn update_connector_mandate_id(
         .map(|md| {
             md.encode_to_value()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .map(masking::Secret::new)
+                .map(hyperswitch_masking::Secret::new)
         })
         .transpose()?;
 
@@ -357,7 +357,7 @@ where
                 .map(|md| {
                     md.encode_to_value()
                         .change_context(errors::ApiErrorResponse::MandateSerializationFailed)
-                        .map(masking::Secret::new)
+                        .map(hyperswitch_masking::Secret::new)
                 })
                 .transpose()?;
 

@@ -4,7 +4,7 @@ use std::{collections::HashMap, future::Future, pin::Pin};
 
 use common_utils::{ext_traits::ConfigExt, fp_utils::when};
 use error_stack::{Report, ResultExt};
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use vaultrs::client::{VaultClient, VaultClientSettingsBuilder};
 
 static HC_CLIENT: tokio::sync::OnceCell<HashiCorpVault> = tokio::sync::OnceCell::const_new();
@@ -162,7 +162,7 @@ pub trait FromEncoded: Sized {
     ///
     /// ```rust
     /// use external_services::hashicorp_vault::core::FromEncoded;
-    /// use masking::Secret;
+    /// use hyperswitch_masking::Secret;
     /// let secret_instance = Secret::<String>::from_encoded("encoded_secret_string".to_string());
     /// let vec_instance = Vec::<u8>::from_encoded("68656c6c6f".to_string());
     /// ```
