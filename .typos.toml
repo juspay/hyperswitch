@@ -118,6 +118,20 @@ requestor = "requestor" #Used in external 3ds flows
 substituters = "substituters" # Present in `flake.nix`
 unsuccess = "unsuccess" # Used in cryptopay request
 automatico = "automatico" # Pix Automático (Portuguese for Automatic) - payment method name
+UNSUPPORT = "UNSUPPORT" # PayPal API error code strings (UNSUPPORT_ENTITY, etc.)
+addtional = "addtional" # pre-existing variable name typo
+sourc = "sourc" # pre-existing variable name prefix typo
+differnt = "differnt" # pre-existing comment typo
+parmas = "parmas" # pre-existing error message typo
+Aribitrary = "Aribitrary" # pre-existing attribute typo
+workng = "workng" # pre-existing test message typo
+Registeration = "Registeration" # pre-existing identifier typo
+IOF = "IOF" # Brazilian tax abbreviation (Imposto sobre Operações Financeiras)
+iof = "iof" # Brazilian tax abbreviation
+Gaurd = "Gaurd" # pre-existing identifier typo
+actuall = "actuall" # pre-existing comment typo
+UNAVAIABLE = "UNAVAIABLE" # pre-existing constant typo
+confim = "confim" # pre-existing fixture filename typo
 
 [files]
 extend-exclude = [
