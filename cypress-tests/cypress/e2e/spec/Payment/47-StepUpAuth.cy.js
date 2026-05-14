@@ -11,28 +11,19 @@ describe("Step-Up Auth payment flow test", () => {
       this.skip();
     }
 
-    let skip = false;
+    const connectorId = Cypress.env("CONNECTOR");
+    if (
+      utils.shouldIncludeConnector(
+        connectorId,
+        utils.CONNECTOR_LISTS.INCLUDE.STEP_UP_AUTH
+      )
+    ) {
+      this.skip();
+    }
 
-    cy.task("getGlobalState")
-      .then((state) => {
-        globalState = new State(state);
-        const connectorId = globalState.get("connectorId");
-
-        if (
-          utils.shouldIncludeConnector(
-            connectorId,
-            utils.CONNECTOR_LISTS.INCLUDE.STEP_UP_AUTH
-          )
-        ) {
-          skip = true;
-          return;
-        }
-      })
-      .then(() => {
-        if (skip) {
-          this.skip();
-        }
-      });
+    cy.task("getGlobalState").then((state) => {
+      globalState = new State(state);
+    });
   });
 
   after("flush global state", () => {
