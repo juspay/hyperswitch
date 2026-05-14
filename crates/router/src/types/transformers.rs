@@ -2201,6 +2201,26 @@ impl ForeignFrom<diesel_models::business_profile::VaultTokenField>
     }
 }
 
+impl ForeignFrom<api_models::admin::SurchargeConnectorDetails>
+    for diesel_models::business_profile::SurchargeConnectorDetails
+{
+    fn foreign_from(item: api_models::admin::SurchargeConnectorDetails) -> Self {
+        Self {
+            surcharge_connector_id: item.surcharge_connector_id,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::SurchargeConnectorDetails>
+    for api_models::admin::SurchargeConnectorDetails
+{
+    fn foreign_from(item: diesel_models::business_profile::SurchargeConnectorDetails) -> Self {
+        Self {
+            surcharge_connector_id: item.surcharge_connector_id,
+        }
+    }
+}
+
 impl ForeignFrom<api_models::admin::CardTestingGuardConfig>
     for diesel_models::business_profile::CardTestingGuardConfig
 {
