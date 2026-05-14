@@ -522,6 +522,7 @@ export const CONNECTOR_LISTS = {
     ],
     BILLING_DESCRIPTOR_INVALID_PHONE: ["nuvei"],
     FEATURE_METADATA: ["bankofamerica"],
+    PAYMENT_RESPONSE_HASH: ["stripe", "adyen"],
     AUTO_RETRY: [
       "cybersource",
       "checkout",
