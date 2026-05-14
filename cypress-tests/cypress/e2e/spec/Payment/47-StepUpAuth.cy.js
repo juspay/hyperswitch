@@ -12,7 +12,7 @@ describe("Step-Up Auth payment flow test", () => {
       .then((state) => {
         globalState = new State(state);
 
-        const baseUrl = Cypress.env("baseUrl") || Cypress.config("baseUrl");
+        const baseUrl = Cypress.env("BASEURL") || Cypress.config("baseUrl");
         if (baseUrl && baseUrl.includes("localhost")) {
           skip = true;
           return;
