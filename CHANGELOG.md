@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.14.0
+
+### Features
+
+- **core:** Added profileId to payments client secret ([#12234](https://github.com/juspay/hyperswitch/pull/12234)) ([`93b919f`](https://github.com/juspay/hyperswitch/commit/93b919fab5ef8e7a2bde64f921b8928613150f52))
+
+### Bug Fixes
+
+- **payment_methods:** Store connector_customer_id from batch migrate into customers.connector_customer ([#12264](https://github.com/juspay/hyperswitch/pull/12264)) ([`75216ac`](https://github.com/juspay/hyperswitch/commit/75216ac4724a7d5eab25f20c473614bc6f33552d))
+
+### Testing
+
+- **cypress:** Add bank redirect tests for missing connectors ([#12187](https://github.com/juspay/hyperswitch/pull/12187)) ([`51dd1d8`](https://github.com/juspay/hyperswitch/commit/51dd1d8965d62cd147fc6fcea688b5876fb4384d))
+
+**Full Changelog:** [`2026.05.13.0...2026.05.14.0`](https://github.com/juspay/hyperswitch/compare/2026.05.13.0...2026.05.14.0)
+
+- - -
+
 ## 2026.05.13.0
 
 ### Features
