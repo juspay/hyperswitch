@@ -390,7 +390,8 @@ describe("Config Tests", () => {
     it("Create Business Profile", () => {
       cy.createBusinessProfileTest(
         fixtures.businessProfile.bpCreate,
-        globalState
+        globalState,
+        "webhookProfile"
       );
     });
 
@@ -404,7 +405,8 @@ describe("Config Tests", () => {
       };
       cy.updateBusinessProfileWebhookCustomHeadersTest(
         webhookHeadersBody,
-        globalState
+        globalState,
+        "webhookProfile"
       );
     });
 
@@ -421,7 +423,7 @@ describe("Config Tests", () => {
       cy.updateBusinessProfileWebhookCustomHeadersTest(
         webhookHeadersBody,
         globalState,
-        "profile",
+        "webhookProfile",
         previousHeaderKeys
       );
     });
@@ -432,7 +434,8 @@ describe("Config Tests", () => {
       };
       cy.updateBusinessProfileWebhookCustomHeadersTest(
         webhookHeadersBody,
-        globalState
+        globalState,
+        "webhookProfile"
       );
     });
   });
