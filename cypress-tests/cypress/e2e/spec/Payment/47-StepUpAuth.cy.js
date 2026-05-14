@@ -6,6 +6,11 @@ let globalState;
 
 describe("Step-Up Auth payment flow test", () => {
   before("seed global state", function () {
+    const baseUrl = Cypress.env("baseUrl") || Cypress.config("baseUrl");
+    if (baseUrl && baseUrl.includes("localhost")) {
+      this.skip();
+    }
+
     let skip = false;
 
     cy.task("getGlobalState")
@@ -25,10 +30,6 @@ describe("Step-Up Auth payment flow test", () => {
       })
       .then(() => {
         if (skip) {
-          this.skip();
-        }
-        const baseUrl = Cypress.env("baseUrl") || Cypress.config("baseUrl");
-        if (baseUrl && baseUrl.includes("localhost")) {
           this.skip();
         }
       });
