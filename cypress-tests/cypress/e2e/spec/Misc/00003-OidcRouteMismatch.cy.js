@@ -30,7 +30,7 @@ describe("OIDC Route Mismatch - SAIAAAAAA-181", () => {
   });
 
   context("OIDC Supporting Endpoints", () => {
-    it("should document JWKS endpoint returning 500 (signing keys not configured bug)", () => {
+    it("should document JWKS endpoint returning 200 with keys array or 500 OI_05", () => {
       cy.oidcJwksCallTest(globalState);
     });
 
