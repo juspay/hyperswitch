@@ -34,6 +34,7 @@ pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod platform_wrapper;
+
 pub mod redis;
 pub mod refund;
 mod reverse_lookup;
@@ -50,7 +51,10 @@ use redis_interface::{errors::RedisError, RedisConnectionPool, SaddReply};
 
 #[cfg(not(feature = "payouts"))]
 pub use crate::database::store::Store;
-pub use crate::{database::store::DatabaseStore, errors::StorageError};
+pub use crate::{
+    database::store::{DatabaseStore, ReadPreference},
+    errors::StorageError,
+};
 
 #[derive(Debug, Clone)]
 pub struct RouterStore<T: DatabaseStore> {
@@ -59,6 +63,7 @@ pub struct RouterStore<T: DatabaseStore> {
     master_encryption_key: StrongSecret<Vec<u8>>,
     pub request_id: Option<String>,
     key_manager_state: Option<KeyManagerState>,
+    read_preference: ReadPreference,
 }
 
 impl<T: DatabaseStore> RouterStore<T> {
@@ -129,6 +134,10 @@ where
     fn get_accounts_replica_pool(&self) -> &PgPool {
         self.db_store.get_accounts_replica_pool()
     }
+
+    fn get_read_preference(&self) -> ReadPreference {
+        self.read_preference
+    }
 }
 
 impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {
@@ -167,7 +176,12 @@ impl<T: DatabaseStore> RouterStore<T> {
             master_encryption_key: encryption_key,
             request_id: None,
             key_manager_state,
+            read_preference: ReadPreference::MasterDB,
         })
+    }
+
+    pub fn set_read_preference(&mut self, preference: ReadPreference) {
+        self.read_preference = preference;
     }
 
     pub async fn cache_store(
@@ -303,6 +317,7 @@ impl<T: DatabaseStore> RouterStore<T> {
             master_encryption_key: encryption_key,
             request_id: None,
             key_manager_state,
+            read_preference: ReadPreference::MasterDB,
         })
     }
 }

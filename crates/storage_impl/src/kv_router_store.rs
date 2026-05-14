@@ -19,7 +19,7 @@ use serde::de;
 pub use crate::database::store::Store;
 pub use crate::{database::store::DatabaseStore, mock_db::MockDb};
 use crate::{
-    database::store::PgPool,
+    database::store::{PgPool, ReadPreference},
     diesel_error_to_data_error,
     errors::{self, RedisErrorExt, StorageResult},
     lookup::ReverseLookupInterface,
@@ -145,6 +145,10 @@ where
     fn get_accounts_replica_pool(&self) -> &PgPool {
         self.router_store.get_accounts_replica_pool()
     }
+
+    fn get_read_preference(&self) -> ReadPreference {
+        self.router_store.get_read_preference()
+    }
 }
 
 impl<T: DatabaseStore> RedisConnInterface for KVRouterStore<T> {
@@ -173,6 +177,10 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             soft_kill_mode: soft_kill.unwrap_or(false),
             key_manager_state,
         }
+    }
+
+    pub fn set_read_preference(&mut self, preference: ReadPreference) {
+        self.router_store.set_read_preference(preference);
     }
 
     pub fn master_key(&self) -> &StrongSecret<Vec<u8>> {
