@@ -3,6 +3,11 @@ const card_data = {
   expiry_month: "03",
   expiry_year: "2030",
   card_holder_name: "John Smith",
+  card_issuer: "CONOTOXIA SP Z O.O.",
+  card_network: "Visa",
+  card_type: "DEBIT",
+  card_issuing_country: "POLAND",
+  bank_code: "JP_JPM",
 };
 
 const payment_card_data = {
@@ -31,11 +36,11 @@ const billing = {
 
 const PaymentMethodData = {
   card: {
-    card_issuer: null,
-    card_network: null,
-    card_type: null,
-    card_issuing_country: null,
-    bank_code: null,
+    card_issuer: "CONOTOXIA SP Z O.O.",
+    card_network: "Visa",
+    card_type: "DEBIT",
+    card_issuing_country: "POLAND",
+    bank_code: "JP_JPM",
     last4: "1111",
     card_isin: "411111",
     card_extended_bin: null,
