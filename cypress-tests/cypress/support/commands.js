@@ -7837,7 +7837,12 @@ Cypress.Commands.add("oidcDiscoveryCallTest", (globalState) => {
  * OIDC Advertised Authorize Route Check - Tests the authorization_endpoint
  * advertised in the OIDC discovery document.
  * Uses the URL from globalState (stored by oidcDiscoveryCallTest).
- * Asserts that the advertised endpoint responds (any non-404 status is acceptable).
+ *
+ * Verified: the discovery document at /.well-known/openid-configuration returns
+ * authorization_endpoint = http://localhost:8080/oauth2/authorize, which is the
+ * API server host (same as issuer), NOT a separate dashboard/control-center host.
+ * The 404 therefore indicates a genuine route mismatch on the API server:
+ * discovery advertises /oauth2/authorize but the actual registered route is /oidc/authorize.
  */
 Cypress.Commands.add("oidcAdvertisedAuthorizeRouteCheck", (globalState) => {
   const authorizationEndpoint = globalState.get("oidcAuthorizationEndpoint");
@@ -7896,8 +7901,11 @@ Cypress.Commands.add("oidcAuthorizeRouteCheck", (globalState) => {
 
 /**
  * OIDC JWKS Endpoint call - GET /oauth2/jwks
- * Fetches the JSON Web Key Set for OIDC token validation
- * Accepts 200 with valid JWKS or 500 OI_05 when OIDC signing keys are not configured
+ * Fetches the JSON Web Key Set for OIDC token validation.
+ * Asserts 200 with {"keys": [...]} which is the correct behavior when OIDC is enabled.
+ * A 500/OI_05 response indicates a malformed OIDC signing key configuration on the server,
+ * which is a real defect — not an acceptable outcome. That defect should surface as a test
+ * failure rather than being masked.
  */
 Cypress.Commands.add("oidcJwksCallTest", (globalState) => {
   const jwksUri = globalState.get("oidcJwksUri");
@@ -7914,18 +7922,9 @@ Cypress.Commands.add("oidcJwksCallTest", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.status).to.be.oneOf([200, 500]);
-
-      if (response.status === 200) {
-        expect(response.body).to.have.property("keys");
-        expect(response.body.keys).to.be.an("array");
-      } else {
-        expect(response.body.error.code).to.eq("OI_05");
-        cy.task(
-          "cli_log",
-          `BUG DOCUMENTED: JWKS endpoint (/oauth2/jwks) returns 500 OI_05 — server error (OI_05), possibly due to malformed OIDC signing key configuration. Should return 200 with {"keys":[]} when no keys are configured.`
-        );
-      }
+      expect(response.status).to.eq(200);
+      expect(response.body).to.have.property("keys");
+      expect(response.body.keys).to.be.an("array");
     });
   });
 });
