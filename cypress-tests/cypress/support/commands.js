@@ -3524,6 +3524,9 @@ Cypress.Commands.add(
               }
             }
           }
+
+          // Store the full payment response for payment response hash verification
+          globalState.set("lastPaymentResponse", response.body);
         } else {
           throw new Error(
             `Retrieve Payment Call Failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
@@ -7955,5 +7958,144 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
         expect(response.body.error).to.exist;
       }
     });
+  });
+});
+
+/**
+ * Verifies that the payment response hash feature is properly configured on the merchant account.
+ *
+ * The payment_response_hash feature adds HMAC-SHA512 signatures to redirect URLs (as
+ * `signature` and `signature_algorithm` query params) and to outgoing webhook headers
+ * (as `Stripe-Signature` or `X-Webhook-Signature`). It does NOT add a field to the
+ * payment response JSON body.
+ *
+ * This command checks:
+ * 1. Merchant account: enable_payment_response_hash is true
+ * 2. Merchant account: payment_response_hash_key is a non-empty string
+ *
+ * @param {Object} globalState - The global state object
+ */
+Cypress.Commands.add("verifyPaymentResponseHash", (globalState) => {
+  const merchantId = globalState.get("merchantId");
+  const apiKey = globalState.get("adminApiKey");
+  const baseUrl = globalState.get("baseUrl");
+
+  cy.request({
+    method: "GET",
+    url: `${baseUrl}/accounts/${merchantId}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status).to.equal(200);
+      expect(response.body).to.have.property("enable_payment_response_hash");
+      expect(response.body).to.have.property("payment_response_hash_key");
+
+      expect(
+        response.body.enable_payment_response_hash,
+        "enable_payment_response_hash should be true"
+      ).to.equal(true);
+
+      expect(
+        response.body.payment_response_hash_key,
+        "payment_response_hash_key should exist"
+      ).to.be.a("string").and.not.be.empty;
+
+      globalState.set(
+        "paymentResponseHashKey",
+        response.body.payment_response_hash_key
+      );
+
+      cy.task(
+        "cli_log",
+        `Payment response hash config verified - enable_payment_response_hash: true, key length: ${response.body.payment_response_hash_key.length}`
+      );
+    });
+  });
+});
+
+Cypress.Commands.add("verifyRedirectSignature", (globalState) => {
+  const returnUrl = globalState.get("nextActionUrl");
+
+  if (!returnUrl) {
+    cy.task(
+      "cli_log",
+      "No nextActionUrl found - skipping redirect signature verification"
+    );
+    return;
+  }
+
+  cy.url({ timeout: 30000 }).then((currentUrl) => {
+    const urlObj = new URL(currentUrl);
+    const signature = urlObj.searchParams.get("signature");
+    const signatureAlgorithm = urlObj.searchParams.get("signature_algorithm");
+
+    if (!signature && !signatureAlgorithm) {
+      const paymentId = globalState.get("paymentID");
+      const baseUrl = globalState.get("baseUrl");
+
+      cy.request({
+        method: "GET",
+        url: `${baseUrl}/payments/${paymentId}`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": globalState.get("publishableKey"),
+        },
+        failOnStatusCode: false,
+      }).then((retrieveResponse) => {
+        logRequestId(retrieveResponse.headers["x-request-id"]);
+
+        const redirectUrl = retrieveResponse.body?.next_action?.redirect_to_url;
+        if (redirectUrl) {
+          const redirectUrlObj = new URL(redirectUrl);
+          const sig = redirectUrlObj.searchParams.get("signature");
+          const sigAlg = redirectUrlObj.searchParams.get("signature_algorithm");
+
+          expect(sig, "signature should exist in redirect URL").to.be.a(
+            "string"
+          ).and.not.be.empty;
+          expect(sigAlg, "signature_algorithm should be HMAC-SHA512").to.equal(
+            "HMAC-SHA512"
+          );
+          expect(
+            sig.length,
+            "signature should be 128 hex chars (HMAC-SHA512)"
+          ).to.equal(128);
+
+          cy.task(
+            "cli_log",
+            `Redirect signature verified via retrieve - algorithm: ${sigAlg}, signature length: ${sig.length}`
+          );
+        } else {
+          cy.task(
+            "cli_log",
+            "No redirect URL in payment response - redirect signature verification not applicable for this flow"
+          );
+        }
+      });
+      return;
+    }
+
+    expect(signature, "signature should exist in redirect URL").to.be.a(
+      "string"
+    ).and.not.be.empty;
+    expect(
+      signatureAlgorithm,
+      "signature_algorithm should be HMAC-SHA512"
+    ).to.equal("HMAC-SHA512");
+    expect(
+      signature.length,
+      "signature should be 128 hex chars (HMAC-SHA512)"
+    ).to.equal(128);
+
+    cy.task(
+      "cli_log",
+      `Redirect signature verified - algorithm: ${signatureAlgorithm}, signature length: ${signature.length}`
+    );
   });
 });
