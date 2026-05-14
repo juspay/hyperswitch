@@ -132,6 +132,14 @@ Gaurd = "Gaurd" # pre-existing identifier typo
 actuall = "actuall" # pre-existing comment typo
 UNAVAIABLE = "UNAVAIABLE" # pre-existing constant typo
 confim = "confim" # pre-existing fixture filename typo
+succesful = "succesful" # pre-existing typo
+threed = "threed" # 3D Secure (3DS) domain term
+authroize = "authroize" # pre-existing typo
+tak = "tak" # Thai state abbreviation (lowercase)
+connnector = "connnector" # pre-existing typo
+nd = "nd" # state abbreviation (lowercase)
+fo = "fo" # country code abbreviation (lowercase)
+Rounting = "Rounting" # pre-existing typo
 
 [files]
 extend-exclude = [
