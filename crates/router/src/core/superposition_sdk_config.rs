@@ -8,12 +8,13 @@ use api_models::{
         DynamicFields, PaymentMethodGroup, PaymentMethodTypeWithFields, SuperPositionConfigResponse,
     },
 };
-use common_utils::id_type::ProfileId;
+use common_utils::id_type::{MerchantId, ProfileId};
 use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount;
 use hyperswitch_masking::ExposeInterface;
 use serde_json::Map;
 
 use crate::{
+    configs,
     consts::superposition::DYNAMIC_FIELDS,
     core::errors::{self, RouterResponse, StorageErrorExt},
     routes::SessionState,
@@ -64,7 +65,7 @@ fn build_superset_required_fields(
 /// Processes payment methods from an MCA and groups required fields.
 fn process_mca_payment_methods(
     mca: &MerchantConnectorAccount,
-    required_fields_config: &crate::configs::settings::RequiredFields,
+    required_fields_config: &configs::settings::RequiredFields,
     grouped_data: &mut GroupedPaymentMethods,
 ) {
     if let Some(payment_methods_enabled) = &mca.payment_methods_enabled {
@@ -96,7 +97,7 @@ fn process_payment_method_type(
     payment_method: api_enums::PaymentMethod,
     pm_type: &RequestPaymentMethodTypes,
     connector_name: &str,
-    required_fields_config: &crate::configs::settings::RequiredFields,
+    required_fields_config: &configs::settings::RequiredFields,
     grouped_data: &mut GroupedPaymentMethods,
 ) {
     let payment_method_type = pm_type.payment_method_type;
@@ -161,30 +162,19 @@ fn convert_to_response(grouped_data: GroupedPaymentMethods) -> DynamicFields {
     DynamicFields { payment_methods }
 }
 
-pub async fn get_superposition_sdk_config(
-    state: SessionState,
-    platform: domain::Platform,
-    profile_id: ProfileId,
-) -> RouterResponse<SuperPositionConfigResponse> {
-    // we want resolve config with filters which is not yet available in any version of superposition yet. so we are commenting it for future usecase
-
-    // let resolved_configs = state
-    //     .superposition_service
-    //     .as_ref()
-    //     .async_map(|sp| async move { sp.as_ref().resolve_full_config(None, None).await })
-    //     .await
-    //     .transpose()
-    //     .change_context(errors::ApiErrorResponse::InternalServerError)
-    //     .attach_printable("Failed to resolve superposition sdk config")?;
-
-    let merchant_account = platform.get_processor().get_account();
+async fn get_dynamic_fields(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile_id: &ProfileId,
+    merchant_id: &MerchantId,
+) -> error_stack::Result<DynamicFields, errors::ApiErrorResponse> {
     let key_store = platform.get_processor().get_key_store();
 
     // Fetch all enabled merchant connector accounts for the merchant
     let all_mcas = state
         .store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            merchant_account.get_id(),
+            merchant_id,
             false,
             key_store,
         )
@@ -196,12 +186,34 @@ pub async fn get_superposition_sdk_config(
 
     for mca in all_mcas.iter() {
         // Filter MCAs by profile ID
-        if mca.profile_id == profile_id {
+        if mca.profile_id == *profile_id {
             process_mca_payment_methods(mca, &state.conf.required_fields, &mut grouped_data);
         }
     }
 
-    let dynamic_fields = convert_to_response(grouped_data);
+    Ok(convert_to_response(grouped_data))
+}
+
+pub async fn get_superposition_sdk_config(
+    state: SessionState,
+    platform: domain::Platform,
+    profile_id: ProfileId,
+) -> RouterResponse<SuperPositionConfigResponse> {
+    let merchant_account = platform.get_processor().get_account();
+
+    let dynamic_fields =
+        get_dynamic_fields(&state, &platform, &profile_id, merchant_account.get_id()).await?;
+
+    // we want resolve config with filters which is not yet available in any version of superposition yet. so we are commenting it for future usecase
+
+    // let resolved_configs = state
+    //     .superposition_service
+    //     .as_ref()
+    //     .async_map(|sp| async move { sp.as_ref().resolve_full_config(None, None).await })
+    //     .await
+    //     .transpose()
+    //     .change_context(errors::ApiErrorResponse::InternalServerError)
+    //     .attach_printable("Failed to resolve superposition sdk config")?;
 
     // Build dimension filter for superposition context
     let mut dimension_filter = Map::new();
