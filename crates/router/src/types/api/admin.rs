@@ -267,6 +267,9 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_l2_l3_enabled: Some(item.is_l2_l3_enabled),
             network_tokenization_credentials,
             payment_method_blocking: item.payment_method_blocking.map(ForeignInto::foreign_into),
+            surcharge_connector_details: item
+                .surcharge_connector_details
+                .map(ForeignFrom::foreign_from),
         })
     }
 }
@@ -357,6 +360,9 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             split_txns_enabled: item.split_txns_enabled,
             revenue_recovery_retry_algorithm_type: item.revenue_recovery_retry_algorithm_type,
             billing_processor_id: item.billing_processor_id,
+            surcharge_connector_details: item
+                .surcharge_connector_details
+                .map(ForeignInto::foreign_into),
         })
     }
 }
@@ -543,5 +549,8 @@ pub async fn create_profile_from_merchant_account(
         network_tokenization_credentials: None, // since credentials are at merchant level, they should not be in the profile, tracked in issue #15134
         payment_method_blocking: None,
         default_fallback_routing: None,
+        surcharge_connector_details: request
+            .surcharge_connector_details
+            .map(ForeignInto::foreign_into),
     }))
 }

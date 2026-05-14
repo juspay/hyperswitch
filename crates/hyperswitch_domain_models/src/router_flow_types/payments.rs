@@ -66,6 +66,15 @@ pub struct PostProcessing;
 pub struct CalculateTax;
 
 #[derive(Debug, Clone)]
+pub struct CalculateSurcharge;
+
+#[derive(Debug, Clone)]
+pub struct CompleteSurcharge;
+
+#[derive(Debug, Clone)]
+pub struct CompleteRefundSurchrge;
+
+#[derive(Debug, Clone)]
 pub struct SdkSessionUpdate;
 
 #[derive(Debug, Clone)]

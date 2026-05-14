@@ -33,11 +33,11 @@ use hyperswitch_domain_models::{
         mandate_revoke::MandateRevoke,
         merchant_connector_webhook_management::ConnectorWebhookRegister,
         payments::{
-            Approve, AuthorizeSessionToken, CalculateTax, CompleteAuthorize,
-            CreateConnectorCustomer, CreateOrder, ExtendAuthorization, GenerateQr,
-            GiftCardBalanceCheck, IncrementalAuthorization, PostCaptureVoid, PostProcessing,
-            PostSessionTokens, PreProcessing, PushNotification, Reject, SdkSessionUpdate,
-            SettlementSplitCreate, UpdateMetadata,
+            Approve, AuthorizeSessionToken, CalculateSurcharge, CalculateTax, CompleteAuthorize,
+            CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer, CreateOrder,
+            ExtendAuthorization, GenerateQr, GiftCardBalanceCheck, IncrementalAuthorization,
+            PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, PushNotification,
+            Reject, SdkSessionUpdate, SettlementSplitCreate, UpdateMetadata,
         },
         subscriptions::{
             GetSubscriptionEstimate, GetSubscriptionItemPrices, GetSubscriptionItems,
@@ -68,13 +68,15 @@ use hyperswitch_domain_models::{
         DefendDisputeRequestData, DisputeSyncData, ExternalVaultProxyPaymentsData,
         FetchDisputesRequestData, GenerateQrRequestData, GiftCardBalanceCheckRequestData,
         MandateRevokeRequestData, PaymentsApproveData, PaymentsAuthenticateData,
-        PaymentsCancelPostCaptureData, PaymentsExtendAuthorizationData,
+        PaymentsCancelPostCaptureData, PaymentsCompleteRefundSurchrgeData,
+        PaymentsCompleteSurchargeData, PaymentsExtendAuthorizationData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
-        PaymentsPreProcessingData, PaymentsRejectData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, PushNotificationRequestData, RetrieveFileRequestData,
-        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSurchargeCalculationData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PushNotificationRequestData,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
+        SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
@@ -84,11 +86,12 @@ use hyperswitch_domain_models::{
             GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
             SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
-        AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
-        DisputeSyncResponse, FetchDisputesResponse, GiftCardBalanceCheckResponseData,
-        MandateRevokeResponseData, PaymentsResponseData, RetrieveFileResponse,
-        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
-        VerifyWebhookSourceResponseData,
+        AcceptDisputeResponse, AuthenticationResponseData, CompleteRefundSurchrgeResponseData,
+        CompleteSurchargeResponseData, DefendDisputeResponse, DisputeSyncResponse,
+        FetchDisputesResponse, GiftCardBalanceCheckResponseData, MandateRevokeResponseData,
+        PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
+        SurchargeCalculationResponseData, TaxCalculationResponseData, UploadFileResponse,
+        VaultResponseData, VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "frm")]
@@ -147,7 +150,8 @@ use hyperswitch_interfaces::{
             PaymentsCompleteAuthorize, PaymentsCreateOrder, PaymentsGenerateQr,
             PaymentsGiftCardBalanceCheck, PaymentsPostAuthenticate, PaymentsPostProcessing,
             PaymentsPreAuthenticate, PaymentsPreProcessing, PaymentsPushNotification,
-            PaymentsSettlementSplitCreate, TaxCalculation,
+            PaymentsSettlementSplitCreate, SurchargeCalculation, SurchargeComplete,
+            SurchargeRefund, TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
         subscriptions::{
@@ -10803,6 +10807,42 @@ impl<const T: u8> TaxCalculation for connectors::DummyConnector<T> {}
 impl<const T: u8>
     ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>
     for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> SurchargeCalculation for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        CalculateSurcharge,
+        PaymentsSurchargeCalculationData,
+        SurchargeCalculationResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> SurchargeComplete for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        CompleteSurcharge,
+        PaymentsCompleteSurchargeData,
+        CompleteSurchargeResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> SurchargeRefund for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        CompleteRefundSurchrge,
+        PaymentsCompleteRefundSurchrgeData,
+        CompleteRefundSurchrgeResponseData,
+    > for connectors::DummyConnector<T>
 {
 }
 
