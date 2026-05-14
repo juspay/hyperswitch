@@ -118,6 +118,7 @@ requestor = "requestor" #Used in external 3ds flows
 substituters = "substituters" # Present in `flake.nix`
 unsuccess = "unsuccess" # Used in cryptopay request
 automatico = "automatico" # Pix Automático (Portuguese for Automatic) - payment method name
+UNSUPPORT = "UNSUPPORT" # PayPal API error code strings (UNSUPPORT_ENTITY, UNSUPPORT_INSTALLMENT, etc.)
 
 [files]
 extend-exclude = [
