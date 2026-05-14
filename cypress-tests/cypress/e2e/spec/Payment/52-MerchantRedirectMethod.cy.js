@@ -6,7 +6,7 @@ import getConnectorDetails, {
 } from "../../configs/Payment/Utils";
 
 let globalState;
- 
+
 const bpUpdateRedirectPost = {
   is_connector_agnostic_mit_enabled: true,
   collect_shipping_details_from_wallet_connector: false,
