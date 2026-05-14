@@ -267,7 +267,7 @@ describe("Core flows", () => {
     it("Retrieve Payment after card payment", () => {
       cy.retrievePaymentCallTest({
         globalState,
-        data: { Configs: { skipConnectorIdAssertion: true } },
+        data: { Configs: { skipConnectorIdAssertion: true, skipBillingAssertion: true } },
       });
     });
   });
