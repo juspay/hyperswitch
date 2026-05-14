@@ -38,6 +38,6 @@
     "time_zone": -330,
     "java_enabled": true,
     "java_script_enabled": true,
-    "ip_address": "127.0.0.1"
+    "ip_address": "192.0.2.1"
   }
 }
