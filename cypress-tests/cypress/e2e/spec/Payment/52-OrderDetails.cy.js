@@ -6,11 +6,29 @@ let connector;
 let globalState;
 
 describe("Card - Order Details payment flow test", () => {
-  before(function () {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-      connector = globalState.get("connectorId");
-    });
+  before("seed global state", function () {
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+        connector = globalState.get("connectorId");
+
+        // Skip the test if the connector is not in the inclusion list
+        if (
+          utils.shouldIncludeConnector(
+            connector,
+            utils.CONNECTOR_LISTS.INCLUDE.ORDER_DETAILS
+          )
+        ) {
+          skip = true;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
   });
 
   after("flush global state", () => {
