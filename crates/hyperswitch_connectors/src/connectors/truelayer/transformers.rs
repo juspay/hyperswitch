@@ -4,7 +4,6 @@ use actix_web::http::header::HeaderMap;
 #[cfg(feature = "payouts")]
 use api_models::payouts::{BankRedirect, PayoutMethodData};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
-use hyperswitch_masking::ExposeInterface;
 use common_enums::enums;
 #[cfg(feature = "payouts")]
 use common_utils::pii;
@@ -33,7 +32,7 @@ use hyperswitch_domain_models::{
     types::PayoutsRouterData,
 };
 use hyperswitch_interfaces::errors;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{ExposeInterface, Secret};
 use josekit::jws::{JwsHeader, ES512};
 use openssl::{
     bn::{BigNum, BigNumContext},
@@ -404,7 +403,10 @@ impl TryFrom<&TruelayerRouterData<&PayoutsRouterData<PoFulfill>>> for TruelayerP
                         ),
                         account_holder_name: None,
                         account_identifier: None,
-                        user_id: passthrough_data.psp_customer_id.as_ref().map(|id| id.clone().expose()),
+                        user_id: passthrough_data
+                            .psp_customer_id
+                            .as_ref()
+                            .map(|id| id.clone().expose()),
                         payment_source_id: Some(passthrough_data.psp_token.expose()),
                     },
                 })

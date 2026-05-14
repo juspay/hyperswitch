@@ -1109,19 +1109,8 @@ impl ConnectorSpecifications for Truelayer {
         &self,
         #[cfg(feature = "v1")]
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> api::ConnectorCustomerAction
-    {
+    ) -> api::ConnectorCustomerAction {
         let connector_customer_id = uuid::Uuid::new_v4().to_string();
         api::ConnectorCustomerAction::GeneratedCustomerId(connector_customer_id)
     }
-
-    // #[cfg(feature = "v1")]
-    // fn generate_connector_customer_id(
-    //     &self,
-    //     _customer_id: &Option<common_utils::id_type::CustomerId>,
-    //     _merchant_id: &common_utils::id_type::MerchantId,
-    // ) -> Option<String> {
-    //     let connector_customer_id = uuid::Uuid::new_v4().to_string();
-    //     Some(connector_customer_id)
-    // }
 }

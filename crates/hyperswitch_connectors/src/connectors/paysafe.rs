@@ -1352,10 +1352,11 @@ impl ConnectorSpecifications for Paysafe {
             && matches!(
                 payment_attempt.authentication_type,
                 Some(enums::AuthenticationType::NoThreeDs) | None
-            ) {
-                api::ConnectorCustomerAction::CallConnectorCustomer
-            } else {
-                api::ConnectorCustomerAction::NoAction
-            }
+            )
+        {
+            api::ConnectorCustomerAction::CallConnectorCustomer
+        } else {
+            api::ConnectorCustomerAction::NoAction
+        }
     }
 }

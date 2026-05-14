@@ -1107,10 +1107,11 @@ impl ConnectorSpecifications for Mollie {
             && matches!(
                 payment_attempt.payment_method,
                 Some(enums::PaymentMethod::Card)
-            ) {
-                api::ConnectorCustomerAction::CallConnectorCustomer
-            } else {
-                api::ConnectorCustomerAction::NoAction
-            }
+            )
+        {
+            api::ConnectorCustomerAction::CallConnectorCustomer
+        } else {
+            api::ConnectorCustomerAction::NoAction
+        }
     }
 }
