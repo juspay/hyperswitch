@@ -1,5 +1,3 @@
-import { no3DSNotSupportedResponseBody } from "./Commons.js";
-
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "08",
@@ -61,6 +59,14 @@ const billingAddress = {
   phone: {
     number: "9123456789",
     country_code: "+91",
+  },
+};
+
+const no3DSNotSupportedResponseBody = {
+  error: {
+    type: "invalid_request",
+    message: "No threeds is not supported",
+    code: "IR_00",
   },
 };
 
