@@ -361,7 +361,8 @@ where
     .await;
 
     let config_type = C::KEY;
-    raw_value.parse::<T>()
+    raw_value
+        .parse::<T>()
         .map_err(|_| {
             router_env::logger::error!(
                 "Failed to parse string enum for config '{}', using default",
