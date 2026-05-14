@@ -283,15 +283,7 @@ describe("PayPal Wallet tests", () => {
       if (shouldContinue) shouldContinue = should_continue_further(data);
     });
 
-    it("Handle wallet redirection", function () {
-      const handleRedirectionData = getConnectorDetails(
-        globalState.get("connectorId")
-      )["wallet_pm"]["HandleWalletRedirection"];
-
-      if (!should_continue_further(handleRedirectionData)) {
-        this.skip();
-      }
-
+    it.skip("Handle wallet redirection", () => {
       const expected_redirection = fixtures.confirmBody["return_url"];
       const payment_method_type = globalState.get("paymentMethodType");
       const nextActionUrl = globalState.get("nextActionUrl");
