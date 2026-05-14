@@ -8,6 +8,9 @@ const card_data = {
   card_type: "DEBIT",
   card_issuing_country: "POLAND",
   bank_code: "JP_JPM",
+  last4: "1111",
+  card_isin: "411111",
+  card_extended_bin: null,
 };
 
 const payment_card_data = {
