@@ -562,7 +562,6 @@ export const CONNECTOR_LISTS = {
       "bankofamerica",
       "paypal",
       "trustpay",
-      "nexixpay",
     ],
     CARD_TESTING_GUARD: ["bankofamerica"],
     L2L3DATA: ["checkout", "nuvei", "worldpayvantiv"],
