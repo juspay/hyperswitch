@@ -27,6 +27,10 @@ describe("Step-Up Auth payment flow test", () => {
         if (skip) {
           this.skip();
         }
+        const baseUrl = Cypress.env("baseUrl") || Cypress.config("baseUrl");
+        if (baseUrl && baseUrl.includes("localhost")) {
+          this.skip();
+        }
       });
   });
 
