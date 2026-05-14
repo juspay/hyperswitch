@@ -1112,9 +1112,6 @@ export const connectorDetails = {
       },
     }),
     PaypalRedirect: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "paypal",
