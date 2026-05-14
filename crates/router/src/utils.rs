@@ -16,6 +16,7 @@ pub mod user_role;
 pub mod verify_connector;
 use std::fmt::Debug;
 
+use analytics::{enums::AuthInfo, errors::AnalyticsError};
 use api_models::{
     enums,
     payments::{self},
@@ -54,6 +55,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments as payments_core,
     },
+    db::StorageInterface,
     headers::ACCEPT_LANGUAGE,
     logger,
     routes::{metrics, SessionState},
@@ -62,9 +64,6 @@ use crate::{
 };
 #[cfg(feature = "v1")]
 use crate::{core::webhooks as webhooks_core, types::storage};
-
-use analytics::{errors::AnalyticsError, enums::AuthInfo};
-use crate::db::StorageInterface;
 
 pub mod error_parser {
     use std::fmt::Display;
@@ -1471,26 +1470,17 @@ pub async fn get_payment_response_hash_key(
             profile_ids,
             ..
         } => {
-            let profile_id = profile_ids
-                .first()
-                .ok_or(AnalyticsError::UnknownError)?;
+            let profile_id = profile_ids.first().ok_or(AnalyticsError::UnknownError)?;
             let profile = store
-                .find_business_profile_by_merchant_id_profile_id(
-                    key_store, merchant_id, profile_id,
-                )
+                .find_business_profile_by_merchant_id_profile_id(key_store, merchant_id, profile_id)
                 .await
                 .change_context(AnalyticsError::UnknownError)?;
             Ok(profile.payment_response_hash_key)
         }
-        AuthInfo::MerchantLevel {
-            merchant_ids,
-            ..
-        } => {
-            #[cfg(feature = "v1")] 
+        AuthInfo::MerchantLevel { merchant_ids, .. } => {
+            #[cfg(feature = "v1")]
             {
-                let merchant_id = merchant_ids
-                    .first()
-                    .ok_or(AnalyticsError::UnknownError)?;
+                let merchant_id = merchant_ids.first().ok_or(AnalyticsError::UnknownError)?;
                 let merchant = store
                     .find_merchant_account_by_merchant_id(merchant_id, key_store)
                     .await
@@ -1499,9 +1489,7 @@ pub async fn get_payment_response_hash_key(
             }
             #[cfg(feature = "v2")]
             {
-                let merchant_id = merchant_ids
-                    .first()
-                    .ok_or(AnalyticsError::UnknownError)?;
+                let merchant_id = merchant_ids.first().ok_or(AnalyticsError::UnknownError)?;
                 let profiles = store
                     .list_profile_by_merchant_id(key_store, merchant_id)
                     .await
@@ -1509,8 +1497,8 @@ pub async fn get_payment_response_hash_key(
                 Ok(profiles
                     .first()
                     .and_then(|profile| profile.payment_response_hash_key.clone()))
-            }        
-        }           
+            }
+        }
         AuthInfo::OrgLevel { .. } => Ok(None),
     }
 }

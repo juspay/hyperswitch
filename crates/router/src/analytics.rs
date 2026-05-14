@@ -1817,11 +1817,14 @@ pub mod routes {
 
                 let auth_info = auth.platform.to_merchant_level_auth_info();
                 let hash_key = match &payload.return_url {
-                    Some(_) => get_payment_response_hash_key(
-                        state.store.as_ref(),
-                        auth.platform.get_processor().get_key_store(),
-                        &auth_info,
-                    ).await?,
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
                     None => None,
                 };
 
@@ -2009,11 +2012,14 @@ pub mod routes {
 
                 let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
                 let hash_key = match &payload.return_url {
-                    Some(_) => get_payment_response_hash_key(
-                        state.store.as_ref(),
-                        auth.platform.get_processor().get_key_store(),
-                        &auth_info,
-                    ).await?,
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
                     None => None,
                 };
 
@@ -2108,11 +2114,14 @@ pub mod routes {
 
                 let auth_info = auth.platform.to_merchant_level_auth_info();
                 let hash_key = match &payload.return_url {
-                    Some(_) => get_payment_response_hash_key(
-                        state.store.as_ref(),
-                        auth.platform.get_processor().get_key_store(),
-                        &auth_info,
-                    ).await?,
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
                     None => None,
                 };
 
@@ -2298,11 +2307,14 @@ pub mod routes {
                     .clone();
                 let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
                 let hash_key = match &payload.return_url {
-                    Some(_) => get_payment_response_hash_key(
-                        state.store.as_ref(),
-                        auth.platform.get_processor().get_key_store(),
-                        &auth_info,
-                    ).await?,
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
                     None => None,
                 };
 
@@ -2398,11 +2410,14 @@ pub mod routes {
 
                 let auth_info = auth.platform.to_merchant_level_auth_info();
                 let hash_key = match &payload.return_url {
-                    Some(_) => get_payment_response_hash_key(
-                        state.store.as_ref(),
-                        auth.platform.get_processor().get_key_store(),
-                        &auth_info,
-                    ).await?,
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
                     None => None,
                 };
 
@@ -2588,11 +2603,14 @@ pub mod routes {
                     .clone();
                 let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
                 let hash_key = match &payload.return_url {
-                    Some(_) => get_payment_response_hash_key(
-                        state.store.as_ref(),
-                        auth.platform.get_processor().get_key_store(),
-                        &auth_info,
-                    ).await?,
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
                     None => None,
                 };
 
@@ -2687,11 +2705,14 @@ pub mod routes {
 
                 let auth_info = auth.platform.to_merchant_level_auth_info();
                 let hash_key = match &payload.return_url {
-                    Some(_) => get_payment_response_hash_key(
-                        state.store.as_ref(),
-                        auth.platform.get_processor().get_key_store(),
-                        &auth_info,
-                    ).await?,
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
                     None => None,
                 };
 
@@ -2884,11 +2905,14 @@ pub mod routes {
 
                 let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
                 let hash_key = match &payload.return_url {
-                    Some(_) => get_payment_response_hash_key(
-                        state.store.as_ref(),
-                        auth.platform.get_processor().get_key_store(),
-                        &auth_info,
-                    ).await?,
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
                     None => None,
                 };
 
@@ -2984,11 +3008,14 @@ pub mod routes {
 
                 let auth_info = auth.platform.to_merchant_level_auth_info();
                 let hash_key = match &payload.return_url {
-                    Some(_) => get_payment_response_hash_key(
-                        state.store.as_ref(),
-                        auth.platform.get_processor().get_key_store(),
-                        &auth_info,
-                    ).await?,
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
                     None => None,
                 };
 
@@ -3174,11 +3201,14 @@ pub mod routes {
                     .clone();
                 let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
                 let hash_key = match &payload.return_url {
-                    Some(_) => get_payment_response_hash_key(
-                        state.store.as_ref(),
-                        auth.platform.get_processor().get_key_store(),
-                        &auth_info,
-                    ).await?,
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
                     None => None,
                 };
 
