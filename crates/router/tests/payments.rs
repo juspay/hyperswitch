@@ -471,6 +471,7 @@ async fn payments_create_core() {
         whole_connector_response: None,
         payment_channel: None,
         network_transaction_id: None,
+        network_transaction_link_id: None,
         enable_partial_authorization: None,
         is_overcapture_enabled: None,
         enable_overcapture: None,
@@ -788,6 +789,7 @@ async fn payments_create_core_adyen_no_redirect() {
             installment_data: None,
             state_metadata: None,
             connector_response_metadata: None,
+            network_transaction_link_id: None,
         },
         vec![],
     ));
