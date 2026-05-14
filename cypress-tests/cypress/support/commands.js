@@ -843,7 +843,6 @@ Cypress.Commands.add("verifyUrlParamIncluded", (paramName, message) => {
   });
 });
 
-
 function maskValue(value) {
   if (value.length > 4) {
     return value.slice(0, 2) + "*".repeat(value.length - 4) + value.slice(-2);
