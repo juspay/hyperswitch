@@ -1111,21 +1111,12 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
     }),
-    PaypalRedirect: getCustomExchange({
-      Request: {
-        payment_method: "wallet",
-        payment_method_type: "paypal",
-        payment_method_data: {
-          wallet: {
-            paypal_redirect: {},
-          },
-        },
-        billing: {
-          ...standardBillingAddress,
-          address: {
-            ...standardBillingAddress.address,
-            country: "DE",
-          },
+    HandleWalletRedirection: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "success",
         },
       },
     }),

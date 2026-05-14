@@ -208,34 +208,40 @@ describe("Wallet tests", () => {
       });
     });
   });
+});
+
+describe("PayPal Wallet tests", () => {
+  before("seed global state", function () {
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+        const connector = globalState.get("connectorId");
+
+        if (
+          shouldIncludeConnector(
+            connector,
+            CONNECTOR_LISTS.INCLUDE.PAYPAL_WALLET
+          )
+        ) {
+          skip = true;
+          return;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
+  });
+
+  after("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
 
   context("PayPal Create and Confirm flow test", () => {
     let shouldContinue = true;
-
-    before("seed global state", function () {
-      let skip = false;
-
-      cy.task("getGlobalState")
-        .then((state) => {
-          globalState = new State(state);
-          const connector = globalState.get("connectorId");
-
-          if (
-            shouldIncludeConnector(
-              connector,
-              CONNECTOR_LISTS.INCLUDE.PAYPAL_WALLET
-            )
-          ) {
-            skip = true;
-            return;
-          }
-        })
-        .then(() => {
-          if (skip) {
-            this.skip();
-          }
-        });
-    });
 
     beforeEach(function () {
       if (!shouldContinue) {
@@ -278,6 +284,18 @@ describe("Wallet tests", () => {
     });
 
     it("Handle wallet redirection", () => {
+      const handleRedirectionData = getConnectorDetails(
+        globalState.get("connectorId")
+      )["wallet_pm"]["HandleWalletRedirection"];
+
+      if (!should_continue_further(handleRedirectionData)) {
+        cy.task(
+          "cli_log",
+          "Skipping step: Handle wallet redirection (TRIGGER_SKIP)"
+        );
+        return;
+      }
+
       const expected_redirection = fixtures.confirmBody["return_url"];
       const payment_method_type = globalState.get("paymentMethodType");
       const nextActionUrl = globalState.get("nextActionUrl");

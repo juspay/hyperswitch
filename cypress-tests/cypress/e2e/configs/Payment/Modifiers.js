@@ -133,6 +133,7 @@ const CURRENCY_MAP = {
   Interac: "CAD", // Canadian payment method
   AliPayHk: "HKD", // Hong Kong payment method
   PayPal: "USD", // PayPal wallet
+  PaypalRedirect: "USD", // PayPal redirect wallet
 };
 
 export const getCurrency = (paymentMethodType) => {

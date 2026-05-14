@@ -1,3 +1,5 @@
+import { getCustomExchange } from "./Modifiers";
+
 const successfulThreeDSTestCardDetails = {
   card_number: "4000000000001091",
   card_exp_month: "12",
@@ -803,8 +805,8 @@ export const connectorDetails = {
     },
   },
   wallet_pm: {
-    PaymentIntent: () => {
-      return {
+    PaymentIntent: () =>
+      getCustomExchange({
         Request: {
           currency: "EUR",
         },
@@ -814,8 +816,7 @@ export const connectorDetails = {
             status: "requires_payment_method",
           },
         },
-      };
-    },
+      }),
     PaypalRedirect: {
       Request: {
         payment_method: "wallet",
@@ -833,6 +834,12 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
+    },
+    HandleWalletRedirection: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
     },
   },
   webhook: {

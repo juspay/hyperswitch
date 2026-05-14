@@ -936,19 +936,7 @@ export const connectorDetails = {
     },
   },
   wallet_pm: {
-    PaymentIntent: (paymentMethodType) =>
-      getCustomExchange({
-        Request: {
-          currency: paymentMethodType === "PayPal" ? "USD" : "EUR",
-        },
-        Response: {
-          status: 200,
-          body: {
-            status: "requires_payment_method",
-          },
-        },
-      }),
-    PayPal: {
+    PaypalRedirect: {
       Request: {
         payment_method: "wallet",
         payment_method_type: "paypal",
