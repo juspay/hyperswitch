@@ -188,6 +188,25 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    batch_blocklist_jobs (id) {
+        #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 32]
+        status -> Varchar,
+        total_rows -> Int4,
+        succeeded_rows -> Int4,
+        failed_rows -> Int4,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     blocklist (merchant_id, fingerprint_id) {
         #[max_length = 64]
         merchant_id -> Varchar,
@@ -297,6 +316,7 @@ diesel::table! {
         network_tokenization_credentials -> Nullable<Bytea>,
         payment_method_blocking -> Nullable<Jsonb>,
         default_fallback_routing -> Nullable<Jsonb>,
+        surcharge_connector_details -> Nullable<Jsonb>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,
@@ -1121,6 +1141,7 @@ diesel::table! {
         #[max_length = 64]
         retry_type -> Nullable<Varchar>,
         installment_data -> Nullable<Jsonb>,
+        external_surcharge_details -> Nullable<Jsonb>,
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
@@ -1855,6 +1876,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
     authentication,
+    batch_blocklist_jobs,
     blocklist,
     blocklist_fingerprint,
     blocklist_lookup,

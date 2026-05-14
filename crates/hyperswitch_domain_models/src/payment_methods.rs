@@ -1340,16 +1340,26 @@ pub struct PaymentMethodCustomerMigrate {
 }
 
 #[cfg(feature = "v1")]
-impl TryFrom<(payment_methods::PaymentMethodRecord, id_type::MerchantId)>
-    for PaymentMethodCustomerMigrate
+impl
+    TryFrom<(
+        payment_methods::PaymentMethodRecord,
+        id_type::MerchantId,
+        Option<&Vec<id_type::MerchantConnectorAccountId>>,
+    )> for PaymentMethodCustomerMigrate
 {
     type Error = error_stack::Report<ValidationError>;
     fn try_from(
-        value: (payment_methods::PaymentMethodRecord, id_type::MerchantId),
+        value: (
+            payment_methods::PaymentMethodRecord,
+            id_type::MerchantId,
+            // merchant_connector_id(s) supplied at the form level (not as CSV columns)
+            Option<&Vec<id_type::MerchantConnectorAccountId>>,
+        ),
     ) -> Result<Self, Self::Error> {
-        let (record, merchant_id) = value;
+        let (record, merchant_id, fallback_merchant_connector_ids) = value;
         let connector_customer_details = record
             .connector_customer_id
+            .as_ref()
             .and_then(|connector_customer_id| {
                 // Handle single merchant_connector_id
                 record
@@ -1393,6 +1403,19 @@ impl TryFrom<(payment_methods::PaymentMethodRecord, id_type::MerchantId)>
                                     .collect::<Result<Vec<_>, _>>()
                             })
                     })
+                    // Fall back to the form-level merchant_connector_id(s) when the CSV row
+                    // has no merchant_connector_id(s) column
+                    .or_else(|| {
+                        fallback_merchant_connector_ids.map(|merchant_connector_ids| {
+                            Ok(merchant_connector_ids
+                                .iter()
+                                .map(|merchant_connector_id| ConnectorCustomerDetails {
+                                    connector_customer_id: connector_customer_id.clone(),
+                                    merchant_connector_id: merchant_connector_id.clone(),
+                                })
+                                .collect::<Vec<_>>())
+                        })
+                    })
             })
             .transpose()?;
 
@@ -1427,18 +1450,31 @@ impl TryFrom<(payment_methods::PaymentMethodRecord, id_type::MerchantId)>
 }
 
 #[cfg(feature = "v1")]
-impl ForeignTryFrom<(&[payment_methods::PaymentMethodRecord], id_type::MerchantId)>
-    for Vec<PaymentMethodCustomerMigrate>
+impl
+    ForeignTryFrom<(
+        &[payment_methods::PaymentMethodRecord],
+        id_type::MerchantId,
+        Option<&Vec<id_type::MerchantConnectorAccountId>>,
+    )> for Vec<PaymentMethodCustomerMigrate>
 {
     type Error = error_stack::Report<ValidationError>;
 
     fn foreign_try_from(
-        (records, merchant_id): (&[payment_methods::PaymentMethodRecord], id_type::MerchantId),
+        // merchant_connector_ids: form-level connector account id(s), forwarded to each row
+        (records, merchant_id, merchant_connector_ids): (
+            &[payment_methods::PaymentMethodRecord],
+            id_type::MerchantId,
+            Option<&Vec<id_type::MerchantConnectorAccountId>>,
+        ),
     ) -> Result<Self, Self::Error> {
         let (customers_migration, migration_errors): (Self, Vec<_>) = records
             .iter()
             .map(|record| {
-                PaymentMethodCustomerMigrate::try_from((record.clone(), merchant_id.clone()))
+                PaymentMethodCustomerMigrate::try_from((
+                    record.clone(),
+                    merchant_id.clone(),
+                    merchant_connector_ids,
+                ))
             })
             .fold((Self::new(), Vec::new()), |mut acc, result| {
                 match result {
