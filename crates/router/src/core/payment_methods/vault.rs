@@ -1336,6 +1336,7 @@ impl Vaultable for api::PassthroughPayout {
     ) -> CustomResult<String, errors::VaultError> {
         let value1 = TokenizedPassthroughSensitiveValues {
             psp_token: self.psp_token.clone(),
+            psp_customer_id: self.psp_customer_id.clone(),
         };
 
         value1
@@ -1377,6 +1378,7 @@ impl Vaultable for api::PassthroughPayout {
 
         let passthrough = Self {
             psp_token: value1.psp_token,
+            psp_customer_id: value1.psp_customer_id,
             token_type: value2.token_type,
         };
 
@@ -1405,6 +1407,7 @@ pub struct TokenizedBankRedirectInsensitiveValues {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedPassthroughSensitiveValues {
     pub psp_token: hyperswitch_masking::Secret<String>,
+    pub psp_customer_id: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

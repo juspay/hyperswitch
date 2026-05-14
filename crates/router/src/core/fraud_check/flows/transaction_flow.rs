@@ -163,6 +163,7 @@ impl
                 .attach_printable(
                     "Failed to extract customer document details from payment_intent",
                 )?,
+            sender_payment_instrument_id: None,
         };
 
         Ok(router_data)

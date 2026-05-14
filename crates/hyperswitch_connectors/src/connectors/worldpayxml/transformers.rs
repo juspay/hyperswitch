@@ -1917,7 +1917,6 @@ impl<F> TryFrom<ResponseRouterData<F, PaymentService, CompleteAuthorizeData, Pay
     fn try_from(
         item: ResponseRouterData<F, PaymentService, CompleteAuthorizeData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let is_auto_capture = item.data.request.is_auto_capture()?;
         let reply = item
             .response
             .reply
@@ -1931,7 +1930,7 @@ impl<F> TryFrom<ResponseRouterData<F, PaymentService, CompleteAuthorizeData, Pay
             validate_order_status(&order_status)?;
 
             if let Some(payment_data) = order_status.payment {
-                let status = get_attempt_status(is_auto_capture, payment_data.last_event, None)?;
+                let status = get_attempt_status_for_setup_mandate(payment_data.last_event)?;
                 let response = process_payment_response(
                     status,
                     &payment_data,
@@ -2005,6 +2004,7 @@ impl<F>
     fn try_from(
         item: ResponseRouterData<F, PaymentService, SetupMandateRequestData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let is_auto_capture = item.data.request.is_auto_capture()?;
         let reply = item
             .response
             .reply
@@ -2018,7 +2018,7 @@ impl<F>
             validate_order_status(&order_status)?;
 
             if let Some(payment_data) = order_status.payment {
-                let status = get_attempt_status_for_setup_mandate(payment_data.last_event)?;
+                let status = get_attempt_status(is_auto_capture, payment_data.last_event, None)?;
 
                 let response = process_payment_response(
                     status,

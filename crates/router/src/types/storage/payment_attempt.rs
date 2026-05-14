@@ -244,6 +244,7 @@ mod tests {
             error_details: Default::default(),
             retry_type: Default::default(),
             installment_data: Default::default(),
+            sender_payment_instrument_id: Default::default(),
         };
 
         let store = state
@@ -364,6 +365,7 @@ mod tests {
             error_details: Default::default(),
             retry_type: Default::default(),
             installment_data: Default::default(),
+            sender_payment_instrument_id: Default::default(),
         };
         let store = state
             .stores
@@ -498,6 +500,7 @@ mod tests {
             error_details: Default::default(),
             retry_type: Default::default(),
             installment_data: Default::default(),
+            sender_payment_instrument_id: Default::default(),
         };
         let store = state
             .stores

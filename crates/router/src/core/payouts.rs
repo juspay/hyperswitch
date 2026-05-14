@@ -1207,7 +1207,8 @@ pub async fn complete_create_recipient(
         )
         && connector_data
             .connector_name
-            .supports_create_recipient(payout_data.payouts.payout_type)
+            .supports_create_recipient(payout_data.payouts.payout_type) && 
+            !payout_data.payout_method_data.clone().is_some_and(|pm| pm.is_passthrough())
     {
         Box::pin(create_recipient(
             state,
