@@ -557,7 +557,6 @@ export const CONNECTOR_LISTS = {
       "cybersource",
       "checkout",
       "airwallex",
-      "adyen",
       "braintree",
       "bankofamerica",
       "paypal",
