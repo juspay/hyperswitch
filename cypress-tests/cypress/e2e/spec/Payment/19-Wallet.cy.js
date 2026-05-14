@@ -16,10 +16,29 @@ describe("Wallet tests", () => {
   context("Bluecode Create and Confirm flow test", () => {
     let shouldContinue = true;
 
-    before("seed global state", () => {
-      cy.task("getGlobalState").then((state) => {
-        globalState = new State(state);
-      });
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.BLUECODE_WALLET
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
     });
 
     beforeEach(function () {
@@ -95,10 +114,29 @@ describe("Wallet tests", () => {
   context("AliPayHk Create and Confirm flow test", () => {
     let shouldContinue = true;
 
-    before("seed global state", () => {
-      cy.task("getGlobalState").then((state) => {
-        globalState = new State(state);
-      });
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.ALIPAY_HK_WALLET
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
     });
 
     beforeEach(function () {
@@ -174,18 +212,29 @@ describe("Wallet tests", () => {
   context("PayPal Create and Confirm flow test", () => {
     let shouldContinue = true;
 
-    before("seed global state", () => {
-      cy.task("getGlobalState").then((state) => {
-        globalState = new State(state);
-        if (
-          !shouldIncludeConnector(
-            globalState.get("connectorId"),
-            CONNECTOR_LISTS.INCLUDE.PAYPAL_WALLET
-          )
-        ) {
-          shouldContinue = false;
-        }
-      });
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.PAYPAL_WALLET
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
     });
 
     beforeEach(function () {
