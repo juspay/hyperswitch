@@ -65,30 +65,10 @@ use crate::{
 pub mod connector_config;
 pub mod transformers;
 
-/// Maps a UnifiedConnectorServiceError to an HTTP status code for logging.
-/// Connector errors (from downstream connectors) use their own status codes,
-/// while tonic/gRPC errors use the appropriate HTTP mapping.
-/// UCS-internal errors default to 500.
+/// Returns HTTP status code from UCS error.
+/// Uses UnifiedConnectorServiceError::http_status() for consistent mapping.
 pub fn map_ucs_error_to_http_status(error: &UnifiedConnectorServiceError) -> u16 {
-    match error {
-        UnifiedConnectorServiceError::ConnectorError { .. } => 400,
-        UnifiedConnectorServiceError::TonicInvalidArgument { .. } => 400,
-        UnifiedConnectorServiceError::TonicNotFound { .. } => 404,
-        UnifiedConnectorServiceError::TonicAlreadyExists { .. } => 409,
-        UnifiedConnectorServiceError::TonicPermissionDenied { .. } => 403,
-        UnifiedConnectorServiceError::TonicUnauthenticated { .. } => 401,
-        UnifiedConnectorServiceError::TonicFailedPrecondition { .. } => 400,
-        UnifiedConnectorServiceError::ConnectionError(_) => 503,
-        UnifiedConnectorServiceError::InvalidDataFormat { .. }
-        | UnifiedConnectorServiceError::MissingRequiredField { .. }
-        | UnifiedConnectorServiceError::MissingRequiredFields { .. }
-        | UnifiedConnectorServiceError::RequestEncodingFailed
-        | UnifiedConnectorServiceError::RequestEncodingFailedWithReason(_) => 400,
-        UnifiedConnectorServiceError::InvalidConnectorName
-        | UnifiedConnectorServiceError::MissingConnectorName => 400,
-        UnifiedConnectorServiceError::NotImplemented(_) => 501,
-        _ => 500,
-    }
+    error.http_status()
 }
 
 /// Extracts the HTTP status code from an ApiErrorResponse for UCS error logging.

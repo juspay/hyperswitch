@@ -88,80 +88,19 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to inject metadata into request headers: {0}")]
     HeaderInjectionFailed(String),
 
-    /// Tonic gRPC status error - InvalidArgument (HTTP 400)
-    #[error("UCS validation error: {message}")]
-    TonicInvalidArgument {
+    /// Tonic gRPC status error from UCS.
+    /// Use http_status() to get the corresponding HTTP status code.
+    #[error("UCS error: {code:?} - {message}")]
+    TonicStatus {
+        /// Tonic status code
+        code: tonic::Code,
         /// Error message from UCS
         message: String,
     },
 
-    /// Tonic gRPC status error - NotFound (HTTP 404)
-    #[error("UCS resource not found: {message}")]
-    TonicNotFound {
-        /// Error message from UCS
-        message: String,
-    },
-
-    /// Tonic gRPC status error - AlreadyExists (HTTP 409)
-    #[error("UCS resource already exists: {message}")]
-    TonicAlreadyExists {
-        /// Error message from UCS
-        message: String,
-    },
-
-    /// Tonic gRPC status error - PermissionDenied (HTTP 403)
-    #[error("UCS permission denied: {message}")]
-    TonicPermissionDenied {
-        /// Error message from UCS
-        message: String,
-    },
-
-    /// Tonic gRPC status error - Unauthenticated (HTTP 401)
-    #[error("UCS unauthenticated: {message}")]
-    TonicUnauthenticated {
-        /// Error message from UCS
-        message: String,
-    },
-
-    /// Tonic gRPC status error - FailedPrecondition (HTTP 400)
-    #[error("UCS precondition failed: {message}")]
-    TonicFailedPrecondition {
-        /// Error message from UCS
-        message: String,
-    },
-
-    /// Tonic gRPC status error - Unimplemented (HTTP 501)
-    #[error("UCS unimplemented: {message}")]
-    TonicUnimplemented {
-        /// Error message from UCS
-        message: String,
-    },
-
-    /// Tonic gRPC status error - Unavailable (HTTP 503)
-    #[error("UCS service unavailable: {message}")]
-    TonicUnavailable {
-        /// Error message from UCS
-        message: String,
-    },
-
-    /// Tonic gRPC status error - DeadlineExceeded (HTTP 504)
-    #[error("UCS deadline exceeded: {message}")]
-    TonicDeadlineExceeded {
-        /// Error message from UCS
-        message: String,
-    },
-
-    /// Tonic gRPC status error - Internal (HTTP 500)
-    #[error("UCS internal error: {message}")]
-    TonicInternal {
-        /// Error message from UCS
-        message: String,
-    },
-
-    /// Connector error received through UCS (contains original connector HTTP status code)
-    /// When status_code is present and 4xx/5xx, this is a connector error (not a UCS error).
-    /// When status_code is None, the error originated from UCS itself.
-    #[error("Connector error via UCS: {code} - {message} (status: {status_code})")]
+    /// Connector error received through UCS (contains original connector HTTP status code).
+    /// Distinguishes connector errors from UCS errors by presence of status_code.
+    #[error("Connector error via UCS: {code} - {message}")]
     ConnectorError {
         /// Connector error code
         code: String,
@@ -934,43 +873,59 @@ impl ForeignFrom<payments_grpc::UpiSource>
 }
 
 impl UnifiedConnectorServiceError {
-    /// Maps a tonic::Status to UnifiedConnectorServiceError based on the status code.
-    ///
-    /// UCS sends connector errors as proto-encoded `ConnectorError` in the status details
-    /// (via `with_details`). This method decodes those details using `Message::decode(details)`.
-    /// If no proto details are found, falls back to generic tonic status code mapping.
-    pub fn from_tonic_status(status: &tonic::Status) -> Self {
-        let message = status.message().to_string();
+    /// Converts tonic::Code to HTTP status code.
+    pub fn tonic_to_http_status(code: tonic::Code) -> u16 {
+        match code {
+            tonic::Code::InvalidArgument | tonic::Code::FailedPrecondition => 400,
+            tonic::Code::Unauthenticated => 401,
+            tonic::Code::PermissionDenied => 403,
+            tonic::Code::NotFound => 404,
+            tonic::Code::AlreadyExists => 409,
+            tonic::Code::Unimplemented => 501,
+            tonic::Code::Unavailable => 503,
+            tonic::Code::DeadlineExceeded => 504,
+            tonic::Code::Internal | _ => 500,
+        }
+    }
 
+    /// Returns HTTP status code for this error.
+    pub fn http_status(&self) -> u16 {
+        match self {
+            Self::TonicStatus { code, .. } => Self::tonic_to_http_status(*code),
+            Self::ConnectorError { status_code, .. } => *status_code,
+            Self::ConnectionError(_) => 503,
+            Self::InvalidDataFormat { .. }
+            | Self::MissingRequiredField { .. }
+            | Self::MissingRequiredFields { .. }
+            | Self::RequestEncodingFailed
+            | Self::RequestEncodingFailedWithReason(_)
+            | Self::InvalidConnectorName
+            | Self::MissingConnectorName => 400,
+            Self::NotImplemented(_) => 501,
+            _ => 500,
+        }
+    }
+
+    /// Maps tonic::Status to UnifiedConnectorServiceError.
+    /// First tries to extract connector error from proto details.
+    pub fn from_tonic_status(status: &tonic::Status) -> Self {
         // Try to extract ConnectorError from proto-encoded status details
         if let Some(error_from_details) = Self::try_parse_from_details(status) {
             return error_from_details;
         }
-        match status.code() {
-            tonic::Code::InvalidArgument => Self::TonicInvalidArgument { message },
-            tonic::Code::NotFound => Self::TonicNotFound { message },
-            tonic::Code::AlreadyExists => Self::TonicAlreadyExists { message },
-            tonic::Code::PermissionDenied => Self::TonicPermissionDenied { message },
-            tonic::Code::Unauthenticated => Self::TonicUnauthenticated { message },
-            tonic::Code::FailedPrecondition => Self::TonicFailedPrecondition { message },
-            tonic::Code::Unimplemented => Self::TonicUnimplemented { message },
-            tonic::Code::Unavailable => Self::TonicUnavailable { message },
-            tonic::Code::DeadlineExceeded => Self::TonicDeadlineExceeded { message },
-            tonic::Code::Internal => Self::TonicInternal { message },
-            _ => Self::TonicInternal { message },
+
+        Self::TonicStatus {
+            code: status.code(),
+            message: status.message().to_string(),
         }
     }
 
-    /// Attempts to extract a `ConnectorError` from the tonic status details (proto-encoded).
-    /// This is the primary mechanism for UCS to forward connector errors with their
-    /// original error codes, messages, and HTTP status codes via gRPC error details.
-    pub fn try_parse_from_details(status: &tonic::Status) -> Option<Self> {
+    fn try_parse_from_details(status: &tonic::Status) -> Option<Self> {
         let details = status.details();
         if details.is_empty() {
             return None;
         }
 
-        // Attempt to decode the ConnectorError from the status details
         let connector_error = payments_grpc::ConnectorError::decode(details).ok()?;
         let status_code = u16::try_from(connector_error.http_status_code?).ok()?;
         Some(Self::ConnectorError {
@@ -989,33 +944,30 @@ impl UnifiedConnectorServiceError {
 impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
     fn switch(&self) -> ApiErrorResponse {
         match self {
-            // === UCS validation errors (no connector status_code) -> client-facing 4xx ===
-            Self::TonicInvalidArgument { message } => ApiErrorResponse::InvalidRequestData {
-                message: message.clone(),
+            Self::TonicStatus { code, message } => match code {
+                tonic::Code::InvalidArgument | tonic::Code::FailedPrecondition => {
+                    ApiErrorResponse::InvalidRequestData {
+                        message: message.clone(),
+                    }
+                }
+                tonic::Code::NotFound => ApiErrorResponse::InvalidRequestData {
+                    message: format!("Resource not found: {message}"),
+                },
+                tonic::Code::AlreadyExists => ApiErrorResponse::InvalidRequestData {
+                    message: format!("Resource already exists: {message}"),
+                },
+                tonic::Code::PermissionDenied => ApiErrorResponse::AccessForbidden {
+                    resource: message.clone(),
+                },
+                tonic::Code::Unauthenticated => ApiErrorResponse::Unauthorized,
+                tonic::Code::Unimplemented => ApiErrorResponse::NotImplemented {
+                    message: NotImplementedMessage::Reason(message.clone()),
+                },
+                tonic::Code::Unavailable
+                | tonic::Code::DeadlineExceeded
+                | tonic::Code::Internal => ApiErrorResponse::InternalServerError,
+                _ => ApiErrorResponse::InternalServerError,
             },
-            Self::TonicNotFound { message } => ApiErrorResponse::InvalidRequestData {
-                message: format!("Resource not found: {message}"),
-            },
-            Self::TonicAlreadyExists { message } => ApiErrorResponse::InvalidRequestData {
-                message: format!("Resource already exists: {message}"),
-            },
-            Self::TonicPermissionDenied { message } => ApiErrorResponse::AccessForbidden {
-                resource: message.clone(),
-            },
-            Self::TonicUnauthenticated { .. } => ApiErrorResponse::Unauthorized,
-            Self::TonicFailedPrecondition { message } => ApiErrorResponse::InvalidRequestData {
-                message: format!("Precondition failed: {message}"),
-            },
-            Self::TonicUnimplemented { message } => ApiErrorResponse::NotImplemented {
-                message: NotImplementedMessage::Reason(message.clone()),
-            },
-
-            // === UCS server errors -> 5xx ===
-            Self::TonicUnavailable { .. }
-            | Self::TonicDeadlineExceeded { .. }
-            | Self::TonicInternal { .. } => ApiErrorResponse::InternalServerError,
-
-            // === Connector error passed through UCS (has status_code) ===
             Self::ConnectorError {
                 code,
                 message,
@@ -1028,8 +980,6 @@ impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
                 status_code: *status_code,
                 reason: reason.clone(),
             },
-
-            // === All other legacy/generic errors -> 500 ===
             _ => ApiErrorResponse::InternalServerError,
         }
     }

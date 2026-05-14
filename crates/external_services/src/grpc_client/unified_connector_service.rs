@@ -1396,12 +1396,6 @@ pub fn tonic_status_to_report(
     status: tonic::Status,
     default_error: UnifiedConnectorServiceError,
 ) -> error_stack::Report<UnifiedConnectorServiceError> {
-    // Always try to extract ConnectorError from details first,
-    // regardless of gRPC status code
-    if let Some(connector_error) = UnifiedConnectorServiceError::try_parse_from_details(&status) {
-        return error_stack::Report::new(connector_error);
-    }
-
     let err = match status.code() {
         // 4xx equivalent gRPC status codes - parse into specific tonic variants
         tonic::Code::InvalidArgument
