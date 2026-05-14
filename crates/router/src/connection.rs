@@ -1,8 +1,7 @@
 use bb8::PooledConnection;
 use diesel::PgConnection;
 use error_stack::ResultExt;
-use storage_impl::errors as storage_errors;
-use storage_impl::ReadPreference;
+use storage_impl::{errors as storage_errors, ReadPreference};
 
 use crate::errors;
 
