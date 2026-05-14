@@ -130,7 +130,7 @@ describe("Merchant Redirect Method Tests - UPI", () => {
               payment_method_type,
               expected_redirection
             );
-
+ 
             cy.verifyUrlParamExcluded(
               "amount",
               "Verified: amount parameter is excluded (POST mode)"
