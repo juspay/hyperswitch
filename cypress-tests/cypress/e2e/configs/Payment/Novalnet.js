@@ -835,21 +835,6 @@ export const connectorDetails = {
         },
       },
     },
-    Mifinity: getCustomExchange({
-      Request: {
-        payment_method: "wallet",
-        payment_method_type: "mifinity",
-        payment_method_data: {
-          wallet: {
-            mifinity: {},
-          },
-        },
-        billing: billingAddress,
-      },
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-    }),
   },
   webhook: {
     TransactionIdConfig: {

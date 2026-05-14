@@ -936,25 +936,6 @@ export const connectorDetails = {
     },
   },
   wallet_pm: {
-    PaypalRedirect: {
-      Request: {
-        payment_method: "wallet",
-        payment_method_type: "paypal",
-        authentication_type: "no_three_ds",
-        billing: standardBillingAddress,
-        payment_method_data: {
-          wallet: {
-            paypal_redirect: {},
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
     PaypalRedirectMandateCIT: {
       Request: {
         payment_method: "wallet",

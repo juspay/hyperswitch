@@ -7,7 +7,6 @@ import getConnectorDetails, {
 } from "../../configs/Payment/Utils";
 
 let globalState;
-
 describe("Wallet tests", () => {
   afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
