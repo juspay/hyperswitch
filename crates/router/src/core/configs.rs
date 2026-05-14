@@ -351,7 +351,7 @@ where
     let db_key = <C as DatabaseBackedConfig>::db_key(dimensions);
     let context = dimensions.to_superposition_context();
 
-    let s = fetch_db_config::<C>(
+    let raw_value = fetch_db_config::<C>(
         storage,
         superposition_client,
         db_key.as_deref(),
@@ -361,7 +361,7 @@ where
     .await;
 
     let config_type = C::KEY;
-    s.parse::<T>()
+    raw_value.parse::<T>()
         .map_err(|_| {
             router_env::logger::error!(
                 "Failed to parse string enum for config '{}', using default",
