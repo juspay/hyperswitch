@@ -79,7 +79,7 @@ pub async fn list_initial_webhook_delivery_attempts_with_jwtauth(
         state,
         &req,
         request_internal,
-        |state, auth: UserFromToken, mut request_internal, _| async move {
+        |state, auth: UserFromToken, request_internal, _| async move {
             let role_info = RoleInfo::from_role_id_org_id_tenant_id(
                 &state,
                 &auth.role_id,
@@ -90,12 +90,20 @@ pub async fn list_initial_webhook_delivery_attempts_with_jwtauth(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch role info while listing webhook events")?;
 
-            request_internal.constraints.profile_id =
-                (role_info.get_entity_type() == EntityType::Profile).then_some(auth.profile_id);
+            // Merchant-or-higher scopes search across all profiles in the merchant;
+            // profile-scoped users stay confined to their JWT's profile_id.
+            let request_internal = EventListRequestInternal {
+                merchant_id: auth.merchant_id,
+                constraints: EventListConstraints {
+                    profile_id: (role_info.get_entity_type() == EntityType::Profile)
+                        .then_some(auth.profile_id),
+                    ..request_internal.constraints
+                },
+            };
 
             webhook_events::list_initial_delivery_attempts(
                 state,
-                auth.merchant_id,
+                request_internal.merchant_id,
                 request_internal.constraints,
             )
             .await
