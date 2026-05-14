@@ -552,7 +552,7 @@ export const CONNECTOR_LISTS = {
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
     USE_BILLING_AS_PAYMENT_METHOD_BILLING: ["bankofamerica"],
     MIT_WITH_LIMITED_CARD_DATA: ["peachpayments"],
-    ORDER_DETAILS: ["stripe", "adyen", "cybersource", "checkout"],
+    ORDER_DETAILS: ["stripe", "cybersource", "checkout", "stripe", "nexixpay", "mollie", "airwallex", "authorizedotnet", "bankofamerica", "nexixpay"],
     L2L3DATA: ["checkout", "nuvei", "worldpayvantiv"],
     REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
     // Add more inclusion lists
