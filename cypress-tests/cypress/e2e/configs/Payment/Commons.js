@@ -3402,12 +3402,5 @@ export const connectorDetails = {
         },
       },
     }),
-    ChallengeOtpCompletion: getCustomExchange({
-      Request: {},
-      Response: {
-        status: 501,
-        body: {},
-      },
-    }),
   },
 };

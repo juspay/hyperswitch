@@ -1342,17 +1342,6 @@ export const connectorDetails = {
         },
       },
     }),
-    ChallengeOtpCompletion: getCustomExchange({
-      Request: {
-        otp: "1234",
-        account_number: mastercardChallengeCardDetails.card_number,
-        merchant_name: "Dummy Merchant",
-      },
-      Response: {
-        status: 200,
-        body: {},
-      },
-    }),
   },
   pm_list: {
     PmListResponse: {
