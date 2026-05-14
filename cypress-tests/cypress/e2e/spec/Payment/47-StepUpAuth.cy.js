@@ -6,24 +6,32 @@ let globalState;
 
 describe("Step-Up Auth payment flow test", () => {
   before("seed global state", function () {
-    const baseUrl = Cypress.env("baseUrl") || Cypress.config("baseUrl");
-    if (baseUrl && baseUrl.includes("localhost")) {
-      this.skip();
-    }
+    let skip = false;
 
-    const connectorId = Cypress.env("CONNECTOR");
-    if (
-      utils.shouldIncludeConnector(
-        connectorId,
-        utils.CONNECTOR_LISTS.INCLUDE.STEP_UP_AUTH
-      )
-    ) {
-      this.skip();
-    }
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
 
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
+        const baseUrl = Cypress.env("baseUrl") || Cypress.config("baseUrl");
+        if (baseUrl && baseUrl.includes("localhost")) {
+          skip = true;
+          return;
+        }
+
+        if (
+          utils.shouldIncludeConnector(
+            globalState.get("connectorId"),
+            utils.CONNECTOR_LISTS.INCLUDE.STEP_UP_AUTH
+          )
+        ) {
+          skip = true;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
   });
 
   after("flush global state", () => {
