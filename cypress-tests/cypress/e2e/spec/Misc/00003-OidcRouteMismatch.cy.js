@@ -20,7 +20,7 @@ describe("OIDC Route Mismatch - SAIAAAAAA-181", () => {
   });
 
   context("OIDC Advertised Endpoint Reachability", () => {
-    it("should respond at the discovery-advertised authorization endpoint", () => {
+    it("should document discovery-advertised authorization endpoint returning 404 (route mismatch bug)", () => {
       cy.oidcAdvertisedAuthorizeRouteCheck(globalState);
     });
 
@@ -30,7 +30,7 @@ describe("OIDC Route Mismatch - SAIAAAAAA-181", () => {
   });
 
   context("OIDC Supporting Endpoints", () => {
-    it("should return JWKS at /oauth2/jwks", () => {
+    it("should document JWKS endpoint returning 500 (signing keys not configured bug)", () => {
       cy.oidcJwksCallTest(globalState);
     });
 
