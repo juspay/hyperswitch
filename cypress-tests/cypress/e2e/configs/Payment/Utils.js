@@ -514,6 +514,7 @@ export const CONNECTOR_LISTS = {
     BLUECODE_WALLET: ["calida"],
     ALIPAY_HK_WALLET: ["adyen"],
     PAYPAL_WALLET: ["novalnet", "paypal"],
+    PAYPAL_MANDATE: ["novalnet"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [
       "adyen",
