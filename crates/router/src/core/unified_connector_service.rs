@@ -10,7 +10,11 @@ use common_enums::{
 #[cfg(feature = "v2")]
 use common_utils::consts::BASE64_ENGINE;
 use common_utils::{
-    errors::CustomResult, ext_traits::ValueExt, id_type, request::Method, ucs_types,
+    errors::{CustomResult, ErrorSwitch},
+    ext_traits::ValueExt,
+    id_type,
+    request::Method,
+    ucs_types,
 };
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
@@ -2943,13 +2947,48 @@ pub async fn call_unified_connector_service_for_refund_execute(
         ucs_refund_request,
         grpc_header_builder,
         execution_mode,
-        |router_data, grpc_request, grpc_headers| async move {
+        |mut router_data, grpc_request, grpc_headers| async move {
             // Call UCS payment_refund method
-            let response = ucs_client
+            let response = match ucs_client
                 .payment_refund(grpc_request, connector_auth_metadata, grpc_headers)
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("UCS refund execution failed")?;
+            {
+                Ok(resp) => resp,
+                Err(report) => {
+                    if let UnifiedConnectorServiceError::ConnectorError {
+                        code,
+                        message,
+                        status_code,
+                        reason,
+                    } = report.current_context()
+                    {
+                        logger::info!(
+                            "Connector error via UCS for refund execute (status {}): {} - {}",
+                            status_code,
+                            code,
+                            message
+                        );
+                        router_data.response = Err(ErrorResponse {
+                            code: code.clone(),
+                            message: message.clone(),
+                            reason: reason.clone(),
+                            status_code: *status_code,
+                            attempt_status: None,
+                            connector_transaction_id: None,
+                            connector_response_reference_id: None,
+                            network_decline_code: None,
+                            network_advice_code: None,
+                            network_error_message: None,
+                            connector_metadata: None,
+                        });
+                        return Ok((router_data, (), payments_grpc::RefundResponse::default()));
+                    }
+                    let api_error = report.current_context().switch();
+                    return Err(report
+                        .change_context(api_error)
+                        .attach_printable("UCS refund execution failed"));
+                }
+            };
 
             let grpc_response = response.into_inner();
 
@@ -2959,11 +2998,10 @@ pub async fn call_unified_connector_service_for_refund_execute(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to transform UCS refund response")?;
 
-            let mut updated_router_data = router_data;
-            updated_router_data.response = refund_response_data;
-            updated_router_data.connector_http_status_code = Some(status_code);
+            router_data.response = refund_response_data;
+            router_data.connector_http_status_code = Some(status_code);
 
-            Ok((updated_router_data, (), grpc_response))
+            Ok((router_data, (), grpc_response))
         },
     ))
     .await
@@ -3036,13 +3074,48 @@ pub async fn call_unified_connector_service_for_refund_sync(
         ucs_refund_sync_request,
         grpc_header_builder,
         execution_mode,
-        |router_data, grpc_request, grpc_headers| async move {
+        |mut router_data, grpc_request, grpc_headers| async move {
             // Call UCS refund_sync method
-            let response = ucs_client
+            let response = match ucs_client
                 .refund_get(grpc_request, connector_auth_metadata, grpc_headers)
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("UCS refund sync execution failed")?;
+            {
+                Ok(resp) => resp,
+                Err(report) => {
+                    if let UnifiedConnectorServiceError::ConnectorError {
+                        code,
+                        message,
+                        status_code,
+                        reason,
+                    } = report.current_context()
+                    {
+                        logger::info!(
+                            "Connector error via UCS for refund sync (status {}): {} - {}",
+                            status_code,
+                            code,
+                            message
+                        );
+                        router_data.response = Err(ErrorResponse {
+                            code: code.clone(),
+                            message: message.clone(),
+                            reason: reason.clone(),
+                            status_code: *status_code,
+                            attempt_status: None,
+                            connector_transaction_id: None,
+                            connector_response_reference_id: None,
+                            network_decline_code: None,
+                            network_advice_code: None,
+                            network_error_message: None,
+                            connector_metadata: None,
+                        });
+                        return Ok((router_data, (), payments_grpc::RefundResponse::default()));
+                    }
+                    let api_error = report.current_context().switch();
+                    return Err(report
+                        .change_context(api_error)
+                        .attach_printable("UCS refund sync execution failed"));
+                }
+            };
 
             let grpc_response = response.into_inner();
 
@@ -3052,11 +3125,10 @@ pub async fn call_unified_connector_service_for_refund_sync(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to transform UCS refund get response")?;
 
-            let mut updated_router_data = router_data;
-            updated_router_data.response = refund_response_data;
-            updated_router_data.connector_http_status_code = Some(status_code);
+            router_data.response = refund_response_data;
+            router_data.connector_http_status_code = Some(status_code);
 
-            Ok((updated_router_data, (), grpc_response))
+            Ok((router_data, (), grpc_response))
         },
     ))
     .await

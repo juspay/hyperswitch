@@ -3,7 +3,7 @@ use std::str::FromStr;
 use async_trait::async_trait;
 use common_enums::{CallConnectorAction, ExecutionPath};
 use common_utils::{errors::CustomResult, id_type, request::Request, ucs_types};
-use error_stack::{Report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{router_data::RouterData, router_flow_types as domain};
 use hyperswitch_interfaces::{
     api::gateway as payment_gateway,
@@ -228,7 +228,7 @@ where
             ))
             .await
             .map(|(router_data, _)| router_data)
-            .map_err(convert_ucs_error_to_connector_error)?
+            .map_err(super::convert_ucs_error_to_connector_error)?
         } else {
             logger::debug!("Granular Gateway: Regular authorize flow");
             let granular_authorize_request =
@@ -343,7 +343,7 @@ where
             ))
             .await
             .map(|(router_data, _)| router_data)
-            .map_err(convert_ucs_error_to_connector_error)?
+            .map_err(super::convert_ucs_error_to_connector_error)?
         };
 
         Ok(updated_router_data)
@@ -385,30 +385,5 @@ where
             ExecutionPath::UnifiedConnectorService
             | ExecutionPath::ShadowUnifiedConnectorService => Box::new(Self),
         }
-    }
-}
-
-fn convert_ucs_error_to_connector_error(
-    report: Report<UnifiedConnectorServiceError>,
-) -> Report<ConnectorError> {
-    let ucs_error = report.current_context();
-
-    match ucs_error {
-        // UCS validation errors (4xx from tonic) → converted to ProcessingStepFailed
-        // with encoded error body for proper HTTP status handling
-        UnifiedConnectorServiceError::TonicStatus { code, message } => {
-            let status_code = UnifiedConnectorServiceError::tonic_to_http_status(*code);
-            let error_body = serde_json::json!({
-                "code": format!("UCS_{}", status_code),
-                "message": message,
-                "status_code": status_code,
-                "type": "ucs_validation_error"
-            });
-            report.change_context(ConnectorError::ProcessingStepFailed(Some(
-                bytes::Bytes::from(error_body.to_string()),
-            )))
-        }
-        // Connector errors (have status_code) and server errors → generic handling
-        _ => report.change_context(ConnectorError::ResponseHandlingFailed),
     }
 }
