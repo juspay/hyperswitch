@@ -827,6 +827,69 @@ Cypress.Commands.add(
     });
   }
 );
+
+function maskValue(value) {
+  if (value.length > 4) {
+    return value.slice(0, 2) + "*".repeat(value.length - 4) + value.slice(-2);
+  }
+  return "*".repeat(value.length);
+}
+
+Cypress.Commands.add(
+  "updateBusinessProfileWebhookCustomHeadersTest",
+  (
+    webhookHeadersBody,
+    globalState,
+    profilePrefix = "profile",
+    previousHeaderKeys = null
+  ) => {
+    const apiKey = globalState.get("apiKey");
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get(`${profilePrefix}Id`);
+    expect(
+      profileId,
+      "profileId must be set in globalState before calling this command"
+    ).to.not.be.undefined;
+
+    return cy
+      .request({
+        method: "POST",
+        url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+        },
+        body: webhookHeadersBody,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+        expect(response.status).to.equal(200);
+        const responseHeaders =
+          response.body.outgoing_webhook_custom_http_headers;
+        const requestHeaders =
+          webhookHeadersBody.outgoing_webhook_custom_http_headers;
+
+        if (Object.keys(requestHeaders).length === 0) {
+          expect(responseHeaders ?? {}).to.deep.equal({});
+        } else {
+          expect(responseHeaders).to.not.be.undefined;
+          for (const [key, value] of Object.entries(requestHeaders)) {
+            const masked = maskValue(value);
+            expect(responseHeaders).to.have.property(key, masked);
+          }
+          if (previousHeaderKeys) {
+            previousHeaderKeys.forEach((key) => {
+              expect(responseHeaders).to.not.have.property(key);
+            });
+          }
+        }
+        globalState.set("lastResponseHeaders", responseHeaders);
+      });
+  }
+);
+
 // API Key API calls
 Cypress.Commands.add("apiKeyCreateTest", (apiKeyCreateBody, globalState) => {
   // Define the necessary variables and constant
