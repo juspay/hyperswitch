@@ -292,14 +292,17 @@ describe("Card - Payment Response Hash flow test", () => {
         cy.computeAndVerifyRedirectSignature(globalState);
       });
 
-      cy.step("verify tampered, wrong-key, and wrong-algorithm signatures fail", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: failure scenarios");
-          return;
-        }
+      cy.step(
+        "verify tampered, wrong-key, and wrong-algorithm signatures fail",
+        () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: failure scenarios");
+            return;
+          }
 
-        cy.verifyTamperedSignatureFails(globalState);
-      });
+          cy.verifyTamperedSignatureFails(globalState);
+        }
+      );
     });
   });
 
