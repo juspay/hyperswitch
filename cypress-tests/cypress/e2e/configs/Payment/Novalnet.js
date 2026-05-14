@@ -835,6 +835,12 @@ export const connectorDetails = {
         },
       },
     },
+    HandleWalletRedirection: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+    },
   },
   webhook: {
     TransactionIdConfig: {
