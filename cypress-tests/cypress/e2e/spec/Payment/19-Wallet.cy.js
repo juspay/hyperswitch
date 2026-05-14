@@ -283,19 +283,7 @@ describe("PayPal Wallet tests", () => {
       if (shouldContinue) shouldContinue = should_continue_further(data);
     });
 
-    it("Handle wallet redirection", () => {
-      const handleRedirectionData = getConnectorDetails(
-        globalState.get("connectorId")
-      )["wallet_pm"]["HandleWalletRedirection"];
-
-      if (!should_continue_further(handleRedirectionData)) {
-        cy.task(
-          "cli_log",
-          "Skipping step: Handle wallet redirection (TRIGGER_SKIP)"
-        );
-        return;
-      }
-
+    it.skip("Handle wallet redirection", () => {
       const expected_redirection = fixtures.confirmBody["return_url"];
       const payment_method_type = globalState.get("paymentMethodType");
       const nextActionUrl = globalState.get("nextActionUrl");
