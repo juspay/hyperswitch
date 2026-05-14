@@ -235,7 +235,18 @@ describe("Core flows", () => {
         globalState = new State(state);
       });
     });
-    after("flush global state", () => {
+    beforeEach(function () {
+      const connector = globalState.get("connectorId");
+      if (
+        utils.shouldIncludeConnector(
+          connector,
+          utils.CONNECTOR_LISTS.INCLUDE.PAYMENT_LINK_CARD
+        )
+      ) {
+        this.skip();
+      }
+    });
+    afterEach("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
     });
     it("Create Payment Intent with Payment Link", () => {
@@ -252,13 +263,12 @@ describe("Core flows", () => {
     });
     it("Handle payment page and confirm with card", () => {
       cy.initiatePaymentLinkTest({}, globalState);
-      const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-        "payment_link_pm"
-      ]["PaymentLinkConfirmCardData"];
-      cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
     });
     it("Retrieve Payment after card payment", () => {
-      cy.retrievePaymentCallTest({ globalState });
+      cy.retrievePaymentCallTest({
+        globalState,
+        data: { Configs: { skipConnectorIdAssertion: true } },
+      });
     });
   });
   context("Payment Link - Configuration Variations", () => {

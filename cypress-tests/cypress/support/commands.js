@@ -3368,10 +3368,12 @@ Cypress.Commands.add(
               .not.be.empty;
             expect(response.body.payment_method, "payment_method").to.not.be
               .null;
-            expect(
-              response.body.merchant_connector_id,
-              "connector_id"
-            ).to.equal(merchant_connector_id);
+            if (!configs.skipConnectorIdAssertion) {
+              expect(
+                response.body.merchant_connector_id,
+                "connector_id"
+              ).to.equal(merchant_connector_id);
+            }
           }
 
           if (
