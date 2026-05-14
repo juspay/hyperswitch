@@ -641,52 +641,5 @@ export const connectorDetails = {
         },
       },
     },
-    OrderDetails: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "EUR",
-        billing: billingAddress,
-        order_details: [
-          {
-            product_name: "Test Product",
-            quantity: 1,
-            amount: 6000,
-          },
-        ],
-      },
-      Response: {
-        status: 400,
-        body: no3DSNotSupportedResponseBody,
-      },
-    },
-    OrderDetailsMultipleItems: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "EUR",
-        billing: billingAddress,
-        order_details: [
-          {
-            product_name: "Test Product 1",
-            quantity: 1,
-            amount: 3000,
-          },
-          {
-            product_name: "Test Product 2",
-            quantity: 2,
-            amount: 1500,
-          },
-        ],
-      },
-      Response: {
-        status: 400,
-        body: no3DSNotSupportedResponseBody,
-      },
-    },
   },
 };

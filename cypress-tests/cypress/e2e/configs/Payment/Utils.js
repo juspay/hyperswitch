@@ -556,7 +556,6 @@ export const CONNECTOR_LISTS = {
       "stripe",
       "cybersource",
       "checkout",
-      "nexixpay",
       "airwallex",
     ],
     CARD_TESTING_GUARD: ["bankofamerica"],
