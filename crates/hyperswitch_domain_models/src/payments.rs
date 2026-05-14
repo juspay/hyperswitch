@@ -442,6 +442,17 @@ impl PaymentIntent {
             .transpose()
     }
 
+    pub fn get_intent_customer_details(
+        &self,
+    ) -> CustomResult<Option<CustomerData>, common_utils::errors::ParsingError> {
+        self.customer_details
+            .as_ref()
+            .map(|details| {
+                let decrypted_value = details.clone().into_inner().expose();
+                ValueExt::parse_value::<CustomerData>(decrypted_value, "CustomerData")
+            })
+            .transpose()
+    }
     #[cfg(feature = "v1")]
     pub fn get_optional_feature_metadata(
         &self,
@@ -465,6 +476,7 @@ impl PaymentIntent {
         self,
         net_amount: MinorUnit,
         show_installments: bool,
+        capture_method: Option<common_enums::CaptureMethod>,
     ) -> CustomResult<PaymentMethodListIntentData, errors::api_error_response::ApiErrorResponse>
     {
         let billing: Option<Address> = self
@@ -529,6 +541,7 @@ impl PaymentIntent {
             merchant_order_reference_id: self.merchant_order_reference_id,
             attempt_count: self.attempt_count,
             installment_options,
+            capture_method,
         })
     }
 
@@ -1534,6 +1547,9 @@ where
             pix_automatico_additional_details: payment_intent_feature_metadata
                 .as_ref()
                 .and_then(|data| data.pix_automatico_additional_details.clone()),
+            finix_additional_details: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|data| data.finix_additional_details.clone()),
         }))
     }
 }

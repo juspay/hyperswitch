@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use hyperswitch_interfaces::{
-    api::{gateway, ConnectorSpecifications},
+    api::{gateway, ConnectorSpecifications, ConnectorValidation},
     consts as interfaces_consts,
 };
 
@@ -149,9 +149,11 @@ pub async fn add_access_token<
         let key = connector
             .connector
             .get_access_token_key(
-                router_data,
+                &router_data.merchant_id,
                 merchant_connector_id_or_connector_name.clone(),
                 current_flow.clone(),
+                router_data.payment_method_type,
+                Some(router_data.recurring_mandate_payment_data.is_some()),
             )
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(format!(

@@ -997,6 +997,7 @@ pub async fn construct_router_data_for_psync<'a>(
         connector_reference_id: attempt.connector_response_reference_id.clone(),
         setup_future_usage: Some(payment_intent.setup_future_usage),
         feature_metadata: None,
+        connector_mandate_id: None,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -1330,10 +1331,6 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         .clone()
         .and_then(|tax| tax.get_default_tax_amount());
 
-    let payment_attempt = payment_data.get_payment_attempt();
-    let payment_method = Some(payment_attempt.payment_method_type);
-    let payment_method_type = payment_attempt.payment_method_subtype;
-
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsSessionData {
         amount: payment_data
@@ -1362,8 +1359,8 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         metadata: payment_data.payment_intent.metadata,
         order_tax_amount,
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
-        payment_method,
-        payment_method_type,
+        payment_method: None,
+        payment_method_type: None,
         split_payments: payment_data.payment_intent.split_payments,
     };
 
@@ -1381,7 +1378,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         attempt_id: "".to_string(),
         status: enums::AttemptStatus::Started,
         payment_method: enums::PaymentMethod::Wallet,
-        payment_method_type,
+        payment_method_type: Some(enums::PaymentMethodType::GooglePay),
         connector_auth_type: auth_type,
         description: payment_data
             .payment_intent
@@ -1586,6 +1583,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         authentication_data: None,
         feature_metadata: None,
         connector_intent_metadata: None,
+        merchant_order_reference_id: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -2542,6 +2540,7 @@ where
                     .clone()
                     .get_required_value("client_secret")?
                     .into(),
+                vault_details: payment_data.get_optional_external_vault_session_details(),
             },
             vec![],
         )))
@@ -5277,6 +5276,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 .setup_future_usage_applied
                 .or(payment_data.payment_intent.setup_future_usage),
             feature_metadata,
+            connector_mandate_id: payment_data
+                .payment_attempt
+                .connector_mandate_detail
+                .as_ref()
+                .and_then(|d| d.get_connector_mandate_id()),
         })
     }
 }
@@ -5985,10 +5989,13 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                 },
             ),
             order_details,
-            email: additional_data.customer_data.and_then(|cust| cust.email),
+            email: additional_data
+                .customer_data
+                .as_ref()
+                .and_then(|cust| cust.email.clone()),
             surcharge_details: payment_data.surcharge_details,
             apple_pay_recurring_details,
-            customer_name: None,
+            customer_name: additional_data.customer_data.and_then(|cust| cust.name),
             order_tax_amount,
             shipping_cost,
             metadata,
@@ -6186,6 +6193,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
 
         let billing_descriptor = payment_data.payment_intent.get_billing_descriptor();
 
+        let merchant_order_reference_id = payment_data
+            .payment_intent
+            .merchant_order_reference_id
+            .clone();
+
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
@@ -6264,6 +6276,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                         .attach_printable("Failed parsing ConnectorMetadata")
                 })
                 .transpose()?,
+            merchant_order_reference_id,
         })
     }
 }
@@ -6856,6 +6869,7 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
             pix_additional_details: None,
             boleto_additional_details: None,
             pix_automatico_additional_details: None,
+            finix_additional_details: None,
         }
     }
 }

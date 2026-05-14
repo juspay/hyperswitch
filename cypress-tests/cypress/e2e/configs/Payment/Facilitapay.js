@@ -35,6 +35,9 @@ export const connectorDetails = {
   },
   bank_transfer_pm: {
     Pix: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true, // Skip this test as HandleRedirection is not required to complete the payment flow for Pix.
+      },
       Request: {
         payment_method: "bank_transfer",
         payment_method_type: "pix",
@@ -59,7 +62,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
       ResponseCustom: {

@@ -1354,7 +1354,7 @@ fn get_payment_status(
             enums::AttemptStatus::Failure
         }
         AuthorizedotnetPaymentStatus::RequiresAction => enums::AttemptStatus::AuthenticationPending,
-        AuthorizedotnetPaymentStatus::HeldForReview => enums::AttemptStatus::Pending,
+        AuthorizedotnetPaymentStatus::HeldForReview => enums::AttemptStatus::Unresolved,
     }
 }
 
@@ -1936,6 +1936,8 @@ pub enum SyncStatus {
     GeneralError,
     #[serde(rename = "FDSPendingReview")]
     FDSPendingReview,
+    #[serde(rename = "FDSAuthorizedPendingReview")]
+    FDSAuthorizedPendingReview,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1987,9 +1989,12 @@ impl From<SyncStatus> for enums::AttemptStatus {
             SyncStatus::Voided => Self::Voided,
             SyncStatus::CouldNotVoid => Self::VoidFailed,
             SyncStatus::GeneralError => Self::Failure,
-            SyncStatus::RefundSettledSuccessfully
-            | SyncStatus::RefundPendingSettlement
-            | SyncStatus::FDSPendingReview => Self::Pending,
+            SyncStatus::RefundSettledSuccessfully | SyncStatus::RefundPendingSettlement => {
+                Self::Charged
+            }
+            SyncStatus::FDSPendingReview | SyncStatus::FDSAuthorizedPendingReview => {
+                Self::Unresolved
+            }
         }
     }
 }

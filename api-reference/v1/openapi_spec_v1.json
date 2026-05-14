@@ -9,7 +9,7 @@
     "contact": {
       "name": "Hyperswitch Support",
       "url": "https://hyperswitch.io",
-      "email": "hyperswitch@juspay.in"
+      "email": "support.global@juspay.io"
     },
     "license": {
       "name": "Apache-2.0"
@@ -5898,6 +5898,133 @@
         ]
       }
     },
+    "/blocklist/batch": {
+      "post": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "Upload a batch blocklist CSV",
+        "requestBody": {
+          "description": "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MB). The CSV must have a header row: `type,data,metadata`. `type`: one of `card_bin` (6 digits), `extended_card_bin` (8 digits), `fingerprint`. `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). Maximum 100,000 data rows.",
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Batch blocklist job initiated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchBlocklistUploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "CSV validation error or file exceeds 5 MB limit"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "List batch blocklist jobs",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of jobs to return (default 10, max 100)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Zero-based offset for pagination (default 0)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of batch blocklist jobs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListBatchBlocklistJobsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/blocklist/batch/{job_id}": {
+      "get": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "Get batch blocklist job status",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "description": "The job ID returned by the batch upload endpoint",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Batch blocklist job status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchBlocklistJobStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/payouts/create": {
       "post": {
         "tags": [
@@ -8372,6 +8499,45 @@
             "admin_api_key": []
           }
         ]
+      },
+      "delete": {
+        "tags": [
+          "Card Issuer"
+        ],
+        "summary": "Card Issuer - Delete",
+        "description": "Deletes an existing card issuer entry",
+        "operationId": "Delete Card Issuer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the card issuer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Card issuer deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardIssuerDeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Card issuer not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
       }
     }
   },
@@ -8545,12 +8711,6 @@
             "type": "string",
             "description": "Partially masked routing number for ach bank debit payment",
             "example": "110***000"
-          },
-          "card_holder_name": {
-            "type": "string",
-            "description": "Card holder's name",
-            "example": "John Doe",
-            "nullable": true
           },
           "bank_account_holder_name": {
             "type": "string",
@@ -11413,6 +11573,17 @@
                 "$ref": "#/components/schemas/SepaBankDebitAdditionalData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "eft_debit_order"
+            ],
+            "properties": {
+              "eft_debit_order": {
+                "$ref": "#/components/schemas/EftDebitOrderAdditionalData"
+              }
+            }
           }
         ]
       },
@@ -11455,7 +11626,6 @@
                 "required": [
                   "account_number",
                   "routing_number",
-                  "card_holder_name",
                   "bank_account_holder_name",
                   "bank_name",
                   "bank_type",
@@ -11479,10 +11649,6 @@
                     "type": "string",
                     "description": "Routing number for ach bank debit payment",
                     "example": "110000000"
-                  },
-                  "card_holder_name": {
-                    "type": "string",
-                    "example": "John Test"
                   },
                   "bank_account_holder_name": {
                     "type": "string",
@@ -11655,6 +11821,62 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "eft_debit_order"
+            ],
+            "properties": {
+              "eft_debit_order": {
+                "type": "object",
+                "required": [
+                  "account_number"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankDebitBilling"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "account_number": {
+                    "type": "string",
+                    "description": "Account number for eft bank debit payment",
+                    "example": "000123456789"
+                  },
+                  "branch_code": {
+                    "type": "string",
+                    "description": "Branch code for eft bank debit payment",
+                    "example": "110000000",
+                    "nullable": true
+                  },
+                  "bank_account_holder_name": {
+                    "type": "string",
+                    "example": "John Doe",
+                    "nullable": true
+                  },
+                  "bank_name": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankNames"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "bank_type": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankType"
+                      }
+                    ],
+                    "nullable": true
+                  }
+                }
+              }
+            }
           }
         ]
       },
@@ -11745,6 +11967,7 @@
         "type": "string",
         "description": "Name of banks supported by Hyperswitch",
         "enum": [
+          "absa",
           "american_express",
           "affin_bank",
           "agro_bank",
@@ -12318,12 +12541,14 @@
             "properties": {
               "trustly": {
                 "type": "object",
-                "required": [
-                  "country"
-                ],
                 "properties": {
                   "country": {
-                    "$ref": "#/components/schemas/CountryAlpha2"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/CountryAlpha2"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -12550,7 +12775,7 @@
           {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PixBankTransfer"
+                "$ref": "#/components/schemas/PixAccountBankTransfer"
               },
               {
                 "type": "object",
@@ -12562,6 +12787,48 @@
                     "type": "string",
                     "enum": [
                       "pix"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixKeyBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "pix_key"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixEmvBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "pix_emv"
                     ]
                   }
                 }
@@ -13363,6 +13630,85 @@
           "savings"
         ]
       },
+      "BatchBlocklistJobStatus": {
+        "type": "string",
+        "enum": [
+          "initiated",
+          "processing",
+          "completed",
+          "failed"
+        ]
+      },
+      "BatchBlocklistJobStatusResponse": {
+        "type": "object",
+        "description": "Response for `GET /blocklist/batch/{job_id}`.",
+        "required": [
+          "job_id",
+          "merchant_id",
+          "status",
+          "total_rows",
+          "succeeded_rows",
+          "failed_rows",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "merchant_id": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BatchBlocklistJobStatus"
+          },
+          "total_rows": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "succeeded_rows": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "failed_rows": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "BatchBlocklistUploadResponse": {
+        "type": "object",
+        "description": "Response returned on a successful `POST /blocklist/batch`.",
+        "required": [
+          "job_id",
+          "total_rows",
+          "status"
+        ],
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "total_rows": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "status": {
+            "$ref": "#/components/schemas/BatchBlocklistJobStatus"
+          }
+        }
+      },
       "BecsBankDebitAdditionalData": {
         "type": "object",
         "required": [
@@ -13556,6 +13902,32 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "BlocklistRowError": {
+        "type": "object",
+        "description": "A single validation error found in a batch-upload CSV row.",
+        "required": [
+          "row_index",
+          "data_kind",
+          "data",
+          "reason"
+        ],
+        "properties": {
+          "row_index": {
+            "type": "integer",
+            "description": "0-based row index in the CSV (excluding header).",
+            "minimum": 0
+          },
+          "data_kind": {
+            "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "data": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
           }
         }
       },
@@ -14566,6 +14938,22 @@
           "saved_card",
           "click_to_pay"
         ]
+      },
+      "CardIssuerDeleteResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "deleted"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "deleted": {
+            "type": "boolean",
+            "example": true
+          }
+        }
       },
       "CardIssuerListQuery": {
         "type": "object",
@@ -15870,6 +16258,7 @@
           "hyperswitch_vault",
           "inespay",
           "iatapay",
+          "imerchantsolutions",
           "itaubank",
           "jpmorgan",
           "juspaythreedsserver",
@@ -15910,6 +16299,7 @@
           "recurly",
           "redsys",
           "revolv3",
+          "sanlam",
           "santander",
           "shift4",
           "silverflow",
@@ -19163,6 +19553,47 @@
           "none"
         ]
       },
+      "EftDebitOrderAdditionalData": {
+        "type": "object",
+        "required": [
+          "account_number"
+        ],
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "Partially masked account number for eft bank debit payment",
+            "example": "0001****3456"
+          },
+          "branch_code": {
+            "type": "string",
+            "description": "Partially masked branch code for eft bank debit payment",
+            "example": "110***000",
+            "nullable": true
+          },
+          "bank_account_holder_name": {
+            "type": "string",
+            "description": "Bank account's owner name",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "bank_name": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankNames"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankType"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "ElementPosition": {
         "type": "string",
         "enum": [
@@ -20244,6 +20675,14 @@
               }
             ],
             "nullable": true
+          },
+          "finix_additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FinixAdditionalDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -20718,9 +21157,38 @@
             "enum": [
               "order_details_product_name"
             ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_branch_code"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank_identifier"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_pix_account_number"
+            ]
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
+      },
+      "FinixAdditionalDetails": {
+        "type": "object",
+        "properties": {
+          "fraud_session_id": {
+            "type": "string",
+            "description": "The fraud session ID used for Finix fraud detection",
+            "example": "1234567890abcdef",
+            "nullable": true
+          }
+        }
       },
       "FlexibleAmountDetails": {
         "type": "object",
@@ -22039,6 +22507,33 @@
           "revenue_growth_management_platform"
         ]
       },
+      "HyperswitchVaultSessionDetails": {
+        "type": "object",
+        "required": [
+          "payment_method_session_id",
+          "client_secret",
+          "publishable_key",
+          "profile_id"
+        ],
+        "properties": {
+          "payment_method_session_id": {
+            "type": "string",
+            "description": "Session ID for Hyperswitch Vault"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "Client secret for Hyperswitch Vault"
+          },
+          "publishable_key": {
+            "type": "string",
+            "description": "Publishable key for Hyperswitch Vault"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Profile ID for Hyperswitch Vault"
+          }
+        }
+      },
       "IfStatement": {
         "type": "object",
         "description": "Represents an IF statement with conditions and optional nested IF statements\n\n```text\npayment.method = card {\npayment.method.cardtype = (credit, debit) {\npayment.method.network = (amex, rupay, diners)\n}\n}\n```",
@@ -22613,6 +23108,31 @@
             }
           }
         ]
+      },
+      "ListBatchBlocklistJobsResponse": {
+        "type": "object",
+        "description": "Response for `GET /blocklist/batch`.",
+        "required": [
+          "count",
+          "total_count",
+          "data"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BatchBlocklistJobStatusResponse"
+            }
+          }
+        }
       },
       "ListBlocklistQuery": {
         "type": "object",
@@ -28543,18 +29063,16 @@
       },
       "PaymentMethodDataWalletInfo": {
         "type": "object",
-        "required": [
-          "last4",
-          "card_network"
-        ],
         "properties": {
           "last4": {
             "type": "string",
-            "description": "Last 4 digits of the card number"
+            "description": "Last 4 digits of the card number",
+            "nullable": true
           },
           "card_network": {
             "type": "string",
-            "description": "The information of the payment method"
+            "description": "The information of the payment method",
+            "nullable": true
           },
           "type": {
             "type": "string",
@@ -28577,6 +29095,12 @@
             "type": "string",
             "description": "Unique authorisation code for the payment",
             "example": "003225",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "Email address associated with the wallet (e.g. PayPal email)",
+            "example": "johntest@test.com",
             "nullable": true
           }
         }
@@ -28803,6 +29327,14 @@
             },
             "description": "Installment options available for this payment",
             "nullable": true
+          },
+          "capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -29022,7 +29554,8 @@
           "inactive",
           "processing",
           "awaiting_data",
-          "new"
+          "new",
+          "redacted"
         ]
       },
       "PaymentMethodTokenizationDetails": {
@@ -29105,6 +29638,7 @@
           "duit_now",
           "efecty",
           "eft",
+          "eft_debit_order",
           "eps",
           "flexiti",
           "fps",
@@ -29142,6 +29676,8 @@
           "paypal",
           "paze",
           "pix",
+          "pix_key",
+          "pix_emv",
           "pix_automatico_qr",
           "pix_automatico_push",
           "pay_safe_card",
@@ -31451,7 +31987,7 @@
         "required": [
           "client_secret",
           "payment_method_type",
-          "payment_method_data"
+          "payment_token"
         ],
         "properties": {
           "client_secret": {
@@ -31471,7 +32007,12 @@
             "nullable": true
           },
           "payment_method_data": {
-            "$ref": "#/components/schemas/EligibilityPaymentMethodDataRequest"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EligibilityPaymentMethodDataRequest"
+              }
+            ],
+            "nullable": true
           },
           "browser_info": {
             "allOf": [
@@ -31480,6 +32021,11 @@
               }
             ],
             "nullable": true
+          },
+          "payment_token": {
+            "type": "string",
+            "description": "The payment token to look up the saved payment method\nWhen provided, the system will fetch the payment method data from the locker/vault",
+            "example": "token_abc123xyz"
           }
         }
       },
@@ -33167,6 +33713,14 @@
               "$ref": "#/components/schemas/SessionToken"
             },
             "description": "The list of session token object"
+          },
+          "vault_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultSessionDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -33920,6 +34474,14 @@
             ],
             "nullable": true
           },
+          "source_bank_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankTransfer"
+              }
+            ],
+            "nullable": true
+          },
           "billing": {
             "allOf": [
               {
@@ -34222,6 +34784,14 @@
             "nullable": true
           },
           "payout_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutMethodDataResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "source_bank_data": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/PayoutMethodDataResponse"
@@ -34967,6 +35537,14 @@
             ],
             "nullable": true
           },
+          "source_bank_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankTransfer"
+              }
+            ],
+            "nullable": true
+          },
           "billing": {
             "allOf": [
               {
@@ -35205,6 +35783,14 @@
             ],
             "nullable": true
           },
+          "source_bank_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankTransfer"
+              }
+            ],
+            "nullable": true
+          },
           "billing": {
             "allOf": [
               {
@@ -35397,27 +35983,74 @@
         }
       },
       "PaypalAdditionalData": {
-        "type": "object",
-        "description": "Masked payout method details for paypal wallet payout method",
-        "properties": {
-          "email": {
-            "type": "string",
+        "oneOf": [
+          {
+            "type": "object",
             "description": "Email linked with paypal account",
-            "example": "john.doe@example.com",
-            "nullable": true
+            "required": [
+              "email",
+              "field_type"
+            ],
+            "properties": {
+              "email": {
+                "type": "string",
+                "description": "Email linked with paypal account",
+                "example": "john.doe@example.com"
+              },
+              "field_type": {
+                "type": "string",
+                "enum": [
+                  "email"
+                ]
+              }
+            }
           },
-          "telephone_number": {
-            "type": "string",
-            "description": "mobile number linked to paypal account",
-            "example": "******* 3349",
-            "nullable": true
-          },
-          "paypal_id": {
-            "type": "string",
+          {
+            "type": "object",
             "description": "id of the paypal account",
-            "example": "G83K ***** HCQ2",
-            "nullable": true
+            "required": [
+              "paypal_id",
+              "field_type"
+            ],
+            "properties": {
+              "paypal_id": {
+                "type": "string",
+                "description": "id of the paypal account",
+                "example": "G83K*****HCQ2"
+              },
+              "field_type": {
+                "type": "string",
+                "enum": [
+                  "paypal_id"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "mobile number linked to paypal account",
+            "required": [
+              "field_type"
+            ],
+            "properties": {
+              "telephone_number": {
+                "type": "string",
+                "description": "mobile number linked to paypal account",
+                "example": "G83K ***** HCQ2",
+                "nullable": true
+              },
+              "field_type": {
+                "type": "string",
+                "enum": [
+                  "telephone_number"
+                ]
+              }
+            }
           }
+        ],
+        "description": "Masked payout method details for paypal wallet payout method",
+        "discriminator": {
+          "propertyName": "field_type"
         }
       },
       "PaypalFlow": {
@@ -35629,6 +36262,37 @@
           }
         }
       },
+      "PixAccountBankTransfer": {
+        "type": "object",
+        "required": [
+          "bank_account_number"
+        ],
+        "properties": {
+          "bank_name": {
+            "type": "string",
+            "description": "Bank name",
+            "example": "Deutsche Bank",
+            "nullable": true
+          },
+          "bank_branch": {
+            "type": "string",
+            "description": "Bank branch",
+            "example": "3707",
+            "nullable": true
+          },
+          "bank_account_number": {
+            "type": "string",
+            "description": "Bank account number is an unique identifier assigned by a bank to a customer.",
+            "example": "000123456"
+          },
+          "tax_id": {
+            "type": "string",
+            "description": "Individual taxpayer identification number",
+            "example": "000123456",
+            "nullable": true
+          }
+        }
+      },
       "PixAdditionalDetails": {
         "oneOf": [
           {
@@ -35777,7 +36441,8 @@
         "type": "object",
         "required": [
           "bank_account_number",
-          "pix_key"
+          "pix_key",
+          "emv"
         ],
         "properties": {
           "bank_name": {
@@ -35807,6 +36472,11 @@
             "description": "Individual taxpayer identification number",
             "example": "000123456",
             "nullable": true
+          },
+          "emv": {
+            "type": "string",
+            "description": "String formatted QR code for pix payout",
+            "example": "00020126580014br.gov.bcb.pix0114000123456785204000053039865802BR5925John Doe6009Sao Paulo61080540900062070503***63041D3D"
           }
         }
       },
@@ -35849,6 +36519,19 @@
             "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
             "example": "2025-09-10T10:11:12Z",
             "nullable": true
+          }
+        }
+      },
+      "PixEmvBankTransfer": {
+        "type": "object",
+        "required": [
+          "emv"
+        ],
+        "properties": {
+          "emv": {
+            "type": "string",
+            "description": "String formatted QR code for pix payout",
+            "example": "00020126580014br.gov.bcb.pix0114000123456785204000053039865802BR5925John Doe6009Sao Paulo61080540900062070503***63041D3D"
           }
         }
       },
@@ -35947,6 +36630,19 @@
         ],
         "discriminator": {
           "propertyName": "type"
+        }
+      },
+      "PixKeyBankTransfer": {
+        "type": "object",
+        "required": [
+          "pix_key"
+        ],
+        "properties": {
+          "pix_key": {
+            "type": "string",
+            "description": "Unique key for pix customer",
+            "example": "000123456"
+          }
         }
       },
       "PlatformAccountCreateRequest": {
@@ -38482,6 +39178,11 @@
             "type": "string",
             "description": "Identifier for Merchant"
           },
+          "processor_merchant_id": {
+            "type": "string",
+            "description": "Identifier for the processor merchant",
+            "nullable": true
+          },
           "link_to_pay": {
             "type": "string",
             "description": "Open payment link (without any security checks and listing SPMs)"
@@ -38696,6 +39397,7 @@
           "helcim",
           "hyperpg",
           "iatapay",
+          "imerchantsolutions",
           "inespay",
           "itaubank",
           "jpmorgan",
@@ -38736,6 +39438,7 @@
           "redsys",
           "revolv3",
           "riskified",
+          "sanlam",
           "santander",
           "shift4",
           "signifyd",
@@ -40448,6 +41151,12 @@
           "transfer_account_id": {
             "type": "string",
             "description": "Identifier for the reseller's account where the funds were transferred"
+          },
+          "on_behalf_of": {
+            "type": "string",
+            "description": "The Stripe account ID that these funds are intended for",
+            "example": "acct_1234567890",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -40480,6 +41189,12 @@
           "transfer_account_id": {
             "type": "string",
             "description": "Identifier for the reseller's account where the funds were transferred"
+          },
+          "on_behalf_of": {
+            "type": "string",
+            "description": "The Stripe account ID that these funds are intended for",
+            "example": "acct_1234567890",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -42008,6 +42723,32 @@
           "hyperswitch_sdk"
         ]
       },
+      "VaultSessionDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "vgs"
+            ],
+            "properties": {
+              "vgs": {
+                "$ref": "#/components/schemas/VgsSessionDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "hyperswitch_vault"
+            ],
+            "properties": {
+              "hyperswitch_vault": {
+                "$ref": "#/components/schemas/HyperswitchVaultSessionDetails"
+              }
+            }
+          }
+        ]
+      },
       "VaultTokenField": {
         "type": "object",
         "properties": {
@@ -42057,6 +42798,23 @@
             "description": "mobile number linked to venmo account",
             "example": "******* 3349",
             "nullable": true
+          }
+        }
+      },
+      "VgsSessionDetails": {
+        "type": "object",
+        "required": [
+          "external_vault_id",
+          "sdk_env"
+        ],
+        "properties": {
+          "external_vault_id": {
+            "type": "string",
+            "description": "The identifier of the external vault"
+          },
+          "sdk_env": {
+            "type": "string",
+            "description": "The environment for the external vault initiation"
           }
         }
       },
@@ -42271,31 +43029,29 @@
       "WalletAdditionalData": {
         "oneOf": [
           {
+            "$ref": "#/components/schemas/ApplePayDecryptAdditionalData"
+          },
+          {
             "$ref": "#/components/schemas/PaypalAdditionalData"
           },
           {
             "$ref": "#/components/schemas/VenmoAdditionalData"
-          },
-          {
-            "$ref": "#/components/schemas/ApplePayDecryptAdditionalData"
           }
         ],
         "description": "Masked payout method details for wallet payout method"
       },
       "WalletAdditionalDataForCard": {
         "type": "object",
-        "required": [
-          "last4",
-          "card_network"
-        ],
         "properties": {
           "last4": {
             "type": "string",
-            "description": "Last 4 digits of the card number"
+            "description": "Last 4 digits of the card number",
+            "nullable": true
           },
           "card_network": {
             "type": "string",
-            "description": "The information of the payment method"
+            "description": "The information of the payment method",
+            "nullable": true
           },
           "type": {
             "type": "string",
@@ -42318,6 +43074,12 @@
             "type": "string",
             "description": "Unique authorisation code generated for the payment",
             "example": "009825",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "Email address associated with the wallet (e.g. PayPal email)",
+            "example": "johntest@test.com",
             "nullable": true
           }
         }

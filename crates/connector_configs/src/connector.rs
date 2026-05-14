@@ -281,7 +281,10 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub cybersource_payout: Option<ConnectorTomlConfig>,
     pub iatapay: Option<ConnectorTomlConfig>,
+    pub imerchantsolutions: Option<ConnectorTomlConfig>,
     pub itaubank: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub itaubank_payout: Option<ConnectorTomlConfig>,
     pub opennode: Option<ConnectorTomlConfig>,
     pub bambora: Option<ConnectorTomlConfig>,
     pub cybersourcedecisionmanager: Option<ConnectorTomlConfig>,
@@ -362,6 +365,7 @@ pub struct ConnectorConfig {
     pub rapyd: Option<ConnectorTomlConfig>,
     pub redsys: Option<ConnectorTomlConfig>,
     pub revolv3: Option<ConnectorTomlConfig>,
+    pub sanlam: Option<ConnectorTomlConfig>,
     pub santander: Option<ConnectorTomlConfig>,
     pub shift4: Option<ConnectorTomlConfig>,
     pub sift: Option<ConnectorTomlConfig>,
@@ -453,7 +457,7 @@ impl ConnectorConfig {
             PayoutConnectors::Worldpay => Ok(connector_data.worldpay_payout),
             PayoutConnectors::Worldpayxml => Ok(connector_data.worldpayxml_payout),
             PayoutConnectors::Envoy => Ok(connector_data.envoy_payout),
-            PayoutConnectors::Itaubank => Ok(connector_data.itaubank),
+            PayoutConnectors::Itaubank => Ok(connector_data.itaubank_payout),
         }
     }
 
@@ -625,6 +629,7 @@ impl ConnectorConfig {
             Connector::Tokenex => Ok(connector_data.tokenex),
             Connector::Tokenio => Ok(connector_data.tokenio),
             Connector::Truelayer => Ok(connector_data.truelayer),
+            Connector::Sanlam => Ok(connector_data.sanlam),
             Connector::Trustly => Ok(connector_data.trustly),
             Connector::Trustpay => Ok(connector_data.trustpay),
             Connector::Trustpayments => Ok(connector_data.trustpayments),
@@ -664,6 +669,7 @@ impl ConnectorConfig {
             Connector::Phonepe => Ok(connector_data.phonepe),
             Connector::Payjustnow => Ok(connector_data.payjustnow),
             Connector::Payjustnowinstore => Ok(connector_data.payjustnowinstore),
+            Connector::Imerchantsolutions => Ok(connector_data.imerchantsolutions),
         }
     }
 }

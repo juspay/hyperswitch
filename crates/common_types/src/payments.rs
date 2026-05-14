@@ -92,6 +92,11 @@ pub struct StripeSplitPaymentRequest {
     /// Identifier for the reseller's account where the funds were transferred
     #[smithy(value_type = "String")]
     pub transfer_account_id: String,
+
+    /// The Stripe account ID that these funds are intended for
+    #[schema(value_type = Option<String>, example = "acct_1234567890")]
+    #[smithy(value_type = "Option<String>")]
+    pub on_behalf_of: Option<String>,
 }
 impl_to_sql_from_sql_json!(StripeSplitPaymentRequest);
 
@@ -371,6 +376,11 @@ pub struct StripeChargeResponseData {
     /// Identifier for the reseller's account where the funds were transferred
     #[smithy(value_type = "String")]
     pub transfer_account_id: String,
+
+    /// The Stripe account ID that these funds are intended for
+    #[schema(value_type = Option<String>, example = "acct_1234567890")]
+    #[smithy(value_type = "Option<String>")]
+    pub on_behalf_of: Option<String>,
 }
 impl_to_sql_from_sql_json!(StripeChargeResponseData);
 

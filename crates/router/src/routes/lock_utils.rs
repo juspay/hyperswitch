@@ -36,7 +36,6 @@ pub enum ApiIdentifier {
     User,
     UserRole,
     ConnectorOnboarding,
-    Recon,
     AiWorkflow,
     Poll,
     ApplePayCertificatesMigration,
@@ -106,6 +105,9 @@ impl From<Flow> for ApiIdentifier {
             Flow::DeleteFromBlocklist => Self::Blocklist,
             Flow::ListBlocklist => Self::Blocklist,
             Flow::ToggleBlocklistGuard => Self::Blocklist,
+            Flow::BatchBlocklistUpload => Self::Blocklist,
+            Flow::GetBatchBlocklistJobStatus => Self::Blocklist,
+            Flow::ListBatchBlocklistJobs => Self::Blocklist,
             Flow::MerchantConnectorsCreate
             | Flow::MerchantConnectorsRetrieve
             | Flow::MerchantConnectorsUpdate
@@ -134,6 +136,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CustomerPaymentMethodsList
             | Flow::GetPaymentMethodTokenData
             | Flow::PaymentMethodsRetrieve
+            | Flow::PaymentMethodsRetrieveOlap
             | Flow::PaymentMethodsUpdate
             | Flow::PaymentMethodsDelete
             | Flow::NetworkTokenStatusCheck
@@ -346,14 +349,11 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CreateRoleV2
             | Flow::UpdateRole
             | Flow::UserFromEmail
-            | Flow::ListUsersInLineage => Self::UserRole,
+            | Flow::ListUsersInLineage
+            | Flow::AuthorizeUserToken => Self::UserRole,
             Flow::GetActionUrl | Flow::SyncOnboardingStatus | Flow::ResetTrackingId => {
                 Self::ConnectorOnboarding
             }
-            Flow::ReconMerchantUpdate
-            | Flow::ReconTokenRequest
-            | Flow::ReconServiceRequest
-            | Flow::ReconVerifyToken => Self::Recon,
             Flow::RetrievePollStatus => Self::Poll,
             Flow::FeatureMatrix => Self::Documentation,
             Flow::TokenizeCard
@@ -390,9 +390,10 @@ impl From<Flow> for ApiIdentifier {
             Flow::MerchantConnectorWebhookRegister | Flow::MerchantConnectorWebhookList => {
                 Self::MerchantConnectorWebhookManagement
             }
-            Flow::AddCardIssuer | Flow::UpdateCardIssuer | Flow::ListCardIssuers => {
-                Self::CardIssuers
-            }
+            Flow::AddCardIssuer
+            | Flow::UpdateCardIssuer
+            | Flow::DeleteCardIssuer
+            | Flow::ListCardIssuers => Self::CardIssuers,
         }
     }
 }
