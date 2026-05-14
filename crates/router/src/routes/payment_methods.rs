@@ -440,9 +440,12 @@ pub async fn migrate_payment_methods(
                 );
 
                 let mut mca_cache = HashMap::new();
+                // pass form-level mca id(s) so connector_customer_id is stored even when the
+                // CSV has no merchant_connector_id(s) column
                 let customers = Vec::<PaymentMethodCustomerMigrate>::foreign_try_from((
                     &req,
                     merchant_id.clone(),
+                    merchant_connector_ids.as_ref(),
                 ))
                 .map_err(|e| errors::ApiErrorResponse::InvalidRequestData {
                     message: e.to_string(),
