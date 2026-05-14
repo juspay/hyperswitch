@@ -7665,6 +7665,13 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<String>")]
     pub network_transaction_id: Option<String>,
 
+    /// The network transaction link ID (TLID) is a unique identifier from the card network (primarily Mastercard)
+    /// for linking recurring transactions. Required for recurring MITs from October 2026 per Mastercard mandate.
+    /// Refer `payment_method_tokenization_details` for detailed view of payment method tokenization
+    #[schema(value_type = Option<String>, example = "abc123def456")]
+    #[smithy(value_type = "Option<String>")]
+    pub network_transaction_link_id: Option<String>,
+
     /// Payment Method Status, refers to the status of the payment method used for this payment.
     /// Refer `payment_method_tokenization_details` for detailed view of payment method tokenization
     #[schema(value_type = Option<PaymentMethodStatus>)]

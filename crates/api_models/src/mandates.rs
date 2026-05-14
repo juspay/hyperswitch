@@ -204,6 +204,11 @@ pub struct ProcessorPaymentToken {
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    /// Transaction Link ID (TLID) from the processor/card network for recurring MITs.
+    /// Required by Mastercard for recurring MITs from October 2026.
+    #[schema(value_type = Option<String>, example = "abc123def456")]
+    #[smithy(value_type = "Option<String>")]
+    pub transaction_link_id: Option<String>,
 }
 
 #[derive(

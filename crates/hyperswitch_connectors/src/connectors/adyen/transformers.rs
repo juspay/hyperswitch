@@ -166,6 +166,10 @@ pub struct AdditionalData {
     sca_exemption: Option<AdyenExemptionValues>,
     capture_delay_hours: Option<u64>,
     pub auth_code: Option<String>,
+    /// Transaction Link ID from Adyen for Mastercard recurring payments
+    /// Required for MITs from October 2026 per Mastercard mandate
+    #[serde(rename = "transactionLinkId")]
+    pub transaction_link_id: Option<String>,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
@@ -4524,16 +4528,27 @@ pub fn get_adyen_response(
     } else {
         None
     };
-    let mandate_reference = response
+    let (mandate_reference, _transaction_link_id) = response
         .additional_data
         .as_ref()
-        .and_then(|data| data.recurring_detail_reference.to_owned())
-        .map(|mandate_id| MandateReference {
-            connector_mandate_id: Some(mandate_id.expose()),
-            payment_method_id: None,
-            mandate_metadata: None,
-            connector_mandate_request_reference_id: None,
-        });
+        .map(|data| {
+            let mandate_ref = data.recurring_detail_reference.to_owned().map(|mandate_id| {
+                // Build mandate metadata including transaction_link_id if present
+                let metadata = data.transaction_link_id.as_ref().map(|tlid| {
+                    serde_json::json!({
+                        "transaction_link_id": tlid
+                    })
+                });
+                MandateReference {
+                    connector_mandate_id: Some(mandate_id.expose()),
+                    payment_method_id: None,
+                    mandate_metadata: metadata.map(hyperswitch_masking::Secret::new),
+                    connector_mandate_request_reference_id: None,
+                }
+            });
+            (mandate_ref, data.transaction_link_id.clone())
+        })
+        .unwrap_or((None, None));
     let network_txn_id = response
         .additional_data
         .as_ref()
@@ -6951,6 +6966,11 @@ impl AdditionalData {
             parts.next()?;
             Some(first_part.to_string())
         })
+    }
+
+    /// Get the transaction_link_id if present in additional data
+    pub fn get_transaction_link_id(&self) -> Option<&String> {
+        self.transaction_link_id.as_ref()
     }
 }
 

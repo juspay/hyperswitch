@@ -343,6 +343,18 @@ impl PaymentsResponseData {
     }
 }
 
+impl MandateReference {
+    /// Extract the transaction_link_id from mandate_metadata if present
+    pub fn get_transaction_link_id(&self) -> Option<String> {
+        self.mandate_metadata.as_ref().and_then(|metadata| {
+            metadata
+                .peek()
+                .get("transaction_link_id")
+                .and_then(|v| v.as_str().map(String::from))
+        })
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub enum PreprocessingResponseId {
     PreProcessingId(String),
