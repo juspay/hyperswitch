@@ -133,6 +133,39 @@ pub struct TaxCalculationResponseData {
     pub order_tax_amount: MinorUnit,
 }
 
+#[derive(Debug, Clone)]
+pub struct SurchargeCalculationResponseData {
+    /// Transaction fee amount in minor units
+    pub surcharge_amount: MinorUnit,
+    /// Transaction ID from surcharge calculator connector
+    pub connector_surcharge_id: String,
+    /// Transaction fee percentage (consumed by backend, NOT sent to SDK)
+    pub surcharge_fee_percent: Option<
+        common_utils::types::Percentage<
+            { common_utils::consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH },
+        >,
+    >,
+    /// Error code if calculation failed or returned 0
+    pub error_code: Option<String>,
+    /// Additional error codes
+    pub error_message: Option<String>,
+}
+
+/// Response data for completing surcharge (sale notification)
+#[derive(Debug, Clone)]
+pub struct CompleteSurchargeResponseData {
+    pub connector_surcharge_id: String,
+}
+
+/// Response data for refunding surcharge
+#[derive(Debug, Clone)]
+pub struct CompleteRefundSurchrgeResponseData {
+    /// Surcharge amount that was refunded
+    pub refund_amount: MinorUnit,
+    /// Transaction ID for the refund
+    pub external_transaction_id: String,
+}
+
 #[derive(Serialize, Debug, Clone, serde::Deserialize)]
 pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
