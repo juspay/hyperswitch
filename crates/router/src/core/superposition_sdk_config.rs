@@ -39,49 +39,29 @@ fn build_superset_required_fields(
 ) -> HashMap<String, api_models::payment_methods::RequiredFieldInfo> {
     let mut superset = HashMap::with_capacity(common.len() + mandate.len() + non_mandate.len());
 
-    for (key, field_info) in common {
-        superset.insert(
-            key.clone(),
-            api_models::payment_methods::RequiredFieldInfo {
-                required_field: field_info.required_field.clone(),
-                display_name: field_info.display_name.clone(),
-                field_type: field_info.field_type.clone(),
-                value: None,
-            },
-        );
+    // Insert common fields directly
+    for (key, field) in common {
+        superset.insert(key.clone(), field.for_config());
     }
 
-    for (key, field_info) in mandate {
-        superset.entry(key.clone()).or_insert_with(|| {
-            api_models::payment_methods::RequiredFieldInfo {
-                required_field: field_info.required_field.clone(),
-                display_name: field_info.display_name.clone(),
-                field_type: field_info.field_type.clone(),
-                value: None,
-            }
-        });
+    // Merge mandate fields (don't overwrite existing entries)
+    for (key, field) in mandate {
+        superset
+            .entry(key.clone())
+            .or_insert_with(|| field.for_config());
     }
 
-    for (key, field_info) in non_mandate {
-        superset.entry(key.clone()).or_insert_with(|| {
-            api_models::payment_methods::RequiredFieldInfo {
-                required_field: field_info.required_field.clone(),
-                display_name: field_info.display_name.clone(),
-                field_type: field_info.field_type.clone(),
-                value: None,
-            }
-        });
+    // Merge non-mandate fields (don't overwrite existing entries)
+    for (key, field) in non_mandate {
+        superset
+            .entry(key.clone())
+            .or_insert_with(|| field.for_config());
     }
 
     superset
 }
 
 /// Processes payment methods from an MCA and groups required fields.
-///
-/// # Arguments
-/// * `mca` - The merchant connector account to process
-/// * `required_fields_config` - Configuration containing required fields mappings
-/// * `grouped_data` - Mutable reference to accumulate grouped data
 fn process_mca_payment_methods(
     mca: &MerchantConnectorAccount,
     required_fields_config: &crate::configs::settings::RequiredFields,
