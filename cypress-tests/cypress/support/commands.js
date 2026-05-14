@@ -7852,7 +7852,10 @@ Cypress.Commands.add("verifyRedirectSignature", (globalState) => {
   const returnUrl = globalState.get("nextActionUrl");
 
   if (!returnUrl) {
-    cy.task("cli_log", "No nextActionUrl found - skipping redirect signature verification");
+    cy.task(
+      "cli_log",
+      "No nextActionUrl found - skipping redirect signature verification"
+    );
     return;
   }
 
@@ -7882,22 +7885,46 @@ Cypress.Commands.add("verifyRedirectSignature", (globalState) => {
           const sig = redirectUrlObj.searchParams.get("signature");
           const sigAlg = redirectUrlObj.searchParams.get("signature_algorithm");
 
-          expect(sig, "signature should exist in redirect URL").to.be.a("string").and.not.be.empty;
-          expect(sigAlg, "signature_algorithm should be HMAC-SHA512").to.equal("HMAC-SHA512");
-          expect(sig.length, "signature should be 128 hex chars (HMAC-SHA512)").to.equal(128);
+          expect(sig, "signature should exist in redirect URL").to.be.a(
+            "string"
+          ).and.not.be.empty;
+          expect(sigAlg, "signature_algorithm should be HMAC-SHA512").to.equal(
+            "HMAC-SHA512"
+          );
+          expect(
+            sig.length,
+            "signature should be 128 hex chars (HMAC-SHA512)"
+          ).to.equal(128);
 
-          cy.task("cli_log", `Redirect signature verified via retrieve - algorithm: ${sigAlg}, signature length: ${sig.length}`);
+          cy.task(
+            "cli_log",
+            `Redirect signature verified via retrieve - algorithm: ${sigAlg}, signature length: ${sig.length}`
+          );
         } else {
-          cy.task("cli_log", "No redirect URL in payment response - redirect signature verification not applicable for this flow");
+          cy.task(
+            "cli_log",
+            "No redirect URL in payment response - redirect signature verification not applicable for this flow"
+          );
         }
       });
       return;
     }
 
-    expect(signature, "signature should exist in redirect URL").to.be.a("string").and.not.be.empty;
-    expect(signatureAlgorithm, "signature_algorithm should be HMAC-SHA512").to.equal("HMAC-SHA512");
-    expect(signature.length, "signature should be 128 hex chars (HMAC-SHA512)").to.equal(128);
+    expect(signature, "signature should exist in redirect URL").to.be.a(
+      "string"
+    ).and.not.be.empty;
+    expect(
+      signatureAlgorithm,
+      "signature_algorithm should be HMAC-SHA512"
+    ).to.equal("HMAC-SHA512");
+    expect(
+      signature.length,
+      "signature should be 128 hex chars (HMAC-SHA512)"
+    ).to.equal(128);
 
-    cy.task("cli_log", `Redirect signature verified - algorithm: ${signatureAlgorithm}, signature length: ${signature.length}`);
+    cy.task(
+      "cli_log",
+      `Redirect signature verified - algorithm: ${signatureAlgorithm}, signature length: ${signature.length}`
+    );
   });
 });
