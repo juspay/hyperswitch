@@ -561,7 +561,6 @@ export const CONNECTOR_LISTS = {
       "braintree",
       "bankofamerica",
       "paypal",
-      "noon",
       "trustpay",
     ],
     CARD_TESTING_GUARD: ["bankofamerica"],
