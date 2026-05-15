@@ -7336,7 +7336,7 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<String>")]
     pub modified_at: Option<PrimitiveDateTime>,
 
-    /// A unique identifier for a payment provided by the connector.
+    /// A unique identifier for a customer provided by the connector.
     #[schema(value_type = Option<String>, example = "cus_Rnm2pDKGyQi506")]
     #[serde(skip_serializing_if = "Option::is_none")]
     #[smithy(value_type = "Option<String>")]

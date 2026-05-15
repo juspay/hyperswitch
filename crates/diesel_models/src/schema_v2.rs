@@ -1141,9 +1141,7 @@ diesel::table! {
         #[max_length = 64]
         retry_type -> Nullable<Varchar>,
         installment_data -> Nullable<Jsonb>,
-
         external_surcharge_details -> Nullable<Jsonb>,
-
         #[max_length = 255]
         sender_payment_instrument_id -> Nullable<Varchar>,
         payment_method_type_v2 -> Nullable<Varchar>,
