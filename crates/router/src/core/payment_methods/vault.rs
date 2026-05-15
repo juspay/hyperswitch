@@ -1228,6 +1228,16 @@ impl Vaultable for api::BankTransferPayout {
                     .emv
                     .ok_or(errors::VaultError::MissingRequiredField { field_name: "emv" })?,
             }),
+            Some(PaymentMethodType::OpenBanking) => Self::OpenBanking(payouts::OpenBanking {
+                iban: bank_sensitive_data
+                    .iban
+                    .ok_or(errors::VaultError::MissingRequiredField { field_name: "iban" })?,
+                account_holder_name: bank_sensitive_data.account_holder_name.ok_or(
+                    errors::VaultError::MissingRequiredField {
+                        field_name: "account_holder_name",
+                    },
+                )?,
+            }),
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
         };
 
