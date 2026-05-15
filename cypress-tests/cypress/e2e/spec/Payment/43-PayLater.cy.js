@@ -37,7 +37,7 @@ describe("PayLater tests", () => {
   });
 
   context("Klarna PayLater - Auto Capture flow test", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent", () => {
@@ -96,12 +96,26 @@ describe("PayLater tests", () => {
           payment_method_type,
           expected_redirection
         );
+      });
+
+      cy.step("Retrieve Payment after Redirection", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Payment after Redirection"
+          );
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["Klarna"];
+        cy.retrievePaymentCallTest({ globalState, data });
       });
     });
   });
 
   context("Klarna PayLater - Manual Capture flow test", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent", () => {
@@ -161,11 +175,25 @@ describe("PayLater tests", () => {
           expected_redirection
         );
       });
+
+      cy.step("Retrieve Payment after Redirection", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Payment after Redirection"
+          );
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["Klarna"];
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
     });
   });
 
   context("Affirm PayLater - Auto Capture flow test", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent", () => {
@@ -225,11 +253,25 @@ describe("PayLater tests", () => {
           expected_redirection
         );
       });
+
+      cy.step("Retrieve Payment after Redirection", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Payment after Redirection"
+          );
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["Affirm"];
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
     });
   });
 
   context("Affirm PayLater - Manual Capture flow test", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent", () => {
@@ -288,6 +330,20 @@ describe("PayLater tests", () => {
           payment_method_type,
           expected_redirection
         );
+      });
+
+      cy.step("Retrieve Payment after Redirection", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Payment after Redirection"
+          );
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["Affirm"];
+        cy.retrievePaymentCallTest({ globalState, data });
       });
     });
   });
