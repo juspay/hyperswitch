@@ -11239,6 +11239,143 @@ pub async fn payments_manual_update(
     ))
 }
 
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub async fn payments_manual_status_update(
+    state: SessionState,
+    platform: domain::Platform,
+    payment_id: id_type::PaymentId,
+    req: api_models::payments::PaymentsManualStatusUpdateRequest,
+) -> RouterResponse<api_models::payments::PaymentsManualStatusUpdateResponse> {
+    let api_models::payments::PaymentsManualStatusUpdateRequest { intent_status } = req;
+
+    let merchant_id = platform.get_processor().get_account().get_id();
+
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the key store by merchant_id")?;
+
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the merchant_account by merchant_id")?;
+
+    let payment_intent = state
+        .store
+        .find_payment_intent_by_payment_id_processor_merchant_id(
+            &payment_id,
+            merchant_account.get_id(),
+            &key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable("Error while fetching the payment_intent by payment_id, merchant_id")?;
+
+    if payment_intent.status != enums::IntentStatus::Review {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!(
+                "Payment status must be 'review' to perform manual status update, current status is '{}'",
+                payment_intent.status
+            ),
+        }
+        .into());
+    }
+
+    let attempt_id = payment_intent.active_attempt_id.as_ref().ok_or_else(|| {
+        errors::ApiErrorResponse::InvalidRequestData {
+            message: "No active attempt found for this payment".to_string(),
+        }
+    })?;
+
+    let attempt_status = match intent_status {
+        enums::IntentStatus::Succeeded => enums::AttemptStatus::Charged,
+        enums::IntentStatus::Failed => enums::AttemptStatus::Failure,
+        _ => {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "Target status must be either 'succeeded' or 'failed', received '{:?}'",
+                    intent_status
+                ),
+            }
+            .into());
+        }
+    };
+
+    let payment_attempt = state
+        .store
+        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+            &payment_id,
+            merchant_id,
+            attempt_id,
+            merchant_account.storage_scheme,
+            &key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable("Error while fetching the payment_attempt")?;
+
+    if payment_attempt.status != enums::AttemptStatus::CaptureReview {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!(
+                "Payment attempt status must be 'capture_review' to perform manual status update, current status is '{}'",
+                payment_attempt.status
+            ),
+        }
+        .into());
+    }
+
+    let attempt_update = storage::PaymentAttemptUpdate::StatusUpdate {
+        status: attempt_status,
+        updated_by: merchant_account.storage_scheme.to_string(),
+    };
+
+    let updated_payment_attempt = state
+        .store
+        .update_payment_attempt_with_attempt_id(
+            payment_attempt,
+            attempt_update,
+            merchant_account.storage_scheme,
+            &key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable("Error while updating the payment_attempt")?;
+
+    let intent_update = storage::PaymentIntentUpdate::ManualUpdate {
+        status: Some(intent_status),
+        updated_by: merchant_account.storage_scheme.to_string(),
+    };
+
+    state
+        .store
+        .update_payment_intent(
+            payment_intent,
+            intent_update,
+            &key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable("Error while updating payment_intent")?;
+
+    Ok(services::ApplicationResponse::Json(
+        api_models::payments::PaymentsManualStatusUpdateResponse {
+            payment_id,
+            attempt_id: updated_payment_attempt.attempt_id,
+            intent_status,
+            attempt_status: updated_payment_attempt.status,
+        },
+    ))
+}
+
 // Trait for Eligibility Checks
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
