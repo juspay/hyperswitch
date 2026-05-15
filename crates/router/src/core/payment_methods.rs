@@ -4252,7 +4252,8 @@ async fn build_legacy_locker_add_req(
             }),
         ),
         domain::PaymentMethodVaultingData::CardNumber(_)
-        | domain::PaymentMethodVaultingData::BankDebit(_) => {
+        | domain::PaymentMethodVaultingData::BankDebit(_)
+        | domain::PaymentMethodVaultingData::Wallet(_) => {
             Err(report!(errors::ApiErrorResponse::NotSupported {
                 message: "Legacy locker only supports Card and NetworkToken".into(),
             }))

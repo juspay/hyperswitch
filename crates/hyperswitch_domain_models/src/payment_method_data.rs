@@ -1613,7 +1613,6 @@ impl From<BankDebitDetail> for payment_methods::BankDebitDetail {
     }
 }
 
-#[cfg(feature = "v1")]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum WalletDetail {
