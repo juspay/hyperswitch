@@ -709,8 +709,6 @@ jobs:
       fail-fast: false
       matrix:
         connector: [adyenplatform]
-    env:
-      RUSTC_WRAPPER: sccache
 
     services:
       redis:
@@ -765,13 +763,6 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install sccache
-        if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
-        with:
-          tool: sccache
-          checksum: true
 
       - name: Build hyperswitch server
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -903,7 +894,7 @@ jobs:
         shell: bash
         run: |
           MITM_CERT_PATH="$HOME/.mitmproxy/mitmproxy-ca-cert.pem"
-          MITM_CERT=$(sed 's/$/\r\n/' "$MITM_CERT_PATH" | tr -d '\n')
+          MITM_CERT=$(sed 's/$/\\r\\n/' "$MITM_CERT_PATH" | tr -d '\n')
           export ROUTER__PROXY__MITM_CA_CERTIFICATE="$MITM_CERT"
 
           target/debug/router >> "${SERVER_LOG_PATH}" 2>&1 &

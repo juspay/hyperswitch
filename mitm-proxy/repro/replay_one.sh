@@ -53,14 +53,21 @@ kill -9 $MPID 2>/dev/null
 SUMMARY=$(grep -E 'of [0-9]+ (passed|failed)|All specs passed' "$OUT/verify.$CONN.cy.log" | tail -1)
 HITMISS=$(grep -oE "\[replay\] (HIT|HIT-norm|HIT-replay|HIT-server|SECRET-MISS|MISS|WARN) +\[$CONN\]" "$OUT/verify.$CONN.mitm.log" | awk '{print $2}' | sort | uniq -c | tr '\n' ' ')
 MISSES=$(grep -cE "\[replay\] (MISS|SECRET-MISS|WARN) +\[$CONN\]" "$OUT/verify.$CONN.mitm.log")
+TLS_FAILS=$(grep -c "Client TLS handshake failed" "$OUT/verify.$CONN.mitm.log")
 echo "[$CONN] replay done $(date +%T) rc=$RC"
 echo "[$CONN] summary : $SUMMARY"
 echo "[$CONN] hit/miss: $HITMISS"
 echo "[$CONN] MISSES  : $MISSES"
+echo "[$CONN] TLS_FAIL: $TLS_FAILS"
 if [ "$MISSES" -gt 0 ]; then
   echo "[$CONN] --- sample replay failures ---"
   grep -E "\[replay\] (MISS|SECRET-MISS|WARN) +\[$CONN\]" "$OUT/verify.$CONN.mitm.log" | head -10
   exit 2
+fi
+if [ "$TLS_FAILS" -gt 0 ]; then
+  echo "[$CONN] --- sample mitm TLS failures ---"
+  grep "Client TLS handshake failed" "$OUT/verify.$CONN.mitm.log" | head -10
+  exit 3
 fi
 if [ "$RC" -ne 0 ]; then
   echo "[$CONN] replay Cypress failed rc=$RC"
