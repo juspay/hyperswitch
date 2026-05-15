@@ -882,7 +882,7 @@ impl PaymentMethodsController for PmCards<'_> {
     async fn add_wallet_to_locker(
         &self,
         req: api::PaymentMethodCreate,
-        bank_debit_data: api_models::payment_methods::WalletDetail,
+        wallet_data: api_models::payment_methods::WalletDetail,
         key_store: &domain::MerchantKeyStore,
         customer_id: &id_type::CustomerId,
     ) -> errors::CustomResult<
@@ -893,7 +893,7 @@ impl PaymentMethodsController for PmCards<'_> {
         errors::VaultError,
     > {
         let pmd = hyperswitch_domain_models::vault::PaymentMethodVaultingData::from(
-            api_models::payment_methods::PaymentMethodCreateData::Wallet(bank_debit_data).clone(),
+            api_models::payment_methods::PaymentMethodCreateData::Wallet(wallet_data).clone(),
         );
 
         let data = serde_json::to_string(&pmd)
