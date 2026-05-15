@@ -271,11 +271,11 @@ impl SourceBankDataOperation {
     ) -> RouterResult<Option<String>> {
         match source_bank_data {
             Some(source_bank_data) => {
-                let sourc_bank_data_token = Self::get_source_bank_data_token();
+                let source_bank_data_token = Self::get_source_bank_data_token();
 
                 let lookup_key = vault::Vault::store_payout_method_data_in_locker(
                     state,
-                    Some(sourc_bank_data_token),
+                    Some(source_bank_data_token),
                     &api::PayoutMethodData::BankTransfer(source_bank_data),
                     customer_id,
                     merchant_key_store,
@@ -1049,6 +1049,7 @@ pub(super) async fn get_or_create_customer_details(
 pub async fn decide_payout_connector(
     state: &SessionState,
     processor: &domain::Processor,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     request_straight_through: Option<api::routing::StraightThroughAlgorithm>,
     routing_data: &mut storage::RoutingData,
     payout_data: &mut PayoutData,
@@ -1183,6 +1184,7 @@ pub async fn decide_payout_connector(
     route_connector_v1_for_payouts(
         state,
         processor,
+        dimensions,
         &payout_data.business_profile,
         payout_data,
         routing_data,

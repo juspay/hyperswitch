@@ -1587,10 +1587,16 @@ where
         )
         .await?;
 
+    let dimensions = Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_profile_id(business_profile.get_id().clone());
+
     let connector = set_eligible_connector_for_proxy_in_payment_data(
         state,
         &business_profile,
         platform.get_processor().get_key_store(),
+        &dimensions,
         &mut payment_data,
         connector_choice,
     )
@@ -9935,6 +9941,7 @@ async fn get_eligible_connector_for_proxy<T: core_routing::GetRoutableConnectors
     key_store: &domain::MerchantKeyStore,
     payment_data: &mut D,
     connector_choice: T,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     business_profile: &domain::Profile,
 ) -> RouterResult<api::ConnectorData>
 where
@@ -9950,7 +9957,7 @@ where
     let proxy_connector_filters = get_proxy_connector_filters(state, recurring_payment_details)?;
 
     let eligible_connector_data_list = connector_choice
-        .get_routable_connectors(state, business_profile, payment_data)
+        .get_routable_connectors(state, dimensions, business_profile, payment_data)
         .await?
         .filter_proxy_flow_supported_connectors(proxy_connector_filters)
         .construct_dsl_and_perform_eligibility_analysis(
@@ -10008,6 +10015,7 @@ pub async fn set_eligible_connector_for_proxy_in_payment_data<F, D>(
     state: &SessionState,
     business_profile: &domain::Profile,
     key_store: &domain::MerchantKeyStore,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     payment_data: &mut D,
     connector_choice: api::ConnectorChoice,
 ) -> RouterResult<api::ConnectorData>
@@ -10022,6 +10030,7 @@ where
                 key_store,
                 payment_data,
                 core_routing::StraightThroughAlgorithmTypeSingle(straight_through),
+                dimensions,
                 business_profile,
             )
             .await?
@@ -10032,6 +10041,7 @@ where
                 key_store,
                 payment_data,
                 core_routing::DecideConnector,
+                dimensions,
                 business_profile,
             )
             .await?
@@ -10466,6 +10476,7 @@ where
             async move {
                 static_dynamic_routing_v1_for_payments(
                     state_ref,
+                    dimensions,
                     business_profile,
                     txn_data,
                     backend_input,
@@ -11349,9 +11360,15 @@ pub async fn route_connector_v2_for_payments(
         .as_ref()
         .or(business_profile.routing_algorithm_id.as_ref());
 
+    let dimensions = Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_profile_id(business_profile.get_id().clone());
+
     let (connectors, _) = routing::perform_static_routing_v1(
         state,
         platform.get_processor().get_account().get_id(),
+        &dimensions,
         routing_algorithm_id,
         business_profile,
         &TransactionData::Payment(transaction_data.clone()),
@@ -11391,6 +11408,7 @@ pub async fn route_connector_v2_for_payments(
 #[allow(clippy::too_many_arguments)]
 pub async fn static_dynamic_routing_v1_for_payments(
     state: &SessionState,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     business_profile: &domain::Profile,
     payment_dsl_input: core_routing::PaymentsDslInput<'_>,
     backend_input: euclid::backend::BackendInput,
@@ -11408,6 +11426,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
     let (connectors, routing_approach) = routing::perform_hybrid_routing_if_enabled(
         state,
         business_profile,
+        dimensions,
         &payment_dsl_input,
         &backend_input,
         &fallback_config,
@@ -11443,6 +11462,7 @@ pub async fn route_connector_v1_for_payouts(
 pub async fn route_connector_v1_for_payouts(
     state: &SessionState,
     processor: &domain::Processor,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     business_profile: &domain::Profile,
     transaction_data: &payouts::PayoutData,
     routing_data: &mut storage::RoutingData,
@@ -11463,6 +11483,7 @@ pub async fn route_connector_v1_for_payouts(
     let (connectors, _) = routing::perform_static_routing_v1(
         state,
         processor.get_account().get_id(),
+        dimensions,
         routing_algorithm_id.as_ref(),
         business_profile,
         &TransactionData::Payout(transaction_data),
@@ -11531,6 +11552,17 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
 
     let db = &*state.store;
     let key_manager_state = &(&(state)).into();
+
+    let dimensions = Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .organization_id
+                .clone(),
+        );
 
     let processor_merchant_id = platform.get_processor().get_account().get_id();
     let storage_scheme = platform.get_processor().get_account().storage_scheme;
@@ -11706,18 +11738,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), &state)
             .await?
         {
-            let routing_region = uas_utils::fetch_routing_region_for_uas(
-                &state,
-                processor_merchant_id.clone(),
-                platform
-                    .get_processor()
-                    .get_account()
-                    .organization_id
-                    .clone(),
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch routing path")?;
+            let routing_region = uas_utils::fetch_routing_region_for_uas(&state, &dimensions).await;
             let auth_response =
                 <ExternalAuthentication as UnifiedAuthenticationService>::authentication(
                     &state,
