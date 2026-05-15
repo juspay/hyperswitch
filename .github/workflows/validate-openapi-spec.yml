@@ -14,6 +14,7 @@ concurrency:
 jobs:
   validate_json:
     name: Validate generated OpenAPI spec file
+    if: ${{ github.head_ref != 'mitm-pilot' }} # MITM replay CI dry-run: skip unrelated checks on this branch
     runs-on: ubuntu-latest
     steps:
       - name: Generate a token

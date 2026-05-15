@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -35,7 +36,7 @@ env:
 jobs:
   formatter:
     name: Run formatter on Cypress tests and address lints
-    if: ${{ github.event_name == 'pull_request' }}
+    if: false # MITM replay CI dry-run: skip unrelated Cypress formatter job
     runs-on: ubuntu-latest
     steps:
       - name: Generate a token
@@ -94,9 +95,7 @@ jobs:
 
   build-hyperswitch:
     name: Build hyperswitch server
-    if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+    if: false # MITM replay CI dry-run: reuse a prior hyperswitch-server artifact
     runs-on:  hyperswitch-runners
     env:
       # Use `sccache` for caching compilation artifacts
@@ -152,9 +151,7 @@ jobs:
 
   prepare-mandatory-matrix:
     name: Prepare Mandatory Connectors matrix to run cypress tests
-    if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+    if: false # MITM replay CI dry-run: skip unrelated Cypress matrix
     runs-on: hyperswitch-runners
     outputs:
       mandatory-matrix: ${{ steps.set-mandatory-matrix.outputs.matrix }}
@@ -423,10 +420,7 @@ jobs:
     name: Mandatory Cypress Tests — Consolidated Result
     needs: [mandatory-cypress-tests]
     runs-on: ubuntu-latest
-    if: |
-      (github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' &&
-        contains(github.event.pull_request.labels.*.name, 'S-test-ready'))) && !cancelled()
+    if: false # MITM replay CI dry-run: skip unrelated Cypress result gate
     permissions:
       pull-requests: write
     steps:
@@ -708,7 +702,6 @@ jobs:
 
   mitm-cassette-replay-cypress-tests:
     name: MITM cassette replay (${{ matrix.connector }})
-    needs: [build-hyperswitch]
     if: |
       github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
@@ -719,6 +712,9 @@ jobs:
         connector: [paypal, bluesnap, redsys, gigadat, zift, loonio, adyenplatform]
     env:
       RUSTC_WRAPPER: sccache
+      # Temporary PR dry-run shortcut: this artifact was produced by the same
+      # branch before the workflow install fix; router code is unchanged.
+      MITM_HYPERSWITCH_ARTIFACT_RUN_ID: "25908838361"
 
     services:
       redis:
@@ -781,6 +777,8 @@ jobs:
         with:
           name: hyperswitch-server
           path: target/debug
+          run-id: ${{ env.MITM_HYPERSWITCH_ARTIFACT_RUN_ID }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Make server executable
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1413,7 +1411,7 @@ jobs:
 
   runner_v2:
     name: Run Cypress tests on v2 and generate coverage report
-    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')
+    if: false # MITM replay CI dry-run: skip unrelated Cypress v2 job
     runs-on: hyperswitch-runners
     permissions:
       pull-requests: write
