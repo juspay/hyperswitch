@@ -7158,3 +7158,119 @@ impl ForeignFrom<&api_models::payouts::PixEmvBankTransfer>
         }
     }
 }
+
+use hyperswitch_domain_models::{
+    router_flow_types::payments::CalculateSurcharge,
+    router_request_types::PaymentsSurchargeCalculationData,
+    router_response_types::SurchargeCalculationResponseData,
+};
+
+impl
+    transformers::ForeignTryFrom<(
+        &RouterData<
+            CalculateSurcharge,
+            PaymentsSurchargeCalculationData,
+            SurchargeCalculationResponseData,
+        >,
+    )> for payments_grpc::SurchargeServiceCalculateRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        (router_data,): (
+            &RouterData<
+                CalculateSurcharge,
+                PaymentsSurchargeCalculationData,
+                SurchargeCalculationResponseData,
+            >,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount = payments_grpc::Money {
+            minor_amount: router_data.request.amount.get_amount_as_i64(),
+            currency: payments_grpc::Currency::foreign_try_from(router_data.request.currency)?
+                .into(),
+        };
+
+        let postal_code = router_data
+            .request
+            .postal_code
+            .clone()
+            .map(|code| code.expose().into());
+
+        Ok(Self {
+            merchant_surcharge_id: Some(router_data.payment_id.clone()),
+            amount: Some(amount),
+            card_bin: router_data.request.card_iin.clone(),
+            postal_code,
+            previous_connector_surcharge_id: router_data
+                .request
+                .previous_connector_surcharge_id
+                .clone(),
+            country: router_data
+                .request
+                .country
+                .as_ref()
+                .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                .map(|country| country.into()),
+            surcharge_strategy: router_data
+                .request
+                .surcharge_strategy
+                .clone()
+                .map(|s| payments_grpc::SurchargeStrategy::foreign_from(s).into()),
+        })
+    }
+}
+
+impl ForeignFrom<router_request_types::SurchargeStrategy> for payments_grpc::SurchargeStrategy {
+    fn foreign_from(strategy: router_request_types::SurchargeStrategy) -> Self {
+        match strategy {
+            router_request_types::SurchargeStrategy::Apply => Self::Apply,
+            router_request_types::SurchargeStrategy::Waive => Self::Waive,
+        }
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::SurchargeServiceCalculateResponse>
+    for SurchargeCalculationResponseData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        grpc_response: payments_grpc::SurchargeServiceCalculateResponse,
+    ) -> Result<Self, Self::Error> {
+        let surcharge_amount = grpc_response
+            .surcharge_amount
+            .map(|money| MinorUnit::new(money.minor_amount))
+            .unwrap_or_else(MinorUnit::zero);
+
+        let external_surcharge_transaction_id =
+            grpc_response.connector_surcharge_id.unwrap_or_default();
+
+        let surcharge_fee_percent = grpc_response
+            .surcharge_percentage
+            .map(|percent| {
+                types::Percentage::<2>::from_string(percent.to_string())
+                    .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                    .attach_printable("Failed to parse surcharge percentage")
+            })
+            .transpose()?;
+
+        Ok(Self {
+            surcharge_amount,
+            connector_surcharge_id: external_surcharge_transaction_id,
+            surcharge_fee_percent,
+            error_code: grpc_response.error.as_ref().and_then(|error_info| {
+                error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.code.clone())
+            }),
+            error_message: grpc_response.error.as_ref().and_then(|error_info| {
+                error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.message.clone())
+            }),
+        })
+    }
+}

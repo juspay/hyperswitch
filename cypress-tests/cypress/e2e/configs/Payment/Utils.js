@@ -511,6 +511,10 @@ export const CONNECTOR_LISTS = {
       "stripe",
     ],
     BANK_DEBIT: ["adyen", "novalnet", "payload"], // payload verified as working
+    BLUECODE_WALLET: ["calida"],
+    ALIPAY_HK_WALLET: ["adyen"],
+    PAYPAL_WALLET: ["novalnet", "paypal"],
+    PAYPAL_MANDATE: ["paypal"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [
       "adyen",
@@ -555,6 +559,27 @@ export const CONNECTOR_LISTS = {
     CARD_TESTING_GUARD: ["bankofamerica"],
     L2L3DATA: ["checkout", "nuvei", "worldpayvantiv"],
     REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
+    STEP_UP_RETRY: [
+      "cybersource",
+      "checkout",
+      "stripe",
+      "adyen",
+      "airwallex",
+      "authorizedotnet",
+      "bankofamerica",
+      "datatrans",
+      "fiuu",
+      "globalpay",
+      "nexinets",
+      "nmi",
+      "nuvei",
+      "paypal",
+      "powertranz",
+      "shift4",
+      "trustpay",
+      "worldpay",
+      "worldpayvantiv",
+    ],
     // Add more inclusion lists
   },
 };

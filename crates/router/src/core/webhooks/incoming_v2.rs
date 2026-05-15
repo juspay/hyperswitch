@@ -440,7 +440,10 @@ async fn payments_incoming_webhook_flow(
     source_verified: bool,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     let consume_or_trigger_flow = if source_verified {
-        payments::CallConnectorAction::HandleResponse(webhook_details.resource_object)
+        payments::CallConnectorAction::HandleResponse {
+            resource_object: webhook_details.resource_object,
+            event_type: None,
+        }
     } else {
         payments::CallConnectorAction::Trigger
     };
