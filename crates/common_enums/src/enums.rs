@@ -2450,7 +2450,8 @@ impl PaymentMethodType {
         is_apple_pay_decrypt: Option<bool>,
     ) -> bool {
         match is_apple_pay_decrypt {
-            Some(true) => matches!(self, Self::ApplePay),
+            // return false if the payment method is Apple Pay and the decryption is successful, else exhibit the existing behaviour
+            Some(true) => !matches!(self, Self::ApplePay),
             Some(false) | None => matches!(
                 self,
                 Self::ApplePay | Self::GooglePay | Self::SamsungPay | Self::Paypal | Self::Klarna
