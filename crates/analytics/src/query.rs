@@ -1002,7 +1002,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{FilterTypes, filter_type_to_sql, sanitize_sql_string_literal};
+    use super::{filter_type_to_sql, sanitize_sql_string_literal, FilterTypes};
 
     const INJECTION_PAYLOAD: &str = "x')OR(merchant_id='Allconnector123')OR('1'='";
 
@@ -1017,7 +1017,10 @@ mod tests {
     fn sanitize_blocks_injection_payload() {
         let lit = sanitize_sql_string_literal(INJECTION_PAYLOAD);
         assert!(lit.starts_with('\'') && lit.ends_with('\''));
-        assert!(has_no_lone_quote(&lit), "lone quote (injection possible): {lit}");
+        assert!(
+            has_no_lone_quote(&lit),
+            "lone quote (injection possible): {lit}"
+        );
     }
 
     #[test]
@@ -1025,14 +1028,23 @@ mod tests {
         // The old bare-wrap was injectable; sanitize is not
         let vulnerable = format!("'{INJECTION_PAYLOAD}'");
         let safe = sanitize_sql_string_literal(INJECTION_PAYLOAD);
-        assert!(!has_no_lone_quote(&vulnerable), "expected vulnerable form to have lone quote");
-        assert!(has_no_lone_quote(&safe), "expected safe form to have no lone quote: {safe}");
+        assert!(
+            !has_no_lone_quote(&vulnerable),
+            "expected vulnerable form to have lone quote"
+        );
+        assert!(
+            has_no_lone_quote(&safe),
+            "expected safe form to have no lone quote: {safe}"
+        );
     }
 
     #[test]
     fn sanitize_legitimate_value_preserved() {
         // Spaces stripped; alphanumeric content stays
-        assert_eq!(sanitize_sql_string_literal("Insufficient funds"), "'Insufficientfunds'");
+        assert_eq!(
+            sanitize_sql_string_literal("Insufficient funds"),
+            "'Insufficientfunds'"
+        );
     }
 
     #[test]
@@ -1045,7 +1057,10 @@ mod tests {
     fn filter_type_in_passes_preescaped_list() {
         // IN receives an already-escaped list — must not re-escape it
         let pre = "'foo''bar', 'baz'";
-        assert_eq!(filter_type_to_sql("col", FilterTypes::In, pre), "col IN ('foo''bar', 'baz')");
+        assert_eq!(
+            filter_type_to_sql("col", FilterTypes::In, pre),
+            "col IN ('foo''bar', 'baz')"
+        );
     }
 
     #[test]
