@@ -8,6 +8,61 @@ import * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
+function setup3DSPayment() {
+  let shouldContinue = true;
+
+  cy.step("create payment intent", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["PaymentIntent"];
+
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      data,
+      "three_ds",
+      "automatic",
+      globalState
+    );
+
+    if (!utils.should_continue_further(data)) {
+      shouldContinue = false;
+    }
+  });
+
+  cy.step("payment methods call", () => {
+    if (!shouldContinue) {
+      cy.task("cli_log", "Skipping step: payment methods call");
+      return;
+    }
+
+    cy.paymentMethodsCallTest(globalState);
+  });
+
+  cy.step("confirm 3DS payment", () => {
+    if (!shouldContinue) {
+      cy.task("cli_log", "Skipping step: confirm 3DS payment");
+      return;
+    }
+
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["3DSAutoCapture"];
+
+    cy.confirmCallTest(
+      fixtures.confirmBody,
+      confirmData,
+      true,
+      globalState
+    );
+
+    if (!utils.should_continue_further(confirmData)) {
+      shouldContinue = false;
+    }
+  });
+
+  return cy.wrap(shouldContinue, { log: false });
+}
+
 describe("Card - Payment Response Hash flow test", () => {
   before("seed global state and check account config", function () {
     let skip = false;
@@ -48,14 +103,18 @@ describe("Card - Payment Response Hash flow test", () => {
         }
 
         if (!response || response.status !== 200) {
-          cy.task("cli_log", "Failed to fetch account config - skipping spec");
+          cy.task(
+            "cli_log",
+            "Failed to fetch account config - skipping spec"
+          );
           this.skip();
           return;
         }
 
         const enablePaymentResponseHash =
           response.body.enable_payment_response_hash;
-        const paymentResponseHashKey = response.body.payment_response_hash_key;
+        const paymentResponseHashKey =
+          response.body.payment_response_hash_key;
 
         if (!enablePaymentResponseHash) {
           cy.task(
@@ -141,73 +200,14 @@ describe("Card - Payment Response Hash flow test", () => {
 
   context("3DS Auto-Capture - Verify Redirect Signature", () => {
     it("create payment intent -> confirm 3DS payment -> handle redirection -> verify redirect signature", () => {
-      let shouldContinue = true;
-
-      cy.step("create payment intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
-
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "three_ds",
-          "automatic",
-          globalState
-        );
-
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("payment methods call", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: payment methods call");
-          return;
-        }
-
-        cy.paymentMethodsCallTest(globalState);
-      });
-
-      cy.step("confirm 3DS payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: confirm 3DS payment");
-          return;
-        }
-
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["3DSAutoCapture"];
-
-        cy.confirmCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
-
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
-      });
+      setup3DSPayment();
 
       cy.step("handle redirection", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: handle redirection");
-          return;
-        }
-
         const expected_redirection = fixtures.confirmBody["return_url"];
         cy.handleRedirection(globalState, expected_redirection);
       });
 
       cy.step("verify redirect signature", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: verify redirect signature");
-          return;
-        }
-
         cy.verifyRedirectSignature(globalState);
       });
     });
@@ -215,66 +215,9 @@ describe("Card - Payment Response Hash flow test", () => {
 
   context("3DS Auto-Capture - Compute and Verify Redirect Signature", () => {
     it("create payment intent -> confirm 3DS -> compute HMAC and compare with redirect signature", () => {
-      let shouldContinue = true;
-
-      cy.step("create payment intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
-
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "three_ds",
-          "automatic",
-          globalState
-        );
-
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("payment methods call", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: payment methods call");
-          return;
-        }
-
-        cy.paymentMethodsCallTest(globalState);
-      });
-
-      cy.step("confirm 3DS payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: confirm 3DS payment");
-          return;
-        }
-
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["3DSAutoCapture"];
-
-        cy.confirmCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
-
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
-      });
+      setup3DSPayment();
 
       cy.step("compute and verify redirect signature", () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: compute and verify redirect signature"
-          );
-          return;
-        }
-
         cy.computeAndVerifyRedirectSignature(globalState);
       });
     });
@@ -282,156 +225,26 @@ describe("Card - Payment Response Hash flow test", () => {
 
   context("3DS Auto-Capture - Failure Scenarios for Invalid Signatures", () => {
     it("create payment intent -> confirm 3DS -> compute HMAC -> verify tampered and wrong-key signatures fail", () => {
-      let shouldContinue = true;
-
-      cy.step("create payment intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
-
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "three_ds",
-          "automatic",
-          globalState
-        );
-
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("payment methods call", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: payment methods call");
-          return;
-        }
-
-        cy.paymentMethodsCallTest(globalState);
-      });
-
-      cy.step("confirm 3DS payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: confirm 3DS payment");
-          return;
-        }
-
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["3DSAutoCapture"];
-
-        cy.confirmCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
-
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
-      });
+      setup3DSPayment();
 
       cy.step("compute and verify redirect signature", () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: compute and verify redirect signature"
-          );
-          return;
-        }
-
         cy.computeAndVerifyRedirectSignature(globalState);
       });
 
-      cy.step("verify tampered and wrong-key signatures fail", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: failure scenarios");
-          return;
+      cy.step(
+        "verify tampered and wrong-key signatures fail",
+        () => {
+          cy.verifyTamperedSignatureFails(globalState);
         }
-
-        if (globalState.get("signatureVerificationSkipped")) {
-          cy.task(
-            "cli_log",
-            "Signature verification was skipped for this connector - skipping failure scenarios"
-          );
-          shouldContinue = false;
-          return;
-        }
-
-        cy.verifyTamperedSignatureFails(globalState);
-      });
+      );
     });
   });
 
   context("3DS Auto-Capture - Webhook Signature Verification", () => {
     it("create payment intent -> confirm 3DS -> verify webhook delivery signature", () => {
-      let shouldContinue = true;
-
-      cy.step("create payment intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
-
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "three_ds",
-          "automatic",
-          globalState
-        );
-
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("payment methods call", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: payment methods call");
-          return;
-        }
-
-        cy.paymentMethodsCallTest(globalState);
-      });
-
-      cy.step("confirm 3DS payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: confirm 3DS payment");
-          return;
-        }
-
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["3DSAutoCapture"];
-
-        cy.confirmCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
-
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
-      });
+      setup3DSPayment();
 
       cy.step("wait for webhook delivery and verify signature", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: webhook signature verification");
-          return;
-        }
-
-        if (globalState.get("signatureVerificationSkipped")) {
-          cy.task(
-            "cli_log",
-            "Signature verification was skipped - skipping webhook signature verification"
-          );
-          return;
-        }
-
         cy.wait(5000);
 
         cy.verifyWebhookSignatureHeader(globalState);

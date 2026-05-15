@@ -447,7 +447,6 @@ export const CONNECTOR_LISTS = {
       "zift",
     ],
     MANDATE_ID_TEST: ["airwallex", "payload"],
-    // Connectors that fail PaymentResponseHash should be added here
     PAYMENT_RESPONSE_HASH: [],
     // Add more exclusion lists
   },
