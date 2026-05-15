@@ -569,7 +569,6 @@ pub trait ConnectorActions: Connector {
             minor_amount_capturable: None,
             authorized_amount: None,
             customer_document_details: None,
-            connector_customer_id: None,
             sender_payment_instrument_id: None,
         }
     }
