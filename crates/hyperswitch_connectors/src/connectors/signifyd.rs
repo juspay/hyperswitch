@@ -274,18 +274,7 @@ impl ConnectorIntegration<Sale, FraudCheckSaleData, FraudCheckResponseData> for 
                 field_name: "currency",
             })?;
         let amount = convert_amount(self.amount_converter, req.request.amount, currency)?;
-        let product_prices = req
-            .request
-            .order_details
-            .as_ref()
-            .map(|details| {
-                details
-                    .iter()
-                    .map(|od| convert_amount(self.amount_converter, od.amount, currency))
-                    .collect::<Result<Vec<_>, _>>()
-            })
-            .transpose()?;
-        let req_data = signifyd::SignifydRouterData::new(amount, product_prices, req);
+        let req_data = signifyd::SignifydRouterData::new(amount, req);
         let req_obj = signifyd::SignifydPaymentsSaleRequest::try_from(&req_data)?;
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
@@ -373,18 +362,7 @@ impl ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseDa
                 field_name: "currency",
             })?;
         let amount = convert_amount(self.amount_converter, req.request.amount, currency)?;
-        let product_prices = req
-            .request
-            .order_details
-            .as_ref()
-            .map(|details| {
-                details
-                    .iter()
-                    .map(|od| convert_amount(self.amount_converter, od.amount, currency))
-                    .collect::<Result<Vec<_>, _>>()
-            })
-            .transpose()?;
-        let req_data = signifyd::SignifydRouterData::new(amount, product_prices, req);
+        let req_data = signifyd::SignifydRouterData::new(amount, req);
         let req_obj = signifyd::SignifydPaymentsCheckoutRequest::try_from(&req_data)?;
         Ok(RequestContent::Json(Box::new(req_obj)))
     }

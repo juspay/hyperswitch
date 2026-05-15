@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
     router_response_types::fraud_check::FraudCheckResponseData,
 };
 use hyperswitch_interfaces::errors::ConnectorError;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -40,20 +40,14 @@ use crate::{
 };
 pub struct SignifydRouterData<T> {
     pub amount: FloatMajorUnit,
-    pub product_prices: Option<Vec<FloatMajorUnit>>,
     pub router_data: T,
     pub(crate) amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
 impl<T> SignifydRouterData<T> {
-    pub fn new(
-        amount: FloatMajorUnit,
-        product_prices: Option<Vec<FloatMajorUnit>>,
-        router_data: T,
-    ) -> Self {
+    pub fn new(amount: FloatMajorUnit, router_data: T) -> Self {
         Self {
             amount,
-            product_prices,
             router_data,
             amount_converter: &FloatMajorUnitForConnector,
         }
@@ -218,6 +212,11 @@ impl From<&DomainAddress> for BillingAddress {
 pub struct CheckoutPaymentDetails {
     account_holder_name: Option<Secret<String>>,
     card_bin: Option<String>,
+    // Signifyd's schema (cert kit "signifyd-required-data.csv": "integer")
+    // requires `cardExpiryMonth` / `cardExpiryYear` as integers, not strings.
+    // HS' `CardData` trait helpers (`get_expiry_month_as_i8`,
+    // `get_expiry_year_as_4_digit_i32`) target `Card`, not `AdditionalCardInfo`,
+    // so we parse once via `parse_card_digits` at struct construction.
     card_expiry_month: Option<i32>,
     card_expiry_year: Option<i32>,
     card_last4: Option<String>,
@@ -242,19 +241,27 @@ fn map_payment_method_kind(value: Option<PaymentMethodType>) -> PaymentMethodKin
     }
 }
 
-fn parse_card_expiry_month(value: Option<&Secret<String>>) -> Option<i32> {
-    use hyperswitch_masking::PeekInterface;
+/// Parse an `Option<Secret<String>>` card-expiry field to `i32`. Used for
+/// Signifyd's integer-typed `cardExpiryMonth` / `cardExpiryYear`. Mirrors HS'
+/// `CardData::get_expiry_year_as_4_digit_i32` but works on `AdditionalCardInfo`'s
+/// `Option<Secret<String>>` (the `CardData` trait targets `Card`, not
+/// `AdditionalCardInfo`). Returns `None` if missing or unparseable.
+fn parse_card_digits(value: Option<&Secret<String>>) -> Option<i32> {
     value.and_then(|s| s.peek().trim().parse::<i32>().ok())
 }
 
-fn parse_card_expiry_year(value: Option<&Secret<String>>) -> Option<i32> {
-    use hyperswitch_masking::PeekInterface;
+/// Parse a card-expiry year to a 4-digit `i32`. Mirrors the canonical
+/// `CardData::get_expiry_year_4_digit` heuristic (string-length check) before
+/// parsing.
+fn parse_card_year_4_digit(value: Option<&Secret<String>>) -> Option<i32> {
     value.and_then(|s| {
-        s.peek()
-            .trim()
-            .parse::<i32>()
-            .ok()
-            .map(|year| if year < 100 { year + 2000 } else { year })
+        let raw = s.peek().trim();
+        let four_digit = if raw.len() == 2 {
+            format!("20{raw}")
+        } else {
+            raw.to_string()
+        };
+        four_digit.parse::<i32>().ok()
     })
 }
 
@@ -271,8 +278,8 @@ fn build_transaction(
     let checkout_payment_details = CheckoutPaymentDetails {
         account_holder_name: card_info.card_holder_name.clone(),
         card_bin: card_info.card_isin.clone(),
-        card_expiry_month: parse_card_expiry_month(card_info.card_exp_month.as_ref()),
-        card_expiry_year: parse_card_expiry_year(card_info.card_exp_year.as_ref()),
+        card_expiry_month: parse_card_digits(card_info.card_exp_month.as_ref()),
+        card_expiry_year: parse_card_year_4_digit(card_info.card_exp_year.as_ref()),
         card_last4: card_info.last4.clone(),
         billing_address: billing_address.map(BillingAddress::from),
     };
@@ -347,29 +354,29 @@ impl TryFrom<&SignifydRouterData<&FrmSaleRouterData>> for SignifydPaymentsSaleRe
             .ok_or(ConnectorError::MissingRequiredField {
                 field_name: "currency",
             })?;
-        let order_details = item.request.get_order_details()?;
-        let product_prices =
-            data.product_prices
-                .as_ref()
-                .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "order_details",
-                })?;
-        let products = order_details
+        let products = item
+            .request
+            .get_order_details()?
             .iter()
-            .zip(product_prices.iter())
-            .map(|(order_detail, item_price)| Products {
-                item_name: order_detail.product_name.clone(),
-                item_price: *item_price,
-                item_quantity: i32::from(order_detail.quantity),
-                item_id: order_detail.product_id.clone(),
-                item_category: order_detail.category.clone(),
-                item_sub_category: order_detail.sub_category.clone(),
-                item_is_digital: order_detail
-                    .product_type
-                    .as_ref()
-                    .map(|product| product == &common_enums::ProductType::Digital),
+            .map(|order_detail| {
+                Ok::<_, error_stack::Report<ConnectorError>>(Products {
+                    item_name: order_detail.product_name.clone(),
+                    item_price: convert_amount(
+                        data.amount_converter,
+                        order_detail.amount,
+                        currency,
+                    )?,
+                    item_quantity: i32::from(order_detail.quantity),
+                    item_id: order_detail.product_id.clone(),
+                    item_category: order_detail.category.clone(),
+                    item_sub_category: order_detail.sub_category.clone(),
+                    item_is_digital: order_detail
+                        .product_type
+                        .as_ref()
+                        .map(|product| product == &common_enums::ProductType::Digital),
+                })
             })
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>, _>>()?;
         let metadata: SignifydFrmMetadata = item
             .frm_metadata
             .clone()
@@ -627,29 +634,29 @@ impl TryFrom<&SignifydRouterData<&FrmCheckoutRouterData>> for SignifydPaymentsCh
             .ok_or(ConnectorError::MissingRequiredField {
                 field_name: "currency",
             })?;
-        let order_details = item.request.get_order_details()?;
-        let product_prices =
-            data.product_prices
-                .as_ref()
-                .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "order_details",
-                })?;
-        let products = order_details
+        let products = item
+            .request
+            .get_order_details()?
             .iter()
-            .zip(product_prices.iter())
-            .map(|(order_detail, item_price)| Products {
-                item_name: order_detail.product_name.clone(),
-                item_price: *item_price,
-                item_quantity: i32::from(order_detail.quantity),
-                item_id: order_detail.product_id.clone(),
-                item_category: order_detail.category.clone(),
-                item_sub_category: order_detail.sub_category.clone(),
-                item_is_digital: order_detail
-                    .product_type
-                    .as_ref()
-                    .map(|product| product == &common_enums::ProductType::Digital),
+            .map(|order_detail| {
+                Ok::<_, error_stack::Report<ConnectorError>>(Products {
+                    item_name: order_detail.product_name.clone(),
+                    item_price: convert_amount(
+                        data.amount_converter,
+                        order_detail.amount,
+                        currency,
+                    )?,
+                    item_quantity: i32::from(order_detail.quantity),
+                    item_id: order_detail.product_id.clone(),
+                    item_category: order_detail.category.clone(),
+                    item_sub_category: order_detail.sub_category.clone(),
+                    item_is_digital: order_detail
+                        .product_type
+                        .as_ref()
+                        .map(|product| product == &common_enums::ProductType::Digital),
+                })
             })
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>, _>>()?;
         let metadata: SignifydFrmMetadata = item
             .frm_metadata
             .clone()
