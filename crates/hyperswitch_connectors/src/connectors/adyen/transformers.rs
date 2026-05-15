@@ -6280,6 +6280,12 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                             connector: "Adyen",
                         })?
                     }
+                    payouts::BankTransfer::OpenBanking(..) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Bank transfer via OpenBanking is not supported".to_string(),
+                            connector: "Adyen",
+                        })?
+                    }
                 };
                 let bank_data = PayoutBankData { bank: bank_details };
                 let address: &hyperswitch_domain_models::address::AddressDetails =
