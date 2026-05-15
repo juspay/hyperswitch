@@ -1,3 +1,5 @@
+import { getCustomExchange } from "./Modifiers";
+
 const successfulThreeDSTestCardDetails = {
   card_number: "4000000000001091",
   card_exp_month: "12",
@@ -801,6 +803,20 @@ export const connectorDetails = {
         },
       },
     },
+  },
+  wallet_pm: {
+    PaymentIntent: () =>
+      getCustomExchange({
+        Request: {
+          currency: "EUR",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
   },
   webhook: {
     TransactionIdConfig: {
