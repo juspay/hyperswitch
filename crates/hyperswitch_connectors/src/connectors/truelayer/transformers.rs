@@ -410,10 +410,7 @@ impl TryFrom<&TruelayerRouterData<&PayoutsRouterData<PoFulfill>>> for TruelayerP
                         ),
                         account_holder_name: None,
                         account_identifier: None,
-                        user_id: passthrough_data
-                            .psp_customer_id
-                            .as_ref()
-                            .map(|id| id.clone()),
+                        user_id: passthrough_data.psp_customer_id,
                         payment_source_id: Some(passthrough_data.psp_token),
                     },
                 })
