@@ -123,7 +123,8 @@ pub struct RouterData<Flow, Request, Response> {
 
     // Document details of the customer consisting of document number and type
     pub customer_document_details: Option<CustomerDocumentDetails>,
-    // sender payment instrument id
+
+    /// A connector-specific identifier representing the stored payment instrument
     pub sender_payment_instrument_id: Option<String>,
 }
 

@@ -262,10 +262,6 @@ impl PayoutMethodData {
             other => other,
         }
     }
-
-    pub fn is_passthrough(self) -> bool {
-        matches!(self, Self::Passthrough(_))
-    }
 }
 
 impl From<Bank> for BankTransfer {

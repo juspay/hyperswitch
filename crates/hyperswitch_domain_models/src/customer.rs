@@ -863,7 +863,7 @@ pub async fn update_connector_customer_in_customers(
         .unwrap_or_default();
 
     let updated_connector_customer_map =
-        connector_customer_id.clone().map(|connector_customer_id| {
+        connector_customer_id.as_ref().map(|connector_customer_id| {
             let connector_customer_value = Value::String(connector_customer_id.clone());
             connector_customer_map.insert(connector_label.to_string(), connector_customer_value);
             connector_customer_map
