@@ -77,6 +77,7 @@ pub struct Connectors {
     pub iatapay: ConnectorParams,
     pub imerchantsolutions: ConnectorParams,
     pub inespay: ConnectorParams,
+    pub interpayments: ConnectorParams,
     pub itaubank: ConnectorParams,
     pub jpmorgan: ConnectorParams,
     pub juspaythreedsserver: ConnectorParams,

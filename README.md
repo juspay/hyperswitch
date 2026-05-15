@@ -176,6 +176,64 @@ We believe in:
 
 - <strong> Community-Driven, Enterprise-Tested:</strong> Hyperswitch is built in the open with real-world feedback from developers and contributors, and maintained by Juspay, the team powering payment infrastructure for 400+ leading enterprises worldwide.
 
+## Hyperswitch Ecosystem Mapping
+Hyperswitch is built as a set of modular services and SDKs that work together. The Rust app server in this repo is the core, and the repositories below extend it with dashboards, client SDKs, and deployment tooling.
+
+### 1. Core backend services
+
+The Rust services that process payments. The app server is the center of gravity; the vault and encryption service handle sensitive-data operations alongside it. [`hyperswitch-prism`](https://github.com/juspay/hyperswitch-prism) is a separate, lighter entry point: a unified connector library that can be used directly against payment processors without running the full switch.
+
+|  | [hyperswitch](https://github.com/juspay/hyperswitch) | [card-vault](https://github.com/juspay/hyperswitch-card-vault) | [encryption-service](https://github.com/juspay/hyperswitch-encryption-service) | [prism](https://github.com/juspay/hyperswitch-prism) |
+| :--- | :---: | :---: | :---: | :---: |
+| **Language** | Rust | Rust | Rust | Rust |
+| **Role** | App server. Routing, retries, vaulting, observability. | PCI-compliant card storage. | Encryption, decryption, KMS. | Unified connector library, 100+ processors. |
+| **Depends on** | card-vault, encryption-service | encryption-service | None | None |
+
+### 2. Dashboard
+
+Merchant-facing UIs for configuring connectors, routing, and viewing transactions. Both require the `hyperswitch` backend to be running.
+
+|  | [control-center](https://github.com/juspay/hyperswitch-control-center) | [control-center-embedded](https://github.com/juspay/hyperswitch-control-center-embedded) |
+| :--- | :---: | :---: |
+| **Language** | ReScript | TypeScript |
+| **Role** | Full merchant dashboard. Connectors, routing rules, analytics, API keys. | Embeddable Hyperswitch components for partners and merchants surfacing Hyperswitch UI inside their own apps. |
+| **Depends on** | hyperswitch backend | hyperswitch backend |
+
+### 3. Web checkout SDKs
+
+How a browser talks to Hyperswitch. [`hyperswitch-client-core`](https://github.com/juspay/hyperswitch-client-core) is the shared core, pulled in as a git submodule by every client SDK (web and mobile). [`hyperswitch-sdk-utils`](https://github.com/juspay/hyperswitch-sdk-utils) holds shared assets that merchants doing Headless Implementations consume directly.
+
+|  | [hyperswitch-web](https://github.com/juspay/hyperswitch-web) | [client-core](https://github.com/juspay/hyperswitch-client-core) | [react-hyper-js](https://github.com/juspay/react-hyper-js) | [sdk-utils](https://github.com/juspay/hyperswitch-sdk-utils) |
+| :--- | :---: | :---: | :---: | :---: |
+| **Language** | ReScript | ReScript | ReScript | ReScript |
+| **Distribution** | npm | git submodule | [npm](https://www.npmjs.com/package/@juspay-tech/react-hyper-js) | git submodule |
+| **Role** | Primary web SDK. ReScript-built React library for unified checkout. | Shared SDK core consumed transitively by every client SDK. | Idiomatic React wrapper around the Hyper JS loader. | Shared utilities and assets used across client-core and hyperswitch-web. |
+| **Depends on** | hyperswitch backend | None | hyperswitch-web | None |
+
+### 4. Mobile SDKs
+
+Native SDKs for embedding Hyperswitch checkout into mobile apps. All are built on top of [`hyperswitch-client-core`](https://github.com/juspay/hyperswitch-client-core), pulled in as a git submodule.
+
+|  | [Android](https://github.com/juspay/hyperswitch-sdk-android) | [iOS](https://github.com/juspay/hyperswitch-sdk-ios) | [React Native](https://github.com/juspay/react-native-hyperswitch) | [Flutter](https://github.com/juspay/flutter_hyperswitch) |
+| :--- | :---: | :---: | :---: | :---: |
+| **Repository** | hyperswitch-sdk-android | hyperswitch-sdk-ios | react-native-hyperswitch | flutter_hyperswitch |
+| **Language** | Kotlin | Swift | TypeScript | Dart |
+| **Distribution** | Maven | CocoaPods (SPM in progress) | npm | pub.dev |
+| **Status** | Officially supported | Officially supported | Officially supported | Officially supported |
+
+> [!IMPORTANT]
+> An older repo, `hyperswitch-sdk-react-native`, is being deprecated and has already been removed from npm. Use [`react-native-hyperswitch`](https://github.com/juspay/react-native-hyperswitch) instead.
+
+### 5. Deployment & infrastructure
+
+Tooling for running Hyperswitch, from local development through production.
+
+|  | [hyperswitch-suite](https://github.com/juspay/hyperswitch-suite) | [hyperswitch-helm](https://github.com/juspay/hyperswitch-helm) |
+| :--- | :---: | :---: |
+| **Tooling** | Terraform (HCL) | Helm charts |
+| **Role** | Umbrella full-suite deployment that wires the core, vault, control-center, and web together. Recommended starting point for the full stack. | Kubernetes deployments for GCP, Azure, or any K8s-compatible platform. |
+
+
 ## Contributing
 
 We welcome contributors from around the world to help build Hyperswitch. Whether you're fixing bugs, improving documentation, or adding new features, your help is appreciated.

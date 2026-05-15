@@ -542,6 +542,14 @@ export const payment_methods_enabled = [
         recurring_enabled: false,
         installment_payment_enabled: false,
       },
+      {
+        payment_method_type: "paypal",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
     ],
   },
   {
@@ -951,6 +959,23 @@ export const connectorDetails = {
         },
       },
     }),
+    Trustly: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "trustly",
+        payment_method_data: {
+          bank_redirect: {
+            trustly: {
+              country: "NL",
+            },
+          },
+        },
+        billing: standardBillingAddress,
+      },
+    }),
   },
   bank_debit_pm: {
     PaymentIntent: (paymentMethodType) => {
@@ -1101,6 +1126,25 @@ export const connectorDetails = {
       },
       Configs: {
         TRIGGER_SKIP: true,
+      },
+    }),
+    PaypalRedirect: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+        billing: standardBillingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
       },
     }),
   },
@@ -2628,6 +2672,79 @@ export const connectorDetails = {
         },
       },
     }),
+    CardTestingGuard: {
+      FailConfirm: getCustomExchange({
+        Request: {
+          payment_method: "card",
+          payment_method_data: {
+            card: successfulNo3DSCardDetails,
+          },
+          customer_acceptance: null,
+          setup_future_usage: "on_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "failed",
+          },
+        },
+      }),
+      GuestFailConfirm: getCustomExchange({
+        Request: {
+          payment_method: "card",
+          payment_method_data: {
+            card: successfulNo3DSCardDetails,
+          },
+          customer_acceptance: null,
+        },
+        Response: {
+          status: 200,
+          expectBlockedPayment: true,
+          body: {
+            status: "failed",
+          },
+        },
+      }),
+      BlockedConfirm: getCustomExchange({
+        Request: {
+          payment_method: "card",
+          payment_method_data: {
+            card: successfulNo3DSCardDetails,
+          },
+          customer_acceptance: null,
+          setup_future_usage: "on_session",
+        },
+        Response: {
+          status: 400,
+          body: {
+            error: {
+              type: "invalid_request",
+              code: "IR_16",
+              message: "Blocked due to suspicious activity",
+            },
+          },
+        },
+      }),
+      GuestBlockedConfirm: getCustomExchange({
+        Request: {
+          payment_method: "card",
+          payment_method_data: {
+            card: successfulNo3DSCardDetails,
+          },
+          customer_acceptance: null,
+        },
+        Response: {
+          status: 400,
+          body: {
+            error: {
+              type: "invalid_request",
+              code: "IR_16",
+              message: "Blocked due to suspicious activity",
+            },
+          },
+        },
+      }),
+    },
     L2L3Data: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -3047,6 +3164,46 @@ export const connectorDetails = {
       },
     }),
     NoConfigDefault: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    // Storage flag does not affect authentication outcome — both enabled and
+    // disabled flows produce the same 3DS challenge. Distinction is only
+    // observable via Redis, which cannot be asserted through the API layer.
+    EligibilityStorageEnabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    // Storage flag does not affect authentication outcome — both enabled and
+    // disabled flows produce the same 3DS challenge. Distinction is only
+    // observable via Redis, which cannot be asserted through the API layer.
+    EligibilityStorageDisabled: getCustomExchange({
       Request: {
         payment_method: "card",
         payment_method_data: {
