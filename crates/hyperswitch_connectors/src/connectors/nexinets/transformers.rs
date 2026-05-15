@@ -362,8 +362,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NexinetsPreAuthOrDebitResponse, T, Paym
             .redirect_url
             .map(|url| RedirectForm::from((url, Method::Get)));
         let resource_id = match item.response.transaction_type.clone() {
-            NexinetsTransactionType::Preauth => ResponseId::NoResponseId,
-            NexinetsTransactionType::Debit => {
+            NexinetsTransactionType::Preauth | NexinetsTransactionType::Debit => {
                 ResponseId::ConnectorTransactionId(transaction.transaction_id.clone())
             }
             _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,

@@ -1007,9 +1007,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservPaymentsResponse, T, PaymentsResp
 
         let redirection_data = redirect_url.map(|url| RedirectForm::from((url, Method::Get)));
 
-        let connector_metadata: Option<serde_json::Value> = Some(serde_json::json!({
-            "order_id": order_id,
-        }));
+        let connector_metadata: Option<serde_json::Value> = order_id.map(|id| {
+            serde_json::json!({
+                "order_id": id,
+            })
+        });
 
         Ok(Self {
             status: enums::AttemptStatus::from(gateway_resp.transaction_state),
