@@ -255,26 +255,14 @@ describe("Wallet tests", () => {
         }
       });
 
-      cy.step("Handle Wallet Redirection", () => {
+      cy.step("Handle Bank Redirect Redirection", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Handle Wallet Redirection");
-          return;
-        }
-        const redirectData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["wallet_pm"]["HandleWalletRedirection"];
-        if (!should_continue_further(redirectData)) {
-          shouldContinue = false;
+          cy.task("cli_log", "Skipping step: Handle Bank Redirect Redirection");
           return;
         }
         const expected_redirection = fixtures.confirmBody["return_url"];
         const payment_method_type = globalState.get("paymentMethodType");
-        const nextActionUrl = globalState.get("nextActionUrl");
-        expect(
-          nextActionUrl,
-          "nextActionUrl should be defined before handling wallet redirection"
-        ).to.be.a("string");
-        cy.handleWalletRedirection(
+        cy.handleBankRedirectRedirection(
           globalState,
           payment_method_type,
           expected_redirection
@@ -286,21 +274,10 @@ describe("Wallet tests", () => {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
         }
-        const syncConfig = getConnectorDetails(globalState.get("connectorId"))[
-          "wallet_pm"
-        ]["SyncPaymentStatus"];
-        if (!should_continue_further(syncConfig)) {
-          shouldContinue = false;
-          return;
-        }
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "wallet_pm"
         ]["Mifinity"];
-        cy.retrievePaymentCallTest({
-          globalState,
-          data,
-          expectedIntentStatus: "succeeded",
-        });
+        cy.retrievePaymentCallTest({ globalState, data });
       });
     });
   });

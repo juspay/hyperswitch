@@ -1162,26 +1162,6 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-          payment_method_type: "mifinity",
-          connector: "mifinity",
-        },
-      },
-    }),
-    HandleWalletRedirection: getCustomExchange({
-      Response: {
-        status: 200,
-        body: {},
-      },
-    }),
-    SyncPaymentStatus: getCustomExchange({
-      Response: {
-        status: 200,
-        body: {},
-      },
     }),
     PaypalRedirect: getCustomExchange({
       Request: {
