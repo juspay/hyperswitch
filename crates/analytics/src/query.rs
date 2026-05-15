@@ -707,10 +707,7 @@ where
             .iter()
             .map(|i| {
                 i.to_sql(&self.table_engine).map(|s| {
-                    let sanitized = s
-                        .replace(' ', "")
-                        .replace('\\', "\\\\")
-                        .replace('\'', "''");
+                    let sanitized = s.replace(' ', "").replace('\\', "\\\\").replace('\'', "''");
                     format!("'{sanitized}'")
                 })
             })
