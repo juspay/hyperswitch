@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.02.0-hotfix7.5
+
+### Features
+
+- **core/connector:** [Truelayer] Add support for closed loop payouts ([#12305](https://github.com/juspay/hyperswitch/pull/12305)) ([`4a60dee`](https://github.com/juspay/hyperswitch/commit/4a60dee746a3ed9c72c054a0247dee8e6f1f2bd8))
+
+### Bug Fixes
+
+- **connector:** Change payout method type for Truelayer ([#12302](https://github.com/juspay/hyperswitch/pull/12302)) ([`54ddd01`](https://github.com/juspay/hyperswitch/commit/54ddd01))
+
+**Full Changelog:** [`2026.04.02.0-hotfix7.4...2026.04.02.0-hotfix7.5`](https://github.com/juspay/hyperswitch/compare/2026.04.02.0-hotfix7.4...2026.04.02.0-hotfix7.5)
+
+- - -
+
 ## 2026.04.02.0-hotfix7.4
 
 ### Bug Fixes
