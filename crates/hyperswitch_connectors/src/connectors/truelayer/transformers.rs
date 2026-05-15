@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use actix_web::http::header::HeaderMap;
 #[cfg(feature = "payouts")]
-use api_models::payouts::{BankRedirect, PayoutMethodData};
+use api_models::payouts::{BankTransfer, PayoutMethodData};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use common_enums::enums;
 #[cfg(feature = "payouts")]
@@ -366,7 +366,7 @@ impl TryFrom<&TruelayerRouterData<&PayoutsRouterData<PoFulfill>>> for TruelayerP
         item: &TruelayerRouterData<&PayoutsRouterData<PoFulfill>>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.get_payout_method_data()? {
-            PayoutMethodData::BankRedirect(BankRedirect::OpenBankingUk(open_banking_uk_data)) => {
+            PayoutMethodData::BankTransfer(BankTransfer::OpenBanking(open_banking_data)) => {
                 let metadata = TruelayerMetadata::try_from(&item.router_data.connector_meta_data)?;
                 Ok(Self {
                     merchant_account_id: metadata.merchant_account_id,
@@ -377,10 +377,10 @@ impl TryFrom<&TruelayerRouterData<&PayoutsRouterData<PoFulfill>>> for TruelayerP
                         reference: normalize_payment_id(
                             item.router_data.request.payout_id.get_string_repr(),
                         ),
-                        account_holder_name: open_banking_uk_data.account_holder_name,
+                        account_holder_name: open_banking_data.account_holder_name,
                         account_identifier: TruelayerAccountIdentifier {
                             _type: "iban".to_string(),
-                            iban: open_banking_uk_data.iban,
+                            iban: open_banking_data.iban,
                         },
                     },
                 })

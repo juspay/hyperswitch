@@ -1,6 +1,6 @@
 pub use api_models::payouts::{
     AchBankTransfer, BacsBankTransfer, Bank as BankPayout, BankRedirect as BankRedirectPayout,
-    BankTransfer as BankTransferPayout, CardPayout, Passthrough as PassthroughPayout,
+    BankTransfer as BankTransferPayout, CardPayout, OpenBanking, Passthrough as PassthroughPayout,
     PaymentMethodTypeInfo, PayoutActionRequest, PayoutAttemptResponse, PayoutCreateRequest,
     PayoutCreateResponse, PayoutEnabledPaymentMethodsInfo, PayoutLinkResponse,
     PayoutListConstraints, PayoutListFilterConstraints, PayoutListFilters, PayoutListFiltersV2,
