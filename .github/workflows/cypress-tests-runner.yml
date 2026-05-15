@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  actions: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -712,9 +711,6 @@ jobs:
         connector: [adyenplatform]
     env:
       RUSTC_WRAPPER: sccache
-      # Temporary PR dry-run shortcut: this artifact was produced by the same
-      # branch before the workflow install fix; router code is unchanged.
-      MITM_HYPERSWITCH_ARTIFACT_RUN_ID: "25908838361"
 
     services:
       redis:
@@ -764,6 +760,12 @@ jobs:
           toolchain: stable 2 weeks ago
           components: rustfmt
 
+      - name: Install Protoc
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
@@ -771,14 +773,9 @@ jobs:
           tool: sccache
           checksum: true
 
-      - name: Download hyperswitch server artifact
+      - name: Build hyperswitch server
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/download-artifact@v8
-        with:
-          name: hyperswitch-server
-          path: target/debug
-          run-id: ${{ env.MITM_HYPERSWITCH_ARTIFACT_RUN_ID }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+        run: cargo build --package router --bin router --jobs 2
 
       - name: Make server executable
         if: ${{ env.RUN_TESTS == 'true' }}
