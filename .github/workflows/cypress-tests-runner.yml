@@ -847,12 +847,13 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         run: |
-          if ! command -v pipx >/dev/null 2>&1; then
-            python3 -m pip install --user pipx
+          if ! command -v mitmdump >/dev/null 2>&1; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh
             export PATH="$HOME/.local/bin:$PATH"
+            uv tool install mitmproxy --force
           fi
-          pipx install mitmproxy --force
           echo "$HOME/.local/bin" >> $GITHUB_PATH
+          mitmdump --version
 
       - name: Generate mitmproxy CA cert
         if: ${{ env.RUN_TESTS == 'true' }}
