@@ -1189,6 +1189,30 @@ export const connectorDetails = {
         },
       },
     }),
+    Affirm: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "affirm",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            affirm_redirect: {},
+          },
+        },
+        billing: {
+          email: "test@example.com",
+          address: {
+            country: "US",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
     Capture: getCustomExchange({
       Request: {
         amount_to_capture: 6000,
