@@ -553,16 +553,17 @@ pub enum FilterTypes {
 }
 
 pub fn filter_type_to_sql(l: &str, op: FilterTypes, r: &str) -> String {
+    let str = || r.replace('\\', "\\\\").replace('\'', "''");
     match op {
         FilterTypes::EqualBool => format!("{l} = {r}"),
-        FilterTypes::Equal => format!("{l} = '{r}'"),
-        FilterTypes::NotEqual => format!("{l} != '{r}'"),
+        FilterTypes::Equal => format!("{l} = '{}'", str()),
+        FilterTypes::NotEqual => format!("{l} != '{}'", str()),
         FilterTypes::In => format!("{l} IN ({r})"),
-        FilterTypes::Gte => format!("{l} >= '{r}'"),
+        FilterTypes::Gte => format!("{l} >= '{}'", str()),
         FilterTypes::Gt => format!("{l} > {r}"),
-        FilterTypes::Lte => format!("{l} <= '{r}'"),
-        FilterTypes::Like => format!("{l} LIKE '%{r}%'"),
-        FilterTypes::NotLike => format!("{l} NOT LIKE '%{r}%'"),
+        FilterTypes::Lte => format!("{l} <= '{}'", str()),
+        FilterTypes::Like => format!("{l} LIKE '%{}%'", str()),
+        FilterTypes::NotLike => format!("{l} NOT LIKE '%{}%'", str()),
         FilterTypes::IsNotNull => format!("{l} IS NOT NULL"),
     }
 }
@@ -705,10 +706,12 @@ where
         let list = values
             .iter()
             .map(|i| {
-                // trimming whitespaces from the filter values received in request, to prevent a possibility of an SQL injection
                 i.to_sql(&self.table_engine).map(|s| {
-                    let trimmed_str = s.replace(' ', "");
-                    format!("'{trimmed_str}'")
+                    let sanitized = s
+                        .replace(' ', "")
+                        .replace('\\', "\\\\")
+                        .replace('\'', "''");
+                    format!("'{sanitized}'")
                 })
             })
             .collect::<error_stack::Result<Vec<String>, ParsingError>>()
