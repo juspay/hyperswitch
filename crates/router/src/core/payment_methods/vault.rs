@@ -1003,7 +1003,7 @@ impl Vaultable for api::BankTransferPayout {
                 pix_key: None,
                 tax_id: None,
                 bank_number: bank_details.bank_number.to_owned(),
-                account_holder_name: None
+                account_holder_name: None,
             },
             Self::OpenBanking(bank_details) => TokenizedBankSensitiveValues {
                 bank_account_number: None,
