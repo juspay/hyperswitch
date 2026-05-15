@@ -50,7 +50,8 @@ pub use hyperswitch_interfaces::api::payments::{
     PaymentPostCaptureVoid, PaymentPostSessionTokens, PaymentReject, PaymentSession,
     PaymentSessionUpdate, PaymentSync, PaymentToken, PaymentUpdateMetadata, PaymentVoid,
     PaymentsCompleteAuthorize, PaymentsCreateOrder, PaymentsGenerateQr, PaymentsPostProcessing,
-    PaymentsPreProcessing, PaymentsPushNotification, TaxCalculation,
+    PaymentsPreProcessing, PaymentsPushNotification, SurchargeCalculation, SurchargeComplete,
+    SurchargeRefund, TaxCalculation,
 };
 
 pub use super::payments_v2::{
