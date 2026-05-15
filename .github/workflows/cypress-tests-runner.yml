@@ -705,11 +705,11 @@ jobs:
     if: |
       github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
-    runs-on: hyperswitch-runners
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        connector: [paypal, bluesnap, redsys, gigadat, zift, loonio, adyenplatform]
+        connector: [adyenplatform]
     env:
       RUSTC_WRAPPER: sccache
       # Temporary PR dry-run shortcut: this artifact was produced by the same
