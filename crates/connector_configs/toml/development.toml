@@ -8068,8 +8068,8 @@ payment_method_type = "interac"
 [truelayer_payout.connector_auth.BodyKey]
 api_key = "Client ID"
 key1 = "Client Secret"
-[[truelayer_payout.bank_redirect]]
-payment_method_type = "open_banking_uk"
+[[truelayer_payout.bank_transfer]]
+payment_method_type = "open_banking"
 
 [truelayer_payout.metadata.kid]
 name = "kid"
@@ -8104,7 +8104,7 @@ api_secret = "Private Key(Base64 encoded)"
 [[trustly_payout.bank_transfer]]
 payment_method_type = "trustly"
 [trustly_payout.connector_webhook_details]
-merchant_secret="Trustly's public key"
+merchant_secret="Trustly's public key(Base64 encoded)"
 
 [tesouro]
 [[tesouro.credit]]
@@ -8526,7 +8526,7 @@ api_secret = "Private Key(Base64 encoded)"
 [[trustly.bank_redirect]]
 payment_method_type = "trustly"
 [trustly.connector_webhook_details]
-merchant_secret="Trustly's public key"
+merchant_secret="Trustly's public key(Base64 encoded)"
 
 [imerchantsolutions]
 [imerchantsolutions.connector_auth.HeaderKey]

@@ -518,11 +518,27 @@ Cypress.Commands.add("healthCheck", (globalState) => {
   });
 });
 
+/**
+ * Creates a merchant account and optionally validates response fields.
+ * @param {Object} merchantCreateBody - The merchant creation request body
+ * @param {Object} globalState - The global state object
+ * @param {Object} options - Options for merchant creation
+ * @param {string|null} [options.expectedMerchantAccountType=null] - Expected merchant_account_type to validate (optional)
+ * @param {string} [options.expectedProductType="orchestration"] - Expected product_type to validate. Pass a string value like "vault", "recon", "recovery", etc. to validate the response contains this product_type. Defaults to "orchestration".
+ * @param {number} [options.expectedStatus=200] - Expected HTTP status code. Use 400 for negative test cases.
+ * @param {string} [options.expectedErrorCode=null] - Expected error code in response body (for negative test cases, e.g. "IR_06")
+ * @param {string} [options.merchantIdStateKey="merchantId"] - Key to store merchant ID in global state
+ * @param {string} [options.profileIdStateKey="profileId"] - Key to store profile ID in global state
+ * @param {string} [options.publishableKeyStateKey="publishableKey"] - Key to store publishable key in global state
+ */
 Cypress.Commands.add(
   "merchantCreateCallTest",
   (merchantCreateBody, globalState, options = {}) => {
     const {
       expectedMerchantAccountType = null,
+      expectedProductType = "orchestration",
+      expectedStatus = 200,
+      expectedErrorCode = null,
       merchantIdStateKey = "merchantId",
       profileIdStateKey = "profileId",
       publishableKeyStateKey = "publishableKey",
@@ -530,7 +546,6 @@ Cypress.Commands.add(
 
     const merchantId = RequestBodyUtils.generateRandomString();
     RequestBodyUtils.setMerchantId(merchantCreateBody, merchantId);
-    globalState.set(merchantIdStateKey, merchantId);
 
     cy.request({
       method: "POST",
@@ -541,14 +556,34 @@ Cypress.Commands.add(
         "api-key": globalState.get("adminApiKey"),
       },
       body: merchantCreateBody,
+      failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
+        expect(response.status).to.equal(expectedStatus);
+
+        if (expectedStatus !== 200) {
+          if (expectedErrorCode) {
+            expect(response.body).to.have.property("error");
+            expect(response.body.error.code).to.equal(expectedErrorCode);
+          }
+          return;
+        }
+
+        globalState.set(merchantIdStateKey, merchantId);
+
         if (expectedMerchantAccountType) {
           expect(response.body).to.have.property(
             "merchant_account_type",
             expectedMerchantAccountType
+          );
+        }
+
+        if (expectedProductType) {
+          expect(response.body).to.have.property(
+            "product_type",
+            expectedProductType
           );
         }
 
@@ -561,7 +596,8 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("merchantRetrieveCall", (globalState) => {
+Cypress.Commands.add("merchantRetrieveCall", (globalState, options = {}) => {
+  const { expectedProductType = null } = options;
   const merchant_id = globalState.get("merchantId");
   cy.request({
     method: "GET",
@@ -592,6 +628,13 @@ Cypress.Commands.add("merchantRetrieveCall", (globalState) => {
 
       if (globalState.get("publishableKey") === undefined) {
         globalState.set("publishableKey", response.body.publishable_key);
+      }
+
+      if (expectedProductType) {
+        expect(response.body).to.have.property(
+          "product_type",
+          expectedProductType
+        );
       }
     });
   });
@@ -827,6 +870,21 @@ Cypress.Commands.add(
     });
   }
 );
+Cypress.Commands.add("verifyUrlParamExcluded", (paramName, message) => {
+  cy.url().then((url) => {
+    const urlParams = new URLSearchParams(new URL(url).search);
+    expect(urlParams.has(paramName), paramName).to.be.false;
+    cy.task("cli_log", message);
+  });
+});
+
+Cypress.Commands.add("verifyUrlParamIncluded", (paramName, message) => {
+  cy.url().then((url) => {
+    const urlParams = new URLSearchParams(new URL(url).search);
+    expect(urlParams.has(paramName), paramName).to.be.true;
+    cy.task("cli_log", message);
+  });
+});
 
 function maskValue(value) {
   if (value.length > 4) {
