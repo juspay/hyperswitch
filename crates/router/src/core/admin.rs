@@ -1626,6 +1626,8 @@ impl ConnectorTypeAndConnectorName<'_> {
             api_enums::convert_tax_connector(self.connector_name.to_string().as_str());
         let billing_connector =
             api_enums::convert_billing_connector(self.connector_name.to_string().as_str());
+        let surcharge_connector =
+            api_enums::convert_surcharge_connector(self.connector_name.to_string().as_str());
 
         if pm_auth_connector.is_some() {
             if self.connector_type != &api_enums::ConnectorType::PaymentMethodAuth
@@ -1659,6 +1661,13 @@ impl ConnectorTypeAndConnectorName<'_> {
             }
         } else if vault_connector.is_some() {
             if self.connector_type != &api_enums::ConnectorType::VaultProcessor {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid connector type given".to_string(),
+                }
+                .into());
+            }
+        } else if surcharge_connector.is_some() {
+            if self.connector_type != &api_enums::ConnectorType::SurchargeProcessor {
                 return Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid connector type given".to_string(),
                 }
@@ -3684,6 +3693,9 @@ impl ProfileCreateBridge for api::ProfileCreate {
             network_tokenization_credentials,
             payment_method_blocking: self.payment_method_blocking.map(ForeignInto::foreign_into),
             default_fallback_routing: None,
+            surcharge_connector_details: self
+                .surcharge_connector_details
+                .map(ForeignInto::foreign_into),
         }))
     }
 
@@ -3841,6 +3853,9 @@ impl ProfileCreateBridge for api::ProfileCreate {
             merchant_country_code: self.merchant_country_code,
             split_txns_enabled: self.split_txns_enabled.unwrap_or_default(),
             billing_processor_id: self.billing_processor_id,
+            surcharge_connector_details: self
+                .surcharge_connector_details
+                .map(ForeignInto::foreign_into),
         }))
     }
 }
@@ -4209,6 +4224,9 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 payment_method_blocking: self
                     .payment_method_blocking
                     .map(ForeignInto::foreign_into),
+                surcharge_connector_details: self
+                    .surcharge_connector_details
+                    .map(ForeignInto::foreign_into),
             },
         )))
     }
@@ -4360,6 +4378,9 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 revenue_recovery_retry_algorithm_type,
                 split_txns_enabled: self.split_txns_enabled,
                 billing_processor_id: self.billing_processor_id,
+                surcharge_connector_details: self
+                    .surcharge_connector_details
+                    .map(ForeignInto::foreign_into),
             },
         )))
     }
