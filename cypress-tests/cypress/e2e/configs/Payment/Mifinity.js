@@ -38,5 +38,16 @@ export const connectorDetails = {
         },
       },
     }),
+    MifinityPostRedirect: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method_type: "mifinity",
+          connector: "mifinity",
+        },
+      },
+    }),
   },
 };

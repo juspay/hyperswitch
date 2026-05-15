@@ -209,8 +209,6 @@ describe("Wallet tests", () => {
   });
 
   context("Mifinity Create and Confirm flow test", () => {
-    const shouldContinue = true;
-
     before("seed global state", function () {
       let skip = false;
 
@@ -234,12 +232,6 @@ describe("Wallet tests", () => {
             this.skip();
           }
         });
-    });
-
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
     });
 
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Wallet Redirection -> Retrieve Payment", () => {
@@ -309,8 +301,12 @@ describe("Wallet tests", () => {
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "wallet_pm"
-        ]["Mifinity"];
-        cy.retrievePaymentCallTest({ globalState, data });
+        ]["MifinityPostRedirect"];
+        cy.retrievePaymentCallTest({
+          globalState,
+          data,
+          expectedIntentStatus: "succeeded",
+        });
       });
     });
   });

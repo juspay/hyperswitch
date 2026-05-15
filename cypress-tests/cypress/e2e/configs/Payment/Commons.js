@@ -1163,6 +1163,15 @@ export const connectorDetails = {
         },
       },
     }),
+    MifinityPostRedirect: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
     PaypalRedirect: getCustomExchange({
       Request: {
         payment_method: "wallet",
