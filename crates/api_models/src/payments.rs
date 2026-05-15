@@ -11286,7 +11286,7 @@ pub struct PaymentsManualUpdateResponse {
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 pub struct PaymentsManualStatusUpdateRequest {
     /// The target status to transition to (Succeeded or Failed)
-    pub intent_status: enums::IntentStatus,
+    pub intent_status: enums::ManualUpdateIntentStatus,
 }
 
 /// Response for manual payment status update (Dashboard API)

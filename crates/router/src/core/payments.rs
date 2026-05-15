@@ -12098,24 +12098,11 @@ pub async fn payments_manual_status_update(
         .into());
     }
 
-    let attempt_id = payment_intent.active_attempt_id.as_ref().ok_or_else(|| {
-        errors::ApiErrorResponse::InvalidRequestData {
-            message: "No active attempt found for this payment".to_string(),
-        }
-    })?;
+    let attempt_id = payment_intent.active_attempt.get_id();
 
     let attempt_status = match intent_status {
-        enums::IntentStatus::Succeeded => enums::AttemptStatus::Charged,
-        enums::IntentStatus::Failed => enums::AttemptStatus::Failure,
-        _ => {
-            return Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!(
-                    "Target status must be either 'succeeded' or 'failed', received '{:?}'",
-                    intent_status
-                ),
-            }
-            .into());
-        }
+        enums::ManualUpdateIntentStatus::Succeeded => enums::AttemptStatus::Charged,
+        enums::ManualUpdateIntentStatus::Failed => enums::AttemptStatus::Failure,
     };
 
     let payment_attempt = state
@@ -12123,7 +12110,7 @@ pub async fn payments_manual_status_update(
         .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
             &payment_id,
             merchant_id,
-            attempt_id,
+            &attempt_id,
             merchant_account.storage_scheme,
             &key_store,
         )
@@ -12157,6 +12144,8 @@ pub async fn payments_manual_status_update(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable("Error while updating the payment_attempt")?;
+
+    let intent_status = intent_status.to_intent_status();
 
     let intent_update = storage::PaymentIntentUpdate::ManualUpdate {
         status: Some(intent_status),
