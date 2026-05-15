@@ -28,7 +28,7 @@ describe("Surcharge DSL Configuration Test", () => {
         ];
       const surchargeBody = {
         name: "surcharge_config_rate",
-        merchantSurchargeConfigs: {},
+        merchant_surcharge_configs: {},
         algorithm: {
           defaultSelection: {
             surchargeDetails: {
@@ -84,7 +84,7 @@ describe("Surcharge DSL Configuration Test", () => {
         ];
       const surchargeBody = {
         name: "surcharge_config_fixed",
-        merchantSurchargeConfigs: {},
+        merchant_surcharge_configs: {},
         algorithm: {
           defaultSelection: {
             surchargeDetails: {
@@ -131,8 +131,8 @@ describe("Surcharge DSL Configuration Test", () => {
         ];
       const surchargeBody = {
         name: "surcharge_config_complex",
-        merchantSurchargeConfigs: {
-          showSurchargeBreakupScreen: true,
+        merchant_surcharge_configs: {
+          show_surcharge_breakup_screen: true,
         },
         algorithm: {
           defaultSelection: {

@@ -1,76 +1,4 @@
 export const connectorDetails = {
-  payoutRouting: {
-    Request: {
-      name: "payout routing",
-      description: "payout routing config",
-      algorithm: {
-        type: "priority",
-        data: [],
-      },
-      profile_id: "{{profile_id}}",
-      transaction_type: "payout",
-    },
-    Response: {
-      status: 200,
-      body: {
-        algorithm_for: "payout",
-      },
-    },
-  },
-  payoutVolumeRouting: {
-    Request: {
-      name: "payout volume routing",
-      description: "payout volume based routing config",
-      algorithm: {
-        type: "volume_split",
-        data: [],
-      },
-      profile_id: "{{profile_id}}",
-      transaction_type: "payout",
-    },
-    Response: {
-      status: 200,
-      body: {
-        algorithm_for: "payout",
-      },
-    },
-  },
-  payoutRuleBasedRouting: {
-    Request: {
-      name: "payout rule based routing",
-      description: "payout rule based routing config",
-      algorithm: {
-        type: "advanced",
-        data: [],
-      },
-      profile_id: "{{profile_id}}",
-      transaction_type: "payout",
-    },
-    Response: {
-      status: 200,
-      body: {
-        algorithm_for: "payout",
-      },
-    },
-  },
-  payoutDefaultFallbackRouting: {
-    Request: {
-      name: "payout default fallback routing",
-      description: "payout default fallback routing config",
-      algorithm: {
-        type: "advanced",
-        data: [],
-      },
-      profile_id: "{{profile_id}}",
-      transaction_type: "payout",
-    },
-    Response: {
-      status: 200,
-      body: {
-        algorithm_for: "payout",
-      },
-    },
-  },
   priorityRouting: {
     Request: {
       name: "priority routing",
@@ -179,7 +107,7 @@ export const connectorDetails = {
     CreateRate: {
       Request: {
         name: "surcharge_config_rate",
-        merchantSurchargeConfigs: {},
+        merchant_surcharge_configs: {},
         algorithm: {
           defaultSelection: {
             surchargeDetails: {
@@ -210,7 +138,7 @@ export const connectorDetails = {
     CreateFixed: {
       Request: {
         name: "surcharge_config_fixed",
-        merchantSurchargeConfigs: {},
+        merchant_surcharge_configs: {},
         algorithm: {
           defaultSelection: {
             surchargeDetails: {
@@ -241,8 +169,8 @@ export const connectorDetails = {
     CreateConditional: {
       Request: {
         name: "surcharge_config_complex",
-        merchantSurchargeConfigs: {
-          showSurchargeBreakupScreen: true,
+        merchant_surcharge_configs: {
+          show_surcharge_breakup_screen: true,
         },
         algorithm: {
           defaultSelection: {
@@ -379,3 +307,5 @@ export const connectorDetails = {
     },
   },
 };
+
+export default connectorDetails;
