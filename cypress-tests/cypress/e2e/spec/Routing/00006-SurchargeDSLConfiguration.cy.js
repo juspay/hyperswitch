@@ -4,67 +4,16 @@ import * as utils from "../../configs/Routing/Utils";
 let globalState;
 
 describe("Surcharge DSL Configuration Test", () => {
-  before("seed global state and authenticate", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-
-      const baseUrl = globalState.get("baseUrl");
-      const adminApiKey = globalState.get("adminApiKey");
-
-      const userEmail = "prajwal.nl+1@cypresstest.in";
-      const userPassword = "Cypress@2025";
-
-      cy.request({
-        method: "POST",
-        url: `${baseUrl}/user/signup_with_merchant_id`,
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": adminApiKey,
-        },
-        body: {
-          email: userEmail,
-          password: userPassword,
-          company_name: "Juspay",
-          name: "Prajwal",
-        },
-        failOnStatusCode: false,
-      }).then((_signupResponse) => {
-        cy.request({
-          method: "POST",
-          url: `${baseUrl}/user/v2/signin?token_only=true`,
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: {
-            email: userEmail,
-            password: userPassword,
-          },
-          failOnStatusCode: false,
-        }).then((signinResponse) => {
-          if (signinResponse.body.token_type === "totp") {
-            const totpToken = signinResponse.body.token;
-
-            cy.request({
-              method: "GET",
-              url: `${baseUrl}/user/2fa/terminate?skip_two_factor_auth=true`,
-              headers: {
-                Authorization: `Bearer ${totpToken}`,
-                "Content-Type": "application/json",
-              },
-              failOnStatusCode: false,
-            }).then((terminateResponse) => {
-              if (terminateResponse.body.token_type === "user_info") {
-                globalState.set("userInfoToken", terminateResponse.body.token);
-              }
-            });
-          }
-        });
+  before("seed global state", () => {
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+        return globalState;
+      })
+      .then(() => {
+        // Populate profileId and MCA info via prerequisite call
+        cy.ListMcaByMid(globalState);
       });
-    });
-  });
-
-  before("populate profile and MCA info", () => {
-    cy.ListMcaByMid(globalState);
   });
 
   afterEach("flush global state", () => {
