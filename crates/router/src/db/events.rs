@@ -1541,8 +1541,6 @@ mod tests {
             installment_data: None,
             state_metadata: None,
             connector_response_metadata: None,
-            connector_customer_id: None,
-            sender_payment_instrument_id: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));
