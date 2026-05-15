@@ -260,9 +260,9 @@ describe("Wallet tests", () => {
           cy.task("cli_log", "Skipping step: Handle Wallet Redirection");
           return;
         }
-        const redirectData = getConnectorDetails(globalState.get("connectorId"))[
-          "wallet_pm"
-        ]["HandleWalletRedirection"];
+        const redirectData = getConnectorDetails(
+          globalState.get("connectorId")
+        )["wallet_pm"]["HandleWalletRedirection"];
         if (!should_continue_further(redirectData)) {
           shouldContinue = false;
           return;
