@@ -1317,8 +1317,6 @@ export const connectorDetails = {
           card: successfulThreeDSTestCardDetails,
         },
         currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
         is_iframe_redirection_enabled: true,
       },
       Response: {
