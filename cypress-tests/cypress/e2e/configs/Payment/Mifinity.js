@@ -1,4 +1,5 @@
-import { getCustomExchange, standardBillingAddress } from "./Commons";
+import { getCustomExchange } from "./Modifiers";
+import { standardBillingAddress } from "./Commons";
 
 export const connectorDetails = {
   wallet_pm: {
