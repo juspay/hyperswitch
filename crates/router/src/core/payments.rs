@@ -751,7 +751,7 @@ where
             cc.clone()
                 .expose()
                 .get(mca_id.get_string_repr())
-                .and_then(|val| val.as_str().as_deref().map(String::from))
+                .and_then(|val| val.as_str().map(String::from))
         })
     });
 
