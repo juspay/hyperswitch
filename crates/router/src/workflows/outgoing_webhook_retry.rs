@@ -275,11 +275,7 @@ pub(crate) async fn get_webhook_delivery_retry_schedule_time(
     retry_count: i32,
 ) -> Option<time::PrimitiveDateTime> {
     let mapping = dimensions
-        .get_pt_mapping_outgoing_webhooks(
-            db,
-            superposition_client,
-            dimensions.get_processor_merchant_id(),
-        )
+        .get_pt_mapping_outgoing_webhooks(db, superposition_client, None)
         .await;
 
     let time_delta =

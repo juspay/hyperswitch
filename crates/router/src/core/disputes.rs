@@ -855,6 +855,10 @@ pub async fn fetch_disputes_from_connector(
         .await;
 
         if payment_attempt.is_ok() {
+            let payment_id = payment_attempt
+                .as_ref()
+                .ok()
+                .map(|pa| pa.payment_id.clone());
             let connector_enum = connector_name
                 .parse::<common_enums::connector_enums::Connector>()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -867,6 +871,7 @@ pub async fn fetch_disputes_from_connector(
                 state.superposition_service.as_ref(),
                 &dimensions,
                 0,
+                payment_id.as_ref(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

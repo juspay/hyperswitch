@@ -109,6 +109,7 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
                 .finish_process_with_business_status(process, business_status::COMPLETED_BY_PT)
                 .await?;
         } else {
+            let payment_id = payment_attempt.payment_id.clone();
             // Update dispute data
             let response = disputes::update_dispute_data(
                 state,
@@ -141,6 +142,7 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
                         tracking_data
                             .processor_merchant_id
                             .unwrap_or_else(|| tracking_data.merchant_id.clone()),
+                        Some(payment_id),
                         process,
                     )
                     .await?;
@@ -165,13 +167,10 @@ pub async fn get_sync_process_schedule_time(
     superposition_client: &external_services::superposition::SuperpositionClient,
     dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
     retry_count: i32,
+    payment_id: Option<&common_utils::id_type::PaymentId>,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let mapping = dimensions
-        .get_pt_mapping_dispute_sync(
-            db,
-            superposition_client,
-            dimensions.get_processor_merchant_id(),
-        )
+        .get_pt_mapping_dispute_sync(db, superposition_client, payment_id)
         .await;
     let time_delta = scheduler_utils::get_schedule_time(mapping, retry_count);
 
@@ -186,6 +185,7 @@ pub async fn retry_sync_task(
     superposition_client: &external_services::superposition::SuperpositionClient,
     connector: String,
     processor_merchant_id: common_utils::id_type::MerchantId,
+    payment_id: Option<common_utils::id_type::PaymentId>,
     pt: storage::ProcessTracker,
 ) -> Result<bool, sch_errors::ProcessTrackerError> {
     let connector_enum = connector
@@ -194,9 +194,14 @@ pub async fn retry_sync_task(
     let dimensions = crate::core::configs::dimension_state::Dimensions::new()
         .with_processor_merchant_id(processor_merchant_id.into())
         .with_connector(connector_enum);
-    let schedule_time =
-        get_sync_process_schedule_time(db, superposition_client, &dimensions, pt.retry_count + 1)
-            .await?;
+    let schedule_time = get_sync_process_schedule_time(
+        db,
+        superposition_client,
+        &dimensions,
+        pt.retry_count + 1,
+        payment_id.as_ref(),
+    )
+    .await?;
 
     match schedule_time {
         Some(s_time) => {

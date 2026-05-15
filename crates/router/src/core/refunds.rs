@@ -2030,6 +2030,7 @@ pub async fn sync_refund_with_gateway_workflow(
                 state.superposition_service.as_ref(),
                 response.connector,
                 response.merchant_id,
+                Some(refund_core.payment_id.clone()),
                 refund_tracker.to_owned(),
             )
             .await?;
@@ -2047,6 +2048,7 @@ pub async fn retry_refund_sync_task(
     superposition_client: &external_services::superposition::SuperpositionClient,
     connector: String,
     merchant_id: common_utils::id_type::MerchantId,
+    payment_id: Option<common_utils::id_type::PaymentId>,
     pt: storage::ProcessTracker,
 ) -> Result<bool, sch_errors::ProcessTrackerError> {
     let connector_enum = connector
@@ -2060,6 +2062,7 @@ pub async fn retry_refund_sync_task(
         superposition_client,
         &dimensions,
         pt.retry_count + 1,
+        payment_id.as_ref(),
     )
     .await?;
 
@@ -2231,12 +2234,17 @@ pub async fn add_refund_sync_task(
     let dimensions = crate::core::configs::dimension_state::Dimensions::new()
         .with_processor_merchant_id(refund.merchant_id.clone().into())
         .with_connector(connector_enum);
-    let schedule_time =
-        get_refund_sync_process_schedule_time(db, superposition_client, &dimensions, 0)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch schedule time for refund sync process")?
-            .unwrap_or_else(common_utils::date_time::now);
+    let schedule_time = get_refund_sync_process_schedule_time(
+        db,
+        superposition_client,
+        &dimensions,
+        0,
+        Some(&refund.payment_id),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to fetch schedule time for refund sync process")?
+    .unwrap_or_else(common_utils::date_time::now);
     let refund_workflow_tracking_data = refund_to_refund_core_workflow_model(refund);
     let tag = ["REFUND"];
     let process_tracker_entry = storage::ProcessTrackerNew::new(
@@ -2312,13 +2320,10 @@ pub async fn get_refund_sync_process_schedule_time(
     superposition_client: &external_services::superposition::SuperpositionClient,
     dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
     retry_count: i32,
+    payment_id: Option<&common_utils::id_type::PaymentId>,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let mapping = dimensions
-        .get_pt_mapping_refund_sync(
-            db,
-            superposition_client,
-            dimensions.get_processor_merchant_id(),
-        )
+        .get_pt_mapping_refund_sync(db, superposition_client, payment_id)
         .await;
 
     let time_delta = process_tracker_utils::get_schedule_time(mapping, retry_count);

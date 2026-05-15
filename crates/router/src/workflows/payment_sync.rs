@@ -271,11 +271,7 @@ pub async fn get_sync_process_schedule_time(
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let mapping = dimensions
-        .get_pt_mapping_payment_sync(
-            db,
-            superposition_client,
-            dimensions.get_processor_merchant_id(),
-        )
+        .get_pt_mapping_payment_sync(db, superposition_client, None)
         .await;
     let time_delta = scheduler_utils::get_schedule_time(mapping, retry_count);
 

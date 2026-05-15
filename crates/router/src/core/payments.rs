@@ -4431,7 +4431,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .get_poll_config_external_three_ds(
                 state.store.as_ref(),
                 state.superposition_service.as_ref(),
-                Some(merchant_id),
+                Some(&payment_id),
             )
             .await;
         let profile_id = payments_response

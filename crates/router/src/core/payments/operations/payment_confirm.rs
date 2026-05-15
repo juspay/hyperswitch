@@ -1499,7 +1499,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .get_poll_config_external_three_ds(
                             state.store.as_ref(),
                             state.superposition_service.as_ref(),
-                            Some(&business_profile.merchant_id),
+                            Some(payment_data.payment_intent.get_id()),
                         )
                         .await;
                     payment_data.poll_config = Some(poll_config)
@@ -2074,7 +2074,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .get_poll_config_external_three_ds(
                             state.store.as_ref(),
                             state.superposition_service.as_ref(),
-                            Some(&business_profile.merchant_id),
+                            Some(payment_data.payment_intent.get_id()),
                         )
                         .await;
                     payment_data.poll_config = Some(poll_config)

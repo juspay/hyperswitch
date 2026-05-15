@@ -470,7 +470,7 @@ config! {
     default = crate::types::PollConfig::default(),
     object = true,
     requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
-    targeting_key = id_type::MerchantId
+    targeting_key = id_type::PaymentId
 }
 
 config! {
@@ -479,7 +479,7 @@ config! {
     default = scheduler::types::process_data::OutgoingWebhookRetryProcessTrackerMapping::default(),
     object = true,
     requires = dimension_state::DimensionsWithProcessorMerchantId,
-    targeting_key = id_type::MerchantId
+    targeting_key = id_type::PaymentId
 }
 
 config! {
@@ -488,7 +488,7 @@ config! {
     default = scheduler::types::process_data::RevenueRecoveryPaymentProcessTrackerMapping::default(),
     object = true,
     requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
-    targeting_key = id_type::MerchantId
+    targeting_key = id_type::PaymentId
 }
 
 config! {
@@ -497,7 +497,7 @@ config! {
     default = scheduler::types::process_data::ConnectorPTMapping::default(),
     object = true,
     requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
-    targeting_key = id_type::MerchantId
+    targeting_key = id_type::PaymentId
 }
 
 config! {
@@ -506,7 +506,7 @@ config! {
     default = scheduler::types::process_data::ConnectorPTMapping::default(),
     object = true,
     requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
-    targeting_key = id_type::MerchantId
+    targeting_key = id_type::PaymentId
 }
 
 config! {
@@ -515,5 +515,5 @@ config! {
     default = scheduler::types::process_data::ConnectorPTMapping::default(),
     object = true,
     requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
-    targeting_key = id_type::MerchantId
+    targeting_key = id_type::PaymentId
 }
