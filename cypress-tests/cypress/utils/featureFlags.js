@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-const config_fields = ["CONNECTOR_CREDENTIAL", "DELAY", "TRIGGER_SKIP"];
+const config_fields = ["CONNECTOR_CREDENTIAL", "DELAY", "TRIGGER_SKIP", "SKIP_BILLING"];
 
 const DEFAULT_CONNECTOR = "connector_1";
 
@@ -76,6 +76,7 @@ function validateConfigValue(key, value) {
 
       case "TRIGGER_SKIP":
       case "DELAY.STATUS":
+      case "SKIP_BILLING":
         if (!validateType(value, "boolean")) return false;
         break;
 
@@ -197,5 +198,6 @@ export function execConfig(configs) {
   return {
     profilePrefix: profileId,
     merchantConnectorPrefix: connectorId,
+    skipBilling: configs?.SKIP_BILLING ?? false,
   };
 }

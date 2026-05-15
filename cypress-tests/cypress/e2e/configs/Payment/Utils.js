@@ -76,6 +76,7 @@ import { connectorDetails as worldpayvantivConnectorDetails } from "./Worldpayva
 import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.js";
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 import { connectorDetails as ziftConnectorDetails } from "./Zift.js";
+import { connectorDetails as mifinityConnectorDetails } from "./Mifinity.js";
 const connectorDetails = {
   aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
@@ -151,6 +152,7 @@ const connectorDetails = {
   xendit: xenditConnectorDetails,
   zift: ziftConnectorDetails,
   loonio: loonioConnectorDetails,
+  mifinity: mifinityConnectorDetails,
 };
 
 /**
