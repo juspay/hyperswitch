@@ -7976,7 +7976,9 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
  * @param {Object} globalState - The global state object
  */
 Cypress.Commands.add("verifyPaymentResponseHash", (globalState) => {
-  const enablePaymentResponseHash = globalState.get("enablePaymentResponseHash");
+  const enablePaymentResponseHash = globalState.get(
+    "enablePaymentResponseHash"
+  );
   const hashKey = globalState.get("paymentResponseHashKey");
 
   expect(
@@ -7984,10 +7986,8 @@ Cypress.Commands.add("verifyPaymentResponseHash", (globalState) => {
     "enable_payment_response_hash should be true"
   ).to.equal(true);
 
-  expect(
-    hashKey,
-    "payment_response_hash_key should exist"
-  ).to.be.a("string").and.not.be.empty;
+  expect(hashKey, "payment_response_hash_key should exist").to.be.a("string")
+    .and.not.be.empty;
 
   cy.task(
     "cli_log",
@@ -8031,7 +8031,10 @@ Cypress.Commands.add("verifyRedirectSignature", (globalState) => {
     expect(
       signatureAlgorithm,
       "signature_algorithm should be a supported HMAC algorithm"
-    ).to.be.oneOf(["HMAC-SHA512", "HMAC-SHA256"], "signature_algorithm must be a supported HMAC algorithm");
+    ).to.be.oneOf(
+      ["HMAC-SHA512", "HMAC-SHA256"],
+      "signature_algorithm must be a supported HMAC algorithm"
+    );
 
     const expectedLength = signatureAlgorithm === "HMAC-SHA512" ? 128 : 64;
     expect(
@@ -8048,8 +8051,10 @@ Cypress.Commands.add("verifyRedirectSignature", (globalState) => {
 
 Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
   const hashKey = globalState.get("paymentResponseHashKey");
-  expect(hashKey, "payment_response_hash_key should exist in global state").to.be.a("string")
-    .and.not.be.empty;
+  expect(
+    hashKey,
+    "payment_response_hash_key should exist in global state"
+  ).to.be.a("string").and.not.be.empty;
 
   const paymentId = globalState.get("paymentID");
   const publishableKey = globalState.get("publishableKey");
@@ -8086,7 +8091,10 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
     expect(
       signatureAlgorithm,
       "signature_algorithm should be a supported HMAC algorithm"
-    ).to.be.oneOf(["HMAC-SHA512", "HMAC-SHA256"], "signature_algorithm must be a supported HMAC algorithm");
+    ).to.be.oneOf(
+      ["HMAC-SHA512", "HMAC-SHA256"],
+      "signature_algorithm must be a supported HMAC algorithm"
+    );
 
     const params = [];
     urlObj.searchParams.forEach((value, key) => {
@@ -8120,7 +8128,8 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
             "cli_log",
             `HMAC computation returned null after ${maxRetries} attempts - failing test`
           );
-          expect(computedSignature, "HMAC computation should not return null").to.not.be.null;
+          expect(computedSignature, "HMAC computation should not return null")
+            .to.not.be.null;
           return;
         }
 
@@ -8163,7 +8172,11 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
               attempt();
               return;
             }
-            reject(new Error(`HMAC computation returned null after ${maxRetries} attempts`));
+            reject(
+              new Error(
+                `HMAC computation returned null after ${maxRetries} attempts`
+              )
+            );
             return;
           }
           resolve(result);
@@ -8250,8 +8263,10 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
 
 Cypress.Commands.add("verifyWebhookSignatureHeader", (globalState) => {
   const hashKey = globalState.get("paymentResponseHashKey");
-  expect(hashKey, "payment_response_hash_key should exist in global state").to.be.a("string")
-    .and.not.be.empty;
+  expect(
+    hashKey,
+    "payment_response_hash_key should exist in global state"
+  ).to.be.a("string").and.not.be.empty;
 
   const paymentId = globalState.get("paymentID");
   const apiKey = globalState.get("adminApiKey");
@@ -8316,7 +8331,8 @@ Cypress.Commands.add("verifyWebhookSignatureHeader", (globalState) => {
             "cli_log",
             `HMAC computation returned null after ${maxRetries} attempts - failing test`
           );
-          expect(computedSignature, "HMAC computation should not return null").to.not.be.null;
+          expect(computedSignature, "HMAC computation should not return null")
+            .to.not.be.null;
           return;
         }
 
