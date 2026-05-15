@@ -377,13 +377,11 @@ impl TryFrom<&TruelayerRouterData<&PayoutsRouterData<PoFulfill>>> for TruelayerP
                         reference: normalize_payment_id(
                             item.router_data.request.payout_id.get_string_repr(),
                         ),
-                        account_holder_name: Some(open_banking_data.account_holder_name),
-                        account_identifier: Some(TruelayerAccountIdentifier {
+                        account_holder_name: open_banking_data.account_holder_name,
+                        account_identifier: TruelayerAccountIdentifier {
                             _type: "iban".to_string(),
                             iban: open_banking_data.iban,
-                        }),
-                        user_id: None,
-                        payment_source_id: None,
+                        },
                     },
                 })
             }
