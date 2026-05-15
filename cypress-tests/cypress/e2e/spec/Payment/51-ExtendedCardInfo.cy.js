@@ -1,6 +1,5 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import { payment_methods_enabled } from "../../configs/Payment/Commons";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
@@ -39,21 +38,8 @@ describe("Extended Card Info Tests", () => {
         }
       });
 
-      it("Create Business Profile", () => {
-        cy.createBusinessProfileTest(
-          fixtures.businessProfile.bpCreate,
-          globalState
-        );
-      });
-
-      it("connector-create-call-test", () => {
-        cy.createConnectorCallTest(
-          "payment_processor",
-          fixtures.createConnectorBody,
-          payment_methods_enabled,
-          globalState
-        );
-      });
+      // Note: Connector is already created by prerequisite spec (03-ConnectorCreate.cy.js)
+      // This spec focuses on Extended Card Info functionality only
 
       it("Create Customer", () => {
         cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
