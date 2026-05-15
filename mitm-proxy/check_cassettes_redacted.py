@@ -60,6 +60,36 @@ def _find_unredacted_request_values(obj: object, path: str = "request") -> list[
     return failures
 
 
+def _placeholder_connectors(placeholder: str) -> set[str]:
+    label = placeholder.removeprefix("{{MITM_SECRET:").removesuffix("}}")
+    for prefix in ("urlquote:", "urlplus:", "base64:", "pair:", "basic64:", "basic:"):
+        if label.startswith(prefix):
+            label = label[len(prefix):]
+            break
+    connectors = set()
+    for part in label.split("+"):
+        connector = part.split(".", 1)[0].strip()
+        if connector:
+            connectors.add(connector)
+    return connectors
+
+
+def _record_connectors(record: object, default_connector: str) -> set[str]:
+    connectors = {default_connector} if default_connector and default_connector != "captures" else set()
+    if not isinstance(record, dict):
+        return connectors
+    top = str(record.get("connector") or "").strip()
+    if top:
+        connectors.add(top)
+    request = record.get("request") or {}
+    if isinstance(request, dict):
+        headers = {str(k).lower(): v for k, v in (request.get("headers") or {}).items()}
+        header_connector = str(headers.get("x-connector") or "").strip()
+        if header_connector:
+            connectors.add(header_connector)
+    return connectors
+
+
 def main() -> int:
     captures = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parent / "captures"
     if not captures.exists():
@@ -74,7 +104,14 @@ def main() -> int:
     failures: list[tuple[Path, str]] = []
     for fpath in sorted(captures.glob("**/*.json")):
         text = fpath.read_text(errors="replace")
+        try:
+            record = json.loads(text)
+        except Exception:
+            record = None
+        relevant_connectors = _record_connectors(record, captures.name)
         for actual, placeholder, substring_ok in pairs:
+            if relevant_connectors and _placeholder_connectors(placeholder).isdisjoint(relevant_connectors):
+                continue
             if len(actual) < 8 and not substring_ok:
                 continue
             if actual in text:
@@ -85,9 +122,7 @@ def main() -> int:
                 failures.append((fpath, "unredacted Cypress test card number"))
                 break
 
-        try:
-            record = json.loads(text)
-        except Exception:
+        if record is None:
             continue
         for path in _find_unredacted_card_values(record):
             failures.append((fpath, f"unredacted card field {path}"))
