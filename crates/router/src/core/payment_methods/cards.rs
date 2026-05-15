@@ -4717,6 +4717,31 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     }
 }
 
+/// Filters customer payment methods to keep only the latest Apple Pay method when duplicates exist.
+/// All other payment methods are returned unchanged.
+fn filter_latest_apple_pay(
+    payment_methods: Vec<api::CustomerPaymentMethod>,
+) -> Vec<api::CustomerPaymentMethod> {
+    let (apple_pay_methods, other_methods): (Vec<_>, Vec<_>) =
+        payment_methods.into_iter().partition(|pm| {
+            pm.payment_method == api_enums::PaymentMethod::Wallet
+                && pm.payment_method_type == Some(api_enums::PaymentMethodType::ApplePay)
+        });
+
+    if apple_pay_methods.len() > 1 {
+        // Sort by created timestamp descending (latest first) and keep only the first one
+        let mut sorted = apple_pay_methods;
+        sorted.sort_by(|a, b| b.created.cmp(&a.created));
+        let latest_apple_pay = sorted.into_iter().next();
+        other_methods.into_iter().chain(latest_apple_pay).collect()
+    } else {
+        other_methods
+            .into_iter()
+            .chain(apple_pay_methods.into_iter())
+            .collect()
+    }
+}
+
 #[cfg(feature = "v1")]
 pub async fn list_customer_payment_method(
     state: &routes::SessionState,
@@ -4951,8 +4976,11 @@ pub async fn list_customer_payment_method(
         }
     }
 
+    // // Filter to keep only the latest Apple Pay method if duplicates exist
+    let filtered_customer_pms = filter_latest_apple_pay(customer_pms);
+
     let mut response = api::CustomerPaymentMethodsListResponse {
-        customer_payment_methods: customer_pms,
+        customer_payment_methods: filtered_customer_pms,
         is_guest_customer: payment_intent.as_ref().map(|_| false), //to return this key only when the request is tied to a payment intent
     };
 
