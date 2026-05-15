@@ -2,7 +2,7 @@ import { customerAcceptance, multiUseMandateData } from "./Commons";
 import { getCurrency, getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
-  card_number: "4212345678910006",
+  card_number: "4111111111111111",
   card_exp_month: "03",
   card_exp_year: "30",
   card_holder_name: "John Doe",
@@ -12,7 +12,7 @@ const successfulNo3DSCardDetails = {
 const successfulThreeDSTestCardDetails = {
   card_number: "4917610000000000",
   card_exp_month: "03",
-  card_exp_year: "2030",
+  card_exp_year: "30",
   card_holder_name: "Joseph Doe",
   card_cvc: "737",
 };
