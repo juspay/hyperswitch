@@ -61,7 +61,6 @@ pub struct GenericTokenData {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WalletTokenData {
     pub payment_method_id: String,
-    pub locker_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -139,10 +138,7 @@ impl PaymentTokenData {
 
     #[cfg(feature = "v1")]
     pub fn wallet_token(payment_method_id: String) -> Self {
-        Self::WalletToken(WalletTokenData {
-            payment_method_id,
-            locker_id: None,
-        })
+        Self::WalletToken(WalletTokenData { payment_method_id })
     }
 
     #[cfg(feature = "v1")]
