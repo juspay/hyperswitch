@@ -583,6 +583,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -930,6 +931,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -1066,6 +1068,7 @@ pub async fn construct_router_data_for_psync<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -1437,6 +1440,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -1667,6 +1671,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)

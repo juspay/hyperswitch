@@ -803,7 +803,6 @@ impl ConnectorSpecifications for ConnectorEnum {
         &self,
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> ConnectorCustomerAction {
-        #[cfg(feature = "v1")]
         match self {
             Self::Old(connector) => connector.should_call_connector_customer(payment_attempt),
             Self::New(connector) => connector.should_call_connector_customer(payment_attempt),

@@ -165,6 +165,7 @@ pub struct PaymentAttempt {
     pub error_details: Option<ErrorDetails>,
     pub retry_type: Option<storage_enums::RetryType>,
     pub installment_data: Option<common_types::payments::InstallmentData>,
+    pub sender_payment_instrument_id: Option<String>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
@@ -1145,6 +1146,7 @@ impl PaymentAttemptUpdateInternal {
             error_details: source.error_details,
             retry_type: source.retry_type,
             installment_data: source.installment_data,
+            sender_payment_instrument_id: source.sender_payment_instrument_id,
         }
     }
 }
