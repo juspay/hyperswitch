@@ -1,0 +1,60 @@
+{
+  "captured_at": "2026-05-15T06:43:35.075122+00:00",
+  "test": "Card - Refund flow - 3DS > Card - Partial Refund for fully captured 3DS payment > Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Handle Redirection -> Retrieve Payment after Confirmation -> Capture Payment -> Retrieve Payment after Capture -> Partial Refund Payment -> Partial Refund Payment - 2nd Attempt -> Sync Refund Payment",
+  "request_id": "bc2f9595-005",
+  "connector": "redsys",
+  "timing": {
+    "request_started_at": "2026-05-15T06:43:35.075122+00:00",
+    "request_completed_at": "2026-05-15T06:43:35.075777+00:00",
+    "response_started_at": "2026-05-15T06:43:35.493888+00:00",
+    "response_completed_at": "2026-05-15T06:43:35.494512+00:00",
+    "duration_ms": 419.39
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://sis-t.redsys.es:25443/apl02/services/SerClsWSConsulta",
+    "scheme": "https",
+    "host": "sis-t.redsys.es",
+    "port": 25443,
+    "path": "/apl02/services/SerClsWSConsulta",
+    "query": {},
+    "headers": {
+      "x-connector": "redsys",
+      "x-request-id": "bc2f9595-005",
+      "x-flow": "PSync",
+      "content-type": "application/xml",
+      "soapaction": "consultaOperaciones",
+      "via": "HyperSwitch",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "sis-t.redsys.es:25443",
+      "content-length": "644"
+    },
+    "body": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:web=\"http://webservices.apl02.redsys.es\"><soapenv:Header/><soapenv:Body><web:consultaOperaciones><cadenaXML><![CDATA[<Messages><Version Ds_Version=\"0.0\"><Message><Transaction><Ds_MerchantCode>{{MITM_SECRET:redsys.connector_account_details.api_key}}</Ds_MerchantCode><Ds_Terminal>001</Ds_Terminal><Ds_Order>564559324634</Ds_Order><Ds_TransactionType>1</Ds_TransactionType></Transaction></Message></Version><Signature>/BMIoRTKswOgCsIDk9sOrlCa04QChyV1V72JvRV2uVA=</Signature><SignatureVersion>HMAC_SHA256_V1</SignatureVersion></Messages>]]></cadenaXML></web:consultaOperaciones></soapenv:Body></soapenv:Envelope>",
+    "body_encoding": "utf-8",
+    "body_size_bytes": 644
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "Date": "Fri, 15 May 2026 06:43:35 GMT",
+      "Referrer-Policy": "no-referrer-when-downgrade",
+      "X-Content-Type-Options": "nosniff",
+      "X-XSS-Protection": "1",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+      "Content-Length": "1246",
+      "Content-Type": "text/xml; charset=utf-8",
+      "Content-Language": "en-US"
+    },
+    "body": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:soapenc=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"><soapenv:Header/><soapenv:Body><p259:consultaOperacionesResponse xmlns:p259=\"http://webservices.apl02.redsys.es\"><consultaOperacionesReturn>&lt;Messages&gt;&lt;Version Ds_Version=&quot;0.0&quot;&gt;&lt;Message&gt;&lt;Response&gt;&lt;Ds_MerchantCode&gt;{{MITM_SECRET:redsys.connector_account_details.api_key}}&lt;/Ds_MerchantCode&gt;&lt;Ds_Terminal&gt;1&lt;/Ds_Terminal&gt;&lt;Ds_Order&gt;564559324634&lt;/Ds_Order&gt;&lt;Ds_TransactionType&gt;1&lt;/Ds_TransactionType&gt;&lt;Ds_Date&gt;2026-05-15&lt;/Ds_Date&gt;&lt;Ds_Hour&gt;08:43:31&lt;/Ds_Hour&gt;&lt;Ds_Amount&gt;6000&lt;/Ds_Amount&gt;&lt;Ds_Currency&gt;978&lt;/Ds_Currency&gt;&lt;Ds_CardNumber&gt;454881******3017&lt;/Ds_CardNumber&gt;&lt;Ds_SecurePayment&gt;1&lt;/Ds_SecurePayment&gt;&lt;Ds_State&gt;F&lt;/Ds_State&gt;&lt;Ds_Response&gt;0000&lt;/Ds_Response&gt;&lt;/Response&gt;&lt;/Message&gt;&lt;/Version&gt;&lt;Signature&gt;UiGsgobcul706FyDw9dd6MBKPUys8Ts07iHKz5kIrF8=&lt;/Signature&gt;&lt;/Messages&gt;</consultaOperacionesReturn></p259:consultaOperacionesResponse></soapenv:Body></soapenv:Envelope>",
+    "body_encoding": "utf-8",
+    "body_size_bytes": 1246
+  },
+  "redaction": {
+    "version": 1,
+    "placeholder_count": 2
+  }
+}

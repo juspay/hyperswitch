@@ -1,0 +1,124 @@
+{
+  "captured_at": "2026-05-15T06:43:39.718063+00:00",
+  "test": "Card - Refund flow - No 3DS > Card - Partial Refund for partially captured No-3DS payment > Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Partial Capture Payment -> Retrieve Payment after Partial Capture -> Refund Payment -> Sync Refund Payment",
+  "request_id": "03eb4400-004",
+  "connector": "bluesnap",
+  "timing": {
+    "request_started_at": "2026-05-15T06:43:39.718063+00:00",
+    "request_completed_at": "2026-05-15T06:43:39.718353+00:00",
+    "response_started_at": "2026-05-15T06:43:40.233336+00:00",
+    "response_completed_at": "2026-05-15T06:43:40.233891+00:00",
+    "duration_ms": 515.83
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "GET",
+    "url": "https://sandbox.bluesnap.com/services/2/transactions/1089391638",
+    "scheme": "https",
+    "host": "sandbox.bluesnap.com",
+    "port": 443,
+    "path": "/services/2/transactions/1089391638",
+    "query": {},
+    "headers": {
+      "content-type": "application/json",
+      "via": "HyperSwitch",
+      "x-connector": "bluesnap",
+      "x-request-id": "03eb4400-004",
+      "authorization": "{{MITM_SECRET:basic:bluesnap.connector_account_details.key1+bluesnap.connector_account_details.api_key}}",
+      "x-flow": "PSync",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "sandbox.bluesnap.com"
+    },
+    "body": null,
+    "body_encoding": null,
+    "body_size_bytes": 0
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "Date": "Fri, 15 May 2026 06:43:40 GMT",
+      "Content-Type": "application/json",
+      "Transfer-Encoding": "chunked",
+      "Connection": "keep-alive",
+      "Vary": "Accept-Encoding",
+      "Content-Encoding": "gzip",
+      "Set-Cookie": "{{MITM_REDACTED:response.headers.Set-Cookie}}",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+      "cf-cache-status": "DYNAMIC",
+      "Server": "cloudflare",
+      "CF-RAY": "9fc02b6d5f6a3d25-BLR"
+    },
+    "body": {
+      "cardTransactionType": "AUTH_ONLY",
+      "merchantTransactionId": "pay_S3QcpsqbakDWwG3Jew5o_1",
+      "transactionId": "1089391638",
+      "softDescriptor": "BLS*ONBOARDINGDEFAULT",
+      "amount": 60.0,
+      "usdAmount": 60.0,
+      "openToCapture": 60.0,
+      "currency": "USD",
+      "cardHolderInfo": {
+        "firstName": "John",
+        "lastName": "John",
+        "email": "hyperswitch_sdk_demo_id@gmail.com"
+      },
+      "vaultedShopperId": 45202458,
+      "creditCard": {
+        "cardLastFourDigits": "4242",
+        "cardType": "VISA",
+        "cardSubType": "CREDIT",
+        "cardCategory": "CLASSIC",
+        "binCategory": "CONSUMER",
+        "binNumber": "424242",
+        "cardRegulated": "N",
+        "issuingBank": "STRIPE PAYMENTS UK LIMITED",
+        "expirationMonth": "10",
+        "expirationYear": "2030",
+        "issuingCountryCode": "gb"
+      },
+      "transactionMetaData": {
+        "metaData": [
+          {
+            "metaKey": "udf1",
+            "metaValue": "\"value1\"",
+            "isVisible": "true"
+          },
+          {
+            "metaKey": "new_customer",
+            "metaValue": "\"true\"",
+            "isVisible": "true"
+          },
+          {
+            "metaKey": "login_date",
+            "metaValue": "\"2019-09-10T10:11:12Z\"",
+            "isVisible": "true"
+          }
+        ]
+      },
+      "networkTransactionInfo": {
+        "originalNetworkTransactionId": "001778827419167",
+        "networkTransactionId": "001778827419167"
+      },
+      "processingInfo": {
+        "processingStatus": "SUCCESS",
+        "authorizationCode": "Authorized",
+        "networkTransactionId": "001778827419167",
+        "transactionRegion": "UK",
+        "supportsMultiPartialCapture": true
+      }
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 1200
+  },
+  "redaction": {
+    "version": 2,
+    "placeholder_count": 0,
+    "request_placeholder_count": 0,
+    "response_header_placeholder_count": 1,
+    "test_pan_placeholder_count": 0,
+    "card_echo_placeholder_count": 0
+  }
+}

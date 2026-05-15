@@ -1,0 +1,63 @@
+{
+  "captured_at": "2026-05-15T06:45:01.098874+00:00",
+  "test": "Card - ThreeDS Manual payment flow test > Card - ThreeDS Manual Partial Capture payment flow test - Create+Confirm > Create and Confirm Payment -> handle redirection -> Retrieve Payment after Confirmation -> Partial Capture Payment -> Retrieve Payment after Partial Capture",
+  "request_id": "645f5788-004",
+  "connector": "redsys",
+  "timing": {
+    "request_started_at": "2026-05-15T06:45:01.098874+00:00",
+    "request_completed_at": "2026-05-15T06:45:01.099186+00:00",
+    "response_started_at": "2026-05-15T06:45:01.437440+00:00",
+    "response_completed_at": "2026-05-15T06:45:01.437740+00:00",
+    "duration_ms": 338.87
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://sis-t.redsys.es:25443/sis/rest/trataPeticionREST",
+    "scheme": "https",
+    "host": "sis-t.redsys.es",
+    "port": 25443,
+    "path": "/sis/rest/trataPeticionREST",
+    "query": {},
+    "headers": {
+      "content-type": "application/json",
+      "via": "HyperSwitch",
+      "x-flow": "Capture",
+      "x-connector": "redsys",
+      "x-request-id": "645f5788-004",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "sis-t.redsys.es:25443",
+      "content-length": "389"
+    },
+    "body": {
+      "Ds_MerchantParameters": "eyJEU19NRVJDSEFOVF9BTU9VTlQiOiIyMDAwIiwiRFNfTUVSQ0hBTlRfQ1VSUkVOQ1kiOiI5NzgiLCJEU19NRVJDSEFOVF9NRVJDSEFOVENPREUiOiIzMzY2MDIxMzEiLCJEU19NRVJDSEFOVF9PUkRFUiI6IjIwNjAzNDc3NDU5OCIsIkRTX01FUkNIQU5UX1RFUk1JTkFMIjoiMDAxIiwiRFNfTUVSQ0hBTlRfVFJBTlNBQ1RJT05UWVBFIjoiMiJ9",
+      "Ds_Signature": "pWCb92gN9VARxTVVkfXyJ8qpxKepLYdKcshVCDwmNHo=",
+      "Ds_SignatureVersion": "HMAC_SHA256_V1"
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 389
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "Date": "Fri, 15 May 2026 06:45:01 GMT",
+      "Referrer-Policy": "no-referrer-when-downgrade",
+      "X-Content-Type-Options": "nosniff",
+      "X-XSS-Protection": "1",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+      "Content-Type": "text/plain",
+      "Content-Language": "en-US",
+      "Transfer-Encoding": "chunked"
+    },
+    "body": {
+      "Ds_SignatureVersion": "HMAC_SHA256_V1",
+      "Ds_MerchantParameters": "eyJEc19BbW91bnQiOiIyMDAwIiwiRHNfQ3VycmVuY3kiOiI5NzgiLCJEc19PcmRlciI6IjIwNjAzNDc3NDU5OCIsIkRzX01lcmNoYW50Q29kZSI6IjMzNjYwMjEzMSIsIkRzX1Rlcm1pbmFsIjoiMSIsIkRzX1Jlc3BvbnNlIjoiMDkwMCIsIkRzX0F1dGhvcmlzYXRpb25Db2RlIjoiMzAyNDYwIiwiRHNfVHJhbnNhY3Rpb25UeXBlIjoiMiIsIkRzX1NlY3VyZVBheW1lbnQiOiIyIiwiRHNfTGFuZ3VhZ2UiOiIxIiwiRHNfTWVyY2hhbnREYXRhIjoiIiwiRHNfQ2FyZF9Db3VudHJ5IjoiNzI0IiwiRHNfQ2FyZF9UeXBvbG9neSI6IkNPTlNVTU8iLCJEc19DYXJkX0JyYW5kIjoiMSIsIkRzX1Byb2Nlc3NlZFBheU1ldGhvZCI6Ijc4IiwiRHNfQ29udHJvbF8xNzc4ODI3NTAxMzg2IjoiMTc3ODgyNzUwMTM4NiJ9",
+      "Ds_Signature": "DWPydEAEDjBaJTo1dAWWLbZUyBZhtOAKVKu_AAqw1vk="
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 661
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "captured_at": "2026-05-15T06:52:31.381664+00:00",
+  "test": "Payment Methods Tests > 'Last Used' off-session token payments > Create 3DS off session save card payment > create+confirm-payment-call-test -> Handle redirection -> List PM for customer",
+  "request_id": "019e2a68-7cfa-74c0-a382-05c95292990c",
+  "connector": "paypal",
+  "timing": {
+    "request_started_at": "2026-05-15T06:52:31.381664+00:00",
+    "request_completed_at": "2026-05-15T06:52:31.382152+00:00",
+    "response_started_at": "2026-05-15T06:52:32.516053+00:00",
+    "response_completed_at": "2026-05-15T06:52:32.517306+00:00",
+    "duration_ms": 1135.64
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "GET",
+    "url": "https://api-m.sandbox.paypal.com/v2/checkout/orders/43R75993TS233640X?fields=payment_source",
+    "scheme": "https",
+    "host": "api-m.sandbox.paypal.com",
+    "port": 443,
+    "path": "/v2/checkout/orders/43R75993TS233640X",
+    "query": {
+      "fields": "payment_source"
+    },
+    "headers": {
+      "x-request-id": "019e2a68-7cfa-74c0-a382-05c95292990c",
+      "via": "HyperSwitch",
+      "x-connector": "paypal",
+      "content-type": "application/json",
+      "authorization": "Bearer A21AAL_l6fOjd8XACbHJocp7zIdbvGUB6FY2C6Q3K47kj5xzYsZLRnsR_63XjV2d4xIvwT0z6G86J8Nmle2CY7Gqx_-Y5fgMw",
+      "prefer": "return=representation",
+      "x-flow": "PostAuthenticate",
+      "paypal-request-id": "pay_wNa9CVpe5ZxLPYdgup1D_1",
+      "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "api-m.sandbox.paypal.com"
+    },
+    "body": null,
+    "body_encoding": null,
+    "body_size_bytes": 0
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "Connection": "keep-alive",
+      "content-type": "application/json",
+      "server-timing": "traceparent;desc=\"00-0000000000000000000f178803a6242f-77084bdb853412e6-01\"",
+      "access-control-expose-headers": "Server-Timing",
+      "cache-control": "max-age=0, no-cache, no-store, must-revalidate",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "http_x_pp_az_locator": "ccg18.slc",
+      "paypal-debug-id": "f178803a6242f",
+      "server": "nginx",
+      "x-backend-info": "v=1;name=2k1u3gOGb2cebCyZJujTUN--F_ccg18_wju_origin_api_m_2_sandbox_paypal_com;ip=34.106.111.220;port=443;ssl=1;max=200;mr=0;ka_ns=0;ml_ns=0;tka_s=300;tki_s=10;tkp=3;host=api-m.sandbox.paypal.com;min_tls=;max_tls=;sni=edge.sandbox.paypal.com;cert_host=edge.sandbox.paypal.com;ciphers=;check_cert=1;no_reneg=1;to_ns=1000000000;fbto_ns=59000000000;bbto_ns=10000000000;fto_ns=0",
+      "Accept-Ranges": "none",
+      "Via": "1.1 varnish, 1.1 varnish",
+      "content-encoding": "gzip",
+      "Edge-Control": "max-age=0",
+      "Date": "Fri, 15 May 2026 06:52:32 GMT",
+      "X-Served-By": "cache-sin-wsap440060-SIN, cache-sin-wsap440060-SIN, cache-qbk-voml4860023-QBK",
+      "X-Cache": "MISS, MISS, MISS",
+      "X-Cache-Hits": "0, 0, 0",
+      "X-Timer": "S1778827951.379263,VS0,VE1072",
+      "Vary": "Accept-Encoding",
+      "transfer-encoding": "chunked"
+    },
+    "body": {
+      "id": "43R75993TS233640X",
+      "payment_source": {
+        "card": {
+          "name": "joseph Doe",
+          "last_digits": "4393",
+          "expiry": "2050-01",
+          "brand": "MASTERCARD",
+          "available_networks": [
+            "MASTERCARD"
+          ],
+          "type": "CREDIT",
+          "authentication_result": {
+            "liability_shift": "POSSIBLE",
+            "three_d_secure": {
+              "enrollment_status": "Y",
+              "authentication_status": "Y"
+            },
+            "data_only": false
+          },
+          "bin_details": {
+            "bin": "53298797",
+            "issuing_bank": "COMPUTER SERVICES, INC.",
+            "bin_country_code": "US"
+          }
+        }
+      }
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 429
+  }
+}

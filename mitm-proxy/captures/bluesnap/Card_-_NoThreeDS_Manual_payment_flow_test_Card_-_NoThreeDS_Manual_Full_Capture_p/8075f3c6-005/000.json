@@ -1,0 +1,130 @@
+{
+  "captured_at": "2026-05-15T06:42:20.945369+00:00",
+  "test": "Card - NoThreeDS Manual payment flow test > Card - NoThreeDS Manual Full Capture payment flow test - Create and Confirm > Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Capture Payment -> Retrieve Payment after Capture",
+  "request_id": "8075f3c6-005",
+  "connector": "bluesnap",
+  "timing": {
+    "request_started_at": "2026-05-15T06:42:20.945369+00:00",
+    "request_completed_at": "2026-05-15T06:42:20.945843+00:00",
+    "response_started_at": "2026-05-15T06:42:22.148330+00:00",
+    "response_completed_at": "2026-05-15T06:42:22.149398+00:00",
+    "duration_ms": 1204.03
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "PUT",
+    "url": "https://sandbox.bluesnap.com/services/2/transactions",
+    "scheme": "https",
+    "host": "sandbox.bluesnap.com",
+    "port": 443,
+    "path": "/services/2/transactions",
+    "query": {},
+    "headers": {
+      "content-type": "application/json",
+      "x-flow": "Capture",
+      "x-connector": "bluesnap",
+      "x-request-id": "8075f3c6-005",
+      "via": "HyperSwitch",
+      "authorization": "{{MITM_SECRET:basic:bluesnap.connector_account_details.key1+bluesnap.connector_account_details.api_key}}",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "sandbox.bluesnap.com",
+      "content-length": "79"
+    },
+    "body": {
+      "cardTransactionType": "CAPTURE",
+      "transactionId": "1089391896",
+      "amount": "60.00"
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 79
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "Date": "Fri, 15 May 2026 06:42:22 GMT",
+      "Content-Type": "application/json",
+      "Transfer-Encoding": "chunked",
+      "Connection": "keep-alive",
+      "Vary": "Accept-Encoding",
+      "Content-Encoding": "gzip",
+      "Set-Cookie": "{{MITM_REDACTED:response.headers.Set-Cookie}}",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+      "cf-cache-status": "DYNAMIC",
+      "Server": "cloudflare",
+      "CF-RAY": "9fc029810b653d25-BLR"
+    },
+    "body": {
+      "cardTransactionType": "CAPTURE",
+      "transactionId": "1089391896",
+      "softDescriptor": "BLS*ONBOARDINGDEFAULT",
+      "amount": 60.0,
+      "usdAmount": 60.0,
+      "openToCapture": 0,
+      "currency": "USD",
+      "transactionApprovalDate": "05/14/2026",
+      "transactionApprovalTime": "23:42:21",
+      "cardHolderInfo": {
+        "firstName": "John",
+        "lastName": "John",
+        "email": "hyperswitch_sdk_demo_id@gmail.com"
+      },
+      "vaultedShopperId": 45202430,
+      "creditCard": {
+        "cardLastFourDigits": "4242",
+        "cardType": "VISA",
+        "cardSubType": "CREDIT",
+        "cardCategory": "CLASSIC",
+        "binCategory": "CONSUMER",
+        "binNumber": "424242",
+        "cardRegulated": "N",
+        "issuingBank": "STRIPE PAYMENTS UK LIMITED",
+        "expirationMonth": "10",
+        "expirationYear": "2030",
+        "issuingCountryCode": "gb"
+      },
+      "transactionMetaData": {
+        "metaData": [
+          {
+            "metaKey": "login_date",
+            "metaValue": "\"2019-09-10T10:11:12Z\"",
+            "isVisible": "true"
+          },
+          {
+            "metaKey": "new_customer",
+            "metaValue": "\"true\"",
+            "isVisible": "true"
+          },
+          {
+            "metaKey": "udf1",
+            "metaValue": "\"value1\"",
+            "isVisible": "true"
+          }
+        ]
+      },
+      "networkTransactionInfo": {
+        "originalNetworkTransactionId": "001778827339687",
+        "networkTransactionId": "001778827339687"
+      },
+      "processingInfo": {
+        "processingStatus": "SUCCESS",
+        "authorizationCode": "Authorized",
+        "networkTransactionId": "001778827339687",
+        "transactionRegion": "UK",
+        "supportsMultiPartialCapture": true
+      }
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 1217
+  },
+  "redaction": {
+    "version": 2,
+    "placeholder_count": 0,
+    "request_placeholder_count": 0,
+    "response_header_placeholder_count": 1,
+    "test_pan_placeholder_count": 0,
+    "card_echo_placeholder_count": 0
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "captured_at": "2026-05-15T06:57:39.924850+00:00",
+  "test": "Bank Redirect tests > Interac Create and Confirm flow test > Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment",
+  "request_id": "4036b057-003",
+  "connector": "loonio",
+  "timing": {
+    "request_started_at": "2026-05-15T06:57:39.924850+00:00",
+    "request_completed_at": "2026-05-15T06:57:39.925268+00:00",
+    "response_started_at": "2026-05-15T06:57:40.351693+00:00",
+    "response_completed_at": "2026-05-15T06:57:40.352100+00:00",
+    "duration_ms": 427.25
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://integration.loonio.ca/api/v1/transactions/incoming/payment_form",
+    "scheme": "https",
+    "host": "integration.loonio.ca",
+    "port": 443,
+    "path": "/api/v1/transactions/incoming/payment_form",
+    "query": {},
+    "headers": {
+      "content-type": "application/json",
+      "merchantid": "{{MITM_SECRET:loonio.connector_account_details.api_key}}",
+      "x-flow": "Authorize",
+      "merchanttoken": "{{MITM_SECRET:loonio.connector_account_details.key1}}",
+      "via": "HyperSwitch",
+      "x-connector": "loonio",
+      "x-request-id": "4036b057-003",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "integration.loonio.ca",
+      "content-length": "595"
+    },
+    "body": {
+      "currency_code": "CAD",
+      "customer_profile": {
+        "first_name": "{{MITM_REDACTED:request.request.body.customer_profile.first_name}}",
+        "last_name": "{{MITM_REDACTED:request.request.body.customer_profile.last_name}}",
+        "email": "{{MITM_REDACTED:request.request.body.customer_profile.email}}"
+      },
+      "amount": 60.0,
+      "customer_id": "cus_fqRVkEnQAjsDHCaxVK69",
+      "transaction_id": "pay_7OumlHYcevHz0PCF0bew_1",
+      "payment_method_type": "INTERAC_ETRANSFER",
+      "redirect_url": {
+        "success_url": "http://localhost:8090/payments/pay_7OumlHYcevHz0PCF0bew/cyMerchant_af9da00c/redirect/response/loonio",
+        "failed_url": "http://localhost:8090/payments/pay_7OumlHYcevHz0PCF0bew/cyMerchant_af9da00c/redirect/response/loonio"
+      },
+      "webhook_url": "http://localhost:8090/webhooks/cyMerchant_af9da00c/mca_7JnjUuxNmHl2mSTMRmlx"
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 595
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "Date": "Fri, 15 May 2026 06:57:40 GMT",
+      "Content-Type": "application/json",
+      "Content-Length": "112",
+      "Connection": "keep-alive",
+      "X-Amzn-Trace-Id": "Root=1-6a06c3e4-4b899872202498201c986e8c;",
+      "vary": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+      "x-content-type-options": "nosniff",
+      "x-xss-protection": "0",
+      "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+      "pragma": "no-cache",
+      "expires": "0",
+      "x-frame-options": "DENY",
+      "apigw-requestid": "dZOLsiGSYosEMkg="
+    },
+    "body": {
+      "payment_form": "https://integration.secure-link.ca/customer/payment_form/2fd11783-497e-460c-949d-a54eed1b133a"
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 112
+  },
+  "redaction": {
+    "version": 2,
+    "placeholder_count": 0,
+    "request_placeholder_count": 3,
+    "response_header_placeholder_count": 0,
+    "test_pan_placeholder_count": 0,
+    "card_echo_placeholder_count": 0
+  }
+}

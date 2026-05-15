@@ -1,0 +1,63 @@
+{
+  "captured_at": "2026-05-15T06:44:32.133306+00:00",
+  "test": "Card - ThreeDS Manual payment flow test > Card - ThreeDS Manual Full Capture payment flow test - Create and Confirm > Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> handle redirection -> Retrieve Payment after Confirmation -> Capture Payment -> Retrieve Payment after Capture",
+  "request_id": "019e2a61-2ce9-7e02-8ed3-1df968a48b48",
+  "connector": "redsys",
+  "timing": {
+    "request_started_at": "2026-05-15T06:44:32.133306+00:00",
+    "request_completed_at": "2026-05-15T06:44:32.133621+00:00",
+    "response_started_at": "2026-05-15T06:44:37.578152+00:00",
+    "response_completed_at": "2026-05-15T06:44:37.578452+00:00",
+    "duration_ms": 5445.15
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://sis-t.redsys.es:25443/sis/rest/trataPeticionREST",
+    "scheme": "https",
+    "host": "sis-t.redsys.es",
+    "port": 25443,
+    "path": "/sis/rest/trataPeticionREST",
+    "query": {},
+    "headers": {
+      "content-type": "application/json",
+      "x-request-id": "019e2a61-2ce9-7e02-8ed3-1df968a48b48",
+      "x-flow": "CompleteAuthorize",
+      "x-connector": "redsys",
+      "via": "HyperSwitch",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "sis-t.redsys.es:25443",
+      "content-length": "1481"
+    },
+    "body": {
+      "Ds_MerchantParameters": "eyJEU19NRVJDSEFOVF9BTU9VTlQiOiI2MDAwIiwiRFNfTUVSQ0hBTlRfQ1VSUkVOQ1kiOiI5NzgiLCJEU19NRVJDSEFOVF9DVlYyIjoiMTIzIiwiRFNfTUVSQ0hBTlRfRU1WM0RTIjp7ImJpbGxBZGRyQ2l0eSI6IlNhbiBGcmFuc2ljbyIsImJpbGxBZGRyQ291bnRyeSI6IkVTUCIsImJpbGxBZGRyTGluZTEiOiIxNDY3IiwiYmlsbEFkZHJMaW5lMiI6IkhhcnJpc29uIFN0cmVldCIsImJpbGxBZGRyTGluZTMiOiJIYXJyaXNvbiBTdHJlZXQiLCJiaWxsQWRkclBvc3RhbENvZGUiOiI5NDEyMiIsImJpbGxBZGRyU3RhdGUiOiJDRSIsImNyZXMiOiJleUowYUhKbFpVUlRVMlZ5ZG1WeVZISmhibk5KUkNJNklqVTRNelpqTlRZeUxUQTJOV0l0TkdVMVlTMWhaREF3TFRBeU5HVmxObUpoTVdWbFlTSXNJbUZqYzFSeVlXNXpTVVFpT2lJNU9XUmlPR1k1TUMwMU9HTXdMVFEzTmpNdFlUVmlOeTB5T1RFeFpqY3pZMlJpTkRJaUxDSnRaWE56WVdkbFZIbHdaU0k2SWtOU1pYTWlMQ0p0WlhOellXZGxWbVZ5YzJsdmJpSTZJakl1TVM0d0lpd2lkSEpoYm5OVGRHRjBkWE1pT2lKWkluMD0iLCJwcm90b2NvbFZlcnNpb24iOiIyLjEuMCIsInNoaXBBZGRyQ2l0eSI6IlNhbiBGcmFuc2ljbyIsInNoaXBBZGRyQ291bnRyeSI6IkVTUCIsInNoaXBBZGRyTGluZTEiOiIxNDY3Iiwic2hpcEFkZHJMaW5lMiI6IkhhcnJpc29uIFN0cmVldCIsInNoaXBBZGRyTGluZTMiOiJIYXJyaXNvbiBTdHJlZXQiLCJzaGlwQWRkclBvc3RhbENvZGUiOiI5NDEyMiIsInNoaXBBZGRyU3RhdGUiOiJDRSIsInRocmVlRFNJbmZvIjoiQ2hhbGxlbmdlUmVzcG9uc2UifSwiRFNfTUVSQ0hBTlRfRVhQSVJZREFURSI6IjMwMTIiLCJEU19NRVJDSEFOVF9NRVJDSEFOVENPREUiOiIzMzY2MDIxMzEiLCJEU19NRVJDSEFOVF9PUkRFUiI6IjI4MDAwNDQwMTA1NSIsIkRTX01FUkNIQU5UX1BBTiI6IjQ1NDg4MTcyMTI0OTMwMTciLCJEU19NRVJDSEFOVF9URVJNSU5BTCI6IjAwMSIsIkRTX01FUkNIQU5UX1RSQU5TQUNUSU9OVFlQRSI6IjEifQ==",
+      "Ds_Signature": "jnCMXKDHHmvO+MFZkcaK55wCv1bCt5q1VmNEjQ9Y5JM=",
+      "Ds_SignatureVersion": "HMAC_SHA256_V1"
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 1481
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "Date": "Fri, 15 May 2026 06:44:32 GMT",
+      "Referrer-Policy": "no-referrer-when-downgrade",
+      "X-Content-Type-Options": "nosniff",
+      "X-XSS-Protection": "1",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+      "Content-Type": "text/plain",
+      "Content-Language": "en-US",
+      "Transfer-Encoding": "chunked"
+    },
+    "body": {
+      "Ds_SignatureVersion": "HMAC_SHA256_V1",
+      "Ds_MerchantParameters": "eyJEc19BbW91bnQiOiI2MDAwIiwiRHNfQ3VycmVuY3kiOiI5NzgiLCJEc19PcmRlciI6IjI4MDAwNDQwMTA1NSIsIkRzX01lcmNoYW50Q29kZSI6IjMzNjYwMjEzMSIsIkRzX1Rlcm1pbmFsIjoiMSIsIkRzX1Jlc3BvbnNlIjoiMDAwMCIsIkRzX0F1dGhvcmlzYXRpb25Db2RlIjoiMTQ0NzgyIiwiRHNfVHJhbnNhY3Rpb25UeXBlIjoiMSIsIkRzX1NlY3VyZVBheW1lbnQiOiIyIiwiRHNfTGFuZ3VhZ2UiOiIxIiwiRHNfQ2FyZE51bWJlciI6IjQ1NDg4MSoqKioqKjMwMTciLCJEc19NZXJjaGFudERhdGEiOiIiLCJEc19DYXJkX0NvdW50cnkiOiI3MjQiLCJEc19DYXJkX1R5cG9sb2d5IjoiQ09OU1VNTyIsIkRzX0NhcmRfQnJhbmQiOiIxIiwiRHNfUHJvY2Vzc2VkUGF5TWV0aG9kIjoiNzgiLCJEc19Db250cm9sXzE3Nzg4Mjc0Nzc0ODkiOiIxNzc4ODI3NDc3NDg5In0=",
+      "Ds_Signature": "YrdRZREPRrOBiQgKVyLj4iERf_EEo0ts0uc2c2uYqm8="
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 709
+  }
+}

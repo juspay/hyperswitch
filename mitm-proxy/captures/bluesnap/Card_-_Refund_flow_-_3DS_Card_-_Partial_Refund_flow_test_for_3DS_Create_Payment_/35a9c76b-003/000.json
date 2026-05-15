@@ -1,0 +1,69 @@
+{
+  "captured_at": "2026-05-15T06:43:43.958337+00:00",
+  "test": "Card - Refund flow - 3DS > Card - Partial Refund flow test for 3DS > Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Handle Redirection -> Retrieve Payment after Confirmation -> Partial Refund Payment -> Partial Refund Payment - 2nd Attempt -> Sync Refund Payment",
+  "request_id": "35a9c76b-003",
+  "connector": "bluesnap",
+  "timing": {
+    "request_started_at": "2026-05-15T06:43:43.958337+00:00",
+    "request_completed_at": "2026-05-15T06:43:43.958686+00:00",
+    "response_started_at": "2026-05-15T06:43:44.205663+00:00",
+    "response_completed_at": "2026-05-15T06:43:44.205963+00:00",
+    "duration_ms": 247.63
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://sandbox.bluesnap.com/services/2/payment-fields-tokens/prefill",
+    "scheme": "https",
+    "host": "sandbox.bluesnap.com",
+    "port": 443,
+    "path": "/services/2/payment-fields-tokens/prefill",
+    "query": {},
+    "headers": {
+      "content-type": "application/json",
+      "via": "HyperSwitch",
+      "authorization": "{{MITM_SECRET:basic:bluesnap.connector_account_details.key1+bluesnap.connector_account_details.api_key}}",
+      "x-connector": "bluesnap",
+      "x-request-id": "35a9c76b-003",
+      "x-flow": "Authorize",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "sandbox.bluesnap.com",
+      "content-length": "51"
+    },
+    "body": {
+      "ccNumber": "{{MITM_REDACTED:card.pan}}",
+      "expDate": "10/2030"
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 51
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 201,
+    "reason": "Created",
+    "headers": {
+      "Date": "Fri, 15 May 2026 06:43:44 GMT",
+      "Content-Length": "0",
+      "Connection": "keep-alive",
+      "Location": "https://sandbox.bluesnap.com/services/2/payment-fields-tokens/d44d75dbfc186c3ae40b39fc83d461226710c7ea3fe845273cf22bb43826f0cb_",
+      "Set-Cookie": "{{MITM_REDACTED:response.headers.Set-Cookie}}",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+      "Access-Control-Allow-Origin": "*",
+      "cf-cache-status": "DYNAMIC",
+      "Server": "cloudflare",
+      "CF-RAY": "9fc02b87df393d25-BLR"
+    },
+    "body": null,
+    "body_encoding": null,
+    "body_size_bytes": 0
+  },
+  "redaction": {
+    "version": 2,
+    "placeholder_count": 0,
+    "request_placeholder_count": 0,
+    "response_header_placeholder_count": 1,
+    "test_pan_placeholder_count": 0,
+    "card_echo_placeholder_count": 0
+  }
+}

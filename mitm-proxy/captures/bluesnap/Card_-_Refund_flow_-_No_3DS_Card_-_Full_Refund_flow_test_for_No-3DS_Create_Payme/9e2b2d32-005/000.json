@@ -1,0 +1,75 @@
+{
+  "captured_at": "2026-05-15T06:42:56.762504+00:00",
+  "test": "Card - Refund flow - No 3DS > Card - Full Refund flow test for No-3DS > Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Refund Payment -> Sync Refund Payment",
+  "request_id": "9e2b2d32-005",
+  "connector": "bluesnap",
+  "timing": {
+    "request_started_at": "2026-05-15T06:42:56.762504+00:00",
+    "request_completed_at": "2026-05-15T06:42:56.763005+00:00",
+    "response_started_at": "2026-05-15T06:43:06.068166+00:00",
+    "response_completed_at": "2026-05-15T06:43:06.069146+00:00",
+    "duration_ms": 9306.64
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://sandbox.bluesnap.com/services/2/transactions/refund/1089392280",
+    "scheme": "https",
+    "host": "sandbox.bluesnap.com",
+    "port": 443,
+    "path": "/services/2/transactions/refund/1089392280",
+    "query": {},
+    "headers": {
+      "content-type": "application/json",
+      "x-flow": "Execute",
+      "via": "HyperSwitch",
+      "authorization": "{{MITM_SECRET:basic:bluesnap.connector_account_details.key1+bluesnap.connector_account_details.api_key}}",
+      "x-request-id": "9e2b2d32-005",
+      "x-connector": "bluesnap",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "sandbox.bluesnap.com",
+      "content-length": "35"
+    },
+    "body": {
+      "amount": "60.00",
+      "reason": "FRAUD"
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 35
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "Date": "Fri, 15 May 2026 06:43:06 GMT",
+      "Content-Type": "application/json",
+      "Transfer-Encoding": "chunked",
+      "Connection": "keep-alive",
+      "Vary": "Accept-Encoding",
+      "Content-Encoding": "gzip",
+      "Set-Cookie": "{{MITM_REDACTED:response.headers.Set-Cookie}}",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+      "cf-cache-status": "DYNAMIC",
+      "Server": "cloudflare",
+      "CF-RAY": "9fc02a60ec5c3d25-BLR"
+    },
+    "body": {
+      "refundTransactionId": 1089392368,
+      "amount": 60.0,
+      "reason": "FRAUD",
+      "refundStatus": "SUCCESS"
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 91
+  },
+  "redaction": {
+    "version": 2,
+    "placeholder_count": 0,
+    "request_placeholder_count": 0,
+    "response_header_placeholder_count": 1,
+    "test_pan_placeholder_count": 0,
+    "card_echo_placeholder_count": 0
+  }
+}

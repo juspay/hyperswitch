@@ -1,0 +1,100 @@
+{
+  "captured_at": "2026-05-15T06:53:07.581292+00:00",
+  "test": "Payment Methods Tests > 'Last Used' off-session token payments > Create 3DS off session save card payment with token > create-payment-call-test -> confirm-save-card-payment-call-test -> Handle redirection -> List PM for customer",
+  "request_id": "019e2a69-0a60-7163-88d8-df2709cb3554",
+  "connector": "paypal",
+  "timing": {
+    "request_started_at": "2026-05-15T06:53:07.581292+00:00",
+    "request_completed_at": "2026-05-15T06:53:07.581785+00:00",
+    "response_started_at": "2026-05-15T06:53:08.714607+00:00",
+    "response_completed_at": "2026-05-15T06:53:08.738110+00:00",
+    "duration_ms": 1156.82
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "GET",
+    "url": "https://api-m.sandbox.paypal.com/v2/checkout/orders/7CE14989RH885021R?fields=payment_source",
+    "scheme": "https",
+    "host": "api-m.sandbox.paypal.com",
+    "port": 443,
+    "path": "/v2/checkout/orders/7CE14989RH885021R",
+    "query": {
+      "fields": "payment_source"
+    },
+    "headers": {
+      "via": "HyperSwitch",
+      "authorization": "Bearer A21AAL_l6fOjd8XACbHJocp7zIdbvGUB6FY2C6Q3K47kj5xzYsZLRnsR_63XjV2d4xIvwT0z6G86J8Nmle2CY7Gqx_-Y5fgMw",
+      "paypal-request-id": "pay_SQn0kQ7d3gYOXeEHJ0wd_1",
+      "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
+      "prefer": "return=representation",
+      "content-type": "application/json",
+      "x-flow": "PostAuthenticate",
+      "x-connector": "paypal",
+      "x-request-id": "019e2a69-0a60-7163-88d8-df2709cb3554",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "api-m.sandbox.paypal.com"
+    },
+    "body": null,
+    "body_encoding": null,
+    "body_size_bytes": 0
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "Connection": "keep-alive",
+      "content-type": "application/json",
+      "server-timing": "traceparent;desc=\"00-0000000000000000000f994367b340c1-e4e841eee8fc061a-01\"",
+      "access-control-expose-headers": "Server-Timing",
+      "cache-control": "max-age=0, no-cache, no-store, must-revalidate",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "http_x_pp_az_locator": "ccg18.slc",
+      "paypal-debug-id": "f994367b340c1",
+      "server": "nginx",
+      "x-backend-info": "v=1;name=2k1u3gOGb2cebCyZJujTUN--F_ccg18_wju_origin_api_m_1_sandbox_paypal_com;ip=34.106.238.133;port=443;ssl=1;max=200;mr=0;ka_ns=0;ml_ns=0;tka_s=300;tki_s=10;tkp=3;host=api-m.sandbox.paypal.com;min_tls=;max_tls=;sni=edge.sandbox.paypal.com;cert_host=edge.sandbox.paypal.com;ciphers=;check_cert=1;no_reneg=1;to_ns=1000000000;fbto_ns=59000000000;bbto_ns=10000000000;fto_ns=0",
+      "Accept-Ranges": "none",
+      "Via": "1.1 varnish, 1.1 varnish",
+      "content-encoding": "gzip",
+      "Edge-Control": "max-age=0",
+      "Date": "Fri, 15 May 2026 06:53:08 GMT",
+      "X-Served-By": "cache-sin-wsss1830022-SIN, cache-sin-wsss1830022-SIN, cache-qbk-voml4860023-QBK",
+      "X-Cache": "MISS, MISS, MISS",
+      "X-Cache-Hits": "0, 0, 0",
+      "X-Timer": "S1778827988.576275,VS0,VE1128",
+      "Vary": "Accept-Encoding",
+      "transfer-encoding": "chunked"
+    },
+    "body": {
+      "id": "7CE14989RH885021R",
+      "payment_source": {
+        "card": {
+          "name": "joseph Doe",
+          "last_digits": "4393",
+          "expiry": "2050-01",
+          "brand": "MASTERCARD",
+          "available_networks": [
+            "MASTERCARD"
+          ],
+          "type": "CREDIT",
+          "authentication_result": {
+            "liability_shift": "POSSIBLE",
+            "three_d_secure": {
+              "enrollment_status": "Y",
+              "authentication_status": "Y"
+            },
+            "data_only": false
+          },
+          "bin_details": {
+            "bin": "53298797",
+            "issuing_bank": "COMPUTER SERVICES, INC.",
+            "bin_country_code": "US"
+          }
+        }
+      }
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 429
+  }
+}

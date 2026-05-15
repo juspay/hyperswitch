@@ -1,0 +1,148 @@
+{
+  "captured_at": "2026-05-15T07:18:02.519603+00:00",
+  "test": "[Payout] Cards > Payout Card with Manual Fulfill - Create Confirm > fulfill-payout-call-test",
+  "request_id": "7ea57f8c-001",
+  "connector": "adyenplatform",
+  "timing": {
+    "request_started_at": "2026-05-15T07:18:02.519603+00:00",
+    "request_completed_at": "2026-05-15T07:18:02.520387+00:00",
+    "response_started_at": "2026-05-15T07:18:03.003046+00:00",
+    "response_completed_at": "2026-05-15T07:18:03.004044+00:00",
+    "duration_ms": 484.44
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://balanceplatform-api-test.adyen.com/btl/v4/transfers",
+    "scheme": "https",
+    "host": "balanceplatform-api-test.adyen.com",
+    "port": 443,
+    "path": "/btl/v4/transfers",
+    "query": {},
+    "headers": {
+      "content-type": "application/json",
+      "authorization": "{{MITM_SECRET:adyenplatform_payout.connector_account_details.api_key}}",
+      "via": "HyperSwitch",
+      "x-flow": "PoFulfill",
+      "x-request-id": "7ea57f8c-001",
+      "x-connector": "adyenplatform",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "balanceplatform-api-test.adyen.com",
+      "content-length": "717"
+    },
+    "body": {
+      "amount": {
+        "currency": "EUR",
+        "value": 100
+      },
+      "balanceAccountId": "BA32CNH223227G5KQKQDJ48HB",
+      "category": "card",
+      "counterparty": {
+        "card": {
+          "cardHolder": {
+            "address": {
+              "line1": "{{MITM_REDACTED:request.request.body.counterparty.card.cardHolder.address.line1}}",
+              "line2": "{{MITM_REDACTED:request.request.body.counterparty.card.cardHolder.address.line2}}",
+              "postalCode": "{{MITM_REDACTED:request.request.body.counterparty.card.cardHolder.address.postalCode}}",
+              "stateOrProvince": "NY",
+              "city": "{{MITM_REDACTED:request.request.body.counterparty.card.cardHolder.address.city}}",
+              "country": "US"
+            },
+            "firstName": "{{MITM_REDACTED:request.request.body.counterparty.card.cardHolder.firstName}}",
+            "lastName": "{{MITM_REDACTED:request.request.body.counterparty.card.cardHolder.lastName}}",
+            "fullName": null,
+            "email": null,
+            "reference": "cyMerchant_0b0333dd_cus_YEQt4d2L9Rg8DsHrLYVc",
+            "type": "individual"
+          },
+          "cardIdentification": {
+            "number": "{{MITM_REDACTED:request.request.body.counterparty.card.cardIdentification.number}}",
+            "expiryMonth": "03",
+            "expiryYear": "2030",
+            "issueNumber": null,
+            "startMonth": null,
+            "startYear": null
+          }
+        }
+      },
+      "reference": "payout_BVyqZtrQJjGOZAdnnFcY_1",
+      "referenceForBeneficiary": "payout_BVyqZtrQJjGOZAdnnFcY_1",
+      "description": "Its my first payout request"
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 717
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "traceparent": "00-667d5307c051cd3bd172fd831f6a6be8-514fb5279062ee5b-01",
+      "requestid": "38E9776AZTVGHZPQ",
+      "Content-Type": "application/json;charset=utf-8",
+      "Transfer-Encoding": "chunked",
+      "Date": "Fri, 15 May 2026 07:18:02 GMT",
+      "strict-transport-security": "max-age=31536000; includeSubDomains"
+    },
+    "body": {
+      "balancePlatform": "ZurichInsurance",
+      "creationDate": "2026-05-15T09:18:02+02:00",
+      "id": "38E9776AZTVGHZQO",
+      "accountHolder": {
+        "description": "ZurichInsurance Account Holder",
+        "id": "AH32CPC223227J5KQKQDJ32PK"
+      },
+      "amount": {
+        "currency": "EUR",
+        "value": 100
+      },
+      "balanceAccount": {
+        "description": "ZurichInsurance Liable Balance Account",
+        "id": "BA32CNH223227G5KQKQDJ48HB"
+      },
+      "category": "card",
+      "counterparty": {
+        "card": {
+          "cardHolder": {
+            "address": {
+              "city": "San Fransico",
+              "country": "US",
+              "line1": "1467",
+              "line2": "Harrison Street",
+              "postalCode": "94122",
+              "stateOrProvince": "NY"
+            },
+            "firstName": "John",
+            "lastName": "Smith",
+            "reference": "cyMerchant_0b0333dd_cus_YEQt4d2L9Rg8DsHrLYVc",
+            "type": "individual"
+          },
+          "cardIdentification": {
+            "expiryMonth": "03",
+            "expiryYear": "2030",
+            "number": "{{MITM_REDACTED:response.body.counterparty.card.cardIdentification.number}}"
+          }
+        }
+      },
+      "createdAt": "2026-05-15T09:18:02+02:00",
+      "description": "Its my first payout request",
+      "direction": "outgoing",
+      "reason": "approved",
+      "reference": "payout_BVyqZtrQJjGOZAdnnFcY_1",
+      "referenceForBeneficiary": "payout_BVyqZtrQJjGOZAdnnFcY_1",
+      "status": "authorised",
+      "type": "cardTransfer"
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 1022
+  },
+  "redaction": {
+    "version": 2,
+    "placeholder_count": 0,
+    "request_placeholder_count": 7,
+    "response_header_placeholder_count": 0,
+    "test_pan_placeholder_count": 0,
+    "card_echo_placeholder_count": 1
+  }
+}

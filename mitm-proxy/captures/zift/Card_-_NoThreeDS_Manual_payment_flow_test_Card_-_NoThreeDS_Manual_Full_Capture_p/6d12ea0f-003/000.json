@@ -1,0 +1,71 @@
+{
+  "captured_at": "2026-05-15T06:57:23.712478+00:00",
+  "test": "Card - NoThreeDS Manual payment flow test > Card - NoThreeDS Manual Full Capture payment flow test - Create+Confirm > Create and Confirm Payment Intent -> Retrieve Payment after Confirmation -> Capture Payment -> Retrieve Payment after Capture",
+  "request_id": "6d12ea0f-003",
+  "connector": "zift",
+  "timing": {
+    "request_started_at": "2026-05-15T06:57:23.712478+00:00",
+    "request_completed_at": "2026-05-15T06:57:23.712839+00:00",
+    "response_started_at": "2026-05-15T06:57:24.069671+00:00",
+    "response_completed_at": "2026-05-15T06:57:24.070039+00:00",
+    "duration_ms": 357.56
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://sandbox-secure.zift.io/gates/xurl",
+    "scheme": "https",
+    "host": "sandbox-secure.zift.io",
+    "port": 443,
+    "path": "/gates/xurl",
+    "query": {},
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded",
+      "x-request-id": "6d12ea0f-003",
+      "x-connector": "zift",
+      "via": "HyperSwitch",
+      "x-flow": "Capture",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "sandbox-secure.zift.io",
+      "content-length": "149"
+    },
+    "body": "requestType=capture&userName={{MITM_SECRET:zift.connector_account_details.api_key}}&password={{MITM_SECRET:zift.connector_account_details.api_secret}}&accountId=8393001&transactionId=8621194022&amount=6000",
+    "body_encoding": "utf-8",
+    "body_size_bytes": 149
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "Date": "Fri, 15 May 2026 06:57:24 GMT",
+      "Content-Type": "text/plain;charset=UTF-8",
+      "Transfer-Encoding": "chunked",
+      "Connection": "keep-alive",
+      "expires": "0",
+      "cache-control": "no-cache, no-store, must-revalidate",
+      "pragma": "no-cache",
+      "unibroker-code": "1",
+      "access-control-allow-origin": "https://sandbox-portal.zift.io",
+      "strict-transport-security": "max-age=15552000; includeSubDomains",
+      "set-cookie": "{{MITM_REDACTED:response.headers.set-cookie}}",
+      "unipay-code": "2",
+      "cf-cache-status": "DYNAMIC",
+      "Content-Encoding": "gzip",
+      "Server": "cloudflare",
+      "CF-RAY": "9fc03f8b38923d29-BLR"
+    },
+    "body": "responseType=capture&accountId=8393001&responseCode=A01&responseMessage=Approved&transactionId=8621194022&transactionCode=pay_c1k7MtsuGLKCTYL7BvCH_1&cycleCode=4133092&cycleId=4133092&terminalMessage=&providerTransactionId=&remainingAmount=0&amount=6000",
+    "body_encoding": "utf-8",
+    "body_size_bytes": 252
+  },
+  "redaction": {
+    "version": 2,
+    "placeholder_count": 0,
+    "request_placeholder_count": 0,
+    "response_header_placeholder_count": 1,
+    "test_pan_placeholder_count": 0,
+    "card_echo_placeholder_count": 0
+  }
+}

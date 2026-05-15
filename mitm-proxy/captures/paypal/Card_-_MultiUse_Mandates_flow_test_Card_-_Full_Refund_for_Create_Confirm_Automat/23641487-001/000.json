@@ -1,0 +1,115 @@
+{
+  "captured_at": "2026-05-15T06:46:47.231427+00:00",
+  "test": "Card - MultiUse Mandates flow test > Card - Full Refund for Create + Confirm Automatic CIT and MIT payment flow test > Refund Payment",
+  "request_id": "23641487-001",
+  "connector": "paypal",
+  "timing": {
+    "request_started_at": "2026-05-15T06:46:47.231427+00:00",
+    "request_completed_at": "2026-05-15T06:46:47.231909+00:00",
+    "response_started_at": "2026-05-15T06:46:49.675954+00:00",
+    "response_completed_at": "2026-05-15T06:46:49.676492+00:00",
+    "duration_ms": 2445.07
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://api-m.sandbox.paypal.com/v2/payments/captures/8UU324574T7567222/refund",
+    "scheme": "https",
+    "host": "api-m.sandbox.paypal.com",
+    "port": 443,
+    "path": "/v2/payments/captures/8UU324574T7567222/refund",
+    "query": {},
+    "headers": {
+      "content-type": "application/json",
+      "x-flow": "Execute",
+      "x-request-id": "23641487-001",
+      "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
+      "authorization": "Bearer A21AAL_l6fOjd8XACbHJocp7zIdbvGUB6FY2C6Q3K47kj5xzYsZLRnsR_63XjV2d4xIvwT0z6G86J8Nmle2CY7Gqx_-Y5fgMw",
+      "x-connector": "paypal",
+      "paypal-request-id": "ref_jgoBKwfuJ9kjFfW7RgKO",
+      "prefer": "return=representation",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "api-m.sandbox.paypal.com",
+      "content-length": "50"
+    },
+    "body": {
+      "amount": {
+        "currency_code": "USD",
+        "value": "60.00"
+      }
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 50
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 201,
+    "reason": "Created",
+    "headers": {
+      "Connection": "keep-alive",
+      "Content-Length": "700",
+      "server-timing": "traceparent;desc=\"00-0000000000000000000f909226395f93-721c6e06fea3cccb-01\"",
+      "paypal-debug-id": "f909226395f93",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "access-control-expose-headers": "Server-Timing",
+      "http_x_pp_az_locator": "ccg18.slc",
+      "server": "nginx",
+      "cache-control": "max-age=0, no-cache, no-store, must-revalidate",
+      "content-type": "application/json",
+      "x-backend-info": "v=1;name=2k1u3gOGb2cebCyZJujTUN--F_ccg18_wju_origin_api_m_1_sandbox_paypal_com;ip=34.106.238.133;port=443;ssl=1;max=200;mr=0;ka_ns=0;ml_ns=0;tka_s=300;tki_s=10;tkp=3;host=api-m.sandbox.paypal.com;min_tls=;max_tls=;sni=edge.sandbox.paypal.com;cert_host=edge.sandbox.paypal.com;ciphers=;check_cert=1;no_reneg=1;to_ns=1000000000;fbto_ns=59000000000;bbto_ns=10000000000;fto_ns=0",
+      "Accept-Ranges": "bytes",
+      "Via": "1.1 varnish, 1.1 varnish",
+      "Edge-Control": "max-age=0",
+      "Date": "Fri, 15 May 2026 06:46:49 GMT",
+      "X-Served-By": "cache-sin-wsss1830030-SIN, cache-sin-wsss1830030-SIN, cache-qbk-voml4860023-QBK",
+      "X-Cache": "MISS, MISS, MISS",
+      "X-Cache-Hits": "0, 0, 0",
+      "X-Timer": "S1778827607.229507,VS0,VE2341",
+      "Vary": "Accept-Encoding"
+    },
+    "body": {
+      "id": "10B38852FR629384K",
+      "amount": {
+        "currency_code": "USD",
+        "value": "60.00"
+      },
+      "seller_payable_breakdown": {
+        "gross_amount": {
+          "currency_code": "USD",
+          "value": "60.00"
+        },
+        "paypal_fee": {
+          "currency_code": "USD",
+          "value": "0.00"
+        },
+        "net_amount": {
+          "currency_code": "USD",
+          "value": "60.00"
+        },
+        "total_refunded_amount": {
+          "currency_code": "USD",
+          "value": "60.00"
+        }
+      },
+      "invoice_id": "pay_uLZsnNElwxZNWpF2uya1_1",
+      "status": "COMPLETED",
+      "create_time": "2026-05-14T23:46:48-07:00",
+      "update_time": "2026-05-14T23:46:48-07:00",
+      "links": [
+        {
+          "href": "https://api.sandbox.paypal.com/v2/payments/refunds/10B38852FR629384K",
+          "rel": "self",
+          "method": "GET"
+        },
+        {
+          "href": "https://api.sandbox.paypal.com/v2/payments/captures/8UU324574T7567222",
+          "rel": "up",
+          "method": "GET"
+        }
+      ]
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 700
+  }
+}

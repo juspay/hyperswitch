@@ -1,0 +1,124 @@
+{
+  "captured_at": "2026-05-15T06:46:56.218306+00:00",
+  "test": "Card - Customer Deletion and Psync > Card - Psync after Customer Deletion for Manual Capture > No3DS Card - Psync after Customer Deletion   > Create Customer -> Create Payment Intent -> Confirm Payment -> Retrieve Payment -> Capture Payment -> Retrieve Payment -> Delete Customer -> Retrieve Payment",
+  "request_id": "616c2d50-004",
+  "connector": "bluesnap",
+  "timing": {
+    "request_started_at": "2026-05-15T06:46:56.218306+00:00",
+    "request_completed_at": "2026-05-15T06:46:56.218679+00:00",
+    "response_started_at": "2026-05-15T06:46:56.726874+00:00",
+    "response_completed_at": "2026-05-15T06:46:56.727208+00:00",
+    "duration_ms": 508.9
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "GET",
+    "url": "https://sandbox.bluesnap.com/services/2/transactions/1089392432",
+    "scheme": "https",
+    "host": "sandbox.bluesnap.com",
+    "port": 443,
+    "path": "/services/2/transactions/1089392432",
+    "query": {},
+    "headers": {
+      "x-flow": "PSync",
+      "via": "HyperSwitch",
+      "x-connector": "bluesnap",
+      "authorization": "{{MITM_SECRET:basic:bluesnap.connector_account_details.key1+bluesnap.connector_account_details.api_key}}",
+      "content-type": "application/json",
+      "x-request-id": "616c2d50-004",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "sandbox.bluesnap.com"
+    },
+    "body": null,
+    "body_encoding": null,
+    "body_size_bytes": 0
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "Date": "Fri, 15 May 2026 06:46:56 GMT",
+      "Content-Type": "application/json",
+      "Transfer-Encoding": "chunked",
+      "Connection": "keep-alive",
+      "Vary": "Accept-Encoding",
+      "Content-Encoding": "gzip",
+      "Set-Cookie": "{{MITM_REDACTED:response.headers.Set-Cookie}}",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+      "cf-cache-status": "DYNAMIC",
+      "Server": "cloudflare",
+      "CF-RAY": "9fc030397c973d25-BLR"
+    },
+    "body": {
+      "cardTransactionType": "AUTH_ONLY",
+      "merchantTransactionId": "pay_oIcdprO5QD3HoS3GJTga_1",
+      "transactionId": "1089392432",
+      "softDescriptor": "BLS*ONBOARDINGDEFAULT",
+      "amount": 60.0,
+      "usdAmount": 60.0,
+      "openToCapture": 60.0,
+      "currency": "USD",
+      "cardHolderInfo": {
+        "firstName": "John",
+        "lastName": "John",
+        "email": "hyperswitch_sdk_demo_id@gmail.com"
+      },
+      "vaultedShopperId": 45202554,
+      "creditCard": {
+        "cardLastFourDigits": "4242",
+        "cardType": "VISA",
+        "cardSubType": "CREDIT",
+        "cardCategory": "CLASSIC",
+        "binCategory": "CONSUMER",
+        "binNumber": "424242",
+        "cardRegulated": "N",
+        "issuingBank": "STRIPE PAYMENTS UK LIMITED",
+        "expirationMonth": "10",
+        "expirationYear": "2030",
+        "issuingCountryCode": "gb"
+      },
+      "transactionMetaData": {
+        "metaData": [
+          {
+            "metaKey": "login_date",
+            "metaValue": "\"2019-09-10T10:11:12Z\"",
+            "isVisible": "true"
+          },
+          {
+            "metaKey": "new_customer",
+            "metaValue": "\"true\"",
+            "isVisible": "true"
+          },
+          {
+            "metaKey": "udf1",
+            "metaValue": "\"value1\"",
+            "isVisible": "true"
+          }
+        ]
+      },
+      "networkTransactionInfo": {
+        "originalNetworkTransactionId": "001778827615618",
+        "networkTransactionId": "001778827615618"
+      },
+      "processingInfo": {
+        "processingStatus": "SUCCESS",
+        "authorizationCode": "Authorized",
+        "networkTransactionId": "001778827615618",
+        "transactionRegion": "UK",
+        "supportsMultiPartialCapture": true
+      }
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 1200
+  },
+  "redaction": {
+    "version": 2,
+    "placeholder_count": 0,
+    "request_placeholder_count": 0,
+    "response_header_placeholder_count": 1,
+    "test_pan_placeholder_count": 0,
+    "card_echo_placeholder_count": 0
+  }
+}

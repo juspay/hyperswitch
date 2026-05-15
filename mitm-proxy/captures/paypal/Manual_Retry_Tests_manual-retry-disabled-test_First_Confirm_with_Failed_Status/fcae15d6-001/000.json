@@ -1,0 +1,268 @@
+{
+  "captured_at": "2026-05-15T06:54:39.572006+00:00",
+  "test": "Manual Retry Tests > manual-retry-disabled-test > First Confirm with Failed Status",
+  "request_id": "fcae15d6-001",
+  "connector": "paypal",
+  "timing": {
+    "request_started_at": "2026-05-15T06:54:39.572006+00:00",
+    "request_completed_at": "2026-05-15T06:54:39.572563+00:00",
+    "response_started_at": "2026-05-15T06:54:43.700265+00:00",
+    "response_completed_at": "2026-05-15T06:54:43.700643+00:00",
+    "duration_ms": 4128.64
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://api-m.sandbox.paypal.com/v2/checkout/orders",
+    "scheme": "https",
+    "host": "api-m.sandbox.paypal.com",
+    "port": 443,
+    "path": "/v2/checkout/orders",
+    "query": {},
+    "headers": {
+      "content-type": "application/json",
+      "prefer": "return=representation",
+      "via": "HyperSwitch",
+      "authorization": "Bearer A21AAL_l6fOjd8XACbHJocp7zIdbvGUB6FY2C6Q3K47kj5xzYsZLRnsR_63XjV2d4xIvwT0z6G86J8Nmle2CY7Gqx_-Y5fgMw",
+      "x-flow": "Authorize",
+      "paypal-request-id": "pay_3qQou0v8tiqgy18WDvv8_1",
+      "x-connector": "paypal",
+      "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
+      "x-request-id": "fcae15d6-001",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "api-m.sandbox.paypal.com",
+      "content-length": "809"
+    },
+    "body": {
+      "intent": "CAPTURE",
+      "purchase_units": [
+        {
+          "reference_id": "pay_3qQou0v8tiqgy18WDvv8_1",
+          "invoice_id": "pay_3qQou0v8tiqgy18WDvv8_1",
+          "custom_id": null,
+          "amount": {
+            "currency_code": "USD",
+            "value": "60.00",
+            "breakdown": {
+              "item_total": {
+                "currency_code": "USD",
+                "value": "60.00"
+              },
+              "tax_total": null,
+              "shipping": {
+                "currency_code": "USD",
+                "value": "0.00"
+              }
+            }
+          },
+          "shipping": {
+            "address": null,
+            "name": {
+              "full_name": null
+            }
+          },
+          "items": [
+            {
+              "name": "Payment for invoice pay_3qQou0v8tiqgy18WDvv8_1",
+              "quantity": 1,
+              "unit_amount": {
+                "currency_code": "USD",
+                "value": "60.00"
+              },
+              "tax": null
+            }
+          ]
+        }
+      ],
+      "payment_source": {
+        "card": {
+          "billing_address": {
+            "address_line_1": "{{MITM_REDACTED:request.request.body.payment_source.card.billing_address.address_line_1}}",
+            "postal_code": "{{MITM_REDACTED:request.request.body.payment_source.card.billing_address.postal_code}}",
+            "country_code": "US",
+            "admin_area_2": "New York"
+          },
+          "expiry": "2035-01",
+          "name": "CCREJECT-REFUSED",
+          "number": "{{MITM_REDACTED:request.request.body.payment_source.card.number}}",
+          "security_code": "{{MITM_REDACTED:request.request.body.payment_source.card.security_code}}",
+          "attributes": {
+            "vault": null,
+            "verification": null
+          }
+        }
+      }
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 809
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 201,
+    "reason": "Created",
+    "headers": {
+      "Connection": "keep-alive",
+      "Content-Length": "2088",
+      "http_x_pp_az_locator": "ccg18.slc",
+      "content-type": "application/json",
+      "server-timing": "traceparent;desc=\"00-0000000000000000000f878757e10fa8-0515a29dc98acfd1-01\"",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "cache-control": "max-age=0, no-cache, no-store, must-revalidate",
+      "server": "nginx",
+      "paypal-debug-id": "f878757e10fa8",
+      "access-control-expose-headers": "Server-Timing",
+      "x-backend-info": "v=1;name=2k1u3gOGb2cebCyZJujTUN--F_ccg18_wju_origin_api_m_1_sandbox_paypal_com;ip=34.106.238.133;port=443;ssl=1;max=200;mr=0;ka_ns=0;ml_ns=0;tka_s=300;tki_s=10;tkp=3;host=api-m.sandbox.paypal.com;min_tls=;max_tls=;sni=edge.sandbox.paypal.com;cert_host=edge.sandbox.paypal.com;ciphers=;check_cert=1;no_reneg=1;to_ns=1000000000;fbto_ns=59000000000;bbto_ns=10000000000;fto_ns=0",
+      "Accept-Ranges": "bytes",
+      "Via": "1.1 varnish, 1.1 varnish",
+      "Edge-Control": "max-age=0",
+      "Date": "Fri, 15 May 2026 06:54:43 GMT",
+      "X-Served-By": "cache-sin-wsat1880035-SIN, cache-sin-wsat1880035-SIN, cache-qbk-voml4860023-QBK",
+      "X-Cache": "MISS, MISS, MISS",
+      "X-Cache-Hits": "0, 0, 0",
+      "X-Timer": "S1778828080.561084,VS0,VE4091",
+      "Vary": "Accept-Encoding"
+    },
+    "body": {
+      "id": "0G959390W9143782P",
+      "intent": "CAPTURE",
+      "status": "COMPLETED",
+      "payment_source": {
+        "card": {
+          "name": "CCREJECT-REFUSED",
+          "last_digits": "1881",
+          "expiry": "2035-01",
+          "brand": "VISA",
+          "type": "CREDIT",
+          "bin_details": {}
+        }
+      },
+      "purchase_units": [
+        {
+          "reference_id": "pay_3qQou0v8tiqgy18WDvv8_1",
+          "amount": {
+            "currency_code": "USD",
+            "value": "60.00",
+            "breakdown": {
+              "item_total": {
+                "currency_code": "USD",
+                "value": "60.00"
+              },
+              "shipping": {
+                "currency_code": "USD",
+                "value": "0.00"
+              },
+              "handling": {
+                "currency_code": "USD",
+                "value": "0.00"
+              },
+              "tax_total": {
+                "currency_code": "USD",
+                "value": "0.00"
+              },
+              "insurance": {
+                "currency_code": "USD",
+                "value": "0.00"
+              },
+              "shipping_discount": {
+                "currency_code": "USD",
+                "value": "0.00"
+              }
+            }
+          },
+          "payee": {
+            "email_address": "sb-itwmi27136406@business.example.com",
+            "merchant_id": "DUM69V9DDNYEJ"
+          },
+          "description": "Payment for invoice pay_3qQou0v8tiqgy18WDvv8_1",
+          "invoice_id": "pay_3qQou0v8tiqgy18WDvv8_1",
+          "soft_descriptor": "TEST STORE",
+          "items": [
+            {
+              "name": "Payment for invoice pay_3qQou0v8tiqgy18WDvv8_1",
+              "unit_amount": {
+                "currency_code": "USD",
+                "value": "60.00"
+              },
+              "tax": {
+                "currency_code": "USD",
+                "value": "0.00"
+              },
+              "quantity": "1"
+            }
+          ],
+          "payments": {
+            "captures": [
+              {
+                "id": "0CP39977VA763922N",
+                "status": "DECLINED",
+                "amount": {
+                  "currency_code": "USD",
+                  "value": "60.00"
+                },
+                "final_capture": true,
+                "seller_protection": {
+                  "status": "NOT_ELIGIBLE"
+                },
+                "seller_receivable_breakdown": {
+                  "gross_amount": {
+                    "currency_code": "USD",
+                    "value": "60.00"
+                  },
+                  "net_amount": {
+                    "currency_code": "USD",
+                    "value": "60.00"
+                  }
+                },
+                "invoice_id": "pay_3qQou0v8tiqgy18WDvv8_1",
+                "links": [
+                  {
+                    "href": "https://api.sandbox.paypal.com/v2/payments/captures/0CP39977VA763922N",
+                    "rel": "self",
+                    "method": "GET"
+                  },
+                  {
+                    "href": "https://api.sandbox.paypal.com/v2/checkout/orders/0G959390W9143782P",
+                    "rel": "up",
+                    "method": "GET"
+                  }
+                ],
+                "create_time": "2026-05-15T06:54:43Z",
+                "update_time": "2026-05-15T06:54:43Z",
+                "network_transaction_reference": {
+                  "id": "000000000000000",
+                  "date": "0203",
+                  "network": "VISA"
+                },
+                "processor_response": {
+                  "avs_code": "G",
+                  "cvv_code": "P",
+                  "response_code": "0500"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "create_time": "2026-05-15T06:54:43Z",
+      "update_time": "2026-05-15T06:54:43Z",
+      "links": [
+        {
+          "href": "https://api.sandbox.paypal.com/v2/checkout/orders/0G959390W9143782P",
+          "rel": "self",
+          "method": "GET"
+        }
+      ]
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 2088
+  },
+  "redaction": {
+    "version": 2,
+    "placeholder_count": 0,
+    "request_placeholder_count": 4,
+    "response_header_placeholder_count": 0,
+    "test_pan_placeholder_count": 0,
+    "card_echo_placeholder_count": 0
+  }
+}

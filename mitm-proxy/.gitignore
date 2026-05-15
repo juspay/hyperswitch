@@ -4,8 +4,8 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Cassette recordings (stored in S3 for CI, not committed)
-captures/
+# Quarantined/temporary cassette recordings are local-only.
+# Sanitized captures/ are commit-safe after normalize_captures.py redacts creds.
 captures_quarantine/
 
 # mitmproxy cert store

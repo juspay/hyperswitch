@@ -1,0 +1,81 @@
+{
+  "captured_at": "2026-05-15T06:58:35.499579+00:00",
+  "test": "Payment Webhook Tests > NoThreeDS Manual payment flow test > Confirm No 3DS",
+  "request_id": "d27311c2-001",
+  "connector": "paypal",
+  "timing": {
+    "request_started_at": "2026-05-15T06:58:35.499579+00:00",
+    "request_completed_at": "2026-05-15T06:58:35.499952+00:00",
+    "response_started_at": "2026-05-15T06:58:36.559386+00:00",
+    "response_completed_at": "2026-05-15T06:58:36.560221+00:00",
+    "duration_ms": 1060.64
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://api-m.sandbox.paypal.com/v1/oauth2/token",
+    "scheme": "https",
+    "host": "api-m.sandbox.paypal.com",
+    "port": 443,
+    "path": "/v1/oauth2/token",
+    "query": {},
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded",
+      "x-request-id": "d27311c2-001",
+      "authorization": "{{MITM_SECRET:basic:paypal.connector_account_details.key1+paypal.connector_account_details.api_key}}",
+      "x-flow": "AccessTokenAuth",
+      "x-connector": "paypal",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "api-m.sandbox.paypal.com",
+      "content-length": "215"
+    },
+    "body": "grant_type=client_credentials&client_id={{MITM_SECRET:paypal.connector_account_details.key1}}&client_secret={{MITM_SECRET:paypal.connector_account_details.api_key}}",
+    "body_encoding": "utf-8",
+    "body_size_bytes": 215
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "Connection": "keep-alive",
+      "server-timing": "traceparent;desc=\"00-0000000000000000000f592027de6919-8104a268f1ab4b8e-01\"",
+      "paypal-debug-id": "f592027de6919",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "access-control-expose-headers": "Server-Timing",
+      "http_x_pp_az_locator": "ccg18.slc",
+      "x-paypal-token-service": "IAAS",
+      "server": "nginx",
+      "cache-control": "max-age=0, no-cache, no-store, must-revalidate",
+      "content-type": "application/json",
+      "pragma": "no-cache",
+      "x-backend-info": "v=1;name=2k1u3gOGb2cebCyZJujTUN--F_ccg18_wju_origin_api_m_1_sandbox_paypal_com;ip=34.106.238.133;port=443;ssl=1;max=200;mr=0;ka_ns=0;ml_ns=0;tka_s=300;tki_s=10;tkp=3;host=api-m.sandbox.paypal.com;min_tls=;max_tls=;sni=edge.sandbox.paypal.com;cert_host=edge.sandbox.paypal.com;ciphers=;check_cert=1;no_reneg=1;to_ns=1000000000;fbto_ns=59000000000;bbto_ns=10000000000;fto_ns=0",
+      "Accept-Ranges": "none",
+      "Via": "1.1 varnish, 1.1 varnish",
+      "content-encoding": "gzip",
+      "Edge-Control": "max-age=0",
+      "Date": "Fri, 15 May 2026 06:58:36 GMT",
+      "X-Served-By": "cache-sin-wsat1880089-SIN, cache-sin-wsat1880089-SIN, cache-qbk-voml4860023-QBK",
+      "X-Cache": "MISS, MISS, MISS",
+      "X-Cache-Hits": "0, 0, 0",
+      "X-Timer": "S1778828315.476766,VS0,VE976",
+      "Vary": "Accept-Encoding",
+      "transfer-encoding": "chunked"
+    },
+    "body": {
+      "scope": "https://uri.paypal.com/services/checkout/one-click-with-merchant-issued-token https://uri.paypal.com/services/payments/futurepayments https://uri.paypal.com/services/invoicing https://uri.paypal.com/services/vault/payment-tokens/read https://uri.paypal.com/services/disputes/read-buyer https://uri.paypal.com/services/payments/realtimepayment https://uri.paypal.com/services/identity/activities https://api.paypal.com/v1/vault/credit-card https://api.paypal.com/v1/payments/.* https://uri.paypal.com/services/reporting/search/read https://uri.paypal.com/services/vault/payment-tokens/readwrite https://uri.paypal.com/services/applications/webhooks https://api.paypal.com/v1/payments/refund https://uri.paypal.com/services/disputes/update-seller https://uri.paypal.com/services/paypalhere openid https://uri.paypal.com/services/payments/payment/authcapture Braintree:Vault https://uri.paypal.com/services/disputes/read-seller https://uri.paypal.com/services/payments/refund https://uri.paypal.com/services/billing-agreements https://uri.paypal.com/payments/payouts https://api.paypal.com/v1/vault/credit-card/.* https://uri.paypal.com/services/shipping/trackers/readwrite https://uri.paypal.com/services/subscriptions https://api.paypal.com/v1/payments/sale/.*/refund",
+      "access_token": "A21AAL_l6fOjd8XACbHJocp7zIdbvGUB6FY2C6Q3K47kj5xzYsZLRnsR_63XjV2d4xIvwT0z6G86J8Nmle2CY7Gqx_-Y5fgMw",
+      "token_type": "Bearer",
+      "app_id": "APP-80W284485P519543T",
+      "expires_in": 31194,
+      "nonce": "2026-05-15T06:38:30Z_f2NgqwqXHH9eklDztFre1AGm_tJvgqv2gyKYAk8O7c"
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 1541
+  },
+  "redaction": {
+    "version": 1,
+    "placeholder_count": 3
+  }
+}

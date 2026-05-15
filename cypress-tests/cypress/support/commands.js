@@ -4342,6 +4342,14 @@ Cypress.Commands.add(
         globalState.get("connectorTransactionID");
       if (canUseWebhook) {
         cy.fireConnectorWebhook(globalState);
+      } else if (connectorId === "paypal") {
+        // PayPal card 3DS returns through `/redirect/complete/paypal`, not
+        // `/redirect/response/paypal`. The complete path runs
+        // PostAuthenticate (GET order with `fields=payment_source`) and then
+        // CompleteAuthorize (POST order capture), matching the live browser
+        // callback. The generic redirect-response fallback runs PSync instead
+        // and cannot deserialize PayPal's post-auth response shape.
+        cy.simulatePaypalRedirectComplete(globalState);
       } else if (connectorId === "nmi") {
         // NMI's 3DS flow needs CompleteAuthorize (HS endpoint
         // `/redirect/complete/{connector}`), not PSync. The default
@@ -4794,6 +4802,43 @@ Cypress.Commands.add("simulateRedsysRedirectComplete", (globalState) => {
   });
 });
 
+// MITM proxy / replay-mode helper for PayPal card 3DS.
+// The live PayPal browser flow redirects back to HS with a GET on
+// `/redirect/complete/paypal?state=undefined&code=undefined&liability_shift=POSSIBLE`.
+// That path is CompleteAuthorize-shaped. It first asks PayPal for
+// `fields=payment_source` (PostAuthenticate), then captures the order.
+Cypress.Commands.add("simulatePaypalRedirectComplete", (globalState) => {
+  const connectorId = globalState.get("connectorId");
+  const merchantId = globalState.get("merchantId");
+  const paymentId = globalState.get("paymentID");
+  const baseUrl = globalState.get("baseUrl");
+
+  if (!paymentId || !merchantId) {
+    throw new Error(
+      `simulatePaypalRedirectComplete: paymentID or merchantId missing in globalState`
+    );
+  }
+
+  const url = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/complete/${connectorId}`;
+  cy.task("cli_log", `[redirect-complete] paypal → GET ${url}`);
+  cy.request({
+    method: "GET",
+    url,
+    qs: {
+      state: "undefined",
+      code: "undefined",
+      liability_shift: "POSSIBLE",
+    },
+    failOnStatusCode: false,
+    followRedirect: false,
+  }).then((resp) => {
+    cy.task(
+      "cli_log",
+      `[redirect-complete] paypal HS responded status=${resp.status}`
+    );
+  });
+});
+
 Cypress.Commands.add("simulateRedirectCallback", (globalState) => {
   const connectorId = globalState.get("connectorId");
   const merchantId = globalState.get("merchantId");
@@ -4832,10 +4877,22 @@ Cypress.Commands.add(
     const redirectionUrl = new URL(nextActionUrl);
 
     if (Cypress.env("PROXY_MODE") === "replay") {
-      // Skip the bank-redirect browser dance. Instead of firing a webhook
-      // (which needs a Stripe pi we don't have yet for these flows), we
-      // simulate the post-bank-auth callback to HS. HS then force-syncs
-      // the connector, which mitm matches from a cassette.
+      // Skip the bank-redirect browser dance. PayPal's bank-redirect specs end
+      // at the redirect-handling step and live capture does not produce a
+      // post-redirect HS→PayPal sync/capture cassette for EPS/iDEAL. Firing the
+      // generic redirect callback in replay invents a connector GET that never
+      // happened in capture, so no-op for PayPal here.
+      if (connectorId === "paypal") {
+        cy.task(
+          "cli_log",
+          `[redirect-callback] paypal bank_redirect: no-op in replay`
+        );
+        return;
+      }
+
+      // Other bank-redirect connectors need a synthetic post-bank-auth callback
+      // to HS. HS then force-syncs the connector, which mitm matches from a
+      // cassette.
       cy.simulateRedirectCallback(globalState);
       return;
     }

@@ -1,0 +1,129 @@
+{
+  "captured_at": "2026-05-15T06:44:06.247203+00:00",
+  "test": "Card - Refund flow - No 3DS > Card - Partial Refund for fully captured No-3DS payment > Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Capture Payment -> Retrieve Payment after Capture -> Partial Refund Payment -> Partial Refund Payment - 2nd Attempt -> Sync Refund Payment -> List Refunds",
+  "request_id": "ba517abf-004",
+  "connector": "paypal",
+  "timing": {
+    "request_started_at": "2026-05-15T06:44:06.247203+00:00",
+    "request_completed_at": "2026-05-15T06:44:06.247522+00:00",
+    "response_started_at": "2026-05-15T06:44:07.370903+00:00",
+    "response_completed_at": "2026-05-15T06:44:07.371216+00:00",
+    "duration_ms": 1124.01
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "GET",
+    "url": "https://api-m.sandbox.paypal.com/v2/payments/authorizations/7V908698FW034203M",
+    "scheme": "https",
+    "host": "api-m.sandbox.paypal.com",
+    "port": 443,
+    "path": "/v2/payments/authorizations/7V908698FW034203M",
+    "query": {},
+    "headers": {
+      "prefer": "return=representation",
+      "paypal-request-id": "pay_8adpnnlCYuVkGwtWI6nV_1",
+      "content-type": "application/json",
+      "x-connector": "paypal",
+      "x-request-id": "ba517abf-004",
+      "authorization": "Bearer A21AAL_l6fOjd8XACbHJocp7zIdbvGUB6FY2C6Q3K47kj5xzYsZLRnsR_63XjV2d4xIvwT0z6G86J8Nmle2CY7Gqx_-Y5fgMw",
+      "x-flow": "PSync",
+      "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "api-m.sandbox.paypal.com"
+    },
+    "body": null,
+    "body_encoding": null,
+    "body_size_bytes": 0
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "Connection": "keep-alive",
+      "content-type": "application/json;charset=UTF-8",
+      "server-timing": "traceparent;desc=\"00-0000000000000000000f552566b0e9d7-406aee19faf7f454-01\"",
+      "access-control-expose-headers": "Server-Timing",
+      "cache-control": "max-age=0, no-cache, no-store, must-revalidate",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "http_x_pp_az_locator": "ccg18.slc",
+      "paypal-debug-id": "f552566b0e9d7",
+      "server": "nginx",
+      "x-backend-info": "v=1;name=2k1u3gOGb2cebCyZJujTUN--F_ccg18_wju_origin_api_m_1_sandbox_paypal_com;ip=34.106.238.133;port=443;ssl=1;max=200;mr=0;ka_ns=0;ml_ns=0;tka_s=300;tki_s=10;tkp=3;host=api-m.sandbox.paypal.com;min_tls=;max_tls=;sni=edge.sandbox.paypal.com;cert_host=edge.sandbox.paypal.com;ciphers=;check_cert=1;no_reneg=1;to_ns=1000000000;fbto_ns=59000000000;bbto_ns=10000000000;fto_ns=0",
+      "Accept-Ranges": "none",
+      "Via": "1.1 varnish, 1.1 varnish",
+      "content-encoding": "gzip",
+      "Edge-Control": "max-age=0",
+      "Date": "Fri, 15 May 2026 06:44:07 GMT",
+      "X-Served-By": "cache-sin-wsat1880038-SIN, cache-sin-wsat1880038-SIN, cache-qbk-voml4860023-QBK",
+      "X-Cache": "MISS, MISS, MISS",
+      "X-Cache-Hits": "0, 0, 0",
+      "X-Timer": "S1778827446.244599,VS0,VE1072",
+      "Vary": "Accept-Encoding",
+      "transfer-encoding": "chunked"
+    },
+    "body": {
+      "id": "7V908698FW034203M",
+      "status": "CREATED",
+      "amount": {
+        "currency_code": "USD",
+        "value": "60.00"
+      },
+      "invoice_id": "pay_8adpnnlCYuVkGwtWI6nV_1",
+      "seller_protection": {
+        "status": "NOT_ELIGIBLE"
+      },
+      "processor_response": {
+        "avs_code": "A",
+        "cvv_code": "M",
+        "response_code": "0000"
+      },
+      "supplementary_data": {
+        "related_ids": {
+          "order_id": "8VE77313E3729902W"
+        }
+      },
+      "payee": {
+        "email_address": "sb-itwmi27136406@business.example.com",
+        "merchant_id": "DUM69V9DDNYEJ"
+      },
+      "expiration_time": "2026-06-13T06:44:05Z",
+      "create_time": "2026-05-15T06:44:05Z",
+      "update_time": "2026-05-15T06:44:05Z",
+      "links": [
+        {
+          "href": "https://api.sandbox.paypal.com/v2/payments/authorizations/7V908698FW034203M",
+          "rel": "self",
+          "method": "GET"
+        },
+        {
+          "href": "https://api.sandbox.paypal.com/v2/payments/authorizations/7V908698FW034203M/capture",
+          "rel": "capture",
+          "method": "POST"
+        },
+        {
+          "href": "https://api.sandbox.paypal.com/v2/payments/authorizations/7V908698FW034203M/void",
+          "rel": "void",
+          "method": "POST"
+        },
+        {
+          "href": "https://api.sandbox.paypal.com/v2/payments/authorizations/7V908698FW034203M/reauthorize",
+          "rel": "reauthorize",
+          "method": "POST"
+        },
+        {
+          "href": "https://api.sandbox.paypal.com/v2/checkout/orders/8VE77313E3729902W",
+          "rel": "up",
+          "method": "GET"
+        }
+      ],
+      "network_transaction_reference": {
+        "id": "535615617696086",
+        "network": "VISA"
+      }
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 1226
+  }
+}

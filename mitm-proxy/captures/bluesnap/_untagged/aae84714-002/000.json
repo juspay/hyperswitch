@@ -1,0 +1,99 @@
+{
+  "captured_at": "2026-05-15T06:47:59.625761+00:00",
+  "test": "_untagged",
+  "request_id": "aae84714-002",
+  "connector": "bluesnap",
+  "timing": {
+    "request_started_at": "2026-05-15T06:47:59.625761+00:00",
+    "request_completed_at": "2026-05-15T06:47:59.625987+00:00",
+    "response_started_at": "2026-05-15T06:48:00.127007+00:00",
+    "response_completed_at": "2026-05-15T06:48:00.127312+00:00",
+    "duration_ms": 501.55
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://{{MITM_SECRET:vgs.connector_account_details.api_secret}}.sandbox.vault-api.verygoodvault.com/aliases",
+    "scheme": "https",
+    "host": "{{MITM_SECRET:vgs.connector_account_details.api_secret}}.sandbox.vault-api.verygoodvault.com",
+    "port": 443,
+    "path": "/aliases",
+    "query": {},
+    "headers": {
+      "content-type": "application/json",
+      "x-connector": "irrelevant connector in VaultConnector flow",
+      "via": "HyperSwitch",
+      "x-flow": "ExternalVaultInsertFlow",
+      "x-request-id": "aae84714-002",
+      "authorization": "Bearer eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI1RVhBTnFldTBIbUNGVHZDUGs1c21iQjNjcVo1c0FLUzNKWFRjeHdTWjY4In0.eyJleHAiOjE3Nzg4Mjg4NzUsImlhdCI6MTc3ODgyNzY3NSwianRpIjoidHJydGNjOjJkN2M3MGU0LWQxYzQtYmRlMS0zNzIyLWUwZjgxMGY3MmY0NSIsImlzcyI6Imh0dHBzOi8vYXV0aC52ZXJ5Z29vZHNlY3VyaXR5LmNvbS9hdXRoL3JlYWxtcy92Z3MiLCJhdWQiOlsiYWN0LW1nbXQtaHR0cC1hcGkiLCJ2YXVsdC1tZ210LWh0dHAtYXBpIiwidmF1bHQtYXBpIiwiY2FsbS1zYW5kYm94IiwiY2FsbS1saXZlIl0sInN1YiI6IjViNjkzMjdiLTA1OTEtNDgxOS1hODdkLTQ5ZmQ5NzQ2ZGRjYiIsInR5cCI6IkJlYXJlciIsImF6cCI6IkFDdjZIWmpyQy10ZXN0LVVLQ0J3IiwicmVzb3VyY2VfYWNjZXNzIjp7InZhdWx0LW1nbXQtaHR0cC1hcGkiOnsicm9sZXMiOlsidmF1bHRzOnJlYWQiLCJ2YXVsdHM6d3JpdGUiXX0sInZhdWx0LWFwaSI6eyJyb2xlcyI6WyJhbGlhc2VzOndyaXRlIiwiYWxpYXNlczpyZWFkIiwiYWxpYXNlczpkZWxldGUiXX0sImFjdC1tZ210LWh0dHAtYXBpIjp7InJvbGVzIjpbInZhdWx0czpyZWFkIiwidmF1bHRzOndyaXRlIl19LCJjYWxtLXNhbmRib3giOnsicm9sZXMiOlsiY2FyZHM6cmVhZCIsImNhcmRzOndyaXRlIiwiY2FyZHM6cmVhZC1wY2kiXX0sImNhbG0tbGl2ZSI6eyJyb2xlcyI6WyJjYXJkczpyZWFkIiwiY2FyZHM6d3JpdGUiLCJjYXJkczpyZWFkLXBjaSJdfX0sInNjb3BlIjoiYWxpYXNlczpkZWxldGUgYWxpYXNlczp3cml0ZSBzZXJ2aWNlLWFjY291bnQgYWxpYXNlczpyZWFkIGNhcmRzOnJlYWQgdmF1bHRzOnJlYWQgY2FyZHM6d3JpdGUgdXNlcl9pZCBjYXJkczpyZWFkLXBjaSB2YXVsdHM6d3JpdGUiLCJzZXJ2aWNlX2FjY291bnQiOnRydWUsImNsaWVudEhvc3QiOiIxMTUuMjQwLjE2NC4xOTQiLCJjbGllbnRBbm5vdGF0aW9ucyI6eyJ2Z3MuaW8vdmF1bHQtaWQiOiJ0bnRkaHozeGE4eCJ9LCJjbGllbnRBZGRyZXNzIjoiMTE1LjI0MC4xNjQuMTk0IiwiY2xpZW50X2lkIjoiQUN2NkhaanJDLXRlc3QtVUtDQncifQ.dYgAWJcAOHpLMUuI1M1wSBo_DXViIKX0m3G3rCw1IPZD4kRk7v5RHD0ozOVanp2O9XsvMfY1_fXeD8JfCVL0HEh7uk_amQIUmAeWVu09X19hKZ5jH-RjWs--MAJDOY119WLRESYjdB8DrIhlVofzRbELlXdxHc2Hz5sD-2nRpBXEXjOwSev8uMaT7f4dPPpKo9u2iMnG-QDobvmCgO94105_DzJy5hZG6JTv-YjynPWVZDvo1mcPKn_xoETzq4NpPqY9HMPvessykAj2L9Q3hCTYyiVcGDI_BFvqOm4Jg_z2NCYpP8Jmjuoz9tfJ6l9RCX1CgmCHp_3t9PCR8pn9ng",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "{{MITM_SECRET:vgs.connector_account_details.api_secret}}.sandbox.vault-api.verygoodvault.com",
+      "content-length": "192"
+    },
+    "body": {
+      "data": [
+        {
+          "value": "{\"card_number\":\"{{MITM_REDACTED:request.card_number}}\",\"card_exp_month\":\"10\",\"card_exp_year\":\"30\",\"card_cvc\":null}",
+          "classifiers": [
+            "data"
+          ],
+          "format": "UUID",
+          "storage": "PERSISTENT"
+        }
+      ]
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 192
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 201,
+    "reason": "Created",
+    "headers": {
+      "Date": "Fri, 15 May 2026 06:47:59 GMT",
+      "Content-Type": "application/json",
+      "Transfer-Encoding": "chunked",
+      "Connection": "keep-alive",
+      "vary": "Origin,Access-Control-Request-Method,Access-Control-Request-Headers",
+      "x-b3-traceid": "00000000000000005a61fe95c3a7ce50",
+      "x-b3-spanid": "5a61fe95c3a7ce50",
+      "x-content-type-options": "nosniff",
+      "x-xss-protection": "0",
+      "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+      "pragma": "no-cache",
+      "expires": "0",
+      "strict-transport-security": "max-age=31536000 ; includeSubDomains",
+      "x-frame-options": "DENY",
+      "server": "web"
+    },
+    "body": {
+      "data": [
+        {
+          "value": "{\"card_number\":\"{{MITM_REDACTED:card.pan}}\",\"card_exp_month\":\"10\",\"card_exp_year\":\"30\",\"card_cvc\":null}",
+          "classifiers": [
+            "data"
+          ],
+          "aliases": [
+            {
+              "alias": "tok_sandbox_aJR4Bw1hNW4uK6rJjcVDc3",
+              "format": "UUID"
+            }
+          ],
+          "created_at": "2026-05-15T06:47:59Z",
+          "storage": "PERSISTENT"
+        }
+      ]
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 360
+  },
+  "redaction": {
+    "version": 2,
+    "placeholder_count": 0,
+    "request_placeholder_count": 1,
+    "response_header_placeholder_count": 0,
+    "test_pan_placeholder_count": 0,
+    "card_echo_placeholder_count": 0
+  }
+}

@@ -1,0 +1,164 @@
+{
+  "captured_at": "2026-05-15T06:44:29.470605+00:00",
+  "test": "Card - SaveCard payment flow test > Save card for NoThreeDS automatic capture payment- Create+Confirm [on_session] > Create Customer -> Create and Confirm Payment -> Retrieve Payment after Confirm -> List Customer Payment Methods -> Create Payment Intent -> Save Card Confirm Call",
+  "request_id": "5b253ce5-002",
+  "connector": "bluesnap",
+  "timing": {
+    "request_started_at": "2026-05-15T06:44:29.470605+00:00",
+    "request_completed_at": "2026-05-15T06:44:29.470918+00:00",
+    "response_started_at": "2026-05-15T06:44:32.104804+00:00",
+    "response_completed_at": "2026-05-15T06:44:32.105125+00:00",
+    "duration_ms": 2634.52
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://sandbox.bluesnap.com/services/2/transactions",
+    "scheme": "https",
+    "host": "sandbox.bluesnap.com",
+    "port": 443,
+    "path": "/services/2/transactions",
+    "query": {},
+    "headers": {
+      "content-type": "application/json",
+      "x-connector": "bluesnap",
+      "authorization": "{{MITM_SECRET:basic:bluesnap.connector_account_details.key1+bluesnap.connector_account_details.api_key}}",
+      "via": "HyperSwitch",
+      "x-flow": "Authorize",
+      "x-request-id": "5b253ce5-002",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "sandbox.bluesnap.com",
+      "content-length": "638"
+    },
+    "body": {
+      "amount": "60.00",
+      "creditCard": {
+        "cardNumber": "{{MITM_REDACTED:request.request.body.creditCard.cardNumber}}",
+        "expirationMonth": "10",
+        "expirationYear": "2030",
+        "securityCode": "{{MITM_REDACTED:request.request.body.creditCard.securityCode}}"
+      },
+      "currency": "USD",
+      "cardTransactionType": "AUTH_CAPTURE",
+      "transactionFraudInfo": {
+        "fraudSessionId": "pay_iJ8NZkBzZouPiJ8o449D_1"
+      },
+      "cardHolderInfo": {
+        "firstName": "{{MITM_REDACTED:request.request.body.cardHolderInfo.firstName}}",
+        "lastName": "{{MITM_REDACTED:request.request.body.cardHolderInfo.lastName}}",
+        "email": "{{MITM_REDACTED:request.request.body.cardHolderInfo.email}}"
+      },
+      "merchantTransactionId": "pay_iJ8NZkBzZouPiJ8o449D_1",
+      "transactionMetaData": {
+        "metaData": [
+          {
+            "metaKey": "login_date",
+            "metaValue": "\"2019-09-10T10:11:12Z\"",
+            "isVisible": "Y"
+          },
+          {
+            "metaKey": "new_customer",
+            "metaValue": "\"true\"",
+            "isVisible": "Y"
+          },
+          {
+            "metaKey": "udf1",
+            "metaValue": "\"value1\"",
+            "isVisible": "Y"
+          }
+        ]
+      }
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 638
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "Date": "Fri, 15 May 2026 06:44:32 GMT",
+      "Content-Type": "application/json",
+      "Transfer-Encoding": "chunked",
+      "Connection": "keep-alive",
+      "Vary": "Accept-Encoding",
+      "Content-Encoding": "gzip",
+      "Set-Cookie": "{{MITM_REDACTED:response.headers.Set-Cookie}}",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+      "cf-cache-status": "DYNAMIC",
+      "Server": "cloudflare",
+      "CF-RAY": "9fc02ca44ebb3d25-BLR"
+    },
+    "body": {
+      "cardTransactionType": "AUTH_CAPTURE",
+      "merchantTransactionId": "pay_iJ8NZkBzZouPiJ8o449D_1",
+      "transactionId": "1089391642",
+      "softDescriptor": "BLS*ONBOARDINGDEFAULT",
+      "amount": 60.0,
+      "usdAmount": 60.0,
+      "currency": "USD",
+      "transactionApprovalDate": "05/14/2026",
+      "transactionApprovalTime": "23:44:31",
+      "cardHolderInfo": {
+        "firstName": "John",
+        "lastName": "John",
+        "email": "guest@example.com"
+      },
+      "vaultedShopperId": 45202482,
+      "creditCard": {
+        "cardLastFourDigits": "4242",
+        "cardType": "VISA",
+        "cardSubType": "CREDIT",
+        "cardCategory": "CLASSIC",
+        "binCategory": "CONSUMER",
+        "binNumber": "424242",
+        "cardRegulated": "N",
+        "issuingBank": "STRIPE PAYMENTS UK LIMITED",
+        "expirationMonth": "10",
+        "expirationYear": "2030",
+        "issuingCountryCode": "gb"
+      },
+      "transactionMetaData": {
+        "metaData": [
+          {
+            "metaKey": "login_date",
+            "metaValue": "\"2019-09-10T10:11:12Z\"",
+            "isVisible": "true"
+          },
+          {
+            "metaKey": "new_customer",
+            "metaValue": "\"true\"",
+            "isVisible": "true"
+          },
+          {
+            "metaKey": "udf1",
+            "metaValue": "\"value1\"",
+            "isVisible": "true"
+          }
+        ]
+      },
+      "networkTransactionInfo": {
+        "originalNetworkTransactionId": "001778827470726",
+        "networkTransactionId": "001778827470726"
+      },
+      "processingInfo": {
+        "processingStatus": "success",
+        "authorizationCode": "Authorized",
+        "networkTransactionId": "001778827470726",
+        "transactionRegion": "UK"
+      },
+      "fraudResultInfo": {}
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 1227
+  },
+  "redaction": {
+    "version": 2,
+    "placeholder_count": 0,
+    "request_placeholder_count": 5,
+    "response_header_placeholder_count": 1,
+    "test_pan_placeholder_count": 0,
+    "card_echo_placeholder_count": 0
+  }
+}

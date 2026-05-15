@@ -1,0 +1,151 @@
+{
+  "captured_at": "2026-05-15T07:18:16.265368+00:00",
+  "test": "[Payout] Saved Bank transfer > [Payout] [Bank Transfer] Onboard Customer Prior to Transaction > [Payout] [Bank transfer] [SEPA] Fulfill using Token",
+  "request_id": "ce28d957-001",
+  "connector": "adyenplatform",
+  "timing": {
+    "request_started_at": "2026-05-15T07:18:16.265368+00:00",
+    "request_completed_at": "2026-05-15T07:18:16.265774+00:00",
+    "response_started_at": "2026-05-15T07:18:16.692759+00:00",
+    "response_completed_at": "2026-05-15T07:18:16.693233+00:00",
+    "duration_ms": 427.87
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://balanceplatform-api-test.adyen.com/btl/v4/transfers",
+    "scheme": "https",
+    "host": "balanceplatform-api-test.adyen.com",
+    "port": 443,
+    "path": "/btl/v4/transfers",
+    "query": {},
+    "headers": {
+      "content-type": "application/json",
+      "x-request-id": "ce28d957-001",
+      "x-flow": "PoFulfill",
+      "authorization": "{{MITM_SECRET:adyenplatform_payout.connector_account_details.api_key}}",
+      "x-connector": "adyenplatform",
+      "via": "HyperSwitch",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "balanceplatform-api-test.adyen.com",
+      "content-length": "673"
+    },
+    "body": {
+      "amount": {
+        "currency": "EUR",
+        "value": 100
+      },
+      "balanceAccountId": "BA32CNH223227G5KQKQDJ48HB",
+      "category": "bank",
+      "counterparty": {
+        "bankAccount": {
+          "accountHolder": {
+            "address": {
+              "line1": "{{MITM_REDACTED:request.request.body.counterparty.bankAccount.accountHolder.address.line1}}",
+              "line2": "{{MITM_REDACTED:request.request.body.counterparty.bankAccount.accountHolder.address.line2}}",
+              "postalCode": "{{MITM_REDACTED:request.request.body.counterparty.bankAccount.accountHolder.address.postalCode}}",
+              "stateOrProvince": "NY",
+              "city": "{{MITM_REDACTED:request.request.body.counterparty.bankAccount.accountHolder.address.city}}",
+              "country": "US"
+            },
+            "firstName": null,
+            "lastName": null,
+            "fullName": "John Doe",
+            "email": null,
+            "reference": "cyMerchant_0b0333dd_cus_CjKTS6Jxvmgxp1Vs7lDL",
+            "type": "individual"
+          },
+          "accountIdentification": {
+            "type": "iban",
+            "iban": "NL57INGB4654188101"
+          }
+        }
+      },
+      "priority": "instant",
+      "reference": "payout_yFDERep0OLUsqHdkItih_1",
+      "referenceForBeneficiary": "payout_yFDERep0OLUsqHdkItih_1",
+      "description": "Its my first payout request"
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 673
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "traceparent": "00-886242cc3266bf796b14329eec3aa1bc-19d283768c064333-01",
+      "requestid": "38E9896AZTVJEVL1",
+      "Content-Type": "application/json;charset=utf-8",
+      "Transfer-Encoding": "chunked",
+      "Date": "Fri, 15 May 2026 07:18:16 GMT",
+      "strict-transport-security": "max-age=31536000; includeSubDomains"
+    },
+    "body": {
+      "balancePlatform": "ZurichInsurance",
+      "creationDate": "2026-05-15T09:18:16+02:00",
+      "id": "38E9896AZTVJEVNX",
+      "accountHolder": {
+        "description": "ZurichInsurance Account Holder",
+        "id": "AH32CPC223227J5KQKQDJ32PK"
+      },
+      "amount": {
+        "currency": "EUR",
+        "value": 100
+      },
+      "balanceAccount": {
+        "description": "ZurichInsurance Liable Balance Account",
+        "id": "BA32CNH223227G5KQKQDJ48HB"
+      },
+      "category": "bank",
+      "categoryData": {
+        "priority": "instant",
+        "type": "bank"
+      },
+      "counterparty": {
+        "bankAccount": {
+          "accountHolder": {
+            "address": {
+              "city": "San Fransico",
+              "country": "US",
+              "line1": "1467",
+              "line2": "Harrison Street",
+              "postalCode": "94122",
+              "stateOrProvince": "NY"
+            },
+            "fullName": "John Doe",
+            "reference": "cyMerchant_0b0333dd_cus_CjKTS6Jxvmgxp1Vs7lDL",
+            "type": "individual"
+          },
+          "accountIdentification": {
+            "type": "iban",
+            "bic": "INGBNL2AXXX",
+            "iban": "NL57INGB4654188101"
+          }
+        }
+      },
+      "createdAt": "2026-05-15T09:18:16+02:00",
+      "description": "Its my first payout request",
+      "direction": "outgoing",
+      "paymentInstrument": {
+        "id": "PI32CNH223227G5KQKQDW48J7"
+      },
+      "reason": "approved",
+      "reference": "payout_yFDERep0OLUsqHdkItih_1",
+      "referenceForBeneficiary": "payout_yFDERep0OLUsqHdkItih_1",
+      "status": "authorised",
+      "type": "bankTransfer"
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 1121
+  },
+  "redaction": {
+    "version": 2,
+    "placeholder_count": 0,
+    "request_placeholder_count": 4,
+    "response_header_placeholder_count": 0,
+    "test_pan_placeholder_count": 0,
+    "card_echo_placeholder_count": 0
+  }
+}

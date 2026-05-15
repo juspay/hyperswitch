@@ -166,12 +166,29 @@ mandatory for the pilot.
 #### B. Capture curation — `mitm-proxy/normalize_captures.py`
 
 Post-capture cleanup script. Run between `./start.sh` and `./start_replay.sh`.
-Quarantines **server-UUID folders** — cassettes whose `request_id` looks like
-a server-minted UUID rather than our Cypress format (`{8hex}-{NNN}`). These
-arise when HS receives an inbound HTTP request that doesn't carry Cypress's
-X-Request-ID (e.g. the ACS form POSTing back to HS during a 3DS browser
-dance). Cypress in replay mode bypasses the browser dance entirely, so
-nothing ever asks for these cassettes — they're pure noise.
+It now **keeps server-UUID folders**. Those cassettes are not noise for
+redirect/3DS flows: they are the connector calls triggered when the browser
+returns to HS without Cypress's `X-Request-ID`. Replay has a test-scoped
+server-rid fallback, so these cassettes can be served without manual
+relocation.
+
+Normalization is connector-scoped. Common code only performs safe hygiene
+(counting, keeping server UUIDs, and credential redaction). Every connector has
+an explicit module under `mitm-proxy/normalizers/<connector>.py`, even when it
+is currently a no-op. Heuristics that may move cassettes must live only in that
+connector's module; today the PayPal normalizer quarantines clear cy.visit
+duplicate orphans. If a capture directory exists for a connector without a
+module, normalization fails instead of applying any implicit global heuristic.
+
+Cassettes are also sanitized for source control: any value found in `creds.json`
+is stored as a placeholder like
+`{{MITM_SECRET:paypal.connector_account_details.api_key}}`. Replay hydrates
+placeholders from `creds.json` in memory before serving the cassette response;
+the secret value is not written back to disk. Before committing captures, run:
+
+```
+python3 mitm-proxy/check_cassettes_redacted.py mitm-proxy/captures
+```
 
 **Nothing is deleted.** Quarantined items go to a sibling
 `captures_quarantine/` directory mirroring the original structure. Restore
@@ -181,10 +198,11 @@ manually if normalize misjudged:
 mv mitm-proxy/captures_quarantine/<path> mitm-proxy/captures/<path>
 ```
 
-The script intentionally does **not** try to detect "duplicates" or
-"orphans" beyond server-UUIDs — those classifications are subtle and easy
-to get wrong with heuristics. See [the cy.visit duplicate problem](#the-cyvisit-duplicate-problem)
-below for cases that need manual curation.
+For CI/local isolation, prefer the one-at-a-time runner:
+
+```
+mitm-proxy/repro/cap_replay_all_one_at_a_time.sh paypal redsys
+```
 
 #### C. Small globalState additions
 
@@ -456,10 +474,10 @@ baseline from above and adyen from earlier work).
 | nmi | HMAC-easy (`t.body`, raw, hex, `webhook-signature: t=<ts>,s=<hex>`) | 14-spec | 102/102 | 102/102 (100%) | 141 | Fixed via `simulateNmiRedirectComplete` — `/redirect/complete/{connector}` with customerVaultId extracted from HS's redirect-form HTML + synthetic 3DS proof |
 | loonio | No-impl (`Ok(false)`) | 15-spec (incl. 18-BankRedirect) | 110/110 | 110/110 (100%) | 4 | Interac only; tiny cassette set |
 | gigadat | No-impl (`Ok(false)`) | 15-spec | 110/110 | 110/110 (100%) | 3 | Interac only; near-twin of loonio |
-| paypal | External-verify (outbound `/v1/notifications/verify-webhook-signature`) — bypass NOT viable | 15-spec | 110/110 | 110/110 (100%) | 106 | Uses `simulateRedirectCallback` fallback exclusively; 2 harmless MISSes in replay |
-| redsys | No-impl (`WebhooksNotImplemented`), 3DS-only | 15-spec | 110/110 | 110/110 (100%) | 75 + curated | Fixed via `simulateRedsysRedirectComplete` (synthetic `cres` to `/redirect/complete/{connector}`) + cassette-curation pass relocating browser-callback `trataPeticionREST` cassettes from server-UUID rids to cypress rids |
+| paypal | External-verify (outbound `/v1/notifications/verify-webhook-signature`) — webhook bypass NOT viable | 15-spec | 110/110 | 110/110 (100%) | 106 | Card 3DS uses `simulatePaypalRedirectComplete` (`/redirect/complete/paypal`); PayPal bank-redirect replay no-ops because live capture produces no post-redirect connector cassette for those specs |
+| redsys | No-impl (`WebhooksNotImplemented`), 3DS-only | 15-spec | 110/110 | 110/110 (100%) | 75 + server-rid fallback | Fixed via `simulateRedsysRedirectComplete` (synthetic `cres` to `/redirect/complete/{connector}`); browser-callback `trataPeticionREST` cassettes captured under server UUIDs are served by replay's test-scoped server-rid fallback |
 
-**Aggregate across the 7 extended connectors:** 746 tests captured, **746 passing in replay = 100%** after applying connector-specific replay-mode bypasses for NMI and Redsys plus a one-shot cassette-curation pass for Redsys's browser-callback cassettes.
+**Aggregate across the 7 extended connectors:** 746 tests captured, **746 passing in replay = 100%** after applying connector-specific replay-mode bypasses and replay's server-rid fallback for browser-callback cassettes.
 
 ### Parallel capture infrastructure
 
@@ -516,16 +534,11 @@ Resolution:
 - Redsys: bypass posts a synthetic base64-encoded `cres` JSON to
   `/redirect/complete/redsys`. mitm matches outbound HS→Redsys calls on
   `(connector, rid, method, path)` so the body isn't validated in replay.
-- For Redsys, an additional **cassette curation pass** was required: the
-  browser ACS-callback's `trataPeticionREST` outbound captured under
-  `<test>/<server-uuid>/000.json` (because the browser POST-back doesn't
-  carry cypress's `x-request-id`) had to be relocated to
-  `<test>/<rid_prefix>-<bypass_rid>/000.json` with `request_id` rewritten.
-  Bypass rid = smallest missing cypress rid number > the first existing
-  one (so 5-step Create+Confirm tests → `-002`; 7-step Create→PM→Confirm
-  tests → `-004`). Owning rid prefix is matched via the `DS_MERCHANT_ORDER`
-  payload (decoded from the base64 `Ds_MerchantParameters` field) so multiple
-  test variants sharing a folder are disambiguated.
+- Redsys browser ACS-callback `trataPeticionREST` cassettes are captured under
+  `<test>/<server-uuid>/000.json` because the browser POST-back does not carry
+  Cypress's `x-request-id`. These no longer need to be relocated: replay keeps
+  a strict fallback index keyed by `(connector, active_test, method, path)` for
+  server-rid cassettes and serves them when exact rid matching misses.
 
 Validated end-to-end:
 1. **Shell** against live sandbox: replicated cypress's capture-mode flow

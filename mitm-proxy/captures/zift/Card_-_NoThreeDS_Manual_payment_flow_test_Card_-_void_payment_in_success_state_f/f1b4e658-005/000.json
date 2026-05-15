@@ -1,0 +1,71 @@
+{
+  "captured_at": "2026-05-15T06:57:36.033662+00:00",
+  "test": "Card - NoThreeDS Manual payment flow test > Card - void payment in success state flow test > Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Void Payment after Confirmation",
+  "request_id": "f1b4e658-005",
+  "connector": "zift",
+  "timing": {
+    "request_started_at": "2026-05-15T06:57:36.033662+00:00",
+    "request_completed_at": "2026-05-15T06:57:36.034078+00:00",
+    "response_started_at": "2026-05-15T06:57:36.468645+00:00",
+    "response_completed_at": "2026-05-15T06:57:36.469015+00:00",
+    "duration_ms": 435.35
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://sandbox-secure.zift.io/gates/xurl",
+    "scheme": "https",
+    "host": "sandbox-secure.zift.io",
+    "port": 443,
+    "path": "/gates/xurl",
+    "query": {},
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded",
+      "x-request-id": "f1b4e658-005",
+      "x-flow": "Void",
+      "x-connector": "zift",
+      "via": "HyperSwitch",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "sandbox-secure.zift.io",
+      "content-length": "134"
+    },
+    "body": "requestType=void&userName={{MITM_SECRET:zift.connector_account_details.api_key}}&password={{MITM_SECRET:zift.connector_account_details.api_secret}}&accountId=8393001&transactionId=8621194062",
+    "body_encoding": "utf-8",
+    "body_size_bytes": 134
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "Date": "Fri, 15 May 2026 06:57:36 GMT",
+      "Content-Type": "text/plain;charset=UTF-8",
+      "Transfer-Encoding": "chunked",
+      "Connection": "keep-alive",
+      "expires": "0",
+      "cache-control": "no-cache, no-store, must-revalidate",
+      "pragma": "no-cache",
+      "unibroker-code": "1",
+      "access-control-allow-origin": "https://sandbox-portal.zift.io",
+      "strict-transport-security": "max-age=15552000; includeSubDomains",
+      "set-cookie": "{{MITM_REDACTED:response.headers.set-cookie}}",
+      "unipay-code": "2",
+      "cf-cache-status": "DYNAMIC",
+      "Content-Encoding": "gzip",
+      "Server": "cloudflare",
+      "CF-RAY": "9fc03fd83e6d3d29-BLR"
+    },
+    "body": "responseType=void&accountId=8393001&responseCode=A03&responseMessage=Void+Posted+%28Auth+Reversed%29&transactionId=8621194062&transactionCode=&cycleCode=4133092&cycleId=4133092&terminalMessage=&processorResponse=&remainingAmount=0&voidReasonCode=CI&voidAmount=6000&accountNumberMasked=4***********1111&providerTransactionId=",
+    "body_encoding": "utf-8",
+    "body_size_bytes": 324
+  },
+  "redaction": {
+    "version": 2,
+    "placeholder_count": 0,
+    "request_placeholder_count": 0,
+    "response_header_placeholder_count": 1,
+    "test_pan_placeholder_count": 0,
+    "card_echo_placeholder_count": 0
+  }
+}

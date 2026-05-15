@@ -1,0 +1,69 @@
+{
+  "captured_at": "2026-05-15T06:43:44.337020+00:00",
+  "test": "Card - Refund flow - 3DS > Fully Refund Card-ThreeDS payment flow test Create+Confirm > Create and Confirm Payment -> Handle Redirection -> Retrieve Payment after Confirmation -> Refund Payment -> Sync Refund Payment",
+  "request_id": "a310a589-001",
+  "connector": "bluesnap",
+  "timing": {
+    "request_started_at": "2026-05-15T06:43:44.337020+00:00",
+    "request_completed_at": "2026-05-15T06:43:44.337342+00:00",
+    "response_started_at": "2026-05-15T06:43:44.636742+00:00",
+    "response_completed_at": "2026-05-15T06:43:44.637210+00:00",
+    "duration_ms": 300.19
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://sandbox.bluesnap.com/services/2/payment-fields-tokens/prefill",
+    "scheme": "https",
+    "host": "sandbox.bluesnap.com",
+    "port": 443,
+    "path": "/services/2/payment-fields-tokens/prefill",
+    "query": {},
+    "headers": {
+      "content-type": "application/json",
+      "x-connector": "bluesnap",
+      "via": "HyperSwitch",
+      "x-request-id": "a310a589-001",
+      "authorization": "{{MITM_SECRET:basic:bluesnap.connector_account_details.key1+bluesnap.connector_account_details.api_key}}",
+      "x-flow": "Authorize",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "sandbox.bluesnap.com",
+      "content-length": "51"
+    },
+    "body": {
+      "ccNumber": "{{MITM_REDACTED:card.pan}}",
+      "expDate": "10/2030"
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 51
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 201,
+    "reason": "Created",
+    "headers": {
+      "Date": "Fri, 15 May 2026 06:43:44 GMT",
+      "Content-Length": "0",
+      "Connection": "keep-alive",
+      "Location": "https://sandbox.bluesnap.com/services/2/payment-fields-tokens/88d3b1574e39b424d5233dd4fae330473c8cd828b648b8dca033eee15a2a9556_",
+      "Set-Cookie": "{{MITM_REDACTED:response.headers.Set-Cookie}}",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+      "Access-Control-Allow-Origin": "*",
+      "cf-cache-status": "DYNAMIC",
+      "Server": "cloudflare",
+      "CF-RAY": "9fc02b8a3aa53d25-BLR"
+    },
+    "body": null,
+    "body_encoding": null,
+    "body_size_bytes": 0
+  },
+  "redaction": {
+    "version": 2,
+    "placeholder_count": 0,
+    "request_placeholder_count": 0,
+    "response_header_placeholder_count": 1,
+    "test_pan_placeholder_count": 0,
+    "card_echo_placeholder_count": 0
+  }
+}

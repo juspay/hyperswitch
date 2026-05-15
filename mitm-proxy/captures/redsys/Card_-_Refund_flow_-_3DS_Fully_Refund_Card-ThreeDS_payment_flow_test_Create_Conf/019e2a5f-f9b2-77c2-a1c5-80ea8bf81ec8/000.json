@@ -1,0 +1,63 @@
+{
+  "captured_at": "2026-05-15T06:43:13.490185+00:00",
+  "test": "Card - Refund flow - 3DS > Fully Refund Card-ThreeDS payment flow test Create+Confirm > Create and Confirm Payment -> Handle Redirection -> Retrieve Payment after Confirmation -> Refund Payment -> Sync Refund Payment",
+  "request_id": "019e2a5f-f9b2-77c2-a1c5-80ea8bf81ec8",
+  "connector": "redsys",
+  "timing": {
+    "request_started_at": "2026-05-15T06:43:13.490185+00:00",
+    "request_completed_at": "2026-05-15T06:43:13.490572+00:00",
+    "response_started_at": "2026-05-15T06:43:13.930158+00:00",
+    "response_completed_at": "2026-05-15T06:43:13.931156+00:00",
+    "duration_ms": 440.97
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://sis-t.redsys.es:25443/sis/rest/trataPeticionREST",
+    "scheme": "https",
+    "host": "sis-t.redsys.es",
+    "port": 25443,
+    "path": "/sis/rest/trataPeticionREST",
+    "query": {},
+    "headers": {
+      "content-type": "application/json",
+      "x-flow": "CompleteAuthorize",
+      "via": "HyperSwitch",
+      "x-request-id": "019e2a5f-f9b2-77c2-a1c5-80ea8bf81ec8",
+      "x-connector": "redsys",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "sis-t.redsys.es:25443",
+      "content-length": "1481"
+    },
+    "body": {
+      "Ds_MerchantParameters": "eyJEU19NRVJDSEFOVF9BTU9VTlQiOiI2MDAwIiwiRFNfTUVSQ0hBTlRfQ1VSUkVOQ1kiOiI5NzgiLCJEU19NRVJDSEFOVF9DVlYyIjoiMTIzIiwiRFNfTUVSQ0hBTlRfRU1WM0RTIjp7ImJpbGxBZGRyQ2l0eSI6IlNhbiBGcmFuc2ljbyIsImJpbGxBZGRyQ291bnRyeSI6IkVTUCIsImJpbGxBZGRyTGluZTEiOiIxNDY3IiwiYmlsbEFkZHJMaW5lMiI6IkhhcnJpc29uIFN0cmVldCIsImJpbGxBZGRyTGluZTMiOiJIYXJyaXNvbiBTdHJlZXQiLCJiaWxsQWRkclBvc3RhbENvZGUiOiI5NDEyMiIsImJpbGxBZGRyU3RhdGUiOiJDRSIsImNyZXMiOiJleUowYUhKbFpVUlRVMlZ5ZG1WeVZISmhibk5KUkNJNklqQTVOR1ZsTm1GbExUUXpZekF0TkRBNVlTMDRObU15TFRaa1ptSTJOVEkzTldRMlpDSXNJbUZqYzFSeVlXNXpTVVFpT2lJelkySTBaalUzTUMwelptWmtMVFF6TWpFdFltSTFZUzAwWVRBME9EQTNOemxoTm1NaUxDSnRaWE56WVdkbFZIbHdaU0k2SWtOU1pYTWlMQ0p0WlhOellXZGxWbVZ5YzJsdmJpSTZJakl1TVM0d0lpd2lkSEpoYm5OVGRHRjBkWE1pT2lKWkluMD0iLCJwcm90b2NvbFZlcnNpb24iOiIyLjEuMCIsInNoaXBBZGRyQ2l0eSI6IlNhbiBGcmFuc2ljbyIsInNoaXBBZGRyQ291bnRyeSI6IkVTUCIsInNoaXBBZGRyTGluZTEiOiIxNDY3Iiwic2hpcEFkZHJMaW5lMiI6IkhhcnJpc29uIFN0cmVldCIsInNoaXBBZGRyTGluZTMiOiJIYXJyaXNvbiBTdHJlZXQiLCJzaGlwQWRkclBvc3RhbENvZGUiOiI5NDEyMiIsInNoaXBBZGRyU3RhdGUiOiJDRSIsInRocmVlRFNJbmZvIjoiQ2hhbGxlbmdlUmVzcG9uc2UifSwiRFNfTUVSQ0hBTlRfRVhQSVJZREFURSI6IjMwMTIiLCJEU19NRVJDSEFOVF9NRVJDSEFOVENPREUiOiIzMzY2MDIxMzEiLCJEU19NRVJDSEFOVF9PUkRFUiI6IjY2MDQ5OTgxNTQ2OSIsIkRTX01FUkNIQU5UX1BBTiI6IjQ1NDg4MTcyMTI0OTMwMTciLCJEU19NRVJDSEFOVF9URVJNSU5BTCI6IjAwMSIsIkRTX01FUkNIQU5UX1RSQU5TQUNUSU9OVFlQRSI6IjAifQ==",
+      "Ds_Signature": "6dIshmDL4FM1RqqJ0BO+Y4SVfClig4RFvlpCVjFrg1A=",
+      "Ds_SignatureVersion": "HMAC_SHA256_V1"
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 1481
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "Date": "Fri, 15 May 2026 06:43:13 GMT",
+      "Referrer-Policy": "no-referrer-when-downgrade",
+      "X-Content-Type-Options": "nosniff",
+      "X-XSS-Protection": "1",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+      "Content-Type": "text/plain",
+      "Content-Language": "en-US",
+      "Transfer-Encoding": "chunked"
+    },
+    "body": {
+      "Ds_SignatureVersion": "HMAC_SHA256_V1",
+      "Ds_MerchantParameters": "eyJEc19BbW91bnQiOiI2MDAwIiwiRHNfQ3VycmVuY3kiOiI5NzgiLCJEc19PcmRlciI6IjY2MDQ5OTgxNTQ2OSIsIkRzX01lcmNoYW50Q29kZSI6IjMzNjYwMjEzMSIsIkRzX1Rlcm1pbmFsIjoiMSIsIkRzX1Jlc3BvbnNlIjoiMDAwMCIsIkRzX0F1dGhvcmlzYXRpb25Db2RlIjoiMTQ0Nzc0IiwiRHNfVHJhbnNhY3Rpb25UeXBlIjoiMCIsIkRzX1NlY3VyZVBheW1lbnQiOiIyIiwiRHNfTGFuZ3VhZ2UiOiIxIiwiRHNfQ2FyZE51bWJlciI6IjQ1NDg4MSoqKioqKjMwMTciLCJEc19NZXJjaGFudERhdGEiOiIiLCJEc19DYXJkX0NvdW50cnkiOiI3MjQiLCJEc19DYXJkX1R5cG9sb2d5IjoiQ09OU1VNTyIsIkRzX0NhcmRfQnJhbmQiOiIxIiwiRHNfUHJvY2Vzc2VkUGF5TWV0aG9kIjoiNzgiLCJEc19Db250cm9sXzE3Nzg4MjczOTM4ODQiOiIxNzc4ODI3MzkzODg0In0=",
+      "Ds_Signature": "ypwkuPPY4zs2uJFXPmCuul3TXQId9P9PT-oekPTdXD0="
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 709
+  }
+}

@@ -1,108 +1,115 @@
 #!/usr/bin/env python3
 """
-Quarantine obvious-noise cassettes after a recording run.
+Normalize cassettes after a recording run, scoped per connector.
 
-Run between `./start.sh` (capture) and `./start_replay.sh` (replay):
+Usage:
+    python3 mitm-proxy/normalize_captures.py [captures_dir] [connector ...]
 
-    ./start.sh
-    # ... run cypress in capture mode ...
-    python3 normalize_captures.py
-    ./start_replay.sh
-
-What this script does
----------------------
-Walks `captures/<connector>/<test>/<rid>/*.json` and quarantines any <rid>
-folder whose name isn't a Cypress-format ID ({8hex}-{NNN}).
-
-These "server-UUID" folders are created when HS receives an inbound HTTP
-request that doesn't carry Cypress's X-Request-ID header — for example,
-during a 3DS browser dance the connector's ACS form POSTs back to HS, and
-HS mints a fresh UUID for that incoming request and propagates it onto its
-connector sync outbound. Cypress in replay mode bypasses the whole browser
-dance (PROXY_MODE=replay), so it never issues a request whose ID would
-look like a UUID. The resulting cassettes are never matched at replay
-time and just clutter the captures dir.
-
-Nothing is deleted. Quarantined items are moved to a sibling
-`captures_quarantine/` directory, preserving their relative path. To
-restore if normalize misjudged:
-
-    mv mitm-proxy/captures_quarantine/<path> mitm-proxy/captures/<path>
-
-Manual curation
----------------
-This script intentionally does NOT try to detect "duplicate" cassettes or
-"orphan" cassettes from cy.visit-induced beforeEach refire. Those cases
-are subtle and easy to get wrong with heuristics (e.g. multiple `it()`
-blocks within one context that share titles will legitimately share a
-testIdHash and reuse rids — they look like duplicates but aren't).
-
-When replay logs `[replay] MISS` or `LIVE`, inspect `captures/` for the
-relevant `(test, rid)` folder and decide what to keep or quarantine by
-hand. The mitm replay matcher serves cassettes FIFO within a key, so if
-there are too many cassettes, quarantine the earlier (by `captured_at`)
-or otherwise wrong one; if too few, restore from `captures_quarantine/`
-or re-capture.
-
-Safe to re-run; idempotent.
+Design rules
+------------
+* Common normalization must be safe for every connector: counting, keeping
+  server-UUID folders, and redacting values from creds.json.
+* Connector-specific cleanup lives in mitm-proxy/normalizers/<connector>.py.
+  This prevents a heuristic needed for one connector from silently changing
+  another connector's cassette suite.
+* Nothing is deleted. Connector-specific curation moves files to the sibling
+  captures_quarantine/ tree, preserving relative paths.
 """
 
 from __future__ import annotations
 
-import json
-import re
-import shutil
+import importlib
 import sys
 from pathlib import Path
 
-CYPRESS_RID_RE = re.compile(r"^[0-9a-f]{8}-\d{3}$")
+from normalizers.common import count_connector, load_cassettes, selected_connectors
+from secret_redaction import creds_path, redact_file
 
 
-def _quarantine(src: Path, captures_dir: Path, quarantine_dir: Path) -> None:
-    """Move a file or directory under captures_dir into the mirror location
-    inside quarantine_dir, preserving the relative structure. If the
-    destination already exists from a prior run, overwrite it."""
-    rel = src.relative_to(captures_dir)
-    dest = quarantine_dir / rel
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    if dest.exists():
-        if dest.is_dir():
-            shutil.rmtree(dest)
-        else:
-            dest.unlink()
-    shutil.move(str(src), str(dest))
-
-
-def normalize(captures_dir: Path, quarantine_dir: Path) -> dict:
-    stats = {
-        "server_uuid_folders_quarantined": 0,
-        "server_uuid_cassettes_quarantined": 0,
+def _empty_stats() -> dict[str, int]:
+    return {
+        "server_uuid_folders_kept": 0,
+        "server_uuid_cassettes_kept": 0,
+        "orphan_duplicate_cassettes_quarantined": 0,
+        "credential_placeholders_written": 0,
         "cassettes_kept": 0,
     }
+
+
+def _add_stats(dst: dict[str, int], src: dict[str, int]) -> None:
+    for key, value in src.items():
+        dst[key] = dst.get(key, 0) + int(value)
+
+
+def _redact_connector_cassettes(captures_dir: Path, connector_dir: Path) -> int:
+    placeholders = 0
+    for fpath in sorted(connector_dir.glob("**/*.json")):
+        try:
+            placeholders += redact_file(fpath)
+        except Exception as exc:  # noqa: BLE001 - normalize is best-effort
+            rel = fpath.relative_to(captures_dir)
+            print(f"  skip redaction for {rel}: {exc}")
+    return placeholders
+
+
+def _run_connector_module(
+    captures_dir: Path,
+    quarantine_dir: Path,
+    connector: str,
+    connector_dir: Path,
+    stats: dict[str, int],
+) -> str:
+    module_name = f"normalizers.{connector}"
+    try:
+        module = importlib.import_module(module_name)
+    except ModuleNotFoundError as exc:
+        if exc.name == module_name:
+            raise RuntimeError(
+                f"missing connector normalizer {module_name}; add "
+                f"mitm-proxy/normalizers/{connector}.py before normalizing this connector"
+            ) from exc
+        raise
+
+    normalize_connector = getattr(module, "normalize_connector", None)
+    if normalize_connector is None:
+        raise RuntimeError(f"{module_name} must define normalize_connector(...)")
+
+    cassettes = load_cassettes(captures_dir, connector_dir, connector)
+    normalize_connector(captures_dir, quarantine_dir, connector, cassettes, stats)
+    return module.__name__
+
+
+def normalize(
+    captures_dir: Path, quarantine_dir: Path, connectors: set[str] | None = None
+) -> dict[str, int]:
+    stats = _empty_stats()
 
     if not captures_dir.exists():
         print(f"No captures directory at {captures_dir}; nothing to do.")
         return stats
 
-    for connector_dir in sorted(captures_dir.iterdir()):
-        if not connector_dir.is_dir():
-            continue
-        for test_dir in sorted(connector_dir.iterdir()):
-            if not test_dir.is_dir():
-                continue
-            for rid_dir in list(test_dir.iterdir()):
-                if not rid_dir.is_dir():
-                    continue
-                rid = rid_dir.name
-                if CYPRESS_RID_RE.match(rid):
-                    stats["cassettes_kept"] += sum(1 for _ in rid_dir.glob("*.json"))
-                    continue
-                n = sum(1 for _ in rid_dir.glob("*.json"))
-                rel = rid_dir.relative_to(captures_dir)
-                print(f"  quarantine server-UUID folder: {rel}  ({n} cassettes)")
-                _quarantine(rid_dir, captures_dir, quarantine_dir)
-                stats["server_uuid_folders_quarantined"] += 1
-                stats["server_uuid_cassettes_quarantined"] += n
+    selected = selected_connectors(captures_dir, connectors)
+    if not selected:
+        wanted = ", ".join(sorted(connectors or [])) or "<all>"
+        print(f"No matching connector capture directories for: {wanted}")
+        return stats
+
+    for connector, connector_dir in selected:
+        print(f"Connector: {connector}")
+        connector_stats = _empty_stats()
+        _add_stats(connector_stats, count_connector(captures_dir, connector_dir))
+
+        redacted = _redact_connector_cassettes(captures_dir, connector_dir)
+        connector_stats["credential_placeholders_written"] += redacted
+        if redacted:
+            print(f"  credential placeholders written: {redacted}")
+
+        module_name = _run_connector_module(
+            captures_dir, quarantine_dir, connector, connector_dir, connector_stats
+        )
+        print(f"  connector normalizer: {module_name}")
+
+        _add_stats(stats, connector_stats)
 
     return stats
 
@@ -110,16 +117,28 @@ def normalize(captures_dir: Path, quarantine_dir: Path) -> dict:
 def main() -> int:
     here = Path(__file__).resolve().parent
     captures = Path(sys.argv[1]) if len(sys.argv) > 1 else here / "captures"
+    connectors = set(sys.argv[2:]) or None
     quarantine = captures.parent / "captures_quarantine"
 
     print(f"Normalizing cassettes in {captures}")
-    print(f"Quarantine destination : {quarantine}\n")
-    stats = normalize(captures, quarantine)
+    print(f"Quarantine destination : {quarantine}")
+    print(f"Creds file             : {creds_path()} ({'present' if creds_path().exists() else 'missing; redaction disabled'})")
+    if connectors:
+        print(f"Connector filter       : {', '.join(sorted(connectors))}")
+    print()
+
+    stats = normalize(captures, quarantine, connectors)
+
     print("\n── summary ──")
-    print(f"  server-UUID folders quarantined   : {stats['server_uuid_folders_quarantined']}")
-    print(f"  server-UUID cassettes quarantined : {stats['server_uuid_cassettes_quarantined']}")
-    print(f"  cassettes kept                    : {stats['cassettes_kept']}")
-    if stats["server_uuid_folders_quarantined"]:
+    print(f"  server-UUID folders kept               : {stats['server_uuid_folders_kept']}")
+    print(f"  server-UUID cassettes kept             : {stats['server_uuid_cassettes_kept']}")
+    print(
+        "  orphan duplicate cassettes quarantined: "
+        f"{stats['orphan_duplicate_cassettes_quarantined']}"
+    )
+    print(f"  credential placeholders written        : {stats['credential_placeholders_written']}")
+    print(f"  cassettes kept                         : {stats['cassettes_kept']}")
+    if stats["orphan_duplicate_cassettes_quarantined"]:
         print(f"\nQuarantined items are at: {quarantine}")
         print("Restore by `mv` back into the captures tree if normalize misjudged.")
     return 0

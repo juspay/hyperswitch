@@ -1,0 +1,263 @@
+{
+  "captured_at": "2026-05-15T06:57:11.514593+00:00",
+  "test": "Auto Retry Tests > auto retries enabled with max retries = 1 > Update Business Profile -> Create Payment Intent -> Confirm Payment -> Retrieve Payment",
+  "request_id": "a607ee96-003",
+  "connector": "paypal",
+  "timing": {
+    "request_started_at": "2026-05-15T06:57:11.514593+00:00",
+    "request_completed_at": "2026-05-15T06:57:11.514939+00:00",
+    "response_started_at": "2026-05-15T06:57:13.037966+00:00",
+    "response_completed_at": "2026-05-15T06:57:13.038270+00:00",
+    "duration_ms": 1523.68
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://api.stripe.com/v1/payment_intents",
+    "scheme": "https",
+    "host": "api.stripe.com",
+    "port": 443,
+    "path": "/v1/payment_intents",
+    "query": {},
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded",
+      "stripe-version": "2022-11-15",
+      "x-flow": "Authorize",
+      "authorization": "Bearer {{MITM_SECRET:stripe.connector_1.connector_account_details.api_key}}",
+      "via": "HyperSwitch",
+      "x-connector": "stripe",
+      "x-request-id": "a607ee96-003",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "api.stripe.com",
+      "content-length": "1526"
+    },
+    "body": "amount=6000&currency=USD&metadata%5Blogin_date%5D=2019-09-10T10%3A11%3A12Z&metadata%5Bnew_customer%5D=true&metadata%5Budf1%5D=value1&metadata%5Border_id%5D=pay_fwaIjwiwK0hXJqApRrwq_2&return_url=http%3A%2F%2Flocalhost%3A8080%2Fpayments%2Fpay_fwaIjwiwK0hXJqApRrwq%2FcyMerchant_cc99cd71%2Fredirect%2Fresponse%2Fstripe&confirm=true&customer=cus_UWIGF1dHMhjaRa&description=Joseph+First+Crypto&payment_method_data%5Bbilling_details%5D%5Baddress%5D%5Bcountry%5D=US&payment_method_data%5Bbilling_details%5D%5Bname%5D=CCREJECT-REFUSED&payment_method_data%5Bbilling_details%5D%5Baddress%5D%5Bcity%5D=New+York&payment_method_data%5Bbilling_details%5D%5Baddress%5D%5Bline1%5D=123&payment_method_data%5Bbilling_details%5D%5Baddress%5D%5Bline2%5D=Main+Street&payment_method_data%5Bbilling_details%5D%5Baddress%5D%5Bpostal_code%5D=10001&payment_method_data%5Bbilling_details%5D%5Baddress%5D%5Bstate%5D=New+York&payment_method_data%5Btype%5D=card&payment_method_data%5Bcard%5D%5Bnumber%5D={{MITM_REDACTED:card.pan}}&payment_method_data%5Bcard%5D%5Bexp_month%5D=01&payment_method_data%5Bcard%5D%5Bexp_year%5D=35&payment_method_data%5Bcard%5D%5Bcvc%5D=123&payment_method_options%5Bcard%5D%5Brequest_three_d_secure%5D=automatic&capture_method=automatic&setup_future_usage=on_session&payment_method_types%5B0%5D=card&expand%5B0%5D=latest_charge&payment_method_data%5Bip%5D=127.0.0.1&payment_method_data%5Buser_agent%5D=Mozilla%2F5.0+%28Macintosh%3B+Intel+Mac+OS+X+10_15_7%29+AppleWebKit%2F537.36+%28KHTML%2C+like+Gecko%29+Chrome%2F120.0.0.0+Safari%2F537.36",
+    "body_encoding": "utf-8",
+    "body_size_bytes": 1526
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "Server": "nginx",
+      "Date": "Fri, 15 May 2026 06:57:13 GMT",
+      "Content-Type": "application/json",
+      "Content-Length": "5147",
+      "Connection": "keep-alive",
+      "Access-Control-Allow-Credentials": "true",
+      "Access-Control-Allow-Methods": "GET, HEAD, PUT, PATCH, POST, DELETE",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": "Request-Id, Stripe-Manage-Version, Stripe-Should-Retry, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required",
+      "Access-Control-Max-Age": "300",
+      "Cache-Control": "no-cache, no-store",
+      "Content-Security-Policy": "base-uri 'none'; default-src 'none'; form-action 'none'; frame-ancestors 'none'; img-src 'self'; script-src 'self' 'report-sample'; style-src 'self'; worker-src 'none'; upgrade-insecure-requests; report-uri https://q.stripe.com/csp-violation?q=je5bMYBMv4p8WtnWSqzIdIXX8vrVmmFtfkDVvGSfZ-LRc9IZLV740dcHzmbyZEVafYdZAf__ODCyqaaP; report-to csp",
+      "Idempotency-Key": "f30d8ebb-05e2-4cbb-8f71-443e1fc7369d",
+      "Original-Request": "req_l14iD7KQJebABr",
+      "Report-To": "{\"group\":\"csp\",\"max_age\":8640,\"endpoints\":[{\"url\":\"https://q.stripe.com/csp-report-v2?q=je5bMYBMv4p8WtnWSqzIdIXX8vrVmmFtfkDVvGSfZ-LRc9IZLV740dcHzmbyZEVafYdZAf__ODCyqaaP&t=1\"}],\"include_subdomains\":true}",
+      "Reporting-Endpoints": "csp=\"https://q.stripe.com/csp-report-v2?q=je5bMYBMv4p8WtnWSqzIdIXX8vrVmmFtfkDVvGSfZ-LRc9IZLV740dcHzmbyZEVafYdZAf__ODCyqaaP&t=1\"",
+      "Request-Id": "req_l14iD7KQJebABr",
+      "Stripe-Should-Retry": "false",
+      "Stripe-Version": "2022-11-15",
+      "Vary": "Origin",
+      "X-Stripe-Priority-Routing-Enabled": "true",
+      "X-Stripe-Routing-Context-Priority-Tier": "api-testmode",
+      "X-Wc": "3c3",
+      "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload"
+    },
+    "body": {
+      "id": "pi_3TXFgJD5R7gDAGff1sSZiVfK",
+      "object": "payment_intent",
+      "amount": 6000,
+      "amount_capturable": 0,
+      "amount_details": {
+        "tip": {}
+      },
+      "amount_received": 6000,
+      "application": null,
+      "application_fee_amount": null,
+      "automatic_payment_methods": null,
+      "canceled_at": null,
+      "cancellation_reason": null,
+      "capture_method": "automatic",
+      "client_secret": "pi_3TXFgJD5R7gDAGff1sSZiVfK_secret_XuFCz8myldwdnPO9dZCvAo83O",
+      "confirmation_method": "automatic",
+      "created": 1778828231,
+      "currency": "usd",
+      "customer": "cus_UWIGF1dHMhjaRa",
+      "customer_account": null,
+      "description": "Joseph First Crypto",
+      "excluded_payment_method_types": null,
+      "invoice": null,
+      "last_payment_error": null,
+      "latest_charge": {
+        "id": "ch_3TXFgJD5R7gDAGff10wyhKYc",
+        "object": "charge",
+        "amount": 6000,
+        "amount_captured": 6000,
+        "amount_refunded": 0,
+        "amount_updates": [],
+        "application": null,
+        "application_fee": null,
+        "application_fee_amount": null,
+        "balance_transaction": "txn_3TXFgJD5R7gDAGff1pD8tEfH",
+        "billing_details": {
+          "address": {
+            "city": "New York",
+            "country": "US",
+            "line1": "123",
+            "line2": "Main Street",
+            "postal_code": "10001",
+            "state": "New York"
+          },
+          "email": null,
+          "name": "CCREJECT-REFUSED",
+          "phone": null,
+          "tax_id": null
+        },
+        "calculated_statement_descriptor": "BERNARD",
+        "captured": true,
+        "created": 1778828232,
+        "currency": "usd",
+        "customer": "cus_UWIGF1dHMhjaRa",
+        "description": "Joseph First Crypto",
+        "destination": null,
+        "dispute": null,
+        "disputed": false,
+        "failure_balance_transaction": null,
+        "failure_code": null,
+        "failure_message": null,
+        "fraud_details": {},
+        "invoice": null,
+        "livemode": false,
+        "metadata": {
+          "login_date": "2019-09-10T10:11:12Z",
+          "new_customer": "true",
+          "order_id": "pay_fwaIjwiwK0hXJqApRrwq_2",
+          "udf1": "value1"
+        },
+        "on_behalf_of": null,
+        "order": null,
+        "outcome": {
+          "advice_code": null,
+          "network_advice_code": null,
+          "network_decline_code": null,
+          "network_status": "approved_by_network",
+          "reason": null,
+          "risk_level": "normal",
+          "risk_score": 31,
+          "seller_message": "Payment complete.",
+          "type": "authorized"
+        },
+        "paid": true,
+        "payment_intent": "pi_3TXFgJD5R7gDAGff1sSZiVfK",
+        "payment_method": "pm_1TXFgJD5R7gDAGffpa28Gpz7",
+        "payment_method_details": {
+          "card": {
+            "amount_authorized": 6000,
+            "authorization_code": "406643",
+            "brand": "visa",
+            "checks": {
+              "address_line1_check": "pass",
+              "address_postal_code_check": "pass",
+              "cvc_check": "pass"
+            },
+            "country": "CA",
+            "ds_transaction_id": null,
+            "exp_month": 1,
+            "exp_year": 2035,
+            "extended_authorization": {
+              "status": "disabled"
+            },
+            "fingerprint": "w0Il3kSknV9uhtcs",
+            "funding": "credit",
+            "incremental_authorization": {
+              "status": "unavailable"
+            },
+            "installments": null,
+            "last4": "1881",
+            "mandate": null,
+            "moto": null,
+            "multicapture": {
+              "status": "unavailable"
+            },
+            "network": "visa",
+            "network_token": {
+              "used": false
+            },
+            "network_transaction_id": "119487310851107",
+            "overcapture": {
+              "maximum_amount_capturable": 6000,
+              "status": "unavailable"
+            },
+            "regulated_status": "unregulated",
+            "three_d_secure": null,
+            "wallet": null
+          },
+          "type": "card"
+        },
+        "radar_options": {},
+        "receipt_email": null,
+        "receipt_number": null,
+        "receipt_url": "https://pay.stripe.com/receipts/payment/CAcaFwoVYWNjdF8xTTdmVGFENVI3Z0RBR2ZmKMiHm9AGMgaYZvvlMkI6LBYHvdGNbGaAMNvxlUrBFDq6rp7UxjAZcW0UcbI8zlz_9nHnnlOsAnAMu6va",
+        "refunded": false,
+        "review": null,
+        "shipping": null,
+        "source": null,
+        "source_transfer": null,
+        "statement_descriptor": null,
+        "statement_descriptor_suffix": null,
+        "status": "succeeded",
+        "transfer_data": null,
+        "transfer_group": null
+      },
+      "livemode": false,
+      "managed_payments": {
+        "enabled": false
+      },
+      "metadata": {
+        "login_date": "2019-09-10T10:11:12Z",
+        "new_customer": "true",
+        "order_id": "pay_fwaIjwiwK0hXJqApRrwq_2",
+        "udf1": "value1"
+      },
+      "next_action": null,
+      "on_behalf_of": null,
+      "payment_method": "pm_1TXFgJD5R7gDAGffpa28Gpz7",
+      "payment_method_configuration_details": null,
+      "payment_method_options": {
+        "card": {
+          "installments": null,
+          "mandate_options": null,
+          "network": null,
+          "request_three_d_secure": "automatic"
+        }
+      },
+      "payment_method_types": [
+        "card"
+      ],
+      "processing": null,
+      "receipt_email": null,
+      "review": null,
+      "setup_future_usage": "on_session",
+      "shared_payment_granted_token": null,
+      "shipping": null,
+      "source": null,
+      "statement_descriptor": null,
+      "statement_descriptor_suffix": null,
+      "status": "succeeded",
+      "transfer_data": null,
+      "transfer_group": null
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 5147
+  },
+  "redaction": {
+    "version": 2,
+    "placeholder_count": 0,
+    "test_pan_placeholder_count": 1,
+    "request_placeholder_count": 0,
+    "response_header_placeholder_count": 0
+  }
+}

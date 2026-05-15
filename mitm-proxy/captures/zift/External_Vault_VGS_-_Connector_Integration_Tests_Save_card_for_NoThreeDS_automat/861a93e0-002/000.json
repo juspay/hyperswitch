@@ -1,0 +1,99 @@
+{
+  "captured_at": "2026-05-15T07:01:17.559038+00:00",
+  "test": "External Vault (VGS) - Connector Integration Tests > Save card for NoThreeDS automatic capture payment [off_session] > Create Customer -> Create and Confirm Payment -> Retrieve Payment -> List Customer PMs -> Create Payment Intent -> Save Card Confirm",
+  "request_id": "861a93e0-002",
+  "connector": "zift",
+  "timing": {
+    "request_started_at": "2026-05-15T07:01:17.559038+00:00",
+    "request_completed_at": "2026-05-15T07:01:17.559503+00:00",
+    "response_started_at": "2026-05-15T07:01:18.033776+00:00",
+    "response_completed_at": "2026-05-15T07:01:18.034566+00:00",
+    "duration_ms": 475.53
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://{{MITM_SECRET:vgs.connector_account_details.api_secret}}.sandbox.vault-api.verygoodvault.com/aliases",
+    "scheme": "https",
+    "host": "{{MITM_SECRET:vgs.connector_account_details.api_secret}}.sandbox.vault-api.verygoodvault.com",
+    "port": 443,
+    "path": "/aliases",
+    "query": {},
+    "headers": {
+      "content-type": "application/json",
+      "x-request-id": "861a93e0-002",
+      "x-connector": "irrelevant connector in VaultConnector flow",
+      "x-flow": "ExternalVaultInsertFlow",
+      "authorization": "Bearer eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI1RVhBTnFldTBIbUNGVHZDUGs1c21iQjNjcVo1c0FLUzNKWFRjeHdTWjY4In0.eyJleHAiOjE3Nzg4Mjk2NzYsImlhdCI6MTc3ODgyODQ3NiwianRpIjoidHJydGNjOjNlNDgzNmJjLTZhZGItZGFhMC1mMjJiLWU5ZmI1NGEwNTU2NyIsImlzcyI6Imh0dHBzOi8vYXV0aC52ZXJ5Z29vZHNlY3VyaXR5LmNvbS9hdXRoL3JlYWxtcy92Z3MiLCJhdWQiOlsiYWN0LW1nbXQtaHR0cC1hcGkiLCJ2YXVsdC1tZ210LWh0dHAtYXBpIiwidmF1bHQtYXBpIiwiY2FsbS1zYW5kYm94IiwiY2FsbS1saXZlIl0sInN1YiI6IjViNjkzMjdiLTA1OTEtNDgxOS1hODdkLTQ5ZmQ5NzQ2ZGRjYiIsInR5cCI6IkJlYXJlciIsImF6cCI6IkFDdjZIWmpyQy10ZXN0LVVLQ0J3IiwicmVzb3VyY2VfYWNjZXNzIjp7InZhdWx0LW1nbXQtaHR0cC1hcGkiOnsicm9sZXMiOlsidmF1bHRzOnJlYWQiLCJ2YXVsdHM6d3JpdGUiXX0sInZhdWx0LWFwaSI6eyJyb2xlcyI6WyJhbGlhc2VzOndyaXRlIiwiYWxpYXNlczpyZWFkIiwiYWxpYXNlczpkZWxldGUiXX0sImFjdC1tZ210LWh0dHAtYXBpIjp7InJvbGVzIjpbInZhdWx0czpyZWFkIiwidmF1bHRzOndyaXRlIl19LCJjYWxtLXNhbmRib3giOnsicm9sZXMiOlsiY2FyZHM6cmVhZCIsImNhcmRzOndyaXRlIiwiY2FyZHM6cmVhZC1wY2kiXX0sImNhbG0tbGl2ZSI6eyJyb2xlcyI6WyJjYXJkczpyZWFkIiwiY2FyZHM6d3JpdGUiLCJjYXJkczpyZWFkLXBjaSJdfX0sInNjb3BlIjoiYWxpYXNlczpkZWxldGUgYWxpYXNlczp3cml0ZSBzZXJ2aWNlLWFjY291bnQgYWxpYXNlczpyZWFkIGNhcmRzOnJlYWQgdmF1bHRzOnJlYWQgY2FyZHM6d3JpdGUgdXNlcl9pZCBjYXJkczpyZWFkLXBjaSB2YXVsdHM6d3JpdGUiLCJzZXJ2aWNlX2FjY291bnQiOnRydWUsImNsaWVudEhvc3QiOiIxMTUuMjQwLjE2NC4xOTQiLCJjbGllbnRBbm5vdGF0aW9ucyI6eyJ2Z3MuaW8vdmF1bHQtaWQiOiJ0bnRkaHozeGE4eCJ9LCJjbGllbnRBZGRyZXNzIjoiMTE1LjI0MC4xNjQuMTk0IiwiY2xpZW50X2lkIjoiQUN2NkhaanJDLXRlc3QtVUtDQncifQ.DkFP_svwQyZHzSdbYvWNgxRZMwK0VliIEi4lbKzkdyoryVIUKQQapIQro2veNi0PRT3mhjTR8oBFnFj7n7HREHJQcmXPFWHsGT1I9SpbQmsRDqJr56Oe4CM1qOm9VPpU1d5xx7kngOhtxqH4z0ZhcX5uHgcjbz_H7Hoa20fXHiFgFsdZ63nmt2QAymE8tu08yHvyUHHPMvYRxL89i0_tDM_P7bIE0W4EhSePRXRNI6BY-gxmx9eWQtSCliisPi0T0VBfvu8DkkptZjRRGD7FHWAPNa-Dl2DdXpAAbLn9ZVUY7nYHL_Ptaw8B0b14UB5tiGPailSX8HGnYmX0Q_OUYQ",
+      "via": "HyperSwitch",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "{{MITM_SECRET:vgs.connector_account_details.api_secret}}.sandbox.vault-api.verygoodvault.com",
+      "content-length": "192"
+    },
+    "body": {
+      "data": [
+        {
+          "value": "{\"card_number\":\"{{MITM_REDACTED:request.card_number}}\",\"card_exp_month\":\"10\",\"card_exp_year\":\"30\",\"card_cvc\":null}",
+          "classifiers": [
+            "data"
+          ],
+          "format": "UUID",
+          "storage": "PERSISTENT"
+        }
+      ]
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 192
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 201,
+    "reason": "Created",
+    "headers": {
+      "Date": "Fri, 15 May 2026 07:01:17 GMT",
+      "Content-Type": "application/json",
+      "Transfer-Encoding": "chunked",
+      "Connection": "keep-alive",
+      "vary": "Origin,Access-Control-Request-Method,Access-Control-Request-Headers",
+      "x-b3-traceid": "0000000000000000476a25379ae0f9e4",
+      "x-b3-spanid": "476a25379ae0f9e4",
+      "x-content-type-options": "nosniff",
+      "x-xss-protection": "0",
+      "cache-control": "no-cache, no-store, max-age=0, must-revalidate",
+      "pragma": "no-cache",
+      "expires": "0",
+      "strict-transport-security": "max-age=31536000 ; includeSubDomains",
+      "x-frame-options": "DENY",
+      "server": "web"
+    },
+    "body": {
+      "data": [
+        {
+          "value": "{\"card_number\":\"{{MITM_REDACTED:card.pan}}\",\"card_exp_month\":\"10\",\"card_exp_year\":\"30\",\"card_cvc\":null}",
+          "classifiers": [
+            "data"
+          ],
+          "aliases": [
+            {
+              "alias": "tok_sandbox_x5u4JEstQYZm5K86nsjgDo",
+              "format": "UUID"
+            }
+          ],
+          "created_at": "2026-05-15T07:01:17Z",
+          "storage": "PERSISTENT"
+        }
+      ]
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 360
+  },
+  "redaction": {
+    "version": 2,
+    "placeholder_count": 0,
+    "request_placeholder_count": 1,
+    "response_header_placeholder_count": 0,
+    "test_pan_placeholder_count": 0,
+    "card_echo_placeholder_count": 0
+  }
+}

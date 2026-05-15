@@ -1,0 +1,186 @@
+{
+  "captured_at": "2026-05-15T06:50:56.494901+00:00",
+  "test": "Card - Mandates using Payment Method Id flow test > Card - ThreeDS Create + Confirm Automatic CIT and MIT payment flow test > Confirm 3DS CIT -> Handle redirection -> retrieve-payment-call-test -> Confirm No 3DS MIT -> Confirm No 3DS MIT",
+  "request_id": "1493c1f5-001",
+  "connector": "paypal",
+  "timing": {
+    "request_started_at": "2026-05-15T06:50:56.494901+00:00",
+    "request_completed_at": "2026-05-15T06:50:56.495226+00:00",
+    "response_started_at": "2026-05-15T06:50:58.636248+00:00",
+    "response_completed_at": "2026-05-15T06:50:58.636686+00:00",
+    "duration_ms": 2141.79
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://api-m.sandbox.paypal.com/v2/checkout/orders",
+    "scheme": "https",
+    "host": "api-m.sandbox.paypal.com",
+    "port": 443,
+    "path": "/v2/checkout/orders",
+    "query": {},
+    "headers": {
+      "content-type": "application/json",
+      "x-flow": "Authorize",
+      "x-request-id": "1493c1f5-001",
+      "via": "HyperSwitch",
+      "prefer": "return=representation",
+      "authorization": "Bearer A21AAL_l6fOjd8XACbHJocp7zIdbvGUB6FY2C6Q3K47kj5xzYsZLRnsR_63XjV2d4xIvwT0z6G86J8Nmle2CY7Gqx_-Y5fgMw",
+      "paypal-request-id": "pay_BOSLbpXDiMdEXEsgVMmg_1",
+      "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
+      "x-connector": "paypal",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "api-m.sandbox.paypal.com",
+      "content-length": "1012"
+    },
+    "body": {
+      "intent": "CAPTURE",
+      "purchase_units": [
+        {
+          "reference_id": "pay_BOSLbpXDiMdEXEsgVMmg_1",
+          "invoice_id": "pay_BOSLbpXDiMdEXEsgVMmg_1",
+          "custom_id": null,
+          "amount": {
+            "currency_code": "USD",
+            "value": "60.00",
+            "breakdown": {
+              "item_total": {
+                "currency_code": "USD",
+                "value": "60.00"
+              },
+              "tax_total": null,
+              "shipping": {
+                "currency_code": "USD",
+                "value": "0.00"
+              }
+            }
+          },
+          "shipping": {
+            "address": {
+              "address_line_1": "{{MITM_REDACTED:request.request.body.purchase_units.0.shipping.address.address_line_1}}",
+              "postal_code": "{{MITM_REDACTED:request.request.body.purchase_units.0.shipping.address.postal_code}}",
+              "country_code": "US",
+              "admin_area_2": "San Fransico"
+            },
+            "name": {
+              "full_name": "john"
+            }
+          },
+          "items": [
+            {
+              "name": "Payment for invoice pay_BOSLbpXDiMdEXEsgVMmg_1",
+              "quantity": 1,
+              "unit_amount": {
+                "currency_code": "USD",
+                "value": "60.00"
+              },
+              "tax": null
+            }
+          ]
+        }
+      ],
+      "payment_source": {
+        "card": {
+          "billing_address": {
+            "address_line_1": "{{MITM_REDACTED:request.request.body.payment_source.card.billing_address.address_line_1}}",
+            "postal_code": "{{MITM_REDACTED:request.request.body.payment_source.card.billing_address.postal_code}}",
+            "country_code": "US",
+            "admin_area_2": "San Fransico"
+          },
+          "expiry": "2050-01",
+          "name": "joseph Doe",
+          "number": "{{MITM_REDACTED:request.request.body.payment_source.card.number}}",
+          "security_code": "{{MITM_REDACTED:request.request.body.payment_source.card.security_code}}",
+          "attributes": {
+            "vault": {
+              "store_in_vault": "ON_SUCCESS",
+              "usage_type": "MERCHANT",
+              "permit_multiple_payment_tokens": false
+            },
+            "verification": {
+              "method": "SCA_ALWAYS"
+            }
+          }
+        }
+      }
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 1012
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "Connection": "keep-alive",
+      "server": "nginx",
+      "content-type": "application/json",
+      "cache-control": "max-age=0, no-cache, no-store, must-revalidate",
+      "http_x_pp_az_locator": "ccg18.slc",
+      "paypal-debug-id": "f458961684692",
+      "access-control-expose-headers": "Server-Timing",
+      "server-timing": "traceparent;desc=\"00-0000000000000000000f458961684692-124c3352e9001446-01\"",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "x-backend-info": "v=1;name=2k1u3gOGb2cebCyZJujTUN--F_ccg18_wju_origin_api_m_2_sandbox_paypal_com;ip=34.106.111.220;port=443;ssl=1;max=200;mr=0;ka_ns=0;ml_ns=0;tka_s=300;tki_s=10;tkp=3;host=api-m.sandbox.paypal.com;min_tls=;max_tls=;sni=edge.sandbox.paypal.com;cert_host=edge.sandbox.paypal.com;ciphers=;check_cert=1;no_reneg=1;to_ns=1000000000;fbto_ns=59000000000;bbto_ns=10000000000;fto_ns=0",
+      "Accept-Ranges": "none",
+      "Via": "1.1 varnish, 1.1 varnish",
+      "content-encoding": "gzip",
+      "Edge-Control": "max-age=0",
+      "Date": "Fri, 15 May 2026 06:50:58 GMT",
+      "X-Served-By": "cache-sin-wsss1830073-SIN, cache-sin-wsss1830073-SIN, cache-qbk-voml4860023-QBK",
+      "X-Cache": "MISS, MISS, MISS",
+      "X-Cache-Hits": "0, 0, 0",
+      "X-Timer": "S1778827856.493632,VS0,VE2136",
+      "Vary": "Accept-Encoding",
+      "transfer-encoding": "chunked"
+    },
+    "body": {
+      "id": "1YW0162151545794D",
+      "status": "PAYER_ACTION_REQUIRED",
+      "payment_source": {
+        "card": {
+          "name": "joseph Doe",
+          "last_digits": "0026",
+          "expiry": "2050-01",
+          "brand": "VISA",
+          "available_networks": [
+            "VISA"
+          ],
+          "type": "CREDIT",
+          "bin_details": {
+            "bin": "401200",
+            "bin_country_code": "US"
+          }
+        }
+      },
+      "purchase_units": [
+        {
+          "reference_id": "pay_BOSLbpXDiMdEXEsgVMmg_1"
+        }
+      ],
+      "links": [
+        {
+          "href": "https://api.sandbox.paypal.com/v2/checkout/orders/1YW0162151545794D",
+          "rel": "self",
+          "method": "GET"
+        },
+        {
+          "href": "https://www.sandbox.paypal.com/webapps/helios?action=verify&flow=3ds&cart_id=1YW0162151545794D",
+          "rel": "payer-action",
+          "method": "GET"
+        }
+      ]
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 587
+  },
+  "redaction": {
+    "version": 2,
+    "placeholder_count": 0,
+    "request_placeholder_count": 6,
+    "response_header_placeholder_count": 0,
+    "test_pan_placeholder_count": 0,
+    "card_echo_placeholder_count": 0
+  }
+}

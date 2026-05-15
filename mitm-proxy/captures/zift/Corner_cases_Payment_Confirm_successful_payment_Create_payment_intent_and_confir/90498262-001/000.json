@@ -1,0 +1,71 @@
+{
+  "captured_at": "2026-05-15T06:59:54.984368+00:00",
+  "test": "Corner cases > [Payment] Confirm successful payment > Create payment intent and confirm -> Retrieve payment -> Confirm call",
+  "request_id": "90498262-001",
+  "connector": "zift",
+  "timing": {
+    "request_started_at": "2026-05-15T06:59:54.984368+00:00",
+    "request_completed_at": "2026-05-15T06:59:54.984851+00:00",
+    "response_started_at": "2026-05-15T06:59:55.390882+00:00",
+    "response_completed_at": "2026-05-15T06:59:55.391972+00:00",
+    "duration_ms": 407.6
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://sandbox-secure.zift.io/gates/xurl",
+    "scheme": "https",
+    "host": "sandbox-secure.zift.io",
+    "port": 443,
+    "path": "/gates/xurl",
+    "query": {},
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded",
+      "via": "HyperSwitch",
+      "x-request-id": "90498262-001",
+      "x-connector": "zift",
+      "x-flow": "Authorize",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "sandbox-secure.zift.io",
+      "content-length": "326"
+    },
+    "body": "requestType=sale&userName={{MITM_SECRET:zift.connector_account_details.api_key}}&password={{MITM_SECRET:zift.connector_account_details.api_secret}}&accountId=8393001&accountType=R&accountNumber={{MITM_REDACTED:card.pan}}&accountAccessory=1030&transactionCode=pay_aHagTMroNmUg2MZmk57t_1&csc=123&transactionIndustryType=EC&transactionCategoryCode=EC&holderName=John+Doe&holderType=P&amount=6000",
+    "body_encoding": "utf-8",
+    "body_size_bytes": 326
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "Date": "Fri, 15 May 2026 06:59:55 GMT",
+      "Content-Type": "text/plain;charset=UTF-8",
+      "Transfer-Encoding": "chunked",
+      "Connection": "keep-alive",
+      "expires": "0",
+      "cache-control": "no-cache, no-store, must-revalidate",
+      "pragma": "no-cache",
+      "unibroker-code": "1",
+      "access-control-allow-origin": "https://sandbox-portal.zift.io",
+      "strict-transport-security": "max-age=15552000; includeSubDomains",
+      "set-cookie": "{{MITM_REDACTED:response.headers.set-cookie}}",
+      "unipay-code": "2",
+      "cf-cache-status": "DYNAMIC",
+      "Content-Encoding": "gzip",
+      "Server": "cloudflare",
+      "CF-RAY": "9fc0433c9f7b3d29-BLR"
+    },
+    "body": "responseType=sale&accountId=8393001&responseCode=A01&responseMessage=Approved&transactionId=8621194812&transactionCode=pay_aHagTMroNmUg2MZmk57t_1&cycleCode=4133092&cycleId=4133092&terminalMessage=&approvalCode=131712&transactionDate=20260515&providerTransactionId=&providerTransactionCode=&providerResponseCode=00&providerResponseMessage=Approval&networkTransactionId=3909846134160098421390984&currencyCode=USD&accountNumberMasked=4***********1111&accountAccessory=1030&holderName=John+Doe&entryModeType=M&entryMediumType=NP&accountType=R&extendedAccountType=VC&holderVerificationModeType=&feeAmount=450&token=VC10000000000126771111&processorResponse=&avsResponseCode=&providerAvsResponseCode=&cscResponseCode=M&providerCscResponseCode=M&processorCode=131712&amount=6000&originalAmount=6000&warningCode=&balance=",
+    "body_encoding": "utf-8",
+    "body_size_bytes": 812
+  },
+  "redaction": {
+    "version": 2,
+    "placeholder_count": 0,
+    "request_placeholder_count": 0,
+    "response_header_placeholder_count": 1,
+    "test_pan_placeholder_count": 0,
+    "card_echo_placeholder_count": 0
+  }
+}

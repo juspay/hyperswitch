@@ -1,0 +1,160 @@
+{
+  "captured_at": "2026-05-15T06:53:52.159917+00:00",
+  "test": "Card - Customer Deletion and Psync > Card - Psync after Customer Deletion for Automatic Capture > 3DS Card - Psync after Customer Deletion   > Create Customer -> Create Payment Intent -> Confirm Payment -> Handle redirection -> Retrieve Payment -> Delete Customer -> Retrieve Payment",
+  "request_id": "a8ebdc37-003",
+  "connector": "paypal",
+  "timing": {
+    "request_started_at": "2026-05-15T06:53:52.159917+00:00",
+    "request_completed_at": "2026-05-15T06:53:52.160400+00:00",
+    "response_started_at": "2026-05-15T06:53:54.323898+00:00",
+    "response_completed_at": "2026-05-15T06:53:54.324233+00:00",
+    "duration_ms": 2164.32
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://api-m.sandbox.paypal.com/v2/checkout/orders",
+    "scheme": "https",
+    "host": "api-m.sandbox.paypal.com",
+    "port": 443,
+    "path": "/v2/checkout/orders",
+    "query": {},
+    "headers": {
+      "content-type": "application/json",
+      "prefer": "return=representation",
+      "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
+      "via": "HyperSwitch",
+      "x-connector": "paypal",
+      "authorization": "Bearer A21AAL_l6fOjd8XACbHJocp7zIdbvGUB6FY2C6Q3K47kj5xzYsZLRnsR_63XjV2d4xIvwT0z6G86J8Nmle2CY7Gqx_-Y5fgMw",
+      "paypal-request-id": "pay_xwrejpD77UEdNwCQquzF_1",
+      "x-flow": "Authorize",
+      "x-request-id": "a8ebdc37-003",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "api-m.sandbox.paypal.com",
+      "content-length": "822"
+    },
+    "body": {
+      "intent": "CAPTURE",
+      "purchase_units": [
+        {
+          "reference_id": "pay_xwrejpD77UEdNwCQquzF_1",
+          "invoice_id": "pay_xwrejpD77UEdNwCQquzF_1",
+          "custom_id": null,
+          "amount": {
+            "currency_code": "USD",
+            "value": "60.00",
+            "breakdown": {
+              "item_total": {
+                "currency_code": "USD",
+                "value": "60.00"
+              },
+              "tax_total": null,
+              "shipping": {
+                "currency_code": "USD",
+                "value": "0.00"
+              }
+            }
+          },
+          "shipping": {
+            "address": null,
+            "name": {
+              "full_name": null
+            }
+          },
+          "items": [
+            {
+              "name": "Payment for invoice pay_xwrejpD77UEdNwCQquzF_1",
+              "quantity": 1,
+              "unit_amount": {
+                "currency_code": "USD",
+                "value": "60.00"
+              },
+              "tax": null
+            }
+          ]
+        }
+      ],
+      "payment_source": {
+        "card": {
+          "billing_address": {
+            "address_line_1": "{{MITM_REDACTED:request.request.body.payment_source.card.billing_address.address_line_1}}",
+            "postal_code": "{{MITM_REDACTED:request.request.body.payment_source.card.billing_address.postal_code}}",
+            "country_code": "US",
+            "admin_area_2": "New York"
+          },
+          "expiry": "2050-01",
+          "name": "joseph Doe",
+          "number": "{{MITM_REDACTED:request.request.body.payment_source.card.number}}",
+          "security_code": "{{MITM_REDACTED:request.request.body.payment_source.card.security_code}}",
+          "attributes": {
+            "vault": null,
+            "verification": {
+              "method": "SCA_ALWAYS"
+            }
+          }
+        }
+      }
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 822
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 201,
+    "reason": "Created",
+    "headers": {
+      "Connection": "keep-alive",
+      "Content-Length": "383",
+      "server": "nginx",
+      "content-type": "application/json",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "paypal-debug-id": "f654928cea190",
+      "http_x_pp_az_locator": "ccg18.slc",
+      "server-timing": "traceparent;desc=\"00-0000000000000000000f654928cea190-efbb4ba6b5ed97fb-01\"",
+      "cache-control": "max-age=0, no-cache, no-store, must-revalidate",
+      "access-control-expose-headers": "Server-Timing",
+      "x-backend-info": "v=1;name=2k1u3gOGb2cebCyZJujTUN--F_ccg18_wju_origin_api_m_1_sandbox_paypal_com;ip=34.106.238.133;port=443;ssl=1;max=200;mr=0;ka_ns=0;ml_ns=0;tka_s=300;tki_s=10;tkp=3;host=api-m.sandbox.paypal.com;min_tls=;max_tls=;sni=edge.sandbox.paypal.com;cert_host=edge.sandbox.paypal.com;ciphers=;check_cert=1;no_reneg=1;to_ns=1000000000;fbto_ns=59000000000;bbto_ns=10000000000;fto_ns=0",
+      "Accept-Ranges": "bytes",
+      "Via": "1.1 varnish, 1.1 varnish",
+      "Edge-Control": "max-age=0",
+      "Date": "Fri, 15 May 2026 06:53:54 GMT",
+      "X-Served-By": "cache-sin-wsat1880060-SIN, cache-sin-wsat1880060-SIN, cache-qbk-voml4860023-QBK",
+      "X-Cache": "MISS, MISS, MISS",
+      "X-Cache-Hits": "0, 0, 0",
+      "X-Timer": "S1778828032.151946,VS0,VE2084",
+      "Vary": "Accept-Encoding"
+    },
+    "body": {
+      "id": "5C437231WD495070H",
+      "status": "PAYER_ACTION_REQUIRED",
+      "purchase_units": [
+        {
+          "reference_id": "pay_xwrejpD77UEdNwCQquzF_1"
+        }
+      ],
+      "links": [
+        {
+          "href": "https://api.sandbox.paypal.com/v2/checkout/orders/5C437231WD495070H",
+          "rel": "self",
+          "method": "GET"
+        },
+        {
+          "href": "https://www.sandbox.paypal.com/webapps/helios?action=verify&flow=3ds&cart_id=5C437231WD495070H",
+          "rel": "payer-action",
+          "method": "GET"
+        }
+      ]
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 383
+  },
+  "redaction": {
+    "version": 2,
+    "placeholder_count": 0,
+    "request_placeholder_count": 4,
+    "response_header_placeholder_count": 0,
+    "test_pan_placeholder_count": 0,
+    "card_echo_placeholder_count": 0
+  }
+}

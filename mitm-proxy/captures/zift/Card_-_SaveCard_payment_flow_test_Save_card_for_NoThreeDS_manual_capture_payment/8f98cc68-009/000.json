@@ -1,0 +1,71 @@
+{
+  "captured_at": "2026-05-15T06:58:52.105079+00:00",
+  "test": "Card - SaveCard payment flow test > Save card for NoThreeDS manual capture payment- Create+Confirm [off_session] > Create Customer -> Create and Confirm Payment -> Retrieve Payment after Confirm -> Capture Payment -> Retrieve Payment after Capture -> List Customer Payment Methods -> Create Payment Intent -> Save Card Confirm Call -> Retrieve Payment after Save Card Confirm -> Capture Payment -> Retrieve Payment after Capture",
+  "request_id": "8f98cc68-009",
+  "connector": "zift",
+  "timing": {
+    "request_started_at": "2026-05-15T06:58:52.105079+00:00",
+    "request_completed_at": "2026-05-15T06:58:52.105586+00:00",
+    "response_started_at": "2026-05-15T06:58:52.389542+00:00",
+    "response_completed_at": "2026-05-15T06:58:52.390020+00:00",
+    "duration_ms": 284.94
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://sandbox-secure.zift.io/gates/xurl",
+    "scheme": "https",
+    "host": "sandbox-secure.zift.io",
+    "port": 443,
+    "path": "/gates/xurl",
+    "query": {},
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded",
+      "x-request-id": "8f98cc68-009",
+      "via": "HyperSwitch",
+      "x-flow": "PSync",
+      "x-connector": "zift",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "sandbox-secure.zift.io",
+      "content-length": "134"
+    },
+    "body": "requestType=find&userName={{MITM_SECRET:zift.connector_account_details.api_key}}&password={{MITM_SECRET:zift.connector_account_details.api_secret}}&accountId=8393001&transactionId=8621194532",
+    "body_encoding": "utf-8",
+    "body_size_bytes": 134
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "Date": "Fri, 15 May 2026 06:58:52 GMT",
+      "Content-Type": "text/plain;charset=UTF-8",
+      "Transfer-Encoding": "chunked",
+      "Connection": "keep-alive",
+      "expires": "0",
+      "cache-control": "no-cache, no-store, must-revalidate",
+      "pragma": "no-cache",
+      "unibroker-code": "1",
+      "access-control-allow-origin": "https://sandbox-portal.zift.io",
+      "strict-transport-security": "max-age=15552000; includeSubDomains",
+      "set-cookie": "{{MITM_REDACTED:response.headers.set-cookie}}",
+      "unipay-code": "2",
+      "cf-cache-status": "DYNAMIC",
+      "Content-Encoding": "gzip",
+      "Server": "cloudflare",
+      "CF-RAY": "9fc041b3aedf3d29-BLR"
+    },
+    "body": "responseType=find&transactionType=sale-auth&accountId=8393001&accountNumberMasked=4***********1111&holderName=John+Doe&holderType=P&currencyCode=USD&street=&city=&state=&zipCode=&countryCode=US&phone=&email=&transactionIndustryType=EC&transactionCategoryType=R&transactionStatus=P&transactionCode=pay_klAs5KwXPbhjSI68osqz_1&transactionInternalCode=&sequenceNumber=2&sequenceCount=&memo=&transactionDate=20260515&amount=6000&originalAmount=6000&balance=&transactionId=8621194532&responseCode=A01&responseMessage=Approved&avsResponseCode=&cscResponseCode=&processorCode=545359&token=VC10000000000126771111&ticketNumber=&ticketAmount=&customerAccountCode=&customerAccountInternalCode=&feeAmount=450&providerResponseCode=00&providerResponseMessage=Approval&providerAvsResponseCode=&providerCscResponseCode=&providerTransactionCode=&providerTransactionId=&referenceNumber=8621194532&processorResponse=&holderVerificationModeType=&isSettled=0&settlementDate=20260515&batchId=4133092&accountAccessory=1030&accountType=R&cycleCode=4133092&approvalCode=545359&entryModeType=M&entryMediumType=NP&extendedAccountType=VC",
+    "body_encoding": "utf-8",
+    "body_size_bytes": 1108
+  },
+  "redaction": {
+    "version": 2,
+    "placeholder_count": 0,
+    "request_placeholder_count": 0,
+    "response_header_placeholder_count": 1,
+    "test_pan_placeholder_count": 0,
+    "card_echo_placeholder_count": 0
+  }
+}

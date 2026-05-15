@@ -1,0 +1,99 @@
+{
+  "captured_at": "2026-05-15T07:09:17.563532+00:00",
+  "test": "Bank Redirect tests > Interac Create and Confirm flow test > Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment",
+  "request_id": "4036b057-003",
+  "connector": "gigadat",
+  "timing": {
+    "request_started_at": "2026-05-15T07:09:17.563532+00:00",
+    "request_completed_at": "2026-05-15T07:09:17.563988+00:00",
+    "response_started_at": "2026-05-15T07:09:17.833303+00:00",
+    "response_completed_at": "2026-05-15T07:09:17.834187+00:00",
+    "duration_ms": 270.65
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://interac.express-connect.com/api/payment-token/{{MITM_SECRET:gigadat.connector_account_details.key1}}",
+    "scheme": "https",
+    "host": "interac.express-connect.com",
+    "port": 443,
+    "path": "/api/payment-token/{{MITM_SECRET:gigadat.connector_account_details.key1}}",
+    "query": {},
+    "headers": {
+      "content-type": "application/json",
+      "authorization": "{{MITM_SECRET:basic:gigadat.connector_account_details.api_key+gigadat.connector_account_details.api_secret}}",
+      "x-flow": "Authorize",
+      "via": "HyperSwitch",
+      "x-connector": "gigadat",
+      "x-request-id": "4036b057-003",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "interac.express-connect.com",
+      "content-length": "261"
+    },
+    "body": {
+      "userId": "cus_x8K2n0TeWD0xXL1FEd8d",
+      "site": "https://google.com",
+      "userIp": "127.0.0.1",
+      "currency": "CAD",
+      "amount": 60.0,
+      "transactionId": "pay_FMhsKgtj0wQvdIKncxDe_1",
+      "type": "CPI",
+      "sandbox": true,
+      "name": "John Doe",
+      "email": "{{MITM_REDACTED:request.request.body.email}}",
+      "mobile": "+919123456789"
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 261
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "Date": "Fri, 15 May 2026 07:09:17 GMT",
+      "Content-Type": "application/json; charset=utf-8",
+      "Content-Length": "984",
+      "Connection": "keep-alive",
+      "Set-Cookie": "{{MITM_REDACTED:response.headers.Set-Cookie}}",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Credentials": "true",
+      "Strict-Transport-Security": "max-age=7776000",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "default-src 'self' cloudflare.com *.cloudflare.com npmcdn.com *.npmcdn.com cloudfront.net *.cloudfront.net express-connect.com *.express-connect.com fin.ag *.fin.ag google-analytics.com *.google-analytics.com google.com *.google.com google.ca *.google.ca doubleclick.net *.doubleclick.net moneris.com *.moneris.com gstatic.com *.gstatic.com fontawesome.com *.fontawesome.com jsdelivr.net *.jsdelivr.net googleapis.com *.googleapis.com googletagmanager.com *.googletagmanager.com interac.ca *.interac.ca data: woopra.com *.woopra.com onfido.com *.onfido.com ws: sentry.io *.sentry.io https://health.gigadatsolutions.com blob: 'unsafe-inline' 'unsafe-eval';",
+      "ETag": "W/\"3d8-U36fYlGyX7JBJZGONSZ38J/0vhI\"",
+      "Vary": "Accept-Encoding"
+    },
+    "body": {
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjdXNfeDhLMm4wVGVXRDB4WEwxRkVkOGQiLCJzaXRlIjoiaHR0cHM6Ly9nb29nbGUuY29tIiwidXNlcklwIjoiMTI3LjAuMC4xIiwiY3VycmVuY3kiOiJDQUQiLCJhbW91bnQiOjYwLCJ0cmFuc2FjdGlvbklkIjoicGF5X0ZNaHNLZ3RqMHdRdmRJS25jeERlXzEiLCJ0eXBlIjoiQ1BJIiwic2FuZGJveCI6dHJ1ZSwibmFtZSI6IkpvaG4gRG9lIiwiZW1haWwiOiJndWVzdEBleGFtcGxlLmNvbSIsIm1vYmlsZSI6IjkxOTEyMzQ1Njc4OSIsInVzZXIiOiJlZWU1Y2MwNDBiMjU2MGRjNThmMmU0MGM0Mjg2NWM4YSIsImNhbXBhaWduIjoiMGVjZTQ3NTU4Njg3ZmMxNTQ2OWFjNmM5Y2EzMjRiMTIiLCJlbnRpdHlJZCI6MSwiaWF0IjoxNzc4ODI4OTU3LCJleHAiOjE3Nzg5MTUzNTd9.SQbFyej7hg5dP-OOXskFBt3THzITLlN9zVWQqQdwihU",
+      "data": {
+        "userId": "cus_x8K2n0TeWD0xXL1FEd8d",
+        "site": "https://google.com",
+        "userIp": "127.0.0.1",
+        "currency": "CAD",
+        "amount": 60,
+        "transactionId": "pay_FMhsKgtj0wQvdIKncxDe_1",
+        "type": "CPI",
+        "sandbox": true,
+        "name": "John Doe",
+        "email": "guest@example.com",
+        "mobile": "919123456789",
+        "user": "eee5cc040b2560dc58f2e40c42865c8a",
+        "campaign": "{{MITM_SECRET:gigadat.connector_account_details.key1}}",
+        "entityId": 1
+      }
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 984
+  },
+  "redaction": {
+    "version": 2,
+    "placeholder_count": 0,
+    "request_placeholder_count": 1,
+    "response_header_placeholder_count": 1,
+    "test_pan_placeholder_count": 0,
+    "card_echo_placeholder_count": 0
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "captured_at": "2026-05-15T06:43:15.877588+00:00",
+  "test": "Card - Refund flow - 3DS > Partially Refund Card-ThreeDS payment flow test Create+Confirm > Create and Confirm Payment -> Handle Redirection -> Retrieve Payment after Confirmation -> Partial Refund Payment -> Partial Refund Payment - 2nd Attempt -> Sync Refund Payment",
+  "request_id": "3787a59a-001",
+  "connector": "redsys",
+  "timing": {
+    "request_started_at": "2026-05-15T06:43:15.877588+00:00",
+    "request_completed_at": "2026-05-15T06:43:15.877851+00:00",
+    "response_started_at": "2026-05-15T06:43:19.036513+00:00",
+    "response_completed_at": "2026-05-15T06:43:19.039367+00:00",
+    "duration_ms": 3161.78
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://sis-t.redsys.es:25443/sis/rest/trataPeticionREST",
+    "scheme": "https",
+    "host": "sis-t.redsys.es",
+    "port": 25443,
+    "path": "/sis/rest/trataPeticionREST",
+    "query": {},
+    "headers": {
+      "content-type": "application/json",
+      "x-request-id": "3787a59a-001",
+      "x-flow": "Authenticate",
+      "via": "HyperSwitch",
+      "x-connector": "redsys",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "sis-t.redsys.es:25443",
+      "content-length": "2029"
+    },
+    "body": {
+      "Ds_MerchantParameters": "eyJEU19NRVJDSEFOVF9BTU9VTlQiOiI2MDAwIiwiRFNfTUVSQ0hBTlRfQ1VSUkVOQ1kiOiI5NzgiLCJEU19NRVJDSEFOVF9DVlYyIjoiMTIzIiwiRFNfTUVSQ0hBTlRfRU1WM0RTIjp7ImJpbGxBZGRyQ2l0eSI6IlNhbiBGcmFuc2ljbyIsImJpbGxBZGRyQ291bnRyeSI6IkVTUCIsImJpbGxBZGRyTGluZTEiOiIxNDY3IiwiYmlsbEFkZHJMaW5lMiI6IkhhcnJpc29uIFN0cmVldCIsImJpbGxBZGRyTGluZTMiOiJIYXJyaXNvbiBTdHJlZXQiLCJiaWxsQWRkclBvc3RhbENvZGUiOiI5NDEyMiIsImJpbGxBZGRyU3RhdGUiOiJDRSIsImJyb3dzZXJBY2NlcHRIZWFkZXIiOiJ0ZXh0L2h0bWwsYXBwbGljYXRpb24veGh0bWwreG1sLGFwcGxpY2F0aW9uL3htbDtxPTAuOSxpbWFnZS93ZWJwLGltYWdlL2FwbmcsKi8qO3E9MC44IiwiYnJvd3NlckNvbG9yRGVwdGgiOiIzMiIsImJyb3dzZXJJUCI6IjEyOS4wLjAuMSIsImJyb3dzZXJKYXZhRW5hYmxlZCI6dHJ1ZSwiYnJvd3NlckphdmFzY3JpcHRFbmFibGVkIjp0cnVlLCJicm93c2VyTGFuZ3VhZ2UiOiJlbi1VUyIsImJyb3dzZXJTY3JlZW5IZWlnaHQiOiIxMTE3IiwiYnJvd3NlclNjcmVlbldpZHRoIjoiMTcyOCIsImJyb3dzZXJUWiI6Ii0zMzAiLCJicm93c2VyVXNlckFnZW50IjoiTW96aWxsYS81LjAgKE1hY2ludG9zaDsgSW50ZWwgTWFjIE9TIFggMTBfMTVfNykgQXBwbGVXZWJLaXQvNTM3LjM2IChLSFRNTCwgbGlrZSBHZWNrbykgQ2hyb21lLzEyMC4wLjAuMCBTYWZhcmkvNTM3LjM2Iiwibm90aWZpY2F0aW9uVVJMIjoiaHR0cDovL2xvY2FsaG9zdDo4MDkwL3BheW1lbnRzL3BheV80S25uVTdocmVGanVNZEFnOEU3Vi9jeU1lcmNoYW50X2Y0NzI0MzcwL3JlZGlyZWN0L2NvbXBsZXRlL3JlZHN5cyIsInByb3RvY29sVmVyc2lvbiI6IjIuMS4wIiwic2hpcEFkZHJDaXR5IjoiU2FuIEZyYW5zaWNvIiwic2hpcEFkZHJDb3VudHJ5IjoiRVNQIiwic2hpcEFkZHJMaW5lMSI6IjE0NjciLCJzaGlwQWRkckxpbmUyIjoiSGFycmlzb24gU3RyZWV0Iiwic2hpcEFkZHJMaW5lMyI6IkhhcnJpc29uIFN0cmVldCIsInNoaXBBZGRyUG9zdGFsQ29kZSI6Ijk0MTIyIiwic2hpcEFkZHJTdGF0ZSI6IkNFIiwidGhyZWVEU0NvbXBJbmQiOiJOIiwidGhyZWVEU0luZm8iOiJBdXRoZW50aWNhdGlvbkRhdGEiLCJ0aHJlZURTU2VydmVyVHJhbnNJRCI6IjUyMjA3NjgwLTI5MmQtNGM0OC1iZjg0LWQ0Zjg5NzNmNzBlMSJ9LCJEU19NRVJDSEFOVF9FWFBJUllEQVRFIjoiMzAxMiIsIkRTX01FUkNIQU5UX01FUkNIQU5UQ09ERSI6IjMzNjYwMjEzMSIsIkRTX01FUkNIQU5UX09SREVSIjoiMTU4NDQ1NTIxMTAxIiwiRFNfTUVSQ0hBTlRfUEFOIjoiNDU0ODgxNzIxMjQ5MzAxNyIsIkRTX01FUkNIQU5UX1RFUk1JTkFMIjoiMDAxIiwiRFNfTUVSQ0hBTlRfVFJBTlNBQ1RJT05UWVBFIjoiMCJ9",
+      "Ds_Signature": "FooKijnTtcJyBwofXsDNgcvZFrB8++a4xwF+KPtA+MA=",
+      "Ds_SignatureVersion": "HMAC_SHA256_V1"
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 2029
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "Date": "Fri, 15 May 2026 06:43:16 GMT",
+      "Referrer-Policy": "no-referrer-when-downgrade",
+      "X-Content-Type-Options": "nosniff",
+      "X-XSS-Protection": "1",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+      "Content-Type": "text/plain",
+      "Content-Language": "en-US",
+      "Transfer-Encoding": "chunked"
+    },
+    "body": {
+      "Ds_SignatureVersion": "HMAC_SHA256_V1",
+      "Ds_MerchantParameters": "eyJEc19BbW91bnQiOiI2MDAwIiwiRHNfQ3VycmVuY3kiOiI5NzgiLCJEc19PcmRlciI6IjE1ODQ0NTUyMTEwMSIsIkRzX01lcmNoYW50Q29kZSI6IjMzNjYwMjEzMSIsIkRzX1Rlcm1pbmFsIjoiMSIsIkRzX1RyYW5zYWN0aW9uVHlwZSI6IjAiLCJEc19FTVYzRFMiOnsidGhyZWVEU0luZm8iOiJDaGFsbGVuZ2VSZXF1ZXN0IiwicHJvdG9jb2xWZXJzaW9uIjoiMi4xLjAiLCJhY3NVUkwiOiJodHRwczovL3Npcy1kLnJlZHN5cy5lcy9zaXMtc2ltdWxhZG9yLXdlYi9hdXRoZW50aWNhdGlvblJlcXVlc3QuanNwIiwiY3JlcSI6ImV5SjBhSEpsWlVSVFUyVnlkbVZ5VkhKaGJuTkpSQ0k2SWpVeU1qQTNOamd3TFRJNU1tUXROR00wT0MxaVpqZzBMV1EwWmpnNU56Tm1OekJsTVNJc0ltRmpjMVJ5WVc1elNVUWlPaUl5WmpGbU9ETTJOUzAzTUdKbUxUUmpZV1F0WVdJMVlpMHpNMlV3TTJOaE5UUm1aVGtpTENKdFpYTnpZV2RsVkhsd1pTSTZJa05TWlhFaUxDSnRaWE56WVdkbFZtVnljMmx2YmlJNklqSXVNUzR3SWl3aVkyaGhiR3hsYm1kbFYybHVaRzkzVTJsNlpTSTZJakExSW4wIn19",
+      "Ds_Signature": "7FYPix7MBLVzxJ9ZOHk0Jem9wiI_C0Rc_gkNy_Cfl1I="
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 865
+  }
+}

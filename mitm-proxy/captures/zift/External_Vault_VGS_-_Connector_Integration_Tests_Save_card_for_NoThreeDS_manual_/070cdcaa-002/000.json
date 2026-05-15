@@ -1,0 +1,69 @@
+{
+  "captured_at": "2026-05-15T07:01:16.027022+00:00",
+  "test": "External Vault (VGS) - Connector Integration Tests > Save card for NoThreeDS manual capture payment - Create+Confirm [on_session] > Create Customer -> Create and Confirm Payment -> Retrieve Payment -> List Customer PMs -> Create Payment Intent -> Save Card Confirm -> Retrieve Payment -> Capture -> Retrieve after Capture",
+  "request_id": "070cdcaa-002",
+  "connector": "zift",
+  "timing": {
+    "request_started_at": "2026-05-15T07:01:16.027022+00:00",
+    "request_completed_at": "2026-05-15T07:01:16.027278+00:00",
+    "response_started_at": "2026-05-15T07:01:16.293448+00:00",
+    "response_completed_at": "2026-05-15T07:01:16.294127+00:00",
+    "duration_ms": 267.1
+  },
+  "request": {
+    "http_version": "HTTP/1.1",
+    "method": "POST",
+    "url": "https://auth.verygoodsecurity.com/auth/realms/vgs/protocol/openid-connect/token",
+    "scheme": "https",
+    "host": "auth.verygoodsecurity.com",
+    "port": 443,
+    "path": "/auth/realms/vgs/protocol/openid-connect/token",
+    "query": {},
+    "headers": {
+      "content-type": "application/x-www-form-urlencoded",
+      "x-request-id": "070cdcaa-002",
+      "x-flow": "AccessTokenAuth",
+      "x-connector": "irrelevant connector in VaultConnector flow",
+      "accept": "*/*",
+      "accept-encoding": "gzip",
+      "host": "auth.verygoodsecurity.com",
+      "content-length": "111"
+    },
+    "body": "grant_type=client_credentials&client_id={{MITM_SECRET:vgs.connector_account_details.api_key}}&client_secret={{MITM_SECRET:vgs.connector_account_details.key1}}",
+    "body_encoding": "utf-8",
+    "body_size_bytes": 111
+  },
+  "response": {
+    "http_version": "HTTP/1.1",
+    "status": 200,
+    "reason": "OK",
+    "headers": {
+      "Date": "Fri, 15 May 2026 07:01:16 GMT",
+      "Content-Type": "application/json",
+      "Content-Length": "2033",
+      "Connection": "keep-alive",
+      "cache-control": "no-store",
+      "pragma": "no-cache",
+      "referrer-policy": "no-referrer",
+      "strict-transport-security": "max-age=31536000; includeSubDomains",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "ALLOW-FROM https://www.google.com",
+      "x-robots-tag": "none",
+      "vgs-environment": "prod/vault/live"
+    },
+    "body": {
+      "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI1RVhBTnFldTBIbUNGVHZDUGs1c21iQjNjcVo1c0FLUzNKWFRjeHdTWjY4In0.eyJleHAiOjE3Nzg4Mjk2NzYsImlhdCI6MTc3ODgyODQ3NiwianRpIjoidHJydGNjOjNlNDgzNmJjLTZhZGItZGFhMC1mMjJiLWU5ZmI1NGEwNTU2NyIsImlzcyI6Imh0dHBzOi8vYXV0aC52ZXJ5Z29vZHNlY3VyaXR5LmNvbS9hdXRoL3JlYWxtcy92Z3MiLCJhdWQiOlsiYWN0LW1nbXQtaHR0cC1hcGkiLCJ2YXVsdC1tZ210LWh0dHAtYXBpIiwidmF1bHQtYXBpIiwiY2FsbS1zYW5kYm94IiwiY2FsbS1saXZlIl0sInN1YiI6IjViNjkzMjdiLTA1OTEtNDgxOS1hODdkLTQ5ZmQ5NzQ2ZGRjYiIsInR5cCI6IkJlYXJlciIsImF6cCI6IkFDdjZIWmpyQy10ZXN0LVVLQ0J3IiwicmVzb3VyY2VfYWNjZXNzIjp7InZhdWx0LW1nbXQtaHR0cC1hcGkiOnsicm9sZXMiOlsidmF1bHRzOnJlYWQiLCJ2YXVsdHM6d3JpdGUiXX0sInZhdWx0LWFwaSI6eyJyb2xlcyI6WyJhbGlhc2VzOndyaXRlIiwiYWxpYXNlczpyZWFkIiwiYWxpYXNlczpkZWxldGUiXX0sImFjdC1tZ210LWh0dHAtYXBpIjp7InJvbGVzIjpbInZhdWx0czpyZWFkIiwidmF1bHRzOndyaXRlIl19LCJjYWxtLXNhbmRib3giOnsicm9sZXMiOlsiY2FyZHM6cmVhZCIsImNhcmRzOndyaXRlIiwiY2FyZHM6cmVhZC1wY2kiXX0sImNhbG0tbGl2ZSI6eyJyb2xlcyI6WyJjYXJkczpyZWFkIiwiY2FyZHM6d3JpdGUiLCJjYXJkczpyZWFkLXBjaSJdfX0sInNjb3BlIjoiYWxpYXNlczpkZWxldGUgYWxpYXNlczp3cml0ZSBzZXJ2aWNlLWFjY291bnQgYWxpYXNlczpyZWFkIGNhcmRzOnJlYWQgdmF1bHRzOnJlYWQgY2FyZHM6d3JpdGUgdXNlcl9pZCBjYXJkczpyZWFkLXBjaSB2YXVsdHM6d3JpdGUiLCJzZXJ2aWNlX2FjY291bnQiOnRydWUsImNsaWVudEhvc3QiOiIxMTUuMjQwLjE2NC4xOTQiLCJjbGllbnRBbm5vdGF0aW9ucyI6eyJ2Z3MuaW8vdmF1bHQtaWQiOiJ0bnRkaHozeGE4eCJ9LCJjbGllbnRBZGRyZXNzIjoiMTE1LjI0MC4xNjQuMTk0IiwiY2xpZW50X2lkIjoiQUN2NkhaanJDLXRlc3QtVUtDQncifQ.DkFP_svwQyZHzSdbYvWNgxRZMwK0VliIEi4lbKzkdyoryVIUKQQapIQro2veNi0PRT3mhjTR8oBFnFj7n7HREHJQcmXPFWHsGT1I9SpbQmsRDqJr56Oe4CM1qOm9VPpU1d5xx7kngOhtxqH4z0ZhcX5uHgcjbz_H7Hoa20fXHiFgFsdZ63nmt2QAymE8tu08yHvyUHHPMvYRxL89i0_tDM_P7bIE0W4EhSePRXRNI6BY-gxmx9eWQtSCliisPi0T0VBfvu8DkkptZjRRGD7FHWAPNa-Dl2DdXpAAbLn9ZVUY7nYHL_Ptaw8B0b14UB5tiGPailSX8HGnYmX0Q_OUYQ",
+      "expires_in": 1200,
+      "refresh_expires_in": 0,
+      "token_type": "Bearer",
+      "not-before-policy": 1635446873,
+      "scope": "aliases:delete aliases:write service-account aliases:read cards:read vaults:read cards:write user_id cards:read-pci vaults:write"
+    },
+    "body_encoding": "json",
+    "body_size_bytes": 2033
+  },
+  "redaction": {
+    "version": 1,
+    "placeholder_count": 2
+  }
+}
