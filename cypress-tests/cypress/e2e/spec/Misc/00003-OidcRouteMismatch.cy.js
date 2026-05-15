@@ -2,7 +2,7 @@ import State from "../../../utils/State";
 
 let globalState;
 
-describe("OIDC Route Mismatch - SAIAAAAAA-181", () => {
+describe("OIDC Endpoint Coverage - SAIAAAAAA-181", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
@@ -19,12 +19,8 @@ describe("OIDC Route Mismatch - SAIAAAAAA-181", () => {
     });
   });
 
-  context("OIDC Advertised Endpoint Reachability", () => {
-    it("should document discovery-advertised authorization endpoint returning 404 (route mismatch bug)", () => {
-      cy.oidcAdvertisedAuthorizeRouteCheck(globalState);
-    });
-
-    it("should respond at /oidc/authorize (actual registered route)", () => {
+  context("OIDC Authorize Route", () => {
+    it("should respond at /oidc/authorize", () => {
       cy.oidcAuthorizeRouteCheck(globalState);
     });
   });

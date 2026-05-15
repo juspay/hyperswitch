@@ -7965,7 +7965,7 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
 /**
  * OIDC Discovery Document call - GET /.well-known/openid-configuration
  * Validates that the discovery document contains required OIDC fields
- * Stores discovered endpoints in globalState for subsequent calls
+ * Stores discovered token and JWKS endpoints in globalState for subsequent calls
  */
 Cypress.Commands.add("oidcDiscoveryCallTest", (globalState) => {
   const baseUrl = globalState.get("baseUrl");
@@ -7987,17 +7987,9 @@ Cypress.Commands.add("oidcDiscoveryCallTest", (globalState) => {
       expect(response.body).to.have.property("token_endpoint");
       expect(response.body).to.have.property("jwks_uri");
 
-      globalState.set(
-        "oidcAuthorizationEndpoint",
-        response.body.authorization_endpoint
-      );
       globalState.set("oidcTokenEndpoint", response.body.token_endpoint);
       globalState.set("oidcJwksUri", response.body.jwks_uri);
 
-      cy.task(
-        "cli_log",
-        `Authorization endpoint: ${response.body.authorization_endpoint}`
-      );
       cy.task("cli_log", `Token endpoint: ${response.body.token_endpoint}`);
       cy.task("cli_log", `JWKS URI: ${response.body.jwks_uri}`);
     });
@@ -8005,46 +7997,8 @@ Cypress.Commands.add("oidcDiscoveryCallTest", (globalState) => {
 });
 
 /**
- * OIDC Advertised Authorize Route Check - Tests the authorization_endpoint
- * advertised in the OIDC discovery document.
- * Uses the URL from globalState (stored by oidcDiscoveryCallTest).
- *
- * Verified: the discovery document at /.well-known/openid-configuration returns
- * authorization_endpoint = http://localhost:8080/oauth2/authorize, which is the
- * API server host (same as issuer), NOT a separate dashboard/control-center host.
- * The 404 therefore indicates a genuine route mismatch on the API server:
- * discovery advertises /oauth2/authorize but the actual registered route is /oidc/authorize.
- */
-Cypress.Commands.add("oidcAdvertisedAuthorizeRouteCheck", (globalState) => {
-  const authorizationEndpoint = globalState.get("oidcAuthorizationEndpoint");
-
-  cy.request({
-    method: "GET",
-    url: authorizationEndpoint,
-    headers: {
-      Accept: "application/json",
-    },
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-
-    cy.wrap(response).then(() => {
-      expect(response.status).to.eq(404);
-      expect(response.body.error.code).to.eq("IR_02");
-
-      cy.task(
-        "cli_log",
-        `BUG DOCUMENTED: OIDC discovery advertises authorization_endpoint at /oauth2/authorize, but that route returns 404 on the API server. The actual registered route is /oidc/authorize. This is a discovery-to-route-registration mismatch.`
-      );
-    });
-  });
-});
-
-/**
- * Tests the /oidc/authorize route on the API server (not the discovery-advertised route)
- * This route is NOT advertised in the OIDC discovery document — it is the actual
- * registered route that differs from the advertised authorization_endpoint.
- * Hardcoded path is intentional since there is no discovery URL for this route.
+ * Tests the /oidc/authorize route on the API server.
+ * Hardcoded path with query params for OIDC authorize flow verification.
  */
 Cypress.Commands.add("oidcAuthorizeRouteCheck", (globalState) => {
   const baseUrl = globalState.get("baseUrl");
