@@ -525,7 +525,12 @@ export const CONNECTOR_LISTS = {
       "finix",
     ],
     BILLING_DESCRIPTOR_INVALID_PHONE: ["nuvei"],
-    BILLING_DESCRIPTOR_EXTRA_FIELDS: ["adyen", "checkout", "stripe", "trustpay"],
+    BILLING_DESCRIPTOR_EXTRA_FIELDS: [
+      "adyen",
+      "checkout",
+      "stripe",
+      "trustpay",
+    ],
     FEATURE_METADATA: ["bankofamerica"],
     AUTO_RETRY: [
       "cybersource",
