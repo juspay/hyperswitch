@@ -126,14 +126,15 @@ pub fn should_call_connector_create_customer<'a>(
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(_) => {
             let connector_needs_customer = connector.connector.should_call_connector_customer();
 
-            if connector_needs_customer {
-                let connector_customer_details = customer
-                    .as_ref()
-                    .and_then(|cust| cust.get_connector_customer_id(merchant_connector_account));
-                let should_call_connector = connector_customer_details.is_none();
-                (should_call_connector, connector_customer_details)
-            } else {
-                (false, None)
+            match connector_needs_customer {
+                hyperswitch_interfaces::api::ConnectorCustomerAction::CallConnectorCustomer => {
+                    let connector_customer_details = customer
+                        .as_ref()
+                        .and_then(|cust| cust.get_connector_customer_id(merchant_connector_account));
+                    let should_call_connector = connector_customer_details.is_none();
+                    (should_call_connector, connector_customer_details)
+                }
+                _ => (false, None),
             }
         }
 

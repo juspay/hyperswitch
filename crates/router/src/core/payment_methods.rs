@@ -6663,6 +6663,7 @@ async fn create_single_use_tokenization_flow(
             authorized_amount: None,
             customer_document_details: None,
             feature_data: None,
+            sender_payment_instrument_id: None,
         };
 
     let payment_method_token_response = Box::pin(tokenization::add_token_for_payment_method(

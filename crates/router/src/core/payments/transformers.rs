@@ -585,6 +585,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -933,6 +934,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -1071,6 +1073,7 @@ pub async fn construct_router_data_for_psync<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -1439,6 +1442,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -1671,6 +1675,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)

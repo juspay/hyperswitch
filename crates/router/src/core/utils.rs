@@ -504,6 +504,7 @@ pub async fn construct_refund_router_data<'a, F>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)

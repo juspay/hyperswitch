@@ -950,7 +950,6 @@ impl ConnectorSpecifications for Trustly {
 
     fn should_call_connector_customer(
         &self,
-        #[cfg(feature = "v1")]
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> api::ConnectorCustomerAction {
         let connector_customer_id = uuid::Uuid::new_v4().to_string();
