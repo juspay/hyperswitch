@@ -7011,6 +7011,9 @@
           },
           {
             "$ref": "#/components/schemas/PixBankTransfer"
+          },
+          {
+            "$ref": "#/components/schemas/OpenBanking"
           }
         ],
         "description": "Deprecated - Use `BankTransfer` instead"
@@ -7031,6 +7034,9 @@
           },
           {
             "$ref": "#/components/schemas/PixBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/OpenBankingAdditionalData"
           }
         ],
         "description": "Masked payout method details for bank payout method"
@@ -8479,6 +8485,27 @@
                     "type": "string",
                     "enum": [
                       "trustly"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OpenBanking"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "open_banking"
                     ]
                   }
                 }
@@ -19363,6 +19390,45 @@
           }
         },
         "additionalProperties": false
+      },
+      "OpenBanking": {
+        "type": "object",
+        "required": [
+          "account_holder_name",
+          "iban"
+        ],
+        "properties": {
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe"
+          },
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "DE89370400440532013000"
+          }
+        }
+      },
+      "OpenBankingAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for OpenBanking bank transfer payout method",
+        "required": [
+          "account_holder_name",
+          "iban"
+        ],
+        "properties": {
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe"
+          },
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "DE89370400440532013000"
+          }
+        }
       },
       "OpenBankingData": {
         "oneOf": [

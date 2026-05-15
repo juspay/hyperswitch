@@ -1354,6 +1354,7 @@ impl ForeignFrom<&api_models::payouts::Bank> for api_enums::PaymentMethodType {
             api_models::payouts::Bank::Sepa(_) => Self::SepaBankTransfer,
             api_models::payouts::Bank::Pix(_) => Self::Pix,
             api_models::payouts::Bank::Trustly(_) => Self::Trustly,
+            api_models::payouts::Bank::OpenBanking(_) => Self::OpenBanking,
         }
     }
 }
@@ -1369,6 +1370,7 @@ impl ForeignFrom<&api_models::payouts::BankTransfer> for api_enums::PaymentMetho
             api_models::payouts::BankTransfer::PixKey(_) => Self::PixKey,
             api_models::payouts::BankTransfer::PixEmv(_) => Self::PixEmv,
             api_models::payouts::BankTransfer::Trustly(_) => Self::Trustly,
+            api_models::payouts::BankTransfer::OpenBanking(_) => Self::OpenBanking,
         }
     }
 }
