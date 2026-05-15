@@ -8,7 +8,10 @@ use api_models::{
         DynamicFields, PaymentMethodGroup, PaymentMethodTypeWithFields, SuperPositionConfigResponse,
     },
 };
-use common_utils::id_type::{MerchantId, ProfileId};
+use common_utils::{
+    ext_traits::StringExt,
+    id_type::{MerchantId, ProfileId},
+};
 use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount;
 use hyperswitch_masking::ExposeInterface;
 use serde_json::Map;
@@ -102,40 +105,41 @@ fn process_payment_method_type(
 ) {
     let payment_method_type = pm_type.payment_method_type;
 
-    match connector_name.parse::<Connector>() {
-        Ok(connector) => {
-            if let Some(required_field_final) = required_fields_config
-                .0
-                .get(&payment_method)
-                .and_then(|pm_type_map| pm_type_map.0.get(&payment_method_type))
-                .and_then(|connector_fields| connector_fields.fields.get(&connector))
-            {
-                let superset = build_superset_required_fields(
-                    &required_field_final.common,
-                    &required_field_final.mandate,
-                    &required_field_final.non_mandate,
-                );
-
-                grouped_data
-                    .entry(payment_method)
-                    .or_default()
-                    .entry(payment_method_type)
-                    .or_default()
-                    .extend(superset);
-            } else {
-                router_env::logger::debug!(
-                    payment_method=?payment_method,
-                    payment_method_type=?payment_method_type,
+    if let Ok(connector) =
+        StringExt::<Connector>::parse_enum(connector_name.to_string(), "Connector").inspect_err(
+            |err| {
+                router_env::logger::warn!(
+                    error=%err,
                     connector=%connector_name,
-                    "No required fields found in config"
+                    "Failed to parse connector name to Connector enum"
                 );
-            }
-        }
-        Err(e) => {
-            router_env::logger::warn!(
+            },
+        )
+    {
+        if let Some(required_field_final) = required_fields_config
+            .0
+            .get(&payment_method)
+            .and_then(|pm_type_map| pm_type_map.0.get(&payment_method_type))
+            .and_then(|connector_fields| connector_fields.fields.get(&connector))
+        {
+            let superset = build_superset_required_fields(
+                &required_field_final.common,
+                &required_field_final.mandate,
+                &required_field_final.non_mandate,
+            );
+
+            grouped_data
+                .entry(payment_method)
+                .or_default()
+                .entry(payment_method_type)
+                .or_default()
+                .extend(superset);
+        } else {
+            router_env::logger::debug!(
+                payment_method=?payment_method,
+                payment_method_type=?payment_method_type,
                 connector=%connector_name,
-                error=%e,
-                "Failed to parse connector name"
+                "No required fields found in config"
             );
         }
     }
@@ -230,6 +234,8 @@ pub async fn get_superposition_sdk_config(
         serde_json::Value::String(merchant_account.get_org_id().get_string_repr().to_string()),
     );
 
+    // NOTE: We intentionally ignore Superposition errors to prevent them from blocking dynamic fields functionality.
+    // This will be removed in future once the superposition service is stable.
     let raw_configs = state
         .superposition_service
         .get_cached_config(
@@ -237,9 +243,8 @@ pub async fn get_superposition_sdk_config(
             Some(dimension_filter.clone()),
         )
         .await
-        .map_err(|err| {
+        .inspect_err(|err| {
             router_env::logger::warn!(error=%err, "Failed to fetch cached superposition config");
-            err
         })
         .ok();
 
