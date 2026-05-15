@@ -48,18 +48,14 @@ describe("Card - Payment Response Hash flow test", () => {
         }
 
         if (!response || response.status !== 200) {
-          cy.task(
-            "cli_log",
-            "Failed to fetch account config - skipping spec"
-          );
+          cy.task("cli_log", "Failed to fetch account config - skipping spec");
           this.skip();
           return;
         }
 
         const enablePaymentResponseHash =
           response.body.enable_payment_response_hash;
-        const paymentResponseHashKey =
-          response.body.payment_response_hash_key;
+        const paymentResponseHashKey = response.body.payment_response_hash_key;
 
         if (!enablePaymentResponseHash) {
           cy.task(
