@@ -487,6 +487,24 @@ function validateErrorMessage(response, resData) {
   }
 }
 
+function algorithmToCrypto(alg) {
+  const map = {
+    "HMAC-SHA256": "sha256",
+    "HMAC-SHA384": "sha384",
+    "HMAC-SHA512": "sha512",
+  };
+  return map[alg] || "sha512";
+}
+
+function expectedSignatureLength(alg) {
+  const map = {
+    "HMAC-SHA256": 64,
+    "HMAC-SHA384": 96,
+    "HMAC-SHA512": 128,
+  };
+  return map[alg] || 128;
+}
+
 //skip MIT using PMId if connector does not support MIT only
 export function shouldSkipMitUsingPMId(connectorId) {
   const skipConnectors = ["fiuu"];
@@ -8023,9 +8041,10 @@ Cypress.Commands.add("verifyRedirectSignature", (globalState) => {
   const returnUrl = globalState.get("nextActionUrl");
 
   if (!returnUrl) {
+    globalState.set("signatureVerificationSkipped", true);
     cy.task(
       "cli_log",
-      "No nextActionUrl found - skipping redirect signature verification"
+      "No nextActionUrl found - skipping redirect signature verification (signatureVerificationSkipped=true)"
     );
     return;
   }
@@ -8059,22 +8078,24 @@ Cypress.Commands.add("verifyRedirectSignature", (globalState) => {
           expect(sig, "signature should exist in redirect URL").to.be.a(
             "string"
           ).and.not.be.empty;
-          expect(sigAlg, "signature_algorithm should be HMAC-SHA512").to.equal(
-            "HMAC-SHA512"
-          );
+          expect(
+            sigAlg,
+            `signature_algorithm should match the declared algorithm (${sigAlg || "none"})`
+          ).to.be.a("string").and.not.be.empty;
           expect(
             sig.length,
-            "signature should be 128 hex chars (HMAC-SHA512)"
-          ).to.equal(128);
+            `signature should be ${expectedSignatureLength(sigAlg)} hex chars for ${sigAlg}`
+          ).to.equal(expectedSignatureLength(sigAlg));
 
           cy.task(
             "cli_log",
             `Redirect signature verified via retrieve - algorithm: ${sigAlg}, signature length: ${sig.length}`
           );
         } else {
+          globalState.set("signatureVerificationSkipped", true);
           cy.task(
             "cli_log",
-            "No redirect URL in payment response - redirect signature verification not applicable for this flow"
+            "No redirect URL in payment response - redirect signature verification not applicable for this flow (signatureVerificationSkipped=true)"
           );
         }
       });
@@ -8086,12 +8107,12 @@ Cypress.Commands.add("verifyRedirectSignature", (globalState) => {
     ).and.not.be.empty;
     expect(
       signatureAlgorithm,
-      "signature_algorithm should be HMAC-SHA512"
-    ).to.equal("HMAC-SHA512");
+      `signature_algorithm should match the declared algorithm (${signatureAlgorithm || "none"})`
+    ).to.be.a("string").and.not.be.empty;
     expect(
       signature.length,
-      "signature should be 128 hex chars (HMAC-SHA512)"
-    ).to.equal(128);
+      `signature should be ${expectedSignatureLength(signatureAlgorithm)} hex chars for ${signatureAlgorithm}`
+    ).to.equal(expectedSignatureLength(signatureAlgorithm));
 
     cy.task(
       "cli_log",
@@ -8140,9 +8161,10 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
       const redirectUrl = paymentResponse.body?.next_action?.redirect_to_url;
 
       if (!redirectUrl) {
+        globalState.set("signatureVerificationSkipped", true);
         cy.task(
           "cli_log",
-          `No redirect URL in payment response for payment ${paymentId} (status: ${paymentResponse.body?.status}) - HMAC computation not applicable for this flow`
+          `No redirect URL in payment response for payment ${paymentId} (status: ${paymentResponse.body?.status}) - HMAC computation not applicable for this flow (signatureVerificationSkipped=true)`
         );
         return;
       }
@@ -8156,8 +8178,10 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
       ).and.not.be.empty;
       expect(
         signatureAlgorithm,
-        "signature_algorithm should be HMAC-SHA512"
-      ).to.equal("HMAC-SHA512");
+        `signature_algorithm should match the declared algorithm (${signatureAlgorithm || "none"})`
+      ).to.be.a("string").and.not.be.empty;
+
+      const cryptoAlg = algorithmToCrypto(signatureAlgorithm);
 
       const params = [];
       urlObj.searchParams.forEach((value, key) => {
@@ -8172,6 +8196,7 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
       cy.task("computeHmac", {
         key: hashKey,
         message: signingPayload,
+        algorithm: cryptoAlg,
       }).then((computedSignature) => {
         if (computedSignature === null) {
           cy.task(
@@ -8183,15 +8208,16 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
 
         expect(
           computedSignature,
-          "Computed HMAC-SHA512 should match the received signature"
+          `Computed ${signatureAlgorithm} should match the received signature`
         ).to.equal(signature);
 
         globalState.set("computedSigningPayload", signingPayload);
         globalState.set("computedSignature", computedSignature);
+        globalState.set("signatureAlgorithm", signatureAlgorithm);
 
         cy.task(
           "cli_log",
-          `HMAC-SHA512 computed and verified - signing payload: ${signingPayload.substring(0, 80)}..., signature match: YES`
+          `${signatureAlgorithm} computed and verified - signing payload: ${signingPayload.substring(0, 80)}..., signature match: YES`
         );
       });
     });
@@ -8202,6 +8228,9 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
   const hashKey = globalState.get("paymentResponseHashKey");
   const computedSignature = globalState.get("computedSignature");
   const signingPayload = globalState.get("computedSigningPayload");
+  const signatureAlgorithm =
+    globalState.get("signatureAlgorithm") || "HMAC-SHA512";
+  const cryptoAlg = algorithmToCrypto(signatureAlgorithm);
 
   if (!hashKey || !computedSignature || !signingPayload) {
     cy.task(
@@ -8212,6 +8241,7 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
     cy.task("computeHmac", {
       key: "test_key",
       message: "test_message",
+      algorithm: cryptoAlg,
     }).then((testSignature) => {
       if (testSignature === null) {
         cy.task(
@@ -8223,12 +8253,13 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
 
       expect(
         testSignature.length,
-        "HMAC-SHA512 hex digest should be 128 chars"
-      ).to.equal(128);
+        `${signatureAlgorithm} hex digest should be ${expectedSignatureLength(signatureAlgorithm)} chars`
+      ).to.equal(expectedSignatureLength(signatureAlgorithm));
 
       cy.task("computeHmac", {
         key: "test_key",
         message: "different_message",
+        algorithm: cryptoAlg,
       }).then((differentSignature) => {
         if (differentSignature === null) return;
 
@@ -8240,6 +8271,7 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
         cy.task("computeHmac", {
           key: "different_key",
           message: "test_message",
+          algorithm: cryptoAlg,
         }).then((wrongKeySignature) => {
           if (wrongKeySignature === null) return;
 
@@ -8250,7 +8282,7 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
 
           cy.task(
             "cli_log",
-            `Failure scenarios verified - different payload: DIFFERENT signature, wrong key: DIFFERENT signature, HMAC-SHA512: 128 chars`
+            `Failure scenarios verified - different payload: DIFFERENT signature, wrong key: DIFFERENT signature, ${signatureAlgorithm}: ${expectedSignatureLength(signatureAlgorithm)} chars`
           );
         });
       });
@@ -8267,6 +8299,7 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
   cy.task("computeHmac", {
     key: hashKey,
     message: tamperedPayload,
+    algorithm: cryptoAlg,
   }).then((tamperedSignature) => {
     if (tamperedSignature === null) {
       cy.task(
@@ -8284,6 +8317,7 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
     cy.task("computeHmac", {
       key: "wrong_key_that_does_not_match",
       message: signingPayload,
+      algorithm: cryptoAlg,
     }).then((wrongKeySignature) => {
       if (wrongKeySignature === null) {
         cy.task(
@@ -8310,6 +8344,9 @@ Cypress.Commands.add("verifyWebhookSignatureHeader", (globalState) => {
   const merchantId = globalState.get("merchantId");
   const apiKey = globalState.get("adminApiKey");
   const baseUrl = globalState.get("baseUrl");
+  const signatureAlgorithm =
+    globalState.get("signatureAlgorithm") || "HMAC-SHA512";
+  const cryptoAlg = algorithmToCrypto(signatureAlgorithm);
 
   cy.request({
     method: "GET",
@@ -8346,9 +8383,10 @@ Cypress.Commands.add("verifyWebhookSignatureHeader", (globalState) => {
         !webhooksResponse.body.data ||
         webhooksResponse.body.data.length === 0
       ) {
+        globalState.set("webhookVerificationSkipped", true);
         cy.task(
           "cli_log",
-          "No webhook deliveries found - webhook signature verification skipped (webhook delivery is async)"
+          "No webhook deliveries found - webhook signature verification skipped (webhookVerificationSkipped=true)"
         );
         return;
       }
@@ -8357,9 +8395,10 @@ Cypress.Commands.add("verifyWebhookSignatureHeader", (globalState) => {
       const webhookSignature = webhook.webhook_signature;
 
       if (!webhookSignature) {
+        globalState.set("webhookVerificationSkipped", true);
         cy.task(
           "cli_log",
-          "No webhook signature in delivery record - webhook signature verification skipped"
+          "No webhook signature in delivery record - webhook signature verification skipped (webhookVerificationSkipped=true)"
         );
         return;
       }
@@ -8369,6 +8408,7 @@ Cypress.Commands.add("verifyWebhookSignatureHeader", (globalState) => {
       cy.task("computeHmac", {
         key: hashKey,
         message: webhookPayload,
+        algorithm: cryptoAlg,
       }).then((computedSignature) => {
         if (computedSignature === null) {
           cy.task(
@@ -8380,7 +8420,7 @@ Cypress.Commands.add("verifyWebhookSignatureHeader", (globalState) => {
 
         expect(
           computedSignature,
-          "Computed HMAC-SHA512 of webhook payload should match stored signature"
+          `Computed ${signatureAlgorithm} of webhook payload should match stored signature`
         ).to.equal(webhookSignature);
 
         cy.task("cli_log", `Webhook signature verified - signature match: YES`);

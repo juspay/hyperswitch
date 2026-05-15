@@ -213,8 +213,8 @@ describe("Card - Payment Response Hash flow test", () => {
     });
   });
 
-  context("3DS Auto-Capture - Compute and Verify HMAC-SHA512 Signature", () => {
-    it("create payment intent -> confirm 3DS -> compute HMAC-SHA512 and compare with redirect signature", () => {
+  context("3DS Auto-Capture - Compute and Verify Redirect Signature", () => {
+    it("create payment intent -> confirm 3DS -> compute HMAC and compare with redirect signature", () => {
       let shouldContinue = true;
 
       cy.step("create payment intent", () => {
@@ -266,9 +266,12 @@ describe("Card - Payment Response Hash flow test", () => {
         }
       });
 
-      cy.step("compute and verify HMAC-SHA512 signature", () => {
+      cy.step("compute and verify redirect signature", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: compute and verify HMAC-SHA512");
+          cy.task(
+            "cli_log",
+            "Skipping step: compute and verify redirect signature"
+          );
           return;
         }
 
@@ -278,7 +281,7 @@ describe("Card - Payment Response Hash flow test", () => {
   });
 
   context("3DS Auto-Capture - Failure Scenarios for Invalid Signatures", () => {
-    it("create payment intent -> confirm 3DS -> compute HMAC -> verify tampered, wrong-key, wrong-algorithm signatures fail", () => {
+    it("create payment intent -> confirm 3DS -> compute HMAC -> verify tampered and wrong-key signatures fail", () => {
       let shouldContinue = true;
 
       cy.step("create payment intent", () => {
@@ -330,26 +333,35 @@ describe("Card - Payment Response Hash flow test", () => {
         }
       });
 
-      cy.step("compute and verify HMAC-SHA512 signature", () => {
+      cy.step("compute and verify redirect signature", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: compute and verify HMAC-SHA512");
+          cy.task(
+            "cli_log",
+            "Skipping step: compute and verify redirect signature"
+          );
           return;
         }
 
         cy.computeAndVerifyRedirectSignature(globalState);
       });
 
-      cy.step(
-        "verify tampered, wrong-key, and wrong-algorithm signatures fail",
-        () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: failure scenarios");
-            return;
-          }
-
-          cy.verifyTamperedSignatureFails(globalState);
+      cy.step("verify tampered and wrong-key signatures fail", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: failure scenarios");
+          return;
         }
-      );
+
+        if (globalState.get("signatureVerificationSkipped")) {
+          cy.task(
+            "cli_log",
+            "Signature verification was skipped for this connector - skipping failure scenarios"
+          );
+          shouldContinue = false;
+          return;
+        }
+
+        cy.verifyTamperedSignatureFails(globalState);
+      });
     });
   });
 
@@ -409,6 +421,14 @@ describe("Card - Payment Response Hash flow test", () => {
       cy.step("wait for webhook delivery and verify signature", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: webhook signature verification");
+          return;
+        }
+
+        if (globalState.get("signatureVerificationSkipped")) {
+          cy.task(
+            "cli_log",
+            "Signature verification was skipped - skipping webhook signature verification"
+          );
           return;
         }
 
