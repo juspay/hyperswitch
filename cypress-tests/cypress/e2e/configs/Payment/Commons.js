@@ -544,6 +544,9 @@ export const payment_methods_enabled = [
       },
       {
         payment_method_type: "mifinity",
+      },
+      {
+        payment_method_type: "paypal",
         payment_experience: "redirect_to_url",
         minimum_amount: 1,
         maximum_amount: 68607706,
@@ -1138,6 +1141,25 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {},
+      },
+    }),
+    PaypalRedirect: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+        billing: standardBillingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
       },
     }),
   },

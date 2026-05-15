@@ -3541,6 +3541,11 @@ Cypress.Commands.add(
     const baseUrl = globalState.get("baseUrl");
     const apiKey = globalState.get("apiKey");
     const maxRetries = globalState.get("max_auto_retries_enabled");
+
+    // Check if Step-Up retry is enabled from globalState flag
+    const isStepUpRetryEnabled =
+      globalState.get("isStepUpRetryEnabled") || false;
+
     const url = `${baseUrl}/payments/${paymentId}?force_sync=true&expand_attempts=true`;
 
     cy.request({
@@ -3580,6 +3585,39 @@ Cypress.Commands.add(
           expect(attemptObj.attempt_id).to.include(paymentId);
           expect(attemptObj.connector).to.not.be.null;
         });
+
+        // Step-Up Retry specific assertions
+        if (isStepUpRetryEnabled) {
+          // Should have 2 attempts for Step-Up retry
+          expect(
+            response.body.attempts.length,
+            "Step-Up retry should have 2 attempts"
+          ).to.equal(2);
+
+          // Find the three_ds attempt (Step-Up retry)
+          const threeDsAttempt = response.body.attempts.find(
+            (a) => a.authentication_type === "three_ds"
+          );
+          expect(
+            threeDsAttempt,
+            "At least one attempt should be three_ds for Step-Up retry"
+          ).to.not.be.undefined;
+
+          expect(
+            response.body.status,
+            "Payment status should be requires_customer_action, processing, or failed after Step-Up retry"
+          ).to.satisfy((status) =>
+            ["requires_customer_action", "processing", "failed"].includes(
+              status
+            )
+          );
+        } else if (!isStepUpRetryEnabled && maxRetries === 0) {
+          // No retries and no Step-Up - only 1 attempt expected
+          expect(
+            response.body.attempts.length,
+            "No retry should have only 1 attempt"
+          ).to.equal(1);
+        }
       }
     });
   }
