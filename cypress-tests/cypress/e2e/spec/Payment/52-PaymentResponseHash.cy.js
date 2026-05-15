@@ -1,11 +1,15 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import getConnectorDetails, {
+  shouldExcludeConnector,
+  CONNECTOR_LISTS,
+} from "../../configs/Payment/Utils";
+import * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
 describe("Card - Payment Response Hash flow test", () => {
-  before("seed global state and probe account config", function () {
+  before("seed global state and check account config", function () {
     let skip = false;
 
     cy.task("getGlobalState")
@@ -14,9 +18,9 @@ describe("Card - Payment Response Hash flow test", () => {
         const connectorId = globalState.get("connectorId");
 
         if (
-          utils.shouldExcludeConnector(
+          shouldExcludeConnector(
             connectorId,
-            utils.CONNECTOR_LISTS.EXCLUDE.PAYMENT_RESPONSE_HASH
+            CONNECTOR_LISTS.EXCLUDE.PAYMENT_RESPONSE_HASH
           )
         ) {
           skip = true;
@@ -27,7 +31,7 @@ describe("Card - Payment Response Hash flow test", () => {
         const apiKey = globalState.get("adminApiKey");
         const baseUrl = globalState.get("baseUrl");
 
-        cy.request({
+        return cy.request({
           method: "GET",
           url: `${baseUrl}/accounts/${merchantId}`,
           headers: {
@@ -35,32 +39,44 @@ describe("Card - Payment Response Hash flow test", () => {
             "api-key": apiKey,
           },
           failOnStatusCode: false,
-        }).then((response) => {
-          const enabled = response.body?.enable_payment_response_hash;
-          const hashKey = response.body?.payment_response_hash_key;
-
-          if (!enabled) {
-            cy.task(
-              "cli_log",
-              `enable_payment_response_hash is ${enabled} for merchant ${merchantId} — skipping spec`
-            );
-            skip = true;
-            return;
-          }
-
-          globalState.set("enablePaymentResponseHash", enabled);
-          globalState.set("paymentResponseHashKey", hashKey || "");
-
-          cy.task(
-            "cli_log",
-            `Payment response hash enabled for merchant ${merchantId} — key length: ${(hashKey || "").length}`
-          );
         });
       })
-      .then(() => {
+      .then((response) => {
         if (skip) {
           this.skip();
+          return;
         }
+
+        if (!response || response.status !== 200) {
+          cy.task(
+            "cli_log",
+            "Failed to fetch account config - skipping spec"
+          );
+          this.skip();
+          return;
+        }
+
+        const enablePaymentResponseHash =
+          response.body.enable_payment_response_hash;
+        const paymentResponseHashKey =
+          response.body.payment_response_hash_key;
+
+        if (!enablePaymentResponseHash) {
+          cy.task(
+            "cli_log",
+            "enable_payment_response_hash is false/absent - skipping spec"
+          );
+          this.skip();
+          return;
+        }
+
+        globalState.set("paymentResponseHashKey", paymentResponseHashKey);
+        globalState.set("enablePaymentResponseHash", enablePaymentResponseHash);
+
+        cy.task(
+          "cli_log",
+          `Account config verified - enable_payment_response_hash: true, key length: ${paymentResponseHashKey.length}`
+        );
       });
   });
 

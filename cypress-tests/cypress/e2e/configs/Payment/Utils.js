@@ -512,10 +512,6 @@ export const CONNECTOR_LISTS = {
       "stripe",
     ],
     BANK_DEBIT: ["adyen", "novalnet", "payload"], // payload verified as working
-    BLUECODE_WALLET: ["calida"],
-    ALIPAY_HK_WALLET: ["adyen"],
-    PAYPAL_WALLET: ["novalnet", "paypal"],
-    PAYPAL_MANDATE: ["paypal"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [
       "adyen",

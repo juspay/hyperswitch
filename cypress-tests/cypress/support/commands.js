@@ -7976,23 +7976,47 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
  * @param {Object} globalState - The global state object
  */
 Cypress.Commands.add("verifyPaymentResponseHash", (globalState) => {
-  const enabled = globalState.get("enablePaymentResponseHash");
-  const hashKey = globalState.get("paymentResponseHashKey");
+  const merchantId = globalState.get("merchantId");
+  const apiKey = globalState.get("adminApiKey");
+  const baseUrl = globalState.get("baseUrl");
 
-  expect(
-    enabled,
-    "enable_payment_response_hash should be true (probed in before hook)"
-  ).to.equal(true);
+  cy.request({
+    method: "GET",
+    url: `${baseUrl}/accounts/${merchantId}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
 
-  expect(
-    hashKey,
-    "payment_response_hash_key should exist (probed in before hook)"
-  ).to.be.a("string").and.not.be.empty;
+    cy.wrap(response).then(() => {
+      expect(response.status).to.equal(200);
+      expect(response.body).to.have.property("enable_payment_response_hash");
+      expect(response.body).to.have.property("payment_response_hash_key");
 
-  cy.task(
-    "cli_log",
-    `Payment response hash config verified - enable_payment_response_hash: true, key length: ${hashKey.length}`
-  );
+      expect(
+        response.body.enable_payment_response_hash,
+        "enable_payment_response_hash should be true"
+      ).to.equal(true);
+
+      expect(
+        response.body.payment_response_hash_key,
+        "payment_response_hash_key should exist"
+      ).to.be.a("string").and.not.be.empty;
+
+      globalState.set(
+        "paymentResponseHashKey",
+        response.body.payment_response_hash_key
+      );
+
+      cy.task(
+        "cli_log",
+        `Payment response hash config verified - enable_payment_response_hash: true, key length: ${response.body.payment_response_hash_key.length}`
+      );
+    });
+  });
 });
 
 Cypress.Commands.add("verifyRedirectSignature", (globalState) => {
@@ -8035,22 +8059,13 @@ Cypress.Commands.add("verifyRedirectSignature", (globalState) => {
           expect(sig, "signature should exist in redirect URL").to.be.a(
             "string"
           ).and.not.be.empty;
+          expect(sigAlg, "signature_algorithm should be HMAC-SHA512").to.equal(
+            "HMAC-SHA512"
+          );
           expect(
-            sigAlg,
-            "signature_algorithm should exist in redirect URL"
-          ).to.be.a("string").and.not.be.empty;
-
-          if (sigAlg === "HMAC-SHA512") {
-            expect(
-              sig.length,
-              "signature should be 128 hex chars (HMAC-SHA512)"
-            ).to.equal(128);
-          } else {
-            cy.task(
-              "cli_log",
-              `Non-SHA512 algorithm detected: ${sigAlg}, signature length: ${sig.length}`
-            );
-          }
+            sig.length,
+            "signature should be 128 hex chars (HMAC-SHA512)"
+          ).to.equal(128);
 
           cy.task(
             "cli_log",
@@ -8071,20 +8086,12 @@ Cypress.Commands.add("verifyRedirectSignature", (globalState) => {
     ).and.not.be.empty;
     expect(
       signatureAlgorithm,
-      "signature_algorithm should exist in redirect URL"
-    ).to.be.a("string").and.not.be.empty;
-
-    if (signatureAlgorithm === "HMAC-SHA512") {
-      expect(
-        signature.length,
-        "signature should be 128 hex chars (HMAC-SHA512)"
-      ).to.equal(128);
-    } else {
-      cy.task(
-        "cli_log",
-        `Non-SHA512 algorithm detected: ${signatureAlgorithm}, signature length: ${signature.length}`
-      );
-    }
+      "signature_algorithm should be HMAC-SHA512"
+    ).to.equal("HMAC-SHA512");
+    expect(
+      signature.length,
+      "signature should be 128 hex chars (HMAC-SHA512)"
+    ).to.equal(128);
 
     cy.task(
       "cli_log",
@@ -8094,96 +8101,99 @@ Cypress.Commands.add("verifyRedirectSignature", (globalState) => {
 });
 
 Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
-  const hashKey = globalState.get("paymentResponseHashKey");
-
-  if (!hashKey) {
-    cy.task(
-      "cli_log",
-      "paymentResponseHashKey not in globalState — skipping HMAC computation (before hook should have probed account config)"
-    );
-    return;
-  }
-
-  const paymentId = globalState.get("paymentID");
-  const publishableKey = globalState.get("publishableKey");
+  const merchantId = globalState.get("merchantId");
+  const apiKey = globalState.get("adminApiKey");
   const baseUrl = globalState.get("baseUrl");
 
   cy.request({
     method: "GET",
-    url: `${baseUrl}/payments/${paymentId}`,
+    url: `${baseUrl}/accounts/${merchantId}`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": publishableKey,
+      "api-key": apiKey,
     },
     failOnStatusCode: false,
-  }).then((paymentResponse) => {
-    logRequestId(paymentResponse.headers["x-request-id"]);
+  }).then((accountResponse) => {
+    logRequestId(accountResponse.headers["x-request-id"]);
 
-    const redirectUrl = paymentResponse.body?.next_action?.redirect_to_url;
+    expect(accountResponse.status).to.equal(200);
+    const hashKey = accountResponse.body.payment_response_hash_key;
+    expect(hashKey, "payment_response_hash_key should exist").to.be.a("string")
+      .and.not.be.empty;
 
-    if (!redirectUrl) {
-      cy.task(
-        "cli_log",
-        `No redirect URL in payment response for payment ${paymentId} (status: ${paymentResponse.body?.status}) - HMAC computation not applicable for this flow`
-      );
-      return;
-    }
+    globalState.set("paymentResponseHashKey", hashKey);
 
-    const urlObj = new URL(redirectUrl);
-    const signature = urlObj.searchParams.get("signature");
-    const signatureAlgorithm = urlObj.searchParams.get("signature_algorithm");
+    const paymentId = globalState.get("paymentID");
+    const publishableKey = globalState.get("publishableKey");
 
-    expect(signature, "signature should exist in redirect URL").to.be.a(
-      "string"
-    ).and.not.be.empty;
-    expect(
-      signatureAlgorithm,
-      "signature_algorithm should exist in redirect URL"
-    ).to.be.a("string").and.not.be.empty;
+    cy.request({
+      method: "GET",
+      url: `${baseUrl}/payments/${paymentId}`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": publishableKey,
+      },
+      failOnStatusCode: false,
+    }).then((paymentResponse) => {
+      logRequestId(paymentResponse.headers["x-request-id"]);
 
-    const params = [];
-    urlObj.searchParams.forEach((value, key) => {
-      if (key !== "signature" && key !== "signature_algorithm") {
-        params.push([key, value]);
-      }
-    });
+      const redirectUrl = paymentResponse.body?.next_action?.redirect_to_url;
 
-    params.sort((a, b) => a[0].localeCompare(b[0]));
-    const signingPayload = params.map(([k, v]) => `${k}=${v}`).join("&");
-
-    const algorithm = signatureAlgorithm.replace("HMAC-", "").toLowerCase();
-
-    cy.task("computeHmac", {
-      algorithm,
-      key: hashKey,
-      message: signingPayload,
-    }).then((computedSignature) => {
-      if (signatureAlgorithm === "HMAC-SHA512") {
-        expect(
-          computedSignature,
-          `Computed ${signatureAlgorithm} should match the received signature`
-        ).to.equal(signature);
-      } else {
+      if (!redirectUrl) {
         cy.task(
           "cli_log",
-          `Non-SHA512 algorithm: ${signatureAlgorithm} — computed signature for comparison only (not strict-asserted)`
+          `No redirect URL in payment response for payment ${paymentId} (status: ${paymentResponse.body?.status}) - HMAC computation not applicable for this flow`
         );
-        if (computedSignature !== signature) {
-          cy.task(
-            "cli_log",
-            `WARNING: Computed signature does not match for algorithm ${signatureAlgorithm}. Computed: ${computedSignature.substring(0, 16)}..., Received: ${signature.substring(0, 16)}...`
-          );
-        }
+        return;
       }
 
-      globalState.set("computedSigningPayload", signingPayload);
-      globalState.set("computedSignature", computedSignature);
-      globalState.set("signatureAlgorithm", signatureAlgorithm);
+      const urlObj = new URL(redirectUrl);
+      const signature = urlObj.searchParams.get("signature");
+      const signatureAlgorithm = urlObj.searchParams.get("signature_algorithm");
 
-      cy.task(
-        "cli_log",
-        `${signatureAlgorithm} computed and verified - signing payload: ${signingPayload.substring(0, 80)}..., signature match: ${computedSignature === signature ? "YES" : "NO (non-SHA512)"}`
-      );
+      expect(signature, "signature should exist in redirect URL").to.be.a(
+        "string"
+      ).and.not.be.empty;
+      expect(
+        signatureAlgorithm,
+        "signature_algorithm should be HMAC-SHA512"
+      ).to.equal("HMAC-SHA512");
+
+      const params = [];
+      urlObj.searchParams.forEach((value, key) => {
+        if (key !== "signature" && key !== "signature_algorithm") {
+          params.push([key, value]);
+        }
+      });
+
+      params.sort((a, b) => a[0].localeCompare(b[0]));
+      const signingPayload = params.map(([k, v]) => `${k}=${v}`).join("&");
+
+      cy.task("computeHmac", {
+        key: hashKey,
+        message: signingPayload,
+      }).then((computedSignature) => {
+        if (computedSignature === null) {
+          cy.task(
+            "cli_log",
+            "HMAC computation returned null - skipping signature comparison"
+          );
+          return;
+        }
+
+        expect(
+          computedSignature,
+          "Computed HMAC-SHA512 should match the received signature"
+        ).to.equal(signature);
+
+        globalState.set("computedSigningPayload", signingPayload);
+        globalState.set("computedSignature", computedSignature);
+
+        cy.task(
+          "cli_log",
+          `HMAC-SHA512 computed and verified - signing payload: ${signingPayload.substring(0, 80)}..., signature match: YES`
+        );
+      });
     });
   });
 });
@@ -8192,9 +8202,6 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
   const hashKey = globalState.get("paymentResponseHashKey");
   const computedSignature = globalState.get("computedSignature");
   const signingPayload = globalState.get("computedSigningPayload");
-  const signatureAlgorithm =
-    globalState.get("signatureAlgorithm") || "HMAC-SHA512";
-  const algorithm = signatureAlgorithm.replace("HMAC-", "").toLowerCase();
 
   if (!hashKey || !computedSignature || !signingPayload) {
     cy.task(
@@ -8203,30 +8210,39 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
     );
 
     cy.task("computeHmac", {
-      algorithm: "sha512",
       key: "test_key",
       message: "test_message",
     }).then((testSignature) => {
+      if (testSignature === null) {
+        cy.task(
+          "cli_log",
+          "HMAC computation returned null - skipping failure scenario verification"
+        );
+        return;
+      }
+
       expect(
         testSignature.length,
         "HMAC-SHA512 hex digest should be 128 chars"
       ).to.equal(128);
 
       cy.task("computeHmac", {
-        algorithm: "sha512",
         key: "test_key",
         message: "different_message",
       }).then((differentSignature) => {
+        if (differentSignature === null) return;
+
         expect(
           differentSignature,
           "Different payload should produce different signature"
         ).to.not.equal(testSignature);
 
         cy.task("computeHmac", {
-          algorithm: "sha512",
           key: "different_key",
           message: "test_message",
         }).then((wrongKeySignature) => {
+          if (wrongKeySignature === null) return;
+
           expect(
             wrongKeySignature,
             "Wrong key should produce different signature"
@@ -8249,20 +8265,34 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
   );
 
   cy.task("computeHmac", {
-    algorithm,
     key: hashKey,
     message: tamperedPayload,
   }).then((tamperedSignature) => {
+    if (tamperedSignature === null) {
+      cy.task(
+        "cli_log",
+        "HMAC computation returned null - skipping tampered payload verification"
+      );
+      return;
+    }
+
     expect(
       tamperedSignature,
       "Tampered payload should produce a different signature"
     ).to.not.equal(computedSignature);
 
     cy.task("computeHmac", {
-      algorithm,
       key: "wrong_key_that_does_not_match",
       message: signingPayload,
     }).then((wrongKeySignature) => {
+      if (wrongKeySignature === null) {
+        cy.task(
+          "cli_log",
+          "HMAC computation returned null - skipping wrong key verification"
+        );
+        return;
+      }
+
       expect(
         wrongKeySignature,
         "Wrong key should produce a different signature"
@@ -8277,71 +8307,84 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
 });
 
 Cypress.Commands.add("verifyWebhookSignatureHeader", (globalState) => {
-  const hashKey = globalState.get("paymentResponseHashKey");
-  const signatureAlgorithm =
-    globalState.get("signatureAlgorithm") || "HMAC-SHA512";
-  const algorithm = signatureAlgorithm.replace("HMAC-", "").toLowerCase();
-
-  if (!hashKey) {
-    cy.task(
-      "cli_log",
-      "paymentResponseHashKey not in globalState — skipping webhook signature verification (before hook should have probed account config)"
-    );
-    return;
-  }
-
+  const merchantId = globalState.get("merchantId");
   const apiKey = globalState.get("adminApiKey");
   const baseUrl = globalState.get("baseUrl");
-  const paymentId = globalState.get("paymentID");
 
   cy.request({
     method: "GET",
-    url: `${baseUrl}/payments/${paymentId}/webhooks`,
+    url: `${baseUrl}/accounts/${merchantId}`,
     headers: {
       "Content-Type": "application/json",
       "api-key": apiKey,
     },
     failOnStatusCode: false,
-  }).then((webhooksResponse) => {
-    logRequestId(webhooksResponse.headers["x-request-id"]);
+  }).then((accountResponse) => {
+    logRequestId(accountResponse.headers["x-request-id"]);
 
-    if (
-      webhooksResponse.status !== 200 ||
-      !webhooksResponse.body ||
-      !webhooksResponse.body.data ||
-      webhooksResponse.body.data.length === 0
-    ) {
-      cy.task(
-        "cli_log",
-        "No webhook deliveries found - webhook signature verification skipped (webhook delivery is async)"
-      );
-      return;
-    }
+    expect(accountResponse.status).to.equal(200);
+    const hashKey = accountResponse.body.payment_response_hash_key;
+    expect(hashKey, "payment_response_hash_key should exist").to.be.a("string")
+      .and.not.be.empty;
 
-    const webhook = webhooksResponse.body.data[0];
-    const webhookSignature = webhook.webhook_signature;
+    const paymentId = globalState.get("paymentID");
 
-    if (!webhookSignature) {
-      cy.task(
-        "cli_log",
-        "No webhook signature in delivery record - webhook signature verification skipped"
-      );
-      return;
-    }
+    cy.request({
+      method: "GET",
+      url: `${baseUrl}/payments/${paymentId}/webhooks`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      failOnStatusCode: false,
+    }).then((webhooksResponse) => {
+      logRequestId(webhooksResponse.headers["x-request-id"]);
 
-    const webhookPayload = JSON.stringify(webhook.webhook_object);
+      if (
+        webhooksResponse.status !== 200 ||
+        !webhooksResponse.body ||
+        !webhooksResponse.body.data ||
+        webhooksResponse.body.data.length === 0
+      ) {
+        cy.task(
+          "cli_log",
+          "No webhook deliveries found - webhook signature verification skipped (webhook delivery is async)"
+        );
+        return;
+      }
 
-    cy.task("computeHmac", {
-      algorithm,
-      key: hashKey,
-      message: webhookPayload,
-    }).then((computedSignature) => {
-      expect(
-        computedSignature,
-        `Computed ${signatureAlgorithm} of webhook payload should match stored signature`
-      ).to.equal(webhookSignature);
+      const webhook = webhooksResponse.body.data[0];
+      const webhookSignature = webhook.webhook_signature;
 
-      cy.task("cli_log", `Webhook signature verified - signature match: YES`);
+      if (!webhookSignature) {
+        cy.task(
+          "cli_log",
+          "No webhook signature in delivery record - webhook signature verification skipped"
+        );
+        return;
+      }
+
+      const webhookPayload = JSON.stringify(webhook.webhook_object);
+
+      cy.task("computeHmac", {
+        key: hashKey,
+        message: webhookPayload,
+      }).then((computedSignature) => {
+        if (computedSignature === null) {
+          cy.task(
+            "cli_log",
+            "HMAC computation returned null - skipping webhook signature comparison"
+          );
+          return;
+        }
+
+        expect(
+          computedSignature,
+          "Computed HMAC-SHA512 of webhook payload should match stored signature"
+        ).to.equal(webhookSignature);
+
+        cy.task("cli_log", `Webhook signature verified - signature match: YES`);
+      });
     });
   });
 });

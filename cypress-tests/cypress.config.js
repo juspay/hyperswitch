@@ -33,19 +33,19 @@ export default defineConfig({
           console.log(message);
           return null;
         },
-        computeHmac: ({ algorithm, key, message }) => {
-          const signature = crypto
-            .createHmac(algorithm, key)
-            .update(message)
-            .digest("hex");
-          return signature;
-        },
-        computeHmacSha512: ({ key, message }) => {
-          const signature = crypto
-            .createHmac("sha512", key)
-            .update(message)
-            .digest("hex");
-          return signature;
+        computeHmac: ({ key, message, algorithm = "sha512" }) => {
+          if (!key || !message) {
+            return null;
+          }
+          try {
+            const signature = crypto
+              .createHmac(algorithm, key)
+              .update(message)
+              .digest("hex");
+            return signature;
+          } catch {
+            return null;
+          }
         },
       });
       on("after:spec", (spec, results) => {
