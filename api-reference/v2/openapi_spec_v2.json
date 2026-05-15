@@ -19666,6 +19666,7 @@
         "type": "object",
         "required": [
           "psp_token",
+          "psp_customer_id",
           "token_type"
         ],
         "properties": {
@@ -19673,6 +19674,11 @@
             "type": "string",
             "description": "PSP token generated for the payout method",
             "example": "token_12345"
+          },
+          "psp_customer_id": {
+            "type": "string",
+            "description": "PSP customer ID",
+            "example": "customer_12345"
           },
           "token_type": {
             "$ref": "#/components/schemas/PaymentMethodType"

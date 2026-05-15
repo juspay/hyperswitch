@@ -3340,7 +3340,7 @@ impl ConnectorSpecifications for Stripe {
     fn should_call_connector_customer(
         &self,
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> bool {
-        true
+    ) -> api::ConnectorCustomerAction {
+        api::ConnectorCustomerAction::CallConnectorCustomer
     }
 }

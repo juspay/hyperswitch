@@ -16,8 +16,8 @@ use crate::{
     api,
     api::{
         BoxedConnectorIntegration, CaptureSyncMethod, Connector, ConnectorAccessTokenSuffix,
-        ConnectorCommon, ConnectorIntegration, ConnectorRedirectResponse, ConnectorSpecifications,
-        ConnectorValidation, CurrencyUnit,
+        ConnectorCommon, ConnectorCustomerAction, ConnectorIntegration, ConnectorRedirectResponse,
+        ConnectorSpecifications, ConnectorValidation, CurrencyUnit,
     },
     authentication::ExternalAuthenticationPayload,
     connector_integration_v2::{BoxedConnectorIntegrationV2, ConnectorIntegrationV2, ConnectorV2},
@@ -802,7 +802,7 @@ impl ConnectorSpecifications for ConnectorEnum {
     fn should_call_connector_customer(
         &self,
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> bool {
+    ) -> ConnectorCustomerAction {
         match self {
             Self::Old(connector) => connector.should_call_connector_customer(payment_attempt),
             Self::New(connector) => connector.should_call_connector_customer(payment_attempt),

@@ -26441,6 +26441,7 @@
         "type": "object",
         "required": [
           "psp_token",
+          "psp_customer_id",
           "token_type"
         ],
         "properties": {
@@ -26448,6 +26449,11 @@
             "type": "string",
             "description": "PSP token generated for the payout method",
             "example": "token_12345"
+          },
+          "psp_customer_id": {
+            "type": "string",
+            "description": "PSP customer ID",
+            "example": "customer_12345"
           },
           "token_type": {
             "$ref": "#/components/schemas/PaymentMethodType"
@@ -30797,6 +30803,12 @@
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
+          "connector_customer_id": {
+            "type": "string",
+            "description": "A unique identifier for a customer provided by the connector.",
+            "example": "cus_Rnm2pDKGyQi506",
+            "nullable": true
+          },
           "currency": {
             "$ref": "#/components/schemas/Currency"
           },
@@ -31414,6 +31426,11 @@
                 "$ref": "#/components/schemas/InstallmentData"
               }
             ],
+            "nullable": true
+          },
+          "sender_payment_instrument_id": {
+            "type": "string",
+            "description": "A connector-specific identifier representing the stored payment instrument",
             "nullable": true
           }
         }
@@ -32439,6 +32456,12 @@
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
+          "connector_customer_id": {
+            "type": "string",
+            "description": "A unique identifier for a customer provided by the connector.",
+            "example": "cus_Rnm2pDKGyQi506",
+            "nullable": true
+          },
           "currency": {
             "$ref": "#/components/schemas/Currency"
           },
@@ -33081,6 +33104,11 @@
                 "$ref": "#/components/schemas/InstallmentData"
               }
             ],
+            "nullable": true
+          },
+          "sender_payment_instrument_id": {
+            "type": "string",
+            "description": "A connector-specific identifier representing the stored payment instrument",
             "nullable": true
           }
         }

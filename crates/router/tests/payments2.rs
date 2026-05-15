@@ -244,6 +244,8 @@ async fn payments_create_core() {
         installment_data: None,
         state_metadata: None,
         connector_response_metadata: None,
+        connector_customer_id: None,
+        sender_payment_instrument_id: None,
     };
 
     let expected_response =
@@ -555,6 +557,8 @@ async fn payments_create_core_adyen_no_redirect() {
             installment_data: None,
             state_metadata: None,
             connector_response_metadata: None,
+            connector_customer_id: None,
+            sender_payment_instrument_id: None,
         },
         vec![],
     ));

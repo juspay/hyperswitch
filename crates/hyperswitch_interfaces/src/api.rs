@@ -447,6 +447,18 @@ pub struct PreProcessingFlowResponse<'a> {
     pub attempt_status: enums::AttemptStatus,
 }
 
+/// Action to be taken for connector customer creation
+#[derive(Debug, Clone, Default)]
+pub enum ConnectorCustomerAction {
+    /// Call the connector to create a customer
+    CallConnectorCustomer,
+    /// Use a customer ID generated at connector layer
+    GeneratedCustomerId(String),
+    /// No action required
+    #[default]
+    NoAction,
+}
+
 /// The trait that provides specifications about the connector
 pub trait ConnectorSpecifications {
     /// Check if pre-authentication flow is required
@@ -521,8 +533,8 @@ pub trait ConnectorSpecifications {
     fn should_call_connector_customer(
         &self,
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> bool {
-        false
+    ) -> ConnectorCustomerAction {
+        ConnectorCustomerAction::NoAction
     }
 
     /// Whether SDK session token generation is enabled for this connector
