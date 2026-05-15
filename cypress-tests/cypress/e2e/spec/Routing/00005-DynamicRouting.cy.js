@@ -6,7 +6,7 @@ let globalState;
 let shouldContinue = true;
 
 describe("Dynamic Routing Test", () => {
-  context("Success-based dynamic routing with stripe as primary", () => {
+  context("Success-based dynamic routing", () => {
     before("seed global state", () => {
       shouldContinue = true;
       cy.task("getGlobalState").then((state) => {
@@ -22,8 +22,7 @@ describe("Dynamic Routing Test", () => {
       cy.ListMcaByMid(globalState);
     });
 
-    // Endpoint not implemented - returns 404
-    xit("add-success-based-dynamic-routing-config", () => {
+    it("add-success-based-dynamic-routing-config", () => {
       const data = utils.getConnectorDetails("common")["dynamicRouting"];
       // Success-based dynamic routing uses decision_engine_configs, not connectors array
       cy.addDynamicRoutingConfig(
@@ -36,21 +35,19 @@ describe("Dynamic Routing Test", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    // Skipped: depends on add-success-based-dynamic-routing-config which is not implemented
-    xit("retrieve-routing-call-test", () => {
+    it("retrieve-routing-call-test", () => {
       if (!shouldContinue) return;
       const data = utils.getConnectorDetails("common")["dynamicRouting"];
       cy.retrieveRoutingConfig(data, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    // Skipped: depends on add-success-based-dynamic-routing-config which is not implemented
-    xit("payment-routing-test", () => {
+    it("payment-routing-test", () => {
       if (!shouldContinue) return;
-      globalState.set("connectorId", "stripe");
-      globalState.set("merchantConnectorId", globalState.get("stripeMcaId"));
+      globalState.set("connectorId", "adyen");
+      globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
       const data =
-        utils.getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
+        utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
       cy.createConfirmPaymentTest(
         fixtures.createConfirmPaymentBody,
         data,
@@ -60,13 +57,12 @@ describe("Dynamic Routing Test", () => {
       );
     });
 
-    // Skipped: depends on add-success-based-dynamic-routing-config which is not implemented
-    xit("retrieve-payment-call-test", () => {
+    it("retrieve-payment-call-test", () => {
       cy.retrievePaymentCallTest({ globalState });
     });
   });
 
-  context("Elimination dynamic routing with adyen as primary", () => {
+  context("Elimination dynamic routing", () => {
     before("seed global state", () => {
       shouldContinue = true;
       cy.task("getGlobalState").then((state) => {
@@ -82,16 +78,14 @@ describe("Dynamic Routing Test", () => {
       cy.ListMcaByMid(globalState);
     });
 
-    // Endpoint not implemented - returns 404
-    xit("deactivate-previous-routing-config", () => {
+    it("deactivate-previous-routing-config", () => {
       const data =
         utils.getConnectorDetails("common")["deactivateDynamicRouting"];
       cy.deactivateDynamicRoutingConfig("success_based", data, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    // Endpoint not implemented - returns 404
-    xit("add-elimination-dynamic-routing-config", () => {
+    it("add-elimination-dynamic-routing-config", () => {
       const data = utils.getConnectorDetails("common")["dynamicRouting"];
       // Elimination dynamic routing uses decision_engine_configs, not connectors array
       cy.addDynamicRoutingConfig(
@@ -104,16 +98,14 @@ describe("Dynamic Routing Test", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    // Skipped: depends on add-elimination-dynamic-routing-config which is not implemented
-    xit("retrieve-routing-call-test", () => {
+    it("retrieve-routing-call-test", () => {
       if (!shouldContinue) return;
       const data = utils.getConnectorDetails("common")["dynamicRouting"];
       cy.retrieveRoutingConfig(data, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    // Skipped: depends on add-elimination-dynamic-routing-config which is not implemented
-    xit("payment-routing-test", () => {
+    it("payment-routing-test", () => {
       if (!shouldContinue) return;
       // Dynamic routing can route to either stripe or adyen
       // The connector field validation is handled in commands.js
@@ -128,8 +120,7 @@ describe("Dynamic Routing Test", () => {
       );
     });
 
-    // Skipped: depends on add-elimination-dynamic-routing-config which is not implemented
-    xit("retrieve-payment-call-test", () => {
+    it("retrieve-payment-call-test", () => {
       cy.retrievePaymentDynamicRoutingTest({ globalState });
     });
   });
