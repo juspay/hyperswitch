@@ -4473,10 +4473,7 @@ Cypress.Commands.add("fireConnectorWebhook", (globalState) => {
         body,
         failOnStatusCode: false,
       }).then((resp) => {
-        cy.task(
-          "cli_log",
-          `[webhook] HS responded status=${resp.status}`
-        );
+        cy.task("cli_log", `[webhook] HS responded status=${resp.status}`);
       });
     });
     return;
@@ -4551,10 +4548,7 @@ Cypress.Commands.add("fireConnectorWebhook", (globalState) => {
         body,
         failOnStatusCode: false,
       }).then((resp) => {
-        cy.task(
-          "cli_log",
-          `[webhook] HS responded status=${resp.status}`
-        );
+        cy.task("cli_log", `[webhook] HS responded status=${resp.status}`);
       });
     });
     return;
@@ -4602,10 +4596,7 @@ Cypress.Commands.add("fireConnectorWebhook", (globalState) => {
         body,
         failOnStatusCode: false,
       }).then((resp) => {
-        cy.task(
-          "cli_log",
-          `[webhook] HS responded status=${resp.status}`
-        );
+        cy.task("cli_log", `[webhook] HS responded status=${resp.status}`);
       });
     });
     return;
@@ -4657,10 +4648,7 @@ Cypress.Commands.add("fireConnectorWebhook", (globalState) => {
         body,
         failOnStatusCode: false,
       }).then((resp) => {
-        cy.task(
-          "cli_log",
-          `[webhook] HS responded status=${resp.status}`
-        );
+        cy.task("cli_log", `[webhook] HS responded status=${resp.status}`);
       });
     });
     return;

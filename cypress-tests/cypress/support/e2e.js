@@ -68,7 +68,15 @@ function djb2(str) {
 
 function normalizeRequestArgs(args) {
   const HTTP_METHODS = new Set([
-    "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE", "CONNECT",
+    "GET",
+    "POST",
+    "PUT",
+    "PATCH",
+    "DELETE",
+    "HEAD",
+    "OPTIONS",
+    "TRACE",
+    "CONNECT",
   ]);
   if (args.length === 1) {
     const a = args[0];
