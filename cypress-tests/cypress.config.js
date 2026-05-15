@@ -33,6 +33,13 @@ export default defineConfig({
           console.log(message);
           return null;
         },
+        computeHmac: ({ algorithm, key, message }) => {
+          const signature = crypto
+            .createHmac(algorithm, key)
+            .update(message)
+            .digest("hex");
+          return signature;
+        },
         computeHmacSha512: ({ key, message }) => {
           const signature = crypto
             .createHmac("sha512", key)

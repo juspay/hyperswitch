@@ -447,6 +447,7 @@ export const CONNECTOR_LISTS = {
       "zift",
     ],
     MANDATE_ID_TEST: ["airwallex", "payload"],
+    PAYMENT_RESPONSE_HASH: [],
     // Add more exclusion lists
   },
 
@@ -522,7 +523,6 @@ export const CONNECTOR_LISTS = {
     ],
     BILLING_DESCRIPTOR_INVALID_PHONE: ["nuvei"],
     FEATURE_METADATA: ["bankofamerica"],
-    PAYMENT_RESPONSE_HASH: ["stripe", "adyen"],
     AUTO_RETRY: [
       "cybersource",
       "checkout",
