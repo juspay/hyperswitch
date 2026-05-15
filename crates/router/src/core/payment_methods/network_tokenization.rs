@@ -29,11 +29,47 @@ use crate::{
     routes::{self, metrics},
     services::{self, encryption},
     settings,
-    types::{api, domain, payment_methods as pm_types},
+    types::{api, domain, payment_methods as pm_types, Response},
     utils::ext_traits::OptionExt,
 };
 
 pub const NETWORK_TOKEN_SERVICE: &str = "NETWORK_TOKEN";
+
+/// Builds and sends a request to the network tokenization service.
+async fn call_network_token_service(
+    state: &routes::SessionState,
+    tokenization_service: &settings::NetworkTokenizationService,
+    method: services::Method,
+    url: &str,
+    body: Option<RequestContent>,
+    operation_tag: &str,
+) -> CustomResult<Result<Response, Response>, errors::NetworkTokenizationError> {
+    let mut request = services::Request::new(method, url);
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.add_header(
+        headers::AUTHORIZATION,
+        tokenization_service
+            .token_service_api_key
+            .peek()
+            .clone()
+            .into_masked(),
+    );
+    request.add_default_headers();
+
+    if let Some(body_content) = body {
+        request.set_body(body_content);
+    }
+
+    logger::info!(
+        "Network token service request [{}]: {:?}",
+        operation_tag,
+        request
+    );
+
+    services::call_connector_api(state, request, operation_tag)
+        .await
+        .change_context(errors::NetworkTokenizationError::ApiError)
+}
 
 #[cfg(feature = "v1")]
 pub async fn mk_tokenization_req(
@@ -76,28 +112,15 @@ pub async fn mk_tokenization_req(
         .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
     logger::info!(raw_network_token_service_request=?masked_request_body);
 
-    let mut request = services::Request::new(
+    let response = call_network_token_service(
+        state,
+        tokenization_service,
         services::Method::Post,
         tokenization_service.generate_token_url.as_str(),
-    );
-    request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(
-        headers::AUTHORIZATION,
-        tokenization_service
-            .token_service_api_key
-            .peek()
-            .clone()
-            .into_masked(),
-    );
-    request.add_default_headers();
-
-    request.set_body(RequestContent::Json(Box::new(api_payload)));
-
-    logger::info!("Request to generate token: {:?}", request);
-
-    let response = services::call_connector_api(state, request, "generate_token")
-        .await
-        .change_context(errors::NetworkTokenizationError::ApiError);
+        Some(RequestContent::Json(Box::new(api_payload))),
+        "generate_token",
+    )
+    .await;
 
     let res = response
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -169,21 +192,15 @@ pub async fn make_nt_eligibility_call(
         true
     );
 
-    let mut request = services::Request::new(services::Method::Get, &url_string);
-    request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(
-        headers::AUTHORIZATION,
-        tokenization_service
-            .token_service_api_key
-            .peek()
-            .clone()
-            .into_masked(),
-    );
-    request.add_default_headers();
-
-    let response = services::call_connector_api(state, request, "fetch_nt_eligibility")
-        .await
-        .change_context(errors::NetworkTokenizationError::ApiError);
+    let response = call_network_token_service(
+        state,
+        tokenization_service,
+        services::Method::Get,
+        &url_string,
+        None,
+        "fetch_nt_eligibility",
+    )
+    .await;
 
     let res = response
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -264,28 +281,15 @@ pub async fn generate_network_token(
         .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
     logger::info!(raw_network_token_service_request=?masked_request_body);
 
-    let mut request = services::Request::new(
+    let response = call_network_token_service(
+        state,
+        tokenization_service,
         services::Method::Post,
         tokenization_service.generate_token_url.as_str(),
-    );
-    request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(
-        headers::AUTHORIZATION,
-        tokenization_service
-            .token_service_api_key
-            .peek()
-            .clone()
-            .into_masked(),
-    );
-    request.add_default_headers();
-
-    request.set_body(RequestContent::Json(Box::new(api_payload)));
-
-    logger::info!("Request to generate token: {:?}", request);
-
-    let response = services::call_connector_api(state, request, "generate_token")
-        .await
-        .change_context(errors::NetworkTokenizationError::ApiError);
+        Some(RequestContent::Json(Box::new(api_payload))),
+        "generate_token",
+    )
+    .await;
 
     let res = response
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -454,10 +458,6 @@ pub async fn get_network_token(
     network_token_requestor_ref_id: String,
     tokenization_service: &settings::NetworkTokenizationService,
 ) -> CustomResult<pm_types::TokenResponse, errors::NetworkTokenizationError> {
-    let mut request = services::Request::new(
-        services::Method::Post,
-        tokenization_service.fetch_token_url.as_str(),
-    );
     let payload = pm_types::GetCardToken {
         card_reference: network_token_requestor_ref_id,
         customer_id,
@@ -469,25 +469,15 @@ pub async fn get_network_token(
         .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
     logger::info!(raw_network_token_service_request=?masked_request_body);
 
-    request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(
-        headers::AUTHORIZATION,
-        tokenization_service
-            .token_service_api_key
-            .clone()
-            .peek()
-            .clone()
-            .into_masked(),
-    );
-    request.add_default_headers();
-    request.set_body(RequestContent::Json(Box::new(payload)));
-
-    logger::info!("Request to fetch network token: {:?}", request);
-
-    // Send the request using `call_connector_api`
-    let response = services::call_connector_api(state, request, "get network token")
-        .await
-        .change_context(errors::NetworkTokenizationError::ApiError);
+    let response = call_network_token_service(
+        state,
+        tokenization_service,
+        services::Method::Post,
+        tokenization_service.fetch_token_url.as_str(),
+        Some(RequestContent::Json(Box::new(payload))),
+        "get_network_token",
+    )
+    .await;
 
     let res = response
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -528,10 +518,6 @@ pub async fn get_network_token(
     network_token_requestor_ref_id: String,
     tokenization_service: &settings::NetworkTokenizationService,
 ) -> CustomResult<pm_types::TokenResponse, errors::NetworkTokenizationError> {
-    let mut request = services::Request::new(
-        services::Method::Post,
-        tokenization_service.fetch_token_url.as_str(),
-    );
     let payload = pm_types::GetCardToken {
         card_reference: network_token_requestor_ref_id,
         customer_id: customer_id.clone(),
@@ -543,25 +529,15 @@ pub async fn get_network_token(
         .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
     logger::info!(raw_network_token_service_request=?masked_request_body);
 
-    request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(
-        headers::AUTHORIZATION,
-        tokenization_service
-            .token_service_api_key
-            .clone()
-            .peek()
-            .clone()
-            .into_masked(),
-    );
-    request.add_default_headers();
-    request.set_body(RequestContent::Json(Box::new(payload)));
-
-    logger::info!("Request to fetch network token: {:?}", request);
-
-    // Send the request using `call_connector_api`
-    let response = services::call_connector_api(state, request, "get network token")
-        .await
-        .change_context(errors::NetworkTokenizationError::ApiError);
+    let response = call_network_token_service(
+        state,
+        tokenization_service,
+        services::Method::Post,
+        tokenization_service.fetch_token_url.as_str(),
+        Some(RequestContent::Json(Box::new(payload))),
+        "get_network_token",
+    )
+    .await;
 
     let res = response
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -820,10 +796,6 @@ pub async fn check_token_status_with_tokenization_service(
     tokenization_service: &settings::NetworkTokenizationService,
 ) -> CustomResult<(Option<Secret<String>>, Option<Secret<String>>), errors::NetworkTokenizationError>
 {
-    let mut request = services::Request::new(
-        services::Method::Post,
-        tokenization_service.check_token_status_url.as_str(),
-    );
     let payload = pm_types::CheckTokenStatus {
         card_reference: network_token_requestor_reference_id,
         customer_id: customer_id.clone(),
@@ -835,23 +807,15 @@ pub async fn check_token_status_with_tokenization_service(
         .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
     logger::info!(raw_network_token_service_request=?masked_request_body);
 
-    request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(
-        headers::AUTHORIZATION,
-        tokenization_service
-            .token_service_api_key
-            .clone()
-            .peek()
-            .clone()
-            .into_masked(),
-    );
-    request.add_default_headers();
-    request.set_body(RequestContent::Json(Box::new(payload)));
-
-    // Send the request using `call_connector_api`
-    let response = services::call_connector_api(state, request, "Check Network token Status")
-        .await
-        .change_context(errors::NetworkTokenizationError::ApiError);
+    let response = call_network_token_service(
+        state,
+        tokenization_service,
+        services::Method::Post,
+        tokenization_service.check_token_status_url.as_str(),
+        Some(RequestContent::Json(Box::new(payload))),
+        "check_token_status",
+    )
+    .await;
     let res = response
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
         .attach_printable("Error while receiving response")
@@ -899,10 +863,6 @@ pub async fn check_token_status_with_tokenization_service(
     network_token_requestor_reference_id: String,
     tokenization_service: &settings::NetworkTokenizationService,
 ) -> CustomResult<pm_types::CheckTokenStatusResponse, errors::NetworkTokenizationError> {
-    let mut request = services::Request::new(
-        services::Method::Post,
-        tokenization_service.check_token_status_url.as_str(),
-    );
     let payload = pm_types::CheckTokenStatus {
         card_reference: network_token_requestor_reference_id,
         customer_id: customer_id.clone(),
@@ -914,23 +874,15 @@ pub async fn check_token_status_with_tokenization_service(
         .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
     logger::info!(raw_network_token_service_request=?masked_request_body);
 
-    request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(
-        headers::AUTHORIZATION,
-        tokenization_service
-            .token_service_api_key
-            .clone()
-            .peek()
-            .clone()
-            .into_masked(),
-    );
-    request.add_default_headers();
-    request.set_body(RequestContent::Json(Box::new(payload)));
-
-    // Send the request using `call_connector_api`
-    let response = services::call_connector_api(state, request, "Check Network token Status")
-        .await
-        .change_context(errors::NetworkTokenizationError::ApiError);
+    let response = call_network_token_service(
+        state,
+        tokenization_service,
+        services::Method::Post,
+        tokenization_service.check_token_status_url.as_str(),
+        Some(RequestContent::Json(Box::new(payload))),
+        "check_token_status",
+    )
+    .await;
     let res = response
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
         .attach_printable("Error while receiving response")
@@ -1070,10 +1022,6 @@ pub async fn delete_network_token_from_tokenization_service(
     customer_id: &id_type::CustomerId,
     tokenization_service: &settings::NetworkTokenizationService,
 ) -> CustomResult<bool, errors::NetworkTokenizationError> {
-    let mut request = services::Request::new(
-        services::Method::Post,
-        tokenization_service.delete_token_url.as_str(),
-    );
     let payload = pm_types::DeleteCardToken {
         card_reference: network_token_requestor_reference_id,
         customer_id: customer_id.clone(),
@@ -1085,25 +1033,15 @@ pub async fn delete_network_token_from_tokenization_service(
         .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
     logger::info!(raw_network_token_service_request=?masked_request_body);
 
-    request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(
-        headers::AUTHORIZATION,
-        tokenization_service
-            .token_service_api_key
-            .clone()
-            .peek()
-            .clone()
-            .into_masked(),
-    );
-    request.add_default_headers();
-    request.set_body(RequestContent::Json(Box::new(payload)));
-
-    logger::info!("Request to delete network token: {:?}", request);
-
-    // Send the request using `call_connector_api`
-    let response = services::call_connector_api(state, request, "delete network token")
-        .await
-        .change_context(errors::NetworkTokenizationError::ApiError);
+    let response = call_network_token_service(
+        state,
+        tokenization_service,
+        services::Method::Post,
+        tokenization_service.delete_token_url.as_str(),
+        Some(RequestContent::Json(Box::new(payload))),
+        "delete_network_token",
+    )
+    .await;
     let res = response
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
         .attach_printable("Error while receiving response")
@@ -1194,29 +1132,16 @@ pub async fn fetch_altid_and_cryptogram(
         .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
     logger::info!(raw_altid_service_request=?masked_request_body);
 
-    // Build HTTP request
-    let mut request = services::Request::new(
+    // Call the Alt-ID API
+    let response = call_network_token_service(
+        state,
+        tokenization_service,
         services::Method::Post,
         tokenization_service.fetch_altid_url.as_str(),
-    );
-    request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(
-        headers::AUTHORIZATION,
-        tokenization_service
-            .token_service_api_key
-            .peek()
-            .clone()
-            .into_masked(),
-    );
-    request.add_default_headers();
-    request.set_body(RequestContent::Json(Box::new(payload)));
-
-    logger::info!("Request to fetch Alt-ID: {:?}", request);
-
-    // Call the Alt-ID API
-    let response = services::call_connector_api(state, request, "fetch_altid")
-        .await
-        .change_context(errors::NetworkTokenizationError::FetchAltIdFailed);
+        Some(RequestContent::Json(Box::new(payload))),
+        "fetch_altid",
+    )
+    .await;
 
     let res = response
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
@@ -1279,8 +1204,8 @@ pub async fn get_altid_for_card(
     state: &routes::SessionState,
     card: &domain::CardDetail,
     optional_cvc: Option<Secret<String>>,
-    amount: f64,
-    currency: &str,
+    amount: common_utils::types::MinorUnit,
+    currency: api_models::enums::Currency,
     auth_ref_number: Option<String>,
 ) -> CustomResult<
     Option<hyperswitch_domain_models::payment_method_data::NetworkTokenData>,
@@ -1290,12 +1215,12 @@ pub async fn get_altid_for_card(
         Some(nt_service) => {
             let tokenization_service = nt_service.get_inner();
 
-            let card_data = pm_types::AltIdCardData {
-                card_number: card.card_number.clone(),
-                exp_month: card.card_exp_month.clone(),
-                exp_year: card.card_exp_year.clone(),
-                card_security_code: optional_cvc,
-            };
+            let float_amount = amount
+                .to_major_unit_as_f64(currency)
+                .change_context(errors::NetworkTokenizationError::RequestEncodingFailed)
+                .attach_printable("Failed to convert amount to major unit")?;
+
+            let card_data = pm_types::AltIdCardData::from((card, optional_cvc));
 
             // Double-encode card data for JWE encryption (matches expected format)
             let payload = card_data
@@ -1305,8 +1230,8 @@ pub async fn get_altid_for_card(
             let payload_bytes = payload.as_bytes();
 
             let order_data = pm_types::AltIdOrderData {
-                amount,
-                currency: currency.to_string(),
+                amount: float_amount,
+                currency,
                 auth_ref_number,
             };
 
@@ -1381,29 +1306,19 @@ pub async fn try_get_altid_for_guest_checkout(
     connector: api_models::enums::Connector,
 ) -> CustomResult<Option<domain::NetworkTokenData>, errors::NetworkTokenizationError> {
     if should_attempt_altid(state, card, business_profile, connector) {
-        // Convert amount to f64 for the API (amount is in minor units)
-        match amount.to_major_unit_as_f64(*currency) {
-            Ok(major_amount) => {
-                let amount_f64 = major_amount.get_amount_as_f64();
+        // Build card detail for Alt-ID using From impl
+        let card_detail: domain::CardDetail = card.into();
 
-                // Build card detail for Alt-ID using From impl
-                let card_detail: domain::CardDetail = card.into();
-
-                // Attempt to fetch Alt-ID
-                get_altid_for_card(
-                    state,
-                    &card_detail,
-                    Some(card.card_cvc.clone()),
-                    amount_f64,
-                    &currency.to_string(),
-                    auth_ref_number,
-                )
-                .await
-            }
-            Err(err) => Err(err)
-                .change_context(errors::NetworkTokenizationError::FetchAltIdFailed)
-                .attach_printable("Failed to convert amount to major unit"),
-        }
+        // Attempt to fetch Alt-ID
+        get_altid_for_card(
+            state,
+            &card_detail,
+            Some(card.card_cvc.clone()),
+            amount,
+            *currency,
+            auth_ref_number,
+        )
+        .await
     } else {
         Ok(None)
     }

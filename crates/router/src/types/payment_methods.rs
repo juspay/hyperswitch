@@ -470,12 +470,23 @@ pub struct AltIdCardData {
     pub card_security_code: Option<Secret<String>>,
 }
 
+impl From<(&domain::CardDetail, Option<Secret<String>>)> for AltIdCardData {
+    fn from((card, optional_cvc): (&domain::CardDetail, Option<Secret<String>>)) -> Self {
+        Self {
+            card_number: card.card_number.clone(),
+            exp_month: card.card_exp_month.clone(),
+            exp_year: card.card_exp_year.clone(),
+            card_security_code: optional_cvc,
+        }
+    }
+}
+
 /// Order data for Alt-ID request
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AltIdOrderData {
-    pub amount: f64,
-    pub currency: String,
+    pub amount: common_utils::types::FloatMajorUnit,
+    pub currency: api_enums::Currency,
     /// Required for RuPay cards (post-3DS authentication reference)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auth_ref_number: Option<String>,
