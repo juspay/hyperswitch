@@ -1,13 +1,15 @@
+use std::net::IpAddr;
+
 use api_models::{payments::AdditionalPaymentData, webhooks::IncomingWebhookEvent};
 use common_enums::{AttemptStatus, Currency, FraudCheckStatus, PaymentMethod, PaymentMethodType};
 use common_utils::{
     ext_traits::ValueExt,
-    pii::{Email, IpAddress},
-    types::{FloatMajorUnit, MinorUnit},
+    id_type,
+    pii::Email,
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
 };
 use error_stack::{self, ResultExt};
 pub use hyperswitch_domain_models::router_request_types::fraud_check::RefundMethod;
-use common_utils::id_type;
 use hyperswitch_domain_models::{
     address::Address as DomainAddress,
     router_data::RouterData,
@@ -31,10 +33,34 @@ use crate::{
         FrmSaleRouterData, FrmTransactionRouterData, ResponseRouterData,
     },
     utils::{
-        AddressDetailsData as _, FraudCheckCheckoutRequest, FraudCheckRecordReturnRequest as _,
-        FraudCheckSaleRequest as _, FraudCheckTransactionRequest as _, RouterData as _,
+        convert_amount, AddressDetailsData as _, FraudCheckCheckoutRequest,
+        FraudCheckRecordReturnRequest as _, FraudCheckSaleRequest as _,
+        FraudCheckTransactionRequest as _, RouterData as _,
     },
 };
+pub struct SignifydRouterData<T> {
+    pub amount: FloatMajorUnit,
+    pub product_prices: Option<Vec<FloatMajorUnit>>,
+    pub router_data: T,
+    pub(crate) amount_converter:
+        &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+}
+
+impl<T> SignifydRouterData<T> {
+    pub fn new(
+        amount: FloatMajorUnit,
+        product_prices: Option<Vec<FloatMajorUnit>>,
+        router_data: T,
+    ) -> Self {
+        Self {
+            amount,
+            product_prices,
+            router_data,
+            amount_converter: &FloatMajorUnitForConnector,
+        }
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Eq, PartialEq, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -138,7 +164,7 @@ pub enum CoverageRequests {
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Device {
-    client_ip_address: Option<Secret<String, IpAddress>>,
+    client_ip_address: Option<IpAddr>,
     session_id: Option<Secret<String>>,
 }
 
@@ -146,10 +172,10 @@ pub struct Device {
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct UserAccount {
-    username: Option<String>,
+    username: Option<id_type::CustomerId>,
     email: Option<Email>,
     phone: Option<Secret<String>>,
-    account_number: Option<String>,
+    account_number: Option<id_type::CustomerId>,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq, Clone)]
@@ -236,14 +262,12 @@ fn parse_card_expiry_year(value: Option<&Secret<String>>) -> Option<i32> {
 fn build_transaction(
     payment_method_data: Option<&AdditionalPaymentData>,
     payment_method_type: Option<PaymentMethodType>,
-    amount: MinorUnit,
-    currency: Option<Currency>,
+    amount: FloatMajorUnit,
+    currency: Currency,
     gateway: Option<&String>,
     billing_address: Option<&DomainAddress>,
 ) -> Option<Transaction> {
     let card_info = payment_method_data?.get_additional_card_info()?;
-    let currency = currency?;
-    let amount_major = amount.to_major_unit_as_f64(currency).ok()?;
 
     let checkout_payment_details = CheckoutPaymentDetails {
         account_holder_name: card_info.card_holder_name.clone(),
@@ -256,7 +280,7 @@ fn build_transaction(
 
     Some(Transaction {
         payment_method: map_payment_method_kind(payment_method_type),
-        amount: amount_major,
+        amount,
         currency,
         gateway: gateway.cloned(),
         checkout_payment_details,
@@ -293,32 +317,16 @@ fn build_user_account(
     customer_id: Option<&id_type::CustomerId>,
     email: Option<&Email>,
     phone: Option<&Secret<String>>,
-    phone_country_code: Option<&str>,
 ) -> Option<UserAccount> {
-    use hyperswitch_masking::PeekInterface;
-
-    let username = customer_id.map(|id| id.get_string_repr().to_string());
-    let account_number = username.clone();
-
-    // Build phone with country code prefix when available, e.g. "+15551234567".
-    let phone = phone.map(|p| {
-        let raw = p.peek().clone();
-        match phone_country_code {
-            Some(cc) if !cc.is_empty() => {
-                let cc_trimmed = cc.trim();
-                if cc_trimmed.starts_with('+') {
-                    Secret::new(format!("{cc_trimmed}{raw}"))
-                } else {
-                    Secret::new(format!("+{cc_trimmed}{raw}"))
-                }
-            }
-            _ => Secret::new(raw),
-        }
-    });
-
+    let username = customer_id.cloned();
+    let account_number = customer_id.cloned();
     let email = email.cloned();
+    let phone = phone.cloned();
 
-    if username.is_none() && email.is_none() && phone.is_none() {
+    if [username.is_none(), email.is_none(), phone.is_none()]
+        .iter()
+        .all(|is_none| *is_none)
+    {
         return None;
     }
 
@@ -330,37 +338,40 @@ fn build_user_account(
     })
 }
 
-impl TryFrom<&FrmSaleRouterData> for SignifydPaymentsSaleRequest {
+impl TryFrom<&SignifydRouterData<&FrmSaleRouterData>> for SignifydPaymentsSaleRequest {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(item: &FrmSaleRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        data: &SignifydRouterData<&FrmSaleRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let item = data.router_data;
         let currency =
             item.request
                 .currency
                 .ok_or(ConnectorError::MissingRequiredField {
                     field_name: "currency",
                 })?;
-        let products = item
-            .request
-            .get_order_details()?
+        let order_details = item.request.get_order_details()?;
+        let product_prices = data.product_prices.as_ref().ok_or(
+            ConnectorError::MissingRequiredField {
+                field_name: "order_details",
+            },
+        )?;
+        let products = order_details
             .iter()
-            .map(|order_detail| {
-                let item_price = order_detail.amount.to_major_unit_as_f64(currency)
-                    .change_context(ConnectorError::ParsingFailed)
-                    .attach_printable("Failed to convert order_detail.amount to major unit")?;
-                Ok::<_, error_stack::Report<ConnectorError>>(Products {
-                    item_name: order_detail.product_name.clone(),
-                    item_price,
-                    item_quantity: i32::from(order_detail.quantity),
-                    item_id: order_detail.product_id.clone(),
-                    item_category: order_detail.category.clone(),
-                    item_sub_category: order_detail.sub_category.clone(),
-                    item_is_digital: order_detail
-                        .product_type
-                        .as_ref()
-                        .map(|product| product == &common_enums::ProductType::Digital),
-                })
+            .zip(product_prices.iter())
+            .map(|(order_detail, item_price)| Products {
+                item_name: order_detail.product_name.clone(),
+                item_price: *item_price,
+                item_quantity: i32::from(order_detail.quantity),
+                item_id: order_detail.product_id.clone(),
+                item_category: order_detail.category.clone(),
+                item_sub_category: order_detail.sub_category.clone(),
+                item_is_digital: order_detail
+                    .product_type
+                    .as_ref()
+                    .map(|product| product == &common_enums::ProductType::Digital),
             })
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect::<Vec<_>>();
         let metadata: SignifydFrmMetadata = item
             .frm_metadata
             .clone()
@@ -388,20 +399,10 @@ impl TryFrom<&FrmSaleRouterData> for SignifydPaymentsSaleRequest {
             address,
         };
 
-        let total_price = item
-            .request
-            .amount
-            .to_major_unit_as_f64(currency)
-            .change_context(ConnectorError::ParsingFailed)
-            .attach_printable("Failed to convert total_price to major unit")?;
+        let total_price = data.amount;
         let total_shipping_cost = metadata
             .total_shipping_cost
-            .map(|cost| {
-                MinorUnit::new(cost)
-                    .to_major_unit_as_f64(currency)
-                    .change_context(ConnectorError::ParsingFailed)
-                    .attach_printable("Failed to convert total_shipping_cost to major unit")
-            })
+            .map(|cost| convert_amount(data.amount_converter, MinorUnit::new(cost), currency))
             .transpose()?;
 
         let created_at = common_utils::date_time::now();
@@ -425,12 +426,9 @@ impl TryFrom<&FrmSaleRouterData> for SignifydPaymentsSaleRequest {
                 .phone
                 .and_then(|phone_data| phone_data.number),
         };
-        let client_ip_address = item
-            .request
-            .client_ip
-            .map(|ip| Secret::new(ip.to_string()));
+        let client_ip_address = item.request.client_ip;
         let session_id = metadata.session_id.clone();
-        let device = match (client_ip_address.clone(), session_id.clone()) {
+        let device = match (client_ip_address, session_id.clone()) {
             (None, None) => None,
             _ => Some(Device {
                 client_ip_address,
@@ -441,13 +439,12 @@ impl TryFrom<&FrmSaleRouterData> for SignifydPaymentsSaleRequest {
             item.request.customer_id.as_ref(),
             item.request.email.as_ref(),
             item.request.phone.as_ref(),
-            item.request.phone_country_code.as_deref(),
         );
         let transactions = build_transaction(
             item.request.payment_method_data.as_ref(),
             item.payment_method_type,
-            item.request.amount,
-            item.request.currency,
+            data.amount,
+            currency,
             item.request.gateway.as_ref(),
             item.get_optional_billing(),
         )
@@ -622,37 +619,40 @@ pub struct SignifydPaymentsCheckoutRequest {
     transactions: Option<Vec<Transaction>>,
 }
 
-impl TryFrom<&FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequest {
+impl TryFrom<&SignifydRouterData<&FrmCheckoutRouterData>> for SignifydPaymentsCheckoutRequest {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(item: &FrmCheckoutRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        data: &SignifydRouterData<&FrmCheckoutRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let item = data.router_data;
         let currency =
             item.request
                 .currency
                 .ok_or(ConnectorError::MissingRequiredField {
                     field_name: "currency",
                 })?;
-        let products = item
-            .request
-            .get_order_details()?
+        let order_details = item.request.get_order_details()?;
+        let product_prices = data.product_prices.as_ref().ok_or(
+            ConnectorError::MissingRequiredField {
+                field_name: "order_details",
+            },
+        )?;
+        let products = order_details
             .iter()
-            .map(|order_detail| {
-                let item_price = order_detail.amount.to_major_unit_as_f64(currency)
-                    .change_context(ConnectorError::ParsingFailed)
-                    .attach_printable("Failed to convert order_detail.amount to major unit")?;
-                Ok::<_, error_stack::Report<ConnectorError>>(Products {
-                    item_name: order_detail.product_name.clone(),
-                    item_price,
-                    item_quantity: i32::from(order_detail.quantity),
-                    item_id: order_detail.product_id.clone(),
-                    item_category: order_detail.category.clone(),
-                    item_sub_category: order_detail.sub_category.clone(),
-                    item_is_digital: order_detail
-                        .product_type
-                        .as_ref()
-                        .map(|product| product == &common_enums::ProductType::Digital),
-                })
+            .zip(product_prices.iter())
+            .map(|(order_detail, item_price)| Products {
+                item_name: order_detail.product_name.clone(),
+                item_price: *item_price,
+                item_quantity: i32::from(order_detail.quantity),
+                item_id: order_detail.product_id.clone(),
+                item_category: order_detail.category.clone(),
+                item_sub_category: order_detail.sub_category.clone(),
+                item_is_digital: order_detail
+                    .product_type
+                    .as_ref()
+                    .map(|product| product == &common_enums::ProductType::Digital),
             })
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect::<Vec<_>>();
         let metadata: SignifydFrmMetadata = item
             .frm_metadata
             .clone()
@@ -680,20 +680,10 @@ impl TryFrom<&FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequest {
             address,
         };
 
-        let total_price = item
-            .request
-            .amount
-            .to_major_unit_as_f64(currency)
-            .change_context(ConnectorError::ParsingFailed)
-            .attach_printable("Failed to convert total_price to major unit")?;
+        let total_price = data.amount;
         let total_shipping_cost = metadata
             .total_shipping_cost
-            .map(|cost| {
-                MinorUnit::new(cost)
-                    .to_major_unit_as_f64(currency)
-                    .change_context(ConnectorError::ParsingFailed)
-                    .attach_printable("Failed to convert total_shipping_cost to major unit")
-            })
+            .map(|cost| convert_amount(data.amount_converter, MinorUnit::new(cost), currency))
             .transpose()?;
 
         let created_at = common_utils::date_time::now();
@@ -717,12 +707,9 @@ impl TryFrom<&FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequest {
                 .phone
                 .and_then(|phone_data| phone_data.number),
         };
-        let client_ip_address = item
-            .request
-            .client_ip
-            .map(|ip| Secret::new(ip.to_string()));
+        let client_ip_address = item.request.client_ip;
         let session_id = metadata.session_id.clone();
-        let device = match (client_ip_address.clone(), session_id.clone()) {
+        let device = match (client_ip_address, session_id.clone()) {
             (None, None) => None,
             _ => Some(Device {
                 client_ip_address,
@@ -733,13 +720,12 @@ impl TryFrom<&FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequest {
             item.request.customer_id.as_ref(),
             item.request.email.as_ref(),
             item.request.phone.as_ref(),
-            item.request.phone_country_code.as_deref(),
         );
         let transactions = build_transaction(
             item.request.payment_method_data.as_ref(),
             item.payment_method_type,
-            item.request.amount,
-            item.request.currency,
+            data.amount,
+            currency,
             item.request.gateway.as_ref(),
             item.get_optional_billing(),
         )

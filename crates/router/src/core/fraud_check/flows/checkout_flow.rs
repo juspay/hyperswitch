@@ -122,15 +122,20 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
                     .payment_attempt
                     .payment_method_data
                     .as_ref()
-                    .map(|pm_data| {
+                    .and_then(|pm_data| {
                         pm_data
                             .clone()
                             .parse_value::<api_models::payments::AdditionalPaymentData>(
                                 "AdditionalPaymentData",
                             )
-                    })
-                    .transpose()
-                    .unwrap_or_default(),
+                            .inspect_err(|err| {
+                                router_env::logger::warn!(
+                                    ?err,
+                                    "Failed to parse AdditionalPaymentData for FRM checkout flow"
+                                )
+                            })
+                            .ok()
+                    }),
                 gateway: self.payment_attempt.connector.clone(),
                 client_ip,
                 customer_id,

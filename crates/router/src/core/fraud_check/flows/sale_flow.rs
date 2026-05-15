@@ -98,6 +98,12 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
                     .parse_value::<api_models::payments::AdditionalPaymentData>(
                         "AdditionalPaymentData",
                     )
+                    .inspect_err(|err| {
+                        router_env::logger::warn!(
+                            ?err,
+                            "Failed to parse AdditionalPaymentData for FRM sale flow"
+                        )
+                    })
                     .ok()
             });
 
