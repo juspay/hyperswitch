@@ -83,6 +83,7 @@ where
             enums::PaymentMethod::Card
                 | enums::PaymentMethod::BankDebit
                 | enums::PaymentMethod::Wallet
+                | enums::PaymentMethod::BankRedirect
         )
     );
 
@@ -746,7 +747,11 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_config.is_payment_method_modular_allowed {
+        if !feature_config.is_modular_with_pm_version(
+            payment_data
+                .get_payment_method_info()
+                .map(|payment_method| payment_method.version),
+        ) {
             let _ = update_pm_connector_mandate_details(
                 state,
                 provider,
@@ -1046,7 +1051,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_config.is_payment_method_modular_allowed {
+        if !feature_config.is_modular_with_pm_version(
+            payment_data
+                .get_payment_method_info()
+                .map(|payment_method| payment_method.version),
+        ) {
             let _ = update_pm_connector_mandate_details(
                 state,
                 provider,
@@ -1794,7 +1803,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_config.is_payment_method_modular_allowed {
+        if !feature_config.is_modular_with_pm_version(
+            payment_data
+                .get_payment_method_info()
+                .map(|payment_method| payment_method.version),
+        ) {
             let _ = update_pm_connector_mandate_details(
                 state,
                 provider,
@@ -1929,7 +1942,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_config.is_payment_method_modular_allowed {
+        if !feature_config.is_modular_with_pm_version(
+            payment_data
+                .get_payment_method_info()
+                .map(|payment_method| payment_method.version),
+        ) {
             let _ = update_pm_connector_mandate_details(
                 state,
                 provider,
@@ -3297,7 +3314,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 | common_enums::AttemptStatus::Unresolved
                 | common_enums::AttemptStatus::Pending
                 | common_enums::AttemptStatus::Failure
-                | common_enums::AttemptStatus::Expired => (),
+                | common_enums::AttemptStatus::Expired
+                | common_enums::AttemptStatus::CaptureReview => (),
 
                 common_enums::AttemptStatus::Started
                 | common_enums::AttemptStatus::AuthenticationPending

@@ -6711,7 +6711,8 @@
           "confirmation_awaited",
           "device_data_collection_pending",
           "integrity_failure",
-          "expired"
+          "expired",
+          "capture_review"
         ]
       },
       "AuthenticationConnectorDetails": {
@@ -8154,12 +8155,14 @@
             "properties": {
               "trustly": {
                 "type": "object",
-                "required": [
-                  "country"
-                ],
                 "properties": {
                   "country": {
-                    "$ref": "#/components/schemas/CountryAlpha2"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/CountryAlpha2"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -8242,6 +8245,21 @@
             ],
             "properties": {
               "open_banking": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
+      "BankRedirectDetail": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "bancontact_card"
+            ],
+            "properties": {
+              "bancontact_card": {
                 "type": "object"
               }
             }
@@ -11095,6 +11113,7 @@
           "helcim",
           "hyperpg",
           "hyperswitch_vault",
+          "interpayments",
           "inespay",
           "iatapay",
           "imerchantsolutions",
@@ -11440,6 +11459,7 @@
           "payment_method_auth",
           "authentication_processor",
           "tax_processor",
+          "surcharge_processor",
           "billing_processor",
           "vault_processor"
         ]
@@ -14140,6 +14160,28 @@
           }
         }
       },
+      "ExternalSurchargeDetails": {
+        "type": "object",
+        "description": "External surcharge details from InterPayments (stored as JSONB)",
+        "required": [
+          "external_surcharge_id",
+          "external_surcharge_amount",
+          "sale_notified"
+        ],
+        "properties": {
+          "external_surcharge_id": {
+            "type": "string",
+            "description": "sTxId from InterPayments (the last one received before confirm)"
+          },
+          "external_surcharge_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "sale_notified": {
+            "type": "boolean",
+            "description": "Whether /v1/ch/sale has been successfully called"
+          }
+        }
+      },
       "ExternalThreeDsData": {
         "type": "object",
         "description": "Represents external 3DS authentication data used in the payment flow.",
@@ -14301,6 +14343,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/PixAutomaticoAdditionalDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "finix_additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FinixAdditionalDetails"
               }
             ],
             "nullable": true
@@ -14799,6 +14849,17 @@
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
+      },
+      "FinixAdditionalDetails": {
+        "type": "object",
+        "properties": {
+          "fraud_session_id": {
+            "type": "string",
+            "description": "The fraud session ID used for Finix fraud detection",
+            "example": "1234567890abcdef",
+            "nullable": true
+          }
+        }
       },
       "FlexibleAmountDetails": {
         "type": "object",
@@ -16111,6 +16172,7 @@
           "authentication_provider",
           "fraud_and_risk_management_provider",
           "tax_calculation_provider",
+          "surcharge_calculation_provider",
           "revenue_growth_management_platform"
         ]
       },
@@ -16340,7 +16402,8 @@
           "partially_authorized_and_requires_capture",
           "partially_captured_and_processing",
           "conflicted",
-          "expired"
+          "expired",
+          "review"
         ]
       },
       "Interac": {
@@ -21428,6 +21491,17 @@
                 "$ref": "#/components/schemas/WalletPaymentMethodData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_redirect"
+            ],
+            "properties": {
+              "bank_redirect": {
+                "$ref": "#/components/schemas/BankRedirectDetail"
+              }
+            }
           }
         ]
       },
@@ -25089,6 +25163,14 @@
             ],
             "nullable": true
           },
+          "source_bank_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankTransfer"
+              }
+            ],
+            "nullable": true
+          },
           "billing": {
             "allOf": [
               {
@@ -25324,6 +25406,14 @@
             "nullable": true
           },
           "payout_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutMethodDataResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "source_bank_data": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/PayoutMethodDataResponse"
@@ -27083,6 +27173,14 @@
             "description": "Merchant Connector id to be stored for billing_processor connector",
             "nullable": true
           },
+          "surcharge_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeConnectorDetails"
+              }
+            ],
+            "nullable": true
+          },
           "is_l2_l3_enabled": {
             "type": "boolean",
             "description": "Flag to enable Level 2 and Level 3 processing data for card transactions",
@@ -27397,6 +27495,14 @@
           "billing_processor_id": {
             "type": "string",
             "description": "Merchant Connector id to be stored for billing_processor connector",
+            "nullable": true
+          },
+          "surcharge_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeConnectorDetails"
+              }
+            ],
             "nullable": true
           },
           "is_l2_l3_enabled": {
@@ -28628,6 +28734,11 @@
           "merchant_id": {
             "type": "string",
             "description": "Identifier for Merchant"
+          },
+          "processor_merchant_id": {
+            "type": "string",
+            "description": "Identifier for the processor merchant",
+            "nullable": true
           },
           "link_to_pay": {
             "type": "string",
@@ -30851,6 +30962,16 @@
           "skip",
           "calculate"
         ]
+      },
+      "SurchargeConnectorDetails": {
+        "type": "object",
+        "properties": {
+          "surcharge_connector_id": {
+            "type": "string",
+            "description": "The surcharge connector ID for calculating external surcharge",
+            "nullable": true
+          }
+        }
       },
       "SurchargeDetailsResponse": {
         "type": "object",
