@@ -8342,5 +8342,4 @@ Cypress.Commands.add("verifyWebhookSignatureHeader", (globalState) => {
       cy.task("cli_log", `Webhook signature verified - signature match: YES`);
     });
   });
-  });
 });
