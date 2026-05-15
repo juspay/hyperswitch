@@ -8192,7 +8192,8 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
   const hashKey = globalState.get("paymentResponseHashKey");
   const computedSignature = globalState.get("computedSignature");
   const signingPayload = globalState.get("computedSigningPayload");
-  const signatureAlgorithm = globalState.get("signatureAlgorithm") || "HMAC-SHA512";
+  const signatureAlgorithm =
+    globalState.get("signatureAlgorithm") || "HMAC-SHA512";
   const algorithm = signatureAlgorithm.replace("HMAC-", "").toLowerCase();
 
   if (!hashKey || !computedSignature || !signingPayload) {
@@ -8277,7 +8278,8 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
 
 Cypress.Commands.add("verifyWebhookSignatureHeader", (globalState) => {
   const hashKey = globalState.get("paymentResponseHashKey");
-  const signatureAlgorithm = globalState.get("signatureAlgorithm") || "HMAC-SHA512";
+  const signatureAlgorithm =
+    globalState.get("signatureAlgorithm") || "HMAC-SHA512";
   const algorithm = signatureAlgorithm.replace("HMAC-", "").toLowerCase();
 
   if (!hashKey) {
