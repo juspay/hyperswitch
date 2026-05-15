@@ -17,6 +17,7 @@ pub enum PaymentMethodVaultingData {
     NetworkToken(payment_method_data::NetworkTokenDetails),
     CardNumber(cards::CardNumber),
     BankDebit(payment_method_data::BankDebitDetail),
+    Wallet(payment_method_data::WalletDetail),
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum FingerprintData {
@@ -24,6 +25,14 @@ pub enum FingerprintData {
     NetworkToken(FingerprintNetworkTokenData),
     CardNumber(cards::CardNumber),
     BankDebit(FingerprintBankDebitData),
+    Wallet(FingerprintWalletData),
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
+pub struct FingerprintWalletData {
+    dpan: cards::CardNumber,
+    expiry_month: hyperswitch_masking::Secret<String>,
+    expiry_year: hyperswitch_masking::Secret<String>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -382,6 +391,9 @@ impl From<payment_methods::PaymentMethodCreateData> for PaymentMethodVaultingDat
             payment_methods::PaymentMethodCreateData::BankDebit(bank_debit_detail) => {
                 Self::BankDebit(bank_debit_detail.into())
             }
+            payment_methods::PaymentMethodCreateData::Wallet(wallet_detail) => {
+                Self::Wallet(wallet_detail.into())
+            }
         }
     }
 }
@@ -417,6 +429,13 @@ impl TryFrom<PaymentMethodVaultingData> for PaymentMethodCustomVaultingData {
                 errors::api_error_response::ApiErrorResponse::NotImplemented {
                     message: errors::api_error_response::NotImplementedMessage::Reason(
                         "PaymentMethodCustomVaultingData not implemented for BankDebit".to_string(),
+                    ),
+                },
+            )?,
+            PaymentMethodVaultingData::Wallet(_) => Err(
+                errors::api_error_response::ApiErrorResponse::NotImplemented {
+                    message: errors::api_error_response::NotImplementedMessage::Reason(
+                        "PaymentMethodCustomVaultingData not implemented for Wallet".to_string(),
                     ),
                 },
             )?,
