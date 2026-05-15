@@ -130,6 +130,7 @@ pub mod trustly;
 pub mod trustpay;
 pub mod trustpayments;
 pub mod tsys;
+pub mod tsys_xml;
 pub mod unified_authentication_service;
 pub mod vgs;
 pub mod volt;
@@ -179,7 +180,7 @@ pub use self::{
     square::Square, stax::Stax, stripe::Stripe, stripebilling::Stripebilling, taxjar::Taxjar,
     tesouro::Tesouro, threedsecureio::Threedsecureio, thunes::Thunes, tokenex::Tokenex,
     tokenio::Tokenio, truelayer::Truelayer, trustly::Trustly, trustpay::Trustpay,
-    trustpayments::Trustpayments, tsys::Tsys,
+    trustpayments::Trustpayments, tsys::Tsys, tsys_xml::TsysXml,
     unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
     wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
     worldpay::Worldpay, worldpaymodular::Worldpaymodular, worldpayvantiv::Worldpayvantiv,

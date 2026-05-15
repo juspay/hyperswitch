@@ -512,13 +512,18 @@ impl ConnectorData {
                 | enums::Connector::Gpayments
                 | enums::Connector::Threedsecureio
                 | enums::Connector::Cardinal
-                | enums::Connector::Taxjar
-                // UCS-only connectors: dispatched via gRPC, no legacy
-                // boxed-connector implementation in hyperswitch_connectors.
-                | enums::Connector::TsysXml => {
+                | enums::Connector::Taxjar => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)
+                }
+                // UCS-only connector — runtime requests bypass this boxed
+                // connector via `ucs_only_connectors` and are dispatched to
+                // the unified connector service over gRPC. The boxed stub
+                // exists only to satisfy MCA validation and other boilerplate
+                // paths; none of its methods get called at request time.
+                enums::Connector::TsysXml => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::TsysXml::new())))
                 }
                 enums::Connector::Phonepe => Ok(ConnectorEnum::Old(Box::new(Phonepe::new()))),
                 enums::Connector::Paytm => Ok(ConnectorEnum::Old(Box::new(Paytm::new()))),
