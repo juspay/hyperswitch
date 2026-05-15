@@ -72,13 +72,13 @@ use transformers as signifyd;
 
 use crate::constants::headers;
 #[cfg(feature = "frm")]
-use crate::utils::{convert_amount, get_header_key_value};
-#[cfg(feature = "frm")]
 use crate::types::{
     FrmCheckoutRouterData, FrmCheckoutType, FrmFulfillmentRouterData, FrmFulfillmentType,
     FrmRecordReturnRouterData, FrmRecordReturnType, FrmSaleRouterData, FrmSaleType,
     FrmTransactionRouterData, FrmTransactionType, ResponseRouterData,
 };
+#[cfg(feature = "frm")]
+use crate::utils::{convert_amount, get_header_key_value};
 
 #[derive(Clone)]
 pub struct Signifyd {

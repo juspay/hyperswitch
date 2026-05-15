@@ -42,8 +42,7 @@ pub struct SignifydRouterData<T> {
     pub amount: FloatMajorUnit,
     pub product_prices: Option<Vec<FloatMajorUnit>>,
     pub router_data: T,
-    pub(crate) amount_converter:
-        &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+    pub(crate) amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
 impl<T> SignifydRouterData<T> {
@@ -340,22 +339,21 @@ fn build_user_account(
 
 impl TryFrom<&SignifydRouterData<&FrmSaleRouterData>> for SignifydPaymentsSaleRequest {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(
-        data: &SignifydRouterData<&FrmSaleRouterData>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(data: &SignifydRouterData<&FrmSaleRouterData>) -> Result<Self, Self::Error> {
         let item = data.router_data;
-        let currency =
-            item.request
-                .currency
-                .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?;
+        let currency = item
+            .request
+            .currency
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "currency",
+            })?;
         let order_details = item.request.get_order_details()?;
-        let product_prices = data.product_prices.as_ref().ok_or(
-            ConnectorError::MissingRequiredField {
-                field_name: "order_details",
-            },
-        )?;
+        let product_prices =
+            data.product_prices
+                .as_ref()
+                .ok_or(ConnectorError::MissingRequiredField {
+                    field_name: "order_details",
+                })?;
         let products = order_details
             .iter()
             .zip(product_prices.iter())
@@ -621,22 +619,21 @@ pub struct SignifydPaymentsCheckoutRequest {
 
 impl TryFrom<&SignifydRouterData<&FrmCheckoutRouterData>> for SignifydPaymentsCheckoutRequest {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(
-        data: &SignifydRouterData<&FrmCheckoutRouterData>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(data: &SignifydRouterData<&FrmCheckoutRouterData>) -> Result<Self, Self::Error> {
         let item = data.router_data;
-        let currency =
-            item.request
-                .currency
-                .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?;
+        let currency = item
+            .request
+            .currency
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "currency",
+            })?;
         let order_details = item.request.get_order_details()?;
-        let product_prices = data.product_prices.as_ref().ok_or(
-            ConnectorError::MissingRequiredField {
-                field_name: "order_details",
-            },
-        )?;
+        let product_prices =
+            data.product_prices
+                .as_ref()
+                .ok_or(ConnectorError::MissingRequiredField {
+                    field_name: "order_details",
+                })?;
         let products = order_details
             .iter()
             .zip(product_prices.iter())

@@ -118,11 +118,8 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
                 order_details: self.order_details.clone(),
                 currency: self.payment_attempt.currency,
                 browser_info,
-                payment_method_data: self
-                    .payment_attempt
-                    .payment_method_data
-                    .as_ref()
-                    .and_then(|pm_data| {
+                payment_method_data: self.payment_attempt.payment_method_data.as_ref().and_then(
+                    |pm_data| {
                         pm_data
                             .clone()
                             .parse_value::<api_models::payments::AdditionalPaymentData>(
@@ -135,7 +132,8 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
                                 )
                             })
                             .ok()
-                    }),
+                    },
+                ),
                 gateway: self.payment_attempt.connector.clone(),
                 client_ip,
                 customer_id,
