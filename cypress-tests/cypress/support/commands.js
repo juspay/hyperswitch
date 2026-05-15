@@ -7815,6 +7815,8 @@ Cypress.Commands.add(
       return_url: reqData.return_url || "https://example.com/return",
     };
 
+    globalState.set("paymentAmount", requestBody.amount);
+
     const headers = {
       "Content-Type": "application/json",
       Accept: "application/json",
