@@ -209,7 +209,7 @@ describe("Wallet tests", () => {
   });
 
   context("Mifinity Create and Confirm flow test", () => {
-    let shouldContinue = true;
+    const shouldContinue = true;
 
     before("seed global state", function () {
       let skip = false;
