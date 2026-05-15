@@ -96,7 +96,7 @@ pub fn should_call_connector_create_customer<'a>(
     let connector_needs_customer = connector
         .connector
         .should_call_connector_customer(payment_attempt);
-    
+
     let connector_customer_details = connector_customer_map
         .and_then(|connector_customer_map| connector_customer_map.peek().get(mca_string.as_str()))
         .and_then(|connector_customer| connector_customer.as_str());
