@@ -772,6 +772,15 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         run: chmod +x target/debug/router
 
+      - name: Upload ubuntu router artifact for MITM reruns
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: hyperswitch-server-ubuntu-latest-mitm
+          overwrite: true
+          path: target/debug/router
+          retention-days: 3
+
       - name: Download connector creds from S3 and decrypt
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
