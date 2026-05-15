@@ -165,6 +165,10 @@ pub struct Device {
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct UserAccount {
+    // `username` (Required - Technical) and `account_number` (Required - Risk)
+    // are both populated from Hyperswitch's `customer_id` — HS only carries one
+    // customer identifier, and Signifyd's cert kit explicitly requires `username`
+    // to be supplied even when it duplicates another field on the same payload.
     username: Option<id_type::CustomerId>,
     email: Option<Email>,
     phone: Option<Secret<String>>,
@@ -217,8 +221,8 @@ pub struct CheckoutPaymentDetails {
     // HS' `CardData` trait helpers (`get_expiry_month_as_i8`,
     // `get_expiry_year_as_4_digit_i32`) target `Card`, not `AdditionalCardInfo`,
     // so we parse once via `parse_card_digits` at struct construction.
-    card_expiry_month: Option<i32>,
-    card_expiry_year: Option<i32>,
+    card_expiry_month: Option<Secret<i32>>,
+    card_expiry_year: Option<Secret<i32>>,
     card_last4: Option<String>,
     billing_address: Option<BillingAddress>,
 }
@@ -246,14 +250,14 @@ fn map_payment_method_kind(value: Option<PaymentMethodType>) -> PaymentMethodKin
 /// `CardData::get_expiry_year_as_4_digit_i32` but works on `AdditionalCardInfo`'s
 /// `Option<Secret<String>>` (the `CardData` trait targets `Card`, not
 /// `AdditionalCardInfo`). Returns `None` if missing or unparseable.
-fn parse_card_digits(value: Option<&Secret<String>>) -> Option<i32> {
-    value.and_then(|s| s.peek().trim().parse::<i32>().ok())
+fn parse_card_digits(value: Option<&Secret<String>>) -> Option<Secret<i32>> {
+    value.and_then(|s| s.peek().trim().parse::<i32>().ok().map(Secret::new))
 }
 
 /// Parse a card-expiry year to a 4-digit `i32`. Mirrors the canonical
 /// `CardData::get_expiry_year_4_digit` heuristic (string-length check) before
 /// parsing.
-fn parse_card_year_4_digit(value: Option<&Secret<String>>) -> Option<i32> {
+fn parse_card_year_4_digit(value: Option<&Secret<String>>) -> Option<Secret<i32>> {
     value.and_then(|s| {
         let raw = s.peek().trim();
         let four_digit = if raw.len() == 2 {
@@ -261,7 +265,7 @@ fn parse_card_year_4_digit(value: Option<&Secret<String>>) -> Option<i32> {
         } else {
             raw.to_string()
         };
-        four_digit.parse::<i32>().ok()
+        four_digit.parse::<i32>().ok().map(Secret::new)
     })
 }
 
