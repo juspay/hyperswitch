@@ -1,4 +1,4 @@
-use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
+use common_utils::errors::CustomResult;
 use hyperswitch_interfaces::secrets_interface::{
     secret_handler::SecretsHandler,
     secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
@@ -315,36 +315,6 @@ impl SecretsHandler for settings::ChatSettings {
 }
 
 #[async_trait::async_trait]
-impl SecretsHandler for settings::NetworkTokenizationService {
-    async fn convert_to_raw_secret(
-        value: SecretStateContainer<Self, SecuredSecret>,
-        secret_management_client: &dyn SecretManagementInterface,
-    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
-        let network_tokenization = value.get_inner();
-        let token_service_api_key = secret_management_client
-            .get_secret(network_tokenization.token_service_api_key.clone())
-            .await?;
-        let public_key = secret_management_client
-            .get_secret(network_tokenization.public_key.clone())
-            .await?;
-        let private_key = secret_management_client
-            .get_secret(network_tokenization.private_key.clone())
-            .await?;
-        let webhook_source_verification_key = secret_management_client
-            .get_secret(network_tokenization.webhook_source_verification_key.clone())
-            .await?;
-
-        Ok(value.transition_state(|network_tokenization| Self {
-            public_key,
-            private_key,
-            token_service_api_key,
-            webhook_source_verification_key,
-            ..network_tokenization
-        }))
-    }
-}
-
-#[async_trait::async_trait]
 impl SecretsHandler for settings::OidcSettings {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
@@ -498,19 +468,6 @@ pub(crate) async fn fetch_raw_secrets(
     .expect("Failed to decrypt user_auth_methods configs");
 
     #[allow(clippy::expect_used)]
-    let network_tokenization_service = conf
-        .network_tokenization_service
-        .async_map(|network_tokenization_service| async {
-            settings::NetworkTokenizationService::convert_to_raw_secret(
-                network_tokenization_service,
-                secret_management_client,
-            )
-            .await
-            .expect("Failed to decrypt network tokenization service configs")
-        })
-        .await;
-
-    #[allow(clippy::expect_used)]
     let chat = settings::ChatSettings::convert_to_raw_secret(conf.chat, secret_management_client)
         .await
         .expect("Failed to decrypt chat configs");
@@ -621,7 +578,7 @@ pub(crate) async fn fetch_raw_secrets(
         cell_information: conf.cell_information,
         network_tokenization_supported_card_networks: conf
             .network_tokenization_supported_card_networks,
-        network_tokenization_service,
+        network_tokenization_service: conf.network_tokenization_service,
         network_tokenization_supported_connectors: conf.network_tokenization_supported_connectors,
         theme: conf.theme,
         platform: conf.platform,

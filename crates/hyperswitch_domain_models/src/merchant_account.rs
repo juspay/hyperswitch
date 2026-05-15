@@ -153,6 +153,7 @@ pub struct MerchantAccountSetter {
     pub version: common_enums::ApiVersion,
     pub product_type: Option<common_enums::MerchantProductType>,
     pub merchant_account_type: common_enums::MerchantAccountType,
+    pub network_tokenization_credentials: OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v2")]
@@ -173,6 +174,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             version,
             product_type,
             merchant_account_type,
+            network_tokenization_credentials,
         } = item;
         Self {
             id,
@@ -189,6 +191,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             version,
             product_type,
             merchant_account_type,
+            network_tokenization_credentials,
         }
     }
 }
@@ -210,6 +213,7 @@ pub struct MerchantAccount {
     pub version: common_enums::ApiVersion,
     pub product_type: Option<common_enums::MerchantProductType>,
     pub merchant_account_type: common_enums::MerchantAccountType,
+    pub network_tokenization_credentials: OptionalEncryptableValue,
 }
 
 impl MerchantAccount {
@@ -306,6 +310,7 @@ pub enum MerchantAccountUpdate {
         merchant_details: OptionalEncryptableValue,
         publishable_key: Option<String>,
         metadata: Option<Box<pii::SecretSerdeValue>>,
+        network_tokenization_credentials: Box<OptionalEncryptableValue>,
     },
     StorageSchemeUpdate {
         storage_scheme: MerchantStorageScheme,
@@ -510,6 +515,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 merchant_details,
                 publishable_key,
                 metadata,
+                network_tokenization_credentials,
             } => Self {
                 merchant_name: merchant_name.map(Encryption::from),
                 merchant_details: merchant_details.map(Encryption::from),
@@ -521,6 +527,8 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 recon_status: None,
                 is_platform_account: None,
                 product_type: None,
+                network_tokenization_credentials: (*network_tokenization_credentials)
+                    .map(Encryption::from),
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
                 storage_scheme: Some(storage_scheme),
@@ -533,6 +541,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 recon_status: None,
                 is_platform_account: None,
                 product_type: None,
+                network_tokenization_credentials: None,
             },
             MerchantAccountUpdate::ReconUpdate { recon_status } => Self {
                 recon_status: Some(recon_status),
@@ -545,6 +554,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 organization_id: None,
                 is_platform_account: None,
                 product_type: None,
+                network_tokenization_credentials: None,
             },
             MerchantAccountUpdate::ModifiedAtUpdate => Self {
                 modified_at: now,
@@ -557,6 +567,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 recon_status: None,
                 is_platform_account: None,
                 product_type: None,
+                network_tokenization_credentials: None,
             },
         }
     }
@@ -585,6 +596,9 @@ impl Conversion for MerchantAccount {
             is_platform_account: self.is_platform_account,
             product_type: self.product_type,
             merchant_account_type: self.merchant_account_type,
+            network_tokenization_credentials: self
+                .network_tokenization_credentials
+                .map(|credentials| credentials.into()),
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
@@ -648,6 +662,20 @@ impl Conversion for MerchantAccount {
                 version: item.version,
                 product_type: item.product_type,
                 merchant_account_type: item.merchant_account_type.unwrap_or_default(),
+                network_tokenization_credentials: item
+                    .network_tokenization_credentials
+                    .async_lift(|inner| async {
+                        crypto_operation(
+                            state,
+                            type_name!(Self::DstType),
+                            CryptoOperation::DecryptOptional(inner),
+                            key_manager_identifier.clone(),
+                            key.peek(),
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
+                    })
+                    .await?,
             })
         }
         .await
@@ -674,6 +702,9 @@ impl Conversion for MerchantAccount {
                 .product_type
                 .or(Some(common_enums::MerchantProductType::Orchestration)),
             merchant_account_type: self.merchant_account_type,
+            network_tokenization_credentials: self
+                .network_tokenization_credentials
+                .map(Encryption::from),
         })
     }
 }
