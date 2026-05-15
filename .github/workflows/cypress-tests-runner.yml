@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -708,7 +709,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        connector: [adyenplatform]
+        connector: [paypal, bluesnap, redsys, gigadat, zift, loonio, adyenplatform]
+    env:
+      MITM_UBUNTU_ARTIFACT_RUN_ID: "25913781608"
 
     services:
       redis:
@@ -758,28 +761,18 @@ jobs:
           toolchain: stable 2 weeks ago
           components: rustfmt
 
-      - name: Install Protoc
+      - name: Download ubuntu router artifact
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: arduino/setup-protoc@v3
+        uses: actions/download-artifact@v8
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build hyperswitch server
-        if: ${{ env.RUN_TESTS == 'true' }}
-        run: cargo build --package router --bin router --jobs 2
+          name: hyperswitch-server-ubuntu-latest-mitm
+          path: target/debug
+          run-id: ${{ env.MITM_UBUNTU_ARTIFACT_RUN_ID }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Make server executable
         if: ${{ env.RUN_TESTS == 'true' }}
         run: chmod +x target/debug/router
-
-      - name: Upload ubuntu router artifact for MITM reruns
-        if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: hyperswitch-server-ubuntu-latest-mitm
-          overwrite: true
-          path: target/debug/router
-          retention-days: 3
 
       - name: Download connector creds from S3 and decrypt
         if: ${{ env.RUN_TESTS == 'true' }}
