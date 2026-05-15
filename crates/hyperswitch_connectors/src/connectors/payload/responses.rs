@@ -1,4 +1,4 @@
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 // PaymentsResponse
 #[derive(Default, Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -18,6 +18,12 @@ pub enum PayloadPaymentStatus {
 pub enum PayloadPaymentsResponse {
     PayloadCardsResponse(PayloadCardsResponseData),
 }
+
+/// Newtype wrapping `PayloadPaymentsResponse` for the PostCaptureVoid flow.
+/// A distinct type is required so its `TryFrom` impl does not conflict with
+/// the blanket `TryFrom<ResponseRouterData<F, PayloadPaymentsResponse, ...>>` impl.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PayloadPostCaptureVoidResponse(pub PayloadPaymentsResponse);
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]

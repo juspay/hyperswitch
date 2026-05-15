@@ -10,6 +10,7 @@ use router_env::{instrument, logger, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, operations::ValidateStatusForOperation},
     },
@@ -44,7 +45,7 @@ impl ValidateStatusForOperation for PaymentSessionIntent {
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::Succeeded
-            | common_enums::IntentStatus::Failed | common_enums::IntentStatus::Conflicted | common_enums::IntentStatus::Expired => {
+            | common_enums::IntentStatus::Failed | common_enums::IntentStatus::Conflicted | common_enums::IntentStatus::Expired | common_enums::IntentStatus::Review=> {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: format!(
                         "You cannot create session token for this payment because it has status {intent_status}. Expected status is requires_payment_method.",
@@ -170,6 +171,7 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsS
         mut payment_data: payments::PaymentIntentData<F>,
         _frm_suggestion: Option<common_enums::FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(
         PaymentSessionOperation<'b, F>,
         payments::PaymentIntentData<F>,
@@ -369,7 +371,9 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut payments::PaymentIntentData<F>,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }

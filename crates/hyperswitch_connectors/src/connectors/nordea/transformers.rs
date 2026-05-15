@@ -14,7 +14,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use rand::distributions::DistString;
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -332,6 +332,7 @@ impl TryFrom<&NordeaRouterData<&CreateOrderRouterData>> for NordeaPaymentsReques
                 BankDebitData::AchBankDebit { .. }
                 | BankDebitData::BacsBankDebit { .. }
                 | BankDebitData::BecsBankDebit { .. }
+                | BankDebitData::EftDebitOrder { .. }
                 | BankDebitData::SepaGuarenteedBankDebit { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         get_unimplemented_payment_method_error_message("Nordea"),
@@ -342,6 +343,10 @@ impl TryFrom<&NordeaRouterData<&CreateOrderRouterData>> for NordeaPaymentsReques
             Some(PaymentMethodData::CardRedirect(_))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_))
+            | Some(
+                PaymentMethodData::CardWithOptionalCVC(_)
+                | PaymentMethodData::CardWithNetworkTokenDetails(_),
+            )
             | Some(PaymentMethodData::CardWithLimitedDetails(_))
             | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::Wallet(_))
@@ -414,6 +419,7 @@ impl TryFrom<&NordeaRouterData<&PaymentsPreProcessingRouterData>> for NordeaPaym
                 BankDebitData::AchBankDebit { .. }
                 | BankDebitData::BacsBankDebit { .. }
                 | BankDebitData::BecsBankDebit { .. }
+                | BankDebitData::EftDebitOrder { .. }
                 | BankDebitData::SepaGuarenteedBankDebit { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         get_unimplemented_payment_method_error_message("Nordea"),
@@ -424,6 +430,10 @@ impl TryFrom<&NordeaRouterData<&PaymentsPreProcessingRouterData>> for NordeaPaym
             Some(PaymentMethodData::CardRedirect(_))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_))
+            | Some(
+                PaymentMethodData::CardWithOptionalCVC(_)
+                | PaymentMethodData::CardWithNetworkTokenDetails(_),
+            )
             | Some(PaymentMethodData::CardWithLimitedDetails(_))
             | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::Wallet(_))

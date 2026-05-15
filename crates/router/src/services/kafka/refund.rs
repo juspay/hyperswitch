@@ -4,7 +4,7 @@ use common_utils::pii;
 use common_utils::types::{self, ChargeRefunds};
 use common_utils::{
     id_type,
-    types::{ConnectorTransactionIdTrait, MinorUnit},
+    types::{ConnectorTransactionIdTrait, CreatedBy, MinorUnit},
 };
 use diesel_models::{enums as storage_enums, refund::Refund};
 use time::OffsetDateTime;
@@ -41,7 +41,7 @@ pub struct KafkaRefund<'a> {
     pub profile_id: Option<&'a id_type::ProfileId>,
     pub organization_id: &'a id_type::OrganizationId,
     pub processor_merchant_id: Option<&'a id_type::MerchantId>,
-    pub created_by: Option<&'a String>,
+    pub created_by: Option<CreatedBy>,
 }
 
 #[cfg(feature = "v1")]
@@ -73,7 +73,10 @@ impl<'a> KafkaRefund<'a> {
             profile_id: refund.profile_id.as_ref(),
             organization_id: &refund.organization_id,
             processor_merchant_id: refund.processor_merchant_id.as_ref(),
-            created_by: refund.created_by.as_ref(),
+            created_by: refund
+                .created_by
+                .as_ref()
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
         }
     }
 }
@@ -120,7 +123,7 @@ pub struct KafkaRefund<'a> {
     pub processor_refund_data: Option<&'a String>,
     pub processor_transaction_data: Option<&'a String>,
     pub processor_merchant_id: Option<&'a id_type::MerchantId>,
-    pub created_by: Option<&'a String>,
+    pub created_by: Option<CreatedBy>,
 }
 
 #[cfg(feature = "v2")]
@@ -201,7 +204,9 @@ impl<'a> KafkaRefund<'a> {
             processor_refund_data: processor_refund_data.as_ref(),
             processor_transaction_data: processor_transaction_data.as_ref(),
             processor_merchant_id: processor_merchant_id.as_ref(),
-            created_by: created_by.as_ref(),
+            created_by: created_by
+                .as_ref()
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
         }
     }
 }

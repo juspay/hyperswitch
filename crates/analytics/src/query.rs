@@ -952,6 +952,7 @@ where
             Self::MerchantLevel {
                 org_id,
                 merchant_ids,
+                processor_merchant_ids,
             } => {
                 builder
                     .add_filter_clause("organization_id", org_id)
@@ -959,11 +960,17 @@ where
                 builder
                     .add_filter_in_range_clause("merchant_id", merchant_ids)
                     .attach_printable("Error adding merchant_id filter")?;
+                if let Some(processor_mids) = processor_merchant_ids {
+                    builder
+                        .add_filter_in_range_clause("processor_merchant_id", processor_mids)
+                        .attach_printable("Error adding processor_merchant_id filter")?;
+                }
             }
             Self::ProfileLevel {
                 org_id,
                 merchant_id,
                 profile_ids,
+                processor_merchant_id,
             } => {
                 builder
                     .add_filter_clause("organization_id", org_id)
@@ -974,6 +981,11 @@ where
                 builder
                     .add_filter_in_range_clause("profile_id", profile_ids)
                     .attach_printable("Error adding profile_id filter")?;
+                if let Some(processor_mid) = processor_merchant_id {
+                    builder
+                        .add_filter_clause("processor_merchant_id", processor_mid)
+                        .attach_printable("Error adding processor_merchant_id filter")?;
+                }
             }
         }
         Ok(())

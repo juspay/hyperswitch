@@ -8,7 +8,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use external_services::http_client;
 use hyperswitch_domain_models::chat as chat_domain;
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 use router_env::{
     instrument, logger,
     tracing::{self, Instrument},

@@ -64,6 +64,8 @@ pub struct KafkaAuthentication<'a> {
     pub scheme_name: Option<&'a String>,
     pub exemption_requested: Option<bool>,
     pub exemption_accepted: Option<bool>,
+    pub processor_merchant_id: Option<&'a common_utils::id_type::MerchantId>,
+    pub created_by: Option<&'a common_utils::types::CreatedBy>,
 }
 
 impl<'a> KafkaAuthentication<'a> {
@@ -128,6 +130,8 @@ impl<'a> KafkaAuthentication<'a> {
             scheme_name: authentication.scheme_name.as_ref(),
             exemption_requested: authentication.exemption_requested,
             exemption_accepted: authentication.exemption_accepted,
+            processor_merchant_id: authentication.processor_merchant_id.as_ref(),
+            created_by: authentication.created_by.as_ref(),
         }
     }
 }

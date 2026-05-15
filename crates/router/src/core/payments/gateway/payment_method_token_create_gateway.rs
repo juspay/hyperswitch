@@ -15,7 +15,7 @@ use unified_connector_service_client::payments as payments_grpc;
 use crate::{
     core::{
         payments::gateway::context::RouterGatewayContext, unified_connector_service,
-        unified_connector_service::handle_unified_connector_service_response_for_payment_method_token_create,
+        unified_connector_service::handle_unified_connector_service_response_for_payment_method_tokenize,
     },
     routes::SessionState,
     services::logger,
@@ -82,12 +82,10 @@ where
             .ok_or(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
-        let pm_token_create_request =
-            payments_grpc::PaymentServiceCreatePaymentMethodTokenRequest::foreign_try_from(
-                router_data,
-            )
-            .change_context(ConnectorError::RequestEncodingFailed)
-            .attach_printable("Failed to construct Payment Get Request")?;
+        let payment_method_tokenize_request =
+            payments_grpc::PaymentMethodServiceTokenizeRequest::foreign_try_from(router_data)
+                .change_context(ConnectorError::RequestEncodingFailed)
+                .attach_printable("Failed to construct Payment Method Tokenize Request")?;
 
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
@@ -120,23 +118,23 @@ where
         Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
             router_data.clone(),
             state,
-            pm_token_create_request,
+            payment_method_tokenize_request,
             header_payload,
             unified_connector_service_execution_mode,
-            |mut router_data, pm_token_create_request, grpc_headers| async move {
-                let response = Box::pin(client.payment_method_token_create(
-                    pm_token_create_request,
+            |mut router_data, payment_method_tokenize_request, grpc_headers| async move {
+                let response = Box::pin(client.payment_method_tokenize(
+                    payment_method_tokenize_request,
                     connector_auth_metadata,
                     grpc_headers,
                 ))
                 .await
-                .attach_printable("Failed to get payment")?;
+                .attach_printable("Failed to Tokenize payment method")?;
 
-                let pm_token_create_response = response.into_inner();
+                let payment_method_tokenize_response = response.into_inner();
 
                 let (router_data_response, status_code) =
-                    handle_unified_connector_service_response_for_payment_method_token_create(
-                        pm_token_create_response.clone(),
+                    handle_unified_connector_service_response_for_payment_method_tokenize(
+                        payment_method_tokenize_response.clone(),
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 
@@ -154,7 +152,7 @@ where
                 router_data.response = router_data_response;
                 router_data.connector_http_status_code = Some(status_code);
 
-                Ok((router_data, (), pm_token_create_response))
+                Ok((router_data, (), payment_method_tokenize_response))
             },
         ))
         .await

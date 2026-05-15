@@ -198,9 +198,17 @@ jobs:
           tool: just
           checksum: true
 
-      - name: Run clippy
+      - name: Run clippy (redis-rs backend)
         shell: bash
+        env:
+          CARGO_BUILD_JOBS: 3
         run: just clippy
+
+      - name: Run clippy (fred backend)
+        shell: bash
+        env:
+          CARGO_BUILD_JOBS: 3
+        run: just clippy fred
 
       - name: Check Cargo.lock changed
         if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
@@ -236,7 +244,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Spell check specific directories
-        uses: crate-ci/typos@master
+        uses: crate-ci/typos@v1.45.0
         with:
           files: |
             api-reference/
@@ -286,14 +294,26 @@ jobs:
           tool: just
           checksum: true
 
-      - name: Run cargo clippy with v2 features enabled
+      - name: Run cargo clippy with v2 features enabled (redis-rs backend)
         shell: bash
         env:
           CARGO_BUILD_JOBS: 3
         run: just clippy_v2
 
-      - name: Run cargo check enabling only the release and v2 features
+      - name: Run cargo clippy with v2 features enabled (fred backend)
+        shell: bash
+        env:
+          CARGO_BUILD_JOBS: 3
+        run: just clippy_v2 fred
+
+      - name: Run cargo check enabling only the release and v2 features (redis-rs backend)
         shell: bash
         env:
           RUSTFLAGS: "-A warnings"
-        run: cargo check --no-default-features --features "release,v2"
+        run: cargo check --no-default-features --features "release,v2,redis-rs"
+
+      - name: Run cargo check enabling only the release and v2 features (fred backend)
+        shell: bash
+        env:
+          RUSTFLAGS: "-A warnings"
+        run: cargo check --no-default-features --features "release,v2,fred"

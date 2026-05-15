@@ -1,4 +1,4 @@
-use masking::Secret;
+use hyperswitch_masking::Secret;
 
 /// Lead source constant for Hubspot
 pub const HUBSPOT_LEAD_SOURCE: &str = "Hyperswitch Dashboard";

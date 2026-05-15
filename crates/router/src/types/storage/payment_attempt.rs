@@ -150,6 +150,7 @@ mod tests {
             StorageImpl::PostgresqlTest,
             tx,
             api_client,
+            env!("CARGO_PKG_NAME"),
         ))
         .await
     }
@@ -244,6 +245,7 @@ mod tests {
             error_details: Default::default(),
             retry_type: Default::default(),
             installment_data: Default::default(),
+            external_surcharge_details: Default::default(),
         };
 
         let store = state
@@ -364,6 +366,7 @@ mod tests {
             error_details: Default::default(),
             retry_type: Default::default(),
             installment_data: Default::default(),
+            external_surcharge_details: Default::default(),
         };
         let store = state
             .stores
@@ -498,6 +501,7 @@ mod tests {
             error_details: Default::default(),
             retry_type: Default::default(),
             installment_data: Default::default(),
+            external_surcharge_details: Default::default(),
         };
         let store = state
             .stores

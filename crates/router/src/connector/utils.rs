@@ -24,7 +24,7 @@ use common_utils::{
 use diesel_models::{enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
-use masking::{Deserialize, ExposeInterface, Secret};
+use hyperswitch_masking::{Deserialize, ExposeInterface, Secret};
 use regex::Regex;
 
 #[cfg(feature = "frm")]
@@ -251,6 +251,14 @@ where
                             .connector_transaction_id
                             .clone(),
                     })?
+                } else {
+                    Ok(self.status)
+                }
+            }
+            enums::AttemptStatus::CaptureFailed => {
+                // If the intent has already been marked successful but we receive a CaptureFailed event for the payment attempt (via webhook), mark it as Review
+                if payment_data.payment_intent.status == enums::IntentStatus::Succeeded {
+                    Ok(enums::AttemptStatus::CaptureReview)
                 } else {
                     Ok(self.status)
                 }
@@ -2325,7 +2333,8 @@ impl FrmTransactionRouterDataRequest for fraud_check::FrmTransactionRouterData {
             | storage_enums::AttemptStatus::PaymentMethodAwaited
             | storage_enums::AttemptStatus::ConfirmationAwaited
             | storage_enums::AttemptStatus::DeviceDataCollectionPending
-            | storage_enums::AttemptStatus::IntegrityFailure => None,
+            | storage_enums::AttemptStatus::IntegrityFailure
+            | storage_enums::AttemptStatus::CaptureReview => None,
         }
     }
 }
@@ -2359,7 +2368,8 @@ pub fn is_payment_failure(status: enums::AttemptStatus) -> bool {
         | common_enums::AttemptStatus::ConfirmationAwaited
         | common_enums::AttemptStatus::DeviceDataCollectionPending
         | common_enums::AttemptStatus::IntegrityFailure
-        | common_enums::AttemptStatus::PartiallyAuthorized => false,
+        | common_enums::AttemptStatus::PartiallyAuthorized
+        | common_enums::AttemptStatus::CaptureReview => false,
     }
 }
 
@@ -2599,6 +2609,7 @@ pub enum PaymentMethodDataType {
     OnlineBankingFpx,
     OnlineBankingThailand,
     AchBankDebit,
+    EftDebitOrder,
     SepaBankDebit,
     SepaGuarenteedDebit,
     BecsBankDebit,
@@ -2615,6 +2626,8 @@ pub enum PaymentMethodDataType {
     DanamonVaBankTransfer,
     MandiriVaBankTransfer,
     Pix,
+    PixAutomaticoPush,
+    PixAutomaticoQr,
     Pse,
     Crypto,
     MandatePayment,
@@ -2658,6 +2671,8 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
     fn from(pm_data: domain::payments::PaymentMethodData) -> Self {
         match pm_data {
             domain::payments::PaymentMethodData::Card(_) => Self::Card,
+            domain::payments::PaymentMethodData::CardWithOptionalCVC(_) => Self::Card,
+            domain::payments::PaymentMethodData::CardWithNetworkTokenDetails(_) => Self::Card,
             domain::payments::PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
             domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Self::Card,
             domain::PaymentMethodData::CardWithLimitedDetails(_) => Self::Card,
@@ -2773,6 +2788,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     domain::payments::BankDebitData::SepaGuarenteedBankDebit { .. } => Self::SepaGuarenteedDebit,
                     domain::payments::BankDebitData::BecsBankDebit { .. } => Self::BecsBankDebit,
                     domain::payments::BankDebitData::BacsBankDebit { .. } => Self::BacsBankDebit,
+                    domain::payments::BankDebitData::EftDebitOrder { .. } => Self::EftDebitOrder,
                 }
             }
             domain::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
@@ -2811,6 +2827,8 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                         Self::MandiriVaBankTransfer
                     }
                     domain::payments::BankTransferData::Pix { .. } => Self::Pix,
+                    domain::payments::BankTransferData::PixAutomaticoPush { .. } => Self::PixAutomaticoPush,
+                    domain::payments::BankTransferData::PixAutomaticoQr {} => Self::PixAutomaticoQr,
                     domain::payments::BankTransferData::Pse {} => Self::Pse,
                     domain::payments::BankTransferData::LocalBankTransfer { .. } => {
                         Self::LocalBankTransfer

@@ -181,6 +181,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Fiservemea => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Fiservemea::new())))
                 }
+                enums::Connector::Fiservcommercehub => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Fiservcommercehub::new(),
+                ))),
                 enums::Connector::Fiuu => Ok(ConnectorEnum::Old(Box::new(connector::Fiuu::new()))),
                 enums::Connector::Forte => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Forte::new())))
@@ -218,6 +221,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Iatapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
                 }
+                enums::Connector::Imerchantsolutions => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Imerchantsolutions::new(),
+                ))),
                 enums::Connector::Inespay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Inespay::new())))
                 }
@@ -387,6 +393,12 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Truelayer => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Truelayer::new())))
                 }
+                enums::Connector::Sanlam => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Sanlam::new())))
+                }
+                enums::Connector::Trustly => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Trustly::new())))
+                }
                 enums::Connector::Trustpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustpay::new())))
                 }
@@ -433,6 +445,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Taxjar => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Taxjar::new())))
                 }
+                enums::Connector::Interpayments => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Interpayments::new(),
+                ))),
                 enums::Connector::Cardinal => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))

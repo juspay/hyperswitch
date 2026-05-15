@@ -2,7 +2,7 @@ use api_models::enums::PayoutConnectors;
 use common_enums as storage_enums;
 use common_utils::{
     id_type, payout_method_utils, pii,
-    types::{UnifiedCode, UnifiedMessage},
+    types::{self, UnifiedCode, UnifiedMessage},
 };
 use serde::{Deserialize, Serialize};
 use storage_enums::MerchantStorageScheme;
@@ -93,6 +93,10 @@ pub struct PayoutAttempt {
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub merchant_order_reference_id: Option<String>,
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    pub created_by: Option<types::CreatedBy>,
+    pub source_bank_data_token: Option<String>,
+    pub additional_source_bank_data: Option<payout_method_utils::BankAdditionalData>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -121,6 +125,10 @@ pub struct PayoutAttemptNew {
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub merchant_order_reference_id: Option<String>,
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    pub created_by: Option<types::CreatedBy>,
+    pub source_bank_data_token: Option<String>,
+    pub additional_source_bank_data: Option<payout_method_utils::BankAdditionalData>,
 }
 
 #[derive(Debug, Clone)]
@@ -150,8 +158,10 @@ pub enum PayoutAttemptUpdate {
         routing_info: Option<serde_json::Value>,
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     },
-    AdditionalPayoutMethodDataUpdate {
+    AdditionalPayoutDataUpdate {
         additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
+        additional_source_bank_data: Option<payout_method_utils::BankAdditionalData>,
+        source_bank_data_token: Option<String>,
     },
     ManualUpdate {
         status: Option<storage_enums::PayoutStatus>,
@@ -182,6 +192,8 @@ pub struct PayoutAttemptUpdateInternal {
     pub unified_message: Option<UnifiedMessage>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
+    pub source_bank_data_token: Option<String>,
+    pub additional_source_bank_data: Option<payout_method_utils::BankAdditionalData>,
 }
 
 impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
@@ -233,10 +245,14 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 merchant_connector_id,
                 ..Default::default()
             },
-            PayoutAttemptUpdate::AdditionalPayoutMethodDataUpdate {
+            PayoutAttemptUpdate::AdditionalPayoutDataUpdate {
                 additional_payout_method_data,
+                additional_source_bank_data,
+                source_bank_data_token,
             } => Self {
                 additional_payout_method_data,
+                additional_source_bank_data,
+                source_bank_data_token,
                 ..Default::default()
             },
             PayoutAttemptUpdate::ManualUpdate {

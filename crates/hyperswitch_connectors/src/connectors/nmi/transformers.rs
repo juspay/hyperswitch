@@ -24,7 +24,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors::ConnectorError;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
@@ -549,6 +549,8 @@ pub struct NmiPaymentsRequest {
 #[skip_serializing_none]
 #[derive(Debug, Serialize)]
 pub struct NmiBillingDetails {
+    first_name: Option<Secret<String>>,
+    last_name: Option<Secret<String>>,
     address1: Option<Secret<String>>,
     address2: Option<Secret<String>>,
     city: Option<String>,
@@ -845,6 +847,8 @@ impl TryFrom<(&PaymentMethodData, Option<&PaymentsAuthorizeRouterData>)> for Pay
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => Err(
@@ -1758,6 +1762,8 @@ impl TryFrom<&NmiWebhookBody> for SyncResponse {
 impl<T: utils::RouterData> NmiRouterData<&T> {
     pub fn get_billing_details(&self) -> NmiBillingDetails {
         NmiBillingDetails {
+            first_name: self.router_data.get_optional_billing_first_name(),
+            last_name: self.router_data.get_optional_billing_last_name(),
             address1: self.router_data.get_optional_billing_line1(),
             address2: self.router_data.get_optional_billing_line2(),
             city: self.router_data.get_optional_billing_city(),

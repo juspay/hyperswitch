@@ -20,6 +20,9 @@ pub struct PaymentMethodMetaData {
     /// The card network (e.g., Visa, Mastercard) if the payment method is a card.
     #[schema(value_type = CardNetwork)]
     pub card_network: Option<common_enums::CardNetwork>,
+    /// The card discovery method (e.g., manual entry, saved card, click to pay).
+    #[schema(value_type = CardDiscovery)]
+    pub card_discovery: Option<common_enums::CardDiscovery>,
 }
 
 /// Represents data about the customer's device used in the 3DS decision rule.

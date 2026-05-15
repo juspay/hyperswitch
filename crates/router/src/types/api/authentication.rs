@@ -63,7 +63,7 @@ impl TryFrom<hyperswitch_domain_models::authentication::Authentication> for Auth
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
 pub struct PostAuthenticationResponse {
     pub trans_status: String,
-    pub authentication_value: Option<masking::Secret<String>>,
+    pub authentication_value: Option<hyperswitch_masking::Secret<String>>,
     pub eci: Option<String>,
 }
 

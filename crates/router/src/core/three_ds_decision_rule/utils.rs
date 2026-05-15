@@ -65,7 +65,10 @@ impl ForeignFrom<Option<api_threedsecure::PaymentMethodMetaData>>
         Self {
             payment_method: None,
             payment_method_type: None,
-            card_network: request_payment_method_metadata.and_then(|pm| pm.card_network),
+            card_network: request_payment_method_metadata
+                .as_ref()
+                .and_then(|pm| pm.card_network.clone()),
+            card_discovery: request_payment_method_metadata.and_then(|pm| pm.card_discovery),
         }
     }
 }
