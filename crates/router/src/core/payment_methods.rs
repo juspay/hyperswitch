@@ -981,7 +981,8 @@ pub(crate) async fn get_payment_method_create_request(
         ) => {
             let payment_method_data = Some(payment_methods::PaymentMethodCreateData::Wallet(
                 payment_methods::WalletDetail::ApplePayDecryptedData {
-                    dpan: apple_pay_decrypted_data.application_primary_account_number,
+                    application_primary_account_number: apple_pay_decrypted_data
+                        .application_primary_account_number,
                     expiry_month: apple_pay_decrypted_data.application_expiration_month,
                     expiry_year: apple_pay_decrypted_data.application_expiration_year,
                 },

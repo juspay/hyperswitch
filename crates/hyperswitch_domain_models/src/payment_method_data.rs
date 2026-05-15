@@ -1617,7 +1617,7 @@ impl From<BankDebitDetail> for payment_methods::BankDebitDetail {
 #[serde(rename_all = "snake_case")]
 pub enum WalletDetail {
     ApplePayDecryptedData {
-        dpan: cards::CardNumber,
+        application_primary_account_number: cards::CardNumber,
         expiry_month: Secret<String>,
         expiry_year: Secret<String>,
     },
@@ -1628,11 +1628,11 @@ impl From<payment_methods::WalletDetail> for WalletDetail {
     fn from(wallet: payment_methods::WalletDetail) -> Self {
         match wallet {
             payment_methods::WalletDetail::ApplePayDecryptedData {
-                dpan,
+                application_primary_account_number,
                 expiry_month,
                 expiry_year,
             } => Self::ApplePayDecryptedData {
-                dpan,
+                application_primary_account_number,
                 expiry_month,
                 expiry_year,
             },

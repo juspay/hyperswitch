@@ -30,7 +30,7 @@ pub enum FingerprintData {
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
 pub struct FingerprintWalletData {
-    dpan: cards::CardNumber,
+    application_primary_account_number: cards::CardNumber,
     expiry_month: hyperswitch_masking::Secret<String>,
     expiry_year: hyperswitch_masking::Secret<String>,
 }
@@ -211,11 +211,11 @@ impl PaymentMethodVaultingData {
             Self::Wallet(wallet) => {
                 let wallet_info = match wallet {
                     payment_method_data::WalletDetail::ApplePayDecryptedData {
-                        dpan,
+                        application_primary_account_number,
                         expiry_month,
                         expiry_year,
                     } => payment_methods::PaymentMethodDataWalletInfo {
-                        last4: Some(dpan.get_last4()),
+                        last4: Some(application_primary_account_number.get_last4()),
                         card_network: None,
                         card_type: None,
                         card_exp_month: Some(expiry_month.clone()),
@@ -247,15 +247,19 @@ impl PaymentMethodVaultingData {
                 FingerprintData::BankDebit(Self::get_bank_debit_fingerprint_data(bank_debit))
             }
             Self::Wallet(wallet) => {
-                let (dpan, expiry_month, expiry_year) = match wallet {
+                let (application_primary_account_number, expiry_month, expiry_year) = match wallet {
                     payment_method_data::WalletDetail::ApplePayDecryptedData {
-                        dpan,
+                        application_primary_account_number,
                         expiry_month,
                         expiry_year,
-                    } => (dpan.clone(), expiry_month.clone(), expiry_year.clone()),
+                    } => (
+                        application_primary_account_number.clone(),
+                        expiry_month.clone(),
+                        expiry_year.clone(),
+                    ),
                 };
                 FingerprintData::Wallet(FingerprintWalletData {
-                    dpan,
+                    application_primary_account_number,
                     expiry_month,
                     expiry_year,
                 })

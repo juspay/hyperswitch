@@ -694,9 +694,9 @@ pub enum BankDebitDetail {
 #[serde(rename_all = "snake_case")]
 pub enum WalletDetail {
     ApplePayDecryptedData {
-        /// The dpan number associated with card number
+        /// The application primary account number associated with the card
         #[schema(value_type = String, example = "4242424242424242")]
-        dpan: CardNumber,
+        application_primary_account_number: CardNumber,
 
         /// The card's expiry month
         #[schema(value_type = String)]
