@@ -37,11 +37,12 @@ use hyperswitch_domain_models::router_flow_types::{
     mandate_revoke::MandateRevoke,
     merchant_connector_webhook_management::ConnectorWebhookRegister,
     payments::{
-        Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
-        CompleteAuthorize, CreateConnectorCustomer, CreateOrder, ExtendAuthorization,
-        ExternalVaultProxy, GenerateQr, IncrementalAuthorization, InitPayment, PSync,
-        PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, PushNotification,
-        Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
+        Approve, Authorize, AuthorizeSessionToken, Balance, CalculateSurcharge, CalculateTax,
+        Capture, CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge,
+        CreateConnectorCustomer, CreateOrder, ExtendAuthorization, ExternalVaultProxy, GenerateQr,
+        IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid, PostProcessing,
+        PostSessionTokens, PreProcessing, PushNotification, Reject, SdkSessionUpdate, Session,
+        SetupMandate, UpdateMetadata, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -78,14 +79,16 @@ pub use hyperswitch_domain_models::{
         FetchDisputesRequestData, GenerateQrRequestData, MandateRevokeRequestData,
         MultipleCaptureRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
         PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsCompleteRefundSurchrgeData,
+        PaymentsCompleteSurchargeData, PaymentsExtendAuthorizationData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
-        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PushNotificationRequestData,
-        RefundsData, ResponseId, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
-        SetupMandateRequestData, SplitRefundsRequest, SubmitEvidenceRequestData, SyncRequestType,
-        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData,
+        PaymentsSurchargeCalculationData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, PushNotificationRequestData, RefundsData, ResponseId,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        SplitRefundsRequest, SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
+        VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
@@ -93,11 +96,12 @@ pub use hyperswitch_domain_models::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
         },
-        AcceptDisputeResponse, CaptureSyncResponse, DefendDisputeResponse, DisputeSyncResponse,
+        AcceptDisputeResponse, CaptureSyncResponse, CompleteRefundSurchrgeResponseData,
+        CompleteSurchargeResponseData, DefendDisputeResponse, DisputeSyncResponse,
         FetchDisputesResponse, MandateReference, MandateRevokeResponseData, PaymentsResponseData,
         PreprocessingResponseId, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
-        VerifyWebhookSourceResponseData, VerifyWebhookStatus,
+        SurchargeCalculationResponseData, TaxCalculationResponseData, UploadFileResponse,
+        VaultResponseData, VerifyWebhookSourceResponseData, VerifyWebhookStatus,
     },
 };
 #[cfg(feature = "payouts")]
@@ -166,6 +170,18 @@ pub type PaymentsExtendAuthorizationRouterData =
     RouterData<ExtendAuthorization, PaymentsExtendAuthorizationData, PaymentsResponseData>;
 pub type PaymentsTaxCalculationRouterData =
     RouterData<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>;
+pub type SurchargeCalculationRouterData = RouterData<
+    CalculateSurcharge,
+    PaymentsSurchargeCalculationData,
+    SurchargeCalculationResponseData,
+>;
+pub type CompleteSurchargeRouterData =
+    RouterData<CompleteSurcharge, PaymentsCompleteSurchargeData, CompleteSurchargeResponseData>;
+pub type CompleteRefundSurchrgeRouterData = RouterData<
+    CompleteRefundSurchrge,
+    PaymentsCompleteRefundSurchrgeData,
+    CompleteRefundSurchrgeResponseData,
+>;
 
 pub type CreateOrderRouterData =
     RouterData<CreateOrder, CreateOrderRequestData, PaymentsResponseData>;

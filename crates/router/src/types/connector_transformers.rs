@@ -224,6 +224,11 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
                     message: "Taxjar is not a routable connector".to_string(),
                 })?
             }
+            api_enums::Connector::Interpayments => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "Interpayments is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Phonepe => Self::Phonepe,
             api_enums::Connector::Paytm => Self::Paytm,
         })
