@@ -1704,6 +1704,7 @@ impl PaymentCreate {
                 error_details: None,
                 retry_type: None,
                 installment_data: None,
+                external_surcharge_details: None,
             },
             additional_pm_data,
 
@@ -1739,7 +1740,7 @@ impl PaymentCreate {
                 }),
             request.confirm,
         );
-        let client_secret = payment_id.generate_client_secret();
+        let client_secret = payment_id.generate_client_secret(profile_id.get_string_repr());
         let (amount, currency) = (money.0, Some(money.1));
 
         let order_details = request

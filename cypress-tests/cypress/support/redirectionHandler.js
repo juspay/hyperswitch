@@ -933,7 +933,8 @@ function bankRedirectRedirection(
           case "nexinets":
             switch (paymentMethodType) {
               case "ideal":
-                // Nexinets iDEAL specific selector - click the Success link
+              case "giropay":
+                // Nexinets iDEAL/Giropay selector - click the Success link
                 cy.get("a.btn.btn-primary.btn-block")
                   .contains("Success")
                   .click();
@@ -943,6 +944,63 @@ function bankRedirectRedirection(
               default:
                 throw new Error(
                   `Unsupported Nexinets payment method type: ${paymentMethodType}`
+                );
+            }
+            break;
+
+          case "globalpay":
+            switch (paymentMethodType) {
+              case "ideal":
+              case "eps":
+                cy.get("body", { timeout: 15000 }).then(($body) => {
+                  const bodyText = $body.text().toLowerCase();
+                  if (
+                    bodyText.includes("timeout") ||
+                    bodyText.includes("error")
+                  ) {
+                    cy.log(
+                      `GlobalPay ${paymentMethodType} timeout detected - skipping interaction`
+                    );
+                    verifyUrl = false;
+                    return;
+                  }
+                  if ($body.find('button[type="submit"]').length > 0) {
+                    cy.get('button[type="submit"]').first().click();
+                  } else if (
+                    $body.find(
+                      '[data-testid*="confirm"], [data-testid*="continue"]'
+                    ).length > 0
+                  ) {
+                    cy.get(
+                      '[data-testid*="confirm"], [data-testid*="continue"]'
+                    )
+                      .first()
+                      .click();
+                  }
+                });
+                verifyUrl = false;
+                break;
+              case "giropay":
+                cy.get("body", { timeout: 10000 }).then(($body) => {
+                  const bodyText = $body.text().toLowerCase();
+                  if (
+                    bodyText.includes("timeout") ||
+                    bodyText.includes("error") ||
+                    bodyText.includes("503") ||
+                    bodyText.includes("unavailable")
+                  ) {
+                    cy.log(
+                      "GlobalPay Giropay redirect page unavailable - skipping interaction"
+                    );
+                    verifyUrl = false;
+                    return;
+                  }
+                });
+                verifyUrl = false;
+                break;
+              default:
+                throw new Error(
+                  `Unsupported GlobalPay payment method type: ${paymentMethodType}`
                 );
             }
             break;

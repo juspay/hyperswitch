@@ -530,6 +530,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 taxjar::transformers::TaxjarAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Interpayments => {
+                interpayments::transformers::InterpaymentsAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Stripe => {
                 stripe::transformers::StripeAuthType::try_from(self.auth_type)?;
                 Ok(())
