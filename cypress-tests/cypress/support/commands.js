@@ -1189,10 +1189,7 @@ Cypress.Commands.add(
           authDetails.connector_account_details;
 
         if (authDetails && authDetails.metadata) {
-          createConnectorBody.metadata = {
-            ...createConnectorBody.metadata, // Preserve existing metadata fields
-            ...authDetails.metadata, // Merge with authDetails.metadata
-          };
+          createConnectorBody.metadata = authDetails.metadata;
         }
 
         cy.request({
@@ -1269,10 +1266,7 @@ Cypress.Commands.add(
         }
 
         if (authDetails && authDetails.metadata) {
-          createConnectorBody.metadata = {
-            ...createConnectorBody.metadata,
-            ...authDetails.metadata,
-          };
+          createConnectorBody.metadata = authDetails.metadata;
         }
 
         cy.request({
@@ -1353,10 +1347,7 @@ Cypress.Commands.add(
           authDetails.connector_account_details;
 
         if (authDetails && authDetails.metadata) {
-          createConnectorBody.metadata = {
-            ...createConnectorBody.metadata, // Preserve existing metadata fields
-            ...authDetails.metadata, // Merge with authDetails.metadata
-          };
+          createConnectorBody.metadata = authDetails.metadata;
         }
 
         cy.request({
