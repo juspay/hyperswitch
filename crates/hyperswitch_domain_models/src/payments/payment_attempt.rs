@@ -2204,7 +2204,6 @@ impl PaymentAttemptUpdate {
                 merchant_connector_id,
                 routing_approach,
                 is_stored_credential,
-                // sender_payment_instrument_id,
             } => DieselPaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
                 connector,

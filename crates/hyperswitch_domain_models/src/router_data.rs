@@ -125,7 +125,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub customer_document_details: Option<CustomerDocumentDetails>,
     // feature related data
     pub feature_data: Option<FeatureData>,
-    // sender payment instrument id
+    /// A connector-specific identifier representing the stored payment instrument
     pub sender_payment_instrument_id: Option<String>,
 }
 

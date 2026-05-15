@@ -87,16 +87,18 @@ pub fn should_call_connector_create_customer<'a>(
     connector_label: &str,
 ) -> (bool, Option<&'a str>, Option<String>) {
     // Check if create customer is required for the connector
-    let key_value = payment_attempt
+    let mca_string = payment_attempt
         .merchant_connector_id
         .clone()
         .map(|mca_id| mca_id.get_string_repr().to_string())
         .unwrap_or_else(|| connector_label.to_string());
+
     let connector_needs_customer = connector
         .connector
         .should_call_connector_customer(payment_attempt);
+    
     let connector_customer_details = connector_customer_map
-        .and_then(|connector_customer_map| connector_customer_map.peek().get(key_value.as_str()))
+        .and_then(|connector_customer_map| connector_customer_map.peek().get(mca_string.as_str()))
         .and_then(|connector_customer| connector_customer.as_str());
 
     match connector_needs_customer {

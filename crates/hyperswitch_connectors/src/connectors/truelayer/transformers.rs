@@ -32,7 +32,7 @@ use hyperswitch_domain_models::{
     types::PayoutsRouterData,
 };
 use hyperswitch_interfaces::errors;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::Secret;
 use josekit::jws::{JwsHeader, ES512};
 use openssl::{
     bn::{BigNum, BigNumContext},
@@ -335,7 +335,7 @@ pub struct TruelayerErrorResponse {
     pub detail: String,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct TruelayerPayoutRequest {
     merchant_account_id: Secret<String>,
     amount_in_minor: MinorUnit,
@@ -343,16 +343,23 @@ pub struct TruelayerPayoutRequest {
     beneficiary: TruelayerBeneficiary,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde_with::skip_serializing_none]
 pub struct TruelayerBeneficiary {
     #[serde(rename = "type")]
-    _type: String,
+    _type: TruelayerBeneficiaryType,
     reference: String,
     account_holder_name: Option<Secret<String>>,
     account_identifier: Option<TruelayerAccountIdentifier>,
-    payment_source_id: Option<String>,
-    user_id: Option<String>,
+    payment_source_id: Option<Secret<String>>,
+    user_id: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum TruelayerBeneficiaryType {
+    ExternalAccount,
+    PaymentSource,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
@@ -376,7 +383,7 @@ impl TryFrom<&TruelayerRouterData<&PayoutsRouterData<PoFulfill>>> for TruelayerP
                     amount_in_minor: item.amount,
                     currency: item.router_data.request.destination_currency,
                     beneficiary: TruelayerBeneficiary {
-                        _type: "external_account".to_string(),
+                        _type: TruelayerBeneficiaryType::ExternalAccount,
                         reference: normalize_payment_id(
                             item.router_data.request.payout_id.get_string_repr(),
                         ),
@@ -397,7 +404,7 @@ impl TryFrom<&TruelayerRouterData<&PayoutsRouterData<PoFulfill>>> for TruelayerP
                     amount_in_minor: item.amount,
                     currency: item.router_data.request.destination_currency,
                     beneficiary: TruelayerBeneficiary {
-                        _type: "payment_source".to_string(),
+                        _type: TruelayerBeneficiaryType::PaymentSource,
                         reference: normalize_payment_id(
                             item.router_data.request.payout_id.get_string_repr(),
                         ),
@@ -406,8 +413,8 @@ impl TryFrom<&TruelayerRouterData<&PayoutsRouterData<PoFulfill>>> for TruelayerP
                         user_id: passthrough_data
                             .psp_customer_id
                             .as_ref()
-                            .map(|id| id.clone().expose()),
-                        payment_source_id: Some(passthrough_data.psp_token.expose()),
+                            .map(|id| id.clone()),
+                        payment_source_id: Some(passthrough_data.psp_token),
                     },
                 })
             }
