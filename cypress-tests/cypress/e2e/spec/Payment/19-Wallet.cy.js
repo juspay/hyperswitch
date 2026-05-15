@@ -209,6 +209,39 @@ describe("Wallet tests", () => {
   });
 
   context("Mifinity Create and Confirm flow test", () => {
+    let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.MIFINITY_WALLET
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Wallet Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
