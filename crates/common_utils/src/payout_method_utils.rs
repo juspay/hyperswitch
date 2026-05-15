@@ -91,6 +91,8 @@ pub enum BankAdditionalData {
     Sepa(Box<SepaBankTransferAdditionalData>),
     /// Additional data for pix bank transfer payout method
     Pix(Box<PixBankTransferAdditionalData>),
+    /// Additional data for open banking payout method
+    OpenBanking(Box<OpenBankingAdditionalData>),
 }
 
 /// Masked payout method details for ach bank transfer payout method
@@ -315,6 +317,20 @@ pub struct InteracAdditionalData {
 )]
 #[diesel(sql_type = Jsonb)]
 pub struct OpenBankingUkAdditionalData {
+    /// Account holder name
+    #[schema(value_type = String, example = "John Doe")]
+    pub account_holder_name: Secret<String>,
+    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
+    #[schema(value_type = String, example = "DE89370400440532013000")]
+    pub iban: Secret<String>,
+}
+
+/// Masked payout method details for OpenBanking bank transfer payout method
+#[derive(
+    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct OpenBankingAdditionalData {
     /// Account holder name
     #[schema(value_type = String, example = "John Doe")]
     pub account_holder_name: Secret<String>,
