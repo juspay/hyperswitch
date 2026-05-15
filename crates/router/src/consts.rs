@@ -330,6 +330,9 @@ pub const PSD2_COUNTRIES: [Country; 27] = [
 // Rollout percentage config prefix
 pub const UCS_ROLLOUT_PERCENT_CONFIG_PREFIX: &str = "ucs_rollout_config";
 
+// Global default execution mode config key — used when no merchant/connector rollout config is found
+pub const UCS_DEFAULT_EXECUTION_MODE_KEY: &str = "ucs_rollout_config_default";
+
 // UCS feature enabled config
 pub const UCS_ENABLED: &str = "ucs_enabled";
 
@@ -391,6 +394,8 @@ pub mod superposition {
     pub const PAYOUT_TRACKER_MAPPING: &str = "payout_tracker_mapping";
     /// client session validation enabled configuration key
     pub const CLIENT_SESSION_VALIDATION_ENABLED: &str = "client_session_validation_enabled";
+    /// UCS default execution mode configuration key
+    pub const UCS_DEFAULT_EXECUTION_MODE: &str = "ucs_rollout_config_default";
 }
 
 #[cfg(test)]

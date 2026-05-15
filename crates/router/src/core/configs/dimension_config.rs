@@ -463,3 +463,26 @@ impl DatabaseBackedConfig for MaxAutoPayoutRetries {
             })
     }
 }
+
+/// UCS global default execution mode config.
+/// Resolved via: Superposition → DB (`ucs_rollout_config_default`) → `"not_applicable"`.
+/// Output is a raw JSON string — parsed to `DefaultExecutionConfig` at the call site.
+pub struct UcsDefaultExecutionMode;
+
+impl external_services::superposition::Config for UcsDefaultExecutionMode {
+    type Output = String;
+    type TargetingKey = id_type::PaymentId;
+    const SUPERPOSITION_KEY: &'static str =
+        crate::consts::superposition::UCS_DEFAULT_EXECUTION_MODE;
+    fn default_value() -> Self::Output {
+        "{\"execution_mode\":\"not_applicable\"}".to_string()
+    }
+}
+
+impl super::DatabaseBackedConfig for UcsDefaultExecutionMode {
+    const KEY: &'static str = "ucs_rollout_config_default";
+    /// Global key — does not vary by dimension
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        Some(Self::KEY.to_string())
+    }
+}
