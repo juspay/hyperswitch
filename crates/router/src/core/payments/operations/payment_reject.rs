@@ -71,6 +71,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
                 enums::IntentStatus::Failed,
                 enums::IntentStatus::Succeeded,
                 enums::IntentStatus::Processing,
+                enums::IntentStatus::Review,
             ],
             "reject",
         )?;
