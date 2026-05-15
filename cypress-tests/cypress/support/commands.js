@@ -827,6 +827,69 @@ Cypress.Commands.add(
     });
   }
 );
+
+function maskValue(value) {
+  if (value.length > 4) {
+    return value.slice(0, 2) + "*".repeat(value.length - 4) + value.slice(-2);
+  }
+  return "*".repeat(value.length);
+}
+
+Cypress.Commands.add(
+  "updateBusinessProfileWebhookCustomHeadersTest",
+  (
+    webhookHeadersBody,
+    globalState,
+    profilePrefix = "profile",
+    previousHeaderKeys = null
+  ) => {
+    const apiKey = globalState.get("apiKey");
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get(`${profilePrefix}Id`);
+    expect(
+      profileId,
+      "profileId must be set in globalState before calling this command"
+    ).to.not.be.undefined;
+
+    return cy
+      .request({
+        method: "POST",
+        url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+        },
+        body: webhookHeadersBody,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+        expect(response.status).to.equal(200);
+        const responseHeaders =
+          response.body.outgoing_webhook_custom_http_headers;
+        const requestHeaders =
+          webhookHeadersBody.outgoing_webhook_custom_http_headers;
+
+        if (Object.keys(requestHeaders).length === 0) {
+          expect(responseHeaders ?? {}).to.deep.equal({});
+        } else {
+          expect(responseHeaders).to.not.be.undefined;
+          for (const [key, value] of Object.entries(requestHeaders)) {
+            const masked = maskValue(value);
+            expect(responseHeaders).to.have.property(key, masked);
+          }
+          if (previousHeaderKeys) {
+            previousHeaderKeys.forEach((key) => {
+              expect(responseHeaders).to.not.have.property(key);
+            });
+          }
+        }
+        globalState.set("lastResponseHeaders", responseHeaders);
+      });
+  }
+);
+
 // API Key API calls
 Cypress.Commands.add("apiKeyCreateTest", (apiKeyCreateBody, globalState) => {
   // Define the necessary variables and constant
@@ -3478,6 +3541,11 @@ Cypress.Commands.add(
     const baseUrl = globalState.get("baseUrl");
     const apiKey = globalState.get("apiKey");
     const maxRetries = globalState.get("max_auto_retries_enabled");
+
+    // Check if Step-Up retry is enabled from globalState flag
+    const isStepUpRetryEnabled =
+      globalState.get("isStepUpRetryEnabled") || false;
+
     const url = `${baseUrl}/payments/${paymentId}?force_sync=true&expand_attempts=true`;
 
     cy.request({
@@ -3517,6 +3585,39 @@ Cypress.Commands.add(
           expect(attemptObj.attempt_id).to.include(paymentId);
           expect(attemptObj.connector).to.not.be.null;
         });
+
+        // Step-Up Retry specific assertions
+        if (isStepUpRetryEnabled) {
+          // Should have 2 attempts for Step-Up retry
+          expect(
+            response.body.attempts.length,
+            "Step-Up retry should have 2 attempts"
+          ).to.equal(2);
+
+          // Find the three_ds attempt (Step-Up retry)
+          const threeDsAttempt = response.body.attempts.find(
+            (a) => a.authentication_type === "three_ds"
+          );
+          expect(
+            threeDsAttempt,
+            "At least one attempt should be three_ds for Step-Up retry"
+          ).to.not.be.undefined;
+
+          expect(
+            response.body.status,
+            "Payment status should be requires_customer_action, processing, or failed after Step-Up retry"
+          ).to.satisfy((status) =>
+            ["requires_customer_action", "processing", "failed"].includes(
+              status
+            )
+          );
+        } else if (!isStepUpRetryEnabled && maxRetries === 0) {
+          // No retries and no Step-Up - only 1 attempt expected
+          expect(
+            response.body.attempts.length,
+            "No retry should have only 1 attempt"
+          ).to.equal(1);
+        }
       }
     });
   }
