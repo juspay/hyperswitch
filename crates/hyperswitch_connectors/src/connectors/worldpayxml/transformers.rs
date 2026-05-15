@@ -47,9 +47,9 @@ use crate::{
         RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{
-        self as connector_utils, AddressDetailsData, BrowserInformationData, CardData,
-        ForeignTryFrom, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsSetupMandateRequestData, PaymentsSyncRequestData, RouterData as _,
+        self as connector_utils, AddressDetailsData, CardData, ForeignTryFrom,
+        PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+        PaymentsSyncRequestData, RouterData as _,
     },
 };
 

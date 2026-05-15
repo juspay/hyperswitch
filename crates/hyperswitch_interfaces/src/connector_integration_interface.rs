@@ -15,8 +15,8 @@ use hyperswitch_domain_models::{
 use crate::{
     api,
     api::{
-        BoxedConnectorIntegration, CaptureSyncMethod, Connector, ConnectorCommon,
-        ConnectorCustomerAction, ConnectorIntegration, ConnectorRedirectResponse,
+        BoxedConnectorIntegration, CaptureSyncMethod, Connector, ConnectorAccessTokenSuffix,
+        ConnectorCommon, ConnectorCustomerAction, ConnectorIntegration, ConnectorRedirectResponse,
         ConnectorSpecifications, ConnectorValidation, CurrencyUnit,
     },
     authentication::ExternalAuthenticationPayload,
