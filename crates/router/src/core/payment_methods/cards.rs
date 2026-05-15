@@ -4719,6 +4719,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
 
 /// Filters customer payment methods to keep only the latest Apple Pay method when duplicates exist.
 /// All other payment methods are returned unchanged.
+#[cfg(feature = "v1")]
 fn filter_latest_apple_pay(
     payment_methods: Vec<api::CustomerPaymentMethod>,
 ) -> Vec<api::CustomerPaymentMethod> {
