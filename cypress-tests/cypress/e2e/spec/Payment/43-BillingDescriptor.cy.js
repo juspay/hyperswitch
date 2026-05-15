@@ -100,6 +100,88 @@ describe("Card - Billing Descriptor payment flow test", () => {
   });
 
   context(
+    "Card-NoThreeDS payment with extra billing descriptor fields silently dropped (edge case)",
+    () => {
+      it("Create Payment Intent with extra fields -> Payment Methods -> Confirm Payment -> Retrieve Payment", () => {
+        let shouldContinue = true;
+
+        cy.step(
+          "Create Payment Intent with extra billing descriptor fields",
+          () => {
+            if (
+              shouldIncludeConnector(
+                connector,
+                CONNECTOR_LISTS.INCLUDE.BILLING_DESCRIPTOR_EXTRA_FIELDS
+              )
+            ) {
+              cy.log(
+                `Skipping: ${connector} supports extra billing descriptor fields natively`
+              );
+              shouldContinue = false;
+              return;
+            }
+
+            const data = getConnectorDetails(globalState.get("connectorId"))[
+              "card_pm"
+            ]["PaymentIntentWithBillingDescriptorExtraFields"];
+
+            cy.createPaymentIntentTest(
+              fixtures.createPaymentBody,
+              data,
+              "no_three_ds",
+              "automatic",
+              globalState
+            );
+
+            if (!utils.should_continue_further(data)) {
+              shouldContinue = false;
+            }
+          }
+        );
+
+        cy.step("Payment Methods Call", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Payment Methods Call");
+            return;
+          }
+          cy.paymentMethodsCallTest(globalState);
+        });
+
+        cy.step("Confirm Payment with extra billing descriptor fields", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Confirm Payment");
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentConfirmWithBillingDescriptorExtraFields"];
+
+          cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step(
+          "Retrieve Payment with extra billing descriptor fields (silently dropped)",
+          () => {
+            if (!shouldContinue) {
+              cy.task("cli_log", "Skipping step: Retrieve Payment");
+              return;
+            }
+            const data = getConnectorDetails(globalState.get("connectorId"))[
+              "card_pm"
+            ]["PaymentConfirmWithBillingDescriptorExtraFields"];
+
+            cy.retrievePaymentCallTest({ globalState, data });
+          }
+        );
+      });
+    }
+  );
+
+  context(
     "Card-NoThreeDS payment with invalid billing descriptor (field length validation)",
     () => {
       it("Create Payment Intent -> Payment Methods -> Confirm Payment (expect error)", () => {

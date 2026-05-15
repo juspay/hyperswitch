@@ -727,6 +727,42 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentWithBillingDescriptorExtraFields: {
+      Request: {
+        currency: "USD",
+        amount: 6540,
+        authentication_type: "no_three_ds",
+        capture_method: "automatic",
+        billing_descriptor: {
+          name: "Juspay",
+          city: "San Francisco",
+          phone: "8056594427",
+          statement_descriptor: "QA-BillingDesc",
+          statement_descriptor_suffix: "SUFFIX1",
+          reference: "ref-qa-001",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentConfirmWithBillingDescriptorExtraFields: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: successfulNo3DSCardDetails },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     external_three_ds: {
       Request: {
         payment_method: "card",
