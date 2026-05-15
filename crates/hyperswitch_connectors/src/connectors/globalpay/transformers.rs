@@ -441,7 +441,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobalpayPaymentsResponse, T, PaymentsR
                 redirection_data: Box::new(redirection_data),
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
-                network_txn_id: None,
+                network_txn_id: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.card.as_ref())
+                    .and_then(|card| card.brand_reference.as_ref())
+                    .map(|id| id.clone().expose()),
                 connector_response_reference_id: item.response.reference.clone(),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
