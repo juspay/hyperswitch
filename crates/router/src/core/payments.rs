@@ -741,6 +741,22 @@ where
         .as_ref()
         .and_then(|customer| customer.connector_customer.as_ref());
 
+    let merchant_connector_id = payment_data
+        .get_payment_attempt()
+        .merchant_connector_id
+        .clone();
+
+    let connector_customer_id = connector_customer_map.and_then(|cc| {
+        merchant_connector_id.and_then(|mca_id| {
+            cc.clone()
+                .expose()
+                .get(mca_id.get_string_repr())
+                .and_then(|val| val.as_str().as_deref().map(String::from))
+        })
+    });
+
+    payment_data.set_connector_customer_id(connector_customer_id);
+
     let authentication_type = call_decision_manager(
         state,
         platform.get_processor(),
