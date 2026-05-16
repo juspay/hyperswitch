@@ -870,6 +870,7 @@ pub fn make_new_auto_retry_payment_attempt(
         error_details: Default::default(),
         retry_type: Some(storage_enums::RetryType::AutoRetry),
         installment_data: Default::default(),
+        external_surcharge_details: Default::default(),
     }
 }
 
@@ -941,7 +942,8 @@ impl<F: Send + Clone + Sync, FData: Send + Sync>
                 | storage_enums::AttemptStatus::DeviceDataCollectionPending
                 | storage_enums::AttemptStatus::IntegrityFailure
                 | storage_enums::AttemptStatus::Expired
-                | storage_enums::AttemptStatus::PartiallyAuthorized => false,
+                | storage_enums::AttemptStatus::PartiallyAuthorized
+                | storage_enums::AttemptStatus::CaptureReview => false,
 
                 storage_enums::AttemptStatus::AuthenticationFailed
                 | storage_enums::AttemptStatus::AuthorizationFailed

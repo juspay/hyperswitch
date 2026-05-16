@@ -493,7 +493,8 @@ pub(crate) fn is_successful_terminal_status(status: AttemptStatus) -> bool {
         | AttemptStatus::DeviceDataCollectionPending
         | AttemptStatus::IntegrityFailure
         | AttemptStatus::VoidFailed
-        | AttemptStatus::Expired => false,
+        | AttemptStatus::Expired
+        | AttemptStatus::CaptureReview => false,
     }
 }
 
@@ -526,7 +527,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::ConfirmationAwaited
         | AttemptStatus::DeviceDataCollectionPending
         | AttemptStatus::IntegrityFailure
-        | AttemptStatus::PartiallyAuthorized => false,
+        | AttemptStatus::PartiallyAuthorized
+        | AttemptStatus::CaptureReview => false,
     }
 }
 
@@ -7758,7 +7760,8 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             | AttemptStatus::Pending
             | AttemptStatus::PaymentMethodAwaited
             | AttemptStatus::ConfirmationAwaited
-            | AttemptStatus::DeviceDataCollectionPending => None,
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::CaptureReview => None,
         }
     }
 }
