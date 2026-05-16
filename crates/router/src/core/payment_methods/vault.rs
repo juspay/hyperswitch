@@ -1976,6 +1976,17 @@ pub async fn get_fingerprint_id_for_payment_method(
 }
 
 #[cfg(feature = "v2")]
+pub async fn get_auxiliary_fingerprint_id_for_payment_method(
+    state: &routes::SessionState,
+    payment_method_data: &domain::PaymentMethodVaultingData,
+    customer_id: String,
+) -> CustomResult<String, errors::VaultError> {
+    let fingerprint_data = payment_method_data.to_auxiliary_fingerprint_data();
+
+    get_fingerprint_id_from_vault(state, &fingerprint_data, customer_id).await
+}
+
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 async fn get_fingerprint_id_from_vault<D: serde::Serialize>(
     state: &routes::SessionState,

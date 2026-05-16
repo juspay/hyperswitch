@@ -1473,10 +1473,16 @@ pub enum PaymentMethodResolution {
         source_payment_method_data: domain::PaymentMethodVaultingData,
     },
     Create {
-        fingerprint_id: Option<String>,
+        fingerprint_details: Option<FingerprintDetails>,
         payment_method_data: domain::PaymentMethodVaultingData,
         locker_resolver: LockerTypeResolver,
     },
+}
+
+#[cfg(feature = "v2")]
+pub struct FingerprintDetails {
+    pub fingerprint_id: Option<String>,
+    pub auxiliary_fingerprint_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -1693,13 +1699,30 @@ impl LockerOperations for GenericLocker {
 
                 logger::debug!("Payment method not found, falling back to creation");
 
+                let auxiliary_fingerprint_id =
+                    vault::get_auxiliary_fingerprint_id_for_payment_method(
+                        state,
+                        &payment_method_data,
+                        customer_id.get_string_repr().to_owned(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to get auxiliary fingerprint_id from vault using generic strategy",
+                    )?;
+
                 let locker_resolver = LockerTypeResolver {
                     locker_type: LockerType::Generic,
                     card_reference: None,
                 };
 
-                Ok(PaymentMethodResolver(PaymentMethodResolution::Create {
+                let fingerprint_details = FingerprintDetails {
                     fingerprint_id: Some(fingerprint_id),
+                    auxiliary_fingerprint_id: Some(auxiliary_fingerprint_id.clone()),
+                };
+
+                Ok(PaymentMethodResolver(PaymentMethodResolution::Create {
+                    fingerprint_details: Some(fingerprint_details),
                     payment_method_data,
                     locker_resolver,
                 }))
@@ -1974,8 +1997,9 @@ impl LockerOperations for LegacyLocker {
                     locker_type: LockerType::Legacy,
                     card_reference: Some(legacy_locker_res.card_reference),
                 };
+
                 Ok(PaymentMethodResolver(PaymentMethodResolution::Create {
-                    fingerprint_id: None,
+                    fingerprint_details: None,
                     payment_method_data: payment_method_data.clone(),
                     locker_resolver,
                 }))
@@ -2349,10 +2373,17 @@ impl PaymentMethodResolver {
             }
 
             PaymentMethodResolution::Create {
-                fingerprint_id,
+                fingerprint_details,
                 payment_method_data,
                 locker_resolver,
             } => {
+                let fingerprint_id = fingerprint_details
+                    .as_ref()
+                    .and_then(|details| details.fingerprint_id.clone());
+
+                let auxiliary_fingerprint_id = fingerprint_details
+                    .and_then(|details| details.auxiliary_fingerprint_id.clone());
+
                 let payment_method = create_payment_method_for_intent(
                     state,
                     req.metadata.clone(),
@@ -2363,6 +2394,7 @@ impl PaymentMethodResolver {
                     platform.get_provider().get_account().storage_scheme,
                     billing_address.clone(),
                     platform.get_initiator(),
+                    auxiliary_fingerprint_id,
                 )
                 .await?;
                 Box::pin(execute_payment_method_create(
@@ -3351,6 +3383,7 @@ pub async fn payment_method_intent_create(
         provider.get_account().storage_scheme,
         payment_method_billing_address,
         initiator,
+        None,
     )
     .await
     .attach_printable("Failed to add Payment method to DB")?;
@@ -3738,6 +3771,7 @@ pub async fn create_payment_method_for_intent(
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
     initiator: Option<&domain::Initiator>,
+    auxiliary_fingerprint_id: Option<String>,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     use josekit::jwe::zip::deflate::DeflateJweCompression::Def;
 
@@ -3779,6 +3813,7 @@ pub async fn create_payment_method_for_intent(
                 last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                 customer_details: None,
                 network_tokenization_data: None,
+                auxiliary_fingerprint_id,
             },
             storage_scheme,
         )
@@ -3867,6 +3902,7 @@ pub async fn construct_payment_method_object(
         last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
         customer_details: None,
         network_tokenization_data: None,
+        auxiliary_fingerprint_id: None,
     })
 }
 
@@ -3933,6 +3969,7 @@ pub async fn create_payment_method_for_confirm(
                 last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                 customer_details: None,
                 network_tokenization_data: None,
+                auxiliary_fingerprint_id: None,
             },
             storage_scheme,
         )

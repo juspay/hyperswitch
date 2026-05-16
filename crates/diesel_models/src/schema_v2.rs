@@ -1368,6 +1368,8 @@ diesel::table! {
         #[max_length = 255]
         network_transaction_link_id -> Nullable<Varchar>,
         external_vault_token_data -> Nullable<Bytea>,
+        #[max_length = 64]
+        auxiliary_fingerprint_id -> Nullable<Varchar>,
     }
 }
 
