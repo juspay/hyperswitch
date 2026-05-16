@@ -2356,6 +2356,17 @@ pub struct RequiredFieldInfo {
     pub value: Option<hyperswitch_masking::Secret<String>>,
 }
 
+impl RequiredFieldInfo {
+    pub fn for_config(&self) -> Self {
+        Self {
+            required_field: self.required_field.clone(),
+            display_name: self.display_name.clone(),
+            field_type: self.field_type.clone(),
+            value: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct ResponsePaymentMethodsEnabled {
     /// The payment method enabled

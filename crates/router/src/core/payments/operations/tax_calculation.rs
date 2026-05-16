@@ -84,6 +84,7 @@ impl<F: Send + Clone + Sync>
             &[
                 storage_enums::IntentStatus::Failed,
                 storage_enums::IntentStatus::Succeeded,
+                storage_enums::IntentStatus::Review,
             ],
             "create a session update for",
         )?;
