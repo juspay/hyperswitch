@@ -397,6 +397,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, StaxPaymentsResponse, T, PaymentsRespon
                 mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     item.response.idempotency_id.unwrap_or(item.response.id),
                 ),

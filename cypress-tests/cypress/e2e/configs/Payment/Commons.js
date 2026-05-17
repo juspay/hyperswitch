@@ -368,6 +368,39 @@ export const payment_methods_enabled = [
     ],
   },
   {
+    payment_method: "bank_debit",
+    payment_method_types: [
+      {
+        payment_method_type: "ach",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "sepa",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "bacs",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "becs",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+  {
     payment_method: "card",
     payment_method_types: [
       {
@@ -503,6 +536,22 @@ export const payment_methods_enabled = [
       },
       {
         payment_method_type: "ali_pay_hk",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "mifinity",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "paypal",
         payment_experience: "redirect_to_url",
         minimum_amount: 1,
         maximum_amount: 68607706,
@@ -918,6 +967,23 @@ export const connectorDetails = {
         },
       },
     }),
+    Trustly: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "trustly",
+        payment_method_data: {
+          bank_redirect: {
+            trustly: {
+              country: "NL",
+            },
+          },
+        },
+        billing: standardBillingAddress,
+      },
+    }),
   },
   bank_debit_pm: {
     PaymentIntent: (paymentMethodType) => {
@@ -934,7 +1000,7 @@ export const connectorDetails = {
         },
       });
     },
-    SepaDebit: getCustomExchange({
+    Sepa: getCustomExchange({
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "sepa",
@@ -1068,6 +1134,52 @@ export const connectorDetails = {
       },
       Configs: {
         TRIGGER_SKIP: true,
+      },
+    }),
+    Mifinity: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "mifinity",
+        authentication_type: "no_three_ds",
+        billing: {
+          ...standardBillingAddress,
+          address: {
+            ...standardBillingAddress.address,
+            country: "GB",
+          },
+          phone: {
+            number: "1234567890",
+            country_code: "+44",
+          },
+          email: "test@example.com",
+        },
+        payment_method_data: {
+          wallet: {
+            mifinity: {
+              date_of_birth: "1990-01-01",
+              language_preference: "en",
+            },
+          },
+        },
+      },
+    }),
+    PaypalRedirect: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+        billing: standardBillingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
       },
     }),
   },
@@ -1462,6 +1574,120 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "pending",
+        },
+      },
+    }),
+    ManualRefundUpdate: getCustomExchange({
+      Request: {
+        status: "failed",
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    ManualRefundUpdateErrorCode: getCustomExchange({
+      Request: {
+        status: "failed",
+        error_code: {
+          set: "TEST_ERROR_CODE",
+        },
+        error_message: {
+          set: "Test error message for manual update",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    ManualRefundUpdatePartialRefund: getCustomExchange({
+      Request: {
+        status: "failed",
+        error_code: {
+          set: "PARTIAL_REFUND_FAILED",
+        },
+        error_message: {
+          set: "Partial refund failed via manual update",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    ManualRefundUpdateIdempotency: getCustomExchange({
+      Request: {
+        status: "failed",
+        error_code: {
+          set: "IDEMPOTENCY_TEST",
+        },
+        error_message: {
+          set: "First manual update for idempotency test",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    ManualRefundUpdateUnset: getCustomExchange({
+      Request: {
+        error_code: {
+          unset: null,
+        },
+        error_message: {
+          unset: null,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    SyncRefundManualUpdateFailed: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+        },
+      },
+    }),
+    SyncRefundManualUpdateErrorCode: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "TEST_ERROR_CODE",
+          error_message: "Test error message for manual update",
+        },
+      },
+    }),
+    SyncRefundManualUpdatePartialRefund: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "PARTIAL_REFUND_FAILED",
+          error_message: "Partial refund failed via manual update",
+        },
+      },
+    }),
+    SyncRefundManualUpdateIdempotency: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "IDEMPOTENCY_TEST",
+          error_message: "First manual update for idempotency test",
+        },
+      },
+    }),
+    SyncRefundManualUpdateUnset: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
         },
       },
     }),
@@ -2481,6 +2707,100 @@ export const connectorDetails = {
         },
       },
     }),
+    CardTestingGuard: {
+      FailConfirm: getCustomExchange({
+        Request: {
+          payment_method: "card",
+          payment_method_data: {
+            card: successfulNo3DSCardDetails,
+          },
+          customer_acceptance: null,
+          setup_future_usage: "on_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "failed",
+          },
+        },
+      }),
+      GuestFailConfirm: getCustomExchange({
+        Request: {
+          payment_method: "card",
+          payment_method_data: {
+            card: successfulNo3DSCardDetails,
+          },
+          customer_acceptance: null,
+        },
+        Response: {
+          status: 200,
+          expectBlockedPayment: true,
+          body: {
+            status: "failed",
+          },
+        },
+      }),
+      BlockedConfirm: getCustomExchange({
+        Request: {
+          payment_method: "card",
+          payment_method_data: {
+            card: successfulNo3DSCardDetails,
+          },
+          customer_acceptance: null,
+          setup_future_usage: "on_session",
+        },
+        Response: {
+          status: 400,
+          body: {
+            error: {
+              type: "invalid_request",
+              code: "IR_16",
+              message: "Blocked due to suspicious activity",
+            },
+          },
+        },
+      }),
+      GuestBlockedConfirm: getCustomExchange({
+        Request: {
+          payment_method: "card",
+          payment_method_data: {
+            card: successfulNo3DSCardDetails,
+          },
+          customer_acceptance: null,
+        },
+        Response: {
+          status: 400,
+          body: {
+            error: {
+              type: "invalid_request",
+              code: "IR_16",
+              message: "Blocked due to suspicious activity",
+            },
+          },
+        },
+      }),
+    },
+    L2L3Data: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        metadata: {
+          order_tax_amount: 500,
+          shipping_cost: 100,
+          order_po_number: "PO-12345",
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
     UseBillingAsPaymentMethodBilling: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -2879,6 +3199,46 @@ export const connectorDetails = {
       },
     }),
     NoConfigDefault: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    // Storage flag does not affect authentication outcome — both enabled and
+    // disabled flows produce the same 3DS challenge. Distinction is only
+    // observable via Redis, which cannot be asserted through the API layer.
+    EligibilityStorageEnabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    // Storage flag does not affect authentication outcome — both enabled and
+    // disabled flows produce the same 3DS challenge. Distinction is only
+    // observable via Redis, which cannot be asserted through the API layer.
+    EligibilityStorageDisabled: getCustomExchange({
       Request: {
         payment_method: "card",
         payment_method_data: {

@@ -344,7 +344,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             mandate_id: Some(mandate_obj.mandate_id),
                             mandate_reference_id: Some(
                                 api_models::payments::MandateReferenceId::NetworkMandateId(
-                                    network_tx_id,
+                                    api_models::payments::NetworkMandateIdRef {
+                                        network_transaction_id: network_tx_id,
+                                        transaction_link_id: None,
+                                    },
                                 ),
                             ),
                         }),
@@ -793,6 +796,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
@@ -926,6 +930,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     payment_method_billing_address_id,
                     updated_by: storage_scheme.to_string(),
                     network_transaction_id,
+                    network_transaction_link_id: None,
                     net_amount:
                         hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
                             payment_data.amount.into(),

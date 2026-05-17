@@ -146,6 +146,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     storage_enums::IntentStatus::Processing,
                     storage_enums::IntentStatus::RequiresCapture,
                     storage_enums::IntentStatus::RequiresMerchantAction,
+                    storage_enums::IntentStatus::Review,
                 ],
                 "confirm",
             )?;
@@ -159,6 +160,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     storage_enums::IntentStatus::RequiresCapture,
                     storage_enums::IntentStatus::RequiresMerchantAction,
                     storage_enums::IntentStatus::RequiresCustomerAction,
+                    storage_enums::IntentStatus::Review,
                 ],
                 "confirm",
             )?;
@@ -1726,6 +1728,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             )
             .await?;
         let key_manager_state = &(state).into();
+        let dimensions = dimension_state::Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_organization_id(payment_data.payment_attempt.organization_id.clone());
 
         if let Some(unified_authentication_service_flow) = unified_authentication_service_flow {
             match unified_authentication_service_flow {
@@ -2010,16 +2016,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 .change_context(errors::StorageError::DeserializationFailed)
                 .attach_printable("Failed to parse customer data from payment intent")
                 .change_context(errors::ApiErrorResponse::InternalServerError)?.and_then(|cust| cust.email);
-
-
-            let routing_region = uas_utils::utils::fetch_routing_region_for_uas(
-                state,
-                payment_data.payment_attempt.merchant_id.clone(),
-                payment_data.payment_attempt.organization_id.clone(),
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch routing path")?;
+            let routing_region =
+                uas_utils::utils::fetch_routing_region_for_uas(state, &dimensions).await;
 
             let pre_auth_response = uas_utils::types::ExternalAuthentication::pre_authentication(
                         state,
@@ -2118,14 +2116,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {}", authentication_id.get_string_repr()))?;
 
-                let routing_region = uas_utils::utils::fetch_routing_region_for_uas(
-                    state,
-                    payment_data.payment_attempt.merchant_id.clone(),
-                    payment_data.payment_attempt.organization_id.clone(),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to fetch routing path")?;
+                let routing_region =
+                    uas_utils::utils::fetch_routing_region_for_uas(state, &dimensions).await;
 
                 let updated_authentication = if !authentication.authentication_status.is_terminal_status() && is_pull_mechanism_enabled {
                     let post_auth_response = uas_utils::types::ExternalAuthentication::post_authentication(
@@ -2190,12 +2182,14 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         &'a self,
         state: &SessionState,
         processor: &domain::Processor,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         payment_data: &mut PaymentData<F>,
         business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         blocklist_utils::validate_data_for_blocklist(
             state,
             processor,
+            dimensions,
             payment_data,
             business_profile,
         )
@@ -2692,6 +2686,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         network_transaction_id: payment_data
                             .payment_attempt
                             .network_transaction_id
+                            .clone(),
+                        network_transaction_link_id: payment_data
+                            .payment_attempt
+                            .network_transaction_link_id
                             .clone(),
                         is_stored_credential,
                         request_extended_authorization: payment_data

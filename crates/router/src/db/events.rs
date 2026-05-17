@@ -1010,6 +1010,7 @@ mod tests {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            env!("CARGO_PKG_NAME"),
         ))
         .await;
         let app_state_arc = Arc::new(app_state);
@@ -1124,6 +1125,7 @@ mod tests {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            env!("CARGO_PKG_NAME"),
         ))
         .await;
         let state = &Arc::new(app_state)
@@ -1234,6 +1236,7 @@ mod tests {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            env!("CARGO_PKG_NAME"),
         ))
         .await;
 
@@ -1391,6 +1394,7 @@ mod tests {
             authentication_product_ids: None,
             card_testing_guard_config: None,
             card_testing_secret_key: None,
+            surcharge_connector_details: None,
             is_clear_pan_retries_enabled: false,
             force_3ds_challenge: false,
             is_debit_routing_enabled: false,

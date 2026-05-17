@@ -84,6 +84,7 @@ impl<F: Send + Clone + Sync>
             &[
                 storage_enums::IntentStatus::Failed,
                 storage_enums::IntentStatus::Succeeded,
+                storage_enums::IntentStatus::Review,
             ],
             "create a session update for",
         )?;
@@ -372,6 +373,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
     ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {

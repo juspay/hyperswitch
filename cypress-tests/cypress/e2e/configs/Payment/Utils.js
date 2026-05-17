@@ -76,6 +76,7 @@ import { connectorDetails as worldpayvantivConnectorDetails } from "./Worldpayva
 import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.js";
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 import { connectorDetails as ziftConnectorDetails } from "./Zift.js";
+import { connectorDetails as mifinityConnectorDetails } from "./Mifinity.js";
 const connectorDetails = {
   aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
@@ -151,6 +152,7 @@ const connectorDetails = {
   xendit: xenditConnectorDetails,
   zift: ziftConnectorDetails,
   loonio: loonioConnectorDetails,
+  mifinity: mifinityConnectorDetails,
 };
 
 /**
@@ -460,7 +462,7 @@ export const CONNECTOR_LISTS = {
       // "stripe",
     ],
     DDC_RACE_CONDITION: ["worldpay"],
-    CONNECTOR_TESTING_DATA: ["adyen", "noon", "airwallex", "braintree"],
+    CONNECTOR_TESTING_DATA: ["adyen", "airwallex", "braintree", "noon"],
     // ucs connectors
     UCS_CONNECTORS: ["authorizedotnet"],
     OVERCAPTURE: ["adyen"],
@@ -510,6 +512,12 @@ export const CONNECTOR_LISTS = {
       "paypal",
       "stripe",
     ],
+    BANK_DEBIT: ["adyen", "novalnet", "payload"], // payload verified as working
+    BLUECODE_WALLET: ["calida"],
+    ALIPAY_HK_WALLET: ["adyen"],
+    PAYPAL_WALLET: ["novalnet", "paypal"],
+    MIFINITY_WALLET: ["mifinity"],
+    PAYPAL_MANDATE: ["paypal"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [
       "adyen",
@@ -543,16 +551,39 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     EXTERNAL_THREE_DS: ["stripe", "finix"],
-    BANK_DEBIT: ["novalnet"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
     EXTEND_AUTHORIZATION: ["adyen", "paypal"],
     GIFT_CARD: ["adyen"],
     RELAY_OPERATIONS: ["bankofamerica"],
-    PAY_LATER: ["klarna", "adyen", "aci", "stripe"],
+    PAY_LATER: ["klarna", "adyen", "aci", "stripe", "airwallex", "mollie"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
     USE_BILLING_AS_PAYMENT_METHOD_BILLING: ["bankofamerica"],
     MIT_WITH_LIMITED_CARD_DATA: ["peachpayments"],
+    CARD_TESTING_GUARD: ["bankofamerica"],
+    L2L3DATA: ["checkout", "nuvei", "worldpayvantiv"],
+    REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
+    STEP_UP_RETRY: [
+      "cybersource",
+      "checkout",
+      "stripe",
+      "adyen",
+      "airwallex",
+      "authorizedotnet",
+      "bankofamerica",
+      "datatrans",
+      "fiuu",
+      "globalpay",
+      "nexinets",
+      "nmi",
+      "nuvei",
+      "paypal",
+      "powertranz",
+      "shift4",
+      "trustpay",
+      "worldpay",
+      "worldpayvantiv",
+    ],
     // Add more inclusion lists
   },
 };

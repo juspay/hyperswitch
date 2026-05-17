@@ -454,7 +454,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             mandate_id: Some(mandate_obj.mandate_id),
                             mandate_reference_id: Some(
                                 api_models::payments::MandateReferenceId::NetworkMandateId(
-                                    network_tx_id,
+                                    api_models::payments::NetworkMandateIdRef {
+                                        network_transaction_id: network_tx_id,
+                                        transaction_link_id: None,
+                                    },
                                 ),
                             ),
                         }),
@@ -1041,6 +1044,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
@@ -1687,8 +1691,9 @@ impl PaymentCreate {
                 setup_future_usage_applied: request.setup_future_usage,
                 routing_approach: Some(common_enums::RoutingApproach::default()),
                 connector_request_reference_id: None,
-                network_transaction_id:None,
-                network_details:None,
+                network_transaction_id: None,
+                network_transaction_link_id: None,
+                network_details: None,
                 is_stored_credential,
                 authorized_amount: None,
                 tokenization:request.tokenization,
@@ -1703,6 +1708,7 @@ impl PaymentCreate {
                 error_details: None,
                 retry_type: None,
                 installment_data: None,
+                external_surcharge_details: None,
             },
             additional_pm_data,
 
@@ -1738,7 +1744,7 @@ impl PaymentCreate {
                 }),
             request.confirm,
         );
-        let client_secret = payment_id.generate_client_secret();
+        let client_secret = payment_id.generate_client_secret(profile_id.get_string_repr());
         let (amount, currency) = (money.0, Some(money.1));
 
         let order_details = request
