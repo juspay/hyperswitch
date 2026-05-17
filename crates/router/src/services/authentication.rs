@@ -421,30 +421,27 @@ impl UserFromToken {
         &self,
         context: &serde_json::Value,
     ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
-        const ALLOWED_DIMENSIONS: &[&str] = &[
-            "organization_id",
-            "merchant_id",
-            "profile_id",
-            "provider_merchant_id",
-            "processor_merchant_id",
-        ];
-
         let Some(context_obj) = context.as_object() else {
             return Ok(());
         };
 
-        context_obj
-            .keys()
-            .find(|key| !ALLOWED_DIMENSIONS.contains(&key.as_str()))
-            .map_or(Ok(()), |key| {
-                Err(error_stack::report!(
-                    errors::ApiErrorResponse::InvalidRequestData {
-                        message: format!(
-                            "dimension '{key}' is not allowed in context; only organization_id, merchant_id, processor_merchant_id, provider_merchant_id and profile_id are permitted"
-                        ),
-                    }
-                ))
-            })?;
+        let has_scoping_dim = context_obj.keys().any(|k| {
+            matches!(
+                k.as_str(),
+                "organization_id"
+                    | "merchant_id"
+                    | "profile_id"
+                    | "provider_merchant_id"
+                    | "processor_merchant_id"
+            )
+        });
+        if !has_scoping_dim {
+            return Err(error_stack::report!(
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: "context must contain at least one of: organization_id, merchant_id, profile_id, provider_merchant_id, processor_merchant_id".to_string(),
+                }
+            ));
+        }
 
         let params = context_obj
             .iter()

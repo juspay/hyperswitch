@@ -2,6 +2,7 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 use external_services::superposition::{
     ContextPutRequest, SuperpositionClient, SuperpositionError,
 };
+use futures::future::join_all;
 use router_env::logger;
 
 use crate::{
@@ -66,6 +67,23 @@ fn check_admin_access(
     Ok(())
 }
 
+/// Generate all non-empty subsets of dimension query params.
+/// For dims [O, M, P] produces 7 subsets: O, M, P, OM, OP, MP, OMP.
+fn generate_dim_subsets(dim_params: &[(String, String)]) -> Vec<Vec<(String, String)>> {
+    let n = dim_params.len();
+    let mut subsets = Vec::with_capacity((1usize << n).saturating_sub(1));
+    for mask in 1u32..(1u32 << n) {
+        let subset = dim_params
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| mask & (1 << i) != 0)
+            .map(|(_, p)| p.clone())
+            .collect();
+        subsets.push(subset);
+    }
+    subsets
+}
+
 fn map_superposition_err(
     err: error_stack::Report<SuperpositionError>,
     context: &'static str,
@@ -125,19 +143,62 @@ pub async fn list_contexts(
         return Err(e);
     }
 
+    let (dim_params, other_params): (Vec<_>, Vec<_>) = req
+        .params
+        .into_iter()
+        .partition(|(k, _)| k.starts_with("dimension["));
+
     let config = state.conf.superposition.get_inner();
-    let response = SuperpositionClient::proxy_get(
-        config,
-        &req.org_id,
-        &req.workspace_id,
-        "/context",
-        req.params,
-    )
-    .await
-    .map_err(|e| {
-        logger::error!(error = ?e, "superposition list_contexts upstream request failed");
-        map_superposition_err(e, "Failed to list contexts from Superposition")
-    })?;
+
+    let subset_params_list: Vec<Vec<(String, String)>> = generate_dim_subsets(&dim_params)
+        .into_iter()
+        .map(|subset| {
+            let mut params = other_params.clone();
+            params.extend(subset);
+            params
+        })
+        .collect();
+
+    let call_futures: Vec<_> = subset_params_list
+        .into_iter()
+        .map(|params| {
+            SuperpositionClient::proxy_get(
+                config,
+                &req.org_id,
+                &req.workspace_id,
+                "/context",
+                params,
+            )
+        })
+        .collect();
+
+    let results = join_all(call_futures).await;
+
+    let mut seen_ids = std::collections::HashSet::new();
+    let mut all_contexts: Vec<serde_json::Value> = Vec::new();
+
+    for result in results {
+        let response = result.map_err(|e| {
+            logger::error!(error = ?e, "superposition list_contexts upstream request failed");
+            map_superposition_err(e, "Failed to list contexts from Superposition")
+        })?;
+        if let Some(data) = response.get("data").and_then(|d| d.as_array()) {
+            for ctx in data {
+                if let Some(id) = ctx.get("id").and_then(|id| id.as_str()) {
+                    if seen_ids.insert(id.to_string()) {
+                        all_contexts.push(ctx.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    let count = all_contexts.len() as i64;
+    let response = serde_json::json!({
+        "total_pages": 1,
+        "total_items": count,
+        "data": all_contexts,
+    });
 
     logger::info!(user_id = %auth.user_id, "superposition list_contexts success");
     Ok(services::ApplicationResponse::Json(response))
