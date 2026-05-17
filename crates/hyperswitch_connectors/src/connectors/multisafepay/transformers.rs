@@ -1085,6 +1085,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MultisafepayAuthResponse, T, PaymentsRe
                             ),
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(
                                 payment_response.data.order_id.clone(),
                             ),
