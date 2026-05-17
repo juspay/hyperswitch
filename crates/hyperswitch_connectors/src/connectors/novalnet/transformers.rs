@@ -556,7 +556,10 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                             card_number: raw_card_details.card_number.clone(),
                             card_expiry_month: raw_card_details.card_exp_month.clone(),
                             card_expiry_year: raw_card_details.card_exp_year.clone(),
-                            scheme_tid: network_transaction_id.into(),
+                            scheme_tid: network_transaction_id
+                                .network_transaction_id
+                                .clone()
+                                .into(),
                         });
 
                     let transaction = NovalnetPaymentsRequestTransaction {
@@ -794,6 +797,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                                     NovalnetResponsePaymentData::Paypal(_) => None,
                                 })
                         }),
+                        network_txn_link_id: None,
                         connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
                         authentication_data: None,
@@ -1233,6 +1237,7 @@ impl<F>
                                     NovalnetResponsePaymentData::Paypal(_) => None,
                                 })
                         }),
+                        network_txn_link_id: None,
                         connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
                         authentication_data: None,
@@ -1317,6 +1322,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<NovalnetCaptureResponse>>
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
                         authentication_data: None,
@@ -1487,6 +1493,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<NovalnetCancelResponse>>
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: transaction_id.clone(),
                         incremental_authorization_allowed: None,
                         authentication_data: None,
