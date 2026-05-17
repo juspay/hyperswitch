@@ -10736,7 +10736,10 @@ where
             logger::info!("using card with network_transaction_id for MIT flow");
 
             Some(payments_api::MandateReferenceId::NetworkMandateId(
-                network_transaction_id,
+                payments_api::NetworkMandateIdRef {
+                    network_transaction_id,
+                    transaction_link_id: None,
+                },
             ))
         }
         Some(ActionType::ConnectorMandate(connector_mandate_details)) => {
@@ -10874,7 +10877,10 @@ where
                 .attach_printable("Failed to fetch the network transaction id")?;
 
             let mandate_reference_id = Some(payments_api::MandateReferenceId::NetworkMandateId(
-                network_transaction_id.to_string(),
+                payments_api::NetworkMandateIdRef {
+                    network_transaction_id: network_transaction_id.to_string(),
+                    transaction_link_id: None,
+                },
             ));
 
             connector_choice = Some((connector_data, mandate_reference_id.clone()));
@@ -10932,6 +10938,7 @@ impl From<NTWithNTIRef> for payments_api::NetworkTokenWithNTIRef {
     fn from(network_token_data: NTWithNTIRef) -> Self {
         Self {
             network_transaction_id: network_token_data.network_transaction_id,
+            transaction_link_id: None,
             token_exp_month: network_token_data.token_exp_month,
             token_exp_year: network_token_data.token_exp_year,
         }

@@ -594,6 +594,7 @@ pub async fn create_domain_model_for_split_payment(
         created_by: initiator.and_then(|initiator| initiator.to_created_by()),
         connector_request_reference_id: None,
         network_transaction_id: None,
+        network_transaction_link_id: None,
         authorized_amount: None,
         external_surcharge_details: None,
     })
