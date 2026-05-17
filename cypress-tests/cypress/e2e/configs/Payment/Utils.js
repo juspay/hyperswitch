@@ -553,6 +553,7 @@ export const CONNECTOR_LISTS = {
     GIFT_CARD: ["adyen"],
     PAY_LATER: ["klarna", "adyen", "aci", "stripe", "airwallex", "mollie"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
+    STEP_UP_AUTH: ["cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
     USE_BILLING_AS_PAYMENT_METHOD_BILLING: ["bankofamerica"],
     MIT_WITH_LIMITED_CARD_DATA: ["peachpayments"],
@@ -586,10 +587,11 @@ export const CONNECTOR_LISTS = {
 
 // Helper functions
 export const shouldExcludeConnector = (connectorId, list) => {
-  return list.includes(connectorId);
+  return Array.isArray(list) && list.includes(connectorId);
 };
 
 export const shouldIncludeConnector = (connectorId, list) => {
+  if (!Array.isArray(list)) return true;
   return !list.includes(connectorId);
 };
 
