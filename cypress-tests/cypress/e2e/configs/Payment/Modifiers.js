@@ -134,6 +134,7 @@ const CURRENCY_MAP = {
   Interac: "CAD", // Canadian payment method
   AliPayHk: "HKD", // Hong Kong payment method
   Affirm: "USD", // US BNPL payment method
+  Mifinity: "EUR", // Mifinity wallet payment method
 };
 
 export const getCurrency = (paymentMethodType) => {
