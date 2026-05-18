@@ -857,7 +857,10 @@ async fn payments_incoming_webhook_flow(
         let resource_object = webhook_details.resource_object.clone();
         match content {
             super::gateway::WebhookContent::Direct(_) => {
-                payments::CallConnectorAction::HandleResponse(resource_object)
+                payments::CallConnectorAction::HandleResponse {
+                    resource_object,
+                    event_type: Some(event_type.into()),
+                }
             }
             super::gateway::WebhookContent::UnifiedConnectorService(_) => {
                 payments::CallConnectorAction::UCSConsumeResponse(resource_object)
@@ -2878,16 +2881,17 @@ pub async fn process_uas_incoming_webhook<'a>(
 ) -> errors::RouterResult<super::gateway::WebhookOutcome> {
     use hyperswitch_masking::ErasedMaskSerialize;
 
-    let routing_region = uas_utils::fetch_routing_region_for_uas(
-        state,
-        platform.get_processor().get_account().get_id().clone(),
-        platform
-            .get_processor()
-            .get_account()
-            .organization_id
-            .clone(),
-    )
-    .await?;
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .organization_id
+                .clone(),
+        );
+    let routing_region = uas_utils::fetch_routing_region_for_uas(state, &dimensions).await;
     let webhook_data =
         uas_utils::get_webhook_request_data_for_uas(request_details, Some(routing_region));
 

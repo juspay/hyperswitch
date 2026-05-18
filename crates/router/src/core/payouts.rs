@@ -112,6 +112,7 @@ pub fn get_next_connector(
 pub async fn get_connector_choice(
     state: &SessionState,
     processor: &domain::Processor,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     connector: Option<String>,
     routing_algorithm: Option<serde_json::Value>,
     payout_data: &mut PayoutData,
@@ -149,6 +150,7 @@ pub async fn get_connector_choice(
             helpers::decide_payout_connector(
                 state,
                 processor,
+                dimensions,
                 Some(request_straight_through),
                 &mut routing_data,
                 payout_data,
@@ -170,6 +172,7 @@ pub async fn get_connector_choice(
             helpers::decide_payout_connector(
                 state,
                 processor,
+                dimensions,
                 None,
                 &mut routing_data,
                 payout_data,
@@ -310,6 +313,7 @@ pub async fn payouts_core(
     let connector_call_type = get_connector_choice(
         state,
         platform.get_processor(),
+        &dimensions.with_profile_id(payout_data.business_profile.get_id().clone()),
         payout_attempt.connector.clone(),
         routing_algorithm,
         payout_data,
@@ -576,6 +580,10 @@ pub async fn payouts_retrieve_core(
         &state.locale,
     ))
     .await?;
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_profile_id(payout_data.business_profile.get_id().clone());
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
 
@@ -584,6 +592,7 @@ pub async fn payouts_retrieve_core(
         let connector_call_type = get_connector_choice(
             &state,
             platform.get_processor(),
+            &dimensions,
             payout_attempt.connector.clone(),
             None,
             &mut payout_data,
