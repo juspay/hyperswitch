@@ -788,48 +788,90 @@ export const connectorDetails = {
           },
         },
       }),
-    Ideal: getCustomExchange({
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "ideal",
-        payment_method_data: {
-          bank_redirect: {
-            ideal: {
-              bank_name: "ing",
+    Ideal: {
+      ...getCustomExchange({
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "ideal",
+          payment_method_data: {
+            bank_redirect: {
+              ideal: {
+                bank_name: "ing",
+                country: "NL",
+              },
+            },
+          },
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
               country: "NL",
+              first_name: "john",
+              last_name: "doe",
             },
           },
         },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "NL",
-            first_name: "john",
-            last_name: "doe",
+      }),
+      MandateSingleUse: getCustomExchange({
+        Request: {},
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
           },
         },
-      },
-    }),
-    OpenBankingUk: getCustomExchange({
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "open_banking_uk",
-        payment_method_data: {
-          bank_redirect: {
-            open_banking_uk: {
-              issuer: "citi",
-              country: "GB",
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+      }),
+    },
+    BancontactCard: {
+      MandateSingleUse: getCustomExchange({
+        Request: {},
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+      }),
+    },
+    OpenBankingUk: {
+      ...getCustomExchange({
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "open_banking_uk",
+          payment_method_data: {
+            bank_redirect: {
+              open_banking_uk: {
+                issuer: "citi",
+                country: "GB",
+              },
             },
           },
+          billing: standardBillingAddress,
         },
-        billing: standardBillingAddress,
-      },
-    }),
+      }),
+      MandateSingleUse: getCustomExchange({
+        Request: {},
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+      }),
+    },
     OnlineBankingFpx: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
@@ -989,19 +1031,22 @@ export const connectorDetails = {
         },
       },
     }),
-    Trustly: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "trustly",
-        payment_method_data: {
-          bank_redirect: {
-            trustly: {
-              country: "NL",
+    Trustly: {
+      ...getCustomExchange({
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "trustly",
+          payment_method_data: {
+            bank_redirect: {
+              trustly: {
+                country: "NL",
+              },
             },
           },
+          billing: standardBillingAddress,
         },
         billing: standardBillingAddress,
       },

@@ -1078,6 +1078,229 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
+      MandateSingleUse: {
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "ideal",
+          payment_method_data: {
+            bank_redirect: {
+              ideal: {
+                bank_name: "ing",
+              },
+            },
+          },
+          currency: "EUR",
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
+              country: "NL",
+              first_name: "joseph",
+              last_name: "Doe",
+            },
+            phone: {
+              number: "9123456789",
+              country_code: "+91",
+            },
+          },
+          mandate_data: {
+            customer_acceptance: {
+              acceptance_type: "online",
+              accepted_at: "2025-01-01T00:00:00.000Z",
+              online: {
+                ip_address: "127.0.0.1",
+                user_agent: "Mozilla/5.0",
+              },
+            },
+            mandate_type: {
+              single_use: {
+                amount: 6540,
+                currency: "EUR",
+              },
+            },
+          },
+          payment_type: "new_mandate",
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+      },
+    },
+    BancontactCard: {
+      MandateSingleUse: {
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "bancontact_card",
+          payment_method_data: {
+            bank_redirect: {
+              bancontact_card: {
+                card_number: "6703444444444449",
+                card_exp_month: "03",
+                card_exp_year: "2030",
+              },
+            },
+          },
+          currency: "EUR",
+          billing: {
+            address: {
+              line1: "1 Main St",
+              line2: "Apt 4",
+              city: "Brussels",
+              zip: "1000",
+              country: "BE",
+              first_name: "John",
+              last_name: "Doe",
+            },
+            email: "test@example.com",
+            phone: {
+              number: "9123456789",
+              country_code: "+1",
+            },
+          },
+          mandate_data: {
+            customer_acceptance: {
+              acceptance_type: "online",
+              accepted_at: "2025-01-01T00:00:00.000Z",
+              online: {
+                ip_address: "127.0.0.1",
+                user_agent: "Mozilla/5.0",
+              },
+            },
+            mandate_type: {
+              single_use: {
+                amount: 6540,
+                currency: "EUR",
+              },
+            },
+          },
+          payment_type: "new_mandate",
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "succeeded",
+          },
+        },
+      },
+    },
+    OpenBankingUk: {
+      MandateSingleUse: {
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "open_banking_uk",
+          payment_method_data: {
+            bank_redirect: {
+              open_banking_uk: {
+                issuer: "lloyds",
+              },
+            },
+          },
+          currency: "GBP",
+          billing: {
+            address: {
+              line1: "1 Main St",
+              city: "London",
+              zip: "SW1A 1AA",
+              country: "GB",
+              first_name: "John",
+              last_name: "Doe",
+            },
+            email: "test@example.com",
+            phone: {
+              number: "9123456789",
+              country_code: "+44",
+            },
+          },
+          mandate_data: {
+            customer_acceptance: {
+              acceptance_type: "online",
+              accepted_at: "2025-01-01T00:00:00.000Z",
+              online: {
+                ip_address: "127.0.0.1",
+                user_agent: "Mozilla/5.0",
+              },
+            },
+            mandate_type: {
+              single_use: {
+                amount: 6540,
+                currency: "GBP",
+              },
+            },
+          },
+          payment_type: "new_mandate",
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+      },
+    },
+    Trustly: {
+      MandateSingleUse: {
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "trustly",
+          payment_method_data: {
+            bank_redirect: {
+              trustly: {
+                country: "SE",
+              },
+            },
+          },
+          currency: "EUR",
+          billing: {
+            address: {
+              line1: "1 Main St",
+              city: "Stockholm",
+              zip: "11122",
+              country: "SE",
+              first_name: "John",
+              last_name: "Doe",
+            },
+            email: "test@example.com",
+            phone: {
+              number: "9123456789",
+              country_code: "+46",
+            },
+          },
+          mandate_data: {
+            customer_acceptance: {
+              acceptance_type: "online",
+              accepted_at: "2025-01-01T00:00:00.000Z",
+              online: {
+                ip_address: "127.0.0.1",
+                user_agent: "Mozilla/5.0",
+              },
+            },
+            mandate_type: {
+              single_use: {
+                amount: 6540,
+                currency: "EUR",
+              },
+            },
+          },
+          payment_type: "new_mandate",
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+      },
     },
     Eps: {
       Request: {

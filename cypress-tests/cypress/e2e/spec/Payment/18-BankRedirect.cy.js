@@ -1,6 +1,7 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import { CONNECTOR_LISTS, shouldIncludeConnector } from "../../configs/Payment/Utils";
 
 let globalState;
 
@@ -713,4 +714,220 @@ describe("Bank Redirect tests", () => {
       });
     }
   );
+
+  context("BancontactCard - MandateSingleUse CIT", () => {
+    before(function () {
+      if (
+        shouldIncludeConnector(
+          globalState.get("connectorId"),
+          CONNECTOR_LISTS.INCLUDE.BANK_REDIRECT_MANDATE
+        )
+      ) {
+        this.skip();
+      }
+    });
+
+    it("CIT mandate and retrieve", () => {
+      let shouldContinue = true;
+
+      cy.step("CIT for Mandate", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["BancontactCard"]["MandateSingleUse"];
+        cy.citForMandatesCallTest(
+          fixtures.citConfirmBody,
+          data,
+          6540,
+          true,
+          "automatic",
+          "new_mandate",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["BancontactCard"]["MandateSingleUse"];
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+
+      cy.step("List Mandate", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Mandate");
+          return;
+        }
+        cy.listMandateCallTest(globalState);
+      });
+    });
+  });
+
+  context("iDEAL - MandateSingleUse CIT", () => {
+    before(function () {
+      if (
+        shouldIncludeConnector(
+          globalState.get("connectorId"),
+          CONNECTOR_LISTS.INCLUDE.BANK_REDIRECT_MANDATE
+        )
+      ) {
+        this.skip();
+      }
+    });
+
+    it("CIT mandate and retrieve", () => {
+      let shouldContinue = true;
+
+      cy.step("CIT for Mandate", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["Ideal"]["MandateSingleUse"];
+        cy.citForMandatesCallTest(
+          fixtures.citConfirmBody,
+          data,
+          6540,
+          true,
+          "automatic",
+          "new_mandate",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["Ideal"]["MandateSingleUse"];
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+
+      cy.step("List Mandate", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Mandate");
+          return;
+        }
+        cy.listMandateCallTest(globalState);
+      });
+    });
+  });
+
+  context("OpenBankingUk - MandateSingleUse CIT", () => {
+    before(function () {
+      if (
+        shouldIncludeConnector(
+          globalState.get("connectorId"),
+          CONNECTOR_LISTS.INCLUDE.BANK_REDIRECT_MANDATE
+        )
+      ) {
+        this.skip();
+      }
+    });
+
+    it("CIT mandate and retrieve", () => {
+      let shouldContinue = true;
+
+      cy.step("CIT for Mandate", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["OpenBankingUk"]["MandateSingleUse"];
+        cy.citForMandatesCallTest(
+          fixtures.citConfirmBody,
+          data,
+          6540,
+          true,
+          "automatic",
+          "new_mandate",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["OpenBankingUk"]["MandateSingleUse"];
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+
+      cy.step("List Mandate", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Mandate");
+          return;
+        }
+        cy.listMandateCallTest(globalState);
+      });
+    });
+  });
+
+  context("Trustly - MandateSingleUse CIT", () => {
+    before(function () {
+      if (
+        shouldIncludeConnector(
+          globalState.get("connectorId"),
+          CONNECTOR_LISTS.INCLUDE.BANK_REDIRECT_MANDATE
+        )
+      ) {
+        this.skip();
+      }
+    });
+
+    it("CIT mandate and retrieve", () => {
+      let shouldContinue = true;
+
+      cy.step("CIT for Mandate", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["Trustly"]["MandateSingleUse"];
+        cy.citForMandatesCallTest(
+          fixtures.citConfirmBody,
+          data,
+          6540,
+          true,
+          "automatic",
+          "new_mandate",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["Trustly"]["MandateSingleUse"];
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+
+      cy.step("List Mandate", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Mandate");
+          return;
+        }
+        cy.listMandateCallTest(globalState);
+      });
+    });
+  });
 });
