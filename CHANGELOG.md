@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix16-7
+
+### Bug Fixes
+
+- **analytics:** Analytics query fix ([#12316](https://github.com/juspay/hyperswitch/pull/12316)) ([`2cb367b`](https://github.com/juspay/hyperswitch/commit/2cb367b77c943668f6a36ae7f5ce14b744470625))
+
+**Full Changelog:** [`2026.02.02.0-hotfix16-6...2026.02.02.0-hotfix16-7`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix16-6...2026.02.02.0-hotfix16-7)
+
+- - -
+
 ## 2026.02.02.0-hotfix16-6
 
 ### Features
