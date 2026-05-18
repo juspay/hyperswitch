@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.02.0-hotfix7.6
+
+### Features
+
+- **gigadat:** add method to retrieve billing phone number without pl… ([#12324](https://github.com/juspay/hyperswitch/pull/12324)) ([`51773f4`](https://github.com/juspay/hyperswitch/commit/51773f46d110d00c820d009a8bc94a71d23dd7a9))
+
+### Bug Fixes
+
+- **analytics:** analytics query fix ([#12317](https://github.com/juspay/hyperswitch/pull/12317)) ([`ebbb8ae`](https://github.com/juspay/hyperswitch/commit/ebbb8ae))
+
+**Full Changelog:** [`2026.04.02.0-hotfix7.5...2026.04.02.0-hotfix7.6`](https://github.com/juspay/hyperswitch/compare/2026.04.02.0-hotfix7.5...2026.04.02.0-hotfix7.6)
+
+- - -
+
 ## 2026.04.02.0-hotfix7.5
 
 ### Features
