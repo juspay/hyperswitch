@@ -82,7 +82,9 @@ describe("Iframe Redirection Payment Flow Tests", () => {
           return;
         }
 
-        cy.verifyIframeRedirection(globalState, { expectRedirectInsidePopup: true });
+        cy.verifyIframeRedirection(globalState, {
+          expectRedirectInsidePopup: true,
+        });
       });
 
       cy.step("Poll Payment Status to Terminal State", () => {
@@ -163,7 +165,9 @@ describe("Iframe Redirection Payment Flow Tests", () => {
           return;
         }
 
-        cy.verifyIframeRedirection(globalState, { expectRedirectInsidePopup: false });
+        cy.verifyIframeRedirection(globalState, {
+          expectRedirectInsidePopup: false,
+        });
       });
     });
   });
