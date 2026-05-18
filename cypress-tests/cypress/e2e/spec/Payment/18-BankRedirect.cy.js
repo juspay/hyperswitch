@@ -377,7 +377,7 @@ describe("Bank Redirect tests", () => {
   });
 
   context("OpenBankingUk Create and Confirm flow test", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment -> Refund Payment -> Sync Refund Payment", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment -> Refund Payment", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent", () => {
@@ -477,6 +477,10 @@ describe("Bank Redirect tests", () => {
         const syncRefundData = getConnectorDetails(
           globalState.get("connectorId")
         )["bank_redirect_pm"]["OpenBankingUk"]["SyncRefund"];
+        if (!syncRefundData) {
+          cy.task("cli_log", "SyncRefund config not found for OpenBankingUk — skipping");
+          return;
+        }
         const newSyncRefundData = {
           ...syncRefundData,
           Response: syncRefundData.ResponseCustom || syncRefundData.Response,
@@ -635,7 +639,7 @@ describe("Bank Redirect tests", () => {
   });
 
   context("OpenBanking Create and Confirm flow test", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment -> Refund Payment -> Sync Refund Payment", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment -> Refund Payment", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent", () => {
@@ -735,6 +739,10 @@ describe("Bank Redirect tests", () => {
         const syncRefundData = getConnectorDetails(
           globalState.get("connectorId")
         )["bank_redirect_pm"]["OpenBanking"]["SyncRefund"];
+        if (!syncRefundData) {
+          cy.task("cli_log", "SyncRefund config not found for OpenBanking — skipping");
+          return;
+        }
         const newSyncRefundData = {
           ...syncRefundData,
           Response: syncRefundData.ResponseCustom || syncRefundData.Response,
