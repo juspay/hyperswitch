@@ -321,6 +321,17 @@ export const payment_methods_enabled = [
         recurring_enabled: true,
         installment_payment_enabled: true,
       },
+      {
+        payment_method_type: "bancontact_card",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
     ],
   },
   {
@@ -996,6 +1007,23 @@ export const connectorDetails = {
         billing: standardBillingAddress,
       },
     }),
+    BancontactCard: {
+      MandateSingleUse: getCustomExchange({
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "bancontact_card",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+      }),
+    },
   },
   bank_debit_pm: {
     PaymentIntent: (paymentMethodType) => {
@@ -2831,6 +2859,79 @@ export const connectorDetails = {
         currency: "USD",
       },
     }),
+    OrderDetails: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    OrderDetailsMultipleItems: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        order_details: [
+          {
+            product_name: "Test Product 1",
+            quantity: 1,
+            amount: 3000,
+          },
+          {
+            product_name: "Test Product 2",
+            quantity: 2,
+            amount: 1500,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    OrderDetailsMissingProductName: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        order_details: [
+          {
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            error_type: "invalid_request",
+            code: "IR_06",
+          },
+        },
+      },
+    }),
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({
@@ -3534,6 +3635,116 @@ export const connectorDetails = {
         body: { status: "failed" },
       },
     }),
+  },
+  relay_pm: {
+    RefundRelay: {
+      Request: {
+        type: "refund",
+        data: {
+          refund: {
+            amount: 1000,
+            currency: "USD",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          type: "refund",
+        },
+      },
+    },
+    CaptureRelay: {
+      Request: {
+        type: "capture",
+        data: {
+          capture: {
+            authorized_amount: 2000,
+            amount_to_capture: 1500,
+            currency: "USD",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          type: "capture",
+        },
+      },
+    },
+    RetrieveRelay: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          type: "refund",
+        },
+      },
+    },
+    RetrieveCaptureRelay: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          type: "capture",
+        },
+      },
+    },
+    MissingConnectorId: {
+      Request: {
+        connector_resource_id: "test_connector_resource_id",
+        type: "refund",
+        data: {
+          refund: {
+            amount: 1000,
+            currency: "USD",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            message: "Json deserialize error: missing field `connector_id`",
+            code: "IR_06",
+          },
+        },
+      },
+    },
+    InvalidRelayType: {
+      Request: {
+        connector_resource_id: "test_connector_resource_id",
+        connector_id: "test_connector_id",
+        type: "invalid_type",
+        data: {
+          refund: {
+            amount: 1000,
+            currency: "USD",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            message: "Json deserialize error: unknown variant `invalid_type`",
+            code: "IR_06",
+          },
+        },
+      },
+    },
+    RelayNotFound: {
+      Request: {},
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            code: "IR_37",
+            message: "relay not found",
+          },
+        },
+      },
+    },
   },
   step_up_auth: {
     PaymentIntentOnly: getCustomExchange({
