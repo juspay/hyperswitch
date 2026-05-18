@@ -2822,7 +2822,7 @@ where
     let result = handler(grpc_request, grpc_header).await;
     let external_latency = start_time.elapsed().as_millis();
 
-    let router_result = match result {
+    match result {
         Ok(grpc_response) => {
             let grpc_response_body = hyperswitch_masking::masked_serialize(&grpc_response)
                 .unwrap_or_else(|error| {
@@ -2849,9 +2849,7 @@ where
             );
             Err(error)
         }
-    };
-
-    router_result
+    }
 }
 
 // ============================================================================

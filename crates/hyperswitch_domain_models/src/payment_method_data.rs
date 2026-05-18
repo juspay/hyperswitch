@@ -127,6 +127,10 @@ pub struct NetworkTransactionIdAndCardDetails {
     /// The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),
     /// when `setup_future_usage` is set to `off_session`.
     pub network_transaction_id: Secret<String>,
+
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
+    pub transaction_link_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -167,6 +171,10 @@ pub struct NetworkTransactionIdAndNetworkTokenDetails {
     /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
     /// when `setup_future_usage` is set to `off_session`.
     pub network_transaction_id: Secret<String>,
+
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
+    pub transaction_link_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -657,10 +665,15 @@ impl CardDetailsForNetworkTransactionId {
         network_transaction_id_and_card_details: NetworkTransactionIdAndCardDetails,
     ) -> (api_models::payments::MandateReferenceId, PaymentMethodData) {
         let mandate_reference_id = api_models::payments::MandateReferenceId::NetworkMandateId(
-            network_transaction_id_and_card_details
-                .network_transaction_id
-                .peek()
-                .to_string(),
+            api_models::payments::NetworkMandateIdRef {
+                network_transaction_id: network_transaction_id_and_card_details
+                    .network_transaction_id
+                    .peek()
+                    .to_string(),
+                transaction_link_id: network_transaction_id_and_card_details
+                    .transaction_link_id
+                    .clone(),
+            },
         );
 
         (
@@ -677,10 +690,15 @@ impl NetworkTokenDetailsForNetworkTransactionId {
         network_transaction_id_and_network_token_details: NetworkTransactionIdAndNetworkTokenDetails,
     ) -> (api_models::payments::MandateReferenceId, PaymentMethodData) {
         let mandate_reference_id = api_models::payments::MandateReferenceId::NetworkMandateId(
-            network_transaction_id_and_network_token_details
-                .network_transaction_id
-                .peek()
-                .to_string(),
+            api_models::payments::NetworkMandateIdRef {
+                network_transaction_id: network_transaction_id_and_network_token_details
+                    .network_transaction_id
+                    .peek()
+                    .to_string(),
+                transaction_link_id: network_transaction_id_and_network_token_details
+                    .transaction_link_id
+                    .clone(),
+            },
         );
 
         (
@@ -697,10 +715,15 @@ impl DecryptedWalletTokenDetailsForNetworkTransactionId {
         network_transaction_id_and_decrypted_wallet_token_details: common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDetails,
     ) -> (api_models::payments::MandateReferenceId, PaymentMethodData) {
         let mandate_reference_id = api_models::payments::MandateReferenceId::NetworkMandateId(
-            network_transaction_id_and_decrypted_wallet_token_details
-                .network_transaction_id
-                .peek()
-                .to_string(),
+            api_models::payments::NetworkMandateIdRef {
+                network_transaction_id: network_transaction_id_and_decrypted_wallet_token_details
+                    .network_transaction_id
+                    .peek()
+                    .to_string(),
+                transaction_link_id: network_transaction_id_and_decrypted_wallet_token_details
+                    .transaction_link_id
+                    .clone(),
+            },
         );
 
         (
@@ -4262,6 +4285,7 @@ impl From<mandates::NetworkTransactionIdAndCardDetails> for NetworkTransactionId
             card_exp_month: value.card_exp_month,
             card_exp_year: value.card_exp_year,
             network_transaction_id: value.network_transaction_id,
+            transaction_link_id: value.transaction_link_id,
             card_holder_name: value.card_holder_name,
             card_issuer: value.card_issuer,
             card_network: value.card_network,
@@ -4283,6 +4307,7 @@ impl From<mandates::NetworkTransactionIdAndNetworkTokenDetails>
             token_exp_month: value.token_exp_month,
             token_exp_year: value.token_exp_year,
             network_transaction_id: value.network_transaction_id,
+            transaction_link_id: value.transaction_link_id,
             card_holder_name: value.card_holder_name,
             card_issuer: value.card_issuer,
             card_network: value.card_network,
