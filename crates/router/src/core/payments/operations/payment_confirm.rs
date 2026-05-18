@@ -1237,6 +1237,30 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             )?;
 
             if let Some(payment_method_ref) = self.get_payment_method_reference(req) {
+                let payment_method_ref_to_use = match req.payment_token.as_deref() {
+                    Some(payment_token) if payment_token == payment_method_ref => {
+                        let token_data = helpers::retrieve_payment_token_data(
+                            state,
+                            payment_method_ref.to_string(),
+                            req.payment_method,
+                        )
+                        .await?;
+
+                        match token_data {
+                            storage::PaymentTokenData::Permanent(card_token_data)
+                            | storage::PaymentTokenData::PermanentCard(card_token_data) => {
+                                card_token_data
+                                    .payment_method_id
+                                    .as_deref()
+                                    .unwrap_or(payment_method_ref)
+                                    .to_owned()
+                            }
+                            _ => payment_method_ref.to_owned(),
+                        }
+                    }
+                    _ => payment_method_ref.to_owned(),
+                };
+
                 logger::debug!(
                         "Organization is enabled for modular service, fetching payment method from PM Modular Service"
                     );
@@ -1245,7 +1269,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         state,
                         req,
                         platform,
-                        payment_method_ref,
+                        &payment_method_ref_to_use,
                     )
                     .await?;
 
@@ -2334,17 +2358,27 @@ impl PaymentConfirm {
             .clone()
             .and_then(|pmd| pmd.payment_method_data)
             .map(Into::into);
-        let payment_method_data = match pmd {
+        let mut card_token_data = match pmd {
             Some(domain::PaymentMethodData::CardToken(token)) => Some(token),
             _ => None,
         };
+        if let Some(card_cvc) = req.card_cvc.clone() {
+            if let Some(card_token_data) = card_token_data.as_mut() {
+                card_token_data.card_cvc = Some(card_cvc);
+            } else {
+                card_token_data = Some(domain::CardToken {
+                    card_holder_name: None,
+                    card_cvc: Some(card_cvc),
+                });
+            }
+        }
 
         let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
             state,
             platform,
             &profile_id,
             payment_method_ref,
-            payment_method_data,
+            card_token_data,
         )
         .await?;
         logger::info!("Payment method fetched from PM Modular Service.");

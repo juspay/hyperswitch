@@ -615,6 +615,24 @@ impl super::behaviour::Conversion for PaymentMethod {
             item.vault_type,
             item.external_vault_source,
         ))?;
+        let payment_method_subtype =
+            item.payment_method_subtype
+                .and_then(|payment_method_subtype| {
+                    if payment_method_subtype.eq_ignore_ascii_case("card") {
+                        None
+                    } else {
+                        payment_method_subtype
+                            .parse::<storage_enums::PaymentMethodType>()
+                            .map_err(|error| {
+                                logger::warn!(
+                                    ?error,
+                                    payment_method_subtype,
+                                    "Failed to parse payment_method_subtype compatibility field"
+                                );
+                            })
+                            .ok()
+                    }
+                });
 
         // Construct the domain type
         // Storage always has customer_id, wrap in Some for domain
@@ -634,8 +652,8 @@ impl super::behaviour::Conversion for PaymentMethod {
             direct_debit_token: item.direct_debit_token,
             created_at: item.created_at,
             last_modified: item.last_modified,
-            payment_method: item.payment_method,
-            payment_method_type: item.payment_method_type,
+            payment_method: item.payment_method.or(item.payment_method_type_v2),
+            payment_method_type: item.payment_method_type.or(payment_method_subtype),
             payment_method_issuer: item.payment_method_issuer,
             payment_method_issuer_code: item.payment_method_issuer_code,
             metadata: item.metadata,
