@@ -5143,6 +5143,8 @@ pub async fn get_pm_list_context(
                 card_details: Some(card.clone()),
                 #[cfg(feature = "payouts")]
                 bank_transfer_details: None,
+                #[cfg(feature = "payouts")]
+                wallet_details: None,
                 hyperswitch_token_data: is_payment_associated.then_some(
                     PaymentTokenData::permanent_card(
                         Some(pm.get_id().clone()),
@@ -5165,13 +5167,28 @@ pub async fn get_pm_list_context(
                 })
         }
 
-        enums::PaymentMethod::Wallet => Some(PaymentMethodListContext {
-            card_details: None,
+        enums::PaymentMethod::Wallet => {
             #[cfg(feature = "payouts")]
-            bank_transfer_details: None,
-            hyperswitch_token_data: is_payment_associated
-                .then_some(PaymentTokenData::wallet_token(pm.get_id().clone())),
-        }),
+            let wallet_details = Some(
+                get_wallet_from_hs_locker(
+                    state,
+                    provider,
+                    &pm.customer_id.clone().get_required_value("customer_id")?,
+                    pm.locker_id.as_ref().unwrap_or(pm.get_id()),
+                )
+                .await?,
+            );
+
+            Some(PaymentMethodListContext {
+                card_details: None,
+                #[cfg(feature = "payouts")]
+                bank_transfer_details: None,
+                #[cfg(feature = "payouts")]
+                wallet_details,
+                hyperswitch_token_data: is_payment_associated
+                    .then_some(PaymentTokenData::wallet_token(pm.get_id().clone())),
+            })
+        }
 
         #[cfg(feature = "payouts")]
         enums::PaymentMethod::BankTransfer => Some(PaymentMethodListContext {
@@ -5187,6 +5204,8 @@ pub async fn get_pm_list_context(
                 )
                 .await?,
             ),
+            #[cfg(feature = "payouts")]
+            wallet_details: None,
             hyperswitch_token_data: parent_payment_method_token
                 .map(|token| PaymentTokenData::temporary_generic(token.clone())),
         }),
@@ -5195,6 +5214,8 @@ pub async fn get_pm_list_context(
             card_details: None,
             #[cfg(feature = "payouts")]
             bank_transfer_details: None,
+            #[cfg(feature = "payouts")]
+            wallet_details: None,
             hyperswitch_token_data: is_payment_associated.then_some(
                 PaymentTokenData::temporary_generic(generate_id(consts::ID_LENGTH, "token")),
             ),
@@ -5506,6 +5527,8 @@ pub async fn get_pm_list_context_for_bank_debit(
                     card_details: None,
                     #[cfg(feature = "payouts")]
                     bank_transfer_details: None,
+                    #[cfg(feature = "payouts")]
+                    wallet_details: None,
                     hyperswitch_token_data: is_payment_associated.then_some(token_data),
                 };
 
@@ -5521,6 +5544,8 @@ pub async fn get_pm_list_context_for_bank_debit(
                     card_details: None,
                     #[cfg(feature = "payouts")]
                     bank_transfer_details: None,
+                    #[cfg(feature = "payouts")]
+                    wallet_details: None,
                     hyperswitch_token_data: is_payment_associated.then_some(token_data),
                 }))
             }
