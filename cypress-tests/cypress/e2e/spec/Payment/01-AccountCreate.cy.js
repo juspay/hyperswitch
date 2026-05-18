@@ -22,7 +22,10 @@ describe("Account Create flow test", () => {
   });
 
   it("business-profile-create-call-test", () => {
-    cy.createBusinessProfileTest(fixtures.businessProfile.bpCreate, globalState);
+    cy.createBusinessProfileTest(
+      fixtures.businessProfile.bpCreate,
+      globalState
+    );
   });
 
   it("create-shadow-config-if-shadow-mode-enabled", () => {

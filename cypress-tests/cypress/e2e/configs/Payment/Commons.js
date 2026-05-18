@@ -3886,5 +3886,4 @@ export const connectorDetails = {
       },
     }),
   },
-  },
 };

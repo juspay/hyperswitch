@@ -2126,7 +2126,9 @@ function paymentLinkCardRedirection(
   } = cardData;
 
   if (!redirectionUrl || !redirectionUrl.href) {
-    cy.log("Skipping payment link card redirection - no valid redirect URL provided");
+    cy.log(
+      "Skipping payment link card redirection - no valid redirect URL provided"
+    );
     return;
   }
 

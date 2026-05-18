@@ -119,7 +119,10 @@ describe("Payment Link", () => {
       cy.retrievePaymentCallTest({
         globalState,
         data: {
-          Configs: { skipConnectorIdAssertion: true, skipBillingAssertion: true },
+          Configs: {
+            skipConnectorIdAssertion: true,
+            skipBillingAssertion: true,
+          },
         },
       });
     });
@@ -255,7 +258,10 @@ describe("Payment Link", () => {
       cy.retrievePaymentCallTest({
         globalState,
         data: {
-          Configs: { skipConnectorIdAssertion: true, skipBillingAssertion: true },
+          Configs: {
+            skipConnectorIdAssertion: true,
+            skipBillingAssertion: true,
+          },
         },
       });
     });
