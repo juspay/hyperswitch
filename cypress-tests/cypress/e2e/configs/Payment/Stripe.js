@@ -81,7 +81,7 @@ const payment_method_data_no3ds = {
     last4: "0005",
     card_type: "CREDIT",
     card_network: "AmericanExpress",
-    card_issuer: "AMERICAN EXPRESS US CARS",
+    card_issuer: "American Express US Cars",
     card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "378282",
     card_extended_bin: null,
@@ -875,6 +875,28 @@ export const connectorDetails = {
           message:
             "You cannot confirm this payment using `manual_retry` because the allowed duration has expired",
           code: "IR_16",
+        },
+      },
+    },
+    PollConfig: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4000000000003220",
+            card_exp_month: "10",
+            card_exp_year: "27",
+            card_holder_name: "John Doe",
+            card_cvc: "737",
+          },
+        },
+        authentication_type: "three_ds",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
         },
       },
     },

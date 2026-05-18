@@ -595,6 +595,7 @@ export const CONNECTOR_LISTS = {
       "worldpay",
       "worldpayvantiv",
     ],
+    POLL_CONFIG: ["stripe"],
     // Add more inclusion lists
   },
 };
