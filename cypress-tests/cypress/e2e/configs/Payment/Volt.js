@@ -48,7 +48,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "succeeded",
+            status: "pending",
           },
         },
       },
@@ -59,7 +59,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "succeeded",
+            status: "pending",
           },
         },
       },
@@ -70,7 +70,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "succeeded",
+            status: "pending",
           },
         },
       },
@@ -81,15 +81,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "succeeded",
-          },
-        },
-      },
-      SyncRefund: {
-        Response: {
-          status: 200,
-          body: {
-            status: "succeeded",
+            status: "pending",
           },
         },
       },
@@ -139,7 +131,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "succeeded",
+            status: "pending",
           },
         },
       },
@@ -150,7 +142,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "succeeded",
+            status: "pending",
           },
         },
       },
@@ -161,7 +153,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "succeeded",
+            status: "pending",
           },
         },
       },
@@ -172,15 +164,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "succeeded",
-          },
-        },
-      },
-      SyncRefund: {
-        Response: {
-          status: 200,
-          body: {
-            status: "succeeded",
+            status: "pending",
           },
         },
       },
