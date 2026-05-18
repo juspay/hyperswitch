@@ -176,6 +176,18 @@ We believe in:
 
 - <strong> Community-Driven, Enterprise-Tested:</strong> Hyperswitch is built in the open with real-world feedback from developers and contributors, and maintained by Juspay, the team powering payment infrastructure for 400+ leading enterprises worldwide.
 
+## Supported Connectors
+
+Hyperswitch integrates with 100+ payment processors out of the box. Each connector has a dedicated guide covering credentials setup, webhook configuration, and supported payment methods.
+
+| Processor | Type | Guide |
+|-----------|------|-------|
+| Stripe | Payment Gateway | [View →](https://docs.hyperswitch.io/integrations/connectors-integrations/payment-processor-capabilities/available-connectors/stripe) |
+| Adyen | Payment Gateway | [View →](https://docs.hyperswitch.io/integrations/connectors-integrations/payment-processor-capabilities/available-connectors/adyen) |
+| Authorize.net | Payment Gateway | [View →](https://docs.hyperswitch.io/integrations/connectors-integrations/payment-processor-capabilities/available-connectors/authorizedotnet) |
+
+👉 [Browse all available connectors →](https://docs.hyperswitch.io/integrations/connectors-integrations/payment-processor-capabilities/available-connectors)
+
 ## Hyperswitch Ecosystem Mapping
 Hyperswitch is built as a set of modular services and SDKs that work together. The Rust app server in this repo is the core, and the repositories below extend it with dashboards, client SDKs, and deployment tooling.
 
