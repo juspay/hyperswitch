@@ -33,46 +33,6 @@ export default defineConfig({
           console.log(message);
           return null;
         },
-        // HMAC-SHA256(secret, "{timestamp}.{body}") returned as hex.
-        // Matches Stripe's webhook signing scheme (Stripe-Signature: t=ts,v1=hex).
-        // Lives Node-side because Cypress's browser context lacks node:crypto.
-        signStripeWebhook: ({ secret, timestamp, body }) => {
-          return crypto
-            .createHmac("sha256", secret)
-            .update(`${timestamp}.${body}`)
-            .digest("hex");
-        },
-        // Adyen's HMAC-SHA256 is different from Stripe's:
-        //   - Key is *hex-decoded* (Adyen stores it as a hex string, Stripe uses raw)
-        //   - Message is a colon-delimited string of 7 body fields, NOT timestamp.body
-        //   - Output is base64, NOT hex
-        //   - Signature goes inside the JSON body at
-        //     notificationItems[0].NotificationRequestItem.additionalData.hmacSignature,
-        //     not in a request header
-        signAdyenWebhook: ({ secretHex, message }) => {
-          return crypto
-            .createHmac("sha256", Buffer.from(secretHex, "hex"))
-            .update(message)
-            .digest("base64");
-        },
-        // Bluesnap: HMAC-SHA256 over `${timestamp}${body}` (no separator),
-        // raw secret bytes, hex output. Signature goes in `bls-signature`
-        // header, timestamp in `bls-ipn-timestamp`. Body is form-encoded.
-        signBluesnapWebhook: ({ secret, timestamp, body }) => {
-          return crypto
-            .createHmac("sha256", secret)
-            .update(`${timestamp}${body}`)
-            .digest("hex");
-        },
-        // NMI: HMAC-SHA256 over `${timestamp}.${body}`, raw secret bytes,
-        // hex output. Signature goes in `webhook-signature: t=<ts>,s=<hex>`
-        // header. Body is JSON. Same construction as Stripe.
-        signNmiWebhook: ({ secret, timestamp, body }) => {
-          return crypto
-            .createHmac("sha256", secret)
-            .update(`${timestamp}.${body}`)
-            .digest("hex");
-        },
       });
       on("after:spec", (spec, results) => {
         // Clean up resources after each spec
