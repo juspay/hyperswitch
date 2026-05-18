@@ -80,7 +80,7 @@ describe("Business Profile Payment Method Blocking", () => {
     });
   });
 
-  context("Card Type Blocking", () => {
+  context("Debit Card Blocking", () => {
     it("should block payment when debit cards are blocked", () => {
       let shouldContinue = true;
 

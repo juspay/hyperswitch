@@ -493,7 +493,8 @@ pub(crate) fn is_successful_terminal_status(status: AttemptStatus) -> bool {
         | AttemptStatus::DeviceDataCollectionPending
         | AttemptStatus::IntegrityFailure
         | AttemptStatus::VoidFailed
-        | AttemptStatus::Expired => false,
+        | AttemptStatus::Expired
+        | AttemptStatus::CaptureReview => false,
     }
 }
 
@@ -526,7 +527,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::ConfirmationAwaited
         | AttemptStatus::DeviceDataCollectionPending
         | AttemptStatus::IntegrityFailure
-        | AttemptStatus::PartiallyAuthorized => false,
+        | AttemptStatus::PartiallyAuthorized
+        | AttemptStatus::CaptureReview => false,
     }
 }
 
@@ -2538,7 +2540,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
                 Some(payments::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
-                    Some(network_transaction_id.clone())
+                    Some(network_transaction_id.network_transaction_id.clone())
                 }
                 Some(payments::MandateReferenceId::ConnectorMandateId(_))
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
@@ -6714,6 +6716,7 @@ pub enum PaymentMethodDataType {
     SepaGuarenteedDebit,
     BecsBankDebit,
     BacsBankDebit,
+    EftDebitOrder,
     AchBankTransfer,
     SepaBankTransfer,
     BacsBankTransfer,
@@ -6727,6 +6730,8 @@ pub enum PaymentMethodDataType {
     DanamonVaBankTransfer,
     MandiriVaBankTransfer,
     Pix,
+    PixKey,
+    PixEmv,
     PixAutomaticoPush,
     PixAutomaticoQr,
     Pse,
@@ -6890,6 +6895,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             },
             PaymentMethodData::BankDebit(bank_debit_data) => match bank_debit_data {
                 payment_method_data::BankDebitData::AchBankDebit { .. } => Self::AchBankDebit,
+                payment_method_data::BankDebitData::EftDebitOrder { .. } => Self::EftDebitOrder,
                 payment_method_data::BankDebitData::SepaBankDebit { .. } => Self::SepaBankDebit,
                 payment_method_data::BankDebitData::SepaGuarenteedBankDebit { .. } => {
                     Self::SepaGuarenteedDebit
@@ -7754,7 +7760,8 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             | AttemptStatus::Pending
             | AttemptStatus::PaymentMethodAwaited
             | AttemptStatus::ConfirmationAwaited
-            | AttemptStatus::DeviceDataCollectionPending => None,
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::CaptureReview => None,
         }
     }
 }

@@ -1041,6 +1041,11 @@ pub async fn authentication_eligibility_core(
     let key_manager_state = (&state).into();
     let merchant_id = merchant_account.get_id();
     let db = &*state.store;
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(merchant_account.organization_id.clone());
+
     let authentication = db
         .find_authentication_by_merchant_id_authentication_id(
             merchant_id,
@@ -1266,15 +1271,7 @@ pub async fn authentication_eligibility_core(
         .billing
         .clone()
         .map(hyperswitch_domain_models::address::Address::from);
-
-    let routing_region = utils::fetch_routing_region_for_uas(
-        &state,
-        merchant_id.clone(),
-        merchant_account.organization_id.clone(),
-    )
-    .await
-    .change_context(ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to fetch routing path")?;
+    let routing_region = utils::fetch_routing_region_for_uas(&state, &dimensions).await;
 
     let pre_auth_response =
         <ExternalAuthentication as UnifiedAuthenticationService>::pre_authentication(
@@ -1377,6 +1374,11 @@ pub async fn authentication_authenticate_core(
         })
         .transpose()?;
 
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(merchant_account.organization_id.clone());
+
     let profile_id = authentication.profile_id.clone();
 
     let business_profile = db
@@ -1422,14 +1424,7 @@ pub async fn authentication_authenticate_core(
         merchant_connector_account_id_or_connector_name,
     );
 
-    let routing_region = utils::fetch_routing_region_for_uas(
-        &state,
-        merchant_id.clone(),
-        merchant_account.organization_id.clone(),
-    )
-    .await
-    .change_context(ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to fetch routing path")?;
+    let routing_region = utils::fetch_routing_region_for_uas(&state, &dimensions).await;
 
     let auth_response = <ExternalAuthentication as UnifiedAuthenticationService>::authentication(
         &state,
@@ -1879,6 +1874,10 @@ async fn execute_post_authentication_flow(
     Option<api_models::authentication::AuthenticationVaultTokenData>,
     Option<api_models::authentication::AuthenticationDetails>,
 )> {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(merchant_account.organization_id.clone());
     let post_auth_response = if authentication_connector.is_click_to_pay() {
         let response = ClickToPay::post_authentication(
             state,
@@ -1896,14 +1895,7 @@ async fn execute_post_authentication_flow(
         metrics::POST_AUTHENTICATION_CARDS_SUCCESSFULLY_DECRYPTED.add(1, &[]);
         response
     } else {
-        let routing_region = utils::fetch_routing_region_for_uas(
-            state,
-            merchant_id.clone(),
-            merchant_account.organization_id.clone(),
-        )
-        .await
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch routing path")?;
+        let routing_region = utils::fetch_routing_region_for_uas(state, &dimensions).await;
         ExternalAuthentication::post_authentication(
             state,
             business_profile,
@@ -2101,10 +2093,16 @@ pub async fn authentication_sync_core(
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
-
     let dimensions = dimension_state::Dimensions::new()
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .organization_id
+                .clone(),
+        )
         .with_profile_id(profile_id.clone());
 
     let (authentication_connector, three_ds_connector_account) =
@@ -2147,13 +2145,8 @@ pub async fn authentication_sync_core(
             force_3ds_challenge: authentication.force_3ds_challenge,
             psd2_sca_exemption_type: authentication.psd2_sca_exemption_type,
         };
-
-        let routing_region = utils::fetch_routing_region_for_uas(
-            &state,
-            authentication.merchant_id.clone(),
-            authentication.organization_id.clone(),
-        )
-        .await?;
+        let routing_region =
+            utils::fetch_routing_region_for_uas(&state, &dimensions.without_profile_id()).await;
 
         let authentication_info = Some(AuthenticationInfo {
             authentication_type: None,
@@ -2198,6 +2191,8 @@ pub async fn authentication_sync_core(
         ))
         .await?;
     }
+
+    let dimensions = dimensions.without_organization_id();
 
     // Determine whether to tokenise or not
     let should_disable_vault_tokenization = dimensions
@@ -2379,6 +2374,10 @@ pub async fn authentication_post_sync_core(
     let merchant_id = merchant_account.get_id();
     let db = &*state.store;
     let key_manager_state = (&state).into();
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(merchant_account.organization_id.clone());
     let authentication = db
         .find_authentication_by_merchant_id_authentication_id(
             merchant_id,
@@ -2411,14 +2410,7 @@ pub async fn authentication_post_sync_core(
             authentication.authentication_connector.clone(),
         )
         .await?;
-    let routing_region = utils::fetch_routing_region_for_uas(
-        &state,
-        merchant_id.clone(),
-        merchant_account.organization_id.clone(),
-    )
-    .await
-    .change_context(ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to fetch routing path")?;
+    let routing_region = utils::fetch_routing_region_for_uas(&state, &dimensions).await;
 
     let post_auth_response =
         <ExternalAuthentication as UnifiedAuthenticationService>::post_authentication(

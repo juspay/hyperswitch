@@ -440,9 +440,12 @@ pub async fn migrate_payment_methods(
                 );
 
                 let mut mca_cache = HashMap::new();
+                // pass form-level mca id(s) so connector_customer_id is stored even when the
+                // CSV has no merchant_connector_id(s) column
                 let customers = Vec::<PaymentMethodCustomerMigrate>::foreign_try_from((
                     &req,
                     merchant_id.clone(),
+                    merchant_connector_ids.as_ref(),
                 ))
                 .map_err(|e| errors::ApiErrorResponse::InvalidRequestData {
                     message: e.to_string(),
@@ -909,6 +912,49 @@ pub async fn list_customer_payment_method_api(
             )
         },
         &*auth_type,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsRetrieveOlap))]
+pub async fn payment_method_retrieve_olap_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsRetrieveOlap;
+    let payload = web::Json(PaymentMethodId {
+        payment_method_id: path.into_inner(),
+    })
+    .into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, pm, _| {
+            payment_methods_routes::retrieve_payment_method_olap(
+                state,
+                pm,
+                auth.profile,
+                auth.platform,
+            )
+        },
+        auth::auth_type(
+            &auth::V2ApiKeyAuth {
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: true,
+            },
+            &auth::JWTAuth {
+                permission: Permission::MerchantCustomerRead,
+                allow_connected: true,
+                allow_platform: true,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await

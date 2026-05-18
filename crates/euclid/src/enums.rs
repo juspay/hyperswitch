@@ -325,6 +325,7 @@ pub enum RoutableConnectors {
     Redsys,
     Revolv3,
     Riskified,
+    Sanlam,
     Santander,
     Shift4,
     Signifyd,
@@ -406,6 +407,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Bluesnap => Ok(Self::Bluesnap),
             Connector::Blackhawknetwork => Ok(Self::Blackhawknetwork),
             Connector::Calida => Ok(Self::Calida),
+            Connector::Sanlam => Ok(Self::Sanlam),
             Connector::Boku => Ok(Self::Boku),
             Connector::Braintree => Ok(Self::Braintree),
             Connector::Breadpay => Ok(Self::Breadpay),
@@ -520,6 +522,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             | Connector::Juspaythreedsserver
             | Connector::Netcetera
             | Connector::Taxjar
+            | Connector::Interpayments
             | Connector::Threedsecureio
             | Connector::Vgs
             | Connector::CtpVisa
@@ -602,6 +605,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Globepay => Self::Globepay,
             RoutableConnectors::Gocardless => Self::Gocardless,
             RoutableConnectors::Helcim => Self::Helcim,
+            RoutableConnectors::Sanlam => Self::Sanlam,
             RoutableConnectors::Hyperpg => Self::Hyperpg,
             RoutableConnectors::Iatapay => Self::Iatapay,
             RoutableConnectors::Imerchantsolutions => Self::Imerchantsolutions,
