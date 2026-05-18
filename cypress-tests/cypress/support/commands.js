@@ -2726,12 +2726,13 @@ Cypress.Commands.add(
           // Validate response body against expected values from config (Commons.js)
           for (const key in resData.body) {
             if (key === "payment_method_data") {
-              expect(
-                normalizePaymentMethodData(resData.body[key]),
-                [key]
-              ).to.deep.equal(normalizePaymentMethodData(response.body[key]));
+              expect(normalizePaymentMethodData(resData.body[key]), [
+                key,
+              ]).to.deep.equal(normalizePaymentMethodData(response.body[key]));
             } else {
-              expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
+              expect(resData.body[key], [key]).to.deep.equal(
+                response.body[key]
+              );
             }
           }
         } else if (response.status === 200) {
@@ -2804,10 +2805,11 @@ Cypress.Commands.add(
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
                 if (key === "payment_method_data") {
-                  expect(
-                    normalizePaymentMethodData(resData.body[key]),
-                    [key]
-                  ).to.deep.equal(normalizePaymentMethodData(response.body[key]));
+                  expect(normalizePaymentMethodData(resData.body[key]), [
+                    key,
+                  ]).to.deep.equal(
+                    normalizePaymentMethodData(response.body[key])
+                  );
                 } else {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -2851,10 +2853,11 @@ Cypress.Commands.add(
               }
               for (const key in resData.body) {
                 if (key === "payment_method_data") {
-                  expect(
-                    normalizePaymentMethodData(resData.body[key]),
-                    [key]
-                  ).to.deep.equal(normalizePaymentMethodData(response.body[key]));
+                  expect(normalizePaymentMethodData(resData.body[key]), [
+                    key,
+                  ]).to.deep.equal(
+                    normalizePaymentMethodData(response.body[key])
+                  );
                 } else {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -2864,10 +2867,11 @@ Cypress.Commands.add(
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
                 if (key === "payment_method_data") {
-                  expect(
-                    normalizePaymentMethodData(resData.body[key]),
-                    [key]
-                  ).to.deep.equal(normalizePaymentMethodData(response.body[key]));
+                  expect(normalizePaymentMethodData(resData.body[key]), [
+                    key,
+                  ]).to.deep.equal(
+                    normalizePaymentMethodData(response.body[key])
+                  );
                 } else {
                   expect(resData.body[key], [key]).to.deep.equal(
                     response.body[key]
@@ -8338,24 +8342,21 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
  *
  * @param {Object} globalState - The global state object
  */
-Cypress.Commands.add(
-  "fetchPaymentResponseHashConfig",
-  (globalState) => {
-    const merchantId = globalState.get("merchantId");
-    const apiKey = globalState.get("adminApiKey");
-    const baseUrl = globalState.get("baseUrl");
+Cypress.Commands.add("fetchPaymentResponseHashConfig", (globalState) => {
+  const merchantId = globalState.get("merchantId");
+  const apiKey = globalState.get("adminApiKey");
+  const baseUrl = globalState.get("baseUrl");
 
-    return cy.request({
-      method: "GET",
-      url: `${baseUrl}/accounts/${merchantId}`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": apiKey,
-      },
-      failOnStatusCode: false,
-    });
-  }
-);
+  return cy.request({
+    method: "GET",
+    url: `${baseUrl}/accounts/${merchantId}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    failOnStatusCode: false,
+  });
+});
 
 Cypress.Commands.add("assertPaymentResponseHashEnabled", (globalState) => {
   const enablePaymentResponseHash = globalState.get(
