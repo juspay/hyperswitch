@@ -8106,49 +8106,26 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
     params.sort((a, b) => a[0].localeCompare(b[0]));
     const signingPayload = params.map(([k, v]) => `${k}=${v}`).join("&");
 
-    let retries = 0;
-    const maxRetries = 3;
+    cy.task("computeHmac", {
+      key: hashKey,
+      message: signingPayload,
+    }).then((computedSignature) => {
+      expect(computedSignature, "HMAC computation should not return null").to
+        .not.be.null;
 
-    const attemptCompute = () => {
-      cy.task("computeHmac", {
-        key: hashKey,
-        message: signingPayload,
-      }).then((computedSignature) => {
-        if (computedSignature === null) {
-          retries++;
-          if (retries < maxRetries) {
-            cy.task(
-              "cli_log",
-              `HMAC computation returned null (attempt ${retries}/${maxRetries}) - retrying...`
-            );
-            attemptCompute();
-            return;
-          }
-          cy.task(
-            "cli_log",
-            `HMAC computation returned null after ${maxRetries} attempts - failing test`
-          );
-          expect(computedSignature, "HMAC computation should not return null")
-            .to.not.be.null;
-          return;
-        }
+      expect(
+        computedSignature,
+        "Computed HMAC signature should match the received signature"
+      ).to.equal(signature);
 
-        expect(
-          computedSignature,
-          "Computed HMAC signature should match the received signature"
-        ).to.equal(signature);
+      globalState.set("computedSigningPayload", signingPayload);
+      globalState.set("computedSignature", computedSignature);
 
-        globalState.set("computedSigningPayload", signingPayload);
-        globalState.set("computedSignature", computedSignature);
-
-        cy.task(
-          "cli_log",
-          `HMAC computed and verified (algorithm: ${signatureAlgorithm}) - signing payload: ${signingPayload.substring(0, 80)}..., signature match: YES`
-        );
-      });
-    };
-
-    attemptCompute();
+      cy.task(
+        "cli_log",
+        `HMAC computed and verified (algorithm: ${signatureAlgorithm}) - signing payload: ${signingPayload.substring(0, 80)}..., signature match: YES`
+      );
+    });
   });
 });
 
@@ -8157,97 +8134,41 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
   const computedSignature = globalState.get("computedSignature");
   const signingPayload = globalState.get("computedSigningPayload");
 
-  const computeHmacWithRetry = (params, maxRetries = 3) => {
-    let retries = 0;
-    return new Cypress.Promise((resolve, reject) => {
-      const attempt = () => {
-        cy.task("computeHmac", params).then((result) => {
-          if (result === null) {
-            retries++;
-            if (retries < maxRetries) {
-              cy.task(
-                "cli_log",
-                `HMAC computation returned null (attempt ${retries}/${maxRetries}) - retrying...`
-              );
-              attempt();
-              return;
-            }
-            reject(
-              new Error(
-                `HMAC computation returned null after ${maxRetries} attempts`
-              )
-            );
-            return;
-          }
-          resolve(result);
-        });
-      };
-      attempt();
-    });
-  };
-
-  if (!hashKey || !computedSignature || !signingPayload) {
-    cy.task(
-      "cli_log",
-      "HMAC state not available - failure scenarios require prior HMAC computation. Verifying basic signature properties instead."
-    );
-
-    computeHmacWithRetry({
-      key: "test_key",
-      message: "test_message",
-    }).then((testSignature) => {
-      expect(
-        testSignature.length,
-        "HMAC hex digest length should match algorithm output"
-      ).to.be.within(64, 128);
-
-      computeHmacWithRetry({
-        key: "test_key",
-        message: "different_message",
-      }).then((differentSignature) => {
-        expect(
-          differentSignature,
-          "Different payload should produce different signature"
-        ).to.not.equal(testSignature);
-
-        computeHmacWithRetry({
-          key: "different_key",
-          message: "test_message",
-        }).then((wrongKeySignature) => {
-          expect(
-            wrongKeySignature,
-            "Wrong key should produce different signature"
-          ).to.not.equal(testSignature);
-
-          cy.task(
-            "cli_log",
-            `Failure scenarios verified - different payload: DIFFERENT signature, wrong key: DIFFERENT signature`
-          );
-        });
-      });
-    });
-
-    return;
-  }
+  expect(hashKey, "payment_response_hash_key must exist").to.be.a("string").and
+    .not.be.empty;
+  expect(
+    computedSignature,
+    "computedSignature must exist from prior step"
+  ).to.be.a("string").and.not.be.empty;
+  expect(
+    signingPayload,
+    "computedSigningPayload must exist from prior step"
+  ).to.be.a("string").and.not.be.empty;
 
   const tamperedPayload = signingPayload.replace(
     /status=\w+/,
     "status=tampered_status"
   );
 
-  computeHmacWithRetry({
+  cy.task("computeHmac", {
     key: hashKey,
     message: tamperedPayload,
   }).then((tamperedSignature) => {
+    expect(tamperedSignature, "HMAC computation should not return null").to.not
+      .be.null;
+
     expect(
       tamperedSignature,
       "Tampered payload should produce a different signature"
     ).to.not.equal(computedSignature);
 
-    computeHmacWithRetry({
+    cy.task("computeHmac", {
       key: "wrong_key_that_does_not_match",
       message: signingPayload,
     }).then((wrongKeySignature) => {
+      expect(wrongKeySignature, "HMAC computation should not return null").to
+        .not.be.null;
+
       expect(
         wrongKeySignature,
         "Wrong key should produce a different signature"
@@ -8296,7 +8217,14 @@ Cypress.Commands.add("verifyWebhookSignatureHeader", (globalState) => {
       return;
     }
 
-    const webhook = webhooksResponse.body.data[0];
+    const webhook =
+      webhooksResponse.body.data.find((w) => {
+        const obj =
+          typeof w.webhook_object === "string"
+            ? JSON.parse(w.webhook_object)
+            : w.webhook_object;
+        return obj?.payment_id === paymentId;
+      }) || webhooksResponse.body.data[0];
     const webhookSignature = webhook.webhook_signature;
 
     if (!webhookSignature) {
@@ -8309,42 +8237,19 @@ Cypress.Commands.add("verifyWebhookSignatureHeader", (globalState) => {
 
     const webhookPayload = JSON.stringify(webhook.webhook_object);
 
-    let retries = 0;
-    const maxRetries = 3;
+    cy.task("computeHmac", {
+      key: hashKey,
+      message: webhookPayload,
+    }).then((computedSignature) => {
+      expect(computedSignature, "HMAC computation should not return null").to
+        .not.be.null;
 
-    const attemptCompute = () => {
-      cy.task("computeHmac", {
-        key: hashKey,
-        message: webhookPayload,
-      }).then((computedSignature) => {
-        if (computedSignature === null) {
-          retries++;
-          if (retries < maxRetries) {
-            cy.task(
-              "cli_log",
-              `HMAC computation returned null (attempt ${retries}/${maxRetries}) - retrying...`
-            );
-            attemptCompute();
-            return;
-          }
-          cy.task(
-            "cli_log",
-            `HMAC computation returned null after ${maxRetries} attempts - failing test`
-          );
-          expect(computedSignature, "HMAC computation should not return null")
-            .to.not.be.null;
-          return;
-        }
+      expect(
+        computedSignature,
+        "Computed HMAC of webhook payload should match stored signature"
+      ).to.equal(webhookSignature);
 
-        expect(
-          computedSignature,
-          "Computed HMAC of webhook payload should match stored signature"
-        ).to.equal(webhookSignature);
-
-        cy.task("cli_log", `Webhook signature verified - signature match: YES`);
-      });
-    };
-
-    attemptCompute();
+      cy.task("cli_log", `Webhook signature verified - signature match: YES`);
+    });
   });
 });

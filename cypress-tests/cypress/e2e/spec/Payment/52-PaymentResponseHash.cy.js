@@ -233,7 +233,49 @@ describe("Card - Payment Response Hash flow test", () => {
       setup3DSPayment();
 
       cy.step("wait for webhook delivery and verify signature", () => {
-        cy.wait(5000);
+        const paymentId = globalState.get("paymentID");
+        const apiKey = globalState.get("adminApiKey");
+        const baseUrl = globalState.get("baseUrl");
+        const maxAttempts = 10;
+        const pollInterval = 1000;
+        let attempts = 0;
+
+        const pollForWebhooks = () => {
+          cy.request({
+            method: "GET",
+            url: `${baseUrl}/payments/${paymentId}/webhooks`,
+            headers: {
+              "Content-Type": "application/json",
+              "api-key": apiKey,
+            },
+            failOnStatusCode: false,
+          }).then((response) => {
+            if (
+              response.status === 200 &&
+              response.body &&
+              response.body.data &&
+              response.body.data.length > 0
+            ) {
+              cy.task(
+                "cli_log",
+                `Webhook delivery found after ${attempts + 1} poll(s)`
+              );
+            } else {
+              attempts++;
+              if (attempts < maxAttempts) {
+                cy.wait(pollInterval);
+                pollForWebhooks();
+              } else {
+                cy.task(
+                  "cli_log",
+                  `No webhook deliveries found after ${maxAttempts} polls - proceeding to verify (command handles empty case)`
+                );
+              }
+            }
+          });
+        };
+
+        pollForWebhooks();
 
         cy.verifyWebhookSignatureHeader(globalState);
       });
