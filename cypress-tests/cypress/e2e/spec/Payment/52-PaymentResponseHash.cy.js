@@ -5,7 +5,6 @@ import getConnectorDetails, {
   CONNECTOR_LISTS,
 } from "../../configs/Payment/Utils";
 import * as utils from "../../configs/Payment/Utils";
-import "../../../support/redirectionHelper";
 
 let globalState;
 
