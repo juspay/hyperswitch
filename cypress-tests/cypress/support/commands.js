@@ -479,7 +479,10 @@ const ALGORITHM_MAP = {
 
 function resolveAlgorithm(signatureAlgorithm) {
   const algo = ALGORITHM_MAP[signatureAlgorithm];
-  expect(algo, `signature_algorithm must be in whitelist: ${JSON.stringify(Object.keys(ALGORITHM_MAP))}`).to.exist;
+  expect(
+    algo,
+    `signature_algorithm must be in whitelist: ${JSON.stringify(Object.keys(ALGORITHM_MAP))}`
+  ).to.exist;
   return algo;
 }
 
@@ -8562,7 +8565,12 @@ Cypress.Commands.add("verifyWebhookSignatureHeader", (globalState) => {
 
   const cachedWebhookData = globalState.get("webhookData");
   if (cachedWebhookData && cachedWebhookData.length > 0) {
-    verifyWebhookSignatureFromData(cachedWebhookData, paymentId, hashKey, algorithm);
+    verifyWebhookSignatureFromData(
+      cachedWebhookData,
+      paymentId,
+      hashKey,
+      algorithm
+    );
     return;
   }
 
@@ -8593,11 +8601,21 @@ Cypress.Commands.add("verifyWebhookSignatureHeader", (globalState) => {
       return;
     }
 
-    verifyWebhookSignatureFromData(webhooksResponse.body.data, paymentId, hashKey, algorithm);
+    verifyWebhookSignatureFromData(
+      webhooksResponse.body.data,
+      paymentId,
+      hashKey,
+      algorithm
+    );
   });
 });
 
-function verifyWebhookSignatureFromData(webhookData, paymentId, hashKey, algorithm) {
+function verifyWebhookSignatureFromData(
+  webhookData,
+  paymentId,
+  hashKey,
+  algorithm
+) {
   const webhook =
     webhookData.find((w) => {
       const obj =
@@ -8623,8 +8641,8 @@ function verifyWebhookSignatureFromData(webhookData, paymentId, hashKey, algorit
     message: webhookPayload,
     algorithm,
   }).then((computedSignature) => {
-    expect(computedSignature, "HMAC computation should not return null").to
-      .not.be.null;
+    expect(computedSignature, "HMAC computation should not return null").to.not
+      .be.null;
 
     expect(
       computedSignature,

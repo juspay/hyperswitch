@@ -17,6 +17,7 @@
 import "cypress-mochawesome-reporter/register";
 import "./commands";
 import "./redirectionHandler";
+import "./redirectionHelper";
 
 Cypress.on("window:before:load", (win) => {
   // Add security headers
