@@ -889,28 +889,6 @@ export const connectorDetails = {
     },
   },
   bank_redirect_pm: {
-    Trustly: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "trustly",
-        payment_method_data: {
-          bank_redirect: {
-            trustly: {
-              country: "NL",
-            },
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
     Blik: {
       Request: {
         payment_method: "bank_redirect",
@@ -920,6 +898,19 @@ export const connectorDetails = {
             blik: {
               blik_code: "000000",
             },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "PL",
+            first_name: "john",
+            last_name: "doe",
           },
         },
       },
@@ -945,11 +936,61 @@ export const connectorDetails = {
             },
           },
         },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "NL",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
       },
       Response: {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    },
+    Trustly: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "trustly",
+        payment_method_data: {
+          bank_redirect: {
+            trustly: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "SE",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+          },
         },
       },
     },
