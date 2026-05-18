@@ -978,6 +978,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 payment_method_data: None,
                 last_used_at: None,
                 network_transaction_id: None,
+                network_transaction_link_id: None,
                 status: None,
                 locker_id: None,
                 network_token_requestor_reference_id: None,
