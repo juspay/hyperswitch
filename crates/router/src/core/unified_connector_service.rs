@@ -1,5 +1,6 @@
 use std::{borrow::Cow, str::FromStr, time::Instant};
 
+use actix_web::ResponseError;
 use api_models::admin;
 #[cfg(feature = "v2")]
 use base64::Engine;
@@ -68,22 +69,6 @@ use crate::{
 
 pub mod connector_config;
 pub mod transformers;
-
-/// Returns HTTP status code from UCS error.
-/// Uses UnifiedConnectorServiceError::http_status() for consistent mapping.
-pub fn map_ucs_error_to_http_status(error: &UnifiedConnectorServiceError) -> u16 {
-    error.http_status()
-}
-
-/// Extracts the HTTP status code from an ApiErrorResponse for UCS error logging.
-/// For ExternalConnectorError, uses the connector's HTTP status code.
-/// All other API errors default to 500.
-pub fn extract_ucs_error_http_status(error: &errors::ApiErrorResponse) -> u16 {
-    match error {
-        errors::ApiErrorResponse::ExternalConnectorError { status_code, .. } => *status_code,
-        _ => 500,
-    }
-}
 
 /// Returns Apple Pay data from payment method token when it has decrypt data,
 /// otherwise returns the original payment data.
@@ -2606,7 +2591,7 @@ where
                 "error_type": "ucs_call_failed"
             });
             (
-                extract_ucs_error_http_status(error.current_context()),
+                error.current_context().status_code().as_u16(),
                 Some(error_body),
                 Err(error),
             )
@@ -2754,7 +2739,7 @@ where
                 "error_type": "ucs_call_failed"
             });
             (
-                map_ucs_error_to_http_status(error.current_context()),
+                error.current_context().http_status(),
                 Some(error_body),
                 Err(error),
             )
@@ -2958,10 +2943,12 @@ pub async fn call_unified_connector_service_for_refund_execute(
                         message,
                         status_code,
                         reason,
+                        connector,
                     } = report.current_context()
                     {
                         logger::info!(
-                            "Connector error via UCS for refund execute (status {}): {} - {}",
+                            "Connector error via UCS for refund execute (connector {}, status {}): {} - {}",
+                            connector,
                             status_code,
                             code,
                             message
@@ -3085,10 +3072,12 @@ pub async fn call_unified_connector_service_for_refund_sync(
                         message,
                         status_code,
                         reason,
+                        connector,
                     } = report.current_context()
                     {
                         logger::info!(
-                            "Connector error via UCS for refund sync (status {}): {} - {}",
+                            "Connector error via UCS for refund sync (connector {}, status {}): {} - {}",
+                            connector,
                             status_code,
                             code,
                             message

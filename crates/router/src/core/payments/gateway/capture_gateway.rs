@@ -128,10 +128,12 @@ where
                             message,
                             status_code,
                             reason,
+                            connector,
                         } = report.current_context()
                         {
                             logger::info!(
-                                "Connector error via UCS for capture (status {}): {} - {}",
+                                "Connector error via UCS for capture (connector {}, status {}): {} - {}",
+                                connector,
                                 status_code,
                                 code,
                                 message

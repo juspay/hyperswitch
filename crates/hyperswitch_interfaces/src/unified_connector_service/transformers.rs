@@ -16,6 +16,7 @@ use hyperswitch_masking::ExposeInterface;
 use prost::Message;
 
 use crate::{
+    errors::ConnectorError,
     helpers::{ForeignFrom, ForeignTryFrom},
     unified_connector_service::payments_grpc,
 };
@@ -110,6 +111,8 @@ pub enum UnifiedConnectorServiceError {
         status_code: u16,
         /// Optional reason for the error
         reason: Option<String>,
+        /// Name of the connector that returned the error
+        connector: String,
     },
 
     /// Failed to perform Payment Create Order from gRPC Server
@@ -909,9 +912,9 @@ impl UnifiedConnectorServiceError {
 
     /// Maps tonic::Status to UnifiedConnectorServiceError.
     /// First tries to extract connector error from proto details.
-    pub fn from_tonic_status(status: &tonic::Status) -> Self {
+    pub fn from_tonic_status(status: &tonic::Status, connector_name: &str) -> Self {
         // Try to extract ConnectorError from proto-encoded status details
-        if let Some(error_from_details) = Self::try_parse_from_details(status) {
+        if let Some(error_from_details) = Self::try_parse_from_details(status, connector_name) {
             return error_from_details;
         }
 
@@ -921,13 +924,21 @@ impl UnifiedConnectorServiceError {
         }
     }
 
-    fn try_parse_from_details(status: &tonic::Status) -> Option<Self> {
+    fn try_parse_from_details(status: &tonic::Status, connector_name: &str) -> Option<Self> {
         let details = status.details();
         if details.is_empty() {
             return None;
         }
 
-        let connector_error = payments_grpc::ConnectorError::decode(details).ok()?;
+        let connector_error = payments_grpc::ConnectorError::decode(details)
+            .inspect_err(|e| {
+                router_env::logger::warn!(
+                    error = ?e,
+                    connector_name = connector_name,
+                    "Failed to decode ConnectorError from tonic status details"
+                );
+            })
+            .ok()?;
         let status_code = u16::try_from(connector_error.http_status_code?).ok()?;
         Some(Self::ConnectorError {
             code: connector_error.error_code,
@@ -938,6 +949,7 @@ impl UnifiedConnectorServiceError {
                 .as_ref()
                 .and_then(|ei| ei.connector_details.as_ref())
                 .and_then(|cd| cd.reason.clone()),
+            connector: connector_name.to_string(),
         })
     }
 }
@@ -974,14 +986,96 @@ impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
                 message,
                 status_code,
                 reason,
+                connector,
             } => ApiErrorResponse::ExternalConnectorError {
                 code: code.clone(),
                 message: message.clone(),
-                connector: "ucs".to_string(),
+                connector: connector.clone(),
                 status_code: *status_code,
                 reason: reason.clone(),
             },
             _ => ApiErrorResponse::InternalServerError,
+        }
+    }
+}
+
+impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
+    fn switch(&self) -> ConnectorError {
+        match self {
+            // UCS validation errors (4xx from tonic) → ProcessingStepFailed with encoded error
+            // body so the upstream handler can return the right HTTP status code.
+            Self::TonicStatus { code, message } => {
+                let status_code = Self::tonic_to_http_status(*code);
+                let error_body = serde_json::json!({
+                    "code": format!("UCS_{}", status_code),
+                    "message": message,
+                    "status_code": status_code,
+                    "type": "ucs_validation_error"
+                });
+                ConnectorError::ProcessingStepFailed(Some(bytes::Bytes::from(
+                    error_body.to_string(),
+                )))
+            }
+            // Connector errors with status code → ResponseHandlingFailed
+            Self::ConnectorError { .. } => ConnectorError::ResponseHandlingFailed,
+            // Connection/availability errors → ResponseHandlingFailed
+            Self::ConnectionError(_) => ConnectorError::ResponseHandlingFailed,
+            // Request encoding errors
+            Self::RequestEncodingFailed
+            | Self::RequestEncodingFailedWithReason(_)
+            | Self::InvalidDataFormat { .. } => ConnectorError::RequestEncodingFailed,
+            // Missing field errors
+            Self::MissingRequiredField { field_name } => {
+                ConnectorError::MissingRequiredField { field_name }
+            }
+            Self::MissingRequiredFields { field_names } => ConnectorError::MissingRequiredFields {
+                field_names: field_names.clone(),
+            },
+            // Response deserialization errors
+            Self::ResponseDeserializationFailed | Self::ParsingFailed => {
+                ConnectorError::ResponseDeserializationFailed
+            }
+            // Auth errors
+            Self::FailedToObtainAuthType => ConnectorError::FailedToObtainAuthType,
+            // Not implemented
+            Self::NotImplemented(msg) => ConnectorError::NotImplemented(msg.clone()),
+            // Invalid connector name
+            Self::InvalidConnectorName | Self::MissingConnectorName => {
+                ConnectorError::InvalidConnectorName
+            }
+            // Header injection errors → request encoding failure
+            Self::HeaderInjectionFailed(_) => ConnectorError::RequestEncodingFailed,
+            // Webhook processing errors
+            Self::WebhookProcessingFailure => ConnectorError::ResponseHandlingFailed,
+            // All other gRPC operation failures
+            Self::PaymentCreateOrderFailure
+            | Self::PaymentAuthorizeGranularFailure
+            | Self::CreateSessionTokenFailure
+            | Self::CreateAccessTokenFailure
+            | Self::PaymentMethodTokenizeFailure
+            | Self::CreateConnectorCustomerFailure
+            | Self::PaymentAuthorizeFailure
+            | Self::PaymentPreAuthenticateFailure
+            | Self::PaymentAuthenticateFailure
+            | Self::PaymentPostAuthenticateFailure
+            | Self::PaymentGetFailure
+            | Self::PaymentCaptureFailure
+            | Self::PaymentSetupRecurringFailure
+            | Self::RecurringPaymentChargeFailure
+            | Self::PaymentRefundFailure
+            | Self::RefundSyncFailure
+            | Self::IncomingWebhookHandleEventFailure
+            | Self::IncomingWebhookParseEventFailure
+            | Self::PaymentVoidFailure
+            | Self::CreateSdkSessionTokenFailure
+            | Self::PaymentIncrementalAuthorizationFailure
+            | Self::PayoutCreateFailure
+            | Self::PayoutTransferFailure
+            | Self::PayoutGetFailure
+            | Self::PayoutVoidFailure
+            | Self::PayoutStageFailure
+            | Self::PayoutCreateRecipientFailure
+            | Self::PayoutEnrollDisburseAccountFailure => ConnectorError::ResponseHandlingFailed,
         }
     }
 }

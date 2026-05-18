@@ -20,6 +20,7 @@ pub mod setup_mandate;
 use std::sync;
 
 use common_enums;
+use common_utils::errors::ErrorSwitch;
 use error_stack::Report;
 use hyperswitch_domain_models::{router_data_v2::PaymentFlowData, router_flow_types::payments};
 use hyperswitch_interfaces::{
@@ -91,36 +92,13 @@ where
     Ok(resp)
 }
 
-/// Converts a `Report<UnifiedConnectorServiceError>` into a `Report<ConnectorError>`.
-///
-/// - `TonicStatus` (UCS 4xx, e.g. validation errors) → `ConnectorError::ProcessingStepFailed`
-///   with a JSON body encoding the HTTP status and message, so upstream can return the right
-///   HTTP status code.
-/// - All other variants (5xx, connector errors that weren't caught early, etc.) →
-///   `ConnectorError::ResponseHandlingFailed`.
+/// Converts a `Report<UnifiedConnectorServiceError>` into a `Report<ConnectorError>`
+/// using the `ErrorSwitch` trait for consistent, exhaustive mapping.
 ///
 /// Shared by all payment gateway files (authorize, psync, capture, void) to avoid duplication.
 pub(crate) fn convert_ucs_error_to_connector_error(
     report: Report<UnifiedConnectorServiceError>,
 ) -> Report<ConnectorError> {
-    let ucs_error = report.current_context();
-
-    match ucs_error {
-        // UCS validation errors (4xx from tonic) → converted to ProcessingStepFailed
-        // with encoded error body for proper HTTP status handling
-        UnifiedConnectorServiceError::TonicStatus { code, message } => {
-            let status_code = UnifiedConnectorServiceError::tonic_to_http_status(*code);
-            let error_body = serde_json::json!({
-                "code": format!("UCS_{}", status_code),
-                "message": message,
-                "status_code": status_code,
-                "type": "ucs_validation_error"
-            });
-            report.change_context(ConnectorError::ProcessingStepFailed(Some(
-                bytes::Bytes::from(error_body.to_string()),
-            )))
-        }
-        // Connector errors (have status_code) and server errors → generic handling
-        _ => report.change_context(ConnectorError::ResponseHandlingFailed),
-    }
+    let connector_error = report.current_context().switch();
+    report.change_context(connector_error)
 }

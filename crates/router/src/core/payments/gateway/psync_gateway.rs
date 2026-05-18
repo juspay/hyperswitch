@@ -204,10 +204,12 @@ where
                                     message,
                                     status_code,
                                     reason,
+                                    connector,
                                 } = report.current_context()
                                 {
                                     logger::info!(
-                                        "Connector error via UCS for psync (status {}): {} - {}",
+                                        "Connector error via UCS for psync (connector {}, status {}): {} - {}",
+                                        connector,
                                         status_code,
                                         code,
                                         message

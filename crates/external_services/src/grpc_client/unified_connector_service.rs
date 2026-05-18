@@ -338,6 +338,7 @@ impl UnifiedConnectorServiceClient {
                 tonic_status_to_report(
                     e,
                     UnifiedConnectorServiceError::PaymentMethodTokenizeFailure,
+                    &connector_name,
                 )
             })
             .inspect_err(|error| {
@@ -376,6 +377,7 @@ impl UnifiedConnectorServiceClient {
                 tonic_status_to_report(
                     e,
                     UnifiedConnectorServiceError::CreateSdkSessionTokenFailure,
+                    &connector_name,
                 )
             })
             .inspect_err(|error| {
@@ -412,6 +414,7 @@ impl UnifiedConnectorServiceClient {
                 tonic_status_to_report(
                     e,
                     UnifiedConnectorServiceError::PaymentIncrementalAuthorizationFailure,
+                    &connector_name,
                 )
             })
             .inspect_err(|error| {
@@ -447,6 +450,7 @@ impl UnifiedConnectorServiceClient {
                 tonic_status_to_report(
                     e,
                     UnifiedConnectorServiceError::CreateConnectorCustomerFailure,
+                    &connector_name,
                 )
             })
             .inspect_err(|error| {
@@ -480,7 +484,11 @@ impl UnifiedConnectorServiceClient {
             .create_order(request)
             .await
             .map_err(|e| {
-                tonic_status_to_report(e, UnifiedConnectorServiceError::PaymentCreateOrderFailure)
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PaymentCreateOrderFailure,
+                    &connector_name,
+                )
             })
             .inspect_err(|error| {
                 logger::error!(
@@ -517,6 +525,7 @@ impl UnifiedConnectorServiceClient {
                 tonic_status_to_report(
                     e,
                     UnifiedConnectorServiceError::PaymentPreAuthenticateFailure,
+                    &connector_name,
                 )
             })
             .inspect_err(|error| {
@@ -551,7 +560,11 @@ impl UnifiedConnectorServiceClient {
             .authenticate(request)
             .await
             .map_err(|e| {
-                tonic_status_to_report(e, UnifiedConnectorServiceError::PaymentAuthenticateFailure)
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PaymentAuthenticateFailure,
+                    &connector_name,
+                )
             })
             .inspect_err(|error| {
                 logger::error!(
@@ -584,7 +597,11 @@ impl UnifiedConnectorServiceClient {
             .create_server_session_authentication_token(request)
             .await
             .map_err(|e| {
-                tonic_status_to_report(e, UnifiedConnectorServiceError::CreateSessionTokenFailure)
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::CreateSessionTokenFailure,
+                    &connector_name,
+                )
             })
             .inspect_err(|error| {
                 logger::error!(
@@ -621,6 +638,7 @@ impl UnifiedConnectorServiceClient {
                 tonic_status_to_report(
                     e,
                     UnifiedConnectorServiceError::PaymentPostAuthenticateFailure,
+                    &connector_name,
                 )
             })
             .inspect_err(|error| {
@@ -655,7 +673,11 @@ impl UnifiedConnectorServiceClient {
             .authorize(request)
             .await
             .map_err(|e| {
-                tonic_status_to_report(e, UnifiedConnectorServiceError::PaymentAuthorizeFailure)
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PaymentAuthorizeFailure,
+                    &connector_name,
+                )
             })
             .inspect_err(|error| {
                 logger::error!(
@@ -686,7 +708,13 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .get(request)
             .await
-            .map_err(|e| tonic_status_to_report(e, UnifiedConnectorServiceError::PaymentGetFailure))
+            .map_err(|e| {
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PaymentGetFailure,
+                    &connector_name,
+                )
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -717,7 +745,11 @@ impl UnifiedConnectorServiceClient {
             .capture(request)
             .await
             .map_err(|e| {
-                tonic_status_to_report(e, UnifiedConnectorServiceError::PaymentCaptureFailure)
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PaymentCaptureFailure,
+                    &connector_name,
+                )
             })
             .inspect_err(|error| {
                 logger::error!(
@@ -753,6 +785,7 @@ impl UnifiedConnectorServiceClient {
                 tonic_status_to_report(
                     e,
                     UnifiedConnectorServiceError::PaymentSetupRecurringFailure,
+                    &connector_name,
                 )
             })
             .inspect_err(|error| {
@@ -789,6 +822,7 @@ impl UnifiedConnectorServiceClient {
                 tonic_status_to_report(
                     e,
                     UnifiedConnectorServiceError::RecurringPaymentChargeFailure,
+                    &connector_name,
                 )
             })
             .inspect_err(|error| {
@@ -821,7 +855,11 @@ impl UnifiedConnectorServiceClient {
             .void(request)
             .await
             .map_err(|e| {
-                tonic_status_to_report(e, UnifiedConnectorServiceError::PaymentVoidFailure)
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PaymentVoidFailure,
+                    &connector_name,
+                )
             })
             .inspect_err(|error| {
                 logger::error!(
@@ -856,6 +894,7 @@ impl UnifiedConnectorServiceClient {
                 tonic_status_to_report(
                     e,
                     UnifiedConnectorServiceError::IncomingWebhookHandleEventFailure,
+                    &connector_name,
                 )
             })
             .inspect_err(|error| {
@@ -922,7 +961,11 @@ impl UnifiedConnectorServiceClient {
             .refund(request)
             .await
             .map_err(|e| {
-                tonic_status_to_report(e, UnifiedConnectorServiceError::PaymentRefundFailure)
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PaymentRefundFailure,
+                    &connector_name,
+                )
             })
             .inspect_err(|error| {
                 logger::error!(
@@ -952,7 +995,13 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .get(request)
             .await
-            .map_err(|e| tonic_status_to_report(e, UnifiedConnectorServiceError::RefundSyncFailure))
+            .map_err(|e| {
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::RefundSyncFailure,
+                    &connector_name,
+                )
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -984,7 +1033,11 @@ impl UnifiedConnectorServiceClient {
             .create(request)
             .await
             .map_err(|e| {
-                tonic_status_to_report(e, UnifiedConnectorServiceError::PayoutCreateFailure)
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PayoutCreateFailure,
+                    &connector_name,
+                )
             })
             .inspect_err(|error| {
                 logger::error!(
@@ -1018,7 +1071,11 @@ impl UnifiedConnectorServiceClient {
             .create_server_authentication_token(request)
             .await
             .map_err(|e| {
-                tonic_status_to_report(e, UnifiedConnectorServiceError::CreateAccessTokenFailure)
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::CreateAccessTokenFailure,
+                    &connector_name,
+                )
             })
             .inspect_err(|error| {
                 logger::error!(
@@ -1051,7 +1108,11 @@ impl UnifiedConnectorServiceClient {
             .transfer(request)
             .await
             .map_err(|e| {
-                tonic_status_to_report(e, UnifiedConnectorServiceError::PayoutTransferFailure)
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PayoutTransferFailure,
+                    &connector_name,
+                )
             })
             .inspect_err(|error| {
                 logger::error!(
@@ -1083,7 +1144,13 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .get(request)
             .await
-            .map_err(|e| tonic_status_to_report(e, UnifiedConnectorServiceError::PayoutGetFailure))
+            .map_err(|e| {
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PayoutGetFailure,
+                    &connector_name,
+                )
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -1114,7 +1181,13 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .void(request)
             .await
-            .map_err(|e| tonic_status_to_report(e, UnifiedConnectorServiceError::PayoutVoidFailure))
+            .map_err(|e| {
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PayoutVoidFailure,
+                    &connector_name,
+                )
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -1146,7 +1219,11 @@ impl UnifiedConnectorServiceClient {
             .stage(request)
             .await
             .map_err(|e| {
-                tonic_status_to_report(e, UnifiedConnectorServiceError::PayoutStageFailure)
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PayoutStageFailure,
+                    &connector_name,
+                )
             })
             .inspect_err(|error| {
                 logger::error!(
@@ -1183,6 +1260,7 @@ impl UnifiedConnectorServiceClient {
                 tonic_status_to_report(
                     e,
                     UnifiedConnectorServiceError::PayoutCreateRecipientFailure,
+                    &connector_name,
                 )
             })
             .inspect_err(|error| {
@@ -1220,6 +1298,7 @@ impl UnifiedConnectorServiceClient {
                 tonic_status_to_report(
                     e,
                     UnifiedConnectorServiceError::PayoutEnrollDisburseAccountFailure,
+                    &connector_name,
                 )
             })
             .inspect_err(|error| {
@@ -1395,6 +1474,7 @@ pub fn build_unified_connector_service_grpc_headers(
 pub fn tonic_status_to_report(
     status: tonic::Status,
     default_error: UnifiedConnectorServiceError,
+    connector_name: &str,
 ) -> error_stack::Report<UnifiedConnectorServiceError> {
     let err = match status.code() {
         // 4xx equivalent gRPC status codes - parse into specific tonic variants
@@ -1404,7 +1484,9 @@ pub fn tonic_status_to_report(
         | tonic::Code::PermissionDenied
         | tonic::Code::Unauthenticated
         | tonic::Code::FailedPrecondition
-        | tonic::Code::Unimplemented => UnifiedConnectorServiceError::from_tonic_status(&status),
+        | tonic::Code::Unimplemented => {
+            UnifiedConnectorServiceError::from_tonic_status(&status, connector_name)
+        }
         // 5xx equivalent gRPC status codes - use the default error
         _ => default_error,
     };

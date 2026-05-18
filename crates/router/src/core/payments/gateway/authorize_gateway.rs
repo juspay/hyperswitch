@@ -148,10 +148,12 @@ where
                                 message,
                                 status_code,
                                 reason,
+                                connector,
                             } = report.current_context()
                             {
                                 logger::info!(
-                                    "Connector error via UCS for recurring charge (status {}): {} - {}",
+                                    "Connector error via UCS for recurring charge (connector {}, status {}): {} - {}",
+                                    connector,
                                     status_code,
                                     code,
                                     message
@@ -263,10 +265,12 @@ where
                                 message,
                                 status_code,
                                 reason,
+                                connector,
                             } = report.current_context()
                             {
                                 logger::info!(
-                                    "Connector error via UCS (status {}): {} - {}",
+                                    "Connector error via UCS (connector {}, status {}): {} - {}",
+                                    connector,
                                     status_code,
                                     code,
                                     message
