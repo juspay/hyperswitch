@@ -11,6 +11,7 @@ pub mod bambora;
 pub mod bamboraapac;
 pub mod bankofamerica;
 pub mod barclaycard;
+pub mod bidv;
 pub mod billwerk;
 pub mod bitpay;
 pub mod blackhawknetwork;
@@ -151,7 +152,7 @@ pub use self::{
     aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, affirm::Affirm, airwallex::Airwallex,
     amazonpay::Amazonpay, archipel::Archipel, authipay::Authipay, authorizedotnet::Authorizedotnet,
     bambora::Bambora, bamboraapac::Bamboraapac, bankofamerica::Bankofamerica,
-    barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay,
+    barclaycard::Barclaycard, bidv::Bidv, billwerk::Billwerk, bitpay::Bitpay,
     blackhawknetwork::Blackhawknetwork, bluesnap::Bluesnap, boku::Boku, braintree::Braintree,
     breadpay::Breadpay, calida::Calida, cashtocode::Cashtocode, celero::Celero,
     chargebee::Chargebee, checkbook::Checkbook, checkout::Checkout, coinbase::Coinbase,

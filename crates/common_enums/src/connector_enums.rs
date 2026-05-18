@@ -73,6 +73,7 @@ pub enum Connector {
     Bamboraapac,
     Bankofamerica,
     Barclaycard,
+    Bidv,
     Billwerk,
     Bitpay,
     Bluesnap,
@@ -318,6 +319,7 @@ impl Connector {
             | Self::Bamboraapac
             | Self::Bankofamerica
             | Self::Barclaycard
+            | Self::Bidv
             | Self::Billwerk
             | Self::Bitpay
             | Self::Bluesnap

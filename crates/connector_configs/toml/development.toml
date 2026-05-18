@@ -8562,3 +8562,23 @@ key1 = "Merchant Id"
 payment_method_type = "eft_debit_order"
 [sanlam.connector_webhook_details]
 merchant_secret="Source verification key"
+[bidv]
+[[bidv.bank_transfer]]
+payment_method_type = "local_bank_transfer"
+[bidv.connector_auth.SignatureKey]
+api_key = "Client ID"
+key1 = "Client Certificate (X-Client-Certificate)"
+api_secret = "Client Secret"
+[[bidv.metadata.account_type]]
+name = "account_type"
+label = "Account Type"
+placeholder = "Select account type"
+required = true
+type = "Select"
+options = ["business", "personal"]
+[[bidv.metadata.account_number]]
+name = "account_number"
+label = "BIDV Source Account Number"
+placeholder = "Enter BIDV debit account number"
+required = true
+type = "Text"

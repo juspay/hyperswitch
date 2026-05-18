@@ -24,6 +24,7 @@ pub struct Connectors {
     pub bamboraapac: ConnectorParams,
     pub bankofamerica: ConnectorParams,
     pub barclaycard: ConnectorParams,
+    pub bidv: ConnectorParams,
     pub billwerk: ConnectorParams,
     pub bitpay: ConnectorParams,
     pub blackhawknetwork: ConnectorParams,

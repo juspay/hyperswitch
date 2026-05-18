@@ -113,6 +113,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 barclaycard::transformers::BarclaycardAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Bidv => {
+                bidv::transformers::BidvAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Billwerk => {
                 billwerk::transformers::BillwerkAuthType::try_from(self.auth_type)?;
                 Ok(())
