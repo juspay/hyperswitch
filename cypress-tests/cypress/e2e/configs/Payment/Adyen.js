@@ -1178,7 +1178,6 @@ export const connectorDetails = {
         Request: {
           payment_method: "bank_redirect",
           payment_method_type: "bancontact_card",
-          authentication_type: "three_ds",
           payment_method_data: {
             bank_redirect: {
               bancontact_card: {
@@ -1375,7 +1374,6 @@ export const connectorDetails = {
         Request: {
           payment_method: "bank_redirect",
           payment_method_type: "trustly",
-          authentication_type: "three_ds",
           payment_method_data: {
             bank_redirect: {
               trustly: {
