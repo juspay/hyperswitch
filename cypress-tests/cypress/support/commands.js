@@ -2285,7 +2285,7 @@ Cypress.Commands.add(
       }
     }
 
-    if (reqData?.split_payments && isStripeConnect(globalState)) {
+    if (reqData?.split_payments && (isStripeConnect(globalState) || getOriginalConnectorId(globalState) === "xendit")) {
       confirmBody.split_payments = reqData.split_payments;
     }
 
@@ -2855,7 +2855,7 @@ Cypress.Commands.add(
       }
     }
 
-    if (reqData?.split_payments && isStripeConnect(globalState)) {
+    if (reqData?.split_payments && (isStripeConnect(globalState) || getOriginalConnectorId(globalState) === "xendit")) {
       createConfirmPaymentBody.split_payments = reqData.split_payments;
     }
 
