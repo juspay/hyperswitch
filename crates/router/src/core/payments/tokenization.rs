@@ -182,11 +182,13 @@ where
                 .map(|token_filter| token_filter.long_lived_token)
                 .unwrap_or(false);
 
-            let network_transaction_id = match &responses {
-                types::PaymentsResponseData::TransactionResponse { network_txn_id, .. } => {
-                    network_txn_id.clone()
-                }
-                _ => None,
+            let (network_transaction_id, network_transaction_link_id) = match &responses {
+                types::PaymentsResponseData::TransactionResponse {
+                    network_txn_id,
+                    network_txn_link_id,
+                    ..
+                } => (network_txn_id.clone(), network_txn_link_id.clone()),
+                _ => (None, None),
             };
 
             let network_transaction_id =
@@ -199,6 +201,15 @@ where
                         logger::info!("Skip storing network transaction id");
                         None
                     }
+                } else {
+                    None
+                };
+
+            let network_transaction_link_id =
+                if save_payment_method_data.request.get_setup_future_usage()
+                    == Some(storage_enums::FutureUsage::OffSession)
+                {
+                    network_transaction_link_id
                 } else {
                     None
                 };
@@ -544,6 +555,7 @@ where
                                                 pm_status,
                                                 network_transaction_id,
                                                 encrypted_payment_method_billing_address,
+                                                network_transaction_link_id,
                                                 resp.card.and_then(|card| {
                                                     card.card_network.map(|card_network| {
                                                         card_network.to_string()
@@ -690,6 +702,7 @@ where
                                                     pm_status,
                                                     network_transaction_id,
                                                     encrypted_payment_method_billing_address,
+                                                    network_transaction_link_id,
                                                     resp.card.and_then(|card| {
                                                         card.card_network.map(|card_network| {
                                                             card_network.to_string()
@@ -929,6 +942,7 @@ where
                                     pm_status,
                                     network_transaction_id,
                                     encrypted_payment_method_billing_address,
+                                    network_transaction_link_id,
                                     resp.card.and_then(|card| {
                                         card.card_network
                                             .map(|card_network| card_network.to_string())

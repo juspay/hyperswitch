@@ -52,6 +52,7 @@ pub trait PaymentMethodsController {
         status: Option<common_enums::PaymentMethodStatus>,
         network_transaction_id: Option<String>,
         payment_method_billing_address: crypto::OptionalEncryptableValue,
+        network_transaction_link_id: Option<String>,
         card_scheme: Option<String>,
         network_token_requestor_reference_id: Option<String>,
         network_token_locker_id: Option<String>,
