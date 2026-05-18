@@ -193,6 +193,16 @@ describe("PayLater tests", () => {
   });
 
   context("Affirm PayLater - Auto Capture flow test", () => {
+    before("skip if connector does not support Affirm", function () {
+      if (
+        shouldIncludeConnector(
+          globalState.get("connectorId"),
+          CONNECTOR_LISTS.INCLUDE.AFFIRM
+        )
+      ) {
+        this.skip();
+      }
+    });
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
@@ -271,6 +281,16 @@ describe("PayLater tests", () => {
   });
 
   context("Affirm PayLater - Manual Capture flow test", () => {
+    before("skip if connector does not support Affirm", function () {
+      if (
+        shouldIncludeConnector(
+          globalState.get("connectorId"),
+          CONNECTOR_LISTS.INCLUDE.AFFIRM
+        )
+      ) {
+        this.skip();
+      }
+    });
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
