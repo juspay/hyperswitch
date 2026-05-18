@@ -83,6 +83,7 @@ pub struct PaymentMethod {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
+    pub network_transaction_link_id: Option<String>,
     pub client_secret: Option<String>,
     pub payment_method_billing_address: OptionalEncryptableValue,
     pub updated_by: Option<String>,
@@ -125,11 +126,13 @@ pub struct PaymentMethod {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
+    pub network_transaction_link_id: Option<String>,
     pub client_secret: Option<String>,
     #[encrypt(ty = Value)]
     pub payment_method_billing_address: Option<Encryptable<Address>>,
     pub updated_by: Option<String>,
     pub locker_fingerprint_id: Option<String>,
+    pub auxiliary_fingerprint_id: Option<String>,
     pub version: common_enums::ApiVersion,
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
@@ -476,6 +479,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_acceptance: self.customer_acceptance,
             status: self.status,
             network_transaction_id: self.network_transaction_id,
+            network_transaction_link_id: self.network_transaction_link_id,
             client_secret: self.client_secret,
             payment_method_billing_address: self
                 .payment_method_billing_address
@@ -660,6 +664,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_acceptance: item.customer_acceptance,
             status: item.status,
             network_transaction_id: item.network_transaction_id,
+            network_transaction_link_id: item.network_transaction_link_id,
             client_secret: item.client_secret,
             payment_method_billing_address,
             updated_by: item.updated_by,
@@ -712,6 +717,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_acceptance: self.customer_acceptance,
             status: self.status,
             network_transaction_id: self.network_transaction_id,
+            network_transaction_link_id: self.network_transaction_link_id,
             client_secret: self.client_secret,
             payment_method_billing_address: self
                 .payment_method_billing_address
@@ -760,6 +766,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_acceptance: self.customer_acceptance,
             status: self.status,
             network_transaction_id: self.network_transaction_id.map(Secret::new),
+            network_transaction_link_id: self.network_transaction_link_id.map(Secret::new),
             client_secret: self.client_secret,
             payment_method_billing_address: self
                 .payment_method_billing_address
@@ -781,6 +788,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .map(|last_modified_by| last_modified_by.to_string()),
             customer_details: self.customer_details.map(|val| val.into()),
             network_tokenization_data: self.network_tokenization_data.map(|val| val.into()),
+            auxiliary_fingerprint_id: self.auxiliary_fingerprint_id,
         })
     }
 
@@ -901,6 +909,9 @@ impl super::behaviour::Conversion for PaymentMethod {
                 network_transaction_id: storage_model
                     .network_transaction_id
                     .map(ExposeInterface::expose),
+                network_transaction_link_id: storage_model
+                    .network_transaction_link_id
+                    .map(ExposeInterface::expose),
                 client_secret: storage_model.client_secret,
                 payment_method_billing_address,
                 updated_by: storage_model.updated_by,
@@ -921,6 +932,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                     .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
                 customer_details,
                 network_tokenization_data,
+                auxiliary_fingerprint_id: storage_model.auxiliary_fingerprint_id,
             })
         }
         .await
@@ -947,6 +959,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_acceptance: self.customer_acceptance,
             status: self.status,
             network_transaction_id: self.network_transaction_id,
+            network_transaction_link_id: self.network_transaction_link_id,
             client_secret: self.client_secret,
             payment_method_billing_address: self
                 .payment_method_billing_address
@@ -966,6 +979,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
             customer_details: self.customer_details.map(|val| val.into()),
+            auxiliary_fingerprint_id: self.auxiliary_fingerprint_id,
         })
     }
 }
@@ -1358,16 +1372,26 @@ pub struct PaymentMethodCustomerMigrate {
 }
 
 #[cfg(feature = "v1")]
-impl TryFrom<(payment_methods::PaymentMethodRecord, id_type::MerchantId)>
-    for PaymentMethodCustomerMigrate
+impl
+    TryFrom<(
+        payment_methods::PaymentMethodRecord,
+        id_type::MerchantId,
+        Option<&Vec<id_type::MerchantConnectorAccountId>>,
+    )> for PaymentMethodCustomerMigrate
 {
     type Error = error_stack::Report<ValidationError>;
     fn try_from(
-        value: (payment_methods::PaymentMethodRecord, id_type::MerchantId),
+        value: (
+            payment_methods::PaymentMethodRecord,
+            id_type::MerchantId,
+            // merchant_connector_id(s) supplied at the form level (not as CSV columns)
+            Option<&Vec<id_type::MerchantConnectorAccountId>>,
+        ),
     ) -> Result<Self, Self::Error> {
-        let (record, merchant_id) = value;
+        let (record, merchant_id, fallback_merchant_connector_ids) = value;
         let connector_customer_details = record
             .connector_customer_id
+            .as_ref()
             .and_then(|connector_customer_id| {
                 // Handle single merchant_connector_id
                 record
@@ -1411,6 +1435,19 @@ impl TryFrom<(payment_methods::PaymentMethodRecord, id_type::MerchantId)>
                                     .collect::<Result<Vec<_>, _>>()
                             })
                     })
+                    // Fall back to the form-level merchant_connector_id(s) when the CSV row
+                    // has no merchant_connector_id(s) column
+                    .or_else(|| {
+                        fallback_merchant_connector_ids.map(|merchant_connector_ids| {
+                            Ok(merchant_connector_ids
+                                .iter()
+                                .map(|merchant_connector_id| ConnectorCustomerDetails {
+                                    connector_customer_id: connector_customer_id.clone(),
+                                    merchant_connector_id: merchant_connector_id.clone(),
+                                })
+                                .collect::<Vec<_>>())
+                        })
+                    })
             })
             .transpose()?;
 
@@ -1445,18 +1482,31 @@ impl TryFrom<(payment_methods::PaymentMethodRecord, id_type::MerchantId)>
 }
 
 #[cfg(feature = "v1")]
-impl ForeignTryFrom<(&[payment_methods::PaymentMethodRecord], id_type::MerchantId)>
-    for Vec<PaymentMethodCustomerMigrate>
+impl
+    ForeignTryFrom<(
+        &[payment_methods::PaymentMethodRecord],
+        id_type::MerchantId,
+        Option<&Vec<id_type::MerchantConnectorAccountId>>,
+    )> for Vec<PaymentMethodCustomerMigrate>
 {
     type Error = error_stack::Report<ValidationError>;
 
     fn foreign_try_from(
-        (records, merchant_id): (&[payment_methods::PaymentMethodRecord], id_type::MerchantId),
+        // merchant_connector_ids: form-level connector account id(s), forwarded to each row
+        (records, merchant_id, merchant_connector_ids): (
+            &[payment_methods::PaymentMethodRecord],
+            id_type::MerchantId,
+            Option<&Vec<id_type::MerchantConnectorAccountId>>,
+        ),
     ) -> Result<Self, Self::Error> {
         let (customers_migration, migration_errors): (Self, Vec<_>) = records
             .iter()
             .map(|record| {
-                PaymentMethodCustomerMigrate::try_from((record.clone(), merchant_id.clone()))
+                PaymentMethodCustomerMigrate::try_from((
+                    record.clone(),
+                    merchant_id.clone(),
+                    merchant_connector_ids,
+                ))
             })
             .fold((Self::new(), Vec::new()), |mut acc, result| {
                 match result {
@@ -1708,6 +1758,7 @@ mod tests {
             customer_acceptance: None,
             status: storage_enums::PaymentMethodStatus::Active,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             client_secret: None,
             payment_method_billing_address: None,
             updated_by: None,
