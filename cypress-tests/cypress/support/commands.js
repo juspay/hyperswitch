@@ -7816,153 +7816,110 @@ Cypress.Commands.add("completePaymentLinkCardTest", (cardData, globalState) => {
 
   cy.visit(paymentLinkUrl, { failOnStatusCode: false });
 
-  cy.get("#hyper-checkout-sdk", { timeout: 30000 }).should("exist");
-  cy.get("#unified-checkout", { timeout: 30000 }).should("exist");
+  // Wait for the page to fully load
+  cy.get("body", { timeout: 30000 }).should("exist");
+
+  // Wait for the Hyperswitch SDK to initialize.
+  // The payment link page loads the SDK script asynchronously via
+  // <script src="..." onload="initializeSDK()">. During initialization,
+  // #sdk-spinner is visible. After successful init, showSDK() adds the
+  // 'hidden' class to #sdk-spinner and reveals #unified-checkout.
+  cy.get("#sdk-spinner", { timeout: 60000 }).should("have.class", "hidden");
+  cy.task("cli_log", "Payment Link SDK initialized successfully");
+
+  cy.get("#unified-checkout", { timeout: 30000 }).should("be.visible");
   cy.get("#payment-form", { timeout: 30000 }).should("exist");
 
-  cy.get("#unified-checkout", { timeout: 30000 }).then(($container) => {
-    const iframes = $container.find("iframe");
+  cy.get("#unified-checkout iframe", { timeout: 30000 }).should(
+    "have.length.at.least",
+    1
+  );
 
-    if (iframes.length === 0) {
-      cy.task(
-        "cli_log",
-        "No iframes found in unified-checkout - attempting inline inputs"
-      );
+  function fillCardInputInIframe(iframe, index) {
+    cy.wrap(iframe)
+      .its("0.contentDocument.body")
+      .should("not.be.empty")
+      .then((body) => {
+        const $body = Cypress.$(body);
+        const inputs = $body.find("input");
 
-      $container.find("input").each((_, input) => {
-        const $input = Cypress.$(input);
-        const placeholder = ($input.attr("placeholder") || "").toLowerCase();
-        const ariaLabel = ($input.attr("aria-label") || "").toLowerCase();
-        const name = ($input.attr("name") || "").toLowerCase();
-        const inputType = ($input.attr("type") || "").toLowerCase();
-
-        if (
-          placeholder.includes("card") ||
-          placeholder.includes("number") ||
-          ariaLabel.includes("card") ||
-          ariaLabel.includes("number") ||
-          name.includes("cardnumber") ||
-          name.includes("card_number")
-        ) {
-          cy.wrap(input).clear().type(card_number, { delay: 30 });
-          cy.task("cli_log", "Filled card number (inline)");
-        } else if (
-          placeholder.includes("expir") ||
-          placeholder.includes("mm") ||
-          placeholder.includes("yy") ||
-          ariaLabel.includes("expir") ||
-          name.includes("exp")
-        ) {
-          cy.wrap(input)
-            .clear()
-            .type(`${card_exp_month}${card_exp_year.slice(-2)}`, {
-              delay: 30,
-            });
-          cy.task("cli_log", "Filled expiry (inline)");
-        } else if (
-          placeholder.includes("cvc") ||
-          placeholder.includes("cvv") ||
-          placeholder.includes("security") ||
-          ariaLabel.includes("cvc") ||
-          ariaLabel.includes("cvv") ||
-          name.includes("cvc") ||
-          name.includes("cvv")
-        ) {
-          cy.wrap(input).clear().type(card_cvc, { delay: 30 });
-          cy.task("cli_log", "Filled CVC (inline)");
+        if (inputs.length === 0) {
+          cy.task("cli_log", `Iframe ${index}: no inputs found, skipping`);
+          return;
         }
+
+        inputs.each((_, input) => {
+          const $input = Cypress.$(input);
+          const placeholder = ($input.attr("placeholder") || "").toLowerCase();
+          const ariaLabel = ($input.attr("aria-label") || "").toLowerCase();
+          const name = ($input.attr("name") || "").toLowerCase();
+          const autocomplete = (
+            $input.attr("autocomplete") || ""
+          ).toLowerCase();
+
+          if (
+            placeholder.includes("card") ||
+            placeholder.includes("number") ||
+            ariaLabel.includes("card") ||
+            ariaLabel.includes("number") ||
+            name.includes("cardnumber") ||
+            name.includes("card_number") ||
+            autocomplete.includes("cc-number")
+          ) {
+            cy.wrap(input)
+              .focus()
+              .clear({ force: true })
+              .type(card_number, { delay: 30, force: true });
+            cy.task("cli_log", `Filled card number in iframe ${index}`);
+          } else if (
+            placeholder.includes("expir") ||
+            placeholder.includes("mm") ||
+            placeholder.includes("yy") ||
+            ariaLabel.includes("expir") ||
+            name.includes("exp") ||
+            autocomplete.includes("cc-exp")
+          ) {
+            cy.wrap(input)
+              .focus()
+              .clear({ force: true })
+              .type(`${card_exp_month}${card_exp_year.slice(-2)}`, {
+                delay: 30,
+                force: true,
+              });
+            cy.task("cli_log", `Filled expiry in iframe ${index}`);
+          } else if (
+            placeholder.includes("cvc") ||
+            placeholder.includes("cvv") ||
+            placeholder.includes("security") ||
+            ariaLabel.includes("cvc") ||
+            ariaLabel.includes("cvv") ||
+            name.includes("cvc") ||
+            name.includes("cvv") ||
+            autocomplete.includes("cc-csc")
+          ) {
+            cy.wrap(input)
+              .focus()
+              .clear({ force: true })
+              .type(card_cvc, { delay: 30, force: true });
+            cy.task("cli_log", `Filled CVC in iframe ${index}`);
+          }
+        });
       });
-    } else {
-      cy.task(
-        "cli_log",
-        `Found ${iframes.length} iframes in unified-checkout`
-      );
+  }
 
-      iframes.each((index, iframe) => {
-        cy.wrap(iframe)
-          .its("0.contentDocument.body")
-          .should("not.be.empty")
-          .then((body) => {
-            const $body = Cypress.$(body);
-            const inputs = $body.find("input");
+  cy.get("#unified-checkout iframe").then(($iframes) => {
+    cy.task("cli_log", `Found ${$iframes.length} iframes in unified-checkout`);
 
-            if (inputs.length === 0) {
-              cy.task("cli_log", `Iframe ${index}: no inputs found`);
-              return;
-            }
-
-            inputs.each((_, input) => {
-              const $input = Cypress.$(input);
-              const placeholder = (
-                $input.attr("placeholder") || ""
-              ).toLowerCase();
-              const ariaLabel = (
-                $input.attr("aria-label") || ""
-              ).toLowerCase();
-              const name = ($input.attr("name") || "").toLowerCase();
-              const autocomplete = (
-                $input.attr("autocomplete") || ""
-              ).toLowerCase();
-
-              if (
-                placeholder.includes("card") ||
-                placeholder.includes("number") ||
-                ariaLabel.includes("card") ||
-                ariaLabel.includes("number") ||
-                name.includes("cardnumber") ||
-                name.includes("card_number") ||
-                autocomplete.includes("cc-number")
-              ) {
-                cy.wrap(input).clear().type(card_number, { delay: 30 });
-                cy.task(
-                  "cli_log",
-                  `Filled card number in iframe ${index}`
-                );
-              } else if (
-                placeholder.includes("expir") ||
-                placeholder.includes("mm") ||
-                placeholder.includes("yy") ||
-                ariaLabel.includes("expir") ||
-                name.includes("exp") ||
-                autocomplete.includes("cc-exp")
-              ) {
-                cy.wrap(input)
-                  .clear()
-                  .type(`${card_exp_month}${card_exp_year.slice(-2)}`, {
-                    delay: 30,
-                  });
-                cy.task("cli_log", `Filled expiry in iframe ${index}`);
-              } else if (
-                placeholder.includes("cvc") ||
-                placeholder.includes("cvv") ||
-                placeholder.includes("security") ||
-                ariaLabel.includes("cvc") ||
-                ariaLabel.includes("cvv") ||
-                name.includes("cvc") ||
-                name.includes("cvv") ||
-                autocomplete.includes("cc-csc")
-              ) {
-                cy.wrap(input).clear().type(card_cvc, { delay: 30 });
-                cy.task("cli_log", `Filled CVC in iframe ${index}`);
-              }
-            });
-          });
-      });
-    }
+    $iframes.each((index, iframe) => {
+      fillCardInputInIframe(iframe, index);
+    });
   });
 
-  cy.get("#payment-form", { timeout: 30000 }).then(($form) => {
-    const $submit = $form.find(
-      '#submit[type="submit"], button[type="submit"], input[type="submit"]'
-    ).first();
-
-    if ($submit.length > 0) {
-      cy.wrap($submit).should("be.visible").click({ force: true });
-      cy.task("cli_log", "Clicked submit button");
-    } else {
-      cy.task("cli_log", "No submit button found in payment form");
-    }
-  });
+  cy.get("#submit", { timeout: 30000 })
+    .should("be.visible")
+    .and("not.have.class", "hidden")
+    .click({ force: true });
+  cy.task("cli_log", "Clicked submit button");
 
   cy.wait(8000);
 

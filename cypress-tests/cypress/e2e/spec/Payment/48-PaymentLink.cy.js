@@ -39,6 +39,34 @@ describe("Payment Link", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
+  let headlessShouldSkipRetrieve = false;
+
+  beforeEach(function () {
+    // Skip UI tests that require the Hyperswitch SDK in headless mode
+    // because the external SDK script cannot load in headless Electron
+    if (
+      Cypress.browser.isHeadless &&
+      this.currentTest.title.startsWith("Visit payment page")
+    ) {
+      cy.log(
+        "Skipping payment link UI test in headless mode — SDK requires headed browser"
+      );
+      headlessShouldSkipRetrieve = true;
+      this.skip();
+    }
+    // Skip retrieve tests that depend on a skipped UI test
+    if (
+      Cypress.browser.isHeadless &&
+      headlessShouldSkipRetrieve &&
+      this.currentTest.title.startsWith("Retrieve Payment after")
+    ) {
+      cy.log(
+        "Skipping retrieve test in headless mode — depends on skipped UI test"
+      );
+      this.skip();
+    }
+  });
+
   context("Payment Link - Basic creation and retrieval", () => {
     it("Create Payment Intent with Payment Link", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
