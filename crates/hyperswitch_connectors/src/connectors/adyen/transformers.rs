@@ -2190,7 +2190,6 @@ fn get_additional_data(
             })
     });
 
-
     Ok(Some(AdditionalData {
         authorisation_type,
         manual_capture,

@@ -10958,7 +10958,6 @@ impl From<CardWithNTIRef> for mandates::NetworkMandateIdRef {
     }
 }
 
-
 // This represents the recurring details of a connector which will be used for retries
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum ActionType {
