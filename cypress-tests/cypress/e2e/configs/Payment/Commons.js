@@ -3742,6 +3742,17 @@ export const connectorDetails = {
         amount: 6000,
         description: "Test Payment Link Invalid Card",
         email: "test@example.com",
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4000000000000002",
+            card_exp_month: "12",
+            card_exp_year: "35",
+            card_cvc: "123",
+          },
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
       },
       CardData: {
         card_number: "4000000000000002",
@@ -3762,11 +3773,22 @@ export const connectorDetails = {
         amount: 6000,
         description: "Test Payment Link Expired Card",
         email: "test@example.com",
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4000000000000069",
+            card_exp_month: "12",
+            card_exp_year: "35",
+            card_cvc: "123",
+          },
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
       },
       CardData: {
         card_number: "4000000000000069",
         card_exp_month: "12",
-        card_exp_year: "20",
+        card_exp_year: "35",
         card_cvc: "123",
       },
       Response: {

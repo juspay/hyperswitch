@@ -112,7 +112,7 @@ describe("Payment Link", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "payment_link_pm"
       ]["PaymentLinkCardPayment"];
-      cy.completePaymentLinkCardTest(data.CardData, globalState);
+      cy.handlePaymentLinkCardRedirection(globalState, data.CardData);
     });
 
     it("Retrieve Payment after card payment", () => {
@@ -182,7 +182,7 @@ describe("Payment Link", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "payment_link_pm"
       ]["PaymentLinkTabsLayout"];
-      cy.completePaymentLinkCardTest(data.CardData, globalState);
+      cy.handlePaymentLinkCardRedirection(globalState, data.CardData);
     });
   });
 
@@ -200,11 +200,11 @@ describe("Payment Link", () => {
       );
     });
 
-    it("Visit payment page and attempt invalid card payment", () => {
+    it("Confirm payment with invalid card", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "payment_link_pm"
       ]["PaymentLinkInvalidCard"];
-      cy.completePaymentLinkCardTest(data.CardData, globalState);
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
     });
   });
 
@@ -222,11 +222,11 @@ describe("Payment Link", () => {
       );
     });
 
-    it("Visit payment page and attempt expired card payment", () => {
+    it("Confirm payment with expired card", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "payment_link_pm"
       ]["PaymentLinkExpiredCard"];
-      cy.completePaymentLinkCardTest(data.CardData, globalState);
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
     });
   });
 
@@ -248,7 +248,7 @@ describe("Payment Link", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "payment_link_pm"
       ]["PaymentLink3DSCard"];
-      cy.completePaymentLinkCardTest(data.CardData, globalState);
+      cy.handlePaymentLinkCardRedirection(globalState, data.CardData);
     });
 
     it("Retrieve Payment after 3DS card payment", () => {
