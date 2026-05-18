@@ -28646,6 +28646,17 @@
                 "$ref": "#/components/schemas/BankDebitDetail"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/WalletDetail"
+              }
+            }
           }
         ]
       },
@@ -43586,6 +43597,41 @@
             "properties": {
               "we_chat_pay_redirect": {
                 "$ref": "#/components/schemas/WeChatPayRedirection"
+              }
+            }
+          }
+        ]
+      },
+      "WalletDetail": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "apple_pay_decrypted_data"
+            ],
+            "properties": {
+              "apple_pay_decrypted_data": {
+                "type": "object",
+                "required": [
+                  "application_primary_account_number",
+                  "expiry_month",
+                  "expiry_year"
+                ],
+                "properties": {
+                  "application_primary_account_number": {
+                    "type": "string",
+                    "description": "The application primary account number associated with the card",
+                    "example": "4242424242424242"
+                  },
+                  "expiry_month": {
+                    "type": "string",
+                    "description": "The card's expiry month"
+                  },
+                  "expiry_year": {
+                    "type": "string",
+                    "description": "The card's expiry year"
+                  }
+                }
               }
             }
           }
