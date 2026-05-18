@@ -8314,7 +8314,6 @@ Cypress.Commands.add(
     const profile_id =
       globalState.get("profileId") || globalState.get("defaultProfileId");
 
-    // Build request body - return_url is REQUIRED for payment_link
     const requestBody = {
       ...createPaymentBody,
       ...reqData,
@@ -8356,7 +8355,6 @@ Cypress.Commands.add(
             "payment_link_id"
           );
 
-          // Store in global state
           globalState.set("paymentID", response.body.payment_id);
           globalState.set("clientSecret", response.body.client_secret);
           globalState.set(
@@ -8369,6 +8367,65 @@ Cypress.Commands.add(
             "cli_log",
             `Payment Link created: ${response.body.payment_link.payment_link_id}`
           );
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "relayCallTest",
+  (requestBody, data, globalState, isErrorTest = false) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+
+    const configInfo = execConfig(validateConfig(configs));
+    const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
+
+    let body;
+    if (isErrorTest) {
+      body = reqData || {};
+    } else {
+      requestBody.connector_resource_id = globalState.get(
+        "connectorTransactionID"
+      );
+      requestBody.connector_id = globalState.get("merchantConnectorId");
+
+      for (const key in reqData) {
+        requestBody[key] = reqData[key];
+      }
+      body = requestBody;
+    }
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/relay`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+        "X-Profile-Id": profileId,
+        "X-Idempotency-Key": isErrorTest
+          ? `relay_err_${Date.now()}`
+          : `relay_${Date.now()}`,
+      },
+      failOnStatusCode: false,
+      body,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        if (isErrorTest) {
+          defaultErrorHandler(response, resData);
+        } else if (response.status === 200) {
+          globalState.set("relayId", response.body.id);
+          for (const key in resData.body) {
+            expect(resData.body[key], key).to.deep.equal(response.body[key]);
+          }
         } else {
           defaultErrorHandler(response, resData);
         }
@@ -8543,6 +8600,45 @@ Cypress.Commands.add(
         expect(response.status).to.equal(200);
         expect(response.body).to.have.property("payment_id");
         expect(response.body.payment_link).to.be.null;
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "retrieveRelayCallTest",
+  (data, globalState, forceSync = false, relayIdOverride = null) => {
+    const { Configs: configs = {}, Response: resData } = data || {};
+
+    const configInfo = execConfig(validateConfig(configs));
+    const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
+    const relayId = relayIdOverride || globalState.get("relayId");
+
+    const url = forceSync
+      ? `${globalState.get("baseUrl")}/relay/${relayId}?force_sync=true`
+      : `${globalState.get("baseUrl")}/relay/${relayId}`;
+
+    cy.request({
+      method: "GET",
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+        "X-Profile-Id": profileId,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        if (response.status === 200) {
+          expect(response.body.id).to.equal(relayId);
+          for (const key in resData.body) {
+            expect(resData.body[key], key).to.deep.equal(response.body[key]);
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
       });
     });
   }
