@@ -76,6 +76,7 @@ import { connectorDetails as worldpayvantivConnectorDetails } from "./Worldpayva
 import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.js";
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 import { connectorDetails as ziftConnectorDetails } from "./Zift.js";
+import { connectorDetails as mifinityConnectorDetails } from "./Mifinity.js";
 const connectorDetails = {
   aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
@@ -151,6 +152,7 @@ const connectorDetails = {
   xendit: xenditConnectorDetails,
   zift: ziftConnectorDetails,
   loonio: loonioConnectorDetails,
+  mifinity: mifinityConnectorDetails,
 };
 
 /**
@@ -512,6 +514,11 @@ export const CONNECTOR_LISTS = {
       "stripe",
     ],
     BANK_DEBIT: ["adyen", "novalnet", "payload"], // payload verified as working
+    BLUECODE_WALLET: ["calida"],
+    ALIPAY_HK_WALLET: ["adyen"],
+    PAYPAL_WALLET: ["novalnet", "paypal"],
+    MIFINITY_WALLET: ["mifinity"],
+    PAYPAL_MANDATE: ["paypal"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [
       "adyen",
@@ -550,6 +557,7 @@ export const CONNECTOR_LISTS = {
     GIFT_CARD: ["adyen"],
     PAY_LATER: ["klarna", "adyen", "aci", "stripe", "airwallex", "mollie"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
+    STEP_UP_AUTH: ["cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
     USE_BILLING_AS_PAYMENT_METHOD_BILLING: ["bankofamerica"],
     MIT_WITH_LIMITED_CARD_DATA: ["peachpayments"],
@@ -583,10 +591,11 @@ export const CONNECTOR_LISTS = {
 
 // Helper functions
 export const shouldExcludeConnector = (connectorId, list) => {
-  return list.includes(connectorId);
+  return Array.isArray(list) && list.includes(connectorId);
 };
 
 export const shouldIncludeConnector = (connectorId, list) => {
+  if (!Array.isArray(list)) return true;
   return !list.includes(connectorId);
 };
 

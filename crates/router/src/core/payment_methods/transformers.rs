@@ -1384,7 +1384,7 @@ impl DomainPaymentMethodWrapper {
                             token_detail.connector_id.clone(),
                             hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord {
                                 connector_mandate_id: token_detail.token.clone().expose(),
-                                payment_method_type: Some(response.payment_method_type),
+                                payment_method_type: response.payment_method_type,
                                 original_payment_authorized_amount: token_detail
                                     .original_payment_authorized_amount
                                     .map(|amount| amount.get_amount_as_i64()),
@@ -1437,7 +1437,7 @@ impl DomainPaymentMethodWrapper {
                 .last_used_at
                 .unwrap_or_else(common_utils::date_time::now),
             payment_method: Some(response.payment_method),
-            payment_method_type: Some(response.payment_method_type),
+            payment_method_type: response.payment_method_type,
             payment_method_issuer: None,
             payment_method_issuer_code: None,
             metadata: None,
@@ -1450,6 +1450,7 @@ impl DomainPaymentMethodWrapper {
             customer_acceptance: None,
             status: common_enums::PaymentMethodStatus::Active, //should be sent from PM service
             network_transaction_id: response.network_transaction_id.clone(),
+            network_transaction_link_id: None,
             client_secret: None,
             payment_method_billing_address: encrypted_payment_method_billing_address,
             updated_by: None,
@@ -1573,6 +1574,7 @@ impl DomainPaymentMethodWrapper {
             customer_acceptance: None,
             status: common_enums::PaymentMethodStatus::Active, //should be sent from PM service
             network_transaction_id: None,
+            network_transaction_link_id: None,
             client_secret: None,
             payment_method_billing_address: encrypted_payment_method_billing_address,
             updated_by: None,
@@ -1756,6 +1758,7 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
             customer_acceptance: None,
             status: common_enums::PaymentMethodStatus::Active, //should be sent from PM service
             network_transaction_id: None,
+            network_transaction_link_id: None,
             client_secret: None,
             payment_method_billing_address: None, //Should be sent from PM service
             updated_by: None,
