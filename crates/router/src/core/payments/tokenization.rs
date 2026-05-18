@@ -859,7 +859,7 @@ where
                                         save_payment_method_data
                                             .payment_method_token
                                             .as_ref()
-                                            .map_or(false, |pmt| pmt.is_apple_pay_decrypt()),
+                                            .is_some_and(|pmt| pmt.is_apple_pay_decrypt()),
                                     )
                             })
                             .unwrap_or(false)
