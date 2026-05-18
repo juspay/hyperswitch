@@ -36,7 +36,7 @@ describe("Bank Redirect Mandate tests", () => {
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
-        ]["PaymentIntent"]("Ideal");
+        ]["PaymentIntentOffSession"]("Ideal");
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -163,7 +163,7 @@ describe("Bank Redirect Mandate tests", () => {
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
-        ]["PaymentIntent"]("Ideal");
+        ]["PaymentIntentOffSession"]("Ideal");
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -290,7 +290,7 @@ describe("Bank Redirect Mandate tests", () => {
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
-        ]["PaymentIntent"]("Eps");
+        ]["PaymentIntentOffSession"]("Eps");
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -417,7 +417,7 @@ describe("Bank Redirect Mandate tests", () => {
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
-        ]["PaymentIntent"]("Eps");
+        ]["PaymentIntentOffSession"]("Eps");
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -544,7 +544,7 @@ describe("Bank Redirect Mandate tests", () => {
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
-        ]["PaymentIntent"]("Giropay");
+        ]["PaymentIntentOffSession"]("Giropay");
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -671,7 +671,7 @@ describe("Bank Redirect Mandate tests", () => {
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
-        ]["PaymentIntent"]("Giropay");
+        ]["PaymentIntentOffSession"]("Giropay");
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -798,7 +798,7 @@ describe("Bank Redirect Mandate tests", () => {
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
-        ]["PaymentIntent"]("Sofort");
+        ]["PaymentIntentOffSession"]("Sofort");
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -839,7 +839,7 @@ describe("Bank Redirect Mandate tests", () => {
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
-        ]["PaymentIntent"]("Sofort");
+        ]["PaymentIntentOffSession"]("Sofort");
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,

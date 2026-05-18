@@ -905,6 +905,27 @@ export const connectorDetails = {
         },
       };
     },
+    PaymentIntentOffSession: (paymentMethodType) => {
+      const currencyMap = {
+        Ideal: "EUR",
+        Giropay: "EUR",
+        Sofort: "EUR",
+        Eps: "EUR",
+      };
+      return {
+        Request: {
+          currency: currencyMap[paymentMethodType] || "EUR",
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+            setup_future_usage: "off_session",
+          },
+        },
+      };
+    },
     Ideal: {
       Request: {
         payment_method: "bank_redirect",
