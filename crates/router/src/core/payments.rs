@@ -7512,64 +7512,72 @@ where
                 }
             };
 
-            let (should_call_connector, existing_connector_customer_id, generated_customer_id) =
-                customers::should_call_connector_create_customer(
-                    &connector,
-                    connector_customer_map,
-                    payment_data.get_payment_attempt(),
-                    &label,
-                );
-            logger::debug!(should_call_connector_customer = should_call_connector);
-            if should_call_connector {
-                // Create customer at connector and update the customer table to store this data
-                let mut customer_router_data = payment_data
-                    .construct_router_data(
-                        state,
-                        connector.connector.id(),
-                        processor,
-                        merchant_connector_account,
-                        None,
-                        None,
-                        payment_data.get_payment_attempt().payment_method,
-                        payment_data.get_payment_attempt().payment_method_type,
-                    )
-                    .await?;
+            match customers::should_call_connector_create_customer(
+                &connector,
+                connector_customer_map,
+                payment_data.get_payment_attempt(),
+                &label,
+            ) {
+                customers::ConnectorCustomerAction::CreateCustomer => {
+                    // Create customer at connector and update the customer table to store this data
+                    let mut customer_router_data = payment_data
+                        .construct_router_data(
+                            state,
+                            connector.connector.id(),
+                            processor,
+                            merchant_connector_account,
+                            None,
+                            None,
+                            payment_data.get_payment_attempt().payment_method,
+                            payment_data.get_payment_attempt().payment_method_type,
+                        )
+                        .await?;
 
-                customer_router_data.access_token = access_token.cloned();
+                    customer_router_data.access_token = access_token.cloned();
 
-                let connector_customer_id = customer_router_data
-                    .create_connector_customer(state, &connector, gateway_context)
-                    .await?;
+                    let connector_customer_id = customer_router_data
+                        .create_connector_customer(state, &connector, gateway_context)
+                        .await?;
 
-                let customer_update = customers::update_connector_customer_in_customers(
-                    &label,
-                    connector_customer_map,
-                    connector_customer_id.clone(),
-                    initiator,
-                )
-                .await;
-
-                payment_data.set_connector_customer_id(connector_customer_id);
-                Ok(customer_update)
-            } else if generated_customer_id.is_some() && existing_connector_customer_id.is_none() {
-                // Only update with generated customer ID if there's no existing connector customer
-                let customer_update: Option<hyperswitch_domain_models::customer::CustomerUpdate> =
-                    customers::update_connector_customer_in_customers(
+                    let customer_update: Option<
+                        hyperswitch_domain_models::customer::CustomerUpdate,
+                    > = customers::update_connector_customer_in_customers(
                         &label,
                         connector_customer_map,
-                        generated_customer_id.clone(),
+                        connector_customer_id.clone(),
                         initiator,
                     )
                     .await;
 
-                payment_data.set_connector_customer_id(generated_customer_id);
-                Ok(customer_update)
-            } else {
-                // Customer already created in previous calls use the same value, no need to update
-                payment_data.set_connector_customer_id(
-                    existing_connector_customer_id.map(ToOwned::to_owned),
-                );
-                Ok(None)
+                    payment_data.set_connector_customer_id(connector_customer_id);
+                    Ok(customer_update)
+                }
+                customers::ConnectorCustomerAction::StoreGeneratedCustomerId(
+                    generated_customer_id,
+                ) => {
+                    // Only update with generated customer ID if there's no existing connector customer
+                    let customer_update: Option<
+                        hyperswitch_domain_models::customer::CustomerUpdate,
+                    > = customers::update_connector_customer_in_customers(
+                        &label,
+                        connector_customer_map,
+                        Some(generated_customer_id.clone()),
+                        initiator,
+                    )
+                    .await;
+
+                    payment_data.set_connector_customer_id(Some(generated_customer_id));
+                    Ok(customer_update)
+                }
+                customers::ConnectorCustomerAction::UseExistingCustomer(
+                    existing_connector_customer_id,
+                ) => {
+                    // Customer already created in previous calls use the same value, no need to update
+                    payment_data.set_connector_customer_id(
+                        existing_connector_customer_id.map(ToOwned::to_owned),
+                    );
+                    Ok(None)
+                }
             }
         }
         None => Ok(None),

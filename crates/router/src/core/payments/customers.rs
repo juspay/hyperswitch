@@ -80,12 +80,20 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
 }
 
 #[cfg(feature = "v1")]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum ConnectorCustomerAction<'a> {
+    CreateCustomer,
+    StoreGeneratedCustomerId(String),
+    UseExistingCustomer(Option<&'a str>),
+}
+
+#[cfg(feature = "v1")]
 pub fn should_call_connector_create_customer<'a>(
     connector: &api::ConnectorData,
     connector_customer_map: Option<&'a common_utils::pii::SecretSerdeValue>,
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     connector_label: &str,
-) -> (bool, Option<&'a str>, Option<String>) {
+) -> ConnectorCustomerAction<'a> {
     // Check if create customer is required for the connector
     let mca_string = payment_attempt
         .merchant_connector_id
@@ -103,14 +111,23 @@ pub fn should_call_connector_create_customer<'a>(
 
     match connector_needs_customer {
         hyperswitch_interfaces::api::ConnectorCustomerAction::CallConnectorCustomer => {
-            let should_call_connector = connector_customer_details.is_none();
-            (should_call_connector, connector_customer_details, None)
+            match connector_customer_details {
+                Some(existing_customer_id) => {
+                    ConnectorCustomerAction::UseExistingCustomer(Some(existing_customer_id))
+                }
+                None => ConnectorCustomerAction::CreateCustomer,
+            }
         }
         hyperswitch_interfaces::api::ConnectorCustomerAction::NoAction => {
-            (false, connector_customer_details, None)
+            ConnectorCustomerAction::UseExistingCustomer(connector_customer_details)
         }
         hyperswitch_interfaces::api::ConnectorCustomerAction::GeneratedCustomerId(customer_id) => {
-            (false, connector_customer_details, Some(customer_id))
+            match connector_customer_details {
+                Some(existing_customer_id) => {
+                    ConnectorCustomerAction::UseExistingCustomer(Some(existing_customer_id))
+                }
+                None => ConnectorCustomerAction::StoreGeneratedCustomerId(customer_id),
+            }
         }
     }
 }
