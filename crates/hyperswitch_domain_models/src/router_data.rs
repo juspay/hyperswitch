@@ -463,6 +463,10 @@ impl PaymentMethodToken {
             _ => None,
         }
     }
+
+    pub fn is_apple_pay_decrypt(&self) -> bool {
+        matches!(self, Self::ApplePayDecrypt(_))
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]

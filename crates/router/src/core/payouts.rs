@@ -328,7 +328,7 @@ pub async fn payouts_create_core(
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     // Validate create request
     let (payout_id, payout_method_data, profile_id, customer, payment_method) =
-        validator::validate_create_request(&state, &platform, &req).await?;
+        Box::pin(validator::validate_create_request(&state, &platform, &req)).await?;
     let dimensions = configs::dimension_state::Dimensions::new()
         .with_merchant_id(platform.get_processor().get_account().get_id().clone());
 

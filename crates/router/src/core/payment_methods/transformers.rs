@@ -477,6 +477,32 @@ pub fn mk_add_bank_debit_response_hs(
     }
 }
 
+#[cfg(feature = "v1")]
+pub fn mk_add_wallet_response_hs(
+    wallet_reference: String,
+    req: api::PaymentMethodCreate,
+    merchant_id: &id_type::MerchantId,
+    locker_fingerprint_id: String,
+) -> domain::PaymentMethodResponse {
+    domain::PaymentMethodResponse {
+        merchant_id: merchant_id.to_owned(),
+        customer_id: req.customer_id.to_owned(),
+        payment_method_id: wallet_reference,
+        payment_method: req.payment_method,
+        payment_method_type: req.payment_method_type,
+        bank_transfer: None,
+        card: None,
+        metadata: req.metadata,
+        created: Some(common_utils::date_time::now()),
+        recurring_enabled: Some(false),           // [#256]
+        installment_payment_enabled: Some(false), // #[#256]
+        payment_experience: Some(vec![api_models::enums::PaymentExperience::InvokeSdkClient]),
+        last_used_at: Some(common_utils::date_time::now()),
+        client_secret: None,
+        locker_fingerprint_id: Some(locker_fingerprint_id),
+    }
+}
+
 #[cfg(all(feature = "v2", feature = "payouts"))]
 pub fn mk_add_bank_response_hs(
     _bank: api::BankPayout,
@@ -572,6 +598,33 @@ pub fn generate_pm_vaulting_req_from_update_request(
             nick_name: update_card.nick_name.or(card_create.nick_name),
             card_cvc: None,
         })),
+        (
+            domain::PaymentMethodVaultingData::BankDebit(bank_debit_create),
+            api::PaymentMethodUpdateData::BankDebit(api::BankDebitDetailUpdate::Ach {
+                bank_account_holder_name: updated_bank_account_holder_name,
+            }),
+        ) => {
+            let payment_method_data::BankDebitDetail::Ach {
+                account_number,
+                routing_number,
+                bank_account_holder_name,
+                bank_type,
+                bank_holder_type,
+                bank_name,
+            } = bank_debit_create;
+
+            Ok(domain::PaymentMethodVaultingData::BankDebit(
+                payment_method_data::BankDebitDetail::Ach {
+                    account_number,
+                    routing_number,
+                    bank_account_holder_name: updated_bank_account_holder_name
+                        .or(bank_account_holder_name),
+                    bank_type,
+                    bank_holder_type,
+                    bank_name,
+                },
+            ))
+        }
         _ => Err(errors::VaultError::PaymentMethodNotSupported)
             .attach_printable("Payment method type not supported for update"),
     }
@@ -594,8 +647,11 @@ pub fn generate_payment_method_response(
         .clone()
         .map(|data| data.into_inner())
         .and_then(|data| match data {
-            api::PaymentMethodsData::Card(card) => {
-                Some(api::PaymentMethodResponseData::Card(card.into()))
+            payment_method_data::PaymentMethodsData::Card(card) => Some(
+                api::PaymentMethodResponseData::Card(card.to_card_details_from_locker()),
+            ),
+            payment_method_data::PaymentMethodsData::BankDebit(bank_debit) => {
+                Some(api::PaymentMethodResponseData::BankDebit(bank_debit.into()))
             }
             _ => None,
         });
@@ -871,15 +927,18 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
             .payment_method_data
             .map(|payment_method_data| payment_method_data.into_inner())
             .map(|payment_method_data| match payment_method_data {
-                api_models::payment_methods::PaymentMethodsData::Card(
-                    card_details_payment_method,
-                ) => {
-                    let card_details = api::CardDetailFromLocker::from(card_details_payment_method);
+                payment_method_data::PaymentMethodsData::Card(card_details_payment_method) => {
+                    let card_details = card_details_payment_method.to_card_details_from_locker();
                     api_models::payment_methods::PaymentMethodListData::Card(card_details)
                 }
-                api_models::payment_methods::PaymentMethodsData::BankDetails(..) => todo!(),
-                api_models::payment_methods::PaymentMethodsData::BankDebit(..) => todo!(),
-                api_models::payment_methods::PaymentMethodsData::WalletDetails(..) => {
+                payment_method_data::PaymentMethodsData::BankDetails(..) => todo!(),
+                payment_method_data::PaymentMethodsData::BankDebit(bank_debit_details) => {
+                    api_models::payment_methods::PaymentMethodListData::BankDebit(
+                        bank_debit_details.into(),
+                    )
+                }
+                payment_method_data::PaymentMethodsData::WalletDetails(..)
+                | payment_method_data::PaymentMethodsData::NetworkToken(_) => {
                     todo!()
                 }
             });
@@ -938,15 +997,18 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
             .payment_method_data
             .map(|payment_method_data| payment_method_data.into_inner())
             .map(|payment_method_data| match payment_method_data {
-                api_models::payment_methods::PaymentMethodsData::Card(
-                    card_details_payment_method,
-                ) => {
-                    let card_details = api::CardDetailFromLocker::from(card_details_payment_method);
+                payment_method_data::PaymentMethodsData::Card(card_details_payment_method) => {
+                    let card_details = card_details_payment_method.to_card_details_from_locker();
                     api_models::payment_methods::PaymentMethodListData::Card(card_details)
                 }
-                api_models::payment_methods::PaymentMethodsData::BankDetails(..) => todo!(),
-                api_models::payment_methods::PaymentMethodsData::BankDebit(..) => todo!(),
-                api_models::payment_methods::PaymentMethodsData::WalletDetails(..) => {
+                payment_method_data::PaymentMethodsData::BankDetails(..) => todo!(),
+                payment_method_data::PaymentMethodsData::BankDebit(bank_debit_details) => {
+                    api_models::payment_methods::PaymentMethodListData::BankDebit(
+                        bank_debit_details.into(),
+                    )
+                }
+                payment_method_data::PaymentMethodsData::WalletDetails(..)
+                | payment_method_data::PaymentMethodsData::NetworkToken(_) => {
                     todo!()
                 }
             });
@@ -1562,6 +1624,27 @@ impl
                             },
                     }),
                 )))
+            }
+            payment_methods::types::RawPaymentMethodData::BankDebit(bank_debit_detail) => {
+                match bank_debit_detail {
+                    payment_methods::types::BankDebitDetail::Ach {
+                        account_number,
+                        routing_number,
+                        bank_account_holder_name,
+                        bank_type,
+                        bank_holder_type,
+                        bank_name,
+                    } => Ok(Self(domain::PaymentMethodData::BankDebit(
+                        hyperswitch_domain_models::payment_method_data::BankDebitData::AchBankDebit {
+                            account_number,
+                            routing_number,
+                            bank_account_holder_name,
+                            bank_name,
+                            bank_type,
+                            bank_holder_type,
+                        },
+                    ))),
+                }
             }
         }
     }

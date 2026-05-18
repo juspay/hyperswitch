@@ -549,9 +549,6 @@ impl ForeignTryFrom<payments_grpc::Ach>
                     })?
                     .expose(),
             ),
-            card_holder_name: ach
-                .card_holder_name
-                .map(|s| hyperswitch_masking::Secret::new(s.expose())),
             bank_account_holder_name: ach
                 .bank_account_holder_name
                 .map(|s| hyperswitch_masking::Secret::new(s.expose())),
