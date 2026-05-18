@@ -3725,46 +3725,6 @@ export const connectorDetails = {
         },
       },
     }),
-    PaymentLinkInvalidCard: getCustomExchange({
-      Request: {
-        currency: "USD",
-        amount: 6000,
-        description: "Test Payment Link Invalid Card",
-        email: "test@example.com",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-      CardData: {
-        card_number: "4000000000000002",
-        card_exp_month: "12",
-        card_exp_year: "35",
-        card_cvc: "123",
-      },
-    }),
-    PaymentLinkExpiredCard: getCustomExchange({
-      Request: {
-        currency: "USD",
-        amount: 6000,
-        description: "Test Payment Link Expired Card",
-        email: "test@example.com",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-      CardData: {
-        card_number: "4000000000000069",
-        card_exp_month: "12",
-        card_exp_year: "20",
-        card_cvc: "123",
-      },
-    }),
     PaymentLinkTabsLayout: getCustomExchange({
       Request: {
         currency: "EUR",

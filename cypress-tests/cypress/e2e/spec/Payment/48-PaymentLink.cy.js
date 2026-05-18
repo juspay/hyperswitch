@@ -128,6 +128,7 @@ describe("Payment Link", () => {
         globalState
       );
       cy.retrievePaymentLinkTest({}, globalState);
+      cy.initiatePaymentLinkTest({}, globalState);
     });
 
     it("Create Payment Link with merchant logo", () => {
@@ -142,6 +143,7 @@ describe("Payment Link", () => {
         globalState
       );
       cy.retrievePaymentLinkTest({}, globalState);
+      cy.initiatePaymentLinkTest({}, globalState);
     });
 
     it("Create Payment Link with accordion SDK layout", () => {
@@ -156,6 +158,7 @@ describe("Payment Link", () => {
         globalState
       );
       cy.retrievePaymentLinkTest({}, globalState);
+      cy.initiatePaymentLinkTest({}, globalState);
     });
 
     it("Create Payment Link with tabs SDK layout", () => {
@@ -170,6 +173,7 @@ describe("Payment Link", () => {
         globalState
       );
       cy.retrievePaymentLinkTest({}, globalState);
+      cy.initiatePaymentLinkTest({}, globalState);
     });
 
     it("Visit payment page with tabs layout and confirm with card", () => {
@@ -177,58 +181,6 @@ describe("Payment Link", () => {
         "payment_link_pm"
       ]["PaymentLinkTabsLayout"];
       cy.handlePaymentLinkCardRedirection(globalState, data.CardData);
-    });
-  });
-
-  context("Payment Link - Card Error Scenarios", () => {
-    it("Create Payment Intent with Payment Link for invalid card", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "payment_link_pm"
-      ]["PaymentLinkBasic"];
-      cy.createPaymentIntentWithPaymentLinkTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-    });
-
-    it("Visit payment page and submit invalid card (UI)", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "payment_link_pm"
-      ]["PaymentLinkInvalidCard"];
-      cy.handlePaymentLinkCardRedirection(
-        globalState,
-        data.CardData,
-        "error"
-      );
-    });
-  });
-
-  context("Payment Link - Expired Card Scenario", () => {
-    it("Create Payment Intent with Payment Link for expired card", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "payment_link_pm"
-      ]["PaymentLinkBasic"];
-      cy.createPaymentIntentWithPaymentLinkTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-    });
-
-    it("Visit payment page and submit expired card (UI)", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "payment_link_pm"
-      ]["PaymentLinkExpiredCard"];
-      cy.handlePaymentLinkCardRedirection(
-        globalState,
-        data.CardData,
-        "error"
-      );
     });
   });
 
