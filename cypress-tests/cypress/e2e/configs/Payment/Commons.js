@@ -3634,6 +3634,9 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
       },
     }),
     PaymentLinkConfirmCard: getCustomExchange({
@@ -3645,6 +3648,9 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
       },
     }),
     PaymentLinkConfirmCardData: getCustomExchange({
@@ -3754,12 +3760,6 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-      CardData: {
-        card_number: "4000000000000002",
-        card_exp_month: "12",
-        card_exp_year: "35",
-        card_cvc: "123",
-      },
       Response: {
         status: 200,
         body: {
@@ -3778,23 +3778,21 @@ export const connectorDetails = {
           card: {
             card_number: "4000000000000069",
             card_exp_month: "12",
-            card_exp_year: "35",
+            card_exp_year: "25",
             card_cvc: "123",
           },
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-      CardData: {
-        card_number: "4000000000000069",
-        card_exp_month: "12",
-        card_exp_year: "35",
-        card_cvc: "123",
-      },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "failed",
+          error: {
+            type: "invalid_request",
+            message: "Invalid Expiry Year",
+            code: "IR_16",
+          },
         },
       },
     }),

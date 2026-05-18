@@ -192,7 +192,7 @@ describe("Payment Link", () => {
     it("Create Payment Intent with Payment Link for invalid card", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "payment_link_pm"
-      ]["PaymentLinkInvalidCard"];
+      ]["PaymentLinkBasic"];
       cy.createPaymentIntentWithPaymentLinkTest(
         fixtures.createPaymentBody,
         data,
@@ -214,7 +214,7 @@ describe("Payment Link", () => {
     it("Create Payment Intent with Payment Link for expired card", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "payment_link_pm"
-      ]["PaymentLinkExpiredCard"];
+      ]["PaymentLinkBasic"];
       cy.createPaymentIntentWithPaymentLinkTest(
         fixtures.createPaymentBody,
         data,

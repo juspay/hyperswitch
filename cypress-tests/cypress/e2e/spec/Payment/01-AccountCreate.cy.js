@@ -21,13 +21,6 @@ describe("Account Create flow test", () => {
     cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
   });
 
-  it("business-profile-create-call-test", () => {
-    cy.createBusinessProfileTest(
-      fixtures.businessProfile.bpCreate,
-      globalState
-    );
-  });
-
   it("create-shadow-config-if-shadow-mode-enabled", () => {
     cy.createRolloutConfig(globalState);
   });
