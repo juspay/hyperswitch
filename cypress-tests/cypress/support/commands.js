@@ -8130,54 +8130,56 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
 });
 
 Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
-  const hashKey = globalState.get("paymentResponseHashKey");
-  const computedSignature = globalState.get("computedSignature");
-  const signingPayload = globalState.get("computedSigningPayload");
+  cy.then(() => {
+    const hashKey = globalState.get("paymentResponseHashKey");
+    const computedSignature = globalState.get("computedSignature");
+    const signingPayload = globalState.get("computedSigningPayload");
 
-  expect(hashKey, "payment_response_hash_key must exist").to.be.a("string").and
-    .not.be.empty;
-  expect(
-    computedSignature,
-    "computedSignature must exist from prior step"
-  ).to.be.a("string").and.not.be.empty;
-  expect(
-    signingPayload,
-    "computedSigningPayload must exist from prior step"
-  ).to.be.a("string").and.not.be.empty;
-
-  const tamperedPayload = signingPayload.replace(
-    /status=\w+/,
-    "status=tampered_status"
-  );
-
-  cy.task("computeHmac", {
-    key: hashKey,
-    message: tamperedPayload,
-  }).then((tamperedSignature) => {
-    expect(tamperedSignature, "HMAC computation should not return null").to.not
-      .be.null;
-
+    expect(hashKey, "payment_response_hash_key must exist").to.be.a("string")
+      .and.not.be.empty;
     expect(
-      tamperedSignature,
-      "Tampered payload should produce a different signature"
-    ).to.not.equal(computedSignature);
+      computedSignature,
+      "computedSignature must exist from prior step"
+    ).to.be.a("string").and.not.be.empty;
+    expect(
+      signingPayload,
+      "computedSigningPayload must exist from prior step"
+    ).to.be.a("string").and.not.be.empty;
+
+    const tamperedPayload = signingPayload.replace(
+      /status=\w+/,
+      "status=tampered_status"
+    );
 
     cy.task("computeHmac", {
-      key: "wrong_key_that_does_not_match",
-      message: signingPayload,
-    }).then((wrongKeySignature) => {
-      expect(wrongKeySignature, "HMAC computation should not return null").to
+      key: hashKey,
+      message: tamperedPayload,
+    }).then((tamperedSignature) => {
+      expect(tamperedSignature, "HMAC computation should not return null").to
         .not.be.null;
 
       expect(
-        wrongKeySignature,
-        "Wrong key should produce a different signature"
+        tamperedSignature,
+        "Tampered payload should produce a different signature"
       ).to.not.equal(computedSignature);
 
-      cy.task(
-        "cli_log",
-        `Failure scenarios verified - tampered payload: DIFFERENT signature, wrong key: DIFFERENT signature`
-      );
+      cy.task("computeHmac", {
+        key: "wrong_key_that_does_not_match",
+        message: signingPayload,
+      }).then((wrongKeySignature) => {
+        expect(wrongKeySignature, "HMAC computation should not return null").to
+          .not.be.null;
+
+        expect(
+          wrongKeySignature,
+          "Wrong key should produce a different signature"
+        ).to.not.equal(computedSignature);
+
+        cy.task(
+          "cli_log",
+          `Failure scenarios verified - tampered payload: DIFFERENT signature, wrong key: DIFFERENT signature`
+        );
+      });
     });
   });
 });
