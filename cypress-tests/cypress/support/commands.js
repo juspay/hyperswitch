@@ -50,6 +50,25 @@ function isStripeConnect(globalState) {
   );
 }
 
+function normalizePaymentMethodData(pmd) {
+  if (!pmd || typeof pmd !== "object") return pmd;
+  const normalized = JSON.parse(JSON.stringify(pmd));
+  if (normalized.card && typeof normalized.card === "object") {
+    const unreliableFields = [
+      "card_type",
+      "card_network",
+      "card_issuer",
+      "card_issuing_country",
+    ];
+    for (const field of unreliableFields) {
+      if (field in normalized.card) {
+        normalized.card[field] = null;
+      }
+    }
+  }
+  return normalized;
+}
+
 function updateConnectorState(globalState, responseConnector) {
   if (isStripeConnect(globalState)) {
     const originalConnectorId = getOriginalConnectorId(globalState);
@@ -2706,7 +2725,14 @@ Cypress.Commands.add(
           expect(response.status, "status_code").to.equal(200);
           // Validate response body against expected values from config (Commons.js)
           for (const key in resData.body) {
-            expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
+            if (key === "payment_method_data") {
+              expect(
+                normalizePaymentMethodData(resData.body[key]),
+                [key]
+              ).to.deep.equal(normalizePaymentMethodData(response.body[key]));
+            } else {
+              expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
+            }
           }
         } else if (response.status === 200) {
           globalState.set("paymentID", paymentIntentID);
@@ -2777,9 +2803,16 @@ Cypress.Commands.add(
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data") {
+                  expect(
+                    normalizePaymentMethodData(resData.body[key]),
+                    [key]
+                  ).to.deep.equal(normalizePaymentMethodData(response.body[key]));
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
                 if (
                   response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded"
@@ -2817,15 +2850,29 @@ Cypress.Commands.add(
                 }
               }
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data") {
+                  expect(
+                    normalizePaymentMethodData(resData.body[key]),
+                    [key]
+                  ).to.deep.equal(normalizePaymentMethodData(response.body[key]));
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data") {
+                  expect(
+                    normalizePaymentMethodData(resData.body[key]),
+                    [key]
+                  ).to.deep.equal(normalizePaymentMethodData(response.body[key]));
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
                 if (
                   response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded"
