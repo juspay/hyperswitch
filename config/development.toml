@@ -1569,5 +1569,5 @@ payment_methods_prefix = "v2"
 use_legacy_locker = false
 
 [micro_services.authentication_service]
-base_url = "http://localhost:8080"
-api_key = "api-key"
+base_url = "https://6ac4-2401-4900-1c3f-3ada-cc15-f727-e762-255a.ngrok-free.app"
+api_key = "dev_vpjKXGpeup0tQsPgm3OLEYtAddexjg2OxcLiWcfJScJ7fSHM7wbGFYm8AzHFRtzd"
