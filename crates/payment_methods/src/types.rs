@@ -93,7 +93,7 @@ pub struct ModularPMRetrieveResponse {
     pub merchant_id: id_type::MerchantId,
     pub customer_id: Option<id_type::CustomerId>,
     pub payment_method_type: PaymentMethod,
-    pub payment_method_subtype: PaymentMethodType,
+    pub payment_method_subtype: Option<PaymentMethodType>,
     pub recurring_enabled: Option<bool>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
