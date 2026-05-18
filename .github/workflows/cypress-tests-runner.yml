@@ -937,14 +937,17 @@ jobs:
           CREDS_FILE="${CYPRESS_CONNECTOR_AUTH_FILE_PATH}" \
             python3 mitm-proxy/check_cassettes_redacted.py "mitm-proxy/captures"
 
-      - name: Install mitmproxy
+      - name: Install Python
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install mitmproxy dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         run: |
-          if ! command -v mitmdump >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y mitmproxy
-          fi
+          pip install -r mitm-proxy/requirements.txt
           mitmdump --version
 
       - name: Generate mitmproxy CA cert
