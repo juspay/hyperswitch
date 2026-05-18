@@ -63,6 +63,7 @@ pub mod revenue_recovery;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_data_backfill;
 pub mod routing;
+#[cfg(feature = "v1")]
 pub mod superposition_sdk_config;
 pub mod surcharge_decision_config;
 pub mod three_ds_decision_rule;
