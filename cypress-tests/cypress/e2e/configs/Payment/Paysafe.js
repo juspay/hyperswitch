@@ -562,6 +562,9 @@ export const connectorDetails = {
         },
       }),
     Interac: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "interac",
@@ -600,7 +603,12 @@ export const connectorDetails = {
   wallet_pm: {
     PaymentIntent: (paymentMethodType) =>
       getCustomExchange({
-        Request: { currency: getCurrency(paymentMethodType) },
+        Request: {
+          currency:
+            paymentMethodType === "Skrill"
+              ? "USD"
+              : getCurrency(paymentMethodType),
+        },
         Response: {
           status: 200,
           body: { status: "requires_payment_method" },
@@ -624,16 +632,16 @@ export const connectorDetails = {
             city: "San Fransico",
             state: "CA",
             zip: "94122",
-            country: "DE",
+            country: "US",
             first_name: "joseph",
             last_name: "Doe",
           },
           phone: {
             number: "9123456789",
-            country_code: "+49",
+            country_code: "+1",
           },
         },
-        currency: "EUR",
+        currency: "USD",
       },
       Response: {
         status: 200,
@@ -651,7 +659,7 @@ export const connectorDetails = {
             pay_safe_card: {},
           },
         },
-        currency: "EUR",
+        currency: "USD",
       },
       Response: {
         status: 200,
