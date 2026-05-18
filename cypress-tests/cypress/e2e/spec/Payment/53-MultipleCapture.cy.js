@@ -120,11 +120,7 @@ describe("Card - Multiple Capture payment flow test", () => {
             globalState.get("connectorId")
           )["card_pm"]["MultipleCapturePartial"];
 
-          cy.captureCallTest(
-            fixtures.captureBody,
-            captureData,
-            globalState
-          );
+          cy.captureCallTest(fixtures.captureBody, captureData, globalState);
 
           if (!utils.should_continue_further(captureData)) {
             shouldContinue = false;
@@ -140,11 +136,7 @@ describe("Card - Multiple Capture payment flow test", () => {
             globalState.get("connectorId")
           )["card_pm"]["MultipleCapturePartial"];
 
-          cy.captureCallTest(
-            fixtures.captureBody,
-            captureData,
-            globalState
-          );
+          cy.captureCallTest(fixtures.captureBody, captureData, globalState);
 
           if (!utils.should_continue_further(captureData)) {
             shouldContinue = false;
@@ -160,11 +152,7 @@ describe("Card - Multiple Capture payment flow test", () => {
             globalState.get("connectorId")
           )["card_pm"]["MultipleCaptureFinal"];
 
-          cy.captureCallTest(
-            fixtures.captureBody,
-            captureData,
-            globalState
-          );
+          cy.captureCallTest(fixtures.captureBody, captureData, globalState);
 
           if (!utils.should_continue_further(captureData)) {
             shouldContinue = false;
@@ -189,95 +177,84 @@ describe("Card - Multiple Capture payment flow test", () => {
     }
   );
 
-  context(
-    "Card - NoThreeDS Multiple Capture with over-capture attempt",
-    () => {
-      it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> First Partial Capture -> Over-capture Attempt", () => {
-        let shouldContinue = true;
+  context("Card - NoThreeDS Multiple Capture with over-capture attempt", () => {
+    it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> First Partial Capture -> Over-capture Attempt", () => {
+      let shouldContinue = true;
 
-        cy.step("Create Payment Intent with manual_multiple", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["PaymentIntent"];
+      cy.step("Create Payment Intent with manual_multiple", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
 
-          cy.createPaymentIntentTest(
-            fixtures.createPaymentBody,
-            data,
-            "no_three_ds",
-            "manual_multiple",
-            globalState
-          );
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "manual_multiple",
+          globalState
+        );
 
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("Payment Methods Call", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Payment Methods Call");
-            return;
-          }
-          cy.paymentMethodsCallTest(globalState);
-        });
-
-        cy.step("Confirm Payment Intent", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Confirm Payment Intent");
-            return;
-          }
-          const confirmData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["No3DSManualCapture"];
-
-          cy.confirmCallTest(
-            fixtures.confirmBody,
-            confirmData,
-            true,
-            globalState
-          );
-
-          if (!utils.should_continue_further(confirmData)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("First Partial Capture", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: First Partial Capture");
-            return;
-          }
-          const captureData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["MultipleCapturePartial"];
-
-          cy.captureCallTest(
-            fixtures.captureBody,
-            captureData,
-            globalState
-          );
-
-          if (!utils.should_continue_further(captureData)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("Over-capture Attempt", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Over-capture Attempt");
-            return;
-          }
-          const overcaptureData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["MultipleCaptureOvercapture"];
-
-          cy.captureCallTest(
-            fixtures.captureBody,
-            overcaptureData,
-            globalState
-          );
-        });
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
       });
-    }
-  );
+
+      cy.step("Payment Methods Call", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Payment Methods Call");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Payment Intent", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment Intent");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSManualCapture"];
+
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("First Partial Capture", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: First Partial Capture");
+          return;
+        }
+        const captureData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MultipleCapturePartial"];
+
+        cy.captureCallTest(fixtures.captureBody, captureData, globalState);
+
+        if (!utils.should_continue_further(captureData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Over-capture Attempt", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Over-capture Attempt");
+          return;
+        }
+        const overcaptureData = getConnectorDetails(
+          globalState.get("connectorId")
+        )["card_pm"]["MultipleCaptureOvercapture"];
+
+        cy.captureCallTest(fixtures.captureBody, overcaptureData, globalState);
+      });
+    });
+  });
 });
