@@ -283,6 +283,18 @@ pub fn generate_id_with_default_len(prefix: &str) -> String {
     format!("{}_{}", prefix, nanoid::nanoid!(len, &consts::ALPHABETS))
 }
 
+/// Generate a nanoid with the given prefix and a default length with profileId
+#[inline]
+pub fn generate_id_with_default_len_with_profile_id(prefix: &str, profile_id: &str) -> String {
+    let len: usize = consts::ID_LENGTH;
+    format!(
+        "{}_{},profile={}",
+        prefix,
+        nanoid::nanoid!(len, &consts::ALPHABETS),
+        profile_id
+    )
+}
+
 /// Generate a time-ordered (time-sortable) unique identifier using the current time
 #[inline]
 pub fn generate_time_ordered_id(prefix: &str) -> String {

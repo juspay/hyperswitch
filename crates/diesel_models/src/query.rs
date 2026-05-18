@@ -9,6 +9,7 @@ pub mod configs;
 
 pub mod authentication;
 pub mod authorization;
+pub mod batch_blocklist_job;
 pub mod blocklist;
 pub mod blocklist_fingerprint;
 pub mod callback_mapper;

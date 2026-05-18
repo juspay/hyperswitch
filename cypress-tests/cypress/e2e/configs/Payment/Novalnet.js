@@ -1,3 +1,5 @@
+import { getCustomExchange } from "./Modifiers";
+
 const successfulThreeDSTestCardDetails = {
   card_number: "4000000000001091",
   card_exp_month: "12",
@@ -112,6 +114,7 @@ export const connectorDetails = {
     },
     "3DSAutoCapture": {
       Request: {
+        currency: "EUR",
         payment_method: "card",
         billing: billingAddress,
         payment_method_data: {
@@ -129,6 +132,7 @@ export const connectorDetails = {
     },
     No3DSManualCapture: {
       Request: {
+        currency: "EUR",
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -773,7 +777,7 @@ export const connectorDetails = {
         },
       };
     },
-    SepaDebit: {
+    Sepa: {
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "sepa",
@@ -799,6 +803,20 @@ export const connectorDetails = {
         },
       },
     },
+  },
+  wallet_pm: {
+    PaymentIntent: () =>
+      getCustomExchange({
+        Request: {
+          currency: "EUR",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
   },
   webhook: {
     TransactionIdConfig: {

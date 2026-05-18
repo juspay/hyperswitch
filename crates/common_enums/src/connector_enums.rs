@@ -123,6 +123,7 @@ pub enum Connector {
     Hyperpg,
     HyperswitchVault,
     // Hyperwallet, added as template code for future usage
+    Interpayments,
     Inespay,
     Iatapay,
     Imerchantsolutions,
@@ -400,6 +401,7 @@ impl Connector {
             | Self::Stax
             | Self::Stripebilling
             | Self::Taxjar
+            | Self::Interpayments
             | Self::Tesouro
             // | Self::Thunes
             | Self::Truelayer

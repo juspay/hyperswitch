@@ -624,6 +624,10 @@ where
                     .get_payment_attempt()
                     .network_transaction_id
                     .clone(),
+                network_transaction_link_id: payment_data
+                    .get_payment_attempt()
+                    .network_transaction_link_id
+                    .clone(),
                 is_overcapture_enabled: None,
                 authorized_amount: router_data.authorized_amount,
                 tokenization: None,
@@ -850,6 +854,7 @@ pub fn make_new_auto_retry_payment_attempt(
         routing_approach: old_payment_attempt.routing_approach,
         connector_request_reference_id: Default::default(),
         network_transaction_id: old_payment_attempt.network_transaction_id,
+        network_transaction_link_id: old_payment_attempt.network_transaction_link_id,
         network_details: Default::default(),
         is_stored_credential: old_payment_attempt.is_stored_credential,
         authorized_amount: old_payment_attempt.authorized_amount,
@@ -865,6 +870,7 @@ pub fn make_new_auto_retry_payment_attempt(
         error_details: Default::default(),
         retry_type: Some(storage_enums::RetryType::AutoRetry),
         installment_data: Default::default(),
+        external_surcharge_details: Default::default(),
     }
 }
 
@@ -936,7 +942,8 @@ impl<F: Send + Clone + Sync, FData: Send + Sync>
                 | storage_enums::AttemptStatus::DeviceDataCollectionPending
                 | storage_enums::AttemptStatus::IntegrityFailure
                 | storage_enums::AttemptStatus::Expired
-                | storage_enums::AttemptStatus::PartiallyAuthorized => false,
+                | storage_enums::AttemptStatus::PartiallyAuthorized
+                | storage_enums::AttemptStatus::CaptureReview => false,
 
                 storage_enums::AttemptStatus::AuthenticationFailed
                 | storage_enums::AttemptStatus::AuthorizationFailed

@@ -11,6 +11,7 @@ pub struct MicroServicesConfig {
     /// Base URL for the modular payment methods service.
     pub payment_methods_base_url: ModularPaymentMethodServiceUrl,
     pub payment_methods_prefix: ModularPaymentMethodServicePrefix,
+    pub use_legacy_locker: bool,
 }
 
 /// Prefix wrapper for the modular payment methods service.
