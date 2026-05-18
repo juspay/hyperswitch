@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.18.0
+
+### Features
+
+- **payment-methods:** Backwards compatibility for payments flow ([#12205](https://github.com/juspay/hyperswitch/pull/12205)) ([`76f9af1`](https://github.com/juspay/hyperswitch/commit/76f9af1fa0866ebb03be0292265c89cd232c0e61))
+
+### Testing
+
+- **cypress:** Add step-up auth coverage for cybersource ([#12249](https://github.com/juspay/hyperswitch/pull/12249)) ([`f30db23`](https://github.com/juspay/hyperswitch/commit/f30db23bc0ecb46125bf926fb3f842fd73063bc5))
+
+**Full Changelog:** [`2026.05.17.0...2026.05.18.0`](https://github.com/juspay/hyperswitch/compare/2026.05.17.0...2026.05.18.0)
+
+- - -
+
 ## 2026.05.17.0
 
 ### Features
