@@ -311,3 +311,32 @@ impl TaxCalculateConnectorData {
         }
     }
 }
+
+#[derive(Clone)]
+pub struct SurchargeCalculateConnectorData {
+    pub connector: ConnectorEnum,
+    pub connector_name: enums::SurchargeConnectors,
+}
+
+impl SurchargeCalculateConnectorData {
+    pub fn get_connector_by_name(name: &str) -> CustomResult<Self, errors::ApiErrorResponse> {
+        let connector_name = enums::SurchargeConnectors::from_str(name)
+            .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
+            .attach_printable_lazy(|| format!("unable to parse connector: {name}"))?;
+        let connector = Self::convert_connector(connector_name)?;
+        Ok(Self {
+            connector,
+            connector_name,
+        })
+    }
+
+    fn convert_connector(
+        connector_name: enums::SurchargeConnectors,
+    ) -> CustomResult<ConnectorEnum, errors::ApiErrorResponse> {
+        match connector_name {
+            enums::SurchargeConnectors::Interpayments => Ok(ConnectorEnum::Old(Box::new(
+                connector::Interpayments::new(),
+            ))),
+        }
+    }
+}

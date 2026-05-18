@@ -1394,6 +1394,7 @@ mod tests {
             authentication_product_ids: None,
             card_testing_guard_config: None,
             card_testing_secret_key: None,
+            surcharge_connector_details: None,
             is_clear_pan_retries_enabled: false,
             force_3ds_challenge: false,
             is_debit_routing_enabled: false,
