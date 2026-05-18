@@ -472,6 +472,17 @@ function cleanupProcessedRequestIds(
   globalState.set("requestIds", remainingRequestIds);
 }
 
+const ALGORITHM_MAP = {
+  "HMAC-SHA512": "sha512",
+  "HMAC-SHA256": "sha256",
+};
+
+function resolveAlgorithm(signatureAlgorithm) {
+  const algo = ALGORITHM_MAP[signatureAlgorithm];
+  expect(algo, `signature_algorithm must be in whitelist: ${JSON.stringify(Object.keys(ALGORITHM_MAP))}`).to.exist;
+  return algo;
+}
+
 function logRequestId(xRequestId) {
   if (xRequestId) {
     cy.task("cli_log", "x-request-id -> " + xRequestId);
@@ -8407,11 +8418,12 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
 
     params.sort((a, b) => a[0].localeCompare(b[0]));
     const signingPayload = params.map(([k, v]) => `${k}=${v}`).join("&");
+    const algorithm = resolveAlgorithm(signatureAlgorithm);
 
     cy.task("computeHmac", {
       key: hashKey,
       message: signingPayload,
-      algorithm: signatureAlgorithm.replace("HMAC-", "").toLowerCase(),
+      algorithm,
     }).then((computedSignature) => {
       expect(computedSignature, "HMAC computation should not return null").to
         .not.be.null;
@@ -8440,7 +8452,7 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
     const signingPayload = globalState.get("computedSigningPayload");
     const signatureAlgorithm =
       globalState.get("signatureAlgorithm") || "HMAC-SHA512";
-    const algorithm = signatureAlgorithm.replace("HMAC-", "").toLowerCase();
+    const algorithm = resolveAlgorithm(signatureAlgorithm);
 
     expect(hashKey, "payment_response_hash_key must exist").to.be.a("string")
       .and.not.be.empty;
@@ -8516,6 +8528,7 @@ Cypress.Commands.add(
           response.body.data &&
           response.body.data.length > 0
         ) {
+          globalState.set("webhookData", response.body.data);
           cy.task(
             "cli_log",
             `Webhook delivery found after ${maxAttempts - attemptsLeft + 1} poll(s)`
@@ -8539,13 +8552,20 @@ Cypress.Commands.add("verifyWebhookSignatureHeader", (globalState) => {
   const hashKey = globalState.get("paymentResponseHashKey");
   const signatureAlgorithm =
     globalState.get("signatureAlgorithm") || "HMAC-SHA512";
-  const algorithm = signatureAlgorithm.replace("HMAC-", "").toLowerCase();
+  const algorithm = resolveAlgorithm(signatureAlgorithm);
   expect(
     hashKey,
     "payment_response_hash_key should exist in global state"
   ).to.be.a("string").and.not.be.empty;
 
   const paymentId = globalState.get("paymentID");
+
+  const cachedWebhookData = globalState.get("webhookData");
+  if (cachedWebhookData && cachedWebhookData.length > 0) {
+    verifyWebhookSignatureFromData(cachedWebhookData, paymentId, hashKey, algorithm);
+    return;
+  }
+
   const apiKey = globalState.get("adminApiKey");
   const baseUrl = globalState.get("baseUrl");
 
@@ -8573,40 +8593,44 @@ Cypress.Commands.add("verifyWebhookSignatureHeader", (globalState) => {
       return;
     }
 
-    const webhook =
-      webhooksResponse.body.data.find((w) => {
-        const obj =
-          typeof w.webhook_object === "string"
-            ? JSON.parse(w.webhook_object)
-            : w.webhook_object;
-        return obj?.payment_id === paymentId;
-      }) || webhooksResponse.body.data[0];
-    const webhookSignature = webhook.webhook_signature;
-
-    if (!webhookSignature) {
-      cy.task(
-        "cli_log",
-        "No webhook signature in delivery record - webhook signature verification skipped"
-      );
-      return;
-    }
-
-    const webhookPayload = JSON.stringify(webhook.webhook_object);
-
-    cy.task("computeHmac", {
-      key: hashKey,
-      message: webhookPayload,
-      algorithm,
-    }).then((computedSignature) => {
-      expect(computedSignature, "HMAC computation should not return null").to
-        .not.be.null;
-
-      expect(
-        computedSignature,
-        "Computed HMAC of webhook payload should match stored signature"
-      ).to.equal(webhookSignature);
-
-      cy.task("cli_log", `Webhook signature verified - signature match: YES`);
-    });
+    verifyWebhookSignatureFromData(webhooksResponse.body.data, paymentId, hashKey, algorithm);
   });
 });
+
+function verifyWebhookSignatureFromData(webhookData, paymentId, hashKey, algorithm) {
+  const webhook =
+    webhookData.find((w) => {
+      const obj =
+        typeof w.webhook_object === "string"
+          ? JSON.parse(w.webhook_object)
+          : w.webhook_object;
+      return obj?.payment_id === paymentId;
+    }) || webhookData[0];
+  const webhookSignature = webhook.webhook_signature;
+
+  if (!webhookSignature) {
+    cy.task(
+      "cli_log",
+      "No webhook signature in delivery record - webhook signature verification skipped"
+    );
+    return;
+  }
+
+  const webhookPayload = JSON.stringify(webhook.webhook_object);
+
+  cy.task("computeHmac", {
+    key: hashKey,
+    message: webhookPayload,
+    algorithm,
+  }).then((computedSignature) => {
+    expect(computedSignature, "HMAC computation should not return null").to
+      .not.be.null;
+
+    expect(
+      computedSignature,
+      "Computed HMAC of webhook payload should match stored signature"
+    ).to.equal(webhookSignature);
+
+    cy.task("cli_log", `Webhook signature verified - signature match: YES`);
+  });
+}
