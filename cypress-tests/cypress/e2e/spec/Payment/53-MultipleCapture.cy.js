@@ -7,7 +7,7 @@ import getConnectorDetails, {
 import * as utils from "../../configs/Payment/Utils";
 
 let globalState;
-let connector; 
+let connector;
 
 describe("Card - Multiple Capture payment flow test", () => {
   before("seed global state", function () {
