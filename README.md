@@ -178,13 +178,15 @@ We believe in:
 
 ## Supported Connectors
 
-Hyperswitch integrates with 100+ payment processors out of the box. Each connector has a dedicated guide covering credentials setup, webhook configuration, and supported payment methods.
+Hyperswitch integrates with 50+ payment processors out of the box. Each connector has a dedicated guide covering credentials setup, webhook configuration, supported payment methods, and common failure modes.
 
 | Processor | Type | Guide |
 |-----------|------|-------|
+| Global Payments | Payment Gateway | [View →](https://docs.hyperswitch.io/integrations/connectors-integrations/payment-processor-capabilities/available-connectors/globalpayments) |
 | Stripe | Payment Gateway | [View →](https://docs.hyperswitch.io/integrations/connectors-integrations/payment-processor-capabilities/available-connectors/stripe) |
+| Fiserv | Payment Gateway | [View →](https://docs.hyperswitch.io/integrations/connectors-integrations/payment-processor-capabilities/available-connectors/fiserv) |
 | Adyen | Payment Gateway | [View →](https://docs.hyperswitch.io/integrations/connectors-integrations/payment-processor-capabilities/available-connectors/adyen) |
-| Authorize.net | Payment Gateway | [View →](https://docs.hyperswitch.io/integrations/connectors-integrations/payment-processor-capabilities/available-connectors/authorizedotnet) |
+| Bank of America | Payment Gateway | [View →](https://docs.hyperswitch.io/integrations/connectors-integrations/payment-processor-capabilities/available-connectors/boa) |
 
 👉 [Browse all available connectors →](https://docs.hyperswitch.io/integrations/connectors-integrations/payment-processor-capabilities/available-connectors)
 
