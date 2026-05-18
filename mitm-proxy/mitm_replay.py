@@ -29,8 +29,6 @@ from urllib.parse import urlparse
 
 from mitmproxy import http
 
-from secret_redaction import creds_path, has_unresolved_placeholders, hydrate_record, redact_obj
-
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CAPTURE_DIR = os.environ.get("CAPTURE_DIR") or os.path.join(SCRIPT_DIR, "captures")
 ADMIN_PORT = int(os.environ.get("ADMIN_PORT", "8081"))
@@ -176,44 +174,27 @@ def request(flow: http.HTTPFlow):
     request_id = flow.request.headers.get("x-request-id", "").strip()
     method = flow.request.method
     path = flow.request.path.split("?", 1)[0]
-    match_path, _ = redact_obj(path)
 
     if not request_id:
-        print(f"[replay] WARN  no x-request-id  [{connector}] {method} {match_path} — going LIVE")
+        print(f"[replay] WARN  no x-request-id  [{connector}] {method} {path} — going LIVE")
         flow.request.headers["X-Cassette"] = "LIVE-no-request-id"
         return
 
-    key = (connector, request_id, method, match_path)
+    key = (connector, request_id, method, path)
 
     matched_server_rid = False
     with state.lock:
         queue = _cassettes.get(key)
         recorded = queue.popleft() if queue else None
         if recorded is None:
-            cb_key = (connector, state.current_test or "", method, match_path)
+            cb_key = (connector, state.current_test or "", method, path)
             cb_queue = _server_rid_cassettes.get(cb_key)
             recorded = cb_queue.popleft() if cb_queue else None
             matched_server_rid = recorded is not None
 
     if recorded is None:
-        print(f"[replay] MISS  [{connector}] {method} {match_path} (rid={request_id}) — going LIVE")
+        print(f"[replay] MISS  [{connector}] {method} {path} (rid={request_id}) — going LIVE")
         flow.request.headers["X-Cassette"] = "LIVE-no-cassette"
-        return
-
-    recorded, hydrated_count = hydrate_record(recorded)
-    if has_unresolved_placeholders(recorded):
-        print(f"[replay] SECRET-MISS [{connector}] {method} {match_path} (rid={request_id}) — missing creds for cassette placeholders")
-        flow.response = http.Response.make(
-            599,
-            json.dumps({
-                "error": "mitm-replay: cassette contains unresolved credential placeholders",
-                "connector": connector,
-                "request_id": request_id,
-                "method": method,
-                "path": match_path,
-            }).encode("utf-8"),
-            {"Content-Type": "application/json", "X-Cassette": "FAIL-missing-creds"},
-        )
         return
 
     # Reconstruct response body
@@ -242,10 +223,8 @@ def request(flow: http.HTTPFlow):
     )
 
     hit_kind = "HIT-server" if matched_server_rid else "HIT"
-    secret_tag = f" hydrated={hydrated_count}" if hydrated_count else ""
-    print(f"[replay] {hit_kind:<10} [{connector}] {method} {match_path} (rid={request_id}) → {recorded['status']}{secret_tag}")
+    print(f"[replay] {hit_kind:<10} [{connector}] {method} {path} (rid={request_id}) → {recorded['status']}")
 
 
-print(f"[replay] creds file    {creds_path()} ({'present' if creds_path().exists() else 'missing; placeholders will fail'})")
 _load_cassettes()
 _start_admin_server()

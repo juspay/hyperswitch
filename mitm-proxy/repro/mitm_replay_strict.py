@@ -24,8 +24,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from mitmproxy import http
 
-from secret_redaction import creds_path, has_unresolved_placeholders, hydrate_record, redact_obj
-
 _PATH_ID_PATTERNS = [
     re.compile(r"/pay_[A-Za-z0-9]{16,}(_[0-9]+)?"),
     re.compile(r"/ref_[A-Za-z0-9]{16,}"),
@@ -192,7 +190,7 @@ def request(flow: http.HTTPFlow):
     request_id = flow.request.headers.get("x-request-id", "").strip()
     method = flow.request.method
     path = flow.request.path.split("?", 1)[0]
-    match_path, _ = redact_obj(path)
+    match_path = path
     norm_match_path = _norm_path(match_path)
 
     if not request_id:
@@ -257,22 +255,6 @@ def request(flow: http.HTTPFlow):
         )
         return
 
-    recorded, hydrated_count = hydrate_record(recorded)
-    if has_unresolved_placeholders(recorded):
-        print(f"[replay] SECRET-MISS [{connector}] {method} {match_path} (rid={request_id}) — missing creds for cassette placeholders")
-        flow.response = http.Response.make(
-            599,
-            json.dumps({
-                "error": "mitm-replay: cassette contains unresolved credential placeholders",
-                "connector": connector,
-                "request_id": request_id,
-                "method": method,
-                "path": match_path,
-            }).encode("utf-8"),
-            {"Content-Type": "application/json", "X-Cassette": "FAIL-missing-creds"},
-        )
-        return
-
     body = recorded.get("body")
     encoding = recorded.get("body_encoding")
 
@@ -299,10 +281,8 @@ def request(flow: http.HTTPFlow):
         hit_kind = "HIT-norm"
     else:
         hit_kind = "HIT"
-    secret_tag = f" hydrated={hydrated_count}" if hydrated_count else ""
-    print(f"[replay] {hit_kind:<8} [{connector}] {method} {match_path} (rid={request_id}) → {recorded['status']}{secret_tag}")
+    print(f"[replay] {hit_kind:<8} [{connector}] {method} {match_path} (rid={request_id}) → {recorded['status']}")
 
 
-print(f"[replay] creds file    {creds_path()} ({'present' if creds_path().exists() else 'missing; placeholders will fail'})")
 _load_cassettes()
 _start_admin_server()

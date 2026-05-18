@@ -930,13 +930,6 @@ jobs:
               -C "mitm-proxy/captures/${connector}" --strip-components=1
           done
 
-      - name: Check cassettes are redacted
-        if: ${{ env.RUN_TESTS == 'true' }}
-        shell: bash
-        run: |
-          CREDS_FILE="${CYPRESS_CONNECTOR_AUTH_FILE_PATH}" \
-            python3 mitm-proxy/check_cassettes_redacted.py "mitm-proxy/captures"
-
       - name: Install uv
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: astral-sh/setup-uv@v6

@@ -40,8 +40,6 @@ from urllib.parse import urlparse
 
 from mitmproxy import http
 
-from secret_redaction import creds_path, redact_record
-
 
 # ───── config from env ─────
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -259,8 +257,6 @@ def response(flow: http.HTTPFlow):
         },
     }
 
-    redacted_count = redact_record(record)
-
     # Be defensive against concurrent/out-of-order responses with the same
     # (test, request_id). Some specs (notably external vault flows) can have
     # overlapping connector calls that otherwise race into the same 000.json
@@ -276,11 +272,10 @@ def response(flow: http.HTTPFlow):
     with open(out_path, "w") as f:
         json.dump(record, f, indent=2)
     rid_tag = f"  rid={request_id}" if request_id else "  rid=(none)"
-    redact_tag = f"  redacted={redacted_count}" if redacted_count else ""
     print(
         f"[capture] {req.method} {req.url} "
         f"→ {res.status_code} {res.reason or ''} "
-        f"({duration_ms}ms){rid_tag}{redact_tag} → {out_path}"
+        f"({duration_ms}ms){rid_tag} → {out_path}"
     )
 
 
@@ -289,4 +284,3 @@ start_admin_server()
 print(f"[capture] base URLs     {BASE_URLS or '(none — capturing all)'}")
 print(f"[capture] output dir    {OUT_DIR}")
 print(f"[capture] default tag   {DEFAULT_CONNECTOR or '(infer from host)'}")
-print(f"[capture] creds file    {creds_path()} ({'present' if creds_path().exists() else 'missing; redaction disabled'})")

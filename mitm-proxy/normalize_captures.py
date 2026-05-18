@@ -7,8 +7,8 @@ Usage:
 
 Design rules
 ------------
-* Common normalization must be safe for every connector: counting, keeping
-  server-UUID folders, and redacting values from creds.json.
+* Common normalization must be safe for every connector: counting and keeping
+  server-UUID folders.
 * Connector-specific cleanup lives in mitm-proxy/normalizers/<connector>.py.
   This prevents a heuristic needed for one connector from silently changing
   another connector's cassette suite.
@@ -23,7 +23,6 @@ import sys
 from pathlib import Path
 
 from normalizers.common import count_connector, load_cassettes, selected_connectors
-from secret_redaction import creds_path, redact_file
 
 
 def _empty_stats() -> dict[str, int]:
@@ -31,7 +30,6 @@ def _empty_stats() -> dict[str, int]:
         "server_uuid_folders_kept": 0,
         "server_uuid_cassettes_kept": 0,
         "orphan_duplicate_cassettes_quarantined": 0,
-        "credential_placeholders_written": 0,
         "cassettes_kept": 0,
     }
 
@@ -39,17 +37,6 @@ def _empty_stats() -> dict[str, int]:
 def _add_stats(dst: dict[str, int], src: dict[str, int]) -> None:
     for key, value in src.items():
         dst[key] = dst.get(key, 0) + int(value)
-
-
-def _redact_connector_cassettes(captures_dir: Path, connector_dir: Path) -> int:
-    placeholders = 0
-    for fpath in sorted(connector_dir.glob("**/*.json")):
-        try:
-            placeholders += redact_file(fpath)
-        except Exception as exc:  # noqa: BLE001 - normalize is best-effort
-            rel = fpath.relative_to(captures_dir)
-            print(f"  skip redaction for {rel}: {exc}")
-    return placeholders
 
 
 def _run_connector_module(
@@ -99,11 +86,6 @@ def normalize(
         connector_stats = _empty_stats()
         _add_stats(connector_stats, count_connector(captures_dir, connector_dir))
 
-        redacted = _redact_connector_cassettes(captures_dir, connector_dir)
-        connector_stats["credential_placeholders_written"] += redacted
-        if redacted:
-            print(f"  credential placeholders written: {redacted}")
-
         module_name = _run_connector_module(
             captures_dir, quarantine_dir, connector, connector_dir, connector_stats
         )
@@ -122,7 +104,6 @@ def main() -> int:
 
     print(f"Normalizing cassettes in {captures}")
     print(f"Quarantine destination : {quarantine}")
-    print(f"Creds file             : {creds_path()} ({'present' if creds_path().exists() else 'missing; redaction disabled'})")
     if connectors:
         print(f"Connector filter       : {', '.join(sorted(connectors))}")
     print()
@@ -136,7 +117,6 @@ def main() -> int:
         "  orphan duplicate cassettes quarantined: "
         f"{stats['orphan_duplicate_cassettes_quarantined']}"
     )
-    print(f"  credential placeholders written        : {stats['credential_placeholders_written']}")
     print(f"  cassettes kept                         : {stats['cassettes_kept']}")
     if stats["orphan_duplicate_cassettes_quarantined"]:
         print(f"\nQuarantined items are at: {quarantine}")
