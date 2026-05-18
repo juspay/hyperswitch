@@ -178,7 +178,7 @@ We believe in:
 
 ## Supported Connectors
 
-Hyperswitch integrates with 50+ payment processors out of the box. Each connector has a dedicated guide covering credentials setup, webhook configuration, supported payment methods, and common failure modes.
+Hyperswitch integrates with 100+ payment processors out of the box. Each connector has a dedicated guide covering credentials setup, webhook configuration, supported payment methods, and common failure modes.
 
 | Processor | Type | Guide |
 |-----------|------|-------|
