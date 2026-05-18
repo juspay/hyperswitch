@@ -359,17 +359,11 @@ impl UserFromToken {
                 resource: "superposition".to_string()
             })
         };
-        let is_merchant_admin_role = self.role_id == consts::user_role::ROLE_ID_MERCHANT_ADMIN;
 
         for (key, value) in params {
             match key.as_str() {
-                "dimension[organization_id]" => {
-                    if is_merchant_admin_role {
-                        return Err(unauthorized());
-                    }
-                    if value != self.org_id.get_string_repr() {
-                        return Err(unauthorized());
-                    }
+                "dimension[organization_id]" if value != self.org_id.get_string_repr() => {
+                    return Err(unauthorized());
                 }
                 "dimension[merchant_id]" if value != self.merchant_id.get_string_repr() => {
                     return Err(unauthorized());
@@ -439,6 +433,22 @@ impl UserFromToken {
             return Err(error_stack::report!(
                 errors::ApiErrorResponse::InvalidRequestData {
                     message: "context must contain at least one of: organization_id, merchant_id, profile_id, provider_merchant_id, processor_merchant_id".to_string(),
+                }
+            ));
+        }
+
+        let is_merchant_admin_role = self.role_id == consts::user_role::ROLE_ID_MERCHANT_ADMIN;
+        let has_merchant_level_dim = context_obj.contains_key("merchant_id")
+            || context_obj.contains_key("profile_id")
+            || context_obj.contains_key("processor_merchant_id")
+            || context_obj.contains_key("provider_merchant_id");
+        if is_merchant_admin_role
+            && context_obj.contains_key("organization_id")
+            && !has_merchant_level_dim
+        {
+            return Err(error_stack::report!(
+                errors::ApiErrorResponse::AccessForbidden {
+                    resource: "superposition".to_string(),
                 }
             ));
         }

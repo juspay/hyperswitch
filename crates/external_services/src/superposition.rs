@@ -402,6 +402,63 @@ impl SuperpositionClient {
         })
     }
 
+    /// Make a POST request to the Superposition admin API.
+    pub async fn proxy_post<B: serde::Serialize>(
+        config: &SuperpositionClientConfig,
+        org_id: &str,
+        workspace_id: &str,
+        path: &str,
+        body: &B,
+    ) -> CustomResult<serde_json::Value, SuperpositionError> {
+        let url = format!("{}{}", config.endpoint, path);
+        let response = reqwest::Client::new()
+            .post(&url)
+            .header("x-org-id", org_id)
+            .header("x-workspace", workspace_id)
+            .bearer_auth(config.token.clone().expose())
+            .json(body)
+            .send()
+            .await
+            .map_err(|e| {
+                report!(SuperpositionError::ClientError(format!(
+                    "POST {path} failed: {e}"
+                )))
+            })?;
+
+        let status = response.status();
+        let resp_body = response.text().await.map_err(|e| {
+            report!(SuperpositionError::ClientError(format!(
+                "Failed to read POST {path} response body: {e}"
+            )))
+        })?;
+
+        if !status.is_success() {
+            router_env::logger::error!(
+                superposition_path = path,
+                status = %status,
+                response_body = %resp_body,
+                "Superposition POST request failed"
+            );
+            return if status == reqwest::StatusCode::NOT_FOUND {
+                Err(report!(SuperpositionError::NotFound(resp_body)))
+            } else if status.is_client_error() {
+                Err(report!(SuperpositionError::BadRequest(
+                    extract_superposition_error_message(&resp_body)
+                )))
+            } else {
+                Err(report!(SuperpositionError::ClientError(format!(
+                    "POST {path} returned {status}: {resp_body}"
+                ))))
+            };
+        }
+
+        serde_json::from_str(&resp_body).map_err(|e| {
+            report!(SuperpositionError::ClientError(format!(
+                "Failed to parse POST {path} response: {e}, body: {resp_body}"
+            )))
+        })
+    }
+
     /// Make a PUT request to the Superposition admin API.
     pub async fn proxy_put<B: serde::Serialize>(
         config: &SuperpositionClientConfig,

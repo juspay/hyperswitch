@@ -3383,5 +3383,9 @@ impl SuperpositionProxy {
                 web::resource("/dimension")
                     .route(web::get().to(super::superposition_proxy::list_dimensions)),
             )
+            .service(
+                web::resource("/config/resolve")
+                    .route(web::post().to(super::superposition_proxy::resolve_config)),
+            )
     }
 }

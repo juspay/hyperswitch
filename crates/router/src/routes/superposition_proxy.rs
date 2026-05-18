@@ -8,6 +8,7 @@ use crate::{
         api_locking,
         superposition_proxy::{
             self as superposition_proxy, ProxyCreateContextRequest, ProxyListRequest,
+            ProxyResolveConfigRequest, ResolveConfigBody,
         },
     },
     services::{api, authentication as auth, authorization::permissions::Permission},
@@ -169,6 +170,42 @@ pub async fn create_context(
         },
         &auth::JWTAuth {
             permission: Permission::MerchantSuperpositionConfigWrite,
+            allow_connected: true,
+            allow_platform: true,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::SuperpositionResolveConfig))]
+pub async fn resolve_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    body: web::Json<ResolveConfigBody>,
+) -> HttpResponse {
+    let flow = Flow::SuperpositionResolveConfig;
+    let (org_id, workspace_id) = match extract_proxy_headers(&req) {
+        Ok((org_id, workspace_id)) => (org_id, workspace_id),
+        Err(response) => return response,
+    };
+
+    let payload = ProxyResolveConfigRequest {
+        body: body.into_inner(),
+        org_id,
+        workspace_id,
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, user, req, _| async move {
+            superposition_proxy::resolve_config(state, user, req).await
+        },
+        &auth::JWTAuth {
+            permission: Permission::MerchantSuperpositionConfigRead,
             allow_connected: true,
             allow_platform: true,
         },

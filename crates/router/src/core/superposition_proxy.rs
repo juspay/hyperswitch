@@ -4,6 +4,7 @@ use external_services::superposition::{
 };
 use futures::future::join_all;
 use router_env::logger;
+use serde_json::Map;
 
 use crate::{
     core::errors::{self, RouterResponse},
@@ -42,6 +43,24 @@ impl std::fmt::Debug for ProxyCreateContextRequest {
 }
 
 impl ApiEventMetric for ProxyCreateContextRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Miscellaneous)
+    }
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct ResolveConfigBody {
+    pub context: Map<String, serde_json::Value>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct ProxyResolveConfigRequest {
+    pub body: ResolveConfigBody,
+    pub org_id: String,
+    pub workspace_id: String,
+}
+
+impl ApiEventMetric for ProxyResolveConfigRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Miscellaneous)
     }
@@ -318,5 +337,50 @@ pub async fn create_context(
     })?;
 
     logger::info!(user_id = %auth.user_id, "superposition create_context success");
+    Ok(services::ApplicationResponse::Json(response))
+}
+
+pub async fn resolve_config(
+    state: SessionState,
+    auth: UserFromToken,
+    req: ProxyResolveConfigRequest,
+) -> RouterResponse<serde_json::Value> {
+    logger::info!(
+        user_id = %auth.user_id,
+        merchant_id = %auth.merchant_id.get_string_repr(),
+        org_id = %auth.org_id.get_string_repr(),
+        role_id = %auth.role_id,
+        "superposition resolve_config request"
+    );
+
+    check_admin_access(&auth, "resolve_config")?;
+
+    let context_json = serde_json::Value::Object(req.body.context.clone());
+    if let Err(e) = auth.validate_superposition_context_body(&context_json) {
+        logger::warn!(
+            user_id = %auth.user_id,
+            role_id = %auth.role_id,
+            context = ?context_json,
+            error = ?e,
+            "superposition resolve_config rejected: context dimension validation failed"
+        );
+        return Err(e);
+    }
+
+    let config = state.conf.superposition.get_inner();
+    let response = SuperpositionClient::proxy_post(
+        config,
+        &req.org_id,
+        &req.workspace_id,
+        "/config/resolve",
+        &req.body,
+    )
+    .await
+    .map_err(|e| {
+        logger::error!(error = ?e, "superposition resolve_config upstream request failed");
+        map_superposition_err(e, "Failed to resolve config from Superposition")
+    })?;
+
+    logger::info!(user_id = %auth.user_id, "superposition resolve_config success");
     Ok(services::ApplicationResponse::Json(response))
 }
