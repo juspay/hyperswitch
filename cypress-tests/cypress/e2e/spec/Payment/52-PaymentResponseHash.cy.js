@@ -10,6 +10,7 @@ let globalState;
 
 function setup3DSPayment() {
   let shouldContinue = true;
+  globalState.set("setup3DSComplete", true);
 
   cy.step("create payment intent", () => {
     const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
@@ -27,6 +28,7 @@ function setup3DSPayment() {
     if (!utils.should_continue_further(data)) {
       shouldContinue = false;
     }
+    globalState.set("setup3DSComplete", shouldContinue);
   });
 
   cy.step("payment methods call", () => {
@@ -53,6 +55,7 @@ function setup3DSPayment() {
     if (!utils.should_continue_further(confirmData)) {
       shouldContinue = false;
     }
+    globalState.set("setup3DSComplete", shouldContinue);
   });
 
   return cy.wrap(shouldContinue, { log: false });
@@ -184,7 +187,7 @@ describe("Card - Payment Response Hash flow test", () => {
           return;
         }
 
-        cy.verifyPaymentResponseHash(globalState);
+        cy.assertPaymentResponseHashEnabled(globalState);
       });
     });
   });
@@ -194,11 +197,21 @@ describe("Card - Payment Response Hash flow test", () => {
       setup3DSPayment();
 
       cy.step("handle redirection", () => {
+        if (!globalState.get("setup3DSComplete")) {
+          cy.task("cli_log", "Skipping step: 3DS setup did not complete");
+          return;
+        }
+
         const expected_redirection = fixtures.confirmBody["return_url"];
         cy.handleRedirection(globalState, expected_redirection);
       });
 
       cy.step("verify redirect signature", () => {
+        if (!globalState.get("setup3DSComplete")) {
+          cy.task("cli_log", "Skipping step: 3DS setup did not complete");
+          return;
+        }
+
         cy.verifyRedirectSignature(globalState);
       });
     });
@@ -209,6 +222,11 @@ describe("Card - Payment Response Hash flow test", () => {
       setup3DSPayment();
 
       cy.step("compute and verify redirect signature", () => {
+        if (!globalState.get("setup3DSComplete")) {
+          cy.task("cli_log", "Skipping step: 3DS setup did not complete");
+          return;
+        }
+
         cy.computeAndVerifyRedirectSignature(globalState);
       });
     });
@@ -219,6 +237,11 @@ describe("Card - Payment Response Hash flow test", () => {
       setup3DSPayment();
 
       cy.step("compute and verify redirect signature", () => {
+        if (!globalState.get("setup3DSComplete")) {
+          cy.task("cli_log", "Skipping step: 3DS setup did not complete");
+          return;
+        }
+
         cy.computeAndVerifyRedirectSignature(globalState);
       });
 
@@ -243,50 +266,12 @@ describe("Card - Payment Response Hash flow test", () => {
       setup3DSPayment();
 
       cy.step("wait for webhook delivery and verify signature", () => {
-        const paymentId = globalState.get("paymentID");
-        const apiKey = globalState.get("adminApiKey");
-        const baseUrl = globalState.get("baseUrl");
-        const maxAttempts = 10;
-        const pollInterval = 1000;
-        let attempts = 0;
+        if (!globalState.get("setup3DSComplete")) {
+          cy.task("cli_log", "Skipping step: 3DS setup did not complete");
+          return;
+        }
 
-        const pollForWebhooks = () => {
-          cy.request({
-            method: "GET",
-            url: `${baseUrl}/payments/${paymentId}/webhooks`,
-            headers: {
-              "Content-Type": "application/json",
-              "api-key": apiKey,
-            },
-            failOnStatusCode: false,
-          }).then((response) => {
-            if (
-              response.status === 200 &&
-              response.body &&
-              response.body.data &&
-              response.body.data.length > 0
-            ) {
-              cy.task(
-                "cli_log",
-                `Webhook delivery found after ${attempts + 1} poll(s)`
-              );
-            } else {
-              attempts++;
-              if (attempts < maxAttempts) {
-                cy.wait(pollInterval);
-                pollForWebhooks();
-              } else {
-                cy.task(
-                  "cli_log",
-                  `No webhook deliveries found after ${maxAttempts} polls - proceeding to verify (command handles empty case)`
-                );
-              }
-            }
-          });
-        };
-
-        pollForWebhooks();
-
+        cy.fetchWebhookWithRetry(globalState);
         cy.verifyWebhookSignatureHeader(globalState);
       });
     });

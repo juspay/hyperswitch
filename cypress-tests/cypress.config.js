@@ -43,7 +43,9 @@ export default defineConfig({
               .update(message)
               .digest("hex");
             return signature;
-          } catch {
+          } catch (error) {
+            // eslint-disable-next-line no-console
+            console.error("computeHmac failed:", error.message);
             return null;
           }
         },

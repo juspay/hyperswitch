@@ -8277,7 +8277,7 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
  *
  * @param {Object} globalState - The global state object
  */
-Cypress.Commands.add("verifyPaymentResponseHash", (globalState) => {
+Cypress.Commands.add("assertPaymentResponseHashEnabled", (globalState) => {
   const enablePaymentResponseHash = globalState.get(
     "enablePaymentResponseHash"
   );
@@ -8411,6 +8411,7 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
     cy.task("computeHmac", {
       key: hashKey,
       message: signingPayload,
+      algorithm: signatureAlgorithm.replace("HMAC-", "").toLowerCase(),
     }).then((computedSignature) => {
       expect(computedSignature, "HMAC computation should not return null").to
         .not.be.null;
@@ -8422,6 +8423,7 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
 
       globalState.set("computedSigningPayload", signingPayload);
       globalState.set("computedSignature", computedSignature);
+      globalState.set("signatureAlgorithm", signatureAlgorithm);
 
       cy.task(
         "cli_log",
@@ -8436,6 +8438,11 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
     const hashKey = globalState.get("paymentResponseHashKey");
     const computedSignature = globalState.get("computedSignature");
     const signingPayload = globalState.get("computedSigningPayload");
+    const signatureAlgorithm =
+      globalState.get("signatureAlgorithm") || "HMAC-SHA512";
+    const algorithm = signatureAlgorithm
+      .replace("HMAC-", "")
+      .toLowerCase();
 
     expect(hashKey, "payment_response_hash_key must exist").to.be.a("string")
       .and.not.be.empty;
@@ -8456,6 +8463,7 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
     cy.task("computeHmac", {
       key: hashKey,
       message: tamperedPayload,
+      algorithm,
     }).then((tamperedSignature) => {
       expect(tamperedSignature, "HMAC computation should not return null").to
         .not.be.null;
@@ -8468,6 +8476,7 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
       cy.task("computeHmac", {
         key: "wrong_key_that_does_not_match",
         message: signingPayload,
+        algorithm,
       }).then((wrongKeySignature) => {
         expect(wrongKeySignature, "HMAC computation should not return null").to
           .not.be.null;
@@ -8486,8 +8495,53 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
   });
 });
 
+Cypress.Commands.add(
+  "fetchWebhookWithRetry",
+  (globalState, maxAttempts = 10, pollInterval = 1000) => {
+    const paymentId = globalState.get("paymentID");
+    const apiKey = globalState.get("adminApiKey");
+    const baseUrl = globalState.get("baseUrl");
+
+    function poll(attemptsLeft) {
+      cy.request({
+        method: "GET",
+        url: `${baseUrl}/payments/${paymentId}/webhooks`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+        },
+        failOnStatusCode: false,
+      }).then((response) => {
+        if (
+          response.status === 200 &&
+          response.body &&
+          response.body.data &&
+          response.body.data.length > 0
+        ) {
+          cy.task(
+            "cli_log",
+            `Webhook delivery found after ${maxAttempts - attemptsLeft + 1} poll(s)`
+          );
+        } else if (attemptsLeft > 1) {
+          cy.wait(pollInterval).then(() => poll(attemptsLeft - 1));
+        } else {
+          cy.task(
+            "cli_log",
+            `No webhook deliveries found after ${maxAttempts} polls - proceeding to verify (command handles empty case)`
+          );
+        }
+      });
+    }
+
+    poll(maxAttempts);
+  }
+);
+
 Cypress.Commands.add("verifyWebhookSignatureHeader", (globalState) => {
   const hashKey = globalState.get("paymentResponseHashKey");
+  const signatureAlgorithm =
+    globalState.get("signatureAlgorithm") || "HMAC-SHA512";
+  const algorithm = signatureAlgorithm.replace("HMAC-", "").toLowerCase();
   expect(
     hashKey,
     "payment_response_hash_key should exist in global state"
@@ -8544,6 +8598,7 @@ Cypress.Commands.add("verifyWebhookSignatureHeader", (globalState) => {
     cy.task("computeHmac", {
       key: hashKey,
       message: webhookPayload,
+      algorithm,
     }).then((computedSignature) => {
       expect(computedSignature, "HMAC computation should not return null").to
         .not.be.null;
