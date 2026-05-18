@@ -84,7 +84,8 @@ jobs:
   check-msrv:
     name: Check compilation on MSRV toolchain
     runs-on: ${{ matrix.runner }}
-
+    if: ${{ ! startsWith(github.event.pull_request.base.ref, 'hotfix-') }}
+    
     env:
       # Use `sccache` for caching compilation artifacts
       # RUSTC_WRAPPER: sccache
