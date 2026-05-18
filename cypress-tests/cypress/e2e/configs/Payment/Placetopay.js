@@ -195,12 +195,9 @@ export const connectorDetails = {
         amount: 6000,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
-          },
+          status: "succeeded",
         },
       },
     },
@@ -209,12 +206,9 @@ export const connectorDetails = {
         amount: 2000,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
-          },
+          status: "succeeded",
         },
       },
     },
@@ -223,12 +217,9 @@ export const connectorDetails = {
         amount: 6000,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
-          },
+          status: "succeeded",
         },
       },
     },
@@ -237,23 +228,17 @@ export const connectorDetails = {
         amount: 2000,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
-          },
+          status: "succeeded",
         },
       },
     },
     SyncRefund: {
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
-          },
+          status: "succeeded",
         },
       },
     },
