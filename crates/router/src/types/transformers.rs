@@ -200,7 +200,8 @@ impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStat
             | storage_enums::AttemptStatus::ConfirmationAwaited
             | storage_enums::AttemptStatus::DeviceDataCollectionPending
             | storage_enums::AttemptStatus::PartiallyAuthorized
-            | storage_enums::AttemptStatus::PartialChargedAndChargeable | storage_enums::AttemptStatus::Expired => {
+            | storage_enums::AttemptStatus::PartialChargedAndChargeable | storage_enums::AttemptStatus::Expired
+            | storage_enums::AttemptStatus::CaptureReview => {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "AttemptStatus must be one of these for multiple partial captures [Charged, PartialCharged, Pending, CaptureInitiated, Failure, CaptureFailed]".into(),
                 }.into())
@@ -1359,6 +1360,7 @@ impl ForeignFrom<&api_models::payouts::Bank> for api_enums::PaymentMethodType {
             api_models::payouts::Bank::Sepa(_) => Self::SepaBankTransfer,
             api_models::payouts::Bank::Pix(_) => Self::Pix,
             api_models::payouts::Bank::Trustly(_) => Self::Trustly,
+            api_models::payouts::Bank::OpenBanking(_) => Self::OpenBanking,
         }
     }
 }
@@ -1374,6 +1376,7 @@ impl ForeignFrom<&api_models::payouts::BankTransfer> for api_enums::PaymentMetho
             api_models::payouts::BankTransfer::PixKey(_) => Self::PixKey,
             api_models::payouts::BankTransfer::PixEmv(_) => Self::PixEmv,
             api_models::payouts::BankTransfer::Trustly(_) => Self::Trustly,
+            api_models::payouts::BankTransfer::OpenBanking(_) => Self::OpenBanking,
         }
     }
 }
@@ -2203,6 +2206,26 @@ impl ForeignFrom<diesel_models::business_profile::VaultTokenField>
     fn foreign_from(item: diesel_models::business_profile::VaultTokenField) -> Self {
         Self {
             token_type: item.token_type,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::admin::SurchargeConnectorDetails>
+    for diesel_models::business_profile::SurchargeConnectorDetails
+{
+    fn foreign_from(item: api_models::admin::SurchargeConnectorDetails) -> Self {
+        Self {
+            surcharge_connector_id: item.surcharge_connector_id,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::SurchargeConnectorDetails>
+    for api_models::admin::SurchargeConnectorDetails
+{
+    fn foreign_from(item: diesel_models::business_profile::SurchargeConnectorDetails) -> Self {
+        Self {
+            surcharge_connector_id: item.surcharge_connector_id,
         }
     }
 }

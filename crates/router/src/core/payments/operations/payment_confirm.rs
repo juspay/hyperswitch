@@ -145,6 +145,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     storage_enums::IntentStatus::Processing,
                     storage_enums::IntentStatus::RequiresCapture,
                     storage_enums::IntentStatus::RequiresMerchantAction,
+                    storage_enums::IntentStatus::Review,
                 ],
                 "confirm",
             )?;
@@ -158,6 +159,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     storage_enums::IntentStatus::RequiresCapture,
                     storage_enums::IntentStatus::RequiresMerchantAction,
                     storage_enums::IntentStatus::RequiresCustomerAction,
+                    storage_enums::IntentStatus::Review,
                 ],
                 "confirm",
             )?;
@@ -2663,6 +2665,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         network_transaction_id: payment_data
                             .payment_attempt
                             .network_transaction_id
+                            .clone(),
+                        network_transaction_link_id: payment_data
+                            .payment_attempt
+                            .network_transaction_link_id
                             .clone(),
                         is_stored_credential,
                         request_extended_authorization: payment_data
