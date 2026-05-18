@@ -888,7 +888,7 @@ impl UnifiedConnectorServiceError {
             tonic::Code::Unimplemented => 501,
             tonic::Code::Unavailable => 503,
             tonic::Code::DeadlineExceeded => 504,
-            tonic::Code::Internal | _ => 500,
+            _ => 500,
         }
     }
 
