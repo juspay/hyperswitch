@@ -19,6 +19,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    mandates,
     payment_method_data::{
         BankDebitData, BankRedirectData, BankTransferData, Card, CardRedirectData, GiftCardData,
         NetworkTokenData, PayLaterData, PaymentMethodData, VoucherData, WalletData,
@@ -2173,6 +2174,23 @@ fn get_additional_data(
         }
     };
 
+    let transaction_link_id = item.request.mandate_id.as_ref().and_then(|mandate_ids| {
+        mandate_ids
+            .mandate_reference_id
+            .as_ref()
+            .and_then(|mandate_ref_id| match mandate_ref_id {
+                mandates::MandateReferenceId::NetworkMandateId(ref_data) => {
+                    ref_data.transaction_link_id.clone()
+                }
+                mandates::MandateReferenceId::NetworkTokenWithNTI(ref_data) => {
+                    ref_data.transaction_link_id.clone()
+                }
+                mandates::MandateReferenceId::ConnectorMandateId(_)
+                | mandates::MandateReferenceId::CardWithLimitedData => None,
+            })
+    });
+
+
     Ok(Some(AdditionalData {
         authorisation_type,
         manual_capture,
@@ -3115,14 +3133,14 @@ fn get_adyen_metadata(metadata: Option<serde_json::Value>) -> AdyenMetadata {
 impl
     TryFrom<(
         &AdyenRouterData<&PaymentsAuthorizeRouterData>,
-        payments::MandateReferenceId,
+        mandates::MandateReferenceId,
     )> for AdyenPaymentRequest<'_>
 {
     type Error = Error;
     fn try_from(
         value: (
             &AdyenRouterData<&PaymentsAuthorizeRouterData>,
-            payments::MandateReferenceId,
+            mandates::MandateReferenceId,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, mandate_ref_id) = value;
@@ -3143,7 +3161,7 @@ impl
             .transpose()?;
         let test_holder_name = testing_data.and_then(|test_data| test_data.holder_name);
         let payment_method = match mandate_ref_id {
-            payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
+            mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
                 let adyen_mandate = AdyenMandate {
                     payment_type: match payment_method_type {
                         Some(pm_type) => PaymentType::try_from(&pm_type)?,
@@ -3160,7 +3178,7 @@ impl
                     Box::new(adyen_mandate),
                 ))
             }
-            payments::MandateReferenceId::NetworkMandateId(network_mandate_id) => {
+            mandates::MandateReferenceId::NetworkMandateId(network_mandate_id) => {
                 match item.router_data.request.payment_method_data {
                     PaymentMethodData::CardDetailsForNetworkTransactionId(
                         ref card_details_for_network_transaction_id,
@@ -3226,7 +3244,7 @@ impl
                     }
                 }
             }
-            payments::MandateReferenceId::NetworkTokenWithNTI(network_mandate_id) => {
+            mandates::MandateReferenceId::NetworkTokenWithNTI(network_mandate_id) => {
                 match item.router_data.request.payment_method_data {
                     PaymentMethodData::NetworkToken(ref token_data) => {
                         let card_issuer = token_data.get_card_issuer()?;
@@ -3277,7 +3295,7 @@ impl
                     }
                 }
             }
-            payments::MandateReferenceId::CardWithLimitedData => {
+            mandates::MandateReferenceId::CardWithLimitedData => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Card Only MIT for payment method".to_string(),
                     connector: "Adyen",
