@@ -292,6 +292,10 @@ impl PaymentMethodVaultingData {
                 };
                 AuxiliaryFingerprintData::BankDebit(account_number)
             }
+            Self::Wallet(payment_method_data::WalletDetail::ApplePayDecryptedData {
+                application_primary_account_number,
+                ..
+            }) => AuxiliaryFingerprintData::CardNumber(application_primary_account_number.clone()),
         }
     }
 
