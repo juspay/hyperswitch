@@ -4320,6 +4320,11 @@ Cypress.Commands.add(
       );
     }
 
+    if (Cypress.env("MOCK_SERVER") === "true") {
+      cy.task("cli_log", "Skipping handleRedirection: MOCK_SERVER=true");
+      return;
+    }
+
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
 
@@ -4861,6 +4866,14 @@ Cypress.Commands.add(
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
 
+    if (Cypress.env("MOCK_SERVER") === "true") {
+      cy.task(
+        "cli_log",
+        "Skipping handleBankRedirectRedirection: MOCK_SERVER=true"
+      );
+      return;
+    }
+
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
 
@@ -4905,6 +4918,14 @@ Cypress.Commands.add(
     const nextActionUrl = globalState.get("nextActionUrl");
     const nextActionType = globalState.get("nextActionType");
 
+    if (Cypress.env("MOCK_SERVER") === "true") {
+      cy.task(
+        "cli_log",
+        "Skipping handleBankTransferRedirection: MOCK_SERVER=true"
+      );
+      return;
+    }
+
     const expectedUrl = new URL(expectedRedirection);
     let redirectionUrl = null;
     try {
@@ -4931,6 +4952,11 @@ Cypress.Commands.add(
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
 
+    if (Cypress.env("MOCK_SERVER") === "true") {
+      cy.task("cli_log", "Skipping handleRewardRedirection: MOCK_SERVER=true");
+      return;
+    }
+
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
 
@@ -4949,6 +4975,11 @@ Cypress.Commands.add(
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
 
+    if (Cypress.env("MOCK_SERVER") === "true") {
+      cy.task("cli_log", "Skipping handleCryptoRedirection: MOCK_SERVER=true");
+      return;
+    }
+
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
 
@@ -4966,6 +4997,11 @@ Cypress.Commands.add(
   (globalState, paymentMethodType, expectedRedirection) => {
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
+
+    if (Cypress.env("MOCK_SERVER") === "true") {
+      cy.task("cli_log", "Skipping handleWalletRedirection: MOCK_SERVER=true");
+      return;
+    }
 
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
@@ -5150,6 +5186,11 @@ Cypress.Commands.add(
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
 
+    if (Cypress.env("MOCK_SERVER") === "true") {
+      cy.task("cli_log", "Skipping handleUpiRedirection: MOCK_SERVER=true");
+      return;
+    }
+
     const expectedUrl = new URL(expected_redirection);
     const redirectionUrl = new URL(nextActionUrl);
 
@@ -5167,6 +5208,14 @@ Cypress.Commands.add(
   (globalState, paymentMethodType, expected_redirection) => {
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
+
+    if (Cypress.env("MOCK_SERVER") === "true") {
+      cy.task(
+        "cli_log",
+        "Skipping handlePayLaterRedirection: MOCK_SERVER=true"
+      );
+      return;
+    }
 
     const expectedUrl = new URL(expected_redirection);
     const redirectionUrl = new URL(nextActionUrl);
