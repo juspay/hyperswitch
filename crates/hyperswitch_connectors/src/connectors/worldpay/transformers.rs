@@ -503,7 +503,9 @@ fn get_token_and_agreement(
                         MandateReferenceId::NetworkMandateId(network_transaction_id) => {
                             Some(CustomerAgreement {
                                 agreement_type: CustomerAgreementType::Unscheduled,
-                                scheme_reference: Some(network_transaction_id.into()),
+                                scheme_reference: Some(
+                                    network_transaction_id.network_transaction_id.clone().into(),
+                                ),
                                 stored_card_usage: None,
                             })
                         }
@@ -795,6 +797,7 @@ impl<F, T>
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
                 network_txn_id: network_txn_id.map(|id| id.expose()),
+                network_txn_link_id: None,
                 connector_response_reference_id: optional_correlation_id.clone(),
                 incremental_authorization_allowed: None,
                 authentication_data: None,

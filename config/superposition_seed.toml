@@ -46,6 +46,12 @@ schema = { type = "string" }
 description = "Type of payout retry (single_connector or multi_connector)"
 change_reason = "Initial setup"
 
+[dimensions.incoming_webhook_events]
+position = 7
+schema = { type = "string" }
+description = "Incoming webhook event type identifier (e.g. payment_intent.succeeded)"
+change_reason = "Initial setup"
+
 [default-configs.requires_cvv]
 value = true
 schema = { type = "boolean" }
@@ -143,5 +149,23 @@ change_reason = "Initial setup"
 value = false
 schema = { type = "boolean" }
 description = "Whether to return raw payment method details (v2 only)"
+change_reason = "Initial setup"
+
+[default-configs.routing_result_source]
+value = "hyperswitch_routing"
+schema = { type = "string", enum = ["decision_engine", "hyperswitch_routing"] }
+description = "Source of routing result: decision_engine (external DE) or hyperswitch_routing (inbuilt)"
+change_reason = "Initial setup"
+
+[default-configs.threeds_routing_region_uas]
+value = "region1"
+schema = { type = "string", enum = ["region1", "region2"] }
+description = "3DS routing region for UAS (Unified Authentication Service) per organization"
+change_reason = "Initial setup"
+
+[default-configs.incoming_webhook_disabled_events]
+value = false
+schema = { type = "boolean" }
+description = "Whether a specific incoming webhook event is disabled for a given connector"
 change_reason = "Initial setup"
 

@@ -62,6 +62,7 @@ pub enum PaymentsResponseData {
         mandate_reference: Box<Option<MandateReference>>,
         connector_metadata: Option<serde_json::Value>,
         network_txn_id: Option<String>,
+        network_txn_link_id: Option<String>,
         connector_response_reference_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
         authentication_data: Option<Box<UcsAuthenticationData>>,
@@ -228,6 +229,16 @@ impl PaymentsResponseData {
         }
     }
 
+    pub fn get_network_transaction_link_id(&self) -> Option<String> {
+        match self {
+            Self::TransactionResponse {
+                network_txn_link_id,
+                ..
+            } => network_txn_link_id.clone(),
+            _ => None,
+        }
+    }
+
     pub fn get_connector_transaction_id(
         &self,
     ) -> Result<String, error_stack::Report<ApiErrorResponse>> {
@@ -255,6 +266,7 @@ impl PaymentsResponseData {
                     mandate_reference: auth_mandate_reference,
                     connector_metadata: auth_connector_metadata,
                     network_txn_id: auth_network_txn_id,
+                    network_txn_link_id: auth_network_txn_link_id,
                     connector_response_reference_id: auth_connector_response_reference_id,
                     incremental_authorization_allowed: auth_incremental_auth_allowed,
                     authentication_data: auth_authentication_data,
@@ -266,6 +278,7 @@ impl PaymentsResponseData {
                     mandate_reference: capture_mandate_reference,
                     connector_metadata: capture_connector_metadata,
                     network_txn_id: capture_network_txn_id,
+                    network_txn_link_id: capture_network_txn_link_id,
                     connector_response_reference_id: capture_connector_response_reference_id,
                     incremental_authorization_allowed: capture_incremental_auth_allowed,
                     authentication_data: capture_authentication_data,
@@ -289,6 +302,9 @@ impl PaymentsResponseData {
                 network_txn_id: capture_network_txn_id
                     .clone()
                     .or(auth_network_txn_id.clone()),
+                network_txn_link_id: capture_network_txn_link_id
+                    .clone()
+                    .or(auth_network_txn_link_id.clone()),
                 connector_response_reference_id: capture_connector_response_reference_id
                     .clone()
                     .or(auth_connector_response_reference_id.clone()),

@@ -133,6 +133,7 @@ impl PaymentMethodsController for PmCards<'_> {
         status: Option<enums::PaymentMethodStatus>,
         network_transaction_id: Option<String>,
         payment_method_billing_address: crypto::OptionalEncryptableValue,
+        network_transaction_link_id: Option<String>,
         card_scheme: Option<String>,
         network_token_requestor_reference_id: Option<String>,
         network_token_locker_id: Option<String>,
@@ -179,6 +180,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     client_secret: Some(client_secret),
                     status: status.unwrap_or(enums::PaymentMethodStatus::Active),
                     network_transaction_id: network_transaction_id.to_owned(),
+                    network_transaction_link_id: network_transaction_link_id.to_owned(),
                     payment_method_issuer_code: None,
                     accepted_currency: None,
                     token: None,
@@ -591,6 +593,7 @@ impl PaymentMethodsController for PmCards<'_> {
             None,
             network_transaction_id,
             payment_method_billing_address,
+            None,
             resp.card.clone().and_then(|card| {
                 card.card_network
                     .map(|card_network| card_network.to_string())
@@ -1695,6 +1698,7 @@ pub async fn get_client_secret_or_add_payment_method(
                 Some(enums::PaymentMethodStatus::AwaitingData),
                 None,
                 payment_method_billing_address,
+                None,
                 None,
                 None,
                 None,
