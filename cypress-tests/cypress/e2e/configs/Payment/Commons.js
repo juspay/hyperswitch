@@ -3567,4 +3567,76 @@ export const connectorDetails = {
       },
     }),
   },
+  step_up_auth: {
+    PaymentIntentOnly: getCustomExchange({
+      Request: {
+        currency: "USD",
+        authentication_type: "three_ds",
+        request_external_three_ds_authentication: true,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    ConfirmPayment: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        authentication_type: "three_ds",
+        request_external_three_ds_authentication: true,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    ThreeDSAuthentication: getCustomExchange({
+      Request: {
+        device_channel: "BRW",
+        threeds_method_comp_ind: "Y",
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    ThreeDSAuthenticationUnconfirmed: getCustomExchange({
+      Request: {
+        device_channel: "BRW",
+        threeds_method_comp_ind: "Y",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_16",
+            message:
+              "You cannot authenticate this payment because payment_attempt.external_three_ds_authentication_attempted is false",
+          },
+        },
+      },
+    }),
+    AuthorizeAfterFrictionlessAuth: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+  },
 };
