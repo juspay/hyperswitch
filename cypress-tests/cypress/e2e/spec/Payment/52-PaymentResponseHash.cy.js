@@ -180,7 +180,12 @@ describe("Card - Payment Response Hash flow test", () => {
           "card_pm"
         ]["3DSAutoCapture"];
 
-        cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
 
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
@@ -249,7 +254,12 @@ describe("Card - Payment Response Hash flow test", () => {
           "card_pm"
         ]["3DSAutoCapture"];
 
-        cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
 
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
@@ -258,7 +268,10 @@ describe("Card - Payment Response Hash flow test", () => {
 
       cy.step("compute and verify redirect signature", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: compute and verify redirect signature");
+          cy.task(
+            "cli_log",
+            "Skipping step: compute and verify redirect signature"
+          );
           return;
         }
 
@@ -308,7 +321,12 @@ describe("Card - Payment Response Hash flow test", () => {
           "card_pm"
         ]["3DSAutoCapture"];
 
-        cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
 
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
@@ -317,7 +335,10 @@ describe("Card - Payment Response Hash flow test", () => {
 
       cy.step("compute and verify redirect signature", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: compute and verify redirect signature");
+          cy.task(
+            "cli_log",
+            "Skipping step: compute and verify redirect signature"
+          );
           return;
         }
 
@@ -386,7 +407,12 @@ describe("Card - Payment Response Hash flow test", () => {
           "card_pm"
         ]["3DSAutoCapture"];
 
-        cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
 
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
