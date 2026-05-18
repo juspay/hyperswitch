@@ -158,4 +158,142 @@ describe("Gift Card Payment - Adyen Givex", () => {
       });
     });
   });
+
+  context("PaySafeCard gift card - redirect flow", () => {
+    it("Create Payment Intent -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "gift_card_pm"
+        ]["PaymentIntent"]("PaySafeCard");
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!shouldContinue) return;
+        if (data && data.Response && data.Response.status === 501) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Confirm Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "gift_card_pm"
+        ]["PaySafeCardGiftCard"];
+
+        cy.confirmBankRedirectCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+
+        if (!shouldContinue) return;
+        if (
+          confirmData &&
+          confirmData.Response &&
+          confirmData.Response.status === 501
+        ) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle Bank Redirect Redirection", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Handle Bank Redirect Redirection"
+          );
+          return;
+        }
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleBankRedirectRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "gift_card_pm"
+        ]["PaySafeCardGiftCard"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+    });
+  });
+
+  context("Givex gift card - refund flow", () => {
+    it("Create and Confirm Givex Gift Card Payment -> Refund Payment -> Sync Refund Payment", () => {
+      let shouldContinue = true;
+
+      cy.step("Create and Confirm Givex Gift Card Payment", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "gift_card_pm"
+        ]["GivexGiftCard"];
+
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!shouldContinue) return;
+        if (data && data.Response && data.Response.status === 501) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Refund Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Refund Payment");
+          return;
+        }
+        const refundData = getConnectorDetails(globalState.get("connectorId"))[
+          "gift_card_pm"
+        ]["GivexGiftCardRefund"];
+
+        cy.refundCallTest(fixtures.refundBody, refundData, globalState);
+
+        if (!shouldContinue) return;
+        if (
+          refundData &&
+          refundData.Response &&
+          refundData.Response.status === 501
+        ) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Sync Refund Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Sync Refund Payment");
+          return;
+        }
+        const syncRefundData = getConnectorDetails(
+          globalState.get("connectorId")
+        )["gift_card_pm"]["GivexGiftCardSyncRefund"];
+
+        cy.syncRefundCallTest(syncRefundData, globalState);
+      });
+    });
+  });
 });

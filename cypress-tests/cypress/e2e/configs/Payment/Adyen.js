@@ -1324,6 +1324,71 @@ export const connectorDetails = {
         },
       },
     }),
+    PaymentIntent: (paymentMethodType) => {
+      if (paymentMethodType === "PaySafeCard") {
+        return getCustomExchange({
+          Request: {
+            currency: "EUR",
+          },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_payment_method",
+              payment_method: "gift_card",
+            },
+          },
+        });
+      }
+      return getCustomExchange({
+        Request: {
+          currency: "EUR",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      });
+    },
+    PaySafeCardGiftCard: getCustomExchange({
+      Request: {
+        payment_method: "gift_card",
+        payment_method_type: "pay_safe_card",
+        payment_method_data: {
+          gift_card: {
+            pay_safe_card: {},
+          },
+        },
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    GivexGiftCardRefund: {
+      Request: {
+        amount: 1000,
+        reason: "Test refund",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    GivexGiftCardSyncRefund: {
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
   },
 
   pay_later_pm: {
