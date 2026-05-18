@@ -2356,6 +2356,17 @@ pub struct RequiredFieldInfo {
     pub value: Option<hyperswitch_masking::Secret<String>>,
 }
 
+impl RequiredFieldInfo {
+    pub fn for_config(&self) -> Self {
+        Self {
+            required_field: self.required_field.clone(),
+            display_name: self.display_name.clone(),
+            field_type: self.field_type.clone(),
+            value: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct ResponsePaymentMethodsEnabled {
     /// The payment method enabled
@@ -2826,6 +2837,10 @@ pub struct PaymentMethodListIntentData {
 
     /// Installment options available for this payment
     pub installment_options: Option<Vec<PaymentMethodListInstallmentOption>>,
+
+    /// The capture method for the payment
+    #[schema(value_type = Option<CaptureMethod>)]
+    pub capture_method: Option<api_enums::CaptureMethod>,
 }
 
 /// Installment options for a payment method, as returned in the payment method list response

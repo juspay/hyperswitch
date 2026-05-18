@@ -8,21 +8,30 @@ use common_utils::{
     ext_traits::ValueExt,
 };
 use error_stack::{Report, ResultExt};
+use hyperswitch_domain_models::{
+    router_request_types::VerifyWebhookSourceRequestData,
+    router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
+};
+use hyperswitch_interfaces::webhooks::IncomingWebhook;
 use redis_interface as redis;
 use router_env::tracing;
 
 use super::MERCHANT_ID;
 use crate::{
     core::{
+        configs::dimension_state,
         errors::{self},
         metrics,
-        payments::helpers,
+        payments::{self, helpers},
     },
-    db::{get_and_deserialize_key, StorageInterface},
     errors::RouterResult,
     routes::app::SessionStateInfo,
-    services::logger,
-    types::{self, api, domain, PaymentAddress},
+    services::{self, connector_integration_interface::ConnectorEnum, logger},
+    types::{
+        self,
+        api::{self, ConnectorData, GetToken},
+        domain, PaymentAddress,
+    },
     SessionState,
 };
 
@@ -32,41 +41,24 @@ const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_SOURCE_VERIFICATION_FLOW: &st
     "irrelevant_connector_request_reference_id_in_source_verification_flow";
 
 /// Check whether the merchant has configured to disable the webhook `event` for the `connector`
-/// First check for the key "whconf_{merchant_id}_{connector_id}" in redis,
-/// if not found, fetch from configs table in database
+/// Uses superposition with dimensions [merchant_id, connector, incoming_webhook_events]
 pub async fn is_webhook_event_disabled(
-    db: &dyn StorageInterface,
-    connector_id: &str,
-    merchant_id: &common_utils::id_type::MerchantId,
+    state: &SessionState,
+    connector: common_enums::connector_enums::Connector,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     event: &api::IncomingWebhookEvent,
 ) -> bool {
-    let redis_key = merchant_id.get_webhook_config_disabled_events_key(connector_id);
-    let merchant_webhook_disable_config_result: CustomResult<
-        api::MerchantWebhookConfig,
-        redis_interface::errors::RedisError,
-    > = get_and_deserialize_key(db, &redis_key, "MerchantWebhookConfig").await;
+    let dimensions = dimensions
+        .with_connector(connector)
+        .with_incoming_webhook_event(*event);
 
-    match merchant_webhook_disable_config_result {
-        Ok(merchant_webhook_config) => merchant_webhook_config.contains(event),
-        Err(..) => {
-            //if failed to fetch from redis. fetch from db and populate redis
-            db.find_config_by_key(&redis_key)
-                .await
-                .map(|config| {
-                    match serde_json::from_str::<api::MerchantWebhookConfig>(&config.config) {
-                        Ok(set) => set.contains(event),
-                        Err(err) => {
-                            logger::warn!(?err, "error while parsing merchant webhook config");
-                            false
-                        }
-                    }
-                })
-                .unwrap_or_else(|err| {
-                    logger::warn!(?err, "error while fetching merchant webhook config");
-                    false
-                })
-        }
-    }
+    dimensions
+        .get_incoming_webhook_disabled_events(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await
 }
 
 pub async fn construct_webhook_router_data(
@@ -104,7 +96,7 @@ pub async fn construct_webhook_router_data(
         connector_wallets_details: None,
         amount_captured: None,
         minor_amount_captured: None,
-        request: types::VerifyWebhookSourceRequestData {
+        request: VerifyWebhookSourceRequestData {
             webhook_headers: request_details.headers.clone(),
             webhook_body: request_details.body.to_vec().clone(),
             merchant_secret: connector_wh_secrets.to_owned(),
@@ -151,6 +143,75 @@ pub async fn construct_webhook_router_data(
         feature_data: None,
     };
     Ok(router_data)
+}
+
+/// Makes an outbound HTTP call to the connector's source-verification endpoint.
+/// Used when the connector requires a callback-style verification rather than a
+/// local HMAC check. Only called for connectors listed in
+/// `webhook_source_verification_call.connectors_with_webhook_source_verification_call`.
+pub(super) async fn verify_webhook_source_verification_call(
+    connector: ConnectorEnum,
+    state: &SessionState,
+    platform: &domain::Platform,
+    merchant_connector_account: domain::MerchantConnectorAccount,
+    connector_name: &str,
+    request_details: &api::IncomingWebhookRequestDetails<'_>,
+) -> CustomResult<bool, errors::ConnectorError> {
+    let connector_data = ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        connector_name,
+        GetToken::Connector,
+        None,
+    )
+    .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+    .attach_printable("invalid connector name received in payment attempt")?;
+    let connector_integration: services::BoxedWebhookSourceVerificationConnectorIntegrationInterface<
+        hyperswitch_domain_models::router_flow_types::VerifyWebhookSource,
+        VerifyWebhookSourceRequestData,
+        VerifyWebhookSourceResponseData,
+    > = connector_data.connector.get_connector_integration();
+    let connector_webhook_secrets = connector
+        .get_webhook_source_verification_merchant_secret(
+            platform.get_processor().get_account().get_id(),
+            connector_name,
+            merchant_connector_account.connector_webhook_details.clone(),
+        )
+        .await
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+    let router_data = construct_webhook_router_data(
+        state,
+        connector_name,
+        merchant_connector_account,
+        platform,
+        &connector_webhook_secrets,
+        request_details,
+    )
+    .await
+    .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+    .attach_printable("Failed while constructing webhook router data")?;
+
+    let response = services::execute_connector_processing_step(
+        state,
+        connector_integration,
+        &router_data,
+        payments::CallConnectorAction::Trigger,
+        None,
+        None,
+    )
+    .await?;
+
+    let verification_result = response
+        .response
+        .map(|response| response.verify_webhook_status);
+    match verification_result {
+        Ok(VerifyWebhookStatus::SourceVerified) => Ok(true),
+        Ok(VerifyWebhookStatus::SourceNotVerified) => Ok(false),
+        Err(err) => {
+            tracing::error!(?err, "Webhook source verification failed");
+            Ok(false)
+        }
+    }
 }
 
 #[inline]

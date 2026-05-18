@@ -200,8 +200,8 @@ pub async fn get_batches(
 ) -> CustomResult<Vec<ProcessTrackerBatch>, errors::ProcessTrackerError> {
     let response = match conn
         .stream_read_with_options(
-            stream_name,
-            RedisEntryId::UndeliveredEntryID,
+            &[stream_name.into()],
+            vec![RedisEntryId::UndeliveredEntryID.to_stream_id()],
             // Update logic for collecting to Vec and flattening, if count > 1 is provided
             Some(1),
             None,
@@ -224,21 +224,26 @@ pub async fn get_batches(
 
     metrics::BATCHES_CONSUMED.add(1, &[]);
 
-    let (batches, entry_ids): (Vec<Vec<ProcessTrackerBatch>>, Vec<Vec<String>>) = response.into_values().map(|entries| {
-        entries.into_iter().try_fold(
-            (Vec::new(), Vec::new()),
-            |(mut batches, mut entry_ids), entry| {
-                // Redis entry ID
-                entry_ids.push(entry.0);
-                // Value HashMap
-                batches.push(ProcessTrackerBatch::from_redis_stream_entry(entry.1)?);
-
-                Ok((batches, entry_ids))
-            },
-        )
-    }).collect::<CustomResult<Vec<(Vec<ProcessTrackerBatch>, Vec<String>)>, errors::ProcessTrackerError>>()?
-    .into_iter()
-    .unzip();
+    // StreamReadResult: stream key → Vec<(entry_id, HashMap<String, RedisValue>)>
+    let (batches, entry_ids): (Vec<Vec<ProcessTrackerBatch>>, Vec<Vec<String>>) = response
+        .into_values()
+        .map(|entries| {
+            entries.into_iter().try_fold(
+                (Vec::new(), Vec::new()),
+                |(mut batches, mut entry_ids), (entry_id, fields)| {
+                    entry_ids.push(entry_id);
+                    let fields: std::collections::HashMap<String, Option<String>> = fields
+                        .into_iter()
+                        .map(|(k, v)| (k, v.as_string()))
+                        .collect();
+                    batches.push(ProcessTrackerBatch::from_redis_stream_entry(fields)?);
+                    Ok((batches, entry_ids))
+                },
+            )
+        })
+        .collect::<CustomResult<Vec<_>, errors::ProcessTrackerError>>()?
+        .into_iter()
+        .unzip();
     // Flattening the Vec's since the count provided above is 1. This needs to be updated if a
     // count greater than 1 is provided.
     let batches = batches.into_iter().flatten().collect::<Vec<_>>();
@@ -250,7 +255,7 @@ pub async fn get_batches(
             logger::error!(?error, "Error acknowledging batch in stream");
             error.change_context(errors::ProcessTrackerError::BatchUpdateFailed)
         })?;
-    conn.stream_delete_entries(&stream_name.into(), entry_ids.clone())
+    conn.stream_delete_entries(&stream_name.into(), entry_ids)
         .await
         .map_err(|error| {
             logger::error!(?error, "Error deleting batch from stream");

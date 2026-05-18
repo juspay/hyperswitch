@@ -5898,6 +5898,133 @@
         ]
       }
     },
+    "/blocklist/batch": {
+      "post": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "Upload a batch blocklist CSV",
+        "requestBody": {
+          "description": "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MB). The CSV must have a header row: `type,data,metadata`. `type`: one of `card_bin` (6 digits), `extended_card_bin` (8 digits), `fingerprint`. `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). Maximum 100,000 data rows.",
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Batch blocklist job initiated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchBlocklistUploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "CSV validation error or file exceeds 5 MB limit"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "List batch blocklist jobs",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of jobs to return (default 10, max 100)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Zero-based offset for pagination (default 0)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of batch blocklist jobs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListBatchBlocklistJobsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/blocklist/batch/{job_id}": {
+      "get": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "Get batch blocklist job status",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "description": "The job ID returned by the batch upload endpoint",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Batch blocklist job status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchBlocklistJobStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/payouts/create": {
       "post": {
         "tags": [
@@ -10009,7 +10136,8 @@
           "confirmation_awaited",
           "device_data_collection_pending",
           "integrity_failure",
-          "expired"
+          "expired",
+          "capture_review"
         ]
       },
       "AuthenticationAuthenticateRequest": {
@@ -11345,6 +11473,9 @@
           },
           {
             "$ref": "#/components/schemas/PixBankTransfer"
+          },
+          {
+            "$ref": "#/components/schemas/OpenBanking"
           }
         ],
         "description": "Deprecated - Use `BankTransfer` instead"
@@ -11365,6 +11496,9 @@
           },
           {
             "$ref": "#/components/schemas/PixBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/OpenBankingAdditionalData"
           }
         ],
         "description": "Masked payout method details for bank payout method"
@@ -12414,12 +12548,14 @@
             "properties": {
               "trustly": {
                 "type": "object",
-                "required": [
-                  "country"
-                ],
                 "properties": {
                   "country": {
-                    "$ref": "#/components/schemas/CountryAlpha2"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/CountryAlpha2"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -12721,6 +12857,27 @@
                     "type": "string",
                     "enum": [
                       "trustly"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OpenBanking"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "open_banking"
                     ]
                   }
                 }
@@ -13501,6 +13658,85 @@
           "savings"
         ]
       },
+      "BatchBlocklistJobStatus": {
+        "type": "string",
+        "enum": [
+          "initiated",
+          "processing",
+          "completed",
+          "failed"
+        ]
+      },
+      "BatchBlocklistJobStatusResponse": {
+        "type": "object",
+        "description": "Response for `GET /blocklist/batch/{job_id}`.",
+        "required": [
+          "job_id",
+          "merchant_id",
+          "status",
+          "total_rows",
+          "succeeded_rows",
+          "failed_rows",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "merchant_id": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BatchBlocklistJobStatus"
+          },
+          "total_rows": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "succeeded_rows": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "failed_rows": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "BatchBlocklistUploadResponse": {
+        "type": "object",
+        "description": "Response returned on a successful `POST /blocklist/batch`.",
+        "required": [
+          "job_id",
+          "total_rows",
+          "status"
+        ],
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "total_rows": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "status": {
+            "$ref": "#/components/schemas/BatchBlocklistJobStatus"
+          }
+        }
+      },
       "BecsBankDebitAdditionalData": {
         "type": "object",
         "required": [
@@ -13694,6 +13930,32 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "BlocklistRowError": {
+        "type": "object",
+        "description": "A single validation error found in a batch-upload CSV row.",
+        "required": [
+          "row_index",
+          "data_kind",
+          "data",
+          "reason"
+        ],
+        "properties": {
+          "row_index": {
+            "type": "integer",
+            "description": "0-based row index in the CSV (excluding header).",
+            "minimum": 0
+          },
+          "data_kind": {
+            "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "data": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
           }
         }
       },
@@ -16022,6 +16284,7 @@
           "helcim",
           "hyperpg",
           "hyperswitch_vault",
+          "interpayments",
           "inespay",
           "iatapay",
           "imerchantsolutions",
@@ -16348,6 +16611,7 @@
           "payment_method_auth",
           "authentication_processor",
           "tax_processor",
+          "surcharge_processor",
           "billing_processor",
           "vault_processor"
         ]
@@ -20291,6 +20555,28 @@
           }
         }
       },
+      "ExternalSurchargeDetails": {
+        "type": "object",
+        "description": "External surcharge details from InterPayments (stored as JSONB)",
+        "required": [
+          "external_surcharge_id",
+          "external_surcharge_amount",
+          "sale_notified"
+        ],
+        "properties": {
+          "external_surcharge_id": {
+            "type": "string",
+            "description": "sTxId from InterPayments (the last one received before confirm)"
+          },
+          "external_surcharge_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "sale_notified": {
+            "type": "boolean",
+            "description": "Whether /v1/ch/sale has been successfully called"
+          }
+        }
+      },
       "ExternalThreeDsData": {
         "type": "object",
         "required": [
@@ -20438,6 +20724,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/PixAutomaticoAdditionalDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "finix_additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FinixAdditionalDetails"
               }
             ],
             "nullable": true
@@ -20936,6 +21230,17 @@
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
+      },
+      "FinixAdditionalDetails": {
+        "type": "object",
+        "properties": {
+          "fraud_session_id": {
+            "type": "string",
+            "description": "The fraud session ID used for Finix fraud detection",
+            "example": "1234567890abcdef",
+            "nullable": true
+          }
+        }
       },
       "FlexibleAmountDetails": {
         "type": "object",
@@ -22251,6 +22556,7 @@
           "authentication_provider",
           "fraud_and_risk_management_provider",
           "tax_calculation_provider",
+          "surcharge_calculation_provider",
           "revenue_growth_management_platform"
         ]
       },
@@ -22570,7 +22876,8 @@
           "partially_authorized_and_requires_capture",
           "partially_captured_and_processing",
           "conflicted",
-          "expired"
+          "expired",
+          "review"
         ]
       },
       "Interac": {
@@ -22855,6 +23162,31 @@
             }
           }
         ]
+      },
+      "ListBatchBlocklistJobsResponse": {
+        "type": "object",
+        "description": "Response for `GET /blocklist/batch`.",
+        "required": [
+          "count",
+          "total_count",
+          "data"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BatchBlocklistJobStatusResponse"
+            }
+          }
+        }
       },
       "ListBlocklistQuery": {
         "type": "object",
@@ -25291,6 +25623,11 @@
           "network_transaction_id": {
             "type": "string",
             "description": "The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`."
+          },
+          "transaction_link_id": {
+            "type": "string",
+            "description": "The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`.",
+            "nullable": true
           }
         }
       },
@@ -25328,6 +25665,11 @@
           "network_transaction_id": {
             "type": "string",
             "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`."
+          },
+          "transaction_link_id": {
+            "type": "string",
+            "description": "The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`.",
+            "nullable": true
           },
           "eci": {
             "type": "string",
@@ -25428,6 +25770,11 @@
           "network_transaction_id": {
             "type": "string",
             "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`."
+          },
+          "transaction_link_id": {
+            "type": "string",
+            "description": "The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`.",
+            "nullable": true
           }
         }
       },
@@ -26009,6 +26356,45 @@
           }
         },
         "additionalProperties": false
+      },
+      "OpenBanking": {
+        "type": "object",
+        "required": [
+          "account_holder_name",
+          "iban"
+        ],
+        "properties": {
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe"
+          },
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "DE89370400440532013000"
+          }
+        }
+      },
+      "OpenBankingAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for OpenBanking bank transfer payout method",
+        "required": [
+          "account_holder_name",
+          "iban"
+        ],
+        "properties": {
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe"
+          },
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "DE89370400440532013000"
+          }
+        }
       },
       "OpenBankingData": {
         "oneOf": [
@@ -29048,6 +29434,14 @@
               "$ref": "#/components/schemas/PaymentMethodListInstallmentOption"
             },
             "description": "Installment options available for this payment",
+            "nullable": true
+          },
+          "capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
             "nullable": true
           }
         }
@@ -34188,6 +34582,14 @@
             ],
             "nullable": true
           },
+          "source_bank_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankTransfer"
+              }
+            ],
+            "nullable": true
+          },
           "billing": {
             "allOf": [
               {
@@ -34490,6 +34892,14 @@
             "nullable": true
           },
           "payout_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutMethodDataResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "source_bank_data": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/PayoutMethodDataResponse"
@@ -35235,6 +35645,14 @@
             ],
             "nullable": true
           },
+          "source_bank_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankTransfer"
+              }
+            ],
+            "nullable": true
+          },
           "billing": {
             "allOf": [
               {
@@ -35469,6 +35887,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/PayoutMethodData"
+              }
+            ],
+            "nullable": true
+          },
+          "source_bank_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankTransfer"
               }
             ],
             "nullable": true
@@ -37048,6 +37474,14 @@
             "description": "Merchant Connector id to be stored for billing_processor connector",
             "nullable": true
           },
+          "surcharge_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeConnectorDetails"
+              }
+            ],
+            "nullable": true
+          },
           "is_l2_l3_enabled": {
             "type": "boolean",
             "description": "Flag to enable Level 2 and Level 3 processing data for card transactions",
@@ -37428,6 +37862,14 @@
           "billing_processor_id": {
             "type": "string",
             "description": "Merchant Connector id to be stored for billing_processor connector",
+            "nullable": true
+          },
+          "surcharge_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeConnectorDetails"
+              }
+            ],
             "nullable": true
           },
           "is_l2_l3_enabled": {
@@ -38859,6 +39301,11 @@
           "merchant_id": {
             "type": "string",
             "description": "Identifier for Merchant"
+          },
+          "processor_merchant_id": {
+            "type": "string",
+            "description": "Identifier for the processor merchant",
+            "nullable": true
           },
           "link_to_pay": {
             "type": "string",
@@ -41212,6 +41659,16 @@
             }
           }
         ]
+      },
+      "SurchargeConnectorDetails": {
+        "type": "object",
+        "properties": {
+          "surcharge_connector_id": {
+            "type": "string",
+            "description": "The surcharge connector ID for calculating external surcharge",
+            "nullable": true
+          }
+        }
       },
       "SurchargeDetailsResponse": {
         "type": "object",

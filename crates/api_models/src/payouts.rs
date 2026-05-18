@@ -92,6 +92,10 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<PayoutMethodData>)]
     pub payout_method_data: Option<PayoutMethodData>,
 
+    /// The source bank data required for carrying out a payout
+    #[schema(value_type = Option<BankTransfer>)]
+    pub source_bank_data: Option<BankTransfer>,
+
     /// The billing address for the payout
     #[schema(value_type = Option<Address>, example = json!(r#"{
         "address": {
@@ -302,6 +306,7 @@ impl TryFrom<Bank> for BankTransfer {
                 bank_account_number: trustly.account_number,
                 bank_number: trustly.bank_number,
             })),
+            Bank::OpenBanking(open_banking) => Ok(Self::OpenBanking(open_banking)),
         }
     }
 }
@@ -342,6 +347,7 @@ impl From<BankTransfer> for Bank {
                 tax_id: None,
                 emv: None,
             }),
+            BankTransfer::OpenBanking(open_banking) => Self::OpenBanking(open_banking),
         }
     }
 }
@@ -378,6 +384,7 @@ pub enum Bank {
     Trustly(TrustlyBankTransfer),
     Sepa(SepaBankTransfer),
     Pix(PixBankTransfer),
+    OpenBanking(OpenBanking),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -390,6 +397,7 @@ pub enum BankTransfer {
     PixKey(PixKeyBankTransfer),
     PixEmv(PixEmvBankTransfer),
     Trustly(TrustlyBankTransferData),
+    OpenBanking(OpenBanking),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -555,6 +563,16 @@ pub struct OpenBankingUk {
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct OpenBanking {
+    /// Account holder name
+    #[schema(value_type = String, example = "John Doe")]
+    pub account_holder_name: Secret<String>,
+    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
+    #[schema(value_type = String, example = "DE89370400440532013000")]
+    pub iban: Secret<String>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct TrustlyBankTransfer {
     /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
     #[schema(value_type = String, example = "token_12345")]
@@ -699,6 +717,18 @@ pub struct PayoutCreateResponse {
         }
     }"#))]
     pub payout_method_data: Option<PayoutMethodDataResponse>,
+
+    /// Masked source bank data for the payout
+    #[schema(value_type = Option<PayoutMethodDataResponse>, example = json!(r#"{
+        {
+            "iban": "NL46T********69112",
+            "bank_name": "Test Bank",
+            "bank_country_code": "NL",
+            "bank_city": "Amsterdam",
+            "bic": "ABN**L2A"
+        }
+    }"#))]
+    pub source_bank_data: Option<payout_method_utils::BankAdditionalData>,
 
     /// The billing address for the payout
     #[schema(value_type = Option<Address>, example = json!(r#"{
@@ -1241,6 +1271,13 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                     bank_number,
                 },
             )),
+            Bank::OpenBanking(OpenBanking {
+                account_holder_name,
+                iban,
+            }) => Self::OpenBanking(Box::new(payout_method_utils::OpenBankingAdditionalData {
+                account_holder_name,
+                iban,
+            })),
         }
     }
 }
@@ -1342,6 +1379,13 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                     bank_number,
                 },
             )),
+            BankTransfer::OpenBanking(OpenBanking {
+                account_holder_name,
+                iban,
+            }) => Self::OpenBanking(Box::new(payout_method_utils::OpenBankingAdditionalData {
+                account_holder_name,
+                iban,
+            })),
         }
     }
 }
@@ -1508,6 +1552,7 @@ impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
                 Bank::Sepa(_) => Self::SepaBankTransfer,
                 Bank::Pix(_) => Self::Pix,
                 Bank::Trustly(_) => Self::Trustly,
+                Bank::OpenBanking(_) => Self::OpenBanking,
             },
             PayoutMethodData::BankTransfer(bank_transfer) => match bank_transfer {
                 BankTransfer::Ach(_) => Self::Ach,
@@ -1517,6 +1562,7 @@ impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
                 BankTransfer::PixKey(_) => Self::PixKey,
                 BankTransfer::PixEmv(_) => Self::PixEmv,
                 BankTransfer::Trustly(_) => Self::Trustly,
+                BankTransfer::OpenBanking(_) => Self::OpenBanking,
             },
             PayoutMethodData::Wallet(wallet) => match wallet {
                 Wallet::ApplePayDecrypt(_) => Self::ApplePay,

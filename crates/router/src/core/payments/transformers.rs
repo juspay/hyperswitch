@@ -1735,6 +1735,7 @@ where
         mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,
+        network_txn_link_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
         authentication_data: None,
@@ -6869,6 +6870,7 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
             pix_additional_details: None,
             boleto_additional_details: None,
             pix_automatico_additional_details: None,
+            finix_additional_details: None,
         }
     }
 }

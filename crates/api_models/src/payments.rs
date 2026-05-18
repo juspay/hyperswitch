@@ -2408,14 +2408,26 @@ impl MandateIds {
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum MandateReferenceId {
     ConnectorMandateId(ConnectorMandateReferenceId), // mandate_id send by connector
-    NetworkMandateId(String), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns along with card data
+    NetworkMandateId(NetworkMandateIdRef), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns along with card data
     NetworkTokenWithNTI(NetworkTokenWithNTIRef), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns along with network token data
     CardWithLimitedData, // indicates the recurring transaction is done by card data only
+}
+
+/// Scheme-level identifiers for PSP-agnostic MIT flows (raw card path).
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
+pub struct NetworkMandateIdRef {
+    pub network_transaction_id: String,
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
+    pub transaction_link_id: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub struct NetworkTokenWithNTIRef {
     pub network_transaction_id: String,
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
+    pub transaction_link_id: Option<String>,
     pub token_exp_month: Option<Secret<String>>,
     pub token_exp_year: Option<Secret<String>>,
 }
@@ -4413,9 +4425,9 @@ pub enum BankRedirectData {
     #[smithy(nested_value_type)]
     Trustly {
         /// The country for bank payment
-        #[schema(value_type = CountryAlpha2, example = "US")]
-        #[smithy(value_type = "CountryAlpha2")]
-        country: api_enums::CountryAlpha2,
+        #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+        #[smithy(value_type = "Option<CountryAlpha2>")]
+        country: Option<api_enums::CountryAlpha2>,
     },
     #[smithy(nested_value_type)]
     OnlineBankingFpx {
@@ -4547,7 +4559,7 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
             Self::Przelewy24 {
                 billing_details, ..
             } => get_billing_address_inner(billing_details.as_ref(), None, None),
-            Self::Trustly { country } => get_billing_address_inner(None, Some(country), None),
+            Self::Trustly { country } => get_billing_address_inner(None, country.as_ref(), None),
             Self::OnlineBankingFpx { .. }
             | Self::LocalBankRedirect {}
             | Self::OnlineBankingThailand { .. }
@@ -11518,6 +11530,8 @@ pub struct FeatureMetadata {
     pub boleto_additional_details: Option<BoletoAdditionalDetails>,
     /// Pix Automatico additional details for Push and QR flows
     pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
+    /// Extra information for Finix connector for fraud checks and risk evaluation
+    pub finix_additional_details: Option<FinixAdditionalDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -11560,6 +11574,7 @@ impl FeatureMetadata {
             pix_additional_details: self.pix_additional_details,
             boleto_additional_details: self.boleto_additional_details,
             pix_automatico_additional_details: self.pix_automatico_additional_details,
+            finix_additional_details: self.finix_additional_details,
         }
     }
     /// Extracts the Pix key and its secret value specifically from PixAdditionalDetails
@@ -11627,6 +11642,9 @@ pub struct FeatureMetadata {
     /// Pix Automatico additional details for Push Notification and QR based flows
     #[smithy(value_type = "Option<PixAutomaticoAdditionalDetails>")]
     pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
+    /// Extra information for Finix connector for fraud checks and risk evaluation
+    #[smithy(value_type = "Option<FinixAdditionalDetails>")]
+    pub finix_additional_details: Option<FinixAdditionalDetails>,
 }
 #[cfg(feature = "v1")]
 impl FeatureMetadata {
@@ -11666,6 +11684,9 @@ impl FeatureMetadata {
                 pix_automatico_additional_details: self
                     .pix_automatico_additional_details
                     .or(other.pix_automatico_additional_details),
+                finix_additional_details: self
+                    .finix_additional_details
+                    .or(other.finix_additional_details),
             }
         } else {
             self
@@ -11755,6 +11776,13 @@ impl BoletoAdditionalDetails {
             (l, r) => l.or(r),
         }
     }
+}
+
+#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize, ToSchema, PartialEq)]
+pub struct FinixAdditionalDetails {
+    /// The fraud session ID used for Finix fraud detection
+    #[schema(value_type = Option<String>, example = "1234567890abcdef")]
+    pub fraud_session_id: Option<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -12161,6 +12189,9 @@ pub struct RetrievePaymentLinkResponse {
     /// Identifier for Merchant
     #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
+    /// Identifier for the processor merchant
+    #[schema(value_type = Option<String>)]
+    pub processor_merchant_id: Option<id_type::MerchantId>,
     /// Open payment link (without any security checks and listing SPMs)
     pub link_to_pay: String,
     /// The payment amount. Amount for the payment in the lowest denomination of the currency
