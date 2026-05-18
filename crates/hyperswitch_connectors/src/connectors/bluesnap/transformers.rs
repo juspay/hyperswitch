@@ -4,8 +4,7 @@ use api_models::{
     payments::{
         AmountInfo, ApplePayPaymentRequest, ApplePaySessionResponse,
         ApplepayCombinedSessionTokenData, ApplepaySessionTokenData, ApplepaySessionTokenMetadata,
-        ApplepaySessionTokenResponse, NextActionCall, NoThirdPartySdkSessionResponse,
-        SdkNextAction, SessionToken,
+        ApplepaySessionTokenResponse, NextActionCall, SdkNextAction, SessionToken,
     },
     webhooks::IncomingWebhookEvent,
 };
@@ -528,8 +527,8 @@ impl
             .decode(response.wallet_token.clone().expose())
             .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
-        let session_response: NoThirdPartySdkSessionResponse = wallet_token
-            .parse_struct("NoThirdPartySdkSessionResponse")
+        let session_response: Value = wallet_token
+            .parse_struct("serde_json::Value")
             .change_context(errors::ConnectorError::ParsingFailed)?;
 
         let metadata = item.data.get_connector_meta()?.expose();

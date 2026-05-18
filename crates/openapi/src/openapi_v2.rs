@@ -551,7 +551,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::HyperswitchVaultSessionDetails,
         api_models::payments::ApplePaySessionResponse,
         api_models::payments::ThirdPartySdkSessionResponse,
-        api_models::payments::NoThirdPartySdkSessionResponse,
         api_models::payments::SecretInfoToInitiateSdk,
         api_models::payments::ApplePayPaymentRequest,
         api_models::payments::ApplePayBillingContactFields,
