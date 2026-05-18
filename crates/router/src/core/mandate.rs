@@ -343,13 +343,14 @@ where
             let Some(_mandate_details) = resp.request.get_setup_mandate_details() else {
                 return Ok(None);
             };
-            let (mandate_reference, network_txn_id) = match &response {
+            let (mandate_reference, network_txn_id, network_txn_link_id) = match &response {
                 types::PaymentsResponseData::TransactionResponse {
                     mandate_reference,
                     network_txn_id,
+                    network_txn_link_id,
                     ..
-                } => (mandate_reference.clone(), network_txn_id.clone()),
-                _ => (Box::new(None), None),
+                } => (mandate_reference.clone(), network_txn_id.clone(), network_txn_link_id.clone()),
+                _ => (Box::new(None), None, None),
             };
 
             let mandate_ids = (*mandate_reference)
@@ -370,6 +371,7 @@ where
                 pm_id.get_required_value("payment_method_id")?,
                 mandate_ids,
                 network_txn_id,
+                network_txn_link_id,
                 get_insensitive_payment_method_data_if_exists(resp),
                 *mandate_reference,
                 merchant_connector_id,
