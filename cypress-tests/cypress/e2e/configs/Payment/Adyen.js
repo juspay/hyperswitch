@@ -1135,10 +1135,50 @@ export const connectorDetails = {
       },
     },
     BancontactCard: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "bancontact_card",
+        payment_method_data: {
+          bank_redirect: {
+            bancontact_card: {
+              card_number: "6703444444444449",
+              card_exp_month: "03",
+              card_exp_year: "2030",
+            },
+          },
+        },
+        currency: "EUR",
+        billing: {
+          address: {
+            line1: "1 Main St",
+            line2: "Apt 4",
+            city: "Brussels",
+            zip: "1000",
+            country: "BE",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@example.com",
+          phone: {
+            number: "9123456789",
+            country_code: "+1",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       MandateSingleUse: {
         Request: {
           payment_method: "bank_redirect",
           payment_method_type: "bancontact_card",
+          authentication_type: "three_ds",
           payment_method_data: {
             bank_redirect: {
               bancontact_card: {
@@ -1147,6 +1187,20 @@ export const connectorDetails = {
                 card_exp_year: "2030",
               },
             },
+          },
+          browser_info: {
+            user_agent:
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+            accept_header:
+              "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+            language: "nl-NL",
+            color_depth: 24,
+            screen_height: 723,
+            screen_width: 1536,
+            time_zone: 0,
+            java_enabled: true,
+            java_script_enabled: true,
+            ip_address: "127.0.0.1",
           },
           currency: "EUR",
           billing: {
@@ -1193,6 +1247,39 @@ export const connectorDetails = {
       },
     },
     OpenBankingUk: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "open_banking_uk",
+        payment_method_data: {
+          bank_redirect: {
+            open_banking_uk: {
+              issuer: "lloyds",
+            },
+          },
+        },
+        currency: "GBP",
+        billing: {
+          address: {
+            line1: "1 Main St",
+            city: "London",
+            zip: "SW1A 1AA",
+            country: "GB",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@example.com",
+          phone: {
+            number: "9123456789",
+            country_code: "+44",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
       MandateSingleUse: {
         Request: {
           payment_method: "bank_redirect",
@@ -1248,16 +1335,67 @@ export const connectorDetails = {
       },
     },
     Trustly: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "trustly",
+        payment_method_data: {
+          bank_redirect: {
+            trustly: {
+              country: "SE",
+            },
+          },
+        },
+        currency: "EUR",
+        billing: {
+          address: {
+            line1: "1 Main St",
+            city: "Stockholm",
+            zip: "11122",
+            country: "SE",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@example.com",
+          phone: {
+            number: "9123456789",
+            country_code: "+46",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       MandateSingleUse: {
         Request: {
           payment_method: "bank_redirect",
           payment_method_type: "trustly",
+          authentication_type: "three_ds",
           payment_method_data: {
             bank_redirect: {
               trustly: {
                 country: "SE",
               },
             },
+          },
+          browser_info: {
+            user_agent:
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+            accept_header:
+              "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+            language: "nl-NL",
+            color_depth: 24,
+            screen_height: 723,
+            screen_width: 1536,
+            time_zone: 0,
+            java_enabled: true,
+            java_script_enabled: true,
+            ip_address: "127.0.0.1",
           },
           currency: "EUR",
           billing: {
