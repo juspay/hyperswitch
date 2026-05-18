@@ -8445,9 +8445,9 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                 connector_data.merchant_connector_id.as_ref(),
             )
             .await?;
-            let acquirer_details = match payment_connector_mca
+            let acquirer_details = payment_connector_mca
                 .get_metadata()
-                .as_ref()
+                .clone()
                 .and_then(|metadata| {
                     metadata
                     .peek()
@@ -8465,37 +8465,7 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                         );
                     })
                     .ok()
-                }) {
-                Some(details) => Some(details),
-                None => {
-                    let network = card
-                        .card_network
-                        .as_ref()
-                        .cloned()
-                        .ok_or(errors::ApiErrorResponse::PreconditionFailed {
-                            message: "Card network not found".to_string(),
-                        })?;
-
-                    let resolved = match profile_acquirer_id {
-                        Some(id) => business_profile
-                            .get_acquirer_details_for_profile_acquirer(id, network.clone())
-                            .ok_or(errors::ApiErrorResponse::PreconditionFailed {
-                                message: format!("Acquirer configuration not found for network {:?} in bucket {:?}", network, id),
-                            })?,
-                        None => business_profile
-                            .get_default_acquirer_details_from_network(network.clone())
-                            .ok_or(errors::ApiErrorResponse::PreconditionFailed {
-                                message: format!("Acquirer configuration not found for network {:?} in default bucket", network),
-                            })?,
-                    };
-
-                    Some(authentication::types::AcquirerDetails {
-                        acquirer_bin: resolved.acquirer_bin.unwrap_or_default(),
-                        acquirer_merchant_id: resolved.acquirer_assigned_merchant_id.unwrap_or_default(),
-                        acquirer_country_code: resolved.acquirer_country_code,
-                    })
-                }
-            };
+                });
 
             Some(PaymentExternalAuthenticationFlow::PreAuthenticationFlow {
                 card: Box::new(card),
