@@ -8440,9 +8440,7 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
     const signingPayload = globalState.get("computedSigningPayload");
     const signatureAlgorithm =
       globalState.get("signatureAlgorithm") || "HMAC-SHA512";
-    const algorithm = signatureAlgorithm
-      .replace("HMAC-", "")
-      .toLowerCase();
+    const algorithm = signatureAlgorithm.replace("HMAC-", "").toLowerCase();
 
     expect(hashKey, "payment_response_hash_key must exist").to.be.a("string")
       .and.not.be.empty;
