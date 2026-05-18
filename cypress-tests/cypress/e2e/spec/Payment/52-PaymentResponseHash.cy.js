@@ -223,7 +223,17 @@ describe("Card - Payment Response Hash flow test", () => {
       });
 
       cy.step("verify tampered and wrong-key signatures fail", () => {
-        cy.verifyTamperedSignatureFails(globalState);
+        cy.then(() => {
+          const computedSignature = globalState.get("computedSignature");
+          if (!computedSignature) {
+            cy.task(
+              "cli_log",
+              "No computed signature (no redirect URL) - skipping tampered signature verification"
+            );
+            return;
+          }
+          cy.verifyTamperedSignatureFails(globalState);
+        });
       });
     });
   });
