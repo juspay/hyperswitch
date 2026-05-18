@@ -38,8 +38,11 @@ echo "cargo run --bin router"
 echo "──────────────────────────────────────────────────────────────────────"
 echo ""
 echo "==> Starting mitmproxy on :${PROXY_PORT}  (Ctrl+C to stop)"
-echo "    Captures  -> ${SCRIPT_DIR}/captures/"
-echo "    Admin API -> http://127.0.0.1:8081"
+echo "    Captures  -> ${SCRIPT_DIR}/captures/{connector}/{spec}/{context}/.../NNN.json"
+echo "    Admin API -> http://127.0.0.1:8001"
+echo ""
+echo "Set this in the Cypress terminal so cassettes are organised by spec/test:"
+echo "    export CYPRESS_PROXY_ADMIN_URL=http://127.0.0.1:8001"
 echo ""
 
 # ── Run mitmproxy in the foreground so errors are visible ─────────────────

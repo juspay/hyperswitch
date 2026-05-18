@@ -917,13 +917,16 @@ jobs:
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI }}
         shell: bash
         run: |
+          # Cassette tarballs are packed as {connector}/spec/ctx/.../NNN.json
+          # so we extract directly into mitm-proxy/captures/ (no --strip-components).
+          mkdir -p "mitm-proxy/captures"
           ALL_CONNECTORS="${{ matrix.batch.payments_connectors }} ${{ matrix.batch.payouts_connectors }}"
           for connector in $ALL_CONNECTORS; do
-            mkdir -p "mitm-proxy/captures/${connector}"
+            [ -z "${connector}" ] && continue
             aws s3 cp "${CONNECTOR_CREDS_S3_BUCKET_URI}/cassettes/${connector}.tar.gz" \
               "/tmp/${connector}-cassettes.tar.gz"
-            tar -xzf "/tmp/${connector}-cassettes.tar.gz" \
-              -C "mitm-proxy/captures/${connector}" --strip-components=1
+            tar -xzf "/tmp/${connector}-cassettes.tar.gz" -C "mitm-proxy/captures/"
+            echo "Downloaded cassettes for ${connector}: $(find mitm-proxy/captures/${connector} -name '*.json' | wc -l) files"
           done
 
       - name: Install uv
@@ -980,9 +983,12 @@ jobs:
       - name: Start mitmproxy replay
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
+        env:
+          CAPTURE_DIR: ${{ github.workspace }}/mitm-proxy/captures
+          ADMIN_PORT: "8001"
         run: |
-          CREDS_FILE="${CYPRESS_CONNECTOR_AUTH_FILE_PATH}" \
-            nohup mitmdump -s mitm-proxy/mitm_replay.py --listen-port 8888 \
+          nohup uv run --with-requirements mitm-proxy/requirements.txt \
+            mitmdump -s mitm-proxy/mitm_replay.py --listen-port 8888 \
             > "${{ github.workspace }}/mitm-replay.log" 2>&1 &
           MITM_PID=$!
           echo "MITM_PID=${MITM_PID}" >> $GITHUB_ENV
@@ -997,6 +1003,7 @@ jobs:
             COUNT=$((COUNT+1))
             sleep 2
           done
+          echo "mitmproxy replay started (PID=${MITM_PID})"
 
       - name: Run Cypress tests
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1005,6 +1012,9 @@ jobs:
           PAYMENTS_CONNECTORS: "${{ matrix.batch.payments_connectors }}"
           PAYOUTS_CONNECTORS: "${{ matrix.batch.payouts_connectors }}"
           CYPRESS_MOCK_SERVER: "true"
+          # Notifies the MITM proxy of each test start/end so cassette matching
+          # can use test-name fallback for server-UUID cassettes (3DS redirects etc.)
+          CYPRESS_PROXY_ADMIN_URL: "http://127.0.0.1:8001"
         shell: bash -leuo pipefail {0}
         run: |
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}

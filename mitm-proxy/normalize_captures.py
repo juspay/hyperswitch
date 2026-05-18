@@ -27,8 +27,6 @@ from normalizers.common import count_connector, load_cassettes, selected_connect
 
 def _empty_stats() -> dict[str, int]:
     return {
-        "server_uuid_folders_kept": 0,
-        "server_uuid_cassettes_kept": 0,
         "orphan_duplicate_cassettes_quarantined": 0,
         "cassettes_kept": 0,
     }
@@ -111,8 +109,6 @@ def main() -> int:
     stats = normalize(captures, quarantine, connectors)
 
     print("\n── summary ──")
-    print(f"  server-UUID folders kept               : {stats['server_uuid_folders_kept']}")
-    print(f"  server-UUID cassettes kept             : {stats['server_uuid_cassettes_kept']}")
     print(
         "  orphan duplicate cassettes quarantined: "
         f"{stats['orphan_duplicate_cassettes_quarantined']}"

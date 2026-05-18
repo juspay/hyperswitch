@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import json
-import re
 import shutil
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-
-CYPRESS_RID_RE = re.compile(r"^[0-9a-f]{8}-\d{3}$")
 
 
 @dataclass
@@ -80,23 +77,8 @@ def load_cassettes(captures_dir: Path, connector_dir: Path, connector: str) -> l
 
 
 def count_connector(captures_dir: Path, connector_dir: Path) -> dict[str, int]:
-    stats = {
-        "server_uuid_folders_kept": 0,
-        "server_uuid_cassettes_kept": 0,
-        "cassettes_kept": 0,
-    }
-    for test_dir in sorted(connector_dir.iterdir()):
-        if not test_dir.is_dir():
-            continue
-        for rid_dir in sorted(test_dir.iterdir()):
-            if not rid_dir.is_dir():
-                continue
-            n = sum(1 for _ in rid_dir.glob("*.json"))
-            stats["cassettes_kept"] += n
-            if not CYPRESS_RID_RE.match(rid_dir.name):
-                stats["server_uuid_folders_kept"] += 1
-                stats["server_uuid_cassettes_kept"] += n
-    return stats
+    # Structure is connector/{spec}/{ctx1}/{ctx2}/.../NNN.json at variable depth
+    return {"cassettes_kept": sum(1 for _ in connector_dir.glob("**/*.json"))}
 
 
 def quarantine_orphan_duplicate_cassettes(

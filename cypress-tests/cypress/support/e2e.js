@@ -97,14 +97,15 @@ function normalizeRequestArgs(args) {
 }
 
 beforeEach(() => {
-  const title = Cypress.currentTest.titlePath.join(" > ");
+  const titlePath = Cypress.currentTest.titlePath;
+  const title = titlePath.join(" > ");
   testIdHash = djb2(title);
   stepCounter = 0;
   if (PROXY_ADMIN_URL) {
     cy.request({
       method: "POST",
       url: `${PROXY_ADMIN_URL}/test/start`,
-      body: { test: title },
+      body: { titlePath: titlePath, spec: Cypress.spec.relative },
       failOnStatusCode: false,
       timeout: 2000,
     });

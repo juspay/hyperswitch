@@ -42,7 +42,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CAPTURE_DIR = os.environ.get("CAPTURE_DIR") or os.path.join(
     os.path.dirname(SCRIPT_DIR), "captures"
 )
-ADMIN_PORT = int(os.environ.get("ADMIN_PORT", "8081"))
+ADMIN_PORT = int(os.environ.get("ADMIN_PORT", "8001"))
 
 _SKIP_HEADERS = {"content-length", "transfer-encoding", "connection"}
 
@@ -163,7 +163,11 @@ class AdminHandler(BaseHTTPRequestHandler):
 
         with state.lock:
             if self.path == "/test/start":
-                state.current_test = body.get("test", "unknown")
+                title_path = body.get("titlePath") or []
+                if title_path:
+                    state.current_test = " > ".join(title_path)
+                else:
+                    state.current_test = body.get("test", "unknown")
                 print(f"[replay] ▶ {state.current_test}")
                 self._send(200, {"ok": True})
             elif self.path == "/test/end":

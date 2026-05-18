@@ -5,12 +5,15 @@ Captures full request/response details (headers, body, timing, HTTP version,
 URL components) and writes one JSON file per round-trip. Output is organised
 as:
 
-    {CAPTURE_DIR}/{connector}/{test_name}/{request_id}/{NNN}.json
+    {CAPTURE_DIR}/{connector}/{spec}/{ctx1}/{ctx2}/.../{NNN}.json
 
-Matching key on replay is `x-request-id` (propagated end-to-end by Cypress →
-Hyperswitch → connector via the `trace_header.id_reuse_strategy="use_incoming"`
-router config). The `test_name` folder is organisational only; the matcher
-does not read it.
+Where:
+  - spec   = Cypress.spec.name with .cy.js/.cy.ts extension stripped
+  - ctx1…  = each context() nesting level (titlePath[1:-1])
+  - NNN    = zero-padded sequential index within that test
+
+The matching key on replay is `x-request-id` stored inside each JSON file.
+The folder layout is for human navigation only.
 
 Configuration via environment variables:
     CAPTURE_BASE_URLS  Comma-separated URL prefixes to capture (optional).
@@ -19,11 +22,11 @@ Configuration via environment variables:
     CONNECTOR          Tag for the connector being tested (e.g. "cybersource").
                        Optional - if omitted, inferred from the URL host.
     CAPTURE_DIR        Output directory (default: <script_dir>/captures).
-    ADMIN_PORT         Port for test-correlation admin server (default: 8081).
+    ADMIN_PORT         Port for test-correlation admin server (default: 8001).
 
 Cypress hooks:
-    POST http://127.0.0.1:8081/test/start  body: {"test": "name"}
-    POST http://127.0.0.1:8081/test/end
+    POST http://127.0.0.1:8001/test/start  body: {"titlePath": [...], "spec": "..."}
+    POST http://127.0.0.1:8001/test/end
 
 Run with:
     mitmdump -s mitm_capture.py --mode regular@8080
@@ -50,63 +53,21 @@ BASE_URLS = [
     if u.strip()
 ]
 DEFAULT_CONNECTOR = os.environ.get("CONNECTOR", "")
-ADMIN_PORT = int(os.environ.get("ADMIN_PORT", "8081"))
+ADMIN_PORT = int(os.environ.get("ADMIN_PORT", "8001"))
+
+_SPEC_EXTENSIONS = (".cy.js", ".cy.ts", ".spec.js", ".spec.ts")
 
 
 # ───── shared state ─────
 class State:
-    current_test = None
+    current_test = None        # titlePath.join(" > ") — used as cassette "test" field
+    current_title_path = []    # raw titlePath array — used to build folder path
+    current_spec = None        # Cypress.spec.name (with extension)
     lock = threading.Lock()
-    counter = {}
+    counter = {}               # rel_path -> int
 
 
 state = State()
-
-
-# ───── admin HTTP server (for test correlation) ─────
-class AdminHandler(BaseHTTPRequestHandler):
-    def _send(self, code, body):
-        self.send_response(code)
-        self.send_header("Content-Type", "application/json")
-        self.end_headers()
-        self.wfile.write(json.dumps(body).encode())
-
-    def do_POST(self):
-        length = int(self.headers.get("Content-Length", 0))
-        raw = self.rfile.read(length).decode() if length else "{}"
-        try:
-            body = json.loads(raw)
-        except json.JSONDecodeError:
-            body = {}
-
-        with state.lock:
-            if self.path == "/test/start":
-                state.current_test = body.get("test", "unknown")
-                state.counter[state.current_test] = 0
-                print(f"[capture] ▶ START: {state.current_test}")
-                self._send(200, {"ok": True, "test": state.current_test})
-            elif self.path == "/test/end":
-                print(f"[capture] ⏹ END:   {state.current_test}")
-                state.current_test = None
-                self._send(200, {"ok": True})
-            elif self.path == "/status":
-                self._send(200, {
-                    "current_test": state.current_test,
-                    "captured_per_test": state.counter,
-                    "base_urls": BASE_URLS,
-                    "output_dir": OUT_DIR,
-                })
-            else:
-                self._send(404, {"error": "unknown admin path"})
-
-    def log_message(self, fmt, *args):
-        return  # silence default per-request logging
-
-
-def start_admin_server():
-    server = HTTPServer(("127.0.0.1", ADMIN_PORT), AdminHandler)
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    print(f"[capture] admin server  http://127.0.0.1:{ADMIN_PORT}")
 
 
 # ───── helpers ─────
@@ -119,7 +80,6 @@ def matches(url: str) -> bool:
 def connector_for(url: str, headers: dict | None = None) -> str:
     if DEFAULT_CONNECTOR:
         return DEFAULT_CONNECTOR
-    # Hyperswitch adds x-connector to every outbound connector request
     if headers:
         from_header = headers.get("x-connector", "").strip()
         if from_header:
@@ -139,23 +99,62 @@ def connector_for(url: str, headers: dict | None = None) -> str:
 
 
 def safe_name(s: str) -> str:
-    return re.sub(r"[^\w\-]+", "_", s)[:80]
+    return re.sub(r"[^\w\-]+", "_", s).strip("_")
+
+
+def safe_spec(name: str) -> str:
+    # Strip file extension
+    for ext in _SPEC_EXTENSIONS:
+        if name.endswith(ext):
+            name = name[: -len(ext)]
+            break
+    # Strip the e2e spec root prefix so "cypress/e2e/spec/Platform/Foo" → "Platform/Foo"
+    name = re.sub(r"^.*?[/\\]spec[/\\]", "", name)
+    # Split on path separators, sanitise each part, rejoin as OS path
+    parts = [safe_name(p) for p in re.split(r"[/\\]", name) if p]
+    return os.path.join(*parts) if parts else "_untagged"
+
+
+def build_rel_path(spec: str, title_path: list) -> str:
+    """
+    Map spec + titlePath to a connector-relative folder path.
+
+      spec            → top-level folder (file path stripped to category/name)
+      titlePath[0]    → skip when spec is a real path; used AS spec when Cypress
+                        returns "__all" (run-all-specs mode)
+      titlePath[1:-1] → one safe_name folder per context level
+      titlePath[-1]   → skip (it() — just lists the steps)
+
+    Edge case: no contexts (describe > it only) → use safe_name(it title) as folder.
+    Edge case: empty title_path → "_untagged"
+    """
+    # Cypress returns "__all" for Cypress.spec.relative when running all specs
+    # at once (experimentalRunAllSpecs / GUI run-all). Fall back to the describe
+    # title (titlePath[0]) which is unique per spec file.
+    if not spec or spec == "__all":
+        spec_part = safe_name(title_path[0]) if title_path else "_untagged"
+    else:
+        spec_part = safe_spec(spec)
+
+    if not title_path:
+        return os.path.join(spec_part, "_untagged")
+
+    contexts = title_path[1:-1] if len(title_path) > 2 else []
+    if not contexts:
+        # no context block — use the it() title as the leaf folder
+        fallback = safe_name(title_path[-1]) if title_path else "_untagged"
+        return os.path.join(spec_part, fallback)
+
+    return os.path.join(spec_part, *[safe_name(c) for c in contexts])
 
 
 def iso(ts):
-    """Convert a unix-epoch float to an ISO-8601 UTC string."""
     if ts is None:
         return None
     return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
 
 
 def encode_body(content: bytes, content_type: str = ""):
-    """
-    Return a dict describing a body.
-    - JSON content-type -> parsed JSON object (encoding: "json")
-    - Valid UTF-8        -> plain string      (encoding: "utf-8")
-    - Binary            -> base64 string      (encoding: "base64")
-    """
     if content is None:
         return {"data": None, "encoding": None, "size_bytes": 0}
     size = len(content)
@@ -182,6 +181,59 @@ def encode_body(content: bytes, content_type: str = ""):
     return {"data": text, "encoding": "utf-8", "size_bytes": size}
 
 
+# ───── admin HTTP server ─────
+class AdminHandler(BaseHTTPRequestHandler):
+    def _send(self, code, body):
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(body).encode())
+
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length", 0))
+        raw = self.rfile.read(length).decode() if length else "{}"
+        try:
+            body = json.loads(raw)
+        except json.JSONDecodeError:
+            body = {}
+
+        with state.lock:
+            if self.path == "/test/start":
+                title_path = body.get("titlePath") or []
+                spec = body.get("spec") or "_untagged"
+                # Derive flat test name for cassette "test" field and _server_rid matching
+                state.current_test = " > ".join(title_path) if title_path else body.get("test", "unknown")
+                state.current_title_path = title_path
+                state.current_spec = spec
+                print(f"[capture] ▶ START: [{safe_spec(spec)}] {state.current_test}")
+                self._send(200, {"ok": True, "test": state.current_test})
+            elif self.path == "/test/end":
+                print(f"[capture] ⏹ END:   {state.current_test}")
+                state.current_test = None
+                state.current_title_path = []
+                state.current_spec = None
+                self._send(200, {"ok": True})
+            elif self.path == "/status":
+                self._send(200, {
+                    "current_test": state.current_test,
+                    "current_spec": state.current_spec,
+                    "captured_per_path": state.counter,
+                    "base_urls": BASE_URLS,
+                    "output_dir": OUT_DIR,
+                })
+            else:
+                self._send(404, {"error": "unknown admin path"})
+
+    def log_message(self, fmt, *args):
+        return
+
+
+def start_admin_server():
+    server = HTTPServer(("127.0.0.1", ADMIN_PORT), AdminHandler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    print(f"[capture] admin server  http://127.0.0.1:{ADMIN_PORT}")
+
+
 # ───── mitmproxy hook ─────
 def response(flow: http.HTTPFlow):
     if not matches(flow.request.url):
@@ -192,18 +244,14 @@ def response(flow: http.HTTPFlow):
 
     with state.lock:
         test = state.current_test or "_untagged"
-        # Counter is scoped per (test, request_id) so multiple connector
-        # outbounds sharing a request_id get NNN-suffixed in chronological order
-        counter_key = (test, request_id or "_no_request_id")
+        spec = state.current_spec or "_untagged"
+        title_path = list(state.current_title_path)
+        rel_path = build_rel_path(spec, title_path)
+        counter_key = (connector, rel_path)
         idx = state.counter.get(counter_key, 0)
         state.counter[counter_key] = idx + 1
 
-    folder = os.path.join(
-        OUT_DIR,
-        connector,
-        safe_name(test),
-        safe_name(request_id) if request_id else "_no_request_id",
-    )
+    folder = os.path.join(OUT_DIR, connector, rel_path)
     os.makedirs(folder, exist_ok=True)
 
     req = flow.request
@@ -222,6 +270,7 @@ def response(flow: http.HTTPFlow):
 
     record = {
         "captured_at": iso(req_started) or datetime.now(timezone.utc).isoformat(),
+        "spec": spec,
         "test": test,
         "request_id": request_id,
         "connector": connector,
@@ -257,10 +306,7 @@ def response(flow: http.HTTPFlow):
         },
     }
 
-    # Be defensive against concurrent/out-of-order responses with the same
-    # (test, request_id). Some specs (notably external vault flows) can have
-    # overlapping connector calls that otherwise race into the same 000.json
-    # and silently overwrite the earlier cassette.
+    # Collision-safe write: if another concurrent response already claimed idx, advance
     with state.lock:
         while True:
             out_path = os.path.join(folder, f"{idx:03d}.json")
@@ -271,6 +317,7 @@ def response(flow: http.HTTPFlow):
 
     with open(out_path, "w") as f:
         json.dump(record, f, indent=2)
+
     rid_tag = f"  rid={request_id}" if request_id else "  rid=(none)"
     print(
         f"[capture] {req.method} {req.url} "
