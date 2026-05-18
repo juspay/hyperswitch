@@ -4,7 +4,6 @@ use std::{collections::HashMap, ops::Deref};
 use ::payment_methods::client::{
     BankDebitDetailUpdate, CardDetailUpdate, PaymentMethodUpdateData, UpdatePaymentMethodV1Payload,
 };
-use api_models::payments::{ConnectorMandateReferenceId, MandateReferenceId};
 #[cfg(feature = "dynamic_routing")]
 use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
@@ -21,7 +20,11 @@ use futures::FutureExt;
 use hyperswitch_domain_models::payments::{
     PaymentConfirmData, PaymentIntentData, PaymentStatusData,
 };
-use hyperswitch_domain_models::{behaviour::Conversion, payments::payment_attempt::PaymentAttempt};
+use hyperswitch_domain_models::{
+    behaviour::Conversion,
+    mandates::{self, ConnectorMandateReferenceId, MandateReferenceId},
+    payments::payment_attempt::PaymentAttempt,
+};
 #[cfg(feature = "v2")]
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use router_derive;
@@ -622,7 +625,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                         connector_mandate_reference_id
                             .clone()
                             .map(ForeignFrom::foreign_from);
-                    payment_data.set_mandate_id(api_models::payments::MandateIds {
+                    payment_data.set_mandate_id(mandates::MandateIds {
                         mandate_id: None,
                         mandate_reference_id: connector_mandate_reference_id.map(
                             |connector_mandate_id| {
@@ -1650,7 +1653,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     {
         payment_data.mandate_id = payment_data.mandate_id.or_else(|| {
             router_data.request.mandate_id.clone()
-            // .map(api_models::payments::MandateIds::new)
+            // .map(mandates::MandateIds::new)
         });
 
         payment_data = Box::pin(payment_response_update_tracker(
@@ -1777,7 +1780,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         payment_data.payment_attempt.connector_mandate_detail = connector_mandate_reference_id
             .clone()
             .map(ForeignFrom::foreign_from);
-        payment_data.set_mandate_id(api_models::payments::MandateIds {
+        payment_data.set_mandate_id(mandates::MandateIds {
             mandate_id: None,
             mandate_reference_id: connector_mandate_reference_id.map(|connector_mandate_id| {
                 MandateReferenceId::ConnectorMandateId(connector_mandate_id)
@@ -3292,9 +3295,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let updated_metadata_info = updated_metadata_details
             .map(|data| {
-                serde_json::from_value::<api_models::payments::UpdatedMandateDetails>(
-                    data.peek().clone(),
-                )
+                serde_json::from_value::<mandates::UpdatedMandateDetails>(data.peek().clone())
             })
             .transpose()
             .inspect_err(|e| {
@@ -3307,20 +3308,18 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
             .flatten();
 
         let mandate_data_updated = match updated_metadata_info {
-            Some(data) => Some(api_models::payments::MandateIds {
+            Some(data) => Some(mandates::MandateIds {
                 mandate_id: None,
-                mandate_reference_id: Some(
-                    api_models::payments::MandateReferenceId::ConnectorMandateId(
-                        api_models::payments::ConnectorMandateReferenceId::new(
-                            mandate_reference_id,
-                            None,
-                            None,
-                            None,
-                            None,
-                            Some(data),
-                        ),
+                mandate_reference_id: Some(mandates::MandateReferenceId::ConnectorMandateId(
+                    mandates::ConnectorMandateReferenceId::new(
+                        mandate_reference_id,
+                        None,
+                        None,
+                        None,
+                        None,
+                        Some(data),
                     ),
-                ),
+                )),
             }),
             None => payment_data.mandate_data,
         };
@@ -3844,7 +3843,7 @@ fn update_connector_mandate_details_for_the_flow<F: Clone>(
         .clone()
         .map(ForeignFrom::foreign_from);
 
-    payment_data.set_mandate_id(api_models::payments::MandateIds {
+    payment_data.set_mandate_id(mandates::MandateIds {
         mandate_id: None,
         mandate_reference_id: connector_mandate_reference_id.map(|connector_mandate_id| {
             MandateReferenceId::ConnectorMandateId(connector_mandate_id)

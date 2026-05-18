@@ -47,7 +47,7 @@ use euclid::{
 use hyperswitch_constraint_graph as cgraph;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::customer::CustomerUpdate;
-use hyperswitch_domain_models::mandates::CommonMandateReference;
+use hyperswitch_domain_models::mandates::{self, CommonMandateReference};
 use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
 use hyperswitch_masking::Secret;
 #[cfg(feature = "v1")]
@@ -4131,7 +4131,7 @@ pub async fn list_payment_methods(
                 .as_ref()
                 .and_then(|inner| inner.mandate_details.clone())
                 .map(|d| match d {
-                    hyperswitch_domain_models::mandates::MandateDataType::SingleUse(i) => {
+                    mandates::MandateDataType::SingleUse(i) => {
                         api::MandateType::SingleUse(api::MandateAmountData {
                             amount: i.amount,
                             currency: i.currency,
@@ -4140,7 +4140,7 @@ pub async fn list_payment_methods(
                             metadata: i.metadata,
                         })
                     }
-                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(i)) => {
+                    mandates::MandateDataType::MultiUse(Some(i)) => {
                         api::MandateType::MultiUse(Some(api::MandateAmountData {
                             amount: i.amount,
                             currency: i.currency,
@@ -4149,9 +4149,7 @@ pub async fn list_payment_methods(
                             metadata: i.metadata,
                         }))
                     }
-                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None) => {
-                        api::MandateType::MultiUse(None)
-                    }
+                    mandates::MandateDataType::MultiUse(None) => api::MandateType::MultiUse(None),
                 }),
             show_surcharge_breakup_screen: merchant_surcharge_configs
                 .show_surcharge_breakup_screen

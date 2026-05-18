@@ -1,3 +1,4 @@
+use hyperswitch_domain_models::mandates;
 #[cfg(feature = "v1")]
 pub mod payment_approve;
 #[cfg(feature = "v1")]
@@ -414,7 +415,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _business_profile: &domain::Profile,
         _processor: &domain::Processor,
         _initiator: Option<&domain::Initiator>,
-        _mandate_type: Option<api_models::payments::MandateTransactionType>,
+        _mandate_type: Option<mandates::MandateTransactionType>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
@@ -428,7 +429,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _connector_call_type: &ConnectorCallType,
         _business_profile: &domain::Profile,
         _platform: &domain::Platform,
-        _mandate_type: Option<api_models::payments::MandateTransactionType>,
+        _mandate_type: Option<mandates::MandateTransactionType>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
