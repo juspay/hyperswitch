@@ -937,17 +937,15 @@ jobs:
           CREDS_FILE="${CYPRESS_CONNECTOR_AUTH_FILE_PATH}" \
             python3 mitm-proxy/check_cassettes_redacted.py "mitm-proxy/captures"
 
-      - name: Install Python
+      - name: Install uv
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+        uses: astral-sh/setup-uv@v6
 
       - name: Install mitmproxy dependencies
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         run: |
-          pip install -r mitm-proxy/requirements.txt
+          uv pip install --system -r mitm-proxy/requirements.txt
           mitmdump --version
 
       - name: Generate mitmproxy CA cert

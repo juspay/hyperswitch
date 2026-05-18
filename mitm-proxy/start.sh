@@ -43,6 +43,7 @@ echo "    Admin API -> http://127.0.0.1:8081"
 echo ""
 
 # ── Run mitmproxy in the foreground so errors are visible ─────────────────
-exec mitmdump \
+exec uv run --with-requirements "${SCRIPT_DIR}/requirements.txt" \
+  mitmdump \
   -s "${SCRIPT_DIR}/mitm_capture.py" \
   --listen-port "${PROXY_PORT}"

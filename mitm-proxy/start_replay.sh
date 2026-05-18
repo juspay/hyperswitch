@@ -39,6 +39,7 @@ echo "    MISS = no cassette found, forwarded live"
 echo "    WARN = request arrived before /test/start was called"
 echo ""
 
-exec mitmdump \
+exec uv run --with-requirements "${SCRIPT_DIR}/requirements.txt" \
+  mitmdump \
   -s "${SCRIPT_DIR}/mitm_replay.py" \
   --listen-port "${PROXY_PORT}"
