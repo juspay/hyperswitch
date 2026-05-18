@@ -585,6 +585,7 @@ pub type DimensionsWithProcessorMerchantIdAndConnector = Dimensions<
     NoProfileId,
     HasConnector,
     NoPayoutRetryType,
+    NoWebhookEvent,
 >;
 
 // Type aliases - both provider and processor merchant IDs present
