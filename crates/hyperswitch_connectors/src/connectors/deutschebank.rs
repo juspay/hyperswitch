@@ -48,7 +48,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask, Secret};
+use hyperswitch_masking::{ExposeInterface, Mask, Secret};
 use rand::distributions::{Alphanumeric, DistString};
 use ring::hmac;
 use transformers as deutschebank;
@@ -103,7 +103,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let access_token = req
             .access_token
             .clone()
@@ -144,7 +145,8 @@ impl ConnectorCommon for Deutschebank {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = deutschebank::DeutschebankAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
@@ -338,7 +340,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -482,7 +485,8 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         &self,
         req: &PaymentsCompleteAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -586,7 +590,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Deu
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -658,7 +663,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -749,7 +755,8 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for De
         &self,
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -830,7 +837,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Deutsch
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -921,7 +929,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Deutscheb
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -1004,7 +1013,8 @@ impl webhooks::IncomingWebhook for Deutschebank {
     fn get_webhook_resource_object(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

@@ -1,6 +1,6 @@
 use common_enums::OrganizationType;
 use common_utils::{id_type, pii};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use utoipa::ToSchema;
 pub struct OrganizationNew {
     pub org_id: id_type::OrganizationId,

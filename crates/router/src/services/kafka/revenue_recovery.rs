@@ -1,5 +1,5 @@
 use common_utils::{id_type, types::MinorUnit};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use time::OffsetDateTime;
 #[derive(serde::Serialize, Debug)]
 pub struct RevenueRecovery<'a> {

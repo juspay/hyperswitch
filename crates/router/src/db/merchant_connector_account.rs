@@ -100,7 +100,7 @@ mod merchant_connector_account_cache_tests {
     use diesel_models::enums::ConnectorType;
     use error_stack::ResultExt;
     use hyperswitch_domain_models::master_key::MasterKeyInterface;
-    use masking::PeekInterface;
+    use hyperswitch_masking::PeekInterface;
     use storage_impl::redis::{
         cache::{self, CacheKey, CacheKind, ACCOUNTS_CACHE},
         kv_store::RedisConnInterface,
@@ -137,6 +137,7 @@ mod merchant_connector_account_cache_tests {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            env!("CARGO_PKG_NAME"),
         ))
         .await;
 
@@ -320,6 +321,7 @@ mod merchant_connector_account_cache_tests {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            env!("CARGO_PKG_NAME"),
         ))
         .await;
         let state = &Arc::new(app_state)

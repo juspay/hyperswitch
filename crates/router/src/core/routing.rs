@@ -246,9 +246,15 @@ async fn build_list_routing_result(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
+        let dimensions = dimension_state::Dimensions::new()
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_profile_id(business_profile.get_id().clone());
+
         list_result.append(
             &mut select_routing_result(
                 state,
+                &dimensions,
                 &business_profile,
                 hs_result_for_profile,
                 de_result_for_profile,
@@ -1203,15 +1209,15 @@ pub async fn update_default_fallback_routing(
         )
         .await?;
 
-    let merchant_id = platform.get_processor().get_account().get_id().clone();
     let superposition_config = state.conf.superposition.get_inner().clone();
     let dimensions = dimension_state::Dimensions::new()
-        .with_merchant_id(merchant_id)
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
         .with_profile_id(profile_id)
         .with_transaction_type(enums::TransactionType::Payment);
     if let Err(e) = dimensions
         .set_routing_default_config(
-            state.superposition_service.as_deref(),
+            state.superposition_service.as_ref(),
             &serde_json::to_value(&updated_list_of_connectors).unwrap_or_default(),
             &superposition_config.org_id,
             &superposition_config.workspace_id,
@@ -1313,14 +1319,15 @@ pub async fn retrieve_default_routing_config(
     let pid = profile_id.get_required_value("profile_id")?;
 
     let dimensions = dimension_state::Dimensions::new()
-        .with_merchant_id(merchant_id.clone())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
         .with_profile_id(pid)
         .with_transaction_type(*transaction_type);
 
     let conn_choice = dimensions
         .get_routing_default_config(
             db,
-            state.superposition_service.as_deref(),
+            Some(state.superposition_service.as_ref()),
             Some(merchant_id),
         )
         .await;
@@ -1450,8 +1457,19 @@ pub async fn retrieve_linked_routing_config(
                 hs_records.clone(),
                 "list_active_routing".to_string(),
             );
+            let dimensions = dimension_state::Dimensions::new()
+                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+                .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+                .with_profile_id(business_profile.get_id().clone());
             active_algorithms.append(
-                &mut select_routing_result(&state, &business_profile, hs_records, de_records).await,
+                &mut select_routing_result(
+                    &state,
+                    &dimensions,
+                    &business_profile,
+                    hs_records,
+                    de_records,
+                )
+                .await,
             );
         }
 
@@ -1551,12 +1569,15 @@ pub async fn retrieve_default_routing_config_for_profiles(
         .attach_printable("error retrieving all business profiles for merchant")?;
 
     let merchant_id = platform.get_processor().get_account().get_id();
+    let processor_mid = platform.get_processor().get_processor_merchant_id();
+    let provider_mid = platform.get_provider().get_provider_merchant_id();
 
     let retrieve_config_futures = all_profiles
         .iter()
         .map(|prof| {
             let dimensions = dimension_state::Dimensions::new()
-                .with_merchant_id(merchant_id.clone())
+                .with_processor_merchant_id(processor_mid.clone())
+                .with_provider_merchant_id(provider_mid.clone())
                 .with_profile_id(prof.get_id().clone())
                 .with_transaction_type(*transaction_type);
             let targeting_merchant_id = merchant_id.clone();
@@ -1565,7 +1586,7 @@ pub async fn retrieve_default_routing_config_for_profiles(
                 dimensions
                     .get_routing_default_config(
                         db,
-                        superposition_service.as_deref(),
+                        Some(superposition_service.as_ref()),
                         Some(&targeting_merchant_id),
                     )
                     .await
@@ -1613,13 +1634,14 @@ pub async fn update_default_routing_config_for_profile(
     })?;
     let merchant_id = platform.get_processor().get_account().get_id();
     let dimensions = dimension_state::Dimensions::new()
-        .with_merchant_id(merchant_id.clone())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
         .with_profile_id(business_profile.get_id().clone())
         .with_transaction_type(*transaction_type);
     let default_config = dimensions
         .get_routing_default_config(
             db,
-            state.superposition_service.as_deref(),
+            Some(state.superposition_service.as_ref()),
             Some(merchant_id),
         )
         .await;
@@ -1659,29 +1681,7 @@ pub async fn update_default_routing_config_for_profile(
         })
     })?;
 
-    helpers::update_merchant_default_config(
-        db,
-        business_profile.get_id().get_string_repr(),
-        updated_config.clone(),
-        transaction_type,
-        &dimensions,
-        &state,
-    )
-    .await?;
-
-    let superposition_config = state.conf.superposition.get_inner().clone();
-    if let Err(e) = dimensions
-        .set_routing_default_config(
-            state.superposition_service.as_deref(),
-            &serde_json::to_value(&updated_config).unwrap_or_default(),
-            &superposition_config.org_id,
-            &superposition_config.workspace_id,
-            None,
-        )
-        .await
-    {
-        router_env::logger::warn!(error=?e, "Failed to write routing_default_config to superposition");
-    }
+    helpers::update_merchant_default_config(updated_config.clone(), &dimensions, &state).await?;
 
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(
@@ -2393,6 +2393,7 @@ pub trait GetRoutableConnectorsForChoice {
     async fn get_routable_connectors<F, D>(
         &self,
         state: &SessionState,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         business_profile: &domain::Profile,
         payment_data: &mut D,
     ) -> RouterResult<RoutableConnectors>
@@ -2408,6 +2409,7 @@ impl GetRoutableConnectorsForChoice for StraightThroughAlgorithmTypeSingle {
     async fn get_routable_connectors<F, D>(
         &self,
         _state: &SessionState,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         _business_profile: &domain::Profile,
         _payment_data: &mut D,
     ) -> RouterResult<RoutableConnectors>
@@ -2446,6 +2448,7 @@ impl GetRoutableConnectorsForChoice for DecideConnector {
     async fn get_routable_connectors<F, D>(
         &self,
         state: &SessionState,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         business_profile: &domain::Profile,
         payment_data: &mut D,
     ) -> RouterResult<RoutableConnectors>
@@ -2467,6 +2470,7 @@ impl GetRoutableConnectorsForChoice for DecideConnector {
         let (connectors, routing_approach) = payments_routing::perform_static_routing_v1(
             state,
             &business_profile.merchant_id,
+            dimensions,
             routing_algorithm_id.as_ref(),
             business_profile,
             &TransactionData::Payment(transaction_data),

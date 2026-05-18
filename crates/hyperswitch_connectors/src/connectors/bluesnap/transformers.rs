@@ -29,7 +29,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -244,6 +244,8 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -425,6 +427,8 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -897,6 +901,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BluesnapPaymentsResponse, T, PaymentsRe
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id),
                 incremental_authorization_allowed: None,
                 authentication_data: None,

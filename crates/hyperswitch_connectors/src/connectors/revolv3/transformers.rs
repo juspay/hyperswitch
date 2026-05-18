@@ -2,7 +2,7 @@ use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use hyperswitch_interfaces::errors;
 
 pub struct Revolv3AuthType {
-    pub api_key: masking::Secret<String>,
+    pub api_key: hyperswitch_masking::Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for Revolv3AuthType {

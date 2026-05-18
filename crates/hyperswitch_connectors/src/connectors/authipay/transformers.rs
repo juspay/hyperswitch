@@ -12,7 +12,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -421,6 +421,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthipayPaymentsResponse, T, PaymentsRe
                 mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     gateway_resp.transaction_processing_details.order_id.clone(),
                 ),

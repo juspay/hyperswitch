@@ -2,7 +2,7 @@ use common_utils::{
     consts::TENANT_HEADER,
     request::{Headers, Request},
 };
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 use router_env::{logger, RequestIdentifier};
 use url::Url;
 

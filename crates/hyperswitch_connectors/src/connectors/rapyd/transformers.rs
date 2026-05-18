@@ -14,7 +14,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::{consts::NO_ERROR_CODE, errors};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -500,6 +500,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, RapydPaymentsResponse, T, PaymentsRespo
                                 mandate_reference: Box::new(None),
                                 connector_metadata: None,
                                 network_txn_id: None,
+                                network_txn_link_id: None,
                                 connector_response_reference_id: data
                                     .merchant_reference_id
                                     .to_owned(),

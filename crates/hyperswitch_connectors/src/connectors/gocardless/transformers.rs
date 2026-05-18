@@ -18,7 +18,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -261,6 +261,8 @@ impl TryFrom<&types::TokenizationRouterData> for CustomerBankAccount {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -320,12 +322,12 @@ impl TryFrom<(&BankDebitData, &types::TokenizationRouterData)> for CustomerBankA
                 };
                 Ok(Self::InternationalBankAccount(international_bank_account))
             }
-            BankDebitData::BacsBankDebit { .. } | BankDebitData::SepaGuarenteedBankDebit { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Gocardless"),
-                )
-                .into())
-            }
+            BankDebitData::BacsBankDebit { .. }
+            | BankDebitData::SepaGuarenteedBankDebit { .. }
+            | BankDebitData::EftDebitOrder { .. } => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Gocardless"),
+            )
+            .into()),
         }
     }
 }
@@ -438,6 +440,8 @@ impl TryFrom<&types::SetupMandateRouterData> for GocardlessMandateRequest {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -482,6 +486,7 @@ fn get_ip_if_required(
         BankDebitData::SepaBankDebit { .. }
         | BankDebitData::SepaGuarenteedBankDebit { .. }
         | BankDebitData::BecsBankDebit { .. }
+        | BankDebitData::EftDebitOrder { .. }
         | BankDebitData::BacsBankDebit { .. } => Ok(None),
     }
 }
@@ -493,12 +498,12 @@ impl TryFrom<&BankDebitData> for GocardlessScheme {
             BankDebitData::AchBankDebit { .. } => Ok(Self::Ach),
             BankDebitData::SepaBankDebit { .. } => Ok(Self::SepaCore),
             BankDebitData::BecsBankDebit { .. } => Ok(Self::Becs),
-            BankDebitData::BacsBankDebit { .. } | BankDebitData::SepaGuarenteedBankDebit { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Setup Mandate flow for selected payment method through Gocardless".to_string(),
-                )
-                .into())
-            }
+            BankDebitData::BacsBankDebit { .. }
+            | BankDebitData::SepaGuarenteedBankDebit { .. }
+            | BankDebitData::EftDebitOrder { .. } => Err(errors::ConnectorError::NotImplemented(
+                "Setup Mandate flow for selected payment method through Gocardless".to_string(),
+            )
+            .into()),
         }
     }
 }
@@ -547,6 +552,7 @@ impl<F>
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(mandate_reference),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 authentication_data: None,
                 charges: None,
             }),
@@ -689,6 +695,7 @@ impl TryFrom<PaymentsResponseRouterData<GocardlessPaymentsResponse>>
                 mandate_reference: Box::new(Some(mandate_reference)),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -714,6 +721,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<GocardlessPaymentsResponse>>
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,

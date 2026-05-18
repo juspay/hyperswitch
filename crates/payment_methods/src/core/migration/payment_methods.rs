@@ -19,9 +19,9 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{ext_traits::OptionExt, payment_methods as domain_pm};
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 #[cfg(feature = "v1")]
-use masking::Secret;
+use hyperswitch_masking::Secret;
 #[cfg(feature = "v1")]
 use router_env::{instrument, logger, tracing};
 #[cfg(feature = "v1")]
@@ -555,6 +555,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
                 None,
                 None,
                 None,
+                None,
                 Default::default(),
                 None,
                 None,
@@ -688,7 +689,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
         .insert_payment_method(
             provider.get_key_store(),
             domain_pm::PaymentMethod {
-                customer_id: customer_id.to_owned(),
+                customer_id: Some(customer_id.to_owned()),
                 merchant_id: merchant_id.to_owned(),
                 payment_method_id: payment_method_id.to_string(),
                 locker_id: None,
@@ -703,6 +704,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 client_secret: None,
                 status: enums::PaymentMethodStatus::Active,
                 network_transaction_id: network_transaction_id.clone(),
+                network_transaction_link_id: None,
                 payment_method_issuer_code: None,
                 accepted_currency: None,
                 token: None,
@@ -727,6 +729,8 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                 customer_details: None,
                 locker_fingerprint_id: None,
+                network_tokenization_data: None,
+                storage_type: None,
             },
             provider.get_account().storage_scheme,
         )

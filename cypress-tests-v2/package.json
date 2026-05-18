@@ -9,7 +9,8 @@
     "cypress:payments": "cypress run --headless --spec 'cypress/e2e/spec/Payment/**/*'",
     "cypress:payouts": "cypress run --headless --spec 'cypress/e2e/spec/Payout/**/*'",
     "cypress:payment-method-list": "cypress run --headless --spec 'cypress/e2e/spec/PaymentMethodList/**/*'",
-    "cypress:routing": "cypress run --headless --spec 'cypress/e2e/spec/Routing/**/*'"
+    "cypress:routing": "cypress run --headless --spec 'cypress/e2e/spec/Routing/**/*'",
+    "cypress:platform": "echo 'Platform specs not yet migrated to cypress-tests-v2; skipping'"
   },
   "author": "Hyperswitch Team",
   "license": "ISC",

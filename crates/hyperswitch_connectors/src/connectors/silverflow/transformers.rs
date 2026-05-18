@@ -12,7 +12,7 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -318,6 +318,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SilverflowPaymentsResponse, T, Payments
                             .transaction_identifier
                             .clone()
                     }),
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.key.clone()),
                 incremental_authorization_allowed: Some(false),
                 authentication_data: None,
@@ -407,6 +408,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SilverflowCaptureResponse, T, PaymentsR
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.key.clone()),
                 incremental_authorization_allowed: Some(false),
                 authentication_data: None,
@@ -503,6 +505,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SilverflowVoidResponse, T, PaymentsResp
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.key.clone()),
                 incremental_authorization_allowed: Some(false),
                 authentication_data: None,

@@ -14,7 +14,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{api::CurrencyUnit, errors::ConnectorError};
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -276,6 +276,8 @@ fn get_payment_method_data(
         | PaymentMethodData::CardToken(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+        | PaymentMethodData::CardWithOptionalCVC(_)
+        | PaymentMethodData::CardWithNetworkTokenDetails(_)
         | PaymentMethodData::CardWithLimitedDetails(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -447,6 +449,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayeezyPaymentsResponse, T, PaymentsRes
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata: metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     item.response
                         .reference

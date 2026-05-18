@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -109,7 +109,7 @@ pub struct JpmorganPaymentsRequest {
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganCard {
-    account_number: Secret<String>,
+    account_number: cards::CardNumber,
     expiry: Expiry,
 }
 
@@ -194,7 +194,7 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
                     year: req_card.get_expiry_year_as_4_digit_i32()?,
                 };
 
-                let account_number = Secret::new(req_card.card_number.to_string());
+                let account_number = req_card.card_number;
 
                 let card = JpmorganCard {
                     account_number,
@@ -214,6 +214,8 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
             PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Wallet(_)
@@ -385,6 +387,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsRe
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id.clone()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -473,6 +476,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganCaptureResponse, T, PaymentsRes
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id.clone()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -517,6 +521,7 @@ impl<F, PaymentsSyncData>
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id.clone()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -750,6 +755,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<JpmorganCancelResponse>>
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id.clone()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,

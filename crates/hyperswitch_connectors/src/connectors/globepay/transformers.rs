@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     types::{self, RefundsRouterData},
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -110,6 +110,8 @@ impl TryFrom<&GlobepayRouterData<&types::PaymentsAuthorizeRouterData>> for Globe
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -227,6 +229,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobepayPaymentsResponse, T, PaymentsRe
                     mandate_reference: Box::new(None),
                     connector_metadata,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -302,6 +305,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobepaySyncResponse, T, PaymentsRespon
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     authentication_data: None,

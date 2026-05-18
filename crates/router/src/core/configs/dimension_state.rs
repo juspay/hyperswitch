@@ -1,37 +1,57 @@
 use std::marker::PhantomData;
 
-use common_enums::TransactionType;
+use api_models::webhooks::IncomingWebhookEvent;
+use common_enums::{connector_enums::Connector, PayoutRetryType, TransactionType};
 use common_utils::id_type;
 use external_services::superposition;
+pub use hyperswitch_domain_models::platform::{ProcessorMerchantId, ProviderMerchantId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum DimensionError {
-    #[error("merchant_id not available in dimension state")]
-    MissingMerchantId,
+    #[error("provider_merchant_id not available in dimension state")]
+    MissingProviderMerchantId,
+    #[error("processor_merchant_id not available in dimension state")]
+    MissingProcessorMerchantId,
     #[error("organization_id not available in dimension state")]
     MissingOrganizationId,
     #[error("profile_id not available in dimension state")]
     MissingProfileId,
     #[error("transaction_type not available in dimension state")]
     MissingTransactionType,
+    #[error("connector not available in dimension state")]
+    MissingConnector,
 }
 
-/// Marker for state WITHOUT merchant_id
-pub struct NoMerchantId;
+/// Marker for state WITHOUT provider_merchant_id
+#[derive(Clone)]
+pub struct NoProviderMerchantId;
 
-/// Marker for state WITH merchant_id
-pub struct HasMerchantId;
+/// Marker for state WITH provider_merchant_id
+#[derive(Clone)]
+pub struct HasProviderMerchantId;
+
+/// Marker for state WITHOUT processor_merchant_id
+#[derive(Clone)]
+pub struct NoProcessorMerchantId;
+
+/// Marker for state WITH processor_merchant_id
+#[derive(Clone)]
+pub struct HasProcessorMerchantId;
 
 /// Marker for state WITHOUT organization_id
+#[derive(Clone)]
 pub struct NoOrgId;
 
 /// Marker for state WITH organization_id
+#[derive(Clone)]
 pub struct HasOrgId;
 
 /// Marker for state WITHOUT profile_id
+#[derive(Clone)]
 pub struct NoProfileId;
 
 /// Marker for state WITH profile_id
+#[derive(Clone)]
 pub struct HasProfileId;
 
 /// Marker for state WITHOUT transaction_type
@@ -40,6 +60,30 @@ pub struct NoTransactionType;
 /// Marker for state WITH transaction_type
 pub struct HasTransactionType;
 
+/// Marker for state WITHOUT connector
+#[derive(Clone)]
+pub struct NoConnector;
+
+/// Marker for state WITH connector
+#[derive(Clone)]
+pub struct HasConnector;
+
+/// Marker for state WITHOUT payout_retry_type
+#[derive(Clone)]
+pub struct NoPayoutRetryType;
+
+/// Marker for state WITH payout_retry_type
+#[derive(Clone)]
+pub struct HasPayoutRetryType;
+
+/// Marker for state WITHOUT incoming_webhook_event
+#[derive(Clone)]
+pub struct NoWebhookEvent;
+
+/// Marker for state WITH incoming_webhook_event
+#[derive(Clone)]
+pub struct HasWebhookEvent;
+
 // Dimensional State with type parameters
 
 /// Dimensional state with type-level guarantees about which dimensions are present.
@@ -47,102 +91,345 @@ pub struct HasTransactionType;
 /// Uses the type-state pattern where type parameters indicate which fields are available.
 ///
 /// # Type Parameters
-/// * `M` - Merchant ID type: `HasMerchantId` (present) or `NoMerchantId` (absent)
-/// * `O` - Organization ID type: `HasOrgId` (present) or `NoOrgId` (absent)
-/// * `P` - Profile ID type: `HasProfileId` (present) or `NoProfileId` (absent)
+/// * `Pm`  - Provider Merchant ID: `HasProviderMerchantId` or `NoProviderMerchantId`
+/// * `M`   - Processor Merchant ID: `HasProcessorMerchantId` or `NoProcessorMerchantId`
+/// * `O`   - Organization ID: `HasOrgId` or `NoOrgId`
+/// * `P`   - Profile ID: `HasProfileId` or `NoProfileId`
+/// * `Cn`  - Connector: `HasConnector` or `NoConnector`
+/// * `PRT` - Payout Retry Type: `HasPayoutRetryType` or `NoPayoutRetryType`
+/// * `Ev`  - Webhook Event type: `HasWebhookEvent` (present) or `NoWebhookEvent` (absent)
 /// * `T` - Transaction Type: `HasTransactionType` (present) or `NoTransactionType` (absent)
-pub struct Dimensions<M, O, P, T> {
-    merchant_id: Option<id_type::MerchantId>,
+#[derive(Clone)]
+#[allow(clippy::type_complexity)]
+pub struct Dimensions<Pm, M, O, P, T, Cn, PRT, Ev> {
+    provider_merchant_id: Option<ProviderMerchantId>,
+    processor_merchant_id: Option<ProcessorMerchantId>,
     organization_id: Option<id_type::OrganizationId>,
     profile_id: Option<id_type::ProfileId>,
     transaction_type: Option<TransactionType>,
-    _phantom: PhantomData<(M, O, P, T)>,
+    connector: Option<Connector>,
+    payout_retry_type: Option<PayoutRetryType>,
+    incoming_webhook_event: Option<IncomingWebhookEvent>,
+    _phantom: PhantomData<(Pm, M, O, P, T, Cn, PRT, Ev)>,
 }
 
-impl Dimensions<NoMerchantId, NoOrgId, NoProfileId, NoTransactionType> {
+impl
+    Dimensions<
+        NoProviderMerchantId,
+        NoProcessorMerchantId,
+        NoOrgId,
+        NoProfileId,
+        NoTransactionType,
+        NoConnector,
+        NoPayoutRetryType,
+        NoWebhookEvent,
+    >
+{
     pub fn new() -> Self {
         Self {
-            merchant_id: None,
+            provider_merchant_id: None,
+            processor_merchant_id: None,
             organization_id: None,
             profile_id: None,
             transaction_type: None,
+            connector: None,
+            payout_retry_type: None,
+            incoming_webhook_event: None,
             _phantom: PhantomData,
         }
     }
 }
 
-/// Can only add merchant_id if not already present
-impl<O, P, T> Dimensions<NoMerchantId, O, P, T> {
-    pub fn with_merchant_id(
-        self,
-        id: id_type::MerchantId,
-    ) -> Dimensions<HasMerchantId, O, P, T> {
+/// Can only add provider_merchant_id if not already present
+impl<M, O, P, T, Cn, PRT, Ev> Dimensions<NoProviderMerchantId, M, O, P, T, Cn, PRT, Ev> {
+    pub fn with_provider_merchant_id(
+        &self,
+        id: ProviderMerchantId,
+    ) -> Dimensions<HasProviderMerchantId, M, O, P, T, Cn, PRT, Ev> {
         Dimensions {
-            merchant_id: Some(id),
-            organization_id: self.organization_id,
-            profile_id: self.profile_id,
+            provider_merchant_id: Some(id),
+            processor_merchant_id: self.processor_merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
             transaction_type: self.transaction_type,
+            connector: self.connector,
+            payout_retry_type: self.payout_retry_type.clone(),
+            incoming_webhook_event: self.incoming_webhook_event,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Can only add processor_merchant_id if not already present
+impl<Pm, O, P, T, Cn, PRT, Ev> Dimensions<Pm, NoProcessorMerchantId, O, P, T, Cn, PRT, Ev> {
+    pub fn with_processor_merchant_id(
+        &self,
+        id: ProcessorMerchantId,
+    ) -> Dimensions<Pm, HasProcessorMerchantId, O, P, T, Cn, PRT, Ev> {
+        Dimensions {
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: Some(id),
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
+            transaction_type: self.transaction_type,
+            connector: self.connector,
+            payout_retry_type: self.payout_retry_type.clone(),
+            incoming_webhook_event: self.incoming_webhook_event,
             _phantom: PhantomData,
         }
     }
 }
 
 /// Can only add organization_id if not already present
-impl<M, P, T> Dimensions<M, NoOrgId, P, T> {
+impl<Pm, M, P, T, Cn, PRT, Ev> Dimensions<Pm, M, NoOrgId, P, T, Cn, PRT, Ev> {
     pub fn with_organization_id(
-        self,
+        &self,
         id: id_type::OrganizationId,
-    ) -> Dimensions<M, HasOrgId, P, T> {
+    ) -> Dimensions<Pm, M, HasOrgId, P, T, Cn, PRT, Ev> {
         Dimensions {
-            merchant_id: self.merchant_id,
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
             organization_id: Some(id),
-            profile_id: self.profile_id,
+            profile_id: self.profile_id.clone(),
             transaction_type: self.transaction_type,
+            connector: self.connector,
+            payout_retry_type: self.payout_retry_type.clone(),
+            incoming_webhook_event: self.incoming_webhook_event,
             _phantom: PhantomData,
         }
     }
 }
 
 /// Can only add profile_id if not already present
-impl<M, O, T> Dimensions<M, O, NoProfileId, T> {
-    pub fn with_profile_id(self, id: id_type::ProfileId) -> Dimensions<M, O, HasProfileId, T> {
+impl<Pm, M, O, T, Cn, PRT, Ev> Dimensions<Pm, M, O, NoProfileId, T, Cn, PRT, Ev> {
+    pub fn with_profile_id(
+        &self,
+        id: id_type::ProfileId,
+    ) -> Dimensions<Pm, M, O, HasProfileId, T, Cn, PRT, Ev> {
         Dimensions {
-            merchant_id: self.merchant_id,
-            organization_id: self.organization_id,
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
             profile_id: Some(id),
             transaction_type: self.transaction_type,
+            connector: self.connector,
+            payout_retry_type: self.payout_retry_type.clone(),
+            incoming_webhook_event: self.incoming_webhook_event,
             _phantom: PhantomData,
         }
     }
 }
 
 /// Can only add transaction_type if not already present
-impl<M, O, P> Dimensions<M, O, P, NoTransactionType> {
+impl<Pm, M, O, P, Cn, PRT, Ev> Dimensions<Pm, M, O, P, NoTransactionType, Cn, PRT, Ev> {
     pub fn with_transaction_type(
-        self,
+        &self,
         transaction_type: TransactionType,
-    ) -> Dimensions<M, O, P, HasTransactionType> {
+    ) -> Dimensions<Pm, M, O, P, HasTransactionType, Cn, PRT, Ev> {
         Dimensions {
-            merchant_id: self.merchant_id,
-            organization_id: self.organization_id,
-            profile_id: self.profile_id,
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
             transaction_type: Some(transaction_type),
+            connector: self.connector,
+            payout_retry_type: self.payout_retry_type.clone(),
+            incoming_webhook_event: self.incoming_webhook_event,
             _phantom: PhantomData,
         }
     }
 }
 
-/// merchant_id getter - only available if HasMerchantId
-impl<O, P, T> Dimensions<HasMerchantId, O, P, T> {
-    pub fn merchant_id(&self) -> Result<&id_type::MerchantId, DimensionError> {
-        self.merchant_id
+/// Can only add connector if not already present
+impl<Pm, M, O, P, T, PRT, Ev> Dimensions<Pm, M, O, P, T, NoConnector, PRT, Ev> {
+    pub fn with_connector(
+        &self,
+        connector: Connector,
+    ) -> Dimensions<Pm, M, O, P, T, HasConnector, PRT, Ev> {
+        Dimensions {
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
+            transaction_type: self.transaction_type,
+            connector: Some(connector),
+            payout_retry_type: self.payout_retry_type.clone(),
+            incoming_webhook_event: self.incoming_webhook_event,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Can only add payout_retry_type if not already present
+impl<Pm, M, O, P, T, Cn, Ev> Dimensions<Pm, M, O, P, T, Cn, NoPayoutRetryType, Ev> {
+    pub fn with_payout_retry_type(
+        &self,
+        retry_type: PayoutRetryType,
+    ) -> Dimensions<Pm, M, O, P, T, Cn, HasPayoutRetryType, Ev> {
+        Dimensions {
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
+            transaction_type: self.transaction_type,
+            connector: self.connector,
+            payout_retry_type: Some(retry_type),
+            incoming_webhook_event: self.incoming_webhook_event,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Can only add incoming_webhook_event if not already present
+impl<Pm, M, O, P, T, Cn, PRT> Dimensions<Pm, M, O, P, T, Cn, PRT, NoWebhookEvent> {
+    pub fn with_incoming_webhook_event(
+        &self,
+        event: IncomingWebhookEvent,
+    ) -> Dimensions<Pm, M, O, P, T, Cn, PRT, HasWebhookEvent> {
+        Dimensions {
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
+            transaction_type: self.transaction_type,
+            connector: self.connector,
+            payout_retry_type: self.payout_retry_type.clone(),
+            incoming_webhook_event: Some(event),
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Can only remove provider_merchant_id if currently present
+impl<M, O, P, T, Cn, PRT, Ev> Dimensions<HasProviderMerchantId, M, O, P, T, Cn, PRT, Ev> {
+    pub fn without_provider_merchant_id(
+        &self,
+    ) -> Dimensions<NoProviderMerchantId, M, O, P, T, Cn, PRT, Ev> {
+        Dimensions {
+            provider_merchant_id: None,
+            processor_merchant_id: self.processor_merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
+            transaction_type: self.transaction_type,
+            connector: self.connector,
+            payout_retry_type: self.payout_retry_type.clone(),
+            incoming_webhook_event: self.incoming_webhook_event,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Can only remove processor_merchant_id if currently present
+impl<Pm, O, P, T, Cn, PRT, Ev> Dimensions<Pm, HasProcessorMerchantId, O, P, T, Cn, PRT, Ev> {
+    pub fn without_processor_merchant_id(
+        &self,
+    ) -> Dimensions<Pm, NoProcessorMerchantId, O, P, T, Cn, PRT, Ev> {
+        Dimensions {
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: None,
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
+            transaction_type: self.transaction_type,
+            connector: self.connector,
+            payout_retry_type: self.payout_retry_type.clone(),
+            incoming_webhook_event: self.incoming_webhook_event,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Can only remove organization_id if currently present
+impl<Pm, M, P, T, Cn, PRT, Ev> Dimensions<Pm, M, HasOrgId, P, T, Cn, PRT, Ev> {
+    pub fn without_organization_id(&self) -> Dimensions<Pm, M, NoOrgId, P, T, Cn, PRT, Ev> {
+        Dimensions {
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
+            organization_id: None,
+            profile_id: self.profile_id.clone(),
+            transaction_type: self.transaction_type,
+            connector: self.connector,
+            payout_retry_type: self.payout_retry_type.clone(),
+            incoming_webhook_event: self.incoming_webhook_event,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Can only remove profile_id if currently present
+impl<Pm, M, O, T, Cn, PRT, Ev> Dimensions<Pm, M, O, HasProfileId, T, Cn, PRT, Ev> {
+    pub fn without_profile_id(&self) -> Dimensions<Pm, M, O, NoProfileId, T, Cn, PRT, Ev> {
+        Dimensions {
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
+            profile_id: None,
+            transaction_type: self.transaction_type,
+            connector: self.connector,
+            payout_retry_type: self.payout_retry_type.clone(),
+            incoming_webhook_event: self.incoming_webhook_event,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Can only remove connector if currently present
+impl<Pm, M, O, P, T, PRT, Ev> Dimensions<Pm, M, O, P, T, HasConnector, PRT, Ev> {
+    pub fn without_connector(&self) -> Dimensions<Pm, M, O, P, T, NoConnector, PRT, Ev> {
+        Dimensions {
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
+            transaction_type: self.transaction_type,
+            connector: None,
+            payout_retry_type: self.payout_retry_type.clone(),
+            incoming_webhook_event: self.incoming_webhook_event,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Can only remove incoming_webhook_event if currently present
+impl<Pm, M, O, P, T, Cn, PRT> Dimensions<Pm, M, O, P, T, Cn, PRT, HasWebhookEvent> {
+    pub fn without_incoming_webhook_event(
+        &self,
+    ) -> Dimensions<Pm, M, O, P, T, Cn, PRT, NoWebhookEvent> {
+        Dimensions {
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
+            transaction_type: self.transaction_type,
+            connector: self.connector,
+            payout_retry_type: self.payout_retry_type.clone(),
+            incoming_webhook_event: None,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// provider_merchant_id getter - only available if HasProviderMerchantId
+impl<M, O, P, T, Cn, PRT, Ev> Dimensions<HasProviderMerchantId, M, O, P, T, Cn, PRT, Ev> {
+    pub fn provider_merchant_id(&self) -> Result<&id_type::MerchantId, DimensionError> {
+        self.provider_merchant_id
             .as_ref()
-            .ok_or(DimensionError::MissingMerchantId)
+            .map(|id| id.inner())
+            .ok_or(DimensionError::MissingProviderMerchantId)
+    }
+}
+
+/// processor_merchant_id getter - only available if HasProcessorMerchantId
+impl<Pm, O, P, T, Cn, PRT, Ev> Dimensions<Pm, HasProcessorMerchantId, O, P, T, Cn, PRT, Ev> {
+    pub fn processor_merchant_id(&self) -> Result<&id_type::MerchantId, DimensionError> {
+        self.processor_merchant_id
+            .as_ref()
+            .map(|id| id.inner())
+            .ok_or(DimensionError::MissingProcessorMerchantId)
     }
 }
 
 /// organization_id getter - only available if HasOrgId
-impl<M, P, T> Dimensions<M, HasOrgId, P, T> {
+impl<Pm, M, P, T, Cn, PRT, Ev> Dimensions<Pm, M, HasOrgId, P, T, Cn, PRT, Ev> {
     pub fn organization_id(&self) -> Result<&id_type::OrganizationId, DimensionError> {
         self.organization_id
             .as_ref()
@@ -151,7 +438,7 @@ impl<M, P, T> Dimensions<M, HasOrgId, P, T> {
 }
 
 /// profile_id getter - only available if HasProfileId
-impl<M, O, T> Dimensions<M, O, HasProfileId, T> {
+impl<Pm, M, O, T, Cn, PRT, Ev> Dimensions<Pm, M, O, HasProfileId, T, Cn, PRT, Ev> {
     pub fn profile_id(&self) -> Result<&id_type::ProfileId, DimensionError> {
         self.profile_id
             .as_ref()
@@ -160,17 +447,28 @@ impl<M, O, T> Dimensions<M, O, HasProfileId, T> {
 }
 
 /// transaction_type getter - only available if HasTransactionType
-impl<M, O, P> Dimensions<M, O, P, HasTransactionType> {
+impl<Pm, M, O, P, Cn, PRT, Ev> Dimensions<Pm, M, O, P, HasTransactionType, Cn, PRT, Ev> {
     pub fn transaction_type(&self) -> Result<TransactionType, DimensionError> {
         self.transaction_type
             .ok_or(DimensionError::MissingTransactionType)
     }
 }
 
+/// connector getter - only available if HasConnector
+impl<Pm, M, O, P, T, PRT, Ev> Dimensions<Pm, M, O, P, T, HasConnector, PRT, Ev> {
+    pub fn connector(&self) -> Result<Connector, DimensionError> {
+        self.connector.ok_or(DimensionError::MissingConnector)
+    }
+}
+
 // Optional getters (available in any state)
-impl<M, O, P, T> Dimensions<M, O, P, T> {
-    pub fn get_merchant_id(&self) -> Option<&id_type::MerchantId> {
-        self.merchant_id.as_ref()
+impl<Pm, M, O, P, T, Cn, PRT, Ev> Dimensions<Pm, M, O, P, T, Cn, PRT, Ev> {
+    pub fn get_provider_merchant_id(&self) -> Option<&id_type::MerchantId> {
+        self.provider_merchant_id.as_ref().map(|id| id.inner())
+    }
+
+    pub fn get_processor_merchant_id(&self) -> Option<&id_type::MerchantId> {
+        self.processor_merchant_id.as_ref().map(|id| id.inner())
     }
 
     pub fn get_organization_id(&self) -> Option<&id_type::OrganizationId> {
@@ -184,16 +482,32 @@ impl<M, O, P, T> Dimensions<M, O, P, T> {
     pub fn get_transaction_type(&self) -> Option<TransactionType> {
         self.transaction_type
     }
+
+    pub fn get_connector(&self) -> Option<Connector> {
+        self.connector
+    }
+
+    pub fn get_payout_retry_type(&self) -> Option<&PayoutRetryType> {
+        self.payout_retry_type.as_ref()
+    }
+
+    pub fn get_incoming_webhook_event(&self) -> Option<IncomingWebhookEvent> {
+        self.incoming_webhook_event
+    }
 }
 
 // Superposition context conversion
-impl<M, O, P, T> Dimensions<M, O, P, T> {
+impl<Pm, M, O, P, T, Cn, PRT, Ev> Dimensions<Pm, M, O, P, T, Cn, PRT, Ev> {
     /// Converts dimension state to Superposition config context
     pub fn to_superposition_context(&self) -> Option<superposition::ConfigContext> {
         let mut ctx = superposition::ConfigContext::new();
 
-        if let Some(ref mid) = self.merchant_id {
-            ctx = ctx.with("merchant_id", mid.get_string_repr());
+        if let Some(ref pm_id) = self.provider_merchant_id {
+            ctx = ctx.with("provider_merchant_id", pm_id.inner().get_string_repr());
+        }
+
+        if let Some(ref mid) = self.processor_merchant_id {
+            ctx = ctx.with("processor_merchant_id", mid.inner().get_string_repr());
         }
 
         if let Some(ref oid) = self.organization_id {
@@ -208,11 +522,36 @@ impl<M, O, P, T> Dimensions<M, O, P, T> {
             ctx = ctx.with("transaction_type", tt.to_string().as_str());
         }
 
+        if let Some(conn) = self.connector {
+            ctx = ctx.with("connector", conn.to_string().as_str());
+        }
+
+        if let Some(ref prt) = self.payout_retry_type {
+            ctx = ctx.with("payout_retry_type", prt.to_string().as_str());
+        }
+
+        if let Some(event) = self.incoming_webhook_event {
+            if let Ok(serde_json::Value::String(s)) = serde_json::to_value(event) {
+                ctx = ctx.with("incoming_webhook_events", s.as_str());
+            }
+        }
+
         Some(ctx)
     }
 }
 
-impl Default for Dimensions<NoMerchantId, NoOrgId, NoProfileId, NoTransactionType> {
+impl Default
+    for Dimensions<
+        NoProviderMerchantId,
+        NoProcessorMerchantId,
+        NoOrgId,
+        NoProfileId,
+        NoTransactionType,
+        NoConnector,
+        NoPayoutRetryType,
+        NoWebhookEvent,
+    >
+{
     fn default() -> Self {
         Self::new()
     }
@@ -223,8 +562,11 @@ pub trait DimensionsBase {
     /// Converts dimension state to Superposition config context
     fn to_superposition_context(&self) -> Option<superposition::ConfigContext>;
 
-    /// Get merchant_id (if available)
-    fn get_merchant_id(&self) -> Option<&id_type::MerchantId>;
+    /// Get provider_merchant_id (if available)
+    fn get_provider_merchant_id(&self) -> Option<&id_type::MerchantId>;
+
+    /// Get processor_merchant_id (if available)
+    fn get_processor_merchant_id(&self) -> Option<&id_type::MerchantId>;
 
     /// Get organization_id (if available)
     fn get_organization_id(&self) -> Option<&id_type::OrganizationId>;
@@ -234,15 +576,28 @@ pub trait DimensionsBase {
 
     /// Get transaction_type (if available)
     fn get_transaction_type(&self) -> Option<TransactionType>;
+
+    /// Get connector (if available)
+    fn get_connector(&self) -> Option<Connector>;
+
+    /// Get payout_retry_type (if available)
+    fn get_payout_retry_type(&self) -> Option<&PayoutRetryType>;
+
+    /// Get incoming_webhook_event (if available)
+    fn get_incoming_webhook_event(&self) -> Option<IncomingWebhookEvent>;
 }
 
-impl<M, O, P, T> DimensionsBase for Dimensions<M, O, P, T> {
+impl<Pm, M, O, P, T, Cn, PRT, Ev> DimensionsBase for Dimensions<Pm, M, O, P, T, Cn, PRT, Ev> {
     fn to_superposition_context(&self) -> Option<superposition::ConfigContext> {
         self.to_superposition_context()
     }
 
-    fn get_merchant_id(&self) -> Option<&id_type::MerchantId> {
-        self.get_merchant_id()
+    fn get_provider_merchant_id(&self) -> Option<&id_type::MerchantId> {
+        self.get_provider_merchant_id()
+    }
+
+    fn get_processor_merchant_id(&self) -> Option<&id_type::MerchantId> {
+        self.get_processor_merchant_id()
     }
 
     fn get_organization_id(&self) -> Option<&id_type::OrganizationId> {
@@ -253,27 +608,146 @@ impl<M, O, P, T> DimensionsBase for Dimensions<M, O, P, T> {
         self.get_profile_id()
     }
 
+    fn get_connector(&self) -> Option<Connector> {
+        self.get_connector()
+    }
+
+    fn get_payout_retry_type(&self) -> Option<&PayoutRetryType> {
+        self.get_payout_retry_type()
+    }
+
+    fn get_incoming_webhook_event(&self) -> Option<IncomingWebhookEvent> {
+        self.get_incoming_webhook_event()
+    }
+
     fn get_transaction_type(&self) -> Option<TransactionType> {
         self.get_transaction_type()
     }
 }
 
-pub type DimensionsWithMerchantId =
-    Dimensions<HasMerchantId, NoOrgId, NoProfileId, NoTransactionType>;
+// Type aliases
+pub type DimensionsWithProviderMerchantId = Dimensions<
+    HasProviderMerchantId,
+    NoProcessorMerchantId,
+    NoOrgId,
+    NoProfileId,
+    NoTransactionType,
+    NoConnector,
+    NoPayoutRetryType,
+    NoWebhookEvent,
+>;
 
-impl DimensionsWithMerchantId {
-    /// Create a DimensionsWithMerchantId from a merchant_id
-    pub fn from_merchant_id(merchant_id: id_type::MerchantId) -> Self {
-        Dimensions {
-            merchant_id: Some(merchant_id),
-            organization_id: None,
-            profile_id: None,
-            transaction_type: None,
-            _phantom: PhantomData,
-        }
-    }
-}
-pub type DimensionsWithMerchantIdAndProfileId =
-    Dimensions<HasMerchantId, NoOrgId, HasProfileId, NoTransactionType>;
-pub type DimensionsWithMerchantIdProfileIdAndTransactionType =
-    Dimensions<HasMerchantId, NoOrgId, HasProfileId, HasTransactionType>;
+// Type alias - only processor merchant ID present
+pub type DimensionsWithProcessorMerchantId = Dimensions<
+    NoProviderMerchantId,
+    HasProcessorMerchantId,
+    NoOrgId,
+    NoProfileId,
+    NoTransactionType,
+    NoConnector,
+    NoPayoutRetryType,
+    NoWebhookEvent,
+>;
+
+// Type aliases - both provider and processor merchant IDs present
+pub type DimensionsWithProcessorAndProviderMerchantId = Dimensions<
+    HasProviderMerchantId,
+    HasProcessorMerchantId,
+    NoOrgId,
+    NoProfileId,
+    NoTransactionType,
+    NoConnector,
+    NoPayoutRetryType,
+    NoWebhookEvent,
+>;
+pub type DimensionsWithProcessorAndProviderMerchantIdAndProfileId = Dimensions<
+    HasProviderMerchantId,
+    HasProcessorMerchantId,
+    NoOrgId,
+    HasProfileId,
+    NoTransactionType,
+    NoConnector,
+    NoPayoutRetryType,
+    NoWebhookEvent,
+>;
+pub type DimensionsWithOrgId = Dimensions<
+    NoProviderMerchantId,
+    NoProcessorMerchantId,
+    HasOrgId,
+    NoProfileId,
+    NoTransactionType,
+    NoConnector,
+    NoPayoutRetryType,
+    NoWebhookEvent,
+>;
+pub type DimensionsWithProcessorAndProviderMerchantIdAndConnector = Dimensions<
+    HasProviderMerchantId,
+    HasProcessorMerchantId,
+    NoOrgId,
+    NoProfileId,
+    NoTransactionType,
+    HasConnector,
+    NoPayoutRetryType,
+    NoWebhookEvent,
+>;
+pub type DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndConnector = Dimensions<
+    HasProviderMerchantId,
+    HasProcessorMerchantId,
+    NoOrgId,
+    HasProfileId,
+    NoTransactionType,
+    HasConnector,
+    NoPayoutRetryType,
+    NoWebhookEvent,
+>;
+pub type DimensionsWithProcessorAndProviderMerchantIdAndOrgId = Dimensions<
+    HasProviderMerchantId,
+    HasProcessorMerchantId,
+    HasOrgId,
+    NoProfileId,
+    NoTransactionType,
+    NoConnector,
+    NoPayoutRetryType,
+    NoWebhookEvent,
+>;
+pub type DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId = Dimensions<
+    HasProviderMerchantId,
+    HasProcessorMerchantId,
+    HasOrgId,
+    HasProfileId,
+    NoTransactionType,
+    NoConnector,
+    NoPayoutRetryType,
+    NoWebhookEvent,
+>;
+pub type DimensionsWithProcessorAndProviderMerchantIdAndPayoutRetryType = Dimensions<
+    HasProviderMerchantId,
+    HasProcessorMerchantId,
+    NoOrgId,
+    NoProfileId,
+    NoTransactionType,
+    NoConnector,
+    HasPayoutRetryType,
+    NoWebhookEvent,
+>;
+pub type DimensionsWithProcessorAndProviderMerchantIdAndConnectorAndWebhookEvent = Dimensions<
+    HasProviderMerchantId,
+    HasProcessorMerchantId,
+    NoOrgId,
+    NoProfileId,
+    NoTransactionType,
+    HasConnector,
+    NoPayoutRetryType,
+    HasWebhookEvent,
+>;
+
+pub type DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndTransactionType = Dimensions<
+    HasProviderMerchantId,
+    HasProcessorMerchantId,
+    NoOrgId,
+    HasProfileId,
+    HasTransactionType,
+    NoConnector,
+    NoPayoutRetryType,
+    NoWebhookEvent,
+>;

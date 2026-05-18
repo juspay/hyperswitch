@@ -130,31 +130,14 @@ pub async fn get_merchant_default_config(
 /// in DB as well for the particular updated config. Also writes to Superposition using
 /// the provided dimensions and state.
 pub async fn update_merchant_default_config(
-    db: &dyn StorageInterface,
-    merchant_id: &str,
     connectors: Vec<routing_types::RoutableConnectorChoice>,
-    transaction_type: &storage::enums::TransactionType,
-    dimensions: &crate::core::configs::dimension_config::DimensionsWithMerchantIdProfileIdAndTransactionType,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndTransactionType,
     state: &SessionState,
 ) -> RouterResult<()> {
-    let key = get_default_config_key(merchant_id, transaction_type);
-    let config_str = connectors
-        .encode_to_string_of_json()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to serialize merchant default routing config during update")?;
-
-    let config_update = configs::ConfigUpdate::Update {
-        config: Some(config_str),
-    };
-
-    let superposition_config = state.conf.superposition.get_inner();
     if let Err(e) = dimensions
         .set_routing_default_config(
-            state.superposition_service.as_deref(),
+            state.superposition_service.as_ref(),
             &serde_json::to_value(&connectors).unwrap_or_default(),
-            &superposition_config.org_id,
-            &superposition_config.workspace_id,
-            None,
         )
         .await
     {
@@ -225,6 +208,7 @@ pub async fn update_merchant_active_algorithm_ref(
         default_profile: None,
         payment_link_config: None,
         pm_collect_link_config: None,
+        network_tokenization_credentials: None,
     };
 
     let db = &*state.store;
@@ -1724,7 +1708,8 @@ fn get_desired_payment_status_for_dynamic_routing_metrics(
         | common_enums::AttemptStatus::PaymentMethodAwaited
         | common_enums::AttemptStatus::ConfirmationAwaited
         | common_enums::AttemptStatus::DeviceDataCollectionPending
-        | common_enums::AttemptStatus::Expired => common_enums::AttemptStatus::Pending,
+        | common_enums::AttemptStatus::Expired
+        | common_enums::AttemptStatus::CaptureReview => common_enums::AttemptStatus::Pending,
     }
 }
 
@@ -1754,13 +1739,14 @@ impl ForeignFrom<common_enums::AttemptStatus> for open_router::TxnStatus {
             common_enums::AttemptStatus::AutoRefunded => Self::AutoRefunded,
             common_enums::AttemptStatus::PartialCharged => Self::PartialCharged,
             common_enums::AttemptStatus::PartialChargedAndChargeable => Self::ToBeCharged,
-            common_enums::AttemptStatus::Unresolved => Self::Pending,
-            common_enums::AttemptStatus::Pending
-            | common_enums::AttemptStatus::IntegrityFailure => Self::Pending,
             common_enums::AttemptStatus::Failure => Self::Failure,
-            common_enums::AttemptStatus::PaymentMethodAwaited => Self::Pending,
-            common_enums::AttemptStatus::ConfirmationAwaited => Self::Pending,
-            common_enums::AttemptStatus::DeviceDataCollectionPending => Self::Pending,
+            common_enums::AttemptStatus::Unresolved
+            | common_enums::AttemptStatus::Pending
+            | common_enums::AttemptStatus::IntegrityFailure
+            | common_enums::AttemptStatus::PaymentMethodAwaited
+            | common_enums::AttemptStatus::ConfirmationAwaited
+            | common_enums::AttemptStatus::DeviceDataCollectionPending
+            | common_enums::AttemptStatus::CaptureReview => Self::Pending,
         }
     }
 }

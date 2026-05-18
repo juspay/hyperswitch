@@ -1,10 +1,13 @@
 //! Type definitions for Superposition integration
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use aws_smithy_types::Document;
 use common_utils::{errors::CustomResult, fp_utils::when};
-use masking::{ExposeInterface, Secret};
+use error_stack::ResultExt;
+use hyperswitch_masking::{ExposeInterface, Secret};
+
+use super::SuperpositionClient;
 
 /// Trait for converting Rust types to Superposition Document for write operations
 pub trait ToDocument {
@@ -26,20 +29,20 @@ impl ToDocument for bool {
 
 impl ToDocument for i64 {
     fn to_document(&self) -> Document {
-        if *self >= 0 {
-            Document::Number(aws_smithy_types::Number::PosInt(*self as u64))
-        } else {
-            Document::Number(aws_smithy_types::Number::NegInt(*self))
+        match *self {
+            n if n >= 0 => Document::Number(aws_smithy_types::Number::PosInt(n.unsigned_abs())),
+            n => Document::Number(aws_smithy_types::Number::NegInt(n)),
         }
     }
 }
 
 impl ToDocument for i32 {
     fn to_document(&self) -> Document {
-        if *self >= 0 {
-            Document::Number(aws_smithy_types::Number::PosInt(*self as u64))
-        } else {
-            Document::Number(aws_smithy_types::Number::NegInt(*self as i64))
+        match *self {
+            n if n >= 0 => Document::Number(aws_smithy_types::Number::PosInt(u64::from(
+                n.unsigned_abs(),
+            ))),
+            n => Document::Number(aws_smithy_types::Number::NegInt(i64::from(n))),
         }
     }
 }
@@ -47,14 +50,15 @@ impl ToDocument for i32 {
 impl ToDocument for serde_json::Value {
     fn to_document(&self) -> Document {
         match self {
-            serde_json::Value::String(s) => Document::String(s.clone()),
-            serde_json::Value::Bool(b) => Document::Bool(*b),
-            serde_json::Value::Number(n) => {
+            Self::String(s) => Document::String(s.clone()),
+            Self::Bool(b) => Document::Bool(*b),
+            Self::Number(n) => {
                 if let Some(n) = n.as_i64() {
-                    if n >= 0 {
-                        Document::Number(aws_smithy_types::Number::PosInt(n as u64))
-                    } else {
-                        Document::Number(aws_smithy_types::Number::NegInt(n))
+                    match n {
+                        n if n >= 0 => {
+                            Document::Number(aws_smithy_types::Number::PosInt(n.unsigned_abs()))
+                        }
+                        n => Document::Number(aws_smithy_types::Number::NegInt(n)),
                     }
                 } else if let Some(n) = n.as_u64() {
                     Document::Number(aws_smithy_types::Number::PosInt(n))
@@ -63,15 +67,13 @@ impl ToDocument for serde_json::Value {
                     Document::String(n.to_string())
                 }
             }
-            serde_json::Value::Object(obj) => Document::Object(
+            Self::Object(obj) => Document::Object(
                 obj.iter()
                     .map(|(k, v)| (k.clone(), v.to_document()))
                     .collect(),
             ),
-            serde_json::Value::Array(arr) => {
-                Document::Array(arr.iter().map(|v| v.to_document()).collect())
-            }
-            serde_json::Value::Null => Document::Null,
+            Self::Array(arr) => Document::Array(arr.iter().map(|v| v.to_document()).collect()),
+            Self::Null => Document::Null,
         }
     }
 }
@@ -92,25 +94,23 @@ impl TryFrom<open_feature::StructValue> for JsonValue {
 
     fn try_from(sv: open_feature::StructValue) -> Result<Self, Self::Error> {
         let capacity = sv.fields.len();
-        let map: serde_json::Map<String, serde_json::Value> =
-            sv.fields.into_iter().try_fold(
-                serde_json::Map::with_capacity(capacity),
-                |mut map, (k, v)| -> Result<_, String> {
-                    let value = super::convert_open_feature_value(v)?;
-                    map.insert(k, value);
-                    Ok(map)
-                },
-            )?;
+        let map: serde_json::Map<String, serde_json::Value> = sv.fields.into_iter().try_fold(
+            serde_json::Map::with_capacity(capacity),
+            |mut map, (k, v)| -> Result<_, String> {
+                let value = super::convert_open_feature_value(v)?;
+                map.insert(k, value);
+                Ok(map)
+            },
+        )?;
 
         // When the CAC value is a JSON array, the OpenFeature provider encodes it as a
         // StructValue with consecutive integer string keys ("0", "1", ...). Detect this
         // and convert back to a proper JSON array so downstream deserialization works.
-        let is_array = !map.is_empty()
-            && (0..map.len()).all(|i| map.contains_key(&i.to_string()));
+        let is_array = !map.is_empty() && (0..map.len()).all(|i| map.contains_key(&i.to_string()));
 
         if is_array {
             let arr = (0..map.len())
-                .map(|i| map[&i.to_string()].clone())
+                .filter_map(|i| map.get(&i.to_string()).cloned())
                 .collect();
             Ok(Self(serde_json::Value::Array(arr)))
         } else {
@@ -123,8 +123,6 @@ impl TryFrom<open_feature::StructValue> for JsonValue {
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(default)]
 pub struct SuperpositionClientConfig {
-    /// Whether Superposition is enabled
-    pub enabled: bool,
     /// Superposition API endpoint
     pub endpoint: String,
     /// Authentication token for Superposition
@@ -137,18 +135,21 @@ pub struct SuperpositionClientConfig {
     pub polling_interval: u64,
     /// Request timeout in seconds for Superposition API calls (None = no timeout)
     pub request_timeout: Option<u64>,
+    /// Path to a TOML backup config file on PVC/EFS.
+    /// Used as fallback if the primary HTTP init fails at startup.
+    pub backup_file_path: Option<std::path::PathBuf>,
 }
 
 impl Default for SuperpositionClientConfig {
     fn default() -> Self {
         Self {
-            enabled: false,
             endpoint: String::new(),
             token: Secret::new(String::new()),
             org_id: String::new(),
             workspace_id: String::new(),
             polling_interval: 15,
             request_timeout: None,
+            backup_file_path: None,
         }
     }
 }
@@ -165,6 +166,9 @@ pub enum SuperpositionError {
     /// Invalid configuration provided
     #[error("Invalid configuration: {0}")]
     InvalidConfiguration(String),
+    /// Error from the Superposition provider
+    #[error("Superposition provider error: {0}")]
+    ProviderError(String),
 }
 
 /// Context for configuration requests
@@ -175,12 +179,21 @@ pub struct ConfigContext {
 }
 
 impl SuperpositionClientConfig {
+    /// Create and return a Superposition client.
+    pub async fn get_superposition_client(
+        &self,
+        service_name: &'static str,
+    ) -> CustomResult<Arc<SuperpositionClient>, SuperpositionError> {
+        let client = SuperpositionClient::new(self.clone(), service_name)
+            .await
+            .change_context(SuperpositionError::ClientInitError(
+                "Failed to create Superposition client".to_string(),
+            ))?;
+        Ok(Arc::new(client))
+    }
+
     /// Validate the Superposition configuration
     pub fn validate(&self) -> Result<(), SuperpositionError> {
-        if !self.enabled {
-            return Ok(());
-        }
-
         when(self.endpoint.is_empty(), || {
             Err(SuperpositionError::InvalidConfiguration(
                 "Superposition endpoint cannot be empty".to_string(),
@@ -226,6 +239,11 @@ impl ConfigContext {
         self.values.insert(key.to_string(), value.to_string());
         self
     }
+
+    /// Get a value from the context by key.
+    pub fn get(&self, key: &str) -> Option<&str> {
+        self.values.get(key).map(String::as_str)
+    }
 }
 
 #[cfg(feature = "superposition")]
@@ -247,13 +265,9 @@ impl hyperswitch_interfaces::secrets_interface::secret_handler::SecretsHandler
         hyperswitch_interfaces::secrets_interface::SecretsManagementError,
     > {
         let superposition_config = value.get_inner();
-        let token = if superposition_config.enabled {
-            secret_management_client
-                .get_secret(superposition_config.token.clone())
-                .await?
-        } else {
-            superposition_config.token.clone()
-        };
+        let token = secret_management_client
+            .get_secret(superposition_config.token.clone())
+            .await?;
 
         Ok(value.transition_state(|superposition_config| Self {
             token,

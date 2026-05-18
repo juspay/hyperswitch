@@ -120,7 +120,7 @@ pub async fn create_role(
         json_payload.into_inner(),
         role_core::create_role,
         &auth::JWTAuth {
-            permission: Permission::MerchantUserWrite,
+            permission: Permission::ProfileUserWrite,
             allow_connected: true,
             allow_platform: true,
         },
@@ -142,7 +142,7 @@ pub async fn create_role_v2(
         json_payload.into_inner(),
         role_core::create_role_v2,
         &auth::JWTAuth {
-            permission: Permission::MerchantUserWrite,
+            permission: Permission::ProfileUserWrite,
             allow_connected: true,
             allow_platform: true,
         },
@@ -221,7 +221,7 @@ pub async fn update_role(
         json_payload.into_inner(),
         |state, user, req, _| role_core::update_role(state, user, req, &role_id),
         &auth::JWTAuth {
-            permission: Permission::MerchantUserWrite,
+            permission: Permission::ProfileUserWrite,
             allow_connected: true,
             allow_platform: true,
         },

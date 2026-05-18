@@ -2,7 +2,7 @@ use api_models::{admin::MerchantConnectorUpdate, connector_onboarding as api};
 use common_utils::ext_traits::Encode;
 use error_stack::ResultExt;
 pub use external_services::http_client;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
     core::{
@@ -184,8 +184,14 @@ pub async fn update_mca(
         connector_wallets_details: None,
         feature_metadata: None,
     };
-    let mca_response =
-        admin::update_connector(state.clone(), merchant_id, None, &connector_id, request).await?;
+    let mca_response = Box::pin(admin::update_connector(
+        state.clone(),
+        merchant_id,
+        None,
+        &connector_id,
+        request,
+    ))
+    .await?;
 
     match mca_response {
         ApplicationResponse::Json(mca_data) => Ok(mca_data),

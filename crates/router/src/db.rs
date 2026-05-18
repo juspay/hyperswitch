@@ -2,12 +2,14 @@ pub mod address;
 pub mod api_keys;
 pub mod authentication;
 pub mod authorization;
+pub mod batch_blocklist_job;
 pub mod blocklist;
 pub mod blocklist_fingerprint;
 pub mod blocklist_lookup;
 pub mod business_profile;
 pub mod callback_mapper;
 pub mod capture;
+pub mod card_issuer;
 pub mod configs;
 pub mod customers;
 pub mod dashboard_metadata;
@@ -53,6 +55,7 @@ use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
 };
 use hyperswitch_domain_models::{
+    card_issuer::CardIssuersInterface,
     cards_info::CardsInfoInterface,
     master_key::MasterKeyInterface,
     payment_methods::PaymentMethodInterface,
@@ -117,6 +120,8 @@ pub trait StorageInterface:
     + PaymentMethodInterface<Error = StorageError>
     + blocklist::BlocklistInterface
     + blocklist_fingerprint::BlocklistFingerprintInterface
+    + batch_blocklist_job::BatchBlocklistJobInterface
+    + CardIssuersInterface<Error = StorageError>
     + dynamic_routing_stats::DynamicRoutingStatsInterface
     + scheduler::SchedulerInterface
     + PayoutAttemptInterface<Error = StorageError>

@@ -25,7 +25,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -591,6 +591,8 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -1377,6 +1379,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AirwallexPaymentsResponse, T, PaymentsR
                 mandate_reference,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -1433,6 +1436,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AirwallexRedirectResponse, T, PaymentsR
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -1485,6 +1489,7 @@ impl
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 authentication_data: None,

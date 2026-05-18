@@ -25,8 +25,8 @@ pub use retrieve::{RetrievePaymentMethod, RetrievePaymentMethodV1Request};
 use router_env::RequestIdentifier;
 #[cfg(feature = "v1")]
 pub use update::{
-    CardDetailUpdate, PaymentMethodUpdateData, UpdatePaymentMethod, UpdatePaymentMethodV1Payload,
-    UpdatePaymentMethodV1Request,
+    BankDebitDetailUpdate, CardDetailUpdate, PaymentMethodUpdateData, UpdatePaymentMethod,
+    UpdatePaymentMethodV1Payload, UpdatePaymentMethodV1Request,
 };
 
 use crate::configs::ModularPaymentMethodServiceUrl;

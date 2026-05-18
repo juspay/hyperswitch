@@ -22,7 +22,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "payouts")]
@@ -140,6 +140,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, EnvoyPaymentsResponse, T, PaymentsRespo
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -487,13 +488,13 @@ impl<F> TryFrom<&EnvoyRouterData<&PayoutsRouterData<F>>> for PayToBankAccountV3 
         let payout_data = &item.router_data.request;
         let customer_details = item.router_data.request.customer_details.to_owned();
         let payment_template = match item.router_data.get_payout_method_data()? {
-            PayoutMethodData::Bank(payouts::Bank::Ach(bank)) => PaymentTemplate {
+            PayoutMethodData::BankTransfer(payouts::BankTransfer::Ach(bank)) => PaymentTemplate {
                 rows: get_template_for_ach(bank, customer_details.as_ref())?,
             },
-            PayoutMethodData::Bank(payouts::Bank::Sepa(bank)) => PaymentTemplate {
+            PayoutMethodData::BankTransfer(payouts::BankTransfer::Sepa(bank)) => PaymentTemplate {
                 rows: get_template_for_sepa(bank, customer_details.as_ref())?,
             },
-            PayoutMethodData::Bank(payouts::Bank::Bacs(bank)) => PaymentTemplate {
+            PayoutMethodData::BankTransfer(payouts::BankTransfer::Bacs(bank)) => PaymentTemplate {
                 rows: get_template_for_bacs(bank, customer_details.as_ref())?,
             },
             _ => Err(errors::ConnectorError::NotSupported {

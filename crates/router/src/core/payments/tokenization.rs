@@ -23,7 +23,7 @@ use hyperswitch_domain_models::{
     payment_method_data,
 };
 use hyperswitch_interfaces::api::gateway;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use router_env::{instrument, tracing};
 
 use super::helpers;
@@ -36,12 +36,9 @@ use crate::{
     core::{
         errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
         mandate,
-        payment_methods::{
-            self,
-            cards::{create_encrypted_data, PmCards},
-            network_tokenization,
-        },
+        payment_methods::{self, cards::PmCards, network_tokenization},
         payments::{self, gateway::context as gateway_context},
+        utils::create_encrypted_data,
     },
     logger,
     routes::{metrics, SessionState},
@@ -185,11 +182,13 @@ where
                 .map(|token_filter| token_filter.long_lived_token)
                 .unwrap_or(false);
 
-            let network_transaction_id = match &responses {
-                types::PaymentsResponseData::TransactionResponse { network_txn_id, .. } => {
-                    network_txn_id.clone()
-                }
-                _ => None,
+            let (network_transaction_id, network_transaction_link_id) = match &responses {
+                types::PaymentsResponseData::TransactionResponse {
+                    network_txn_id,
+                    network_txn_link_id,
+                    ..
+                } => (network_txn_id.clone(), network_txn_link_id.clone()),
+                _ => (None, None),
             };
 
             let network_transaction_id =
@@ -202,6 +201,15 @@ where
                         logger::info!("Skip storing network transaction id");
                         None
                     }
+                } else {
+                    None
+                };
+
+            let network_transaction_link_id =
+                if save_payment_method_data.request.get_setup_future_usage()
+                    == Some(storage_enums::FutureUsage::OffSession)
+                {
+                    network_transaction_link_id
                 } else {
                     None
                 };
@@ -302,7 +310,7 @@ where
                         save_payment_method_data.attempt_status,
                     );
                     pm_status = Some(payment_method_status);
-                    save_card_and_network_token_in_locker(
+                    Box::pin(save_card_and_network_token_in_locker(
                         state,
                         customer_id.clone(),
                         payment_method_status,
@@ -313,7 +321,7 @@ where
                         payment_method_create_request.clone(),
                         is_network_tokenization_enabled,
                         business_profile,
-                    )
+                    ))
                     .await?
                 };
                 let network_token_locker_id = match network_token_resp {
@@ -357,6 +365,9 @@ where
                                 &key_manager_state,
                                 platform.get_provider().get_key_store(),
                                 pm,
+                                common_utils::type_name!(
+                                    diesel_models::payment_method::PaymentMethod
+                                ),
                             )
                         })
                         .await
@@ -380,6 +391,9 @@ where
                                     &key_manager_state,
                                     platform.get_provider().get_key_store(),
                                     pm_card,
+                                    common_utils::type_name!(
+                                        diesel_models::payment_method::PaymentMethod
+                                    ),
                                 )
                             })
                             .await
@@ -398,6 +412,7 @@ where
                             &key_manager_state,
                             platform.get_provider().get_key_store(),
                             address.clone(),
+                            common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
                         )
                     })
                     .await
@@ -413,6 +428,7 @@ where
                             &key_manager_state,
                             platform.get_processor().get_key_store(),
                             customer_details,
+                            common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
                         )
                     })
                     .await
@@ -538,6 +554,7 @@ where
                                                 pm_status,
                                                 network_transaction_id,
                                                 encrypted_payment_method_billing_address,
+                                                network_transaction_link_id,
                                                 resp.card.and_then(|card| {
                                                     card.card_network.map(|card_network| {
                                                         card_network.to_string()
@@ -684,6 +701,7 @@ where
                                                     pm_status,
                                                     network_transaction_id,
                                                     encrypted_payment_method_billing_address,
+                                                    network_transaction_link_id,
                                                     resp.card.and_then(|card| {
                                                         card.card_network.map(|card_network| {
                                                             card_network.to_string()
@@ -807,6 +825,9 @@ where
                                             &key_manager_state,
                                             platform.get_provider().get_key_store(),
                                             pmd,
+                                            common_utils::type_name!(
+                                                diesel_models::payment_method::PaymentMethod
+                                            ),
                                         )
                                     })
                                     .await
@@ -912,6 +933,7 @@ where
                                     pm_status,
                                     network_transaction_id,
                                     encrypted_payment_method_billing_address,
+                                    network_transaction_link_id,
                                     resp.card.and_then(|card| {
                                         card.card_network
                                             .map(|card_network| card_network.to_string())
@@ -2133,6 +2155,9 @@ async fn generate_network_token_and_update_payment_method(
                                 &key_manager_state,
                                 platform.get_provider().get_key_store(),
                                 pm_card,
+                                common_utils::type_name!(
+                                    diesel_models::payment_method::PaymentMethod
+                                ),
                             )
                         })
                         .await

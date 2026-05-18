@@ -41,8 +41,8 @@ use hyperswitch_interfaces::{
     types::{PaymentsAuthorizeType, PaymentsSyncType, Response},
     webhooks,
 };
+use hyperswitch_masking::Mask;
 use lazy_static::lazy_static;
-use masking::Mask;
 use transformers as coinbase;
 
 use self::coinbase::CoinbaseWebhookDetails;
@@ -86,7 +86,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -119,7 +120,8 @@ impl ConnectorCommon for Coinbase {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth: coinbase::CoinbaseAuthType = coinbase::CoinbaseAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
@@ -191,7 +193,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -274,7 +277,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Coi
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -448,7 +452,8 @@ impl webhooks::IncomingWebhook for Coinbase {
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let notif: CoinbaseWebhookDetails = request
             .body
             .parse_struct("CoinbaseWebhookDetails")

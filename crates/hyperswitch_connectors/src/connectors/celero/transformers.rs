@@ -22,7 +22,7 @@ use hyperswitch_interfaces::{
     consts,
     errors::{self},
 };
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -192,6 +192,8 @@ impl TryFrom<&PaymentMethodData> for CeleroPaymentMethod {
             PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Wallet(_)
@@ -571,6 +573,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CeleroPaymentsResponse, T, PaymentsResp
                                     mandate_reference: data.get_mandate_reference(),
                                     connector_metadata: None,
                                     network_txn_id: None,
+                                    network_txn_link_id: None,
                                     connector_response_reference_id: response.auth_code.clone(),
                                     incremental_authorization_allowed: None,
                                     authentication_data: None,
@@ -693,6 +696,7 @@ impl
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -770,6 +774,7 @@ impl
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     authentication_data: None,

@@ -29,7 +29,7 @@ use hyperswitch_domain_models::{
     types::PayoutsRouterData,
 };
 use hyperswitch_interfaces::errors;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "payouts")]
@@ -325,6 +325,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GigadatPaymentResponse, T, PaymentsResp
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -362,6 +363,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GigadatTransactionStatusResponse, T, Pa
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -502,6 +504,7 @@ impl TryFrom<&GigadatRouterData<&PayoutsRouterData<PoQuote>>> for GigadatPayoutQ
             PayoutMethodData::Card(_)
             | PayoutMethodData::BankRedirect(_)
             | PayoutMethodData::Bank(_)
+            | PayoutMethodData::BankTransfer(_)
             | PayoutMethodData::Wallet(_)
             | PayoutMethodData::Passthrough(_) => Err(errors::ConnectorError::NotSupported {
                 message: "Payment Method Not Supported".to_string(),

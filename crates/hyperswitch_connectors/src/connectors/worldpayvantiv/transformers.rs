@@ -29,7 +29,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 
@@ -289,6 +289,8 @@ pub struct Sale {
     pub card: Option<WorldpayvantivCardData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub token: Option<TokenizationData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cardholder_authentication: Option<CardholderAuthentication>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enhanced_data: Option<EnhancedData>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -600,6 +602,7 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -790,6 +793,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                             .and_then(|enable_partial_authorization| {
                                 enable_partial_authorization.then_some(true)
                             }),
+                        cardholder_authentication,
                     }),
                 )
             } else {
@@ -969,6 +973,11 @@ impl From<(PaymentMethodData, Option<common_enums::PaymentChannel>)> for OrderSo
         {
             return Self::AndroidPay;
         }
+        if let PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) =
+            payment_method_data
+        {
+            return Self::Ecommerce;
+        }
 
         match payment_channel {
             Some(common_enums::PaymentChannel::Ecommerce)
@@ -1077,7 +1086,7 @@ fn get_processing_info(
                 network_transaction_id,
             )) => Ok(VantivMandateDetail {
                 processing_type: Some(VantivProcessingType::MerchantInitiatedCOF),
-                network_transaction_id: Some(network_transaction_id.into()),
+                network_transaction_id: Some(network_transaction_id.network_transaction_id.into()),
                 token: None,
             }),
             Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
@@ -1526,6 +1535,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<CnpOnlineResponse>> for PaymentsC
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             authentication_data: None,
@@ -1642,6 +1652,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<CnpOnlineResponse>> for PaymentsCa
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             authentication_data: None,
@@ -2019,6 +2030,7 @@ impl<F>
                             mandate_reference: Box::new(mandate_reference_data),
                             connector_metadata,
                             network_txn_id: sale_response.network_transaction_id.clone().map(|network_transaction_id| network_transaction_id.expose()),
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(sale_response.order_id.clone()),
                             incremental_authorization_allowed: None,
                             authentication_data: None,
@@ -2106,6 +2118,7 @@ impl<F>
                             mandate_reference: Box::new(mandate_reference_data),
                             connector_metadata,
                             network_txn_id: auth_response.network_transaction_id.clone().map(|network_transaction_id| network_transaction_id.expose()),
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(auth_response.order_id.clone()),
                             incremental_authorization_allowed: None,
                             authentication_data: None,
@@ -2251,6 +2264,7 @@ impl<F>
                                 .network_transaction_id
                                 .clone()
                                 .map(|network_transaction_id| network_transaction_id.expose()),
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(auth_response.order_id.clone()),
                             incremental_authorization_allowed: None,
                             authentication_data: None,
@@ -3585,7 +3599,7 @@ fn get_post_capture_void_status(
             | WorldpayvantivResponseCode::AccountNumberWasSuccessfullyRegistered
             | WorldpayvantivResponseCode::AccountNumberWasPreviouslyRegistered
             | WorldpayvantivResponseCode::ValidToken
-             => Ok(common_enums::PostCaptureVoidStatus::Pending),
+             => Ok(common_enums::PostCaptureVoidStatus::Succeeded),
         WorldpayvantivResponseCode::ShopperCheckoutExpired
             | WorldpayvantivResponseCode::ProcessingNetworkUnavailable
             | WorldpayvantivResponseCode::IssuerUnavailable
@@ -3954,13 +3968,12 @@ fn get_attempt_status(
             | WorldpayvantivResponseCode::AccountNumberWasPreviouslyRegistered
             | WorldpayvantivResponseCode::ValidToken
              => match flow {
-                WorldpayvantivPaymentFlow::Sale => Ok(common_enums::AttemptStatus::Pending),
-                WorldpayvantivPaymentFlow::Auth => Ok(common_enums::AttemptStatus::Authorizing),
-                WorldpayvantivPaymentFlow::Capture => Ok(common_enums::AttemptStatus::CaptureInitiated),
-                WorldpayvantivPaymentFlow::Void => Ok(common_enums::AttemptStatus::VoidInitiated),
-                WorldpayvantivPaymentFlow::VoidPC => {
-                    Ok(common_enums::AttemptStatus::VoidInitiated)
-                }
+                // For synchronous behaviour: mark approved/partially approved as terminal
+                WorldpayvantivPaymentFlow::Sale => Ok(common_enums::AttemptStatus::Charged),
+                WorldpayvantivPaymentFlow::Auth => Ok(common_enums::AttemptStatus::Authorized),
+                WorldpayvantivPaymentFlow::Capture => Ok(common_enums::AttemptStatus::Charged),
+                WorldpayvantivPaymentFlow::Void => Ok(common_enums::AttemptStatus::Voided),
+                WorldpayvantivPaymentFlow::VoidPC => Ok(common_enums::AttemptStatus::VoidedPostCharge),
             },
         WorldpayvantivResponseCode::ShopperCheckoutExpired
             | WorldpayvantivResponseCode::ProcessingNetworkUnavailable
@@ -4325,7 +4338,7 @@ fn get_refund_status(
             | WorldpayvantivResponseCode::PartiallyApproved
             | WorldpayvantivResponseCode::OfflineApproval
             | WorldpayvantivResponseCode::OfflineApprovalUnableToGoOnline => {
-                Ok(common_enums::RefundStatus::Pending)
+                Ok(common_enums::RefundStatus::Success)
             },
         WorldpayvantivResponseCode::TransactionReceived => Ok(common_enums::RefundStatus::Pending),
         WorldpayvantivResponseCode::ProcessingNetworkUnavailable
@@ -4503,6 +4516,24 @@ fn get_vantiv_card_data(
                 Some(WorldpayvantivCardData {
                     card_type,
                     number: card_data.card_number.clone(),
+                    exp_date,
+                    card_validation_num: None,
+                }),
+                None,
+            ))
+        }
+        PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(dw_token) => {
+            let card_type = match dw_token.card_network.clone() {
+                Some(card_type) => WorldpayvativCardType::try_from(card_type)?,
+                None => WorldpayvativCardType::try_from(&dw_token.get_card_issuer()?)?,
+            };
+
+            let exp_date = dw_token.get_expiry_date_as_mmyy()?;
+
+            Ok((
+                Some(WorldpayvantivCardData {
+                    card_type,
+                    number: cards::CardNumber::from(dw_token.decrypted_token.clone()),
                     exp_date,
                     card_validation_num: None,
                 }),

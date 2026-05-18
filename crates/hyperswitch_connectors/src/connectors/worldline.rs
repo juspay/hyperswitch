@@ -46,7 +46,7 @@ use hyperswitch_interfaces::{
     },
     webhooks::{self, IncomingWebhookFlowError},
 };
-use masking::{ExposeInterface, Mask, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface};
 use ring::hmac;
 use router_env::logger;
 use time::{format_description, OffsetDateTime};
@@ -107,7 +107,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let base_url = self.base_url(connectors);
         let url = Self::get_url(self, req, connectors)?;
         let endpoint = url.replace(base_url, "");
@@ -211,7 +212,8 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
         &self,
         req: &RouterData<Void, PaymentsCancelData, PaymentsResponseData>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -290,7 +292,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         &self,
         req: &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -366,7 +369,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         req: &RouterData<Capture, PaymentsCaptureData, PaymentsResponseData>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -466,7 +470,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -553,7 +558,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldli
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -638,7 +644,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldline
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -789,7 +796,8 @@ impl webhooks::IncomingWebhook for Worldline {
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let details = request
             .body
             .parse_struct::<worldline::WebhookBody>("WorldlineWebhookObjectId")
@@ -805,6 +813,9 @@ impl webhooks::IncomingWebhook for Worldline {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _error_kind: Option<IncomingWebhookFlowError>,
+        _connector_authentication_type: Option<
+            crypto::Encryptable<hyperswitch_masking::Secret<serde_json::Value>>,
+        >,
     ) -> CustomResult<
         hyperswitch_domain_models::api::ApplicationResponse<serde_json::Value>,
         errors::ConnectorError,

@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -387,6 +387,8 @@ impl TryFrom<&MollieRouterData<&types::SetupMandateRouterData>> for MolliePaymen
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::BankTransfer(_)
@@ -947,6 +949,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MolliePaymentsResponse, T, PaymentsResp
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
