@@ -1508,6 +1508,16 @@ export const connectorDetails = {
         amount_to_capture: 2000,
       },
     }),
+    MultipleCapture: getCustomExchange({
+      Request: {
+        amount_to_capture: 3000,
+      },
+    }),
+    MultipleCaptureOvercapture: getCustomExchange({
+      Request: {
+        amount_to_capture: 7000,
+      },
+    }),
     Void: getCustomExchange({
       Request: {},
       Response: {

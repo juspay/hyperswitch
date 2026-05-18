@@ -229,6 +229,36 @@ export const connectorDetails = {
         },
       },
     },
+    MultipleCapture: {
+      Request: {
+        amount_to_capture: 3000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+          amount: 6000,
+          amount_capturable: 6000,
+          amount_received: null,
+        },
+      },
+    },
+    MultipleCaptureOvercapture: {
+      Request: {
+        amount_to_capture: 7000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be captured because it has exceeded the maximum amount to capture limit.",
+            code: "IR_14",
+          },
+        },
+      },
+    },
     VoidAfterConfirm: getCustomExchange({
       Request: {},
       Response: {
