@@ -118,7 +118,7 @@ describe("Card - Multiple Capture payment flow test", () => {
           }
           const captureData = getConnectorDetails(
             globalState.get("connectorId")
-          )["card_pm"]["PartialCapture"];
+          )["card_pm"]["MultipleCapturePartial"];
 
           cy.captureCallTest(
             fixtures.captureBody,
@@ -138,7 +138,7 @@ describe("Card - Multiple Capture payment flow test", () => {
           }
           const captureData = getConnectorDetails(
             globalState.get("connectorId")
-          )["card_pm"]["PartialCapture"];
+          )["card_pm"]["MultipleCapturePartial"];
 
           cy.captureCallTest(
             fixtures.captureBody,
@@ -158,7 +158,7 @@ describe("Card - Multiple Capture payment flow test", () => {
           }
           const captureData = getConnectorDetails(
             globalState.get("connectorId")
-          )["card_pm"]["MultipleCapture"];
+          )["card_pm"]["MultipleCaptureFinal"];
 
           cy.captureCallTest(
             fixtures.captureBody,
@@ -181,7 +181,7 @@ describe("Card - Multiple Capture payment flow test", () => {
           }
           const captureData = getConnectorDetails(
             globalState.get("connectorId")
-          )["card_pm"]["MultipleCapture"];
+          )["card_pm"]["MultipleCaptureRetrieve"];
 
           cy.retrievePaymentCallTest({ globalState, data: captureData });
         });
@@ -249,7 +249,7 @@ describe("Card - Multiple Capture payment flow test", () => {
           }
           const captureData = getConnectorDetails(
             globalState.get("connectorId")
-          )["card_pm"]["PartialCapture"];
+          )["card_pm"]["MultipleCapturePartial"];
 
           cy.captureCallTest(
             fixtures.captureBody,
