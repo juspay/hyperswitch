@@ -3387,5 +3387,101 @@ export const connectorDetails = {
         status: 200,
       },
     }),
+    PaymentLinkCardPayment: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        description: "Test Payment Link Card Payment",
+        email: "test@example.com",
+      },
+      CardData: {
+        card_number: "4242424242424242",
+        card_exp_month: "12",
+        card_exp_year: "35",
+        card_cvc: "123",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    PaymentLink3DSCard: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        description: "Test Payment Link 3DS Card",
+        email: "test@example.com",
+        authentication_type: "three_ds",
+      },
+      CardData: {
+        card_number: "4000002500003155",
+        card_exp_month: "12",
+        card_exp_year: "35",
+        card_cvc: "123",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    }),
+    PaymentLinkInvalidCard: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        description: "Test Payment Link Invalid Card",
+        email: "test@example.com",
+      },
+      CardData: {
+        card_number: "4000000000000002",
+        card_exp_month: "12",
+        card_exp_year: "35",
+        card_cvc: "123",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+        },
+      },
+    }),
+    PaymentLinkExpiredCard: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        description: "Test Payment Link Expired Card",
+        email: "test@example.com",
+      },
+      CardData: {
+        card_number: "4000000000000069",
+        card_exp_month: "12",
+        card_exp_year: "20",
+        card_cvc: "123",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+        },
+      },
+    }),
+    PaymentLinkTabsLayout: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        amount: 6500,
+        description: "Test with tabs layout",
+        email: "test@example.com",
+        payment_link_config: {
+          sdk_layout: "tabs",
+          display_sdk_only: false,
+        },
+      },
+      Response: {
+        status: 200,
+      },
+    }),
   },
 };

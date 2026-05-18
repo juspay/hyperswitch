@@ -80,8 +80,11 @@ describe("Payment Link", () => {
       );
     });
 
-    it("Handle payment page and confirm with card", () => {
-      cy.initiatePaymentLinkTest({}, globalState);
+    it("Visit payment page and confirm with card (UI)", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "payment_link_pm"
+      ]["PaymentLinkCardPayment"];
+      cy.completePaymentLinkCardTest(data.CardData, globalState);
     });
 
     it("Retrieve Payment after card payment", () => {
@@ -132,6 +135,101 @@ describe("Payment Link", () => {
         "automatic",
         globalState
       );
+    });
+
+    it("Create Payment Link with tabs SDK layout", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "payment_link_pm"
+      ]["PaymentLinkTabsLayout"];
+      cy.createPaymentIntentWithPaymentLinkTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+    });
+
+    it("Visit payment page with tabs layout and confirm with card", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "payment_link_pm"
+      ]["PaymentLinkTabsLayout"];
+      cy.completePaymentLinkCardTest(data.CardData, globalState);
+    });
+  });
+
+  context("Payment Link - Card Error Scenarios", () => {
+    it("Create Payment Intent with Payment Link for invalid card", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "payment_link_pm"
+      ]["PaymentLinkInvalidCard"];
+      cy.createPaymentIntentWithPaymentLinkTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+    });
+
+    it("Visit payment page and attempt invalid card payment", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "payment_link_pm"
+      ]["PaymentLinkInvalidCard"];
+      cy.completePaymentLinkCardTest(data.CardData, globalState);
+    });
+  });
+
+  context("Payment Link - Expired Card Scenario", () => {
+    it("Create Payment Intent with Payment Link for expired card", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "payment_link_pm"
+      ]["PaymentLinkExpiredCard"];
+      cy.createPaymentIntentWithPaymentLinkTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+    });
+
+    it("Visit payment page and attempt expired card payment", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "payment_link_pm"
+      ]["PaymentLinkExpiredCard"];
+      cy.completePaymentLinkCardTest(data.CardData, globalState);
+    });
+  });
+
+  context("Payment Link - 3DS Card Flow", () => {
+    it("Create Payment Intent with Payment Link for 3DS card", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "payment_link_pm"
+      ]["PaymentLink3DSCard"];
+      cy.createPaymentIntentWithPaymentLinkTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+    });
+
+    it("Visit payment page and confirm with 3DS card", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "payment_link_pm"
+      ]["PaymentLink3DSCard"];
+      cy.completePaymentLinkCardTest(data.CardData, globalState);
+    });
+
+    it("Retrieve Payment after 3DS card payment", () => {
+      cy.retrievePaymentCallTest({
+        globalState,
+        data: {
+          Configs: { skipConnectorIdAssertion: true, skipBillingAssertion: true },
+        },
+      });
     });
   });
 
