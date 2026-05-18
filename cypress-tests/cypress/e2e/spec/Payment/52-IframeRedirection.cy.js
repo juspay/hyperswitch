@@ -229,10 +229,9 @@ describe("Iframe Redirection Payment Flow Tests", () => {
         const connectorId = globalState.get("connectorId");
         const expectedStatus =
           connectorId === "worldpayxml" ? "processing" : "succeeded";
-        cy.wrap(globalState.get("paymentIntentStatus")).should(
-          "equal",
-          expectedStatus
-        );
+        cy.verifyIframeRedirection(globalState, {
+          expectedStatus: expectedStatus,
+        });
       });
     });
   });

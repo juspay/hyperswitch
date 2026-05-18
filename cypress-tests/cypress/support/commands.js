@@ -8288,6 +8288,28 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
   });
 });
 
+Cypress.Commands.add("verifyIframeRedirection", (globalState, options = {}) => {
+  const {
+    expectRedirectInsidePopup = true,
+    expectedStatus = "requires_customer_action",
+  } = options;
+
+  cy.wrap(globalState.get("paymentIntentStatus")).should(
+    "equal",
+    expectedStatus
+  );
+
+  if (expectedStatus === "requires_customer_action") {
+    if (expectRedirectInsidePopup) {
+      cy.wrap(globalState.get("nextActionType")).should(
+        "equal",
+        "redirect_inside_popup"
+      );
+    }
+
+    cy.wrap(globalState.get("nextActionUrl")).should("not.be.null");
+  }
+});
 Cypress.Commands.add(
   "relayCallTest",
   (requestBody, data, globalState, isErrorTest = false) => {
