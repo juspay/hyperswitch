@@ -8294,20 +8294,16 @@ Cypress.Commands.add("verifyIframeRedirection", (globalState, options = {}) => {
     expectedStatus = "requires_customer_action",
   } = options;
 
-  cy.wrap(globalState.get("paymentIntentStatus")).should(
-    "equal",
-    expectedStatus
-  );
+  expect(globalState.get("paymentIntentStatus")).to.equal(expectedStatus);
 
   if (expectedStatus === "requires_customer_action") {
     if (expectRedirectInsidePopup) {
-      cy.wrap(globalState.get("nextActionType")).should(
-        "equal",
+      expect(globalState.get("nextActionType")).to.equal(
         "redirect_inside_popup"
       );
     }
 
-    cy.wrap(globalState.get("nextActionUrl")).should("not.be.null");
+    expect(globalState.get("nextActionUrl")).to.not.be.null;
   }
 });
 Cypress.Commands.add(
