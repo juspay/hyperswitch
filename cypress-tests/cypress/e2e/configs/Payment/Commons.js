@@ -3470,7 +3470,7 @@ export const connectorDetails = {
           card: {
             card_number: "4000000000000069",
             card_exp_month: "12",
-            card_exp_year: "20",
+            card_exp_year: "35",
             card_cvc: "123",
           },
         },
@@ -3480,7 +3480,7 @@ export const connectorDetails = {
       CardData: {
         card_number: "4000000000000069",
         card_exp_month: "12",
-        card_exp_year: "20",
+        card_exp_year: "35",
         card_cvc: "123",
       },
       Response: {
