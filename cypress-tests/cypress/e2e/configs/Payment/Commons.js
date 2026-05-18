@@ -830,6 +830,25 @@ export const connectorDetails = {
       }),
     },
     BancontactCard: {
+      ...getCustomExchange({
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "bancontact_card",
+          payment_method_data: {
+            bank_redirect: {
+              bancontact_card: {
+                card_number: "6703444444444449",
+                card_exp_month: "03",
+                card_exp_year: "2030",
+              },
+            },
+          },
+          billing: standardBillingAddress,
+        },
+      }),
       MandateSingleUse: getCustomExchange({
         Request: {},
         Response: {

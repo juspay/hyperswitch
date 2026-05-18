@@ -704,6 +704,7 @@ function bankRedirectRedirection(
                 break;
               case "open_banking_uk":
                 cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+                cy.url().should("include", "adyen");
                 cy.log("Adyen OpenBankingUk redirect page loaded - sandbox error page, skipping interaction");
                 verifyUrl = false;
                 break;

@@ -1,7 +1,6 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
-import { CONNECTOR_LISTS, shouldIncludeConnector } from "../../configs/Payment/Utils";
 
 let globalState;
 
@@ -718,9 +717,9 @@ describe("Bank Redirect tests", () => {
   context("BancontactCard - MandateSingleUse CIT", () => {
     before(function () {
       if (
-        shouldIncludeConnector(
+        utils.shouldIncludeConnector(
           globalState.get("connectorId"),
-          CONNECTOR_LISTS.INCLUDE.BANK_REDIRECT_MANDATE
+          utils.CONNECTOR_LISTS.INCLUDE.BANK_REDIRECT_MANDATE
         )
       ) {
         this.skip();
@@ -765,6 +764,14 @@ describe("Bank Redirect tests", () => {
           return;
         }
         cy.listMandateCallTest(globalState);
+      });
+
+      cy.step("Revoke Mandate", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Revoke Mandate");
+          return;
+        }
+        cy.revokeMandateCallTest(globalState);
       });
     });
   });
@@ -772,9 +779,9 @@ describe("Bank Redirect tests", () => {
   context("iDEAL - MandateSingleUse CIT", () => {
     before(function () {
       if (
-        shouldIncludeConnector(
+        utils.shouldIncludeConnector(
           globalState.get("connectorId"),
-          CONNECTOR_LISTS.INCLUDE.BANK_REDIRECT_MANDATE
+          utils.CONNECTOR_LISTS.INCLUDE.BANK_REDIRECT_MANDATE
         )
       ) {
         this.skip();
@@ -819,6 +826,14 @@ describe("Bank Redirect tests", () => {
           return;
         }
         cy.listMandateCallTest(globalState);
+      });
+
+      cy.step("Revoke Mandate", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Revoke Mandate");
+          return;
+        }
+        cy.revokeMandateCallTest(globalState);
       });
     });
   });
@@ -826,9 +841,9 @@ describe("Bank Redirect tests", () => {
   context("OpenBankingUk - MandateSingleUse CIT", () => {
     before(function () {
       if (
-        shouldIncludeConnector(
+        utils.shouldIncludeConnector(
           globalState.get("connectorId"),
-          CONNECTOR_LISTS.INCLUDE.BANK_REDIRECT_MANDATE
+          utils.CONNECTOR_LISTS.INCLUDE.BANK_REDIRECT_MANDATE
         )
       ) {
         this.skip();
@@ -873,6 +888,14 @@ describe("Bank Redirect tests", () => {
           return;
         }
         cy.listMandateCallTest(globalState);
+      });
+
+      cy.step("Revoke Mandate", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Revoke Mandate");
+          return;
+        }
+        cy.revokeMandateCallTest(globalState);
       });
     });
   });
@@ -880,9 +903,9 @@ describe("Bank Redirect tests", () => {
   context("Trustly - MandateSingleUse CIT", () => {
     before(function () {
       if (
-        shouldIncludeConnector(
+        utils.shouldIncludeConnector(
           globalState.get("connectorId"),
-          CONNECTOR_LISTS.INCLUDE.BANK_REDIRECT_MANDATE
+          utils.CONNECTOR_LISTS.INCLUDE.BANK_REDIRECT_MANDATE
         )
       ) {
         this.skip();
@@ -927,6 +950,14 @@ describe("Bank Redirect tests", () => {
           return;
         }
         cy.listMandateCallTest(globalState);
+      });
+
+      cy.step("Revoke Mandate", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Revoke Mandate");
+          return;
+        }
+        cy.revokeMandateCallTest(globalState);
       });
     });
   });

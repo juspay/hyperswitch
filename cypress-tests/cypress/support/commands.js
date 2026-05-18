@@ -4231,6 +4231,8 @@ Cypress.Commands.add(
                 }
                 cy.log(nextActionUrl);
               }
+              // Response body key comparison runs for all three_ds paths, including succeeded status
+              // — the redirect URL is extracted above when status !== succeeded, but all response keys are verified here
               for (const key in resData.body) {
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
@@ -4284,6 +4286,8 @@ Cypress.Commands.add(
                 }
                 cy.log(nextActionUrl);
               }
+              // Response body key comparison runs for all three_ds paths, including succeeded status
+              // — the redirect URL is extracted above when status !== succeeded, but all response keys are verified here
               for (const key in resData.body) {
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]

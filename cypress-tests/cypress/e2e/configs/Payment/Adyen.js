@@ -1068,7 +1068,7 @@ export const connectorDetails = {
           },
           phone: {
             number: "9123456789",
-            country_code: "+91",
+            country_code: "+31",
           },
         },
       },
@@ -1089,6 +1089,20 @@ export const connectorDetails = {
               },
             },
           },
+          browser_info: {
+            user_agent:
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+            accept_header:
+              "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+            language: "nl-NL",
+            color_depth: 24,
+            screen_height: 723,
+            screen_width: 1536,
+            time_zone: 0,
+            java_enabled: true,
+            java_script_enabled: true,
+            ip_address: "127.0.0.1",
+          },
           currency: "EUR",
           billing: {
             address: {
@@ -1104,13 +1118,13 @@ export const connectorDetails = {
             },
             phone: {
               number: "9123456789",
-              country_code: "+91",
+              country_code: "+31",
             },
           },
           mandate_data: {
             customer_acceptance: {
               acceptance_type: "online",
-              accepted_at: "2025-01-01T00:00:00.000Z",
+              accepted_at: new Date().toISOString(),
               online: {
                 ip_address: "127.0.0.1",
                 user_agent: "Mozilla/5.0",
@@ -1161,7 +1175,7 @@ export const connectorDetails = {
           email: "test@example.com",
           phone: {
             number: "9123456789",
-            country_code: "+1",
+            country_code: "+32",
           },
         },
       },
@@ -1215,13 +1229,13 @@ export const connectorDetails = {
             email: "test@example.com",
             phone: {
               number: "9123456789",
-              country_code: "+1",
+              country_code: "+32",
             },
           },
           mandate_data: {
             customer_acceptance: {
               acceptance_type: "online",
-              accepted_at: "2025-01-01T00:00:00.000Z",
+              accepted_at: new Date().toISOString(),
               online: {
                 ip_address: "127.0.0.1",
                 user_agent: "Mozilla/5.0",
@@ -1290,6 +1304,20 @@ export const connectorDetails = {
               },
             },
           },
+          browser_info: {
+            user_agent:
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+            accept_header:
+              "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+            language: "nl-NL",
+            color_depth: 24,
+            screen_height: 723,
+            screen_width: 1536,
+            time_zone: 0,
+            java_enabled: true,
+            java_script_enabled: true,
+            ip_address: "127.0.0.1",
+          },
           currency: "GBP",
           billing: {
             address: {
@@ -1309,7 +1337,7 @@ export const connectorDetails = {
           mandate_data: {
             customer_acceptance: {
               acceptance_type: "online",
-              accepted_at: "2025-01-01T00:00:00.000Z",
+              accepted_at: new Date().toISOString(),
               online: {
                 ip_address: "127.0.0.1",
                 user_agent: "Mozilla/5.0",
@@ -1414,7 +1442,7 @@ export const connectorDetails = {
           mandate_data: {
             customer_acceptance: {
               acceptance_type: "online",
-              accepted_at: "2025-01-01T00:00:00.000Z",
+              accepted_at: new Date().toISOString(),
               online: {
                 ip_address: "127.0.0.1",
                 user_agent: "Mozilla/5.0",
