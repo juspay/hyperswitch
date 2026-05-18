@@ -11552,25 +11552,8 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     platform: domain::Platform,
     req: api_models::payments::PaymentsExternalAuthenticationRequest,
 ) -> RouterResponse<api_models::payments::PaymentsExternalAuthenticationResponse> {
-    // use super::unified_authentication_service::types::ExternalAuthentication;
-    // use crate::core::unified_authentication_service::{
-    //     types::UnifiedAuthenticationService, utils::external_authentication_update_trackers,
-    // };
-
     let db = &*state.store;
     let key_manager_state = &(&(state)).into();
-
-    let dimensions = Dimensions::new()
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_organization_id(
-            platform
-                .get_processor()
-                .get_account()
-                .organization_id
-                .clone(),
-        );
-
     let processor_merchant_id = platform.get_processor().get_account().get_id();
     let storage_scheme = platform.get_processor().get_account().storage_scheme;
     let payment_id = req.payment_id;
