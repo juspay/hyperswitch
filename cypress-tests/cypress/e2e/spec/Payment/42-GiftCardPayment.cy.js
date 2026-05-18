@@ -299,3 +299,80 @@ describe("Gift Card Payment - Adyen Givex", () => {
     });
   });
 });
+
+describe("PaySafeCard Payment - Paysafe", () => {
+  let globalState;
+  let connector;
+
+  before("seed global state", function () {
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+        connector = globalState.get("connectorId");
+
+        if (
+          shouldIncludeConnector(
+            connector,
+            CONNECTOR_LISTS.INCLUDE.PAYSAFECARD_GIFT_CARD
+          )
+        ) {
+          skip = true;
+          return;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          cy.log(
+            `Skipping PaySafeCard tests for connector: ${connector} — not in PAYSAFECARD_GIFT_CARD inclusion list`
+          );
+          this.skip();
+        }
+      });
+  });
+
+  after("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
+
+  afterEach("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
+
+  context("PaySafeCard - Create and Confirm flow test", () => {
+    it("create-and-confirm-paysafecard-payment", () => {
+      let shouldContinue = true;
+
+      cy.step("Create and Confirm PaySafeCard Payment", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "gift_card_pm"
+        ]["PaySafeCard"];
+
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "gift_card_pm"
+        ]["PaySafeCard"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+    });
+  });
+});

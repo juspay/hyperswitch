@@ -614,7 +614,7 @@ export const payment_methods_enabled = [
       },
       {
         payment_method_type: "pay_safe_card",
-        payment_experience: null,
+        payment_experience: "redirect_to_url",
         card_networks: null,
         accepted_currencies: null,
         accepted_countries: null,
@@ -1213,6 +1213,19 @@ export const connectorDetails = {
           },
         },
         billing: standardBillingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    Skrill: getCustomExchange({
+      Configs: { TRIGGER_SKIP: true },
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "skrill",
       },
       Response: {
         status: 200,
@@ -3632,6 +3645,19 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: { status: "failed" },
+      },
+    }),
+    PaySafeCard: getCustomExchange({
+      Configs: { TRIGGER_SKIP: true },
+      Request: {
+        payment_method: "gift_card",
+        payment_method_type: "pay_safe_card",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
       },
     }),
   },
