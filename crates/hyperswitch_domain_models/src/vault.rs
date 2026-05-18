@@ -17,6 +17,7 @@ pub enum PaymentMethodVaultingData {
     NetworkToken(payment_method_data::NetworkTokenDetails),
     CardNumber(cards::CardNumber),
     BankDebit(payment_method_data::BankDebitDetail),
+    Wallet(payment_method_data::WalletDetail),
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum FingerprintData {
@@ -24,6 +25,14 @@ pub enum FingerprintData {
     NetworkToken(FingerprintNetworkTokenData),
     CardNumber(cards::CardNumber),
     BankDebit(FingerprintBankDebitData),
+    Wallet(FingerprintWalletData),
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
+pub struct FingerprintWalletData {
+    application_primary_account_number: cards::CardNumber,
+    expiry_month: hyperswitch_masking::Secret<String>,
+    expiry_year: hyperswitch_masking::Secret<String>,
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum AuxiliaryFingerprintData {
@@ -58,7 +67,9 @@ impl PaymentMethodVaultingData {
     pub fn get_card(&self) -> Option<&payment_methods::CardDetail> {
         match self {
             Self::Card(card) => Some(card),
-            Self::NetworkToken(_) | Self::CardNumber(_) | Self::BankDebit(_) => None,
+            Self::NetworkToken(_) | Self::CardNumber(_) | Self::BankDebit(_) | Self::Wallet(_) => {
+                None
+            }
         }
     }
 
@@ -68,7 +79,7 @@ impl PaymentMethodVaultingData {
             Self::Card(card_details) => {
                 card_details.card_cvc = Some(card_cvc);
             }
-            Self::NetworkToken(_) | Self::CardNumber(_) | Self::BankDebit(_) => {}
+            Self::NetworkToken(_) | Self::CardNumber(_) | Self::BankDebit(_) | Self::Wallet(_) => {}
         }
     }
 
@@ -86,6 +97,7 @@ impl PaymentMethodVaultingData {
             Self::BankDebit(bank_debit) => Some(payment_methods::RawPaymentMethodData::BankDebit(
                 bank_debit.clone().into(),
             )),
+            Self::Wallet(_) => None,
         }
     }
 
@@ -120,7 +132,7 @@ impl PaymentMethodVaultingData {
 
                 Ok(Self::Card(card_detail))
             }
-            Self::NetworkToken(_) | Self::BankDebit(_) => Ok(self.clone()),
+            Self::NetworkToken(_) | Self::BankDebit(_) | Self::Wallet(_) => Ok(self.clone()),
             Self::CardNumber(card_number) => {
                 let payment_methods_data = payment_methods_data_optional
                     .get_required_value("payment methods data")
@@ -203,6 +215,24 @@ impl PaymentMethodVaultingData {
             Self::BankDebit(bank_debit) => payment_method_data::PaymentMethodsData::BankDebit(
                 payment_method_data::BankDebitDetailsPaymentMethod::from(bank_debit.clone()),
             ),
+            Self::Wallet(wallet) => {
+                let wallet_info = match wallet {
+                    payment_method_data::WalletDetail::ApplePayDecryptedData {
+                        application_primary_account_number,
+                        expiry_month,
+                        expiry_year,
+                    } => payment_methods::PaymentMethodDataWalletInfo {
+                        last4: Some(application_primary_account_number.get_last4()),
+                        card_network: None,
+                        card_type: None,
+                        card_exp_month: Some(expiry_month.clone()),
+                        card_exp_year: Some(expiry_year.clone()),
+                        auth_code: None,
+                        email: None,
+                    },
+                };
+                payment_method_data::PaymentMethodsData::WalletDetails(wallet_info)
+            }
         }
     }
 
@@ -222,6 +252,24 @@ impl PaymentMethodVaultingData {
             Self::CardNumber(card_number) => FingerprintData::CardNumber(card_number.clone()),
             Self::BankDebit(bank_debit) => {
                 FingerprintData::BankDebit(Self::get_bank_debit_fingerprint_data(bank_debit))
+            }
+            Self::Wallet(wallet) => {
+                let (application_primary_account_number, expiry_month, expiry_year) = match wallet {
+                    payment_method_data::WalletDetail::ApplePayDecryptedData {
+                        application_primary_account_number,
+                        expiry_month,
+                        expiry_year,
+                    } => (
+                        application_primary_account_number.clone(),
+                        expiry_month.clone(),
+                        expiry_year.clone(),
+                    ),
+                };
+                FingerprintData::Wallet(FingerprintWalletData {
+                    application_primary_account_number,
+                    expiry_month,
+                    expiry_year,
+                })
             }
         }
     }
@@ -244,6 +292,10 @@ impl PaymentMethodVaultingData {
                 };
                 AuxiliaryFingerprintData::BankDebit(account_number)
             }
+            Self::Wallet(payment_method_data::WalletDetail::ApplePayDecryptedData {
+                application_primary_account_number,
+                ..
+            }) => AuxiliaryFingerprintData::CardNumber(application_primary_account_number.clone()),
         }
     }
 
@@ -410,6 +462,9 @@ impl From<payment_methods::PaymentMethodCreateData> for PaymentMethodVaultingDat
             payment_methods::PaymentMethodCreateData::BankDebit(bank_debit_detail) => {
                 Self::BankDebit(bank_debit_detail.into())
             }
+            payment_methods::PaymentMethodCreateData::Wallet(wallet_detail) => {
+                Self::Wallet(wallet_detail.into())
+            }
         }
     }
 }
@@ -445,6 +500,13 @@ impl TryFrom<PaymentMethodVaultingData> for PaymentMethodCustomVaultingData {
                 errors::api_error_response::ApiErrorResponse::NotImplemented {
                     message: errors::api_error_response::NotImplementedMessage::Reason(
                         "PaymentMethodCustomVaultingData not implemented for BankDebit".to_string(),
+                    ),
+                },
+            )?,
+            PaymentMethodVaultingData::Wallet(_) => Err(
+                errors::api_error_response::ApiErrorResponse::NotImplemented {
+                    message: errors::api_error_response::NotImplementedMessage::Reason(
+                        "PaymentMethodCustomVaultingData not implemented for Wallet".to_string(),
                     ),
                 },
             )?,

@@ -3668,6 +3668,116 @@ export const connectorDetails = {
       },
     }),
   },
+  relay_pm: {
+    RefundRelay: {
+      Request: {
+        type: "refund",
+        data: {
+          refund: {
+            amount: 1000,
+            currency: "USD",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          type: "refund",
+        },
+      },
+    },
+    CaptureRelay: {
+      Request: {
+        type: "capture",
+        data: {
+          capture: {
+            authorized_amount: 2000,
+            amount_to_capture: 1500,
+            currency: "USD",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          type: "capture",
+        },
+      },
+    },
+    RetrieveRelay: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          type: "refund",
+        },
+      },
+    },
+    RetrieveCaptureRelay: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          type: "capture",
+        },
+      },
+    },
+    MissingConnectorId: {
+      Request: {
+        connector_resource_id: "test_connector_resource_id",
+        type: "refund",
+        data: {
+          refund: {
+            amount: 1000,
+            currency: "USD",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            message: "Json deserialize error: missing field `connector_id`",
+            code: "IR_06",
+          },
+        },
+      },
+    },
+    InvalidRelayType: {
+      Request: {
+        connector_resource_id: "test_connector_resource_id",
+        connector_id: "test_connector_id",
+        type: "invalid_type",
+        data: {
+          refund: {
+            amount: 1000,
+            currency: "USD",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            message: "Json deserialize error: unknown variant `invalid_type`",
+            code: "IR_06",
+          },
+        },
+      },
+    },
+    RelayNotFound: {
+      Request: {},
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            code: "IR_37",
+            message: "relay not found",
+          },
+        },
+      },
+    },
+  },
   step_up_auth: {
     PaymentIntentOnly: getCustomExchange({
       Request: {
