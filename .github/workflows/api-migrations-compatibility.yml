@@ -28,7 +28,6 @@ concurrency:
 jobs:
   api-compatibility-check:
     name: API Compatibility Check
-    if: ${{ github.head_ref != 'mitm-pilot' }} # MITM replay CI dry-run: skip unrelated checks on this branch
     runs-on: ubuntu-latest
 
     steps:
@@ -122,7 +121,6 @@ jobs:
 
   migration-compatibility-check:
     name: Migration Breaking Change Detection
-    if: ${{ github.head_ref != 'mitm-pilot' }} # MITM replay CI dry-run: skip unrelated checks on this branch
     runs-on: ubuntu-latest
 
     steps:

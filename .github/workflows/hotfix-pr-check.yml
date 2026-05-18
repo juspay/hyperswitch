@@ -12,7 +12,6 @@ on:
 jobs:
   hotfix_pr_check:
     name: Verify Hotfix PR
-    if: ${{ github.head_ref != 'mitm-pilot' }} # MITM replay CI dry-run: skip unrelated checks on this branch
     runs-on: ubuntu-latest
     env:
       HOTFIX_PR_AUTHOR: ${{ github.event.pull_request.user.login }}

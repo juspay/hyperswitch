@@ -39,7 +39,6 @@ env:
 jobs:
   formatter:
     name: Run formatter on Cypress tests and address lints
-    if: false # MITM replay CI dry-run: skip unrelated Cypress formatter job
     runs-on: ubuntu-latest
     steps:
       - name: Generate a token
@@ -98,7 +97,6 @@ jobs:
 
   build-hyperswitch:
     name: Build hyperswitch server
-    if: false # MITM replay CI dry-run: reuse a prior hyperswitch-server artifact
     runs-on:  hyperswitch-runners
     env:
       # Use `sccache` for caching compilation artifacts
@@ -154,7 +152,6 @@ jobs:
 
   prepare-mandatory-matrix:
     name: Prepare Mandatory Connectors matrix to run cypress tests
-    if: false # MITM replay CI dry-run: skip unrelated Cypress matrix
     runs-on: hyperswitch-runners
     outputs:
       mandatory-matrix: ${{ steps.set-mandatory-matrix.outputs.matrix }}
@@ -424,7 +421,6 @@ jobs:
     name: Mandatory Cypress Tests — Consolidated Result
     needs: [mandatory-cypress-tests]
     runs-on: ubuntu-latest
-    if: false # MITM replay CI dry-run: skip unrelated Cypress result gate
     permissions:
       pull-requests: write
     steps:
@@ -1490,7 +1486,6 @@ jobs:
 
   runner_v2:
     name: Run Cypress tests on v2 and generate coverage report
-    if: false # MITM replay CI dry-run: skip unrelated Cypress v2 job
     runs-on: hyperswitch-runners
     permissions:
       pull-requests: write

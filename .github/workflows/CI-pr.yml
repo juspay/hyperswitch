@@ -34,7 +34,6 @@ env:
 jobs:
   formatting:
     name: Check formatting
-    if: ${{ github.head_ref != 'mitm-pilot' }} # MITM replay CI dry-run: skip unrelated checks on this branch
     runs-on: ubuntu-latest
     steps:
       - name: Generate a token
@@ -84,7 +83,6 @@ jobs:
 
   check-msrv:
     name: Check compilation on MSRV toolchain
-    if: ${{ github.head_ref != 'mitm-pilot' }} # MITM replay CI dry-run: skip unrelated checks on this branch
     runs-on: ${{ matrix.runner }}
 
     env:
@@ -136,7 +134,6 @@ jobs:
 
   test:
     name: Run tests on stable toolchain
-    if: ${{ github.head_ref != 'mitm-pilot' }} # MITM replay CI dry-run: skip unrelated checks on this branch
     runs-on: ${{ matrix.runner }}
 
     env:
@@ -230,7 +227,6 @@ jobs:
 
   typos:
     name: Spell check
-    if: ${{ github.head_ref != 'mitm-pilot' }} # MITM replay CI dry-run: skip unrelated checks on this branch
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -241,7 +237,6 @@ jobs:
 
   typos-required:
     name: Spell check specific critical directories
-    if: ${{ github.head_ref != 'mitm-pilot' }} # MITM replay CI dry-run: skip unrelated checks on this branch
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -264,7 +259,6 @@ jobs:
 
   check-v2:
     name: Check compilation for V2 features
-    if: ${{ github.head_ref != 'mitm-pilot' }} # MITM replay CI dry-run: skip unrelated checks on this branch
     runs-on: ubuntu-latest
 
     steps:
