@@ -3592,6 +3592,7 @@ export const connectorDetails = {
         status: 400,
         body: {
           error: {
+            message: "Json deserialize error: missing field `connector_id`",
             code: "IR_06",
           },
         },
@@ -3613,6 +3614,7 @@ export const connectorDetails = {
         status: 400,
         body: {
           error: {
+            message: "Json deserialize error: unknown variant `invalid_type`",
             code: "IR_06",
           },
         },

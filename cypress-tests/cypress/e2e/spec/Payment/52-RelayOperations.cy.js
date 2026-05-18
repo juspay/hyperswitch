@@ -36,7 +36,7 @@ describe("Relay Operations", () => {
       });
   });
 
-  afterEach("flush global state", () => {
+  after("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
@@ -189,7 +189,7 @@ describe("Relay Operations", () => {
         "relay_pm"
       ]["MissingConnectorId"];
 
-      cy.relayErrorCallTest(data, globalState);
+      cy.relayCallTest({}, data, globalState, true);
     });
 
     it("POST /relay with invalid relay type → 400 IR_06", () => {
@@ -197,7 +197,7 @@ describe("Relay Operations", () => {
         "relay_pm"
       ]["InvalidRelayType"];
 
-      cy.relayErrorCallTest(data, globalState);
+      cy.relayCallTest({}, data, globalState, true);
     });
 
     it("GET /relay with non-existent relay_id → 400 IR_37", () => {
@@ -205,10 +205,11 @@ describe("Relay Operations", () => {
         "relay_pm"
       ]["RelayNotFound"];
 
-      cy.retrieveRelayErrorCallTest(
-        "relay_InvalidIdForTesting123",
+      cy.retrieveRelayCallTest(
         data,
-        globalState
+        globalState,
+        false,
+        "relay_InvalidIdForTesting123"
       );
     });
   });
