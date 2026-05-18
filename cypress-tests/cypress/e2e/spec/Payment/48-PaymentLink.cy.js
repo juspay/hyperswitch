@@ -112,7 +112,7 @@ describe("Payment Link", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "payment_link_pm"
       ]["PaymentLinkCardPayment"];
-      cy.completePaymentLinkCardTest(data.CardData, globalState);
+      cy.handlePaymentLinkCardRedirection(globalState, data.CardData);
     });
 
     it("Retrieve Payment after card payment", () => {
@@ -182,7 +182,7 @@ describe("Payment Link", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "payment_link_pm"
       ]["PaymentLinkTabsLayout"];
-      cy.completePaymentLinkCardTest(data.CardData, globalState);
+      cy.handlePaymentLinkCardRedirection(globalState, data.CardData);
     });
   });
 
@@ -248,7 +248,7 @@ describe("Payment Link", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "payment_link_pm"
       ]["PaymentLink3DSCard"];
-      cy.completePaymentLinkCardTest(data.CardData, globalState);
+      cy.handlePaymentLinkCardRedirection(globalState, data.CardData);
     });
 
     it("Retrieve Payment after 3DS card payment", () => {
