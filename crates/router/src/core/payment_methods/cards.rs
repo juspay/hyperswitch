@@ -4851,14 +4851,11 @@ fn filter_latest_apple_pay(
     if apple_pay_methods.len() > 1 {
         // Sort by created timestamp descending (latest first) and keep only the first one
         let mut sorted = apple_pay_methods;
-        sorted.sort_by(|a, b| b.created.cmp(&a.created));
+        sorted.sort_by_key(|b| std::cmp::Reverse(b.created));
         let latest_apple_pay = sorted.into_iter().next();
         other_methods.into_iter().chain(latest_apple_pay).collect()
     } else {
-        other_methods
-            .into_iter()
-            .chain(apple_pay_methods.into_iter())
-            .collect()
+        other_methods.into_iter().chain(apple_pay_methods).collect()
     }
 }
 
