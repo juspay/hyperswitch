@@ -2178,10 +2178,12 @@ function paymentLinkCardRedirection(
             name.includes("card_number") ||
             autocomplete.includes("cc-number")
           ) {
+            /* eslint-disable cypress/no-force */
             cy.wrap(input)
               .focus()
               .clear({ force: true })
               .type(card_number, { delay: 30, force: true });
+            /* eslint-enable cypress/no-force */
             cy.task("cli_log", `Filled card number in iframe ${index}`);
           } else if (
             placeholder.includes("expir") ||
@@ -2191,6 +2193,7 @@ function paymentLinkCardRedirection(
             name.includes("exp") ||
             autocomplete.includes("cc-exp")
           ) {
+            /* eslint-disable cypress/no-force */
             cy.wrap(input)
               .focus()
               .clear({ force: true })
@@ -2198,6 +2201,7 @@ function paymentLinkCardRedirection(
                 delay: 30,
                 force: true,
               });
+            /* eslint-enable cypress/no-force */
             cy.task("cli_log", `Filled expiry in iframe ${index}`);
           } else if (
             placeholder.includes("cvc") ||
@@ -2209,10 +2213,12 @@ function paymentLinkCardRedirection(
             name.includes("cvv") ||
             autocomplete.includes("cc-csc")
           ) {
+            /* eslint-disable cypress/no-force */
             cy.wrap(input)
               .focus()
               .clear({ force: true })
               .type(card_cvc, { delay: 30, force: true });
+            /* eslint-enable cypress/no-force */
             cy.task("cli_log", `Filled CVC in iframe ${index}`);
           }
         });
@@ -2227,13 +2233,18 @@ function paymentLinkCardRedirection(
     });
   });
 
+  /* eslint-disable cypress/no-force */
   cy.get("#submit", { timeout: 30000 })
     .should("be.visible")
     .and("not.have.class", "hidden")
     .click({ force: true });
+  /* eslint-enable cypress/no-force */
   cy.task("cli_log", "Clicked submit button");
 
-  cy.wait(8000);
+  // Wait for payment processing completion instead of arbitrary wait
+  cy.contains(/succeeded|success|payment successful|thank you/i, {
+    timeout: 30000,
+  }).should("exist");
 
   cy.get("body").then(($body) => {
     const bodyText = $body.text().toLowerCase();

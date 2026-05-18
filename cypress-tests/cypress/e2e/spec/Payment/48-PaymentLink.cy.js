@@ -4,7 +4,6 @@ import getConnectorDetails, {
   CONNECTOR_LISTS,
   shouldIncludeConnector,
 } from "../../configs/Payment/Utils";
-import * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 let connector;
