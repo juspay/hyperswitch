@@ -62,11 +62,6 @@ export default defineConfig({
       return config;
     },
     experimentalRunAllSpecs: true,
-    // Retries break the per-test step counter used by the MITM proxy
-    // wrapper in support/e2e.js — a retry would re-enter beforeEach,
-    // reset the counter, and re-issue cassette IDs out of sync with the
-    // recorded ones. Keep retries off.
-    retries: 0,
 
     specPattern: "cypress/e2e/**/*.cy.{js,jsx,ts,tsx}",
     supportFile: "cypress/support/e2e.js",
