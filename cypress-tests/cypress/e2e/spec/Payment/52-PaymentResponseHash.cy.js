@@ -1,52 +1,20 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import getConnectorDetails, {
-  shouldExcludeConnector,
-  CONNECTOR_LISTS,
-} from "../../configs/Payment/Utils";
+import getConnectorDetails from "../../configs/Payment/Utils";
 import * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
 describe("Card - Payment Response Hash flow test", () => {
   before("seed global state and check account config", function () {
-    let skip = false;
-
     cy.task("getGlobalState")
       .then((state) => {
         globalState = new State(state);
-        const connectorId = globalState.get("connectorId");
-
-        if (
-          shouldExcludeConnector(
-            connectorId,
-            CONNECTOR_LISTS.EXCLUDE.PAYMENT_RESPONSE_HASH
-          )
-        ) {
-          skip = true;
-          return;
-        }
-
-        const merchantId = globalState.get("merchantId");
-        const apiKey = globalState.get("adminApiKey");
-        const baseUrl = globalState.get("baseUrl");
-
-        return cy.request({
-          method: "GET",
-          url: `${baseUrl}/accounts/${merchantId}`,
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": apiKey,
-          },
-          failOnStatusCode: false,
-        });
+      })
+      .then(() => {
+        cy.fetchPaymentResponseHashConfig(globalState);
       })
       .then((response) => {
-        if (skip) {
-          this.skip();
-          return;
-        }
-
         if (!response || response.status !== 200) {
           cy.task("cli_log", "Failed to fetch account config - skipping spec");
           this.skip();

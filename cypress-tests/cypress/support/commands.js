@@ -8291,6 +8291,25 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
  *
  * @param {Object} globalState - The global state object
  */
+Cypress.Commands.add(
+  "fetchPaymentResponseHashConfig",
+  (globalState) => {
+    const merchantId = globalState.get("merchantId");
+    const apiKey = globalState.get("adminApiKey");
+    const baseUrl = globalState.get("baseUrl");
+
+    return cy.request({
+      method: "GET",
+      url: `${baseUrl}/accounts/${merchantId}`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      failOnStatusCode: false,
+    });
+  }
+);
+
 Cypress.Commands.add("assertPaymentResponseHashEnabled", (globalState) => {
   const enablePaymentResponseHash = globalState.get(
     "enablePaymentResponseHash"
