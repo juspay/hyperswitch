@@ -238,11 +238,124 @@ function payLaterRedirection(
             // Stripe handles pay_later differently depending on the payment method type
             switch (paymentMethodType) {
               case "affirm":
-                // Affirm via Stripe — verify we land on the Affirm checkout page
+                // Affirm via Stripe — interact with Affirm sandbox to complete flow
                 cy.log("Handling Stripe Affirm pay_later flow");
 
                 cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
                   const bodyText = $body.text();
+                  const pageHtml = $body.html();
+
+                  // Step 1: Enter phone number if phone field is present
+                  const phoneSelectors = [
+                    'input[name*="phone" i]',
+                    'input[name*="mobile" i]',
+                    'input[name*="cell" i]',
+                    'input[placeholder*="phone" i]',
+                    'input[type="tel"]',
+                    'input[id*="phone" i]',
+                  ];
+                  let phoneFound = false;
+                  for (const sel of phoneSelectors) {
+                    if ($body.find(sel).length > 0) {
+                      cy.get(sel, { timeout: constants.WAIT_TIME })
+                        .first()
+                        .clear({ force: true })
+                        .type("3105551212", { force: true })
+                        .log("Entered test phone number");
+                      phoneFound = true;
+                      break;
+                    }
+                  }
+
+                  // Step 2: Click continue/submit after phone entry
+                  if (phoneFound) {
+                    cy.wait(1000);
+                    const continueBtnSelectors = [
+                      'button[type="submit"]',
+                      "button:contains('Continue')",
+                      "button:contains('Next')",
+                      "button:contains('Submit')",
+                      'input[type="submit"]',
+                      "a:contains('Continue')",
+                    ];
+                    for (const btnSel of continueBtnSelectors) {
+                      if ($body.find(btnSel).length > 0) {
+                        cy.get(btnSel, { timeout: constants.WAIT_TIME })
+                          .first()
+                          .click({ force: true })
+                          .log("Clicked continue after phone entry");
+                        break;
+                      }
+                    }
+                  }
+
+                  // Step 3: Enter verification PIN if present
+                  cy.wait(1500);
+                  cy.get("body", { timeout: constants.TIMEOUT }).then(
+                    ($body2) => {
+                      const pinSelectors = [
+                        'input[name*="pin" i]',
+                        'input[name*="code" i]',
+                        'input[name*="otp" i]',
+                        'input[placeholder*="code" i]',
+                        'input[placeholder*="PIN" i]',
+                        'input[id*="pin" i]',
+                        'input[id*="code" i]',
+                        'input[type="password"]',
+                      ];
+                      for (const pinSel of pinSelectors) {
+                        if ($body2.find(pinSel).length > 0) {
+                          cy.get(pinSel, { timeout: constants.WAIT_TIME })
+                            .first()
+                            .clear({ force: true })
+                            .type("123456", { force: true })
+                            .log("Entered verification PIN");
+                          break;
+                        }
+                      }
+
+                      // Step 4: Enter SSN if present
+                      const ssnSelectors = [
+                        'input[name*="ssn" i]',
+                        'input[name*="social" i]',
+                        'input[name*="sin" i]',
+                        'input[id*="ssn" i]',
+                        'input[placeholder*="SSN" i]',
+                        'input[placeholder*="social" i]',
+                        'input[autocomplete*="ssn" i]',
+                      ];
+                      for (const ssnSel of ssnSelectors) {
+                        if ($body2.find(ssnSel).length > 0) {
+                          cy.get(ssnSel, { timeout: constants.WAIT_TIME })
+                            .first()
+                            .clear({ force: true })
+                            .type("5678", { force: true })
+                            .log("Entered test SSN");
+                          break;
+                        }
+                      }
+
+                      // Step 5: Click final confirm/submit
+                      const submitBtnSelectors = [
+                        'button[type="submit"]',
+                        "button:contains('Confirm')",
+                        "button:contains('Submit')",
+                        "button:contains('Continue')",
+                        'input[type="submit"]',
+                      ];
+                      for (const submitSel of submitBtnSelectors) {
+                        if ($body2.find(submitSel).length > 0) {
+                          cy.get(submitSel, { timeout: constants.WAIT_TIME })
+                            .first()
+                            .click({ force: true })
+                            .log("Clicked final submit/confirm");
+                          break;
+                        }
+                      }
+                    }
+                  );
+
+                  // Fallback passive verification if no interaction occurred
                   const affirmIndicators = [
                     /affirm/i,
                     /buy now.*pay later/i,
@@ -250,32 +363,13 @@ function payLaterRedirection(
                     /verify.*identity/i,
                     /confirm.*purchase/i,
                   ];
-
                   const hasAffirmIndicator = affirmIndicators.some((pattern) =>
                     pattern.test(bodyText)
                   );
-
                   if (hasAffirmIndicator) {
                     cy.log(
-                      "Successfully navigated to Affirm page - verified redirection"
+                      "Affirm page indicators confirmed — passive verification OK"
                     );
-                  } else {
-                    // Check URL as fallback
-                    cy.url().then((url) => {
-                      if (
-                        url.includes("affirm") ||
-                        url.includes("affirmassets") ||
-                        url.includes("stripe")
-                      ) {
-                        cy.log(
-                          "URL indicates Affirm redirect - verified navigation"
-                        );
-                      } else {
-                        cy.log(
-                          `Warning: URL (${url}) does not contain expected Affirm indicators`
-                        );
-                      }
-                    });
                   }
                 });
                 break;
