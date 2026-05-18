@@ -349,7 +349,11 @@ where
                     network_txn_id,
                     network_txn_link_id,
                     ..
-                } => (mandate_reference.clone(), network_txn_id.clone(), network_txn_link_id.clone()),
+                } => (
+                    mandate_reference.clone(),
+                    network_txn_id.clone(),
+                    network_txn_link_id.clone(),
+                ),
                 _ => (Box::new(None), None, None),
             };
 
