@@ -691,10 +691,7 @@ where
             provider,
         )
         .await?;
-        // We don't need to fetch customer here.
-        // Customer details have already been populated in the payment_intent during Confirm
-        // The customer returned from this method is only used for updating connector_customer_id
-        // which does not happen in case of Retrieve
+
         Ok((Box::new(self), customer))
     }
 

@@ -128,9 +128,9 @@ pub fn should_call_connector_create_customer<'a>(
 
             match connector_needs_customer {
                 hyperswitch_interfaces::api::ConnectorCustomerAction::CallConnectorCustomer => {
-                    let connector_customer_details = customer
-                        .as_ref()
-                        .and_then(|cust| cust.get_connector_customer_id(merchant_connector_account));
+                    let connector_customer_details = customer.as_ref().and_then(|cust| {
+                        cust.get_connector_customer_id(merchant_connector_account)
+                    });
                     let should_call_connector = connector_customer_details.is_none();
                     (should_call_connector, connector_customer_details)
                 }
