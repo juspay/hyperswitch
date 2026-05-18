@@ -2118,6 +2118,7 @@ function paymentLinkCardRedirection(
   handlerMetadata
 ) {
   const cardData = handlerMetadata?.cardData || {};
+  const expectedOutcome = handlerMetadata?.expectedOutcome || "success";
   const {
     card_number = "4242424242424242",
     card_exp_month = "12",
@@ -2241,39 +2242,53 @@ function paymentLinkCardRedirection(
   /* eslint-enable cypress/no-force */
   cy.task("cli_log", "Clicked submit button");
 
-  // Wait for payment processing completion instead of arbitrary wait
-  cy.contains(/succeeded|success|payment successful|thank you/i, {
-    timeout: 30000,
-  }).should("exist");
+  if (expectedOutcome === "error") {
+    cy.get("body", { timeout: 30000 }).should(($body) => {
+      const bodyText = $body.text().toLowerCase();
+      const hasError =
+        (bodyText.includes("error") && bodyText.includes("card")) ||
+        bodyText.includes("declined") ||
+        bodyText.includes("invalid") ||
+        bodyText.includes("expired") ||
+        bodyText.includes("failed") ||
+        $body.find('[class*="error"]').length > 0;
+      expect(hasError, "Expected error indicator on payment page").to.be.true;
+    });
+    cy.task("cli_log", "Payment page shows error indicator as expected");
+  } else {
+    cy.contains(/succeeded|success|payment successful|thank you/i, {
+      timeout: 30000,
+    }).should("exist");
 
-  cy.get("body").then(($body) => {
-    const bodyText = $body.text().toLowerCase();
-    const hasSuccess =
-      bodyText.includes("succeeded") ||
-      bodyText.includes("success") ||
-      bodyText.includes("payment successful") ||
-      bodyText.includes("thank you") ||
-      $body.find('[class*="success"]').length > 0;
-    const hasError =
-      (bodyText.includes("error") && bodyText.includes("card")) ||
-      bodyText.includes("declined") ||
-      bodyText.includes("invalid") ||
-      $body.find('[class*="error"]').length > 0;
+    cy.get("body").then(($body) => {
+      const bodyText = $body.text().toLowerCase();
+      const hasSuccess =
+        bodyText.includes("succeeded") ||
+        bodyText.includes("success") ||
+        bodyText.includes("payment successful") ||
+        bodyText.includes("thank you") ||
+        $body.find('[class*="success"]').length > 0;
+      const hasError =
+        (bodyText.includes("error") && bodyText.includes("card")) ||
+        bodyText.includes("declined") ||
+        bodyText.includes("invalid") ||
+        $body.find('[class*="error"]').length > 0;
 
-    if (hasSuccess) {
-      cy.task("cli_log", "Payment page shows success indicator");
-    } else if (hasError) {
-      cy.task("cli_log", "Payment page shows error indicator");
-    } else {
-      cy.task(
-        "cli_log",
-        "Payment page status unclear after submission - checking URL"
-      );
-      cy.url().then((url) => {
-        cy.task("cli_log", `Current URL after payment submission: ${url}`);
-      });
-    }
-  });
+      if (hasSuccess) {
+        cy.task("cli_log", "Payment page shows success indicator");
+      } else if (hasError) {
+        cy.task("cli_log", "Payment page shows error indicator");
+      } else {
+        cy.task(
+          "cli_log",
+          "Payment page status unclear after submission - checking URL"
+        );
+        cy.url().then((url) => {
+          cy.task("cli_log", `Current URL after payment submission: ${url}`);
+        });
+      }
+    });
+  }
 }
 
 function handleFlow(

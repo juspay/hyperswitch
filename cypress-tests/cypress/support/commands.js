@@ -4814,7 +4814,7 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "handlePaymentLinkCardRedirection",
-  (globalState, cardData) => {
+  (globalState, cardData, expectedOutcome = "success") => {
     const paymentLinkUrl = globalState.get("paymentLinkUrl");
 
     if (!paymentLinkUrl) {
@@ -4839,7 +4839,7 @@ Cypress.Commands.add(
       { redirectionUrl, expectedUrl },
       connectorId,
       null,
-      { cardData }
+      { cardData, expectedOutcome }
     );
   }
 );

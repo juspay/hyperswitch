@@ -3639,30 +3639,7 @@ export const connectorDetails = {
         },
       },
     }),
-    PaymentLinkConfirmCard: getCustomExchange({
-      Request: {
-        currency: "USD",
-        amount: 6000,
-        description: "Test Payment Link",
-        email: "test@example.com",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-    PaymentLinkConfirmCardData: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-    }),
+
     PaymentLinkWithTheme: getCustomExchange({
       Request: {
         currency: "USD",
@@ -3714,6 +3691,12 @@ export const connectorDetails = {
         description: "Test Payment Link Card Payment",
         email: "test@example.com",
       },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
       CardData: {
         card_number: "4242424242424242",
         card_exp_month: "12",
@@ -3748,23 +3731,18 @@ export const connectorDetails = {
         amount: 6000,
         description: "Test Payment Link Invalid Card",
         email: "test@example.com",
-        payment_method: "card",
-        payment_method_data: {
-          card: {
-            card_number: "4000000000000002",
-            card_exp_month: "12",
-            card_exp_year: "35",
-            card_cvc: "123",
-          },
-        },
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
       },
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "requires_payment_method",
         },
+      },
+      CardData: {
+        card_number: "4000000000000002",
+        card_exp_month: "12",
+        card_exp_year: "35",
+        card_cvc: "123",
       },
     }),
     PaymentLinkExpiredCard: getCustomExchange({
@@ -3773,27 +3751,18 @@ export const connectorDetails = {
         amount: 6000,
         description: "Test Payment Link Expired Card",
         email: "test@example.com",
-        payment_method: "card",
-        payment_method_data: {
-          card: {
-            card_number: "4000000000000069",
-            card_exp_month: "12",
-            card_exp_year: "25",
-            card_cvc: "123",
-          },
-        },
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Invalid Expiry Year",
-            code: "IR_16",
-          },
+          status: "requires_payment_method",
         },
+      },
+      CardData: {
+        card_number: "4000000000000069",
+        card_exp_month: "12",
+        card_exp_year: "20",
+        card_cvc: "123",
       },
     }),
     PaymentLinkTabsLayout: getCustomExchange({
@@ -3809,6 +3778,15 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+      CardData: {
+        card_number: "4242424242424242",
+        card_exp_month: "12",
+        card_exp_year: "35",
+        card_cvc: "123",
       },
     }),
   },

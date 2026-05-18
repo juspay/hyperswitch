@@ -41,27 +41,15 @@ describe("Payment Link", () => {
   let headlessShouldSkipRetrieve = false;
 
   beforeEach(function () {
-    // Skip UI tests that require the Hyperswitch SDK in headless mode
-    // because the external SDK script cannot load in headless Electron
     if (
       Cypress.browser.isHeadless &&
-      this.currentTest.title.startsWith("Visit payment page")
+      (this.currentTest.title.startsWith("Visit payment page") ||
+        this.currentTest.title.startsWith("Retrieve Payment after"))
     ) {
       cy.log(
         "Skipping payment link UI test in headless mode — SDK requires headed browser"
       );
       headlessShouldSkipRetrieve = true;
-      this.skip();
-    }
-    // Skip retrieve tests that depend on a skipped UI test
-    if (
-      Cypress.browser.isHeadless &&
-      headlessShouldSkipRetrieve &&
-      this.currentTest.title.startsWith("Retrieve Payment after")
-    ) {
-      cy.log(
-        "Skipping retrieve test in headless mode — depends on skipped UI test"
-      );
       this.skip();
     }
   });
@@ -97,7 +85,7 @@ describe("Payment Link", () => {
     it("Create Payment Intent with Payment Link", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "payment_link_pm"
-      ]["PaymentLinkConfirmCard"];
+      ]["PaymentLinkBasic"];
       cy.createPaymentIntentWithPaymentLinkTest(
         fixtures.createPaymentBody,
         data,
@@ -139,6 +127,7 @@ describe("Payment Link", () => {
         "automatic",
         globalState
       );
+      cy.retrievePaymentLinkTest({}, globalState);
     });
 
     it("Create Payment Link with merchant logo", () => {
@@ -152,6 +141,7 @@ describe("Payment Link", () => {
         "automatic",
         globalState
       );
+      cy.retrievePaymentLinkTest({}, globalState);
     });
 
     it("Create Payment Link with accordion SDK layout", () => {
@@ -165,6 +155,7 @@ describe("Payment Link", () => {
         "automatic",
         globalState
       );
+      cy.retrievePaymentLinkTest({}, globalState);
     });
 
     it("Create Payment Link with tabs SDK layout", () => {
@@ -178,6 +169,7 @@ describe("Payment Link", () => {
         "automatic",
         globalState
       );
+      cy.retrievePaymentLinkTest({}, globalState);
     });
 
     it("Visit payment page with tabs layout and confirm with card", () => {
@@ -202,11 +194,15 @@ describe("Payment Link", () => {
       );
     });
 
-    it("Confirm payment with invalid card", () => {
+    it("Visit payment page and submit invalid card (UI)", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "payment_link_pm"
       ]["PaymentLinkInvalidCard"];
-      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+      cy.handlePaymentLinkCardRedirection(
+        globalState,
+        data.CardData,
+        "error"
+      );
     });
   });
 
@@ -224,11 +220,15 @@ describe("Payment Link", () => {
       );
     });
 
-    it("Confirm payment with expired card", () => {
+    it("Visit payment page and submit expired card (UI)", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "payment_link_pm"
       ]["PaymentLinkExpiredCard"];
-      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+      cy.handlePaymentLinkCardRedirection(
+        globalState,
+        data.CardData,
+        "error"
+      );
     });
   });
 
