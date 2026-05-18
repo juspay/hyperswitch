@@ -67,10 +67,24 @@ impl OutgoingWebhookType for webhooks::OutgoingWebhook {
     }
 }
 
+/// Tracking data serialized into the process tracker for outgoing webhook retries.
+///
+/// This data is persisted so that the retry workflow can reconstruct the correct
+/// context (merchant account, keystore, business profile) for webhook redelivery.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) struct OutgoingWebhookTrackingData {
+    /// The provider (business owner) merchant id. Always populated.
     pub(crate) merchant_id: common_utils::id_type::MerchantId,
+    /// The business profile of the webhook recipient (initiator's profile).
     pub(crate) business_profile_id: common_utils::id_type::ProfileId,
+    /// The merchant_id of the merchant whose connector credentials were used for payment processing.
+    /// In standard setups this equals `merchant_id`.
+    pub(crate) processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    /// The merchant_id of the webhook recipient (the merchant that initiated the
+    /// operation). Used during retries to look up the correct keystore directly.
+    /// `None` for tracking data created by older deployments (falls back to `merchant_id`).
+    #[serde(default)]
+    pub(crate) initiator_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub(crate) event_type: enums::EventType,
     pub(crate) event_class: enums::EventClass,
     pub(crate) primary_object_id: String,
