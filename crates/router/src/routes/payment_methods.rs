@@ -817,7 +817,8 @@ pub async fn list_customer_payment_method_api_client(
         payload,
         |state, auth: auth::AuthenticationData, mut req, _| {
             Box::pin(async move {
-                validate_legacy_endpoint_access(&state, &auth.platform).await?;
+                // TODO: Enable it back once combined PML API is provisioned
+                // validate_legacy_endpoint_access(&state, &auth.platform).await?;
                 if let Some(client_secret) = auth.client_secret {
                     req.client_secret = Some(client_secret);
                 }
