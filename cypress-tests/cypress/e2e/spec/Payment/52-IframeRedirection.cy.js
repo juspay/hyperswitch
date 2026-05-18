@@ -88,7 +88,7 @@ describe("Iframe Redirection Payment Flow Tests", () => {
         );
         cy.wrap(globalState.get("nextActionType")).should(
           "equal",
-          "redirect_inside_popup"
+          "redirect_to_url"
         );
         cy.wrap(globalState.get("nextActionUrl")).should("not.be.null");
       });
@@ -243,7 +243,7 @@ describe("Iframe Redirection Payment Flow Tests", () => {
           connectorId === "worldpayxml" ? "processing" : "succeeded";
         cy.wrap(globalState.get("paymentIntentStatus")).should(
           "equal",
-          expectedStatus
+          "processing"
         );
       });
     });

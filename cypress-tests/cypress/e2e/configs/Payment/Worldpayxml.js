@@ -107,6 +107,19 @@ export const connectorDetails = {
         },
       },
     },
+    IframeRedirectionCreate: {
+      Request: {
+        amount: 6000,
+        currency: "USD",
+        is_iframe_redirection_enabled: true,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
     IframeRedirection: getCustomExchange({
       Configs: {
         TRIGGER_SKIP: true,
