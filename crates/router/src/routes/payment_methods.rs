@@ -1323,7 +1323,8 @@ pub async fn default_payment_method_set_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, default_payment_method, _| async move {
-            validate_legacy_endpoint_access(&state, &auth.platform).await?;
+            // TODO: Enable it back once combined PML API is provisioned
+            // validate_legacy_endpoint_access(&state, &auth.platform).await?;
             cards::PmCards {
                 state: &state,
                 provider: auth.platform.get_provider(),
