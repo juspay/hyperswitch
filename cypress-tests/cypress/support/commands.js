@@ -3296,12 +3296,6 @@ Cypress.Commands.add(
           // matters; without this set, fireConnectorWebhook would reuse the
           // previous test's psp). Gated to replay so capture-mode behavior
           // is bit-for-bit unchanged.
-          if (Cypress.env("PROXY_MODE") === "replay") {
-            globalState.set(
-              "connectorTransactionID",
-              response.body.connector_transaction_id
-            );
-          }
           // Store the actual setup_future_usage value from the response
           globalState.set(
             "actualSetupFutureUsage",
@@ -3481,16 +3475,6 @@ Cypress.Commands.add(
 
           globalState.set("paymentID", paymentIntentID);
           updateConnectorState(globalState, response.body.connector);
-          // Refresh connector_transaction_id so a downstream MITM-replay
-          // webhook bypass doesn't fire with a stale pi from the previous
-          // sub-test (see fireConnectorWebhook). Gated to replay so
-          // capture-mode behavior is bit-for-bit unchanged.
-          if (Cypress.env("PROXY_MODE") === "replay") {
-            globalState.set(
-              "connectorTransactionID",
-              response.body.connector_transaction_id
-            );
-          }
           const expectedConnector = getOriginalConnectorName(
             globalState.get("connectorId")
           );
@@ -4117,20 +4101,6 @@ Cypress.Commands.add(
         expect(response.headers["content-type"]).to.include("application/json");
         if (response.status === 200) {
           globalState.set("paymentID", response.body.payment_id);
-          // Surface connector_transaction_id + capture_method so the
-          // MITM-replay webhook bypass can build a connector-keyed event
-          // and pick the right event-type (auto vs manual capture).
-          // Without these, fireConnectorWebhook reuses the previous test's
-          // state and HS lands in the wrong terminal state. Gated to
-          // replay so capture-mode behavior is bit-for-bit unchanged.
-          if (Cypress.env("PROXY_MODE") === "replay") {
-            globalState.set(
-              "connectorTransactionID",
-              response.body.connector_transaction_id
-            );
-            globalState.set("captureMethod", capture_method);
-          }
-
           expect(response.body.payment_method_data, "payment_method_data").to
             .not.be.empty;
           const expectedConnector = getOriginalConnectorName(
@@ -4748,61 +4718,6 @@ Cypress.Commands.add(
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
 
-    if (Cypress.env("PROXY_MODE") === "replay") {
-      // Skip the browser ACS dance. Two bypass paths exist:
-      //   (a) synthesise a connector→HS webhook (fireConnectorWebhook) —
-      //       needs HS to verify the webhook locally. Only valid for
-      //       connectors whose IncomingWebhook impl uses HMAC verification
-      //       we can replicate Node-side. Currently: stripe, adyen.
-      //   (b) synthesise the redirect-callback to HS itself
-      //       (simulateRedirectCallback) — HS then force-syncs the
-      //       connector, which mitm matches from cassette. Works for any
-      //       connector that has a ConnectorRedirectResponse impl.
-      // Cybersource has no IncomingWebhook impl at all; PayPal verifies
-      // via outbound API call to paypal.com (incompatible with offline
-      // replay). Both fall through to (b).
-      const WEBHOOK_BYPASS_CONNECTORS = ["stripe", "adyen", "bluesnap", "nmi"];
-      const canUseWebhook =
-        WEBHOOK_BYPASS_CONNECTORS.includes(connectorId) &&
-        globalState.get("connectorTransactionID");
-      if (canUseWebhook) {
-        cy.fireConnectorWebhook(globalState);
-      } else if (connectorId === "paypal") {
-        // PayPal card 3DS returns through `/redirect/complete/paypal`, not
-        // `/redirect/response/paypal`. The complete path runs
-        // PostAuthenticate (GET order with `fields=payment_source`) and then
-        // CompleteAuthorize (POST order capture), matching the live browser
-        // callback. The generic redirect-response fallback runs PSync instead
-        // and cannot deserialize PayPal's post-auth response shape.
-        cy.simulatePaypalRedirectComplete(globalState);
-      } else if (connectorId === "nmi") {
-        // NMI's 3DS flow needs CompleteAuthorize (HS endpoint
-        // `/redirect/complete/{connector}`), not PSync. The default
-        // simulateRedirectCallback path hits `/redirect/response/{connector}`
-        // which fires PaymentRedirectSync — wrong shape for NMI. HS's own
-        // redirect-form HTML (served at next_action.redirect_to_url) embeds
-        // the real customerVaultId + orderId; we fetch it, extract those,
-        // and post them back along with synthetic 3DS proof so HS can
-        // construct the right outbound call. Validated against the live
-        // NMI sandbox in mitm-proxy/README.md → "Known limitation" section.
-        cy.simulateNmiRedirectComplete(globalState, nextActionUrl);
-      } else if (connectorId === "redsys") {
-        // Redsys's 3DS flow is CompleteAuthorize-shaped — HS expects a
-        // POST to `/redirect/complete/{connector}` with a `cres` field.
-        // The cres value isn't re-validated against Redsys in replay
-        // because mitm matches outbound HS→Redsys completion calls on
-        // (connector, rid, method, path), not body. This bypass requires
-        // a one-time cassette curation pass: the captured trataPeticionREST
-        // outbound from the browser callback (originally landed under a
-        // server-UUID rid in the test folder) must be relocated to the
-        // cypress rid the bypass triggers.
-        cy.simulateRedsysRedirectComplete(globalState);
-      } else {
-        cy.simulateRedirectCallback(globalState);
-      }
-      return;
-    }
-
     handleRedirection(
       "three_ds",
       { redirectionUrl, expectedUrl },
@@ -5297,27 +5212,6 @@ Cypress.Commands.add(
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
 
-    if (Cypress.env("PROXY_MODE") === "replay") {
-      // Skip the bank-redirect browser dance. PayPal's bank-redirect specs end
-      // at the redirect-handling step and live capture does not produce a
-      // post-redirect HS→PayPal sync/capture cassette for EPS/iDEAL. Firing the
-      // generic redirect callback in replay invents a connector GET that never
-      // happened in capture, so no-op for PayPal here.
-      if (connectorId === "paypal") {
-        cy.task(
-          "cli_log",
-          `[redirect-callback] paypal bank_redirect: no-op in replay`
-        );
-        return;
-      }
-
-      // Other bank-redirect connectors need a synthetic post-bank-auth callback
-      // to HS. HS then force-syncs the connector, which mitm matches from a
-      // cassette.
-      cy.simulateRedirectCallback(globalState);
-      return;
-    }
-
     // explicitly restricting `sofort` payment method by adyen from running as it stops other tests from running
     // trying to handle that specific case results in stripe 3ds tests to fail
     if (!(connectorId == "adyen" && paymentMethodType == "sofort")) {
@@ -5425,13 +5319,6 @@ Cypress.Commands.add(
 
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
-
-    if (Cypress.env("PROXY_MODE") === "replay") {
-      // Same approach as bank-redirect: simulate the post-wallet-auth
-      // callback to HS rather than firing a webhook.
-      cy.simulateRedirectCallback(globalState);
-      return;
-    }
 
     handleRedirection(
       "bank_redirect",
