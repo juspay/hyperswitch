@@ -466,6 +466,18 @@ export const CONNECTOR_LISTS = {
     // ucs connectors
     UCS_CONNECTORS: ["authorizedotnet"],
     OVERCAPTURE: ["adyen"],
+    IFRAME_REDIRECTION: [
+      "adyen",
+      "worldpayxml",
+      "cybersource",
+      "barclaycard",
+      "paypal",
+      "bluesnap",
+      "braintree",
+      "nmi",
+      "nexixpay",
+      "deutschebank",
+    ],
     MANUAL_RETRY: [
       "cybersource",
       "checkout",

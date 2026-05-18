@@ -110,6 +110,68 @@ export const updateDefaultStatusCode = () => {
   return getUnsupportedExchange().Response;
 };
 
+export const getIframeRedirectionConfig = (opts = {}) => {
+  const {
+    cardDetails,
+    currency = "USD",
+    amount,
+    payment_method_type,
+    payment_method_data_3ds,
+    configs,
+  } = opts;
+
+  const iframeRedirection = {
+    Request: {
+      payment_method: "card",
+      payment_method_data: { card: cardDetails },
+      currency,
+      customer_acceptance: null,
+      setup_future_usage: "on_session",
+      is_iframe_redirection_enabled: true,
+    },
+    Response: {
+      status: 200,
+      body: {
+        status: "requires_customer_action",
+        setup_future_usage: "on_session",
+      },
+    },
+  };
+
+  if (amount !== undefined) {
+    iframeRedirection.Request.amount = amount;
+  }
+
+  if (payment_method_type) {
+    iframeRedirection.Request.payment_method_type = payment_method_type;
+  }
+
+  if (payment_method_data_3ds) {
+    iframeRedirection.Response.body.payment_method_data = payment_method_data_3ds;
+  }
+
+  if (configs && Object.keys(configs).length > 0) {
+    iframeRedirection.Configs = configs;
+  }
+
+  return {
+    IframeRedirectionCreate: {
+      Request: {
+        amount: amount ?? 6000,
+        currency,
+        is_iframe_redirection_enabled: true,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    IframeRedirection: iframeRedirection,
+  };
+};
+
 // Currency map with logical grouping
 const CURRENCY_MAP = {
   // Polish payment methods

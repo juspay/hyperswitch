@@ -2,7 +2,7 @@ import {
   connectorDetails as commonConnectorDetails,
   customerAcceptance,
 } from "./Commons";
-import { getCustomExchange } from "./Modifiers";
+import { getCustomExchange, getIframeRedirectionConfig } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
@@ -134,6 +134,10 @@ export const connectorDetails = {
         },
       },
     },
+    ...getIframeRedirectionConfig({
+      cardDetails: successfulThreeDSTestCardDetails,
+      payment_method_data_3ds: payment_method_data_3ds,
+    }),
     PaymentIntentOffSession: {
       Configs: {
         CONNECTOR_CREDENTIAL: {

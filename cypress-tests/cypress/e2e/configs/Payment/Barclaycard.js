@@ -1,4 +1,5 @@
 import { customerAcceptance } from "./Commons";
+import { getIframeRedirectionConfig } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4000000000001091",
@@ -42,7 +43,7 @@ const payment_method_data_3ds = {
     last4: "2701",
     card_type: "CREDIT",
     card_network: "Visa",
-    card_issuer: "Intl Hdqtrs Center Owned",
+    card_issuer: "INTL HDQTRS CENTER OWNED",
     card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "400000",
     card_extended_bin: null,
@@ -91,6 +92,11 @@ export const connectorDetails = {
         },
       },
     },
+    ...getIframeRedirectionConfig({
+      cardDetails: successfulThreeDSTestCardDetails,
+      amount: 6544,
+      payment_method_data_3ds: payment_method_data_3ds,
+    }),
     PaymentIntentOffSession: {
       Configs: {
         TRIGGER_SKIP: true,
@@ -184,6 +190,7 @@ export const connectorDetails = {
         },
       },
     },
+    
     No3DSManualCapture: {
       Request: {
         payment_method: "card",

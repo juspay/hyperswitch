@@ -1,4 +1,5 @@
 import { customerAcceptance } from "./Commons";
+import { getIframeRedirectionConfig } from "./Modifiers";
 
 const successful3DSCardDetails = {
   card_number: "4761739090000088",
@@ -13,7 +14,7 @@ const paymentMethodData3DSResponse = {
     last4: "0088",
     card_type: "DEBIT",
     card_network: "Visa",
-    card_issuer: "INTL HDQTRS-CENTER OWNED",
+    card_issuer: "INTL HDQTRS CENTER OWNED",
     card_issuing_country: "UNITEDSTATES",
     card_isin: "476173",
     card_extended_bin: null,
@@ -41,6 +42,10 @@ export const connectorDetails = {
         },
       },
     },
+    ...getIframeRedirectionConfig({
+      cardDetails: successful3DSCardDetails,
+      payment_method_data_3ds: paymentMethodData3DSResponse,
+    }),
     "3DSManualCapture": {
       Request: {
         payment_method: "card",

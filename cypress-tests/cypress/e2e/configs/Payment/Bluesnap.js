@@ -1,4 +1,5 @@
 import { customerAcceptance } from "./Commons";
+import { getIframeRedirectionConfig } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
@@ -59,6 +60,10 @@ export const connectorDetails = {
         },
       },
     },
+    ...getIframeRedirectionConfig({
+      cardDetails: successfulThreeDSTestCardDetails,
+    }),
+
     PaymentIntentWithShippingCost: {
       Request: {
         currency: "USD",
@@ -134,6 +139,7 @@ export const connectorDetails = {
         },
       },
     },
+    
     SaveCardUse3DSAutoCaptureOffSession: {
       Request: {
         payment_method: "card",
