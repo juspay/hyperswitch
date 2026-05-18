@@ -159,6 +159,8 @@ pub struct PaymentMethodListContext {
     pub hyperswitch_token_data: Option<PaymentTokenData>,
     #[cfg(feature = "payouts")]
     pub bank_transfer_details: Option<api::BankTransferPayout>,
+    #[cfg(feature = "payouts")]
+    pub wallet_details: Option<hyperswitch_domain_models::payment_method_data::WalletDetail>,
 }
 
 #[cfg(feature = "v2")]
