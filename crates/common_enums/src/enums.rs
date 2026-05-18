@@ -2470,15 +2470,16 @@ pub enum PaymentMethodType {
 impl PaymentMethodType {
     pub fn should_check_for_customer_saved_payment_method_type(
         self,
-        is_apple_pay_decrypt: Option<bool>,
+        is_apple_pay_decrypt: bool,
     ) -> bool {
-        match is_apple_pay_decrypt {
+        if is_apple_pay_decrypt {
             // return false if the payment method is Apple Pay and the decryption is successful, else exhibit the existing behaviour
-            Some(true) => !matches!(self, Self::ApplePay),
-            Some(false) | None => matches!(
+            !matches!(self, Self::ApplePay)
+        } else {
+            matches!(
                 self,
                 Self::ApplePay | Self::GooglePay | Self::SamsungPay | Self::Paypal | Self::Klarna
-            ),
+            )
         }
     }
     pub fn to_display_name(&self) -> String {

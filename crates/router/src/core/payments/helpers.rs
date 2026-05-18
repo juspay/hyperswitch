@@ -644,7 +644,7 @@ pub async fn get_token_pm_type_mandate_details(
                         .payment_method_type
                         .map(|payment_method_type_value| {
                             payment_method_type_value
-                                .should_check_for_customer_saved_payment_method_type(None)
+                                .should_check_for_customer_saved_payment_method_type(false)
                         })
                         .unwrap_or(false)
                     {

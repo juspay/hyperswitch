@@ -4836,7 +4836,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     }
 }
 
-/// Filters customer payment methods to keep only the latest Apple Pay method when duplicates exist.
+/// Filters customer payment methods to keep only the latest Apple Pay method when multiple DPANs exist.
 /// All other payment methods are returned unchanged.
 #[cfg(feature = "v1")]
 fn filter_latest_apple_pay(
@@ -4849,9 +4849,9 @@ fn filter_latest_apple_pay(
         });
 
     if apple_pay_methods.len() > 1 {
-        // Sort by created timestamp descending (latest first) and keep only the first one
+        // Sort by last_used_at timestamp descending (latest first) and keep only the first one
         let mut sorted = apple_pay_methods;
-        sorted.sort_by_key(|b| std::cmp::Reverse(b.created));
+        sorted.sort_by_key(|b| std::cmp::Reverse(b.last_used_at));
         let latest_apple_pay = sorted.into_iter().next();
         other_methods.into_iter().chain(latest_apple_pay).collect()
     } else {
@@ -5124,13 +5124,13 @@ pub async fn get_pm_list_context(
     #[cfg(feature = "payouts")] parent_payment_method_token: Option<String>,
     #[cfg(not(feature = "payouts"))] _parent_payment_method_token: Option<String>,
     is_payment_associated: bool,
-    force_fetch_card_from_vault: bool,
+    force_fetch_pm_from_vault: bool,
     provider: &domain::Provider,
 ) -> Result<Option<PaymentMethodListContext>, error_stack::Report<errors::ApiErrorResponse>> {
     let cards = PmCards { state, provider };
     let payment_method_retrieval_context = match payment_method {
         enums::PaymentMethod::Card => {
-            let card_details = if force_fetch_card_from_vault {
+            let card_details = if force_fetch_pm_from_vault {
                 Some(cards.get_card_details_from_locker(pm).await?)
             } else {
                 cards.get_card_details_with_locker_fallback(pm).await?
@@ -5166,15 +5166,19 @@ pub async fn get_pm_list_context(
 
         enums::PaymentMethod::Wallet => {
             #[cfg(feature = "payouts")]
-            let wallet_details = Some(
-                get_wallet_from_hs_locker(
-                    state,
-                    provider,
-                    &pm.customer_id.clone().get_required_value("customer_id")?,
-                    pm.locker_id.as_ref().unwrap_or(pm.get_id()),
+            let wallet_details = if force_fetch_pm_from_vault {
+                Some(
+                    get_wallet_from_hs_locker(
+                        state,
+                        provider,
+                        &pm.customer_id.clone().get_required_value("customer_id")?,
+                        pm.locker_id.as_ref().unwrap_or(pm.get_id()),
+                    )
+                    .await?,
                 )
-                .await?,
-            );
+            } else {
+                None
+            };
 
             Some(PaymentMethodListContext {
                 card_details: None,
