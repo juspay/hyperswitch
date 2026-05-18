@@ -468,7 +468,6 @@ export const CONNECTOR_LISTS = {
     OVERCAPTURE: ["adyen"],
     IFRAME_REDIRECTION: [
       "adyen",
-      "worldpayxml",
       "cybersource",
       "barclaycard",
       "paypal",
