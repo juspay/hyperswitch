@@ -38,8 +38,6 @@ describe("Payment Link", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  let headlessShouldSkipRetrieve = false;
-
   beforeEach(function () {
     if (
       Cypress.browser.isHeadless &&
@@ -49,7 +47,6 @@ describe("Payment Link", () => {
       cy.log(
         "Skipping payment link UI test in headless mode — SDK requires headed browser"
       );
-      headlessShouldSkipRetrieve = true;
       this.skip();
     }
   });
