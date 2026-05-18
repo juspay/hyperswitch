@@ -170,14 +170,6 @@ impl MerchantId {
         format!("payment_method_surcharge_id_{}", self.get_string_repr())
     }
 
-    /// get_webhook_config_disabled_events_key
-    pub fn get_webhook_config_disabled_events_key(&self, connector_id: &str) -> String {
-        format!(
-            "whconf_disabled_events_{}_{connector_id}",
-            self.get_string_repr()
-        )
-    }
-
     /// get_should_call_gsm_payout_key
     pub fn get_should_call_gsm_payout_key(
         &self,
@@ -239,11 +231,6 @@ impl MerchantId {
             "should_store_eligibility_check_data_for_authentication_{}",
             self.get_string_repr()
         )
-    }
-
-    /// Get threeds_routing_region key for merchant
-    pub fn get_threeds_routing_region_uas_key(&self) -> String {
-        format!("threeds_routing_region_uas_{}", self.get_string_repr())
     }
 
     /// fetch should_return_raw_payment_method_details key for organization

@@ -209,6 +209,29 @@ pub enum TaxConnectors {
     Taxjar,
 }
 
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SurchargeConnectors {
+    Interpayments,
+}
+
+pub fn convert_surcharge_connector(connector_name: &str) -> Option<SurchargeConnectors> {
+    SurchargeConnectors::from_str(connector_name).ok()
+}
+
 #[derive(Clone, Debug, serde::Serialize, strum::EnumString, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum BillingConnectors {

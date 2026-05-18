@@ -542,6 +542,22 @@ export const payment_methods_enabled = [
         recurring_enabled: false,
         installment_payment_enabled: false,
       },
+      {
+        payment_method_type: "mifinity",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "paypal",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
     ],
   },
   {
@@ -1118,6 +1134,52 @@ export const connectorDetails = {
       },
       Configs: {
         TRIGGER_SKIP: true,
+      },
+    }),
+    Mifinity: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "mifinity",
+        authentication_type: "no_three_ds",
+        billing: {
+          ...standardBillingAddress,
+          address: {
+            ...standardBillingAddress.address,
+            country: "GB",
+          },
+          phone: {
+            number: "1234567890",
+            country_code: "+44",
+          },
+          email: "test@example.com",
+        },
+        payment_method_data: {
+          wallet: {
+            mifinity: {
+              date_of_birth: "1990-01-01",
+              language_preference: "en",
+            },
+          },
+        },
+      },
+    }),
+    PaypalRedirect: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+        billing: standardBillingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
       },
     }),
   },
@@ -3458,6 +3520,78 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: { status: "failed" },
+      },
+    }),
+  },
+  step_up_auth: {
+    PaymentIntentOnly: getCustomExchange({
+      Request: {
+        currency: "USD",
+        authentication_type: "three_ds",
+        request_external_three_ds_authentication: true,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    ConfirmPayment: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        authentication_type: "three_ds",
+        request_external_three_ds_authentication: true,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    ThreeDSAuthentication: getCustomExchange({
+      Request: {
+        device_channel: "BRW",
+        threeds_method_comp_ind: "Y",
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    ThreeDSAuthenticationUnconfirmed: getCustomExchange({
+      Request: {
+        device_channel: "BRW",
+        threeds_method_comp_ind: "Y",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_16",
+            message:
+              "You cannot authenticate this payment because payment_attempt.external_three_ds_authentication_attempted is false",
+          },
+        },
+      },
+    }),
+    AuthorizeAfterFrictionlessAuth: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
       },
     }),
   },

@@ -639,10 +639,10 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
     let ucs_state = state.clone();
 
     // Capture direct result for comparison (Ok or Err) so the diff is sent in both cases.
-    let direct_for_compare: Result<types::RefundExecuteRouterData, String> = direct_result
-        .as_ref()
-        .map(|rd| rd.clone())
-        .map_err(|e| format!("{:?}", e));
+    let direct_for_compare: Result<types::RefundExecuteRouterData, String> = match &direct_result {
+        Ok(rd) => Ok(rd.clone()),
+        Err(e) => Err(format!("{:?}", e)),
+    };
     let connector_name = router_data.connector.clone();
 
     tokio::spawn(
@@ -1196,10 +1196,10 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
     let state = state.clone();
     let processor = processor.clone();
     let merchant_connector_account = merchant_connector_account.clone();
-    let direct_for_compare: Result<types::RefundSyncRouterData, String> = direct_result
-        .as_ref()
-        .map(|rd| rd.clone())
-        .map_err(|e| format!("{:?}", e));
+    let direct_for_compare: Result<types::RefundSyncRouterData, String> = match &direct_result {
+        Ok(rd) => Ok(rd.clone()),
+        Err(e) => Err(format!("{:?}", e)),
+    };
     let connector_name = router_data.connector.clone();
 
     tokio::spawn(

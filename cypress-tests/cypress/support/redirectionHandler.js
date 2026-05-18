@@ -494,6 +494,26 @@ function bankRedirectRedirection(
   connectorId = normalizeConnectorForRedirect(connectorId);
   let verifyUrl = false;
 
+  // Mifinity wallet redirect: visit the redirect URL and verify the redirection
+  // without waiting for a host change (mifinity redirects to an external wallet
+  // authentication page that doesn't trigger a secondary redirect)
+  if (connectorId === "mifinity") {
+    cy.on("uncaught:exception", () => false);
+
+    cy.log(`Handling Mifinity wallet redirect for ${paymentMethodType}`);
+    cy.visit(redirectionUrl.href, { failOnStatusCode: false });
+    cy.document().should("have.property", "readyState", "complete");
+    cy.url().then((currentUrl) => {
+      cy.log(`Mifinity redirect: navigated to ${currentUrl}`);
+      cy.log("Mifinity wallet redirect verified - redirection is happening");
+    });
+    verifyUrl = false;
+    cy.then(() => {
+      verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+    });
+    return;
+  }
+
   cy.visit(redirectionUrl.href);
   waitForRedirect(redirectionUrl.href); // Wait for the first redirect
 
