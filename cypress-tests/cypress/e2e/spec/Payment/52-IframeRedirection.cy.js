@@ -82,15 +82,7 @@ describe("Iframe Redirection Payment Flow Tests", () => {
           return;
         }
 
-        cy.wrap(globalState.get("paymentIntentStatus")).should(
-          "equal",
-          "requires_customer_action"
-        );
-        cy.wrap(globalState.get("nextActionType")).should(
-          "equal",
-          "redirect_inside_popup"
-        );
-        cy.wrap(globalState.get("nextActionUrl")).should("not.be.null");
+        cy.verifyIframeRedirection(globalState, { expectRedirectInsidePopup: true });
       });
 
       cy.step("Poll Payment Status to Terminal State", () => {
@@ -171,11 +163,7 @@ describe("Iframe Redirection Payment Flow Tests", () => {
           return;
         }
 
-        cy.wrap(globalState.get("paymentIntentStatus")).should(
-          "equal",
-          "requires_customer_action"
-        );
-        cy.wrap(globalState.get("nextActionUrl")).should("not.be.null");
+        cy.verifyIframeRedirection(globalState, { expectRedirectInsidePopup: false });
       });
     });
   });

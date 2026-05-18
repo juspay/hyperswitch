@@ -137,32 +137,27 @@ function createIndividualRolloutConfig(
                   });
                 });
               });
-          });
-      }
     });
-}
+  }
+);
 
-function parseMethodFlows(methodFlowInput) {
-  if (!methodFlowInput) {
-    throw new Error("methodFlow input is required");
+Cypress.Commands.add("verifyIframeRedirection", (globalState, options = {}) => {
+  const { expectRedirectInsidePopup = true } = options;
+
+  cy.wrap(globalState.get("paymentIntentStatus")).should(
+    "equal",
+    "requires_customer_action"
+  );
+
+  if (expectRedirectInsidePopup) {
+    cy.wrap(globalState.get("nextActionType")).should(
+      "equal",
+      "redirect_inside_popup"
+    );
   }
 
-  return methodFlowInput.includes(",")
-    ? methodFlowInput
-        .split(",")
-        .map((flow) => flow.trim())
-        .filter((flow) => flow.length > 0)
-    : [methodFlowInput.trim()];
-}
-
-function createUcsConfigs(globalState, flow, type) {
-  // --- Phase 1: Environment Setup & Validation ---
-  const ucsEnabled = globalState.get("ucsEnabled");
-  if (!ucsEnabled) {
-    cy.task(
-      "cli_log",
-      `UCS ${type} config creation skipped - ucsEnabled is false or not set`
-    );
+  cy.wrap(globalState.get("nextActionUrl")).should("not.be.null");
+});
     return;
   }
 
