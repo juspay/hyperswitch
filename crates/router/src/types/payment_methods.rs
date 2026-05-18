@@ -160,6 +160,12 @@ pub struct VaultRetrieveRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct GenericVaultRetrieveRequest {
+    pub entity_id: id_type::CustomerId,
+    pub vault_id: domain::VaultId,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultRetrieveResponse {
     pub data: hyperswitch_domain_models::vault::PaymentMethodVaultingData,
 }

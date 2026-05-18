@@ -589,6 +589,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(payment_id.clone()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,

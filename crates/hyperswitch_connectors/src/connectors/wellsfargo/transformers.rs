@@ -737,7 +737,9 @@ impl
                             merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                                 reason: Some("7".to_string()),
                                 original_authorized_amount,
-                                previous_transaction_id: Some(Secret::new(network_transaction_id)),
+                                previous_transaction_id: Some(Secret::new(
+                                    network_transaction_id.network_transaction_id.clone(),
+                                )),
                             }),
                         }),
                     )
@@ -1808,6 +1810,7 @@ fn get_payment_response(
                 network_txn_id: info_response.processor_information.as_ref().and_then(
                     |processor_information| processor_information.network_transaction_id.clone(),
                 ),
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     info_response
                         .client_reference_information
@@ -1998,6 +2001,7 @@ impl
                             processor_information.network_transaction_id.clone()
                         },
                     ),
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(
                         item.response
                             .client_reference_information
@@ -2109,6 +2113,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<WellsfargoTransactionResponse>>
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: item
                                 .response
                                 .client_reference_information
@@ -2130,6 +2135,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<WellsfargoTransactionResponse>>
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
                     authentication_data: None,

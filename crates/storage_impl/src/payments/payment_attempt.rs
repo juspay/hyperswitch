@@ -838,6 +838,9 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         .clone(),
                     debit_routing_savings: None,
                     network_transaction_id: payment_attempt.network_transaction_id.clone(),
+                    network_transaction_link_id: payment_attempt
+                        .network_transaction_link_id
+                        .clone(),
                     is_overcapture_enabled: None,
                     network_details: payment_attempt.network_details.clone(),
                     is_stored_credential: payment_attempt.is_stored_credential,

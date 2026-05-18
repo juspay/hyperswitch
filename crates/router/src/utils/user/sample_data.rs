@@ -396,6 +396,7 @@ pub async fn generate_sample_data(
             routing_approach: None,
             connector_request_reference_id: None,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             network_details: None,
             is_stored_credential: None,
             authorized_amount: None,

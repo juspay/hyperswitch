@@ -86,6 +86,7 @@ describe("External Vault (VGS) - Connector Integration Tests", () => {
             cy.task("cli_log", "Skipping step: Retrieve Payment after Confirm");
             return;
           }
+          cy.wait(10000);
           const createConfirmData = getConnectorDetails(
             globalState.get("connectorId")
           )["card_pm"]["SaveCardUseNo3DSAutoCapture"];
@@ -179,6 +180,7 @@ describe("External Vault (VGS) - Connector Integration Tests", () => {
             cy.task("cli_log", "Skipping step: Retrieve Payment after Confirm");
             return;
           }
+          cy.wait(10000);
           const createConfirmData = getConnectorDetails(
             globalState.get("connectorId")
           )["card_pm"]["SaveCardUseNo3DSAutoCapture"];
@@ -245,6 +247,7 @@ describe("External Vault (VGS) - Connector Integration Tests", () => {
             );
             return;
           }
+          cy.wait(10000);
           const saveCardConfirmData = getConnectorDetails(
             globalState.get("connectorId")
           )["card_pm"]["SaveCardUseNo3DSManualCapture"];
@@ -276,6 +279,7 @@ describe("External Vault (VGS) - Connector Integration Tests", () => {
             cy.task("cli_log", "Skipping step: Retrieve Payment after Capture");
             return;
           }
+          cy.wait(10000);
           const captureData = getConnectorDetails(
             globalState.get("connectorId")
           )["card_pm"]["Capture"];
@@ -320,6 +324,7 @@ describe("External Vault (VGS) - Connector Integration Tests", () => {
             cy.task("cli_log", "Skipping step: Retrieve Payment after Confirm");
             return;
           }
+          cy.wait(10000);
           const createConfirmData = getConnectorDetails(
             globalState.get("connectorId")
           )["card_pm"]["SaveCardUseNo3DSAutoCaptureOffSession"];

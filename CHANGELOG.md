@@ -4,6 +4,47 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.18.0
+
+### Features
+
+- **payment-methods:** Backwards compatibility for payments flow ([#12205](https://github.com/juspay/hyperswitch/pull/12205)) ([`76f9af1`](https://github.com/juspay/hyperswitch/commit/76f9af1fa0866ebb03be0292265c89cd232c0e61))
+
+### Testing
+
+- **cypress:** Add step-up auth coverage for cybersource ([#12249](https://github.com/juspay/hyperswitch/pull/12249)) ([`f30db23`](https://github.com/juspay/hyperswitch/commit/f30db23bc0ecb46125bf926fb3f842fd73063bc5))
+
+**Full Changelog:** [`2026.05.17.0...2026.05.18.0`](https://github.com/juspay/hyperswitch/compare/2026.05.17.0...2026.05.18.0)
+
+- - -
+
+## 2026.05.17.0
+
+### Features
+
+- **core:** Add network_transaction_link_id field for Mastercard TLID ([#12260](https://github.com/juspay/hyperswitch/pull/12260)) ([`6147d4d`](https://github.com/juspay/hyperswitch/commit/6147d4d730cec1fa1c001794b3d298ced51da1b5))
+- **payment-methods:** Add parent fingerprint ID support in payment methods ([#12189](https://github.com/juspay/hyperswitch/pull/12189)) ([`020a256`](https://github.com/juspay/hyperswitch/commit/020a2561837716d7004871274422d3aa8e01f7b1))
+- **superposition:** Introduce IncomingWebhookEvent dimension and migrate enum configs to superposition ([#11536](https://github.com/juspay/hyperswitch/pull/11536)) ([`88d9b1e`](https://github.com/juspay/hyperswitch/commit/88d9b1efcfada6d89763d6bdd793d125379b4f9c))
+- Add dynamic_fields support to sdk_config api ([#12269](https://github.com/juspay/hyperswitch/pull/12269)) ([`1e763bb`](https://github.com/juspay/hyperswitch/commit/1e763bb40ad894833404c7b9185e047124a2dc48))
+
+### Bug Fixes
+
+- **analytics:** Analytics query fix ([#12312](https://github.com/juspay/hyperswitch/pull/12312)) ([`f1a1068`](https://github.com/juspay/hyperswitch/commit/f1a1068edea0363223f21ea4c4a43bc8620b508c))
+- **connector:** Change payout method type for Truelayer ([#12297](https://github.com/juspay/hyperswitch/pull/12297)) ([`2553ee7`](https://github.com/juspay/hyperswitch/commit/2553ee79903f86b18d3c327e3e6053182860e102))
+- **webhooks:** Respect role scope when listing events so merchant users can search across profiles ([#12214](https://github.com/juspay/hyperswitch/pull/12214)) ([`55d48b6`](https://github.com/juspay/hyperswitch/commit/55d48b684acc45ce396512e90de2792b74b1eff9))
+
+### Testing
+
+- **cypress:**
+  - Add paypal_redirect wallet coverage for novalnet ([#12262](https://github.com/juspay/hyperswitch/pull/12262)) ([`02f781f`](https://github.com/juspay/hyperswitch/commit/02f781fe4bb57dbd066f47ef2edcbe7b03968bcb))
+  - Fix merchant redirect spec - PaymentIntent key reference ([#12200](https://github.com/juspay/hyperswitch/pull/12200)) ([`ac16364`](https://github.com/juspay/hyperswitch/commit/ac163647604e05082a6e90ab90a0a036250e9208))
+  - Add product type coverage for merchant account ([#12029](https://github.com/juspay/hyperswitch/pull/12029)) ([`a3d90ff`](https://github.com/juspay/hyperswitch/commit/a3d90ff9042814176795f560d653925a4c834191))
+  - Add wallet coverage for mifinity ([#12295](https://github.com/juspay/hyperswitch/pull/12295)) ([`8665f1d`](https://github.com/juspay/hyperswitch/commit/8665f1dade80c8bc5f5c2316046b45cacc085974))
+
+**Full Changelog:** [`2026.05.15.0...2026.05.17.0`](https://github.com/juspay/hyperswitch/compare/2026.05.15.0...2026.05.17.0)
+
+- - -
+
 ## 2026.05.15.0
 
 ### Features
