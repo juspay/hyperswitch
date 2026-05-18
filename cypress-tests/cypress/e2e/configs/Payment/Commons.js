@@ -808,6 +808,18 @@ export const connectorDetails = {
         billing: standardBillingAddress,
       },
     }),
+    OpenBanking: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "open_banking",
+        payment_method_data: {
+          bank_redirect: {
+            open_banking: {},
+          },
+        },
+        billing: standardBillingAddress,
+      },
+    }),
     OnlineBankingFpx: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",

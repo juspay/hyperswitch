@@ -130,6 +130,7 @@ const CURRENCY_MAP = {
   Sofort: "EUR",
   Trustly: "EUR",
   OpenBankingUk: "GBP", // Great British Pound payment method
+  OpenBanking: "EUR", // Open Banking EU payment method
   OnlineBankingFpx: "MYR", // Malaysian payment methods
   Interac: "CAD", // Canadian payment method
   AliPayHk: "HKD", // Hong Kong payment method
