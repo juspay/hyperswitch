@@ -1747,6 +1747,52 @@ pub struct PaymentsTaxCalculationData {
     pub shipping_address: address::Address,
 }
 
+/// Request data for calculating external surcharge
+#[derive(Debug, Default, Clone)]
+pub struct PaymentsSurchargeCalculationData {
+    /// Amount in major units for surcharge calculation
+    pub amount: MinorUnit,
+    /// Currency for surcharge calculation
+    pub currency: storage_enums::Currency,
+    /// Billing region/postal code for regional fee calculation
+    pub postal_code: Option<Secret<String>>,
+    /// Card BIN (first 6-8 digits, also called nicn)
+    pub card_iin: String,
+    /// Previous connector surcharge ID for surcharge updates (optional, used when recalculating surcharge for an existing payment)
+    pub previous_connector_surcharge_id: Option<String>,
+    /// Country in ISO alpha-2 format (optional, defaults to USA)
+    pub country: Option<common_enums::CountryAlpha2>,
+    /// wave strategy for surcharge application (optional, defaults to Apply)
+    pub surcharge_strategy: Option<SurchargeStrategy>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub enum SurchargeStrategy {
+    /// Apply the calculated surcharge to the payment
+    #[default]
+    Apply,
+    /// Do not apply the surcharge, just return the calculated amount
+    Waive,
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentsCompleteSurchargeData {
+    /// transaction ID from surcharge connectors
+    pub external_surcharge_id: String,
+    /// Merchant transaction ID (our attempt_id)
+    pub merchant_transaction_id: Option<String>,
+    /// Original order amount in minor units
+    pub amount: Option<MinorUnit>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentsCompleteRefundSurchrgeData {
+    /// transaction ID from surcharge connectors
+    pub external_surcharge_id: String,
+    /// Currency for the refund amount
+    pub currency: Option<storage_enums::Currency>,
+}
+
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct SdkPaymentsSessionUpdateData {
     pub order_tax_amount: MinorUnit,
