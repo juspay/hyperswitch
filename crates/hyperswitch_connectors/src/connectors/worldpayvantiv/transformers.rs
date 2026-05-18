@@ -632,6 +632,7 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -1115,7 +1116,7 @@ fn get_processing_info(
                 network_transaction_id,
             )) => Ok(VantivMandateDetail {
                 processing_type: Some(VantivProcessingType::MerchantInitiatedCOF),
-                network_transaction_id: Some(network_transaction_id.into()),
+                network_transaction_id: Some(network_transaction_id.network_transaction_id.into()),
                 token: None,
             }),
             Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
@@ -1573,6 +1574,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<CnpOnlineResponse>> for PaymentsC
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             authentication_data: None,
@@ -1689,6 +1691,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<CnpOnlineResponse>> for PaymentsCa
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             authentication_data: None,
@@ -2076,6 +2079,7 @@ impl<F>
                             mandate_reference: Box::new(mandate_reference_data),
                             connector_metadata,
                             network_txn_id: sale_response.network_transaction_id.clone().map(|network_transaction_id| network_transaction_id.expose()),
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(sale_response.order_id.clone()),
                             incremental_authorization_allowed: None,
                             authentication_data: None,
@@ -2171,6 +2175,7 @@ impl<F>
                             mandate_reference: Box::new(mandate_reference_data),
                             connector_metadata,
                             network_txn_id: auth_response.network_transaction_id.clone().map(|network_transaction_id| network_transaction_id.expose()),
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(auth_response.order_id.clone()),
                             incremental_authorization_allowed: None,
                             authentication_data: None,
@@ -2322,6 +2327,7 @@ impl<F>
                                 .network_transaction_id
                                 .clone()
                                 .map(|network_transaction_id| network_transaction_id.expose()),
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(auth_response.order_id.clone()),
                             incremental_authorization_allowed: None,
                             authentication_data: None,
