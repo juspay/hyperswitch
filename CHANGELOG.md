@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix16-8
+
+### Features
+
+- **connector:** [Cybersource] added 3ds support to setup mandate flow in Cybersource ([#12329](https://github.com/juspay/hyperswitch/pull/12329)) ([`e736102`](https://github.com/juspay/hyperswitch/commit/e7361025f8d0d85087a4f8eccedc246099538189))
+
+**Full Changelog:** [`2026.02.02.0-hotfix16-7...2026.02.02.0-hotfix16-8`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix16-7...2026.02.02.0-hotfix16-8)
+
+- - -
+
 ## 2026.02.02.0-hotfix16-7
 
 ### Bug Fixes
