@@ -1,5 +1,9 @@
 import { customerAcceptance, multiUseMandateData } from "./Commons";
-import { getCurrency, getCustomExchange, getIframeRedirectionConfig } from "./Modifiers";
+import {
+  getCurrency,
+  getCustomExchange,
+  getIframeRedirectionConfig,
+} from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
