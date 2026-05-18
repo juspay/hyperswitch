@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.02.0-hotfix7.7
+
+### Features
+
+- Applepay payout redis rs ([#12350](https://github.com/juspay/hyperswitch/pull/12350)) ([`a1902a5`](https://github.com/juspay/hyperswitch/commit/a1902a5e3786480aea8649ef95c616297b5ffed5))
+
+### Bug Fixes
+
+- **router:** Treat ApplePay session Response as an opaque object ([#12348](https://github.com/juspay/hyperswitch/pull/12348)) ([`1569470`](https://github.com/juspay/hyperswitch/commit/1569470))
+
+**Full Changelog:** [`2026.04.02.0-hotfix7.6...2026.04.02.0-hotfix7.7`](https://github.com/juspay/hyperswitch/compare/2026.04.02.0-hotfix7.6...2026.04.02.0-hotfix7.7)
+
+- - -
+
 ## 2026.04.02.0-hotfix7.6
 
 ### Features
