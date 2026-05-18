@@ -574,9 +574,9 @@ async fn create_applepay_session_token(
                         apple_pay_res
                             .map(|res| {
                                 let response: Result<
-                                    payment_types::NoThirdPartySdkSessionResponse,
+                                    serde_json::Value,
                                     Report<common_utils::errors::ParsingError>,
-                                > = res.response.parse_struct("NoThirdPartySdkSessionResponse");
+                                > = res.response.parse_struct("serde_json::Value");
 
                                 // logging the parsing failed error
                                 if let Err(error) = response.as_ref() {
