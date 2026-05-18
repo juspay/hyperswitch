@@ -2408,20 +2408,27 @@ Cypress.Commands.add(
           expect(createPaymentBody.capture_method, "capture_method").to.equal(
             response.body.capture_method
           );
-          if (resData.body && typeof resData.body.payment_method !== "undefined") {
+          if (
+            resData.body &&
+            typeof resData.body.payment_method !== "undefined"
+          ) {
             expect(response.body.payment_method, "payment_method").to.equal(
               resData.body.payment_method
             );
           } else {
             expect(response.body.payment_method, "payment_method").to.be.null;
           }
-          if (resData.body && typeof resData.body.payment_method_data !== "undefined") {
-            expect(response.body.payment_method_data, "payment_method_data").to.deep.equal(
-              resData.body.payment_method_data
-            );
+          if (
+            resData.body &&
+            typeof resData.body.payment_method_data !== "undefined"
+          ) {
+            expect(
+              response.body.payment_method_data,
+              "payment_method_data"
+            ).to.deep.equal(resData.body.payment_method_data);
           } else {
-            expect(response.body.payment_method_data, "payment_method_data").to.be
-              .null;
+            expect(response.body.payment_method_data, "payment_method_data").to
+              .be.null;
           }
           expect(response.body.merchant_connector_id, "merchant_connector_id")
             .to.be.null;

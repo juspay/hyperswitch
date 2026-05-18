@@ -210,10 +210,7 @@ describe("Gift Card Payment - Adyen Givex", () => {
 
       cy.step("Handle Bank Redirect Redirection", () => {
         if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Handle Bank Redirect Redirection"
-          );
+          cy.task("cli_log", "Skipping step: Handle Bank Redirect Redirection");
           return;
         }
         const expected_redirection = fixtures.confirmBody["return_url"];
