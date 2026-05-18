@@ -139,7 +139,7 @@ export const connectorDetails = {
         },
       },
     },
-    
+
     SaveCardUse3DSAutoCaptureOffSession: {
       Request: {
         payment_method: "card",

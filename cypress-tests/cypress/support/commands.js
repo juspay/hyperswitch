@@ -2755,10 +2755,7 @@ Cypress.Commands.add(
                   expect(response.body.next_action).to.have.property(
                     "popup_url"
                   );
-                  globalState.set(
-                    "nextActionType",
-                    "redirect_inside_popup"
-                  );
+                  globalState.set("nextActionType", "redirect_inside_popup");
                   globalState.set(
                     "nextActionUrl",
                     response.body.next_action.popup_url
@@ -2818,10 +2815,7 @@ Cypress.Commands.add(
                   expect(response.body.next_action).to.have.property(
                     "popup_url"
                   );
-                  globalState.set(
-                    "nextActionType",
-                    "redirect_inside_popup"
-                  );
+                  globalState.set("nextActionType", "redirect_inside_popup");
                   globalState.set(
                     "nextActionUrl",
                     response.body.next_action.popup_url

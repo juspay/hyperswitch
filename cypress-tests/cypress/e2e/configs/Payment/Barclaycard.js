@@ -190,7 +190,7 @@ export const connectorDetails = {
         },
       },
     },
-    
+
     No3DSManualCapture: {
       Request: {
         payment_method: "card",

@@ -147,7 +147,8 @@ export const getIframeRedirectionConfig = (opts = {}) => {
   }
 
   if (payment_method_data_3ds) {
-    iframeRedirection.Response.body.payment_method_data = payment_method_data_3ds;
+    iframeRedirection.Response.body.payment_method_data =
+      payment_method_data_3ds;
   }
 
   if (configs && Object.keys(configs).length > 0) {
