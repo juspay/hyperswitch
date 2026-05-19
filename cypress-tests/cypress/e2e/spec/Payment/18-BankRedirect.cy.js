@@ -726,18 +726,18 @@ describe("Bank Redirect tests", () => {
   );
 
   describe("Bank Redirect Mandate CIT tests", () => {
-    context("BancontactCard - MandateSingleUseAutoCapture CIT", () => {
-      before(function () {
-        if (
-          utils.shouldIncludeConnector(
-            globalState.get("connectorId"),
-            utils.CONNECTOR_LISTS.INCLUDE.BANK_REDIRECT_MANDATE
-          )
-        ) {
-          this.skip();
-        }
-      });
+    before(function () {
+      if (
+        utils.shouldIncludeConnector(
+          globalState.get("connectorId"),
+          utils.CONNECTOR_LISTS.INCLUDE.BANK_REDIRECT_MANDATE
+        )
+      ) {
+        this.skip();
+      }
+    });
 
+    context("BancontactCard - MandateSingleUseAutoCapture CIT", () => {
       it("CIT mandate and retrieve", () => {
         let shouldContinue = true;
 
@@ -789,17 +789,6 @@ describe("Bank Redirect tests", () => {
     });
 
     context("iDEAL - MandateSingleUseAutoCapture CIT", () => {
-      before(function () {
-        if (
-          utils.shouldIncludeConnector(
-            globalState.get("connectorId"),
-            utils.CONNECTOR_LISTS.INCLUDE.BANK_REDIRECT_MANDATE
-          )
-        ) {
-          this.skip();
-        }
-      });
-
       it("CIT mandate and retrieve", () => {
         let shouldContinue = true;
 
@@ -851,17 +840,6 @@ describe("Bank Redirect tests", () => {
     });
 
     context("OpenBankingUk - MandateSingleUseAutoCapture CIT", () => {
-      before(function () {
-        if (
-          utils.shouldIncludeConnector(
-            globalState.get("connectorId"),
-            utils.CONNECTOR_LISTS.INCLUDE.BANK_REDIRECT_MANDATE
-          )
-        ) {
-          this.skip();
-        }
-      });
-
       it("CIT mandate and retrieve", () => {
         let shouldContinue = true;
 
@@ -913,17 +891,6 @@ describe("Bank Redirect tests", () => {
     });
 
     context("Trustly - MandateSingleUseAutoCapture CIT", () => {
-      before(function () {
-        if (
-          utils.shouldIncludeConnector(
-            globalState.get("connectorId"),
-            utils.CONNECTOR_LISTS.INCLUDE.BANK_REDIRECT_MANDATE
-          )
-        ) {
-          this.skip();
-        }
-      });
-
       it("CIT mandate and retrieve", () => {
         let shouldContinue = true;
 
