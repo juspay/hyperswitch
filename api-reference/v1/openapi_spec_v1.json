@@ -9952,7 +9952,7 @@
             "$ref": "#/components/schemas/ThirdPartySdkSessionResponse"
           },
           {
-            "$ref": "#/components/schemas/NoThirdPartySdkSessionResponse"
+            "description": "We get this session response, when there is no involvement of third party sdk\nThis is the common response most of the times"
           },
           {
             "$ref": "#/components/schemas/NullObject"
@@ -26245,74 +26245,6 @@
           "invoke_upi_qr_flow"
         ]
       },
-      "NoThirdPartySdkSessionResponse": {
-        "type": "object",
-        "required": [
-          "epoch_timestamp",
-          "expires_at",
-          "merchant_session_identifier",
-          "nonce",
-          "merchant_identifier",
-          "domain_name",
-          "display_name",
-          "signature",
-          "operational_analytics_identifier",
-          "retries",
-          "psp_id"
-        ],
-        "properties": {
-          "epoch_timestamp": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Timestamp at which session is requested",
-            "minimum": 0
-          },
-          "expires_at": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Timestamp at which session expires",
-            "minimum": 0
-          },
-          "merchant_session_identifier": {
-            "type": "string",
-            "description": "The identifier for the merchant session"
-          },
-          "nonce": {
-            "type": "string",
-            "description": "Apple pay generated unique ID (UUID) value"
-          },
-          "merchant_identifier": {
-            "type": "string",
-            "description": "The identifier for the merchant"
-          },
-          "domain_name": {
-            "type": "string",
-            "description": "The domain name of the merchant which is registered in Apple Pay"
-          },
-          "display_name": {
-            "type": "string",
-            "description": "The name to be displayed on Apple Pay button"
-          },
-          "signature": {
-            "type": "string",
-            "description": "A string which represents the properties of a payment"
-          },
-          "operational_analytics_identifier": {
-            "type": "string",
-            "description": "The identifier for the operational analytics"
-          },
-          "retries": {
-            "type": "integer",
-            "format": "int32",
-            "description": "The number of retries to get the session response",
-            "minimum": 0
-          },
-          "psp_id": {
-            "type": "string",
-            "description": "The identifier for the connector transaction"
-          }
-        }
-      },
       "NoonData": {
         "type": "object",
         "properties": {
@@ -28712,6 +28644,17 @@
             "properties": {
               "bank_debit": {
                 "$ref": "#/components/schemas/BankDebitDetail"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/WalletDetail"
               }
             }
           }
@@ -43654,6 +43597,41 @@
             "properties": {
               "we_chat_pay_redirect": {
                 "$ref": "#/components/schemas/WeChatPayRedirection"
+              }
+            }
+          }
+        ]
+      },
+      "WalletDetail": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "apple_pay_decrypted_data"
+            ],
+            "properties": {
+              "apple_pay_decrypted_data": {
+                "type": "object",
+                "required": [
+                  "application_primary_account_number",
+                  "expiry_month",
+                  "expiry_year"
+                ],
+                "properties": {
+                  "application_primary_account_number": {
+                    "type": "string",
+                    "description": "The application primary account number associated with the card",
+                    "example": "4242424242424242"
+                  },
+                  "expiry_month": {
+                    "type": "string",
+                    "description": "The card's expiry month"
+                  },
+                  "expiry_year": {
+                    "type": "string",
+                    "description": "The card's expiry year"
+                  }
+                }
               }
             }
           }
