@@ -8927,7 +8927,7 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
 Cypress.Commands.add(
   "fetchWebhookWithRetry",
   "fetchWebhookWithRetry",
-  (globalState, maxAttempts = 20, pollInterval = 1000) => {
+  (globalState, maxAttempts = 10, pollInterval = 6000) => {
     const paymentId = globalState.get("paymentID");
     const apiKey = globalState.get("adminApiKey");
     const baseUrl = globalState.get("baseUrl");
