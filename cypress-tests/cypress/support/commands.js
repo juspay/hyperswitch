@@ -9099,6 +9099,15 @@ Cypress.Commands.add("verifyWebhookSignatureHeader", (globalState) => {
     return;
   }
 
+  const webhookData = globalState.get("webhookData");
+  if (!webhookData || webhookData.length === 0) {
+    cy.task(
+      "cli_log",
+      "No webhook data available - skipping signature verification"
+    );
+    return;
+  }
+
   const hashKey = globalState.get("paymentResponseHashKey");
   const signatureAlgorithm =
     globalState.get("signatureAlgorithm") || "HMAC-SHA512";

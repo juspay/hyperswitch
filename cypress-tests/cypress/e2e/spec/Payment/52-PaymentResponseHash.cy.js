@@ -77,7 +77,7 @@ describe("Card - Payment Response Hash flow test", () => {
     () => {
       before(function () {
         if (!hashEnabled) {
-          console.log("Payment response hash is disabled - skipping positive test");
+          cy.task("cli_log", "Payment response hash is disabled - skipping positive test");
           this.skip();
         }
       });
@@ -157,7 +157,7 @@ describe("Card - Payment Response Hash flow test", () => {
 
     before(function () {
       if (!hashEnabled) {
-        console.log("Payment response hash is disabled - skipping 3DS verification");
+        cy.task("cli_log", "Payment response hash is disabled - skipping 3DS verification");
         this.skip();
       }
     });
@@ -254,10 +254,6 @@ describe("Card - Payment Response Hash flow test", () => {
 
     it("verify webhook delivery signature", function () {
       if (!globalState.get("webhookUrlConfigured")) {
-        cy.task(
-          "cli_log",
-          "Skipping webhook delivery signature test: webhook_url not configured"
-        );
         this.skip();
         return;
       }
@@ -269,7 +265,7 @@ describe("Card - Payment Response Hash flow test", () => {
   context("Hash Disabled - Verify No Signatures Present", () => {
     before(function () {
       if (hashEnabled) {
-        console.log("Payment response hash is enabled in this environment - skipping negative test");
+        cy.task("cli_log", "Payment response hash is enabled in this environment - skipping negative test");
         this.skip();
       }
     });
