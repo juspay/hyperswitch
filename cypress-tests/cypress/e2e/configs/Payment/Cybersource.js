@@ -136,7 +136,6 @@ export const connectorDetails = {
     },
     ...getIframeRedirectionConfig({
       cardDetails: successfulThreeDSTestCardDetails,
-      payment_method_data_3ds: payment_method_data_3ds,
     }),
     PaymentIntentOffSession: {
       Configs: {

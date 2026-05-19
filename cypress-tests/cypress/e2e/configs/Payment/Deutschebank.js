@@ -44,7 +44,6 @@ export const connectorDetails = {
     },
     ...getIframeRedirectionConfig({
       cardDetails: successful3DSCardDetails,
-      payment_method_data_3ds: paymentMethodData3DSResponse,
     }),
     "3DSManualCapture": {
       Request: {
