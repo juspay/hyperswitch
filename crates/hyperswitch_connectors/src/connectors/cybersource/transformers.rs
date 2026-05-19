@@ -986,11 +986,16 @@ impl
                         }
                         None => None,
                     };
+
                     (
                         None,
                         None,
                         Some(CybersourceAuthorizationOptions {
-                            initiator: None,
+                            initiator: Some(CybersourcePaymentInitiator {
+                                initiator_type: Some(CybersourcePaymentInitiatorTypes::Merchant),
+                                credential_stored_on_file: None,
+                                stored_credential_used: Some(true),
+                            }),
                             merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                                 reason: None,
                                 original_authorized_amount,
