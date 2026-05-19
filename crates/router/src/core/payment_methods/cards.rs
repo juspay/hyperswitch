@@ -2892,6 +2892,29 @@ pub async fn update_payment_method_connector_mandate_details_and_network_token_d
         .change_context(errors::VaultError::UpdateInPaymentMethodTableFailed)?;
     Ok(())
 }
+
+#[cfg(feature = "v1")]
+pub async fn update_payment_method_network_transaction_link_id(
+    key_store: &domain::MerchantKeyStore,
+    db: &dyn db::StorageInterface,
+    pm: domain::PaymentMethod,
+    network_transaction_link_id: Option<String>,
+    storage_scheme: MerchantStorageScheme,
+    initiator: Option<&domain::Initiator>,
+) -> errors::CustomResult<(), errors::VaultError> {
+    let pm_update = payment_method::PaymentMethodUpdate::NetworkTransactionLinkIdUpdate {
+        network_transaction_link_id,
+        last_modified_by: initiator
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|last_modified_by| last_modified_by.to_string()),
+    };
+
+    db.update_payment_method(key_store, pm, pm_update, storage_scheme)
+        .await
+        .change_context(errors::VaultError::UpdateInPaymentMethodTableFailed)?;
+    Ok(())
+}
+
 #[instrument(skip_all)]
 pub async fn get_card_from_vault<'a>(
     state: &'a routes::SessionState,

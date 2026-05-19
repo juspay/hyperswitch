@@ -301,6 +301,34 @@ where
     ) {
         let payment_intent = payment_data.get_payment_intent();
 
+        //store TLID from the connector response on the payment method when not already set.
+        let connector_network_transaction_link_id = router_data
+            .response
+            .as_ref()
+            .ok()
+            .and_then(types::PaymentsResponseData::get_network_transaction_link_id);
+
+        if payment_method.network_transaction_link_id.is_none()
+            && connector_network_transaction_link_id.is_some()
+        {
+            payment_methods::cards::update_payment_method_network_transaction_link_id(
+                provider.get_key_store(),
+                &*state.store,
+                payment_method.clone(),
+                connector_network_transaction_link_id,
+                provider.get_account().storage_scheme,
+                initiator,
+            )
+            .await
+            .map_err(|err| {
+                logger::error!(
+                    error=?err,
+                    "Failed to persist network_transaction_link_id on payment method"
+                );
+            })
+            .ok();
+        }
+
         let mandate_details = payment_method
             .get_common_mandate_reference()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3073,11 +3101,10 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
             None
         };
 
-        let network_transaction_link_id = if payment_data.payment_intent.setup_future_usage
-            == Some(diesel_models::enums::FutureUsage::OffSession)
-        {
+        let network_transaction_link_id = if payment_method.network_transaction_link_id.is_none() {
             pm_resp_network_transaction_link_id
         } else {
+            logger::info!("Skip storing network transaction link id");
             None
         };
 
