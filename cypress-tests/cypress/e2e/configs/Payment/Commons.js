@@ -3172,8 +3172,7 @@ export const connectorDetails = {
           sdk_next_action: {
             next_action: {
               deny: {
-                message:
-                  "We're unable to accept this card, please try another card or a different payment method",
+                message: "Card number is blocklisted",
               },
             },
           },

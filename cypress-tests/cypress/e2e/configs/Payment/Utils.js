@@ -499,7 +499,6 @@ export const CONNECTOR_LISTS = {
       "nmi",
       "novalnet",
       "payload",
-      "paypal",
       "trustpay",
       "worldpay",
     ],
@@ -509,7 +508,6 @@ export const CONNECTOR_LISTS = {
       "fiuu",
       "nmi",
       "novalnet",
-      "paypal",
       "stripe",
     ],
     BANK_DEBIT: ["adyen", "novalnet", "payload"], // payload verified as working
@@ -543,7 +541,6 @@ export const CONNECTOR_LISTS = {
       "globalpay",
       "nexinets",
       "nmi",
-      "paypal",
       "powertranz",
       "shift4",
       "trustpay",

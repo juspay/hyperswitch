@@ -103,6 +103,9 @@ export const connectorDetails = {
       },
     },
     "3DSManualCapture": {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -120,6 +123,9 @@ export const connectorDetails = {
       },
     },
     "3DSAutoCapture": {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -217,47 +223,51 @@ export const connectorDetails = {
       },
     },
     Refund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 6000,
       },
       Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
+        status: 400,
+        body: {},
       },
     },
     PartialRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 2000,
       },
       Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
+        status: 400,
+        body: {},
       },
     },
     manualPaymentRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 6000,
       },
       Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
+        status: 400,
+        body: {},
       },
     },
     manualPaymentPartialRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 2000,
       },
       Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
+        status: 400,
+        body: {},
       },
     },
     SyncRefund: {
@@ -399,6 +409,9 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -408,7 +421,7 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
           status: "succeeded",
         },
@@ -967,6 +980,116 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    },
+  },
+  payment_method_blocking_pm: {
+    BlockIssuingCountry: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4000000000000002",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        expectBlockedPayment: true,
+        body: {
+          error: {
+            type: "blocked",
+            message: "This payment method is blocked",
+            code: "HE_03",
+            reason: "Blocked",
+          },
+        },
+      },
+    },
+    BlockCardType: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        expectBlockedPayment: true,
+        body: {
+          error: {
+            type: "blocked",
+            message: "This payment method is blocked",
+            code: "HE_03",
+            reason: "Blocked",
+          },
+        },
+      },
+    },
+    BlockCardSubtype: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "378282246310005",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        expectBlockedPayment: true,
+        body: {
+          error: {
+            type: "blocked",
+            message: "This payment method is blocked",
+            code: "HE_03",
+            reason: "Blocked",
+          },
+        },
+      },
+    },
+    BlockIfBinInfoUnavailable: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "6304000000000000",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        expectBlockedPayment: true,
+        body: {
+          error: {
+            type: "blocked",
+            message: "This payment method is blocked",
+            code: "HE_03",
+            reason: "Blocked",
+          },
         },
       },
     },
