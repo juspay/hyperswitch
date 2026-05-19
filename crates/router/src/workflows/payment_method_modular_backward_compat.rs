@@ -1,3 +1,4 @@
+#[cfg(feature = "v1")]
 use api_models::payment_methods::Card;
 #[cfg(feature = "v2")]
 use common_utils::id_type;
@@ -9,7 +10,7 @@ use scheduler::{
 };
 
 use crate::{
-    core::payment_methods::{cards, transformers, vault},
+    core::payment_methods::{cards, vault},
     errors,
     logger::{self, error},
     routes::{app::StorageInterface, SessionState},
@@ -18,6 +19,10 @@ use crate::{
         storage::{self, PaymentMethodModularCompatTrackingData},
     },
 };
+#[cfg(feature = "v1")]
+use crate::core::payment_methods::transformers;
+#[cfg(feature = "v2")]
+use crate::core::payment_methods::add_payment_method_to_legacy_locker;
 
 #[cfg(feature = "v1")]
 pub async fn backfill_legacy_db_fields(
@@ -61,19 +66,42 @@ pub async fn backfill_legacy_db_fields(
 
 #[cfg(feature = "v2")]
 pub async fn backfill_legacy_db_fields(
-    _db: &dyn StorageInterface,
-    _key_store: &domain::MerchantKeyStore,
+    db: &dyn StorageInterface,
+    key_store: &domain::MerchantKeyStore,
     payment_method: domain::PaymentMethod,
-    _storage_scheme: common_enums::MerchantStorageScheme,
+    storage_scheme: common_enums::MerchantStorageScheme,
     tracking_data: &PaymentMethodModularCompatTrackingData,
     process_id: &str,
 ) -> Result<domain::PaymentMethod, errors::ProcessTrackerError> {
-    logger::info!(
-        process_id=%process_id,
-        payment_method_id=%tracking_data.payment_method_id,
-        "Skipping legacy DB field backfill in modular backward compatibility inline flow because v2 schema has no legacy DB fields"
-    );
-    Ok(payment_method)
+    let legacy_payment_method = payment_method.get_payment_method_type();
+    let legacy_payment_method_type = payment_method.get_payment_method_subtype();
+    let should_update_legacy_db_fields =
+        legacy_payment_method.is_some() || legacy_payment_method_type.is_some();
+
+    if should_update_legacy_db_fields {
+        let pm_update = storage::PaymentMethodUpdate::PopulateLegacyCompatFields {
+            payment_method: legacy_payment_method,
+            payment_method_type: legacy_payment_method_type,
+            last_modified_by: tracking_data.last_modified_by.clone(),
+        };
+
+        let updated_payment_method = db
+            .update_payment_method(key_store, payment_method, pm_update, storage_scheme)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to populate legacy payment method fields in backward compatibility inline flow",
+            )?;
+
+        Ok(updated_payment_method)
+    } else {
+        logger::info!(
+            process_id=%process_id,
+            payment_method_id=%tracking_data.payment_method_id,
+            "Skipping legacy DB field backfill in modular backward compatibility inline flow because fields are already populated"
+        );
+        Ok(payment_method)
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -228,7 +256,7 @@ pub async fn backfill_legacy_locker_card(
 #[cfg(feature = "v2")]
 pub async fn backfill_legacy_locker_card(
     state: &SessionState,
-    merchant_id: &id_type::MerchantId,
+    platform: &domain::Platform,
     payment_method: &domain::PaymentMethod,
     tracking_data: &PaymentMethodModularCompatTrackingData,
     process_id: &str,
@@ -275,10 +303,10 @@ pub async fn backfill_legacy_locker_card(
             .get_string_repr()
             .to_owned();
 
-        let legacy_card_exists = match cards::get_card_from_vault(
+        let legacy_card_exists = match cards::get_card_from_locker(
             state,
             &customer_id,
-            merchant_id,
+            platform.get_provider().get_account().get_id(),
             &card_reference,
         )
         .await
@@ -329,48 +357,33 @@ pub async fn backfill_legacy_locker_card(
                 .attach_printable(
                     "Failed to parse generic locker retrieve response in backward compatibility inline flow",
                 )?;
-            let locker_card_detail =
-                if let hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card) =
-                    stored_pm_resp.data
-                {
-                    card
-                } else {
-                    Err(
-                        error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable(
+            if !matches!(
+                stored_pm_resp.data,
+                hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(_)
+            ) {
+                Err(
+                    error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
                             "Generic locker returned non-card data in backward compatibility inline flow",
                         ),
-                    )?
-                };
+                )?
+            }
 
-            let card_isin = locker_card_detail.card_number.get_card_isin();
-            let locker_req = transformers::StoreLockerReq::LockerCard(transformers::StoreCardReq {
-                merchant_id: merchant_id.clone(),
-                merchant_customer_id: customer_id.clone(),
-                requestor_card_reference: Some(card_reference.to_owned()),
-                card: Card {
-                    card_number: locker_card_detail.card_number,
-                    name_on_card: locker_card_detail.card_holder_name,
-                    card_exp_month: locker_card_detail.card_exp_month,
-                    card_exp_year: locker_card_detail.card_exp_year,
-                    card_brand: locker_card_detail
-                        .card_network
-                        .map(|network| network.to_string()),
-                    card_isin: Some(card_isin),
-                    nick_name: locker_card_detail
-                        .nick_name
-                        .as_ref()
-                        .map(|nick_name| nick_name.peek().to_owned()),
-                },
-                ttl: state.conf.locker.ttl_for_storage_in_secs,
-            });
-
-            let _ = cards::add_card_to_vault(state, &locker_req, &customer_id)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Failed to add card to legacy locker in backward compatibility inline flow",
-                )?;
+            let _ = add_payment_method_to_legacy_locker(
+                state,
+                platform,
+                &stored_pm_resp.data,
+                Some(domain::VaultId::generate(card_reference.clone())),
+                payment_method
+                    .customer_id
+                    .as_ref()
+                    .get_required_value("customer_id")?,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to add card to legacy locker in backward compatibility inline flow",
+            )?;
 
             logger::info!(
                 process_id=%process_id,
@@ -435,14 +448,36 @@ pub async fn run_payment_method_modular_backward_compat_backfill(
     )
     .await?;
 
-    backfill_legacy_locker_card(
-        state,
-        &merchant_id,
-        &payment_method,
-        &tracking_data,
-        process_id,
-    )
-    .await
+    #[cfg(feature = "v1")]
+    {
+        backfill_legacy_locker_card(
+            state,
+            &merchant_id,
+            &payment_method,
+            &tracking_data,
+            process_id,
+        )
+        .await
+    }
+
+    #[cfg(feature = "v2")]
+    {
+        let platform = domain::Platform::new(
+            merchant_account.clone(),
+            key_store.clone(),
+            merchant_account,
+            key_store,
+            None,
+        );
+        backfill_legacy_locker_card(
+            state,
+            &platform,
+            &payment_method,
+            &tracking_data,
+            process_id,
+        )
+        .await
+    }
 }
 
 pub struct PaymentMethodModularBackwardCompatWorkflow;
