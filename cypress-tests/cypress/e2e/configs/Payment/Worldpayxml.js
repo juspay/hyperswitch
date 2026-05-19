@@ -18,7 +18,7 @@ const successful3DSTestCardDetails = {
 const failedNo3DSCardDetails = {
   ...successfulNo3DSCardDetails,
   card_holder_name: "REFUSED33",
-}
+};
 
 export const connectorDetails = {
   card_pm: {
@@ -227,8 +227,7 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message:
-              "The refund amount exceeds the amount captured",
+            message: "The refund amount exceeds the amount captured",
             code: "IR_13",
           },
         },
