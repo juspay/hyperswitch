@@ -6703,7 +6703,7 @@ Cypress.Commands.add("retrievePaymentPersistenceTest", (globalState, data) => {
 
   cy.request({
     method: "GET",
-    url: `${Cypress.env("BASEURL")}/payments/${paymentId}`,
+    url: `${globalState.get("baseUrl")}/payments/${paymentId}`,
     headers: {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
