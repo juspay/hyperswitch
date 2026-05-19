@@ -31,7 +31,6 @@ import getConnectorDetails, {
   getOriginalConnectorName,
   getValueByKey,
   setNormalizedValue,
-  should_continue_further,
 } from "../e2e/configs/Payment/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
@@ -50,25 +49,6 @@ function isStripeConnect(globalState) {
     typeof connectorId === "string" &&
     connectorId.toLowerCase() === "stripeconnect"
   );
-}
-
-function normalizePaymentMethodData(pmd) {
-  if (!pmd || typeof pmd !== "object") return pmd;
-  const normalized = JSON.parse(JSON.stringify(pmd));
-  if (normalized.card && typeof normalized.card === "object") {
-    const unreliableFields = [
-      "card_type",
-      "card_network",
-      "card_issuer",
-      "card_issuing_country",
-    ];
-    for (const field of unreliableFields) {
-      if (field in normalized.card) {
-        normalized.card[field] = null;
-      }
-    }
-  }
-  return normalized;
 }
 
 function updateConnectorState(globalState, responseConnector) {
@@ -493,18 +473,14 @@ function cleanupProcessedRequestIds(
   globalState.set("requestIds", remainingRequestIds);
 }
 
-const ALGORITHM_MAP = {
-  "HMAC-SHA512": "sha512",
-  "HMAC-SHA256": "sha256",
-};
-
 function resolveAlgorithm(signatureAlgorithm) {
-  const algo = ALGORITHM_MAP[signatureAlgorithm];
-  expect(
-    algo,
-    `signature_algorithm must be in whitelist: ${JSON.stringify(Object.keys(ALGORITHM_MAP))}`
-  ).to.exist;
-  return algo;
+  const match = signatureAlgorithm.match(/^HMAC-SHA(\d+)$/);
+  if (!match) {
+    throw new Error(
+      `Unsupported signature_algorithm "${signatureAlgorithm}" — expected format HMAC-SHA<digits> (e.g. HMAC-SHA512, HMAC-SHA256)`
+    );
+  }
+  return `sha${match[1]}`;
 }
 
 function logRequestId(xRequestId) {
@@ -6150,15 +6126,7 @@ Cypress.Commands.add(
         if (response.status === 200) {
           for (const key in resData.body) {
             if (key !== "extended_authorization_expires_at") {
-              if (key === "payment_method_data") {
-                expect(normalizePaymentMethodData(resData.body[key]), [
-                  key,
-                ]).to.deep.equal(
-                  normalizePaymentMethodData(response.body[key])
-                );
-              } else {
-                expect(resData.body[key]).to.equal(response.body[key]);
-              }
+              expect(resData.body[key]).to.equal(response.body[key]);
             }
           }
 
@@ -7462,17 +7430,10 @@ Cypress.Commands.add("listDisputesCallTest", (data, globalState) => {
         for (const key in resData.body) {
           // Only assert if expected value is defined
           if (resData.body[key] !== undefined) {
-            if (key === "payment_method_data") {
-              expect(
-                normalizePaymentMethodData(response.body[key]),
-                `"${key}" in response body`
-              ).to.deep.equal(normalizePaymentMethodData(resData.body[key]));
-            } else {
-              expect(
-                response.body[key],
-                `"${key}" in response body`
-              ).to.deep.equal(resData.body[key]);
-            }
+            expect(
+              response.body[key],
+              `"${key}" in response body`
+            ).to.deep.equal(resData.body[key]);
           }
         }
       }
@@ -7706,15 +7667,7 @@ Cypress.Commands.add(
           if (resData && resData.body) {
             for (const key in resData.body) {
               if (resData.body[key] !== undefined) {
-                if (key === "payment_method_data") {
-                  expect(
-                    normalizePaymentMethodData(response.body[key])
-                  ).to.deep.equal(
-                    normalizePaymentMethodData(resData.body[key])
-                  );
-                } else {
-                  expect(response.body[key]).to.deep.equal(resData.body[key]);
-                }
+                expect(response.body[key]).to.deep.equal(resData.body[key]);
               }
             }
           }
@@ -8018,10 +7971,6 @@ Cypress.Commands.add(
             // Skip connector comparison for dynamic routing - either stripe or adyen is valid
             if (key === "connector") {
               expect(response.body[key]).to.be.oneOf(["adyen", "stripe"]);
-            } else if (key === "payment_method_data") {
-              expect(normalizePaymentMethodData(resData.body[key]), [
-                key,
-              ]).to.deep.equal(normalizePaymentMethodData(response.body[key]));
             } else {
               expect(resData.body[key], [key]).to.deep.equal(
                 response.body[key]
@@ -8548,18 +8497,14 @@ Cypress.Commands.add(
 );
 
 /**
- * Verifies that the payment response hash feature is properly configured on the merchant account.
+ * Fetches the merchant account configuration via GET /accounts/{merchantId}
+ * and returns the raw Cypress response. The caller can inspect
+ * `response.body.enable_payment_response_hash` and
+ * `response.body.payment_response_hash_key` to determine whether the
+ * payment response hash feature is active for this merchant.
  *
- * The payment_response_hash feature adds HMAC signatures to redirect URLs (as
- * `signature` and `signature_algorithm` query params) and to outgoing webhook headers
- * (as `Stripe-Signature` or `X-Webhook-Signature`). It does NOT add a field to the
- * payment response JSON body.
- *
- * This command uses the values already stored in globalState by the before hook
- * (enablePaymentResponseHash and paymentResponseHashKey) — it does NOT re-fetch the
- * merchant account API.
- *
- * @param {Object} globalState - The global state object
+ * @param {Object} globalState - The global state object (reads merchantId, adminApiKey, baseUrl)
+ * @returns {Cypress.Chainable< Cypress.Response >} The raw account API response
  */
 Cypress.Commands.add("fetchPaymentResponseHashConfig", (globalState) => {
   const merchantId = globalState.get("merchantId");
@@ -8725,6 +8670,16 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
 
     params.sort((a, b) => a[0].localeCompare(b[0]));
     const signingPayload = params.map(([k, v]) => `${k}=${v}`).join("&");
+
+    const sortedKeys = params.map(([k]) => k);
+    const expectedSortedKeys = [...sortedKeys].sort((a, b) =>
+      a.localeCompare(b)
+    );
+    expect(
+      sortedKeys,
+      "signing payload params must be sorted lexicographically"
+    ).to.deep.equal(expectedSortedKeys);
+
     const algorithm = resolveAlgorithm(signatureAlgorithm);
 
     cy.task("computeHmac", {
@@ -8814,7 +8769,9 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
 
 Cypress.Commands.add(
   "fetchWebhookWithRetry",
-  (globalState, maxAttempts = 10, pollInterval = 6000) => {
+  (globalState) => {
+    const maxAttempts = Cypress.env("WEBHOOK_POLL_MAX_ATTEMPTS") || 10;
+    const pollInterval = Cypress.env("WEBHOOK_POLL_INTERVAL_MS") || 6000;
     const paymentId = globalState.get("paymentID");
     const apiKey = globalState.get("adminApiKey");
     const baseUrl = globalState.get("baseUrl");
@@ -8958,19 +8915,16 @@ function verifyWebhookSignatureFromData(
 }
 
 /**
- * Sets up a 3DS payment (create intent → confirm).
- * The `includeRedirection` option is accepted but ignored: completing a 3DS challenge
- * requires an interactive browser flow that is not available in headless local dev
- * environments. Downstream steps use `_setup3DSContinue` to skip gracefully when
- * the required state is not present.
+ * Sets up a 3DS payment (create intent → payment methods → confirm).
+ * Stores `_setup3DSContinue` in globalState to signal whether downstream
+ * steps should proceed. Downstream steps check this flag to skip
+ * gracefully when the 3DS setup did not succeed.
  *
  * @param {Object} globalState - The global state object
- * @param {{ includeRedirection: boolean }} options - Accepted but not used (see above)
  */
 Cypress.Commands.add(
   "setup3DSPayment",
-  // eslint-disable-next-line no-unused-vars
-  (globalState, { includeRedirection = false } = {}) => {
+  (globalState) => {
     globalState.set("_setup3DSContinue", true);
 
     cy.step("create payment intent (3DS)", () => {

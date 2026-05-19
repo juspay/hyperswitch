@@ -214,6 +214,7 @@ export const connectorDetails = {
     "3DSManualCapture": {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -234,6 +235,7 @@ export const connectorDetails = {
     "3DSAutoCapture": {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -253,6 +255,7 @@ export const connectorDetails = {
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -273,6 +276,7 @@ export const connectorDetails = {
     No3DSAutoCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
