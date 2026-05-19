@@ -8404,20 +8404,4 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("verifyIframeRedirection", (globalState, options = {}) => {
-  const { expectRedirectInsidePopup = true } = options;
 
-  cy.wrap(globalState.get("paymentIntentStatus")).should(
-    "equal",
-    "requires_customer_action"
-  );
-
-  if (expectRedirectInsidePopup) {
-    cy.wrap(globalState.get("nextActionType")).should(
-      "equal",
-      "redirect_inside_popup"
-    );
-  }
-
-  cy.wrap(globalState.get("nextActionUrl")).should("not.be.null");
-});
