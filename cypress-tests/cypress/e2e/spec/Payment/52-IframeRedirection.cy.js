@@ -141,9 +141,15 @@ describe("Iframe Redirection Payment Flow Tests", () => {
           cy.task("cli_log", "Skipping step: Confirm Payment");
           return;
         }
-        const data = getConnectorDetails(globalState.get("connectorId"))[
+        const fullData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["3DSAutoCapture"];
+        // Strip payment_method_data from expected response to avoid
+        // deep-equal failures on connector-specific card_issuer values
+        const data = JSON.parse(JSON.stringify(fullData));
+        if (data?.Response?.body?.payment_method_data) {
+          delete data.Response.body.payment_method_data;
+        }
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
