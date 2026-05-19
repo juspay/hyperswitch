@@ -194,6 +194,7 @@ describe("Gift Card Payment - Adyen Givex", () => {
 
         const paymentIntentId = globalState.get("paymentID");
         const reqData = confirmData.Request || {};
+        reqData.client_secret = globalState.get("clientSecret");
         const resData = confirmData.Response || {};
 
         cy.request({
