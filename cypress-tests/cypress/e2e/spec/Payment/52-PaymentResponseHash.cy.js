@@ -77,7 +77,6 @@ describe("Card - Payment Response Hash flow test", () => {
     () => {
       before(function () {
         if (!hashEnabled) {
-          cy.task("cli_log", "Payment response hash is disabled - skipping positive test");
           this.skip();
         }
       });
@@ -157,7 +156,6 @@ describe("Card - Payment Response Hash flow test", () => {
 
     before(function () {
       if (!hashEnabled) {
-        cy.task("cli_log", "Payment response hash is disabled - skipping 3DS verification");
         this.skip();
       }
     });
@@ -265,7 +263,6 @@ describe("Card - Payment Response Hash flow test", () => {
   context("Hash Disabled - Verify No Signatures Present", () => {
     before(function () {
       if (hashEnabled) {
-        cy.task("cli_log", "Payment response hash is enabled in this environment - skipping negative test");
         this.skip();
       }
     });
