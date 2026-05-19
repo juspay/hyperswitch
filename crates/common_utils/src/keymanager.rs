@@ -80,15 +80,45 @@ where
     let url = reqwest::Url::parse(&url)
         .change_context(errors::KeyManagerClientError::UrlEncodingFailed)?;
 
-    client
-        .request(method, url)
+    let start_time = std::time::Instant::now();
+    let response = client
+        .request(method.clone(), url.clone())
         .json(&ConvertRaw::convert_raw(request_body)?)
         .headers(headers)
         .send()
         .await
         .change_context(errors::KeyManagerClientError::RequestNotSent(
             "Unable to send request to encryption service".to_string(),
-        ))
+        ))?;
+
+    let latency = start_time.elapsed().as_millis();
+
+    let kms_metadata = crate::events::ExternalServiceCall {
+        service_name: "KeyManager".to_string(),
+        event_id: uuid::Uuid::new_v4().to_string(),
+        endpoint: url.path().to_string(),
+        method: method.to_string(),
+        status_code: Some(response.status().as_u16()),
+        success: response.status().is_success(),
+        latency_ms: latency,
+        metadata: std::collections::HashMap::new(),
+    };
+
+    let mutex_start_time = std::time::Instant::now();
+    if let Ok(mut collector) = state.observability.lock() {
+        collector.record(kms_metadata.clone());
+        logger::info!(
+            "Keymanager service call observability data: {:?}",
+            kms_metadata
+        );
+    }
+    let mutex_latency = mutex_start_time.elapsed().as_micros();
+    logger::info!(
+        "Time taken to acquire lock and record observability for keymanager response: {} µs",
+        mutex_latency
+    );
+
+    Ok(response)
 }
 
 /// Generic function to call the Keymanager and parse the response back
@@ -135,7 +165,7 @@ where
         state,
         HeaderMap::from_iter(header.into_iter()),
         url,
-        method,
+        method.clone(),
         request_body,
     )
     .await

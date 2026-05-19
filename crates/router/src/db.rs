@@ -160,6 +160,7 @@ pub trait StorageInterface:
         -> Box<dyn subscriptions::state::SubscriptionStorageInterface>;
     fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static>;
     fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState);
+    fn get_key_manager_state(&self) -> Option<&KeyManagerState>;
 }
 
 #[async_trait::async_trait]
@@ -227,6 +228,10 @@ impl StorageInterface for Store {
         #[cfg(feature = "kv_store")]
         self.router_store.set_key_manager_state(key_manager_state);
     }
+
+    fn get_key_manager_state(&self) -> Option<&KeyManagerState> {
+        self.key_manager_state.as_ref()
+    }
 }
 
 #[async_trait::async_trait]
@@ -257,6 +262,9 @@ impl StorageInterface for MockDb {
     }
     fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState) {
         self.key_manager_state = Some(key_manager_state);
+    }
+    fn get_key_manager_state(&self) -> Option<&KeyManagerState> {
+        self.key_manager_state.as_ref()
     }
 }
 

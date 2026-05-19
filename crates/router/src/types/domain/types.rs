@@ -1,5 +1,7 @@
+use std::sync::{Arc, Mutex};
+
 use ::payment_methods::state as pm_state;
-use common_utils::types::keymanager::KeyManagerState;
+use common_utils::{events::ExternalServiceCallCollector, types::keymanager::KeyManagerState};
 pub use hyperswitch_domain_models::type_encryption::{
     crypto_operation, AsyncLift, CryptoOperation, Lift, OptionalEncryptableJsonType,
 };
@@ -27,12 +29,14 @@ impl ForeignFrom<(&app::AppState, configs::Tenant)> for KeyManagerState {
             ca: conf.ca.clone(),
             infra_values: app::AppState::process_env_mappings(app_state.conf.infra_values.clone()),
             use_legacy_key_store_decryption: conf.use_legacy_key_store_decryption,
+            observability: Arc::new(Mutex::new(ExternalServiceCallCollector::default())),
         }
     }
 }
 impl From<&app::SessionState> for KeyManagerState {
     fn from(state: &app::SessionState) -> Self {
         let conf = state.conf.key_manager.get_inner();
+        let store_km_state = state.store.get_key_manager_state();
         Self {
             global_tenant_id: state.conf.multitenancy.global_tenant.tenant_id.clone(),
             tenant_id: state.tenant.tenant_id.clone(),
@@ -47,6 +51,9 @@ impl From<&app::SessionState> for KeyManagerState {
             ca: conf.ca.clone(),
             infra_values: app::AppState::process_env_mappings(state.conf.infra_values.clone()),
             use_legacy_key_store_decryption: conf.use_legacy_key_store_decryption,
+            observability: store_km_state
+                .map(|km_state| km_state.observability.clone())
+                .unwrap_or_else(|| Arc::new(Mutex::new(ExternalServiceCallCollector::default()))),
         }
     }
 }

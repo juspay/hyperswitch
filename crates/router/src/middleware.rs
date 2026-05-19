@@ -1,4 +1,10 @@
-use common_utils::consts::TENANT_HEADER;
+use std::{
+    sync::{Arc, Mutex},
+    time::Instant,
+};
+
+use actix_web::{FromRequest, HttpMessage};
+use common_utils::{consts::TENANT_HEADER, events::ExternalServiceCallCollector};
 use futures::StreamExt;
 // Re-export RequestId from router_env for convenience
 pub use router_env::RequestId;
@@ -7,7 +13,163 @@ use router_env::{
     tracing::{field::Empty, Instrument},
 };
 
-use crate::{headers, routes::metrics};
+use crate::{
+    events::api_logs::{ApiEvent, NewApiEvent, ObservabilityEventHandlerInterface},
+    headers,
+    routes::metrics,
+};
+
+/// Middleware to capture observability data
+pub struct ObservabilityMiddleware<T: ObservabilityEventHandlerInterface + Clone> {
+    event_handler: T,
+}
+
+impl<T: ObservabilityEventHandlerInterface + Clone> ObservabilityMiddleware<T> {
+    pub fn new(event_handler: T) -> Self {
+        Self { event_handler }
+    }
+}
+
+impl<S: 'static, B, T: ObservabilityEventHandlerInterface + Clone + 'static>
+    actix_web::dev::Transform<S, actix_web::dev::ServiceRequest> for ObservabilityMiddleware<T>
+where
+    S: actix_web::dev::Service<
+        actix_web::dev::ServiceRequest,
+        Response = actix_web::dev::ServiceResponse<B>,
+        Error = actix_web::Error,
+    >,
+    S::Future: 'static,
+    B: 'static,
+{
+    type Response = actix_web::dev::ServiceResponse<B>;
+    type Error = actix_web::Error;
+    type Transform = ObservabilityMiddlewareService<S, T>;
+    type InitError = ();
+    type Future = std::future::Ready<Result<Self::Transform, Self::InitError>>;
+
+    fn new_transform(&self, service: S) -> Self::Future {
+        std::future::ready(Ok(ObservabilityMiddlewareService {
+            service,
+            event_handler: self.event_handler.clone(),
+        }))
+    }
+}
+
+pub struct ObservabilityMiddlewareService<S, T> {
+    service: S,
+    event_handler: T,
+}
+
+impl<S, B, T: ObservabilityEventHandlerInterface + Clone + 'static>
+    actix_web::dev::Service<actix_web::dev::ServiceRequest> for ObservabilityMiddlewareService<S, T>
+where
+    S: actix_web::dev::Service<
+            actix_web::dev::ServiceRequest,
+            Response = actix_web::dev::ServiceResponse<B>,
+            Error = actix_web::Error,
+        > + 'static,
+    S::Future: 'static,
+    B: 'static,
+{
+    type Response = actix_web::dev::ServiceResponse<B>;
+    type Error = actix_web::Error;
+    type Future = futures::future::LocalBoxFuture<'static, Result<Self::Response, Self::Error>>;
+
+    actix_web::dev::forward_ready!(service);
+
+    fn call(&self, req: actix_web::dev::ServiceRequest) -> Self::Future {
+        let middleware_start_time = Instant::now();
+        let user_agent = req
+            .headers()
+            .get(headers::USER_AGENT)
+            .and_then(|h| h.to_str().ok())
+            .map(|s| s.to_string());
+        let ip_addr = req.peer_addr().map(|addr| addr.to_string());
+
+        let event_handler = self.event_handler.clone();
+        let response_fut = self.service.call(req);
+
+        Box::pin(async move {
+            let start_time = Instant::now();
+            let response = response_fut.await?;
+            let req_latency = start_time.elapsed().as_millis();
+            let status_code = response.status().as_u16().into();
+
+            let (http_req, res_body) = response.into_parts();
+
+            let external_service_collector = http_req
+                .extensions()
+                .get::<Arc<Mutex<ExternalServiceCallCollector>>>()
+                .cloned();
+
+            let mut external_service_calls = Vec::new();
+            if let Some(collector) = external_service_collector {
+                if let Ok(mut guard) = collector.lock() {
+                    let calls = guard.drain();
+                    external_service_calls.extend(calls);
+                }
+            } else {
+                logger::info!("No external service call data found in response extensions");
+            }
+
+            let api_event = http_req.extensions().get::<ApiEvent>().cloned();
+
+            let final_event = if let Some(api_event) = api_event {
+                let mut transformed = NewApiEvent::from(api_event.clone());
+
+                transformed
+                    .external_service_calls
+                    .extend(external_service_calls);
+                transformed.status_code = status_code;
+                transformed.latency = req_latency;
+
+                transformed
+            } else {
+                // Fallback if no events found in request extensions
+                logger::info!(
+                    "No ApiEvent found in response extensions, creating a default NewApiEvent"
+                );
+                NewApiEvent {
+                    tenant_id: None,
+                    merchant_id: None,
+                    api_flow: None,
+                    created_at_timestamp: time::OffsetDateTime::now_utc().unix_timestamp_nanos()
+                        / 1_000_000,
+                    request_id: RequestId::extract(&http_req)
+                        .await
+                        .ok()
+                        .map(|rid| rid.to_string()),
+                    latency: req_latency,
+                    status_code,
+                    auth_type: None,
+                    request: None,
+                    user_agent: user_agent.clone(),
+                    ip_addr: ip_addr.clone(),
+                    url_path: Some(http_req.path().to_string()),
+                    response: None,
+                    error: res_body
+                        .error()
+                        .as_ref()
+                        .map(|e| serde_json::Value::String(e.to_string())),
+                    event_type: None,
+                    hs_latency: None,
+                    http_method: Some(http_req.method().to_string()),
+                    infra_components: None,
+                    external_service_calls,
+                }
+            };
+
+            event_handler.log_wide_event(final_event.clone());
+
+            let response = actix_web::dev::ServiceResponse::new(http_req, res_body);
+
+            let middleware_latency = middleware_start_time.elapsed().as_millis() - req_latency;
+            logger::info!("Middleware processing latency: {} ms", middleware_latency);
+
+            Ok(response)
+        })
+    }
+}
 
 /// Middleware for attaching default response headers. Headers with the same key already set in a
 /// response will not be overwritten.
