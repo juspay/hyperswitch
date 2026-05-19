@@ -7,15 +7,7 @@ import * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
-const connectorId = Cypress.env("CYPRESS_CONNECTOR");
-const isIframeRedirectionSupported =
-  CONNECTOR_LISTS.INCLUDE.IFRAME_REDIRECTION.includes(connectorId);
-
-const describeIfSupported = isIframeRedirectionSupported
-  ? describe
-  : describe.skip;
-
-describeIfSupported("Iframe Redirection Payment Flow Tests", () => {
+describe("Iframe Redirection Payment Flow Tests", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
@@ -24,6 +16,17 @@ describeIfSupported("Iframe Redirection Payment Flow Tests", () => {
 
   after("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
+  });
+
+  before(function () {
+    const connectorId = Cypress.env("CYPRESS_CONNECTOR");
+    if (!CONNECTOR_LISTS.INCLUDE.IFRAME_REDIRECTION.includes(connectorId)) {
+      cy.task(
+        "cli_log",
+        `Skipping iframe redirection test - connector ${connectorId} not in supported list`
+      );
+      this.skip();
+    }
   });
 
   context("Happy Path - Create Payment with Iframe Redirection Enabled", () => {
