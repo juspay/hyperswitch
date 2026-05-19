@@ -24,12 +24,26 @@ describe("Card - Payment Response Hash flow test", () => {
           response.body.enable_payment_response_hash;
         const paymentResponseHashKey =
           response.body.payment_response_hash_key;
+        const webhookUrl = response.body.webhook_url;
 
         globalState.set("paymentResponseHashKey", paymentResponseHashKey);
         globalState.set(
           "enablePaymentResponseHash",
           enablePaymentResponseHash
         );
+        globalState.set(
+          "webhookUrlConfigured",
+          !!(webhookUrl && webhookUrl.trim().length > 0)
+        );
+
+        if (webhookUrl && webhookUrl.trim().length > 0) {
+          cy.task("cli_log", `webhook_url is configured: ${webhookUrl}`);
+        } else {
+          cy.task(
+            "cli_log",
+            "webhook_url is not configured - webhook signature tests will be skipped"
+          );
+        }
 
         if (enablePaymentResponseHash) {
           hashEnabled = true;
@@ -53,6 +67,7 @@ describe("Card - Payment Response Hash flow test", () => {
       globalState.set("_setup3DSContinue", undefined);
       globalState.set("webhookData", undefined);
       globalState.set("signatureAlgorithm", undefined);
+      globalState.set("webhookUrlConfigured", undefined);
       cy.task("setGlobalState", globalState.data);
     }
   });
@@ -237,7 +252,15 @@ describe("Card - Payment Response Hash flow test", () => {
       });
     });
 
-    it("verify webhook delivery signature", () => {
+    it("verify webhook delivery signature", function () {
+      if (!globalState.get("webhookUrlConfigured")) {
+        cy.task(
+          "cli_log",
+          "Skipping webhook delivery signature test: webhook_url not configured"
+        );
+        this.skip();
+        return;
+      }
       cy.fetchWebhookWithRetry(globalState);
       cy.verifyWebhookSignatureHeader(globalState);
     });
