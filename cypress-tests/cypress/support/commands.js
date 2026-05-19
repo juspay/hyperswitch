@@ -8304,6 +8304,15 @@ Cypress.Commands.add("verifyIframeRedirection", (globalState, options = {}) => {
     }
 
     expect(globalState.get("nextActionUrl")).to.not.be.null;
+  } else {
+    expect(
+      globalState.get("nextActionType"),
+      "nextActionType should not be redirect_inside_popup"
+    ).to.not.equal("redirect_inside_popup");
+    expect(
+      globalState.get("nextActionUrl"),
+      "nextActionUrl should be null"
+    ).to.be.null;
   }
 });
 // ============================================
