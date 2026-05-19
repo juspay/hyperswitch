@@ -670,11 +670,6 @@ function bankRedirectRedirection(
     );
 
     verifyUrl = false;
-  } else if (connectorId === "globalpay" && paymentMethodType === "eps") {
-    cy.log(
-      "GlobalPay EPS redirects to PPRO sandbox — skipping interaction to avoid JS errors"
-    );
-    verifyUrl = false;
   } else {
     handleFlow(
       redirectionUrl,
@@ -978,27 +973,27 @@ function bankRedirectRedirection(
           case "globalpay":
             switch (paymentMethodType) {
               case "ideal":
-                cy.get("body", { timeout: 15000 }).then(($body) => {
+              case "eps":
+                cy.get("body", { timeout: 20000 }).then(($body) => {
+                  const bodyText = $body.text();
+                  cy.task("cli_log", `GlobalPay ${paymentMethodType} page text: ${bodyText.substring(0, 200)}`);
+                  
                   if ($body.find('button[type="submit"]').length > 0) {
                     cy.get('button[type="submit"]').first().click();
+                  } else if ($body.find('input[type="submit"]').length > 0) {
+                    cy.get('input[type="submit"]').first().click();
                   } else if (
-                    $body.find(
-                      '[data-testid*="confirm"], [data-testid*="continue"]'
-                    ).length > 0
+                    $body.find('[data-testid*="confirm"], [data-testid*="continue"]').length > 0
                   ) {
-                    cy.get(
-                      '[data-testid*="confirm"], [data-testid*="continue"]'
-                    )
+                    cy.get('[data-testid*="confirm"], [data-testid*="continue"]')
                       .first()
                       .click();
+                  } else if ($body.find('a.btn, button.btn').length > 0) {
+                    cy.get('a.btn, button.btn').first().click();
+                  } else {
+                    cy.log(`No interactable elements found on GlobalPay ${paymentMethodType} page`);
                   }
                 });
-                verifyUrl = false;
-                break;
-              case "eps":
-                cy.log(
-                  "GlobalPay EPS redirects to PPRO — skipping interaction to avoid sandbox JS errors"
-                );
                 verifyUrl = false;
                 break;
               case "giropay":
