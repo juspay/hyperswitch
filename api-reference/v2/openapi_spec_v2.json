@@ -26027,6 +26027,10 @@
           "merchant_id": {
             "type": "string",
             "nullable": true
+          },
+          "expand_attempts": {
+            "type": "boolean",
+            "nullable": true
           }
         }
       },
@@ -26053,6 +26057,13 @@
           "merchant_id": {
             "type": "string",
             "description": "The identifier for the Merchant Account.",
+            "nullable": true
+          },
+          "expand_attempts": {
+            "type": "boolean",
+            "description": "Set to true to get the list of attempts along with payout details, no further action required",
+            "default": false,
+            "example": true,
             "nullable": true
           }
         }
