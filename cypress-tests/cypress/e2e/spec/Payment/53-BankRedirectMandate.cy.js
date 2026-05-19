@@ -108,7 +108,10 @@ describe("Bank Redirect Mandate tests", () => {
             globalState.set("mandateId", response.body.mandate_id);
             mandateCreated = true;
           } else {
-            cy.task("cli_log", "No mandate_id returned — skipping MIT and subsequent steps");
+            cy.task(
+              "cli_log",
+              "No mandate_id returned — skipping MIT and subsequent steps"
+            );
             shouldContinue = false;
           }
         });
@@ -268,7 +271,10 @@ describe("Bank Redirect Mandate tests", () => {
             globalState.set("mandateId", response.body.mandate_id);
             mandateCreated = true;
           } else {
-            cy.task("cli_log", "No mandate_id returned — skipping MIT and subsequent steps");
+            cy.task(
+              "cli_log",
+              "No mandate_id returned — skipping MIT and subsequent steps"
+            );
             shouldContinue = false;
           }
         });
@@ -428,7 +434,10 @@ describe("Bank Redirect Mandate tests", () => {
             globalState.set("mandateId", response.body.mandate_id);
             mandateCreated = true;
           } else {
-            cy.task("cli_log", "No mandate_id returned — skipping MIT and subsequent steps");
+            cy.task(
+              "cli_log",
+              "No mandate_id returned — skipping MIT and subsequent steps"
+            );
             shouldContinue = false;
           }
         });
@@ -588,7 +597,10 @@ describe("Bank Redirect Mandate tests", () => {
             globalState.set("mandateId", response.body.mandate_id);
             mandateCreated = true;
           } else {
-            cy.task("cli_log", "No mandate_id returned — skipping MIT and subsequent steps");
+            cy.task(
+              "cli_log",
+              "No mandate_id returned — skipping MIT and subsequent steps"
+            );
             shouldContinue = false;
           }
         });
@@ -748,7 +760,10 @@ describe("Bank Redirect Mandate tests", () => {
             globalState.set("mandateId", response.body.mandate_id);
             mandateCreated = true;
           } else {
-            cy.task("cli_log", "No mandate_id returned — skipping MIT and subsequent steps");
+            cy.task(
+              "cli_log",
+              "No mandate_id returned — skipping MIT and subsequent steps"
+            );
             shouldContinue = false;
           }
         });
@@ -908,7 +923,10 @@ describe("Bank Redirect Mandate tests", () => {
             globalState.set("mandateId", response.body.mandate_id);
             mandateCreated = true;
           } else {
-            cy.task("cli_log", "No mandate_id returned — skipping MIT and subsequent steps");
+            cy.task(
+              "cli_log",
+              "No mandate_id returned — skipping MIT and subsequent steps"
+            );
             shouldContinue = false;
           }
         });
