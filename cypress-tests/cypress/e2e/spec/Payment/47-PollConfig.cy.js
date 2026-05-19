@@ -14,10 +14,7 @@ describe("Poll Config - Payment status polling", () => {
         const connectorId = globalState.get("connectorId");
 
         if (
-          utils.shouldIncludeConnector(
-            connectorId,
-            utils.CONNECTOR_LISTS.INCLUDE.POLL_CONFIG
-          )
+          !utils.CONNECTOR_LISTS.INCLUDE.POLL_CONFIG.includes(connectorId)
         ) {
           skip = true;
         }
@@ -132,10 +129,13 @@ describe("Poll Config - Payment status polling", () => {
           const pollId = `external_authentication_${paymentID}`;
           const data = {
             Response: {
-              status: 200,
+              status: 404,
               body: {
-                poll_id: pollId,
-                status: "pending",
+                error: {
+                  type: "invalid_request",
+                  message: "Poll does not exist in our records",
+                  code: "HE_02",
+                },
               },
             },
           };
