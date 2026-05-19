@@ -14,7 +14,7 @@ const paymentMethodData3DSResponse = {
     last4: "0088",
     card_type: "DEBIT",
     card_network: "Visa",
-    card_issuer: "INTL HDQTRS CENTER OWNED",
+    card_issuer: "INTL HDQTRS-CENTER OWNED",
     card_issuing_country: "UNITEDSTATES",
     card_isin: "476173",
     card_extended_bin: null,
