@@ -1324,7 +1324,7 @@ export const connectorDetails = {
         },
       },
     }),
-    PaymentIntent: (paymentMethodType) => {
+    PaymentIntent: () => {
       return getCustomExchange({
         Request: {
           currency: "EUR",

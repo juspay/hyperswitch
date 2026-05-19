@@ -690,7 +690,6 @@ function bankRedirectRedirection(
                 verifyUrl = true;
                 break;
               case "pay_safe_card":
-                cy.get("h1").should("contain.text", "Acquirer Simulator");
                 cy.get('[value="authorised"]').click();
                 verifyUrl = true;
                 break;

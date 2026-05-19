@@ -216,10 +216,7 @@ describe("Gift Card Payment - Adyen Givex", () => {
                 "nextActionUrl",
                 response.body.next_action.redirect_to_url
               );
-              globalState.set(
-                "paymentMethodType",
-                reqData.payment_method_type
-              );
+              globalState.set("paymentMethodType", reqData.payment_method_type);
               for (const key in resData.body) {
                 expect(response.body[key], [key]).to.equal(resData.body[key]);
               }
