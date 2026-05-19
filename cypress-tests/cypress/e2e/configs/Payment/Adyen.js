@@ -1338,9 +1338,6 @@ export const connectorDetails = {
       });
     },
     PaySafeCardGiftCard: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "gift_card",
         payment_method_type: "pay_safe_card",

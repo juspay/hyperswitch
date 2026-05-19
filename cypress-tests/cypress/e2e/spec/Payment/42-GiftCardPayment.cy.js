@@ -192,11 +192,6 @@ describe("Gift Card Payment - Adyen Givex", () => {
           "gift_card_pm"
         ]["PaySafeCardGiftCard"];
 
-        if (!should_continue_further(confirmData)) {
-          shouldContinue = false;
-          return;
-        }
-
         cy.confirmBankRedirectCallTest(
           fixtures.confirmBody,
           confirmData,
