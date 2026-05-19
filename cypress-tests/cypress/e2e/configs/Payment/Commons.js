@@ -2857,8 +2857,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           attempt_status: "pending",
-          error_code: "TEST_ERROR",
-          error_message: "Manual test error message",
         },
       },
     }),
