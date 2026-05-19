@@ -973,17 +973,6 @@ function bankRedirectRedirection(
               case "ideal":
               case "eps":
                 cy.get("body", { timeout: 15000 }).then(($body) => {
-                  const bodyText = $body.text().toLowerCase();
-                  if (
-                    bodyText.includes("timeout") ||
-                    bodyText.includes("error")
-                  ) {
-                    cy.log(
-                      `GlobalPay ${paymentMethodType} timeout detected - skipping interaction`
-                    );
-                    verifyUrl = false;
-                    return;
-                  }
                   if ($body.find('button[type="submit"]').length > 0) {
                     cy.get('button[type="submit"]').first().click();
                   } else if (
