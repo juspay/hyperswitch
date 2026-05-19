@@ -21,7 +21,9 @@ describe("Airwallex Alternative Payments", () => {
           CONNECTOR_LISTS.INCLUDE.AIRWALLEX_PAYLATER,
           CONNECTOR_LISTS.INCLUDE.AIRWALLEX_BANK_TRANSFER,
         ];
-        const shouldRun = airwallexLists.some((list) => list.includes(connector));
+        const shouldRun = airwallexLists.some((list) =>
+          list.includes(connector)
+        );
         if (!shouldRun) {
           skip = true;
         }
