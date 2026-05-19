@@ -11,7 +11,7 @@ on `x-request-id` alone (plus method+path as a tie-breaker for the rare
 case of multiple connector outbounds sharing one request_id):
 
   Matching key: (connector, request_id, method, path)
-  Tie-break:    FIFO within that key
+  Duplicates:   last-file-wins (later recording = successful Cypress retry)
 
 Run with:
   mitmdump -s mitm_replay.py --listen-port 8888
@@ -113,7 +113,13 @@ def _load_cassettes():
         response = record["response"]
 
         key = (connector, request_id, method, path)
-        _cassettes[key].append(response)
+        # When the same (connector, rid, method, path) appears in multiple files
+        # (e.g. a Cypress test retried, producing two recordings of the same
+        # step), files are processed in ascending numeric order so the last file
+        # wins.  That last file is always from the successful run whose
+        # downstream cassettes (PSync, Capture, …) share its PI/resource ID.
+        # Using a fresh deque here discards the stale first-attempt entry.
+        _cassettes[key] = deque([response])
 
         if request_id and not CYPRESS_RID_RE.match(request_id):
             test = record.get("test", "")

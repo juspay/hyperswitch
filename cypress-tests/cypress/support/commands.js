@@ -4705,6 +4705,19 @@ Cypress.Commands.add(
     }
 
     if (String(Cypress.env("MOCK_SERVER")) === "true") {
+      // In MITM replay mode the ThreeDS browser flow is skipped.  Consume one
+      // cy.request slot so the Cypress step counter stays aligned with how the
+      // cassettes were recorded (threeDsRedirection() always issues one request
+      // before starting browser navigation).  The force_sync Retrieve that
+      // follows will call Stripe PSync, receive "requires_capture" from the
+      // cassette, and HS transitions the payment state automatically.
+      if (Cypress.env("PROXY_ADMIN_URL")) {
+        cy.request({
+          url: nextActionUrl,
+          failOnStatusCode: false,
+          followRedirect: false,
+        });
+      }
       return;
     }
 
