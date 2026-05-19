@@ -830,6 +830,17 @@ export const connectorDetails = {
         },
         billing: standardBillingAddress,
       },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_39",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+          },
+        },
+      },
     }),
     OnlineBankingFpx: getCustomExchange({
       Request: {
