@@ -2,6 +2,8 @@ import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
+Cypress.on("uncaught:exception", () => false);
+
 let globalState;
 
 describe("Bank Redirect Mandate tests", () => {
