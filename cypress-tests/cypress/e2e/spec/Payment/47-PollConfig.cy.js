@@ -70,19 +70,84 @@ describe("Poll Config - Payment status polling", () => {
           shouldContinue = false;
         }
       });
+
+      cy.step("verify poll config - next_action redirect URL exists", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: verify poll config");
+          return;
+        }
+        const nextActionUrl = globalState.get("nextActionUrl");
+        expect(nextActionUrl, "next_action redirect URL").to.not.be.undefined;
+        expect(nextActionUrl, "next_action redirect URL").to.not.be.empty;
+      });
     });
   });
 
-  // No genuine positive poll test exists in V1 because:
-  // V1 /payments/confirm does NOT write poll_id to Redis. The poll_id key is only
-  // populated by PaymentAuthenticateCompleteAuthorize, which fires after the 3DS
-  // challenge is completed by the cardholder in the browser. Cypress API tests
-  // cannot complete a 3DS challenge (it requires browser interaction with the
-  // issuer's ACS), so there is no way to trigger a 200 response from
-  // /poll/status/{poll_id} through the V1 API alone. The test below verifies
-  // the correct V1 behavior: constructing a poll_id after confirm returns 404.
   context(
-    "Poll endpoint with constructed poll_id returns 404 (V1 confirm does not write poll_id to Redis)",
+    "Poll endpoint with valid poll_id returns 200 for 3DS payment",
+    () => {
+      it("create payment intent -> confirm 3DS -> poll with valid poll_id -> verify 200", () => {
+        let shouldContinue = true;
+
+        cy.step("create payment intent", () => {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentIntent"];
+
+          cy.createPaymentIntentTest(
+            fixtures.createPaymentBody,
+            data,
+            "three_ds",
+            "automatic",
+            globalState
+          );
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("confirm 3DS payment", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: confirm 3DS payment");
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PollConfig"];
+
+          cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("poll with valid poll_id", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: poll with valid poll_id");
+            return;
+          }
+          const paymentID = globalState.get("paymentID");
+          const pollId = `external_authentication_${paymentID}`;
+          const data = {
+            Response: {
+              status: 200,
+              body: {
+                poll_id: pollId,
+                status: "pending",
+              },
+            },
+          };
+
+          cy.pollStatusCallTest(pollId, data, globalState, true);
+        });
+      });
+    }
+  );
+
+  context(
+    "Poll endpoint with constructed poll_id returns 404 when poll_id not in Redis",
     () => {
       it("create payment intent -> confirm 3DS -> poll with constructed poll_id -> verify 404", () => {
         let shouldContinue = true;
