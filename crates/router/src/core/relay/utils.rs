@@ -149,6 +149,7 @@ pub async fn construct_relay_refund_router_data<F>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -287,6 +288,7 @@ pub async fn construct_relay_capture_router_data(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -410,6 +412,7 @@ pub async fn construct_relay_incremental_authorization_router_data(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -542,6 +545,7 @@ pub async fn construct_relay_void_router_data(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -688,6 +692,7 @@ pub async fn construct_relay_payments_retrieve_router_data(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
