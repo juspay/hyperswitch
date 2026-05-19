@@ -1015,9 +1015,9 @@ jobs:
         env:
           CAPTURE_DIR: ${{ github.workspace }}/mitm-proxy/captures
           ADMIN_PORT: "8001"
+          PROXY_PORT: "8888"
         run: |
-          nohup uv run --with-requirements mitm-proxy/requirements.txt \
-            mitmdump -s mitm-proxy/mitm_replay.py --listen-port 8888 \
+          nohup bash mitm-proxy/start_replay.sh \
             > "${{ github.workspace }}/mitm-replay.log" 2>&1 &
           MITM_PID=$!
           echo "MITM_PID=${MITM_PID}" >> $GITHUB_ENV
@@ -1042,8 +1042,8 @@ jobs:
           PAYOUTS_CONNECTORS: "${{ matrix.batch.payouts_connectors }}"
           PLATFORM_CONNECTORS: "${{ matrix.batch.platform_connectors }}"
           CYPRESS_MOCK_SERVER: "true"
-          # Notifies the MITM proxy of each test start/end so cassette matching
-          # can use test-name fallback for server-UUID cassettes (3DS redirects etc.)
+          # Notifies the MITM proxy of each test start/end so test names appear
+          # in the replay log alongside cassette hits/misses (logging only).
           CYPRESS_PROXY_ADMIN_URL: "http://127.0.0.1:8001"
         shell: bash -leuo pipefail {0}
         run: |
