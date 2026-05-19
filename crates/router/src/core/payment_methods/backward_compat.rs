@@ -23,10 +23,12 @@ async fn trigger_payment_method_modular_backward_compat_inline(
             .map(|last_modified_by| last_modified_by.to_string()),
     };
 
-    crate::workflows::payment_method_modular_backward_compat::run_payment_method_modular_backward_compat_backfill(
-        state,
-        tracking_data,
-        "INLINE_PM_MOD_BACK_COMPAT",
+    Box::pin(
+        crate::workflows::payment_method_modular_backward_compat::run_payment_method_modular_backward_compat_backfill(
+            state,
+            tracking_data,
+            "INLINE_PM_MOD_BACK_COMPAT",
+        ),
     )
     .await
 }
@@ -80,12 +82,12 @@ pub(super) async fn trigger_payment_method_modular_backward_compat_best_effort(
     if should_trigger_backwards_compatibility_inline {
         let inline_result = tokio::time::timeout(
             std::time::Duration::from_secs(3),
-            trigger_payment_method_modular_backward_compat_inline(
+            Box::pin(trigger_payment_method_modular_backward_compat_inline(
                 state,
                 payment_method,
                 &merchant_id,
                 platform.get_initiator(),
-            ),
+            )),
         )
         .await;
 

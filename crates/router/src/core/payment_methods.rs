@@ -2642,10 +2642,12 @@ async fn execute_payment_method_create(
                 None,
             )?;
 
-            backward_compat::trigger_payment_method_modular_backward_compat_best_effort(
-                state,
-                &payment_method,
-                platform,
+            Box::pin(
+                backward_compat::trigger_payment_method_modular_backward_compat_best_effort(
+                    state,
+                    &payment_method,
+                    platform,
+                ),
             )
             .await;
 
