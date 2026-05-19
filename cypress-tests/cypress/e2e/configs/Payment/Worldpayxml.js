@@ -15,6 +15,11 @@ const successful3DSTestCardDetails = {
   card_holder_name: "AUTHORIZED",
 };
 
+const failedNo3DSCardDetails = {
+  ...successfulNo3DSCardDetails,
+  card_holder_name: "REFUSED33",
+}
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -48,6 +53,7 @@ export const connectorDetails = {
     PaymentConfirmWithShippingCost: {
       Request: {
         payment_method: "card",
+        payment_method_type: "debit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -57,11 +63,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
-          shipping_cost: 50,
-          amount_received: null,
-          amount: 6000,
-          net_amount: 6050,
+          status: "succeeded",
         },
       },
     },
@@ -72,6 +74,7 @@ export const connectorDetails = {
       Request: {
         amount: 6000,
         payment_method: "card",
+        payment_method_type: "debit",
         payment_method_data: {
           card: successful3DSTestCardDetails,
         },
@@ -92,6 +95,7 @@ export const connectorDetails = {
       },
       Request: {
         payment_method: "card",
+        payment_method_type: "debit",
         amount: 6000,
         payment_method_data: {
           card: successful3DSTestCardDetails,
@@ -111,6 +115,7 @@ export const connectorDetails = {
       Request: {
         description: "Test description",
         payment_method: "card",
+        payment_method_type: "debit",
         amount: 6000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -128,6 +133,7 @@ export const connectorDetails = {
     No3DSAutoCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "debit",
         amount: 6000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -139,8 +145,8 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
-          amount_received: null,
+          status: "succeeded",
+          amount_received: 6000,
         },
       },
     },
@@ -177,7 +183,7 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message:
-              "This Payment could not be captured because it has a capture_method of automatic. The expected state is manual_multiple",
+              "This Payment could not be captured because it has a payment.status of succeeded. The expected state is requires_capture, partially_captured_and_capturable, processing",
             code: "IR_14",
           },
         },
@@ -190,7 +196,7 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message:
-              "You cannot confirm this payment because it has status processing",
+              "You cannot confirm this payment because it has status succeeded",
             code: "IR_16",
           },
         },
@@ -222,8 +228,8 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14",
+              "The refund amount exceeds the amount captured",
+            code: "IR_13",
           },
         },
       },
@@ -258,7 +264,7 @@ export const connectorDetails = {
       Request: {
         payment_type: "setup_mandate",
         payment_method: "card",
-        payment_method_type: "credit",
+        payment_method_type: "debit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -282,6 +288,7 @@ export const connectorDetails = {
       },
       Request: {
         payment_method: "card",
+        payment_method_type: "debit",
         amount: 6000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -293,7 +300,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
     },
@@ -314,6 +321,7 @@ export const connectorDetails = {
     SaveCardUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "debit",
         amount: 6000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -375,14 +383,9 @@ export const connectorDetails = {
         amount: 6000,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14",
-          },
+          status: "pending",
         },
       },
     },
@@ -391,14 +394,17 @@ export const connectorDetails = {
         amount: 2000,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14",
-          },
+          status: "pending",
+        },
+      },
+    },
+    SyncRefund: {
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
         },
       },
     },
@@ -408,6 +414,7 @@ export const connectorDetails = {
       },
       Request: {
         payment_method: "card",
+        payment_method_type: "debit",
         payment_method_data: {
           card: successful3DSTestCardDetails,
         },
@@ -451,7 +458,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
     },
@@ -461,6 +468,7 @@ export const connectorDetails = {
       },
       Request: {
         payment_method: "card",
+        payment_method_type: "debit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -551,7 +559,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
     },
@@ -572,6 +580,24 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: failedNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "33",
+          error_message: "CARD EXPIRED",
         },
       },
     },
