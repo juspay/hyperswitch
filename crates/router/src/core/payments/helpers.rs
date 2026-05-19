@@ -1396,7 +1396,8 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
         RecurringDetails::ProcessorPaymentToken(_)
         | RecurringDetails::NetworkTransactionIdAndCardDetails(_)
         | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
-        | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => Ok(()),
+        | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
+        | RecurringDetails::CardWithLimitedData(_) => Ok(()),
         _ => {
             req.customer_id.check_value_present("customer_id")?;
 
