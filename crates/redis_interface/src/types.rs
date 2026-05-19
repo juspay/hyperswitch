@@ -1,48 +1,29 @@
-//! Data types and type conversions
-//! from `fred`'s internal data-types to custom data-types
+//! Shared data types — backend-neutral.
+//!
+//! All struct/enum *definitions* live here. Backend-specific trait
+//! implementations (`FromRedisValue`, `FromRedis`, `ToRedisArgs`, `Deref`,
+//! `From<RedisValue> for …`) live in each backend's `types.rs` instead.
+//!
+//! The one cfg-gated field that cannot be split is `RedisValue::inner`,
+//! because Rust does not allow splitting a struct definition across files.
 
 use common_utils::errors::CustomResult;
-use fred::types::RedisValue as FredRedisValue;
 
-use crate::{errors, RedisConnectionPool};
+use crate::errors;
 
+// ─── RedisValue — wrapper whose inner type depends on the active backend ─────
+
+#[derive(Clone, Debug)]
 pub struct RedisValue {
-    inner: FredRedisValue,
+    #[cfg(feature = "redis-rs")]
+    pub(crate) inner: redis::Value,
+    #[cfg(feature = "fred")]
+    pub(crate) inner: fred::types::RedisValue,
 }
 
-impl std::ops::Deref for RedisValue {
-    type Target = FredRedisValue;
+// Method impls are in module/redis_rs/types.rs and module/fred/types.rs.
 
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl RedisValue {
-    pub fn new(value: FredRedisValue) -> Self {
-        Self { inner: value }
-    }
-    pub fn into_inner(self) -> FredRedisValue {
-        self.inner
-    }
-
-    pub fn from_bytes(val: Vec<u8>) -> Self {
-        Self {
-            inner: FredRedisValue::Bytes(val.into()),
-        }
-    }
-    pub fn from_string(value: String) -> Self {
-        Self {
-            inner: FredRedisValue::String(value.into()),
-        }
-    }
-}
-
-impl From<RedisValue> for FredRedisValue {
-    fn from(v: RedisValue) -> Self {
-        v.inner
-    }
-}
+// ─── Shared configuration types ─────────────────────────────────────────────
 
 #[derive(Debug, serde::Deserialize, Clone)]
 #[serde(default)]
@@ -52,9 +33,11 @@ pub struct RedisSettings {
     pub cluster_enabled: bool,
     pub cluster_urls: Vec<String>,
     pub use_legacy_version: bool,
+    /// Number of reconnection attempts before giving up (default: 5).
     pub pool_size: usize,
+    /// Maximum number of connection retry attempts (default: 5).
     pub reconnect_max_attempts: u32,
-    /// Reconnect delay in milliseconds
+    /// Initial delay in milliseconds between reconnection attempts (default: 5).
     pub reconnect_delay: u32,
     /// TTL in seconds
     pub default_ttl: u32,
@@ -63,12 +46,18 @@ pub struct RedisSettings {
     pub stream_read_count: u64,
     pub auto_pipeline: bool,
     pub disable_auto_backpressure: bool,
-    pub max_in_flight_commands: u64,
+    /// Maximum number of in-flight commands before backpressure is applied.
+    /// Set to 0 to disable.
+    pub max_in_flight_commands: usize,
+    /// Command timeout in seconds.
     pub default_command_timeout: u64,
     pub max_feed_count: u64,
     pub unresponsive_timeout: u64,
     pub unresponsive_check_interval: u64,
+    /// Capacity of the broadcast channel used for pub/sub message distribution.
     pub broadcast_channel_capacity: usize,
+    /// Maximum duration (in seconds) that Redis can be unreachable before the server shuts down.
+    pub max_failure_threshold_seconds: u32,
 }
 
 impl RedisSettings {
@@ -93,10 +82,21 @@ impl RedisSettings {
             || {
                 Err(errors::RedisError::InvalidConfiguration(
                     "Unresponsive timeout cannot be greater than the command timeout".into(),
-                )
-                .into())
+                ))
             },
-        )
+        )?;
+
+        when(
+            self.unresponsive_check_interval > self.max_failure_threshold_seconds.into(),
+            || {
+                Err(errors::RedisError::InvalidConfiguration(
+                    "Unresponsive check interval cannot be greater than the max failure threshold"
+                        .into(),
+                ))
+            },
+        )?;
+
+        Ok(())
     }
 }
 
@@ -122,9 +122,12 @@ impl Default for RedisSettings {
             unresponsive_timeout: 10,
             unresponsive_check_interval: 2,
             broadcast_channel_capacity: 32,
+            max_failure_threshold_seconds: 5,
         }
     }
 }
+
+// ─── RedisEntryId ────────────────────────────────────────────────────────────
 
 #[derive(Debug)]
 pub enum RedisEntryId {
@@ -138,129 +141,44 @@ pub enum RedisEntryId {
     UndeliveredEntryID,
 }
 
-impl From<RedisEntryId> for fred::types::XID {
-    fn from(id: RedisEntryId) -> Self {
-        match id {
-            RedisEntryId::UserSpecifiedID {
+impl RedisEntryId {
+    /// Convert to the string representation used by Redis stream commands
+    pub fn to_stream_id(&self) -> String {
+        match self {
+            Self::UserSpecifiedID {
                 milliseconds,
                 sequence_number,
-            } => Self::Manual(fred::bytes_utils::format_bytes!(
-                "{milliseconds}-{sequence_number}"
-            )),
-            RedisEntryId::AutoGeneratedID => Self::Auto,
-            RedisEntryId::AfterLastID => Self::Max,
-            RedisEntryId::UndeliveredEntryID => Self::NewInGroup,
+            } => format!("{milliseconds}-{sequence_number}"),
+            Self::AutoGeneratedID => "*".to_string(),
+            Self::AfterLastID => "$".to_string(),
+            Self::UndeliveredEntryID => ">".to_string(),
         }
     }
 }
 
-impl From<&RedisEntryId> for fred::types::XID {
-    fn from(id: &RedisEntryId) -> Self {
-        match id {
-            RedisEntryId::UserSpecifiedID {
-                milliseconds,
-                sequence_number,
-            } => Self::Manual(fred::bytes_utils::format_bytes!(
-                "{milliseconds}-{sequence_number}"
-            )),
-            RedisEntryId::AutoGeneratedID => Self::Auto,
-            RedisEntryId::AfterLastID => Self::Max,
-            RedisEntryId::UndeliveredEntryID => Self::NewInGroup,
-        }
-    }
-}
+// Trait impls live in module/redis_rs/types.rs and module/fred/types.rs.
 
-#[derive(Eq, PartialEq)]
+// ─── Reply type enums ────────────────────────────────────────────────────────
+
+#[derive(Debug, Eq, PartialEq)]
 pub enum SetnxReply {
     KeySet,
     KeyNotSet, // Existing key
 }
 
-impl fred::types::FromRedis for SetnxReply {
-    fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
-        match value {
-            // Returns String ( "OK" ) in case of success
-            fred::types::RedisValue::String(_) => Ok(Self::KeySet),
-            // Return Null in case of failure
-            fred::types::RedisValue::Null => Ok(Self::KeyNotSet),
-            // Unexpected behaviour
-            _ => Err(fred::error::RedisError::new(
-                fred::error::RedisErrorKind::Unknown,
-                "Unexpected SETNX command reply",
-            )),
-        }
-    }
-}
-
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum HsetnxReply {
     KeySet,
     KeyNotSet, // Existing key
 }
 
-impl fred::types::FromRedis for HsetnxReply {
-    fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
-        match value {
-            fred::types::RedisValue::Integer(1) => Ok(Self::KeySet),
-            fred::types::RedisValue::Integer(0) => Ok(Self::KeyNotSet),
-            _ => Err(fred::error::RedisError::new(
-                fred::error::RedisErrorKind::Unknown,
-                "Unexpected HSETNX command reply",
-            )),
-        }
-    }
-}
-
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum MsetnxReply {
     KeysSet,
     KeysNotSet, // At least one existing key
 }
 
-impl fred::types::FromRedis for MsetnxReply {
-    fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
-        match value {
-            fred::types::RedisValue::Integer(1) => Ok(Self::KeysSet),
-            fred::types::RedisValue::Integer(0) => Ok(Self::KeysNotSet),
-            _ => Err(fred::error::RedisError::new(
-                fred::error::RedisErrorKind::Unknown,
-                "Unexpected MSETNX command reply",
-            )),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum StreamCapKind {
-    MinID,
-    MaxLen,
-}
-
-impl From<StreamCapKind> for fred::types::XCapKind {
-    fn from(item: StreamCapKind) -> Self {
-        match item {
-            StreamCapKind::MaxLen => Self::MaxLen,
-            StreamCapKind::MinID => Self::MinID,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum StreamCapTrim {
-    Exact,
-    AlmostExact,
-}
-
-impl From<StreamCapTrim> for fred::types::XCapTrim {
-    fn from(item: StreamCapTrim) -> Self {
-        match item {
-            StreamCapTrim::Exact => Self::Exact,
-            StreamCapTrim::AlmostExact => Self::AlmostExact,
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum DelReply {
     KeyDeleted,
     KeyNotDeleted, // Key not found
@@ -276,34 +194,39 @@ impl DelReply {
     }
 }
 
-impl fred::types::FromRedis for DelReply {
-    fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
-        match value {
-            fred::types::RedisValue::Integer(1) => Ok(Self::KeyDeleted),
-            fred::types::RedisValue::Integer(0) => Ok(Self::KeyNotDeleted),
-            _ => Err(fred::error::RedisError::new(
-                fred::error::RedisErrorKind::Unknown,
-                "Unexpected del command reply",
-            )),
-        }
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum SaddReply {
     KeySet,
     KeyNotSet,
 }
 
-impl fred::types::FromRedis for SaddReply {
-    fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
-        match value {
-            fred::types::RedisValue::Integer(1) => Ok(Self::KeySet),
-            fred::types::RedisValue::Integer(0) => Ok(Self::KeyNotSet),
-            _ => Err(fred::error::RedisError::new(
-                fred::error::RedisErrorKind::Unknown,
-                "Unexpected sadd command reply",
-            )),
+/// Reply from `XGROUP DESTROY`.
+#[derive(Debug, Eq, PartialEq)]
+pub enum ConsumerGroupDestroyReply {
+    Destroyed,
+    NotFound,
+}
+
+/// Redis key types used with the `TYPE` filter in `SCAN`.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum RedisScanType {
+    String,
+    List,
+    Set,
+    Zset,
+    Hash,
+    Stream,
+}
+
+impl AsRef<str> for RedisScanType {
+    fn as_ref(&self) -> &str {
+        match self {
+            Self::String => "STRING",
+            Self::List => "LIST",
+            Self::Set => "SET",
+            Self::Zset => "ZSET",
+            Self::Hash => "HASH",
+            Self::Stream => "STREAM",
         }
     }
 }
@@ -323,15 +246,116 @@ impl<T> SetGetReply<T> {
     }
 }
 
+// ─── Stream types ────────────────────────────────────────────────────────────
+
+/// Entries within a single stream, as `(entry_id, fields)`.
+pub type StreamEntries = Vec<(String, std::collections::HashMap<String, RedisValue>)>;
+
+/// Grouped result of a stream read: stream key → list of `(entry_id, fields)`.
+pub type StreamReadResult = std::collections::HashMap<String, StreamEntries>;
+
+#[derive(Debug, Clone)]
+pub enum StreamCapKind {
+    MinID,
+    MaxLen,
+}
+
+#[derive(Debug, Clone)]
+pub enum StreamCapTrim {
+    Exact,
+    AlmostExact,
+}
+
+// Trait impls for StreamCapKind/StreamCapTrim live in module/fred/types.rs.
+
+// ─── Stream trim types ────────────────────────────────────────────────────────
+
+/// Configuration for trimming a Redis stream via `XTRIM`.
+///
+/// Encapsulates the kind (MaxLen or MinID), precision (Exact or AlmostExact),
+/// and the numeric or ID threshold.
+///
+/// # Examples
+///
+/// ```
+/// use redis_interface::types::{StreamCapKind, StreamCapTrim, StreamTrimConfig};
+///
+/// let config = StreamTrimConfig::new(StreamCapKind::MaxLen, StreamCapTrim::AlmostExact, "1000");
+/// ```
+#[derive(Debug, Clone)]
+pub struct StreamTrimConfig {
+    /// What to compare against — entry count or minimum ID.
+    pub kind: StreamCapKind,
+    /// How precisely to match the threshold.
+    pub trim: StreamCapTrim,
+    /// The threshold value: a numeric string for `MaxLen`, a stream ID for `MinID`.
+    pub threshold: String,
+}
+
+impl StreamTrimConfig {
+    /// Create a new trim configuration.
+    pub fn new(kind: StreamCapKind, trim: StreamCapTrim, threshold: impl Into<String>) -> Self {
+        Self {
+            kind,
+            trim,
+            threshold: threshold.into(),
+        }
+    }
+
+    /// Convert to the `redis` crate's `StreamTrimOptions` (redis-rs backend).
+    ///
+    /// Returns an error if `kind` is `MaxLen` and the threshold
+    /// cannot be parsed as a `usize`.
+    #[cfg(feature = "redis-rs")]
+    pub fn to_trim_options(
+        self,
+    ) -> Result<redis::streams::StreamTrimOptions, StreamTrimThresholdError> {
+        let trim_mode = match self.trim {
+            StreamCapTrim::Exact => redis::streams::StreamTrimmingMode::Exact,
+            StreamCapTrim::AlmostExact => redis::streams::StreamTrimmingMode::Approx,
+        };
+
+        match self.kind {
+            StreamCapKind::MaxLen => {
+                let max_len: usize = self
+                    .threshold
+                    .parse()
+                    .map_err(|_| StreamTrimThresholdError(self.threshold.clone()))?;
+                Ok(redis::streams::StreamTrimOptions::maxlen(
+                    trim_mode, max_len,
+                ))
+            }
+            StreamCapKind::MinID => Ok(redis::streams::StreamTrimOptions::minid(
+                trim_mode,
+                self.threshold,
+            )),
+        }
+    }
+}
+
+/// Error returned when a `StreamTrimConfig` threshold cannot be parsed.
 #[derive(Debug)]
+pub struct StreamTrimThresholdError(String);
+
+impl std::fmt::Display for StreamTrimThresholdError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "Invalid stream trim threshold: {}", self.0)
+    }
+}
+
+impl std::error::Error for StreamTrimThresholdError {}
+
+// ─── RedisKey ────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone)]
 pub struct RedisKey(String);
 
 impl RedisKey {
-    pub fn tenant_aware_key(&self, pool: &RedisConnectionPool) -> String {
+    pub fn tenant_aware_key(&self, pool: &crate::RedisConnectionPool) -> String {
         pool.add_prefix(&self.0)
     }
 
-    pub fn tenant_unaware_key(&self, _pool: &RedisConnectionPool) -> String {
+    pub fn tenant_unaware_key(&self, _pool: &crate::RedisConnectionPool) -> String {
         self.0.clone()
     }
 }
@@ -339,7 +363,94 @@ impl RedisKey {
 impl<T: AsRef<str>> From<T> for RedisKey {
     fn from(value: T) -> Self {
         let value = value.as_ref();
-
         Self(value.to_string())
+    }
+}
+
+// ─── Tests (backend-neutral only) ────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_entry_id_user_specified() {
+        let id = RedisEntryId::UserSpecifiedID {
+            milliseconds: "1234567890".to_string(),
+            sequence_number: "0".to_string(),
+        };
+        assert_eq!(id.to_stream_id(), "1234567890-0");
+    }
+
+    #[test]
+    fn test_entry_id_auto_generated() {
+        assert_eq!(RedisEntryId::AutoGeneratedID.to_stream_id(), "*");
+    }
+
+    #[test]
+    fn test_entry_id_after_last() {
+        assert_eq!(RedisEntryId::AfterLastID.to_stream_id(), "$");
+    }
+
+    #[test]
+    fn test_entry_id_undelivered() {
+        assert_eq!(RedisEntryId::UndeliveredEntryID.to_stream_id(), ">");
+    }
+
+    #[test]
+    fn test_redis_settings_validate_valid_defaults() {
+        let settings = RedisSettings::default();
+        assert!(settings.validate().is_ok());
+    }
+
+    #[test]
+    fn test_redis_settings_validate_empty_host() {
+        let settings = RedisSettings {
+            host: String::new(),
+            ..RedisSettings::default()
+        };
+        assert!(settings.validate().is_err());
+    }
+
+    #[test]
+    fn test_redis_settings_validate_cluster_without_urls() {
+        let settings = RedisSettings {
+            cluster_enabled: true,
+            cluster_urls: vec![],
+            ..RedisSettings::default()
+        };
+        assert!(settings.validate().is_err());
+    }
+
+    #[test]
+    fn test_redis_settings_validate_unresponsive_timeout_exceeds_command_timeout() {
+        let settings = RedisSettings {
+            unresponsive_timeout: 60,
+            default_command_timeout: 30,
+            ..RedisSettings::default()
+        };
+        assert!(settings.validate().is_err());
+    }
+
+    #[test]
+    fn test_redis_settings_default_values() {
+        let settings = RedisSettings::default();
+        assert_eq!(settings.host, "127.0.0.1");
+        assert_eq!(settings.port, 6379);
+        assert!(!settings.cluster_enabled);
+        assert!(settings.cluster_urls.is_empty());
+        assert!(!settings.use_legacy_version);
+        assert_eq!(settings.reconnect_max_attempts, 5);
+        assert_eq!(settings.reconnect_delay, 5);
+        assert_eq!(settings.default_ttl, 300);
+        assert_eq!(settings.default_hash_ttl, 900);
+        assert_eq!(settings.broadcast_channel_capacity, 32);
+        assert_eq!(settings.max_failure_threshold_seconds, 5);
+    }
+
+    #[test]
+    fn test_del_reply_is_key_deleted() {
+        assert!(DelReply::KeyDeleted.is_key_deleted());
+        assert!(!DelReply::KeyNotDeleted.is_key_deleted());
     }
 }

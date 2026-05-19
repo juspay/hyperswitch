@@ -230,6 +230,7 @@ mod tests {
             routing_approach: Default::default(),
             connector_request_reference_id: Default::default(),
             network_transaction_id: Default::default(),
+            network_transaction_link_id: Default::default(),
             network_details: Default::default(),
             is_stored_credential: None,
             authorized_amount: Default::default(),
@@ -245,6 +246,7 @@ mod tests {
             error_details: Default::default(),
             retry_type: Default::default(),
             installment_data: Default::default(),
+            external_surcharge_details: Default::default(),
         };
 
         let store = state
@@ -350,6 +352,7 @@ mod tests {
             routing_approach: Default::default(),
             connector_request_reference_id: Default::default(),
             network_transaction_id: Default::default(),
+            network_transaction_link_id: Default::default(),
             network_details: Default::default(),
             is_stored_credential: Default::default(),
             authorized_amount: Default::default(),
@@ -365,6 +368,7 @@ mod tests {
             error_details: Default::default(),
             retry_type: Default::default(),
             installment_data: Default::default(),
+            external_surcharge_details: Default::default(),
         };
         let store = state
             .stores
@@ -484,6 +488,7 @@ mod tests {
             routing_approach: Default::default(),
             connector_request_reference_id: Default::default(),
             network_transaction_id: Default::default(),
+            network_transaction_link_id: Default::default(),
             network_details: Default::default(),
             is_stored_credential: Default::default(),
             authorized_amount: Default::default(),
@@ -499,6 +504,7 @@ mod tests {
             error_details: Default::default(),
             retry_type: Default::default(),
             installment_data: Default::default(),
+            external_surcharge_details: Default::default(),
         };
         let store = state
             .stores
