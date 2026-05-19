@@ -1096,8 +1096,8 @@ impl ConnectorSpecifications for Finix {
         &self,
         #[cfg(feature = "v1")]
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> bool {
-        true
+    ) -> api::ConnectorCustomerAction {
+        api::ConnectorCustomerAction::CallConnectorCustomer
     }
     fn should_call_tokenization_before_setup_mandate(&self) -> bool {
         false

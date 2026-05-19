@@ -284,6 +284,7 @@ async fn payments_create_core() {
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
+        env!("CARGO_PKG_NAME"),
     ))
     .await;
 
@@ -484,6 +485,8 @@ async fn payments_create_core() {
         installment_data: None,
         state_metadata: None,
         connector_response_metadata: None,
+        connector_customer_id: None,
+        sender_payment_instrument_id: None,
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
@@ -586,6 +589,7 @@ async fn payments_create_core_adyen_no_redirect() {
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
+        env!("CARGO_PKG_NAME"),
     ))
     .await;
     let state = Arc::new(app_state)
@@ -786,6 +790,8 @@ async fn payments_create_core_adyen_no_redirect() {
             installment_data: None,
             state_metadata: None,
             connector_response_metadata: None,
+            connector_customer_id: None,
+            sender_payment_instrument_id: None,
         },
         vec![],
     ));

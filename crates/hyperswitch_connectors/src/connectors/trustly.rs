@@ -906,7 +906,10 @@ impl webhooks::IncomingWebhook for Trustly {
 }
 
 static TRUSTLY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
-    let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+    let supported_capture_methods = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::Manual,
+    ];
 
     let mut trustly_supported_payment_methods = SupportedPaymentMethods::new();
     trustly_supported_payment_methods.add(
@@ -943,5 +946,14 @@ impl ConnectorSpecifications for Trustly {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&TRUSTLY_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    fn should_call_connector_customer(
+        &self,
+        #[cfg(feature = "v1")]
+        _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> api::ConnectorCustomerAction {
+        let connector_customer_id = uuid::Uuid::new_v4().to_string();
+        api::ConnectorCustomerAction::GeneratedCustomerId(connector_customer_id)
     }
 }

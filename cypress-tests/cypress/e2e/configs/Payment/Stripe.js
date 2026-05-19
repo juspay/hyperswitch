@@ -1123,6 +1123,56 @@ export const connectorDetails = {
         },
       },
     },
+    BancontactCard: {
+      MandateSingleUse: {
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "bancontact_card",
+          payment_method_data: {
+            bank_redirect: {
+              bancontact_card: {},
+            },
+          },
+          billing: {
+            email: "joseph.Doe@example.com",
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
+              country: "BE",
+              first_name: "joseph",
+              last_name: "Doe",
+            },
+            phone: {
+              number: "9123456789",
+              country_code: "+91",
+            },
+          },
+          currency: "EUR",
+          customer_acceptance: customerAcceptance,
+          mandate_data: {
+            customer_acceptance: customerAcceptance,
+            mandate_type: {
+              single_use: {
+                amount: 8000,
+                currency: "EUR",
+              },
+            },
+          },
+          setup_future_usage: "off_session",
+          payment_type: "new_mandate",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+      },
+    },
   },
   pay_later_pm: {
     AutoCapture: getCustomExchange({
@@ -1197,6 +1247,44 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    }),
+  },
+  auth_service_eligibility: {
+    // Storage flag does not affect authentication outcome — both enabled and
+    // disabled flows produce the same 3DS challenge. Distinction is only
+    // observable via Redis, which cannot be asserted through the API layer.
+    EligibilityStorageEnabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: successfulThreeDSTestCardDetails },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    // Storage flag does not affect authentication outcome — both enabled and
+    // disabled flows produce the same 3DS challenge. Distinction is only
+    // observable via Redis, which cannot be asserted through the API layer.
+    EligibilityStorageDisabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: successfulThreeDSTestCardDetails },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
         },
       },
     }),
