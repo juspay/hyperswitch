@@ -912,6 +912,30 @@ export const connectorDetails = {
         },
       },
     },
+    PollConfigInvalidPollId: {
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Poll does not exist in our records",
+            code: "HE_02",
+          },
+        },
+      },
+    },
+    PollConfigUnauthorized: {
+      Response: {
+        status: 401,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "API key not provided or invalid API key used",
+            code: "IR_01",
+          },
+        },
+      },
+    },
     external_three_ds: {
       Request: {
         payment_method: "card",

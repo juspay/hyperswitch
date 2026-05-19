@@ -137,37 +137,19 @@ describe("Poll Config - Payment status polling", () => {
 
   context("Poll endpoint with invalid poll_id", () => {
     it("poll with invalid poll_id and publishable key returns 404", () => {
-      const pollData = {
-        Response: {
-          status: 404,
-          body: {
-            error: {
-              type: "invalid_request",
-              message: "Poll does not exist in our records",
-              code: "HE_02",
-            },
-          },
-        },
-      };
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PollConfigInvalidPollId"];
 
-      cy.pollStatusCallTest("test_poll_invalid", pollData, globalState, true);
+      cy.pollStatusCallTest("test_poll_invalid", data, globalState, true);
     });
 
     it("poll with invalid poll_id and merchant api key returns 401", () => {
-      const pollData = {
-        Response: {
-          status: 401,
-          body: {
-            error: {
-              type: "invalid_request",
-              message: "API key not provided or invalid API key used",
-              code: "IR_01",
-            },
-          },
-        },
-      };
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PollConfigUnauthorized"];
 
-      cy.pollStatusCallTest("test_poll_invalid", pollData, globalState, false);
+      cy.pollStatusCallTest("test_poll_invalid", data, globalState, false);
     });
   });
 
