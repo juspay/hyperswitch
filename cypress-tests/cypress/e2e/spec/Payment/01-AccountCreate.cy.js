@@ -22,6 +22,7 @@ describe("Account Create flow test", () => {
   });
 
   it("create-shadow-config-if-shadow-mode-enabled", () => {
+    // Shadow and rollout configs are now merged - create unified config with execution_mode: "shadow"
     cy.createRolloutConfig(globalState);
   });
 });
