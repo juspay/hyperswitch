@@ -8481,6 +8481,179 @@ Cypress.Commands.add(
   }
 );
 
+
+Cypress.Commands.add("initiatePaymentLinkTest", (data, globalState) => {
+  const paymentLinkUrl = globalState.get("paymentLinkUrl");
+
+  if (!paymentLinkUrl) {
+    cy.task("cli_log", "Skipping: No payment link URL available");
+    return;
+  }
+
+  const runningInCI = RequestBodyUtils.isCI();
+
+  if (runningInCI) {
+    cy.request({
+      method: "GET",
+      url: paymentLinkUrl,
+      failOnStatusCode: false,
+      followRedirect: true,
+      timeout: 30000,
+    }).then((response) => {
+      const contentType = response.headers["content-type"] || "";
+      const isHtml = contentType.includes("text/html");
+
+      if (response.status === 200 && isHtml) {
+        const bodyText = typeof response.body === "string" ? response.body : "";
+        const hasHyperLoader =
+          bodyText.includes("HyperLoader") ||
+          bodyText.includes("hyperloader-sdk");
+
+        if (hasHyperLoader) {
+          cy.task(
+            "cli_log",
+            "Payment Link page validated (CI): contains HyperLoader SDK"
+          );
+        } else {
+          cy.task(
+            "cli_log",
+            `Payment Link page validated (CI): status=${response.status}, body length=${bodyText.length}`
+          );
+        }
+
+        expect(response.status).to.equal(200);
+        expect(isHtml).to.be.true;
+      } else {
+        cy.task(
+          "cli_log",
+          `Payment Link non-HTML or error response (CI): status=${response.status}, content-type=${contentType}`
+        );
+        expect(response.status).to.equal(200);
+      }
+    });
+  } else {
+    cy.visit(paymentLinkUrl, { failOnStatusCode: false });
+
+    cy.get("body", { timeout: 30000 }).then(($body) => {
+      const bodyText = $body.text() || "";
+      const hasHyperLoader =
+        bodyText.includes("HyperLoader") ||
+        $body.find("#hyperloader-sdk").length > 0;
+
+      if (hasHyperLoader) {
+        cy.task("cli_log", "Payment Link page loaded with HyperLoader SDK");
+      } else {
+        cy.task(
+          "cli_log",
+          `Payment Link page loaded (body length: ${bodyText.length})`
+        );
+      }
+    });
+  }
+});
+
+Cypress.Commands.add("retrievePaymentLinkTest", (data, globalState) => {
+  const paymentLinkId = globalState.get("paymentLinkId");
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+
+  if (!paymentLinkId) {
+    cy.task("cli_log", "Skipping: No payment link ID available");
+    return;
+  }
+
+  cy.request({
+    method: "GET",
+    url: `${baseUrl}/payment_link/${paymentLinkId}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status).to.equal(200);
+      expect(response.headers["content-type"]).to.include("application/json");
+      expect(response.body).to.have.property("payment_link_id", paymentLinkId);
+      expect(response.body).to.have.property("link_to_pay");
+      expect(response.body).to.have.property("status");
+
+      cy.task("cli_log", `Payment Link retrieved: ${response.body.status}`);
+    });
+  });
+});
+
+Cypress.Commands.add("listPaymentLinksTest", (data, globalState) => {
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+
+  cy.request({
+    method: "POST",
+    url: `${baseUrl}/payment_link/list`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    body: {
+      limit: 10,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status).to.equal(200);
+      expect(response.headers["content-type"]).to.include("application/json");
+      expect(response.body).to.be.an("array");
+
+      cy.task("cli_log", `Listed ${response.body.length} payment links`);
+    });
+  });
+});
+
+Cypress.Commands.add(
+  "createPaymentWithoutPaymentLinkTest",
+  (createPaymentBody, globalState) => {
+    const profile_id =
+      globalState.get("profileId") || globalState.get("defaultProfileId");
+
+    const requestBody = {
+      ...createPaymentBody,
+      currency: "USD",
+      amount: 6000,
+      description: "Test without Payment Link",
+      email: "test@example.com",
+      authentication_type: "no_three_ds",
+      capture_method: "automatic",
+      customer_id: globalState.get("customerId"),
+      profile_id: profile_id,
+    };
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      failOnStatusCode: false,
+      body: requestBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.equal(200);
+        expect(response.body).to.have.property("payment_id");
+        expect(response.body.payment_link).to.be.null;
+      });
+    });
+  }
+);
+
+
 Cypress.Commands.add("setExtendedCardInfoConfigTest", (globalState) => {
   const apiKey = globalState.get("apiKey");
   const baseUrl = globalState.get("baseUrl");
