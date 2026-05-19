@@ -8,11 +8,12 @@ import * as utils from "../../configs/Payment/Utils";
 let globalState;
 
 const connectorId = Cypress.env("CYPRESS_CONNECTOR");
-const isIframeRedirectionSupported = CONNECTOR_LISTS.INCLUDE.IFRAME_REDIRECTION.includes(
-  connectorId
-);
+const isIframeRedirectionSupported =
+  CONNECTOR_LISTS.INCLUDE.IFRAME_REDIRECTION.includes(connectorId);
 
-const describeIfSupported = isIframeRedirectionSupported ? describe : describe.skip;
+const describeIfSupported = isIframeRedirectionSupported
+  ? describe
+  : describe.skip;
 
 describeIfSupported("Iframe Redirection Payment Flow Tests", () => {
   before("seed global state", () => {
