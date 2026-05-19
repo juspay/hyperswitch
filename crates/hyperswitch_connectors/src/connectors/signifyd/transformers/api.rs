@@ -1,9 +1,17 @@
-use api_models::webhooks::IncomingWebhookEvent;
-use common_enums::{AttemptStatus, Currency, FraudCheckStatus, PaymentMethod};
-use common_utils::{ext_traits::ValueExt, pii::Email};
+use std::net::IpAddr;
+
+use api_models::{payments::AdditionalPaymentData, webhooks::IncomingWebhookEvent};
+use common_enums::{AttemptStatus, Currency, FraudCheckStatus, PaymentMethod, PaymentMethodType};
+use common_utils::{
+    ext_traits::ValueExt,
+    id_type,
+    pii::Email,
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
+};
 use error_stack::{self, ResultExt};
 pub use hyperswitch_domain_models::router_request_types::fraud_check::RefundMethod;
 use hyperswitch_domain_models::{
+    address::Address as DomainAddress,
     router_data::RouterData,
     router_flow_types::Fulfillment,
     router_request_types::{
@@ -25,10 +33,34 @@ use crate::{
         FrmSaleRouterData, FrmTransactionRouterData, ResponseRouterData,
     },
     utils::{
-        AddressDetailsData as _, FraudCheckCheckoutRequest, FraudCheckRecordReturnRequest as _,
-        FraudCheckSaleRequest as _, FraudCheckTransactionRequest as _, RouterData as _,
+        convert_amount, AddressDetailsData as _, FraudCheckCheckoutRequest,
+        FraudCheckRecordReturnRequest as _, FraudCheckSaleRequest as _,
+        FraudCheckTransactionRequest as _, RouterData as _,
     },
 };
+pub struct SignifydRouterData<T> {
+    pub amount: FloatMajorUnit,
+    pub product_prices: Option<Vec<FloatMajorUnit>>,
+    pub router_data: T,
+    pub(crate) amount_converter:
+        &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+}
+
+impl<T> SignifydRouterData<T> {
+    pub fn new(
+        amount: FloatMajorUnit,
+        product_prices: Option<Vec<FloatMajorUnit>>,
+        router_data: T,
+    ) -> Self {
+        Self {
+            amount,
+            product_prices,
+            router_data,
+            amount_converter: &FloatMajorUnitForConnector,
+        }
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Eq, PartialEq, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -37,17 +69,17 @@ pub enum DecisionDelivery {
     AsyncOnly,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Purchase {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     created_at: PrimitiveDateTime,
     order_channel: OrderChannel,
-    total_price: i64,
+    total_price: FloatMajorUnit,
     products: Vec<Products>,
     shipments: Shipments,
     currency: Option<Currency>,
-    total_shipping_cost: Option<i64>,
+    total_shipping_cost: Option<FloatMajorUnit>,
     confirmation_email: Option<Email>,
     confirmation_phone: Option<Secret<String>>,
 }
@@ -79,11 +111,11 @@ pub enum FulfillmentMethod {
     ScheduledDelivery,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq, Clone)]
+#[derive(Debug, Serialize, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Products {
     item_name: String,
-    item_price: i64,
+    item_price: FloatMajorUnit,
     item_quantity: i32,
     item_id: Option<String>,
     item_category: Option<String>,
@@ -128,13 +160,146 @@ pub enum CoverageRequests {
     None, // use when you do not need a financial guarantee. Suggested actions in decision.checkpointAction are recommendations.
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Device {
+    client_ip_address: Option<IpAddr>,
+    session_id: Option<Secret<String>>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct UserAccount {
+    username: Option<id_type::CustomerId>,
+    email: Option<Email>,
+    phone: Option<Secret<String>>,
+    account_number: Option<id_type::CustomerId>,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaymentMethodKind {
+    CreditCard,
+    DebitCard,
+    GiftCard,
+    PrepaidCard,
+    SnapCard,
+    Other,
+}
+
+#[derive(Debug, Serialize, PartialEq, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct BillingAddress {
+    street_address: Option<Secret<String>>,
+    unit: Option<Secret<String>>,
+    postal_code: Option<Secret<String>>,
+    city: Option<String>,
+    province_code: Option<Secret<String>>,
+    country_code: Option<common_enums::CountryAlpha2>,
+}
+
+impl From<&DomainAddress> for BillingAddress {
+    fn from(address: &DomainAddress) -> Self {
+        let details = address.address.as_ref();
+        Self {
+            street_address: details.and_then(|d| d.line1.clone()),
+            unit: details.and_then(|d| d.line2.clone()),
+            postal_code: details.and_then(|d| d.zip.clone()),
+            city: details.and_then(|d| d.city.clone()),
+            province_code: details.and_then(|d| d.state.clone()),
+            country_code: details.and_then(|d| d.country),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, PartialEq, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckoutPaymentDetails {
+    account_holder_name: Option<Secret<String>>,
+    card_bin: Option<String>,
+    card_expiry_month: Option<i32>,
+    card_expiry_year: Option<i32>,
+    card_last4: Option<String>,
+    billing_address: Option<BillingAddress>,
+}
+
+#[derive(Debug, Serialize, PartialEq, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Transaction {
+    payment_method: PaymentMethodKind,
+    amount: FloatMajorUnit,
+    currency: Currency,
+    gateway: Option<String>,
+    checkout_payment_details: CheckoutPaymentDetails,
+}
+
+fn map_payment_method_kind(value: Option<PaymentMethodType>) -> PaymentMethodKind {
+    match value {
+        Some(PaymentMethodType::Credit) => PaymentMethodKind::CreditCard,
+        Some(PaymentMethodType::Debit) => PaymentMethodKind::DebitCard,
+        _ => PaymentMethodKind::Other,
+    }
+}
+
+fn parse_card_expiry_month(value: Option<&Secret<String>>) -> Option<i32> {
+    use hyperswitch_masking::PeekInterface;
+    value.and_then(|s| s.peek().trim().parse::<i32>().ok())
+}
+
+fn parse_card_expiry_year(value: Option<&Secret<String>>) -> Option<i32> {
+    use hyperswitch_masking::PeekInterface;
+    value.and_then(|s| {
+        s.peek()
+            .trim()
+            .parse::<i32>()
+            .ok()
+            .map(|year| if year < 100 { year + 2000 } else { year })
+    })
+}
+
+fn build_transaction(
+    payment_method_data: Option<&AdditionalPaymentData>,
+    payment_method_type: Option<PaymentMethodType>,
+    amount: FloatMajorUnit,
+    currency: Currency,
+    gateway: Option<&String>,
+    billing_address: Option<&DomainAddress>,
+) -> Option<Transaction> {
+    let card_info = payment_method_data?.get_additional_card_info()?;
+
+    let checkout_payment_details = CheckoutPaymentDetails {
+        account_holder_name: card_info.card_holder_name.clone(),
+        card_bin: card_info.card_isin.clone(),
+        card_expiry_month: parse_card_expiry_month(card_info.card_exp_month.as_ref()),
+        card_expiry_year: parse_card_expiry_year(card_info.card_exp_year.as_ref()),
+        card_last4: card_info.last4.clone(),
+        billing_address: billing_address.map(BillingAddress::from),
+    };
+
+    Some(Transaction {
+        payment_method: map_payment_method_kind(payment_method_type),
+        amount,
+        currency,
+        gateway: gateway.cloned(),
+        checkout_payment_details,
+    })
+}
+
+#[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SignifydPaymentsSaleRequest {
     order_id: String,
     purchase: Purchase,
     decision_delivery: DecisionDelivery,
     coverage_requests: Option<CoverageRequests>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    device: Option<Device>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    user_account: Option<UserAccount>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    transactions: Option<Vec<Transaction>>,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq, Deserialize, Clone)]
@@ -144,18 +309,59 @@ pub struct SignifydFrmMetadata {
     pub fulfillment_method: Option<FulfillmentMethod>,
     pub coverage_request: Option<CoverageRequests>,
     pub order_channel: OrderChannel,
+    #[serde(default)]
+    pub session_id: Option<Secret<String>>,
 }
 
-impl TryFrom<&FrmSaleRouterData> for SignifydPaymentsSaleRequest {
+fn build_user_account(
+    customer_id: Option<&id_type::CustomerId>,
+    email: Option<&Email>,
+    phone: Option<&Secret<String>>,
+) -> Option<UserAccount> {
+    let username = customer_id.cloned();
+    let account_number = customer_id.cloned();
+    let email = email.cloned();
+    let phone = phone.cloned();
+
+    if [username.is_none(), email.is_none(), phone.is_none()]
+        .iter()
+        .all(|is_none| *is_none)
+    {
+        return None;
+    }
+
+    Some(UserAccount {
+        username,
+        email,
+        phone,
+        account_number,
+    })
+}
+
+impl TryFrom<&SignifydRouterData<&FrmSaleRouterData>> for SignifydPaymentsSaleRequest {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(item: &FrmSaleRouterData) -> Result<Self, Self::Error> {
-        let products = item
-            .request
-            .get_order_details()?
+    fn try_from(
+        data: &SignifydRouterData<&FrmSaleRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let item = data.router_data;
+        let currency =
+            item.request
+                .currency
+                .ok_or(ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?;
+        let order_details = item.request.get_order_details()?;
+        let product_prices = data.product_prices.as_ref().ok_or(
+            ConnectorError::MissingRequiredField {
+                field_name: "order_details",
+            },
+        )?;
+        let products = order_details
             .iter()
-            .map(|order_detail| Products {
+            .zip(product_prices.iter())
+            .map(|(order_detail, item_price)| Products {
                 item_name: order_detail.product_name.clone(),
-                item_price: order_detail.amount.get_amount_as_i64(), // This should be changed to MinorUnit when we implement amount conversion for this connector. Additionally, the function get_amount_as_i64() should be avoided in the future.
+                item_price: *item_price,
                 item_quantity: i32::from(order_detail.quantity),
                 item_id: order_detail.product_id.clone(),
                 item_category: order_detail.category.clone(),
@@ -178,26 +384,26 @@ impl TryFrom<&FrmSaleRouterData> for SignifydPaymentsSaleRequest {
             })?;
         let ship_address = item.get_shipping_address()?;
         let billing_address = item.get_billing()?;
-        let street_addr = ship_address.get_line1()?;
-        let city_addr = ship_address.get_city()?;
-        let zip_code_addr = ship_address.get_zip()?;
-        let country_code_addr = ship_address.get_country()?;
-        let _first_name_addr = ship_address.get_first_name()?;
-        let _last_name_addr = ship_address.get_last_name()?;
         let address: Address = Address {
-            street_address: street_addr.clone(),
+            street_address: ship_address.get_line1()?.clone(),
             unit: None,
-            postal_code: zip_code_addr.clone(),
-            city: city_addr.clone(),
-            province_code: zip_code_addr.clone(),
-            country_code: country_code_addr.to_owned(),
+            postal_code: ship_address.get_zip()?.clone(),
+            city: ship_address.get_city()?.clone(),
+            province_code: ship_address.get_state()?.clone(),
+            country_code: ship_address.get_country()?.to_owned(),
         };
         let destination: Destination = Destination {
-            full_name: ship_address.get_full_name().unwrap_or_default(),
+            full_name: ship_address.get_full_name()?,
             organization: None,
             email: None,
             address,
         };
+
+        let total_price = data.amount;
+        let total_shipping_cost = metadata
+            .total_shipping_cost
+            .map(|cost| convert_amount(data.amount_converter, MinorUnit::new(cost), currency))
+            .transpose()?;
 
         let created_at = common_utils::date_time::now();
         let order_channel = metadata.order_channel;
@@ -205,25 +411,52 @@ impl TryFrom<&FrmSaleRouterData> for SignifydPaymentsSaleRequest {
             destination,
             fulfillment_method: metadata.fulfillment_method,
         };
+        let confirmation_email = item.request.email.clone();
         let purchase = Purchase {
             created_at,
             order_channel,
-            total_price: item.request.amount,
+            total_price,
             products,
             shipments,
             currency: item.request.currency,
-            total_shipping_cost: metadata.total_shipping_cost,
-            confirmation_email: item.request.email.clone(),
+            total_shipping_cost,
+            confirmation_email,
             confirmation_phone: billing_address
                 .clone()
                 .phone
                 .and_then(|phone_data| phone_data.number),
         };
+        let client_ip_address = item.request.client_ip;
+        let session_id = metadata.session_id.clone();
+        let device = match (client_ip_address, session_id.clone()) {
+            (None, None) => None,
+            _ => Some(Device {
+                client_ip_address,
+                session_id,
+            }),
+        };
+        let user_account = build_user_account(
+            item.request.customer_id.as_ref(),
+            item.request.email.as_ref(),
+            item.request.phone.as_ref(),
+        );
+        let transactions = build_transaction(
+            item.request.payment_method_data.as_ref(),
+            item.payment_method_type,
+            data.amount,
+            currency,
+            item.request.gateway.as_ref(),
+            item.get_optional_billing(),
+        )
+        .map(|t| vec![t]);
         Ok(Self {
             order_id: item.attempt_id.clone(),
             purchase,
             decision_delivery: DecisionDelivery::Sync, // Specify SYNC if you require the Response to contain a decision field. If you have registered for a webhook associated with this checkpoint, then the webhook will also be sent when SYNC is specified. If ASYNC_ONLY is specified, then the decision field in the response will be null, and you will require a Webhook integration to receive Signifyd's final decision
             coverage_requests: metadata.coverage_request,
+            device,
+            user_account,
+            transactions,
         })
     }
 }
@@ -371,25 +604,45 @@ pub enum GatewayStatusCode {
     SoftDecline,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SignifydPaymentsCheckoutRequest {
     checkout_id: String,
     order_id: String,
     purchase: Purchase,
     coverage_requests: Option<CoverageRequests>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    device: Option<Device>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    user_account: Option<UserAccount>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    transactions: Option<Vec<Transaction>>,
 }
 
-impl TryFrom<&FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequest {
+impl TryFrom<&SignifydRouterData<&FrmCheckoutRouterData>> for SignifydPaymentsCheckoutRequest {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(item: &FrmCheckoutRouterData) -> Result<Self, Self::Error> {
-        let products = item
-            .request
-            .get_order_details()?
+    fn try_from(
+        data: &SignifydRouterData<&FrmCheckoutRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let item = data.router_data;
+        let currency =
+            item.request
+                .currency
+                .ok_or(ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?;
+        let order_details = item.request.get_order_details()?;
+        let product_prices = data.product_prices.as_ref().ok_or(
+            ConnectorError::MissingRequiredField {
+                field_name: "order_details",
+            },
+        )?;
+        let products = order_details
             .iter()
-            .map(|order_detail| Products {
+            .zip(product_prices.iter())
+            .map(|(order_detail, item_price)| Products {
                 item_name: order_detail.product_name.clone(),
-                item_price: order_detail.amount.get_amount_as_i64(), // This should be changed to MinorUnit when we implement amount conversion for this connector. Additionally, the function get_amount_as_i64() should be avoided in the future.
+                item_price: *item_price,
                 item_quantity: i32::from(order_detail.quantity),
                 item_id: order_detail.product_id.clone(),
                 item_category: order_detail.category.clone(),
@@ -411,52 +664,80 @@ impl TryFrom<&FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequest {
                 field_name: "frm_metadata",
             })?;
         let ship_address = item.get_shipping_address()?;
-        let street_addr = ship_address.get_line1()?;
-        let city_addr = ship_address.get_city()?;
-        let zip_code_addr = ship_address.get_zip()?;
-        let country_code_addr = ship_address.get_country()?;
-        let _first_name_addr = ship_address.get_first_name()?;
-        let _last_name_addr = ship_address.get_last_name()?;
         let billing_address = item.get_billing()?;
         let address: Address = Address {
-            street_address: street_addr.clone(),
+            street_address: ship_address.get_line1()?.clone(),
             unit: None,
-            postal_code: zip_code_addr.clone(),
-            city: city_addr.clone(),
-            province_code: zip_code_addr.clone(),
-            country_code: country_code_addr.to_owned(),
+            postal_code: ship_address.get_zip()?.clone(),
+            city: ship_address.get_city()?.clone(),
+            province_code: ship_address.get_state()?.clone(),
+            country_code: ship_address.get_country()?.to_owned(),
         };
         let destination: Destination = Destination {
-            full_name: ship_address.get_full_name().unwrap_or_default(),
+            full_name: ship_address.get_full_name()?,
             organization: None,
             email: None,
             address,
         };
+
+        let total_price = data.amount;
+        let total_shipping_cost = metadata
+            .total_shipping_cost
+            .map(|cost| convert_amount(data.amount_converter, MinorUnit::new(cost), currency))
+            .transpose()?;
+
         let created_at = common_utils::date_time::now();
         let order_channel = metadata.order_channel;
         let shipments: Shipments = Shipments {
             destination,
             fulfillment_method: metadata.fulfillment_method,
         };
+        let confirmation_email = item.request.email.clone();
         let purchase = Purchase {
             created_at,
             order_channel,
-            total_price: item.request.amount,
+            total_price,
             products,
             shipments,
             currency: item.request.currency,
-            total_shipping_cost: metadata.total_shipping_cost,
-            confirmation_email: item.request.email.clone(),
+            total_shipping_cost,
+            confirmation_email,
             confirmation_phone: billing_address
                 .clone()
                 .phone
                 .and_then(|phone_data| phone_data.number),
         };
+        let client_ip_address = item.request.client_ip;
+        let session_id = metadata.session_id.clone();
+        let device = match (client_ip_address, session_id.clone()) {
+            (None, None) => None,
+            _ => Some(Device {
+                client_ip_address,
+                session_id,
+            }),
+        };
+        let user_account = build_user_account(
+            item.request.customer_id.as_ref(),
+            item.request.email.as_ref(),
+            item.request.phone.as_ref(),
+        );
+        let transactions = build_transaction(
+            item.request.payment_method_data.as_ref(),
+            item.payment_method_type,
+            data.amount,
+            currency,
+            item.request.gateway.as_ref(),
+            item.get_optional_billing(),
+        )
+        .map(|t| vec![t]);
         Ok(Self {
             checkout_id: item.payment_id.clone(),
             order_id: item.attempt_id.clone(),
             purchase,
             coverage_requests: metadata.coverage_request,
+            device,
+            user_account,
+            transactions,
         })
     }
 }
@@ -701,7 +982,11 @@ impl TryFrom<&FrmRecordReturnRouterData> for SignifydPaymentsRecordReturnRequest
 #[serde(rename_all = "camelCase")]
 pub struct SignifydWebhookBody {
     pub order_id: String,
-    pub review_disposition: ReviewDisposition,
+    // Signifyd may emit dispositions like UNSET / IN_REVIEW / UNCONFIRMED for
+    // in-flight or manually-reviewed cases. Make the field tolerant so the
+    // webhook deserializes even when the disposition is not yet a final
+    // GOOD/FRAUDULENT decision.
+    pub review_disposition: Option<ReviewDisposition>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -709,13 +994,24 @@ pub struct SignifydWebhookBody {
 pub enum ReviewDisposition {
     Fraudulent,
     Good,
+    Unset,
+    Unconfirmed,
+    InReview,
+    Approved,
+    Declined,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<ReviewDisposition> for IncomingWebhookEvent {
     fn from(value: ReviewDisposition) -> Self {
         match value {
-            ReviewDisposition::Fraudulent => Self::FrmRejected,
-            ReviewDisposition::Good => Self::FrmApproved,
+            ReviewDisposition::Fraudulent | ReviewDisposition::Declined => Self::FrmRejected,
+            ReviewDisposition::Good | ReviewDisposition::Approved => Self::FrmApproved,
+            ReviewDisposition::Unset
+            | ReviewDisposition::Unconfirmed
+            | ReviewDisposition::InReview
+            | ReviewDisposition::Unknown => Self::EventNotSupported,
         }
     }
 }
