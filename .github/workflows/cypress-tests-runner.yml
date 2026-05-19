@@ -721,6 +721,7 @@ jobs:
                   "name": "mock-payments-1",
                   "payments_connectors": "'"${MOCK_PAYMENTS_CONNECTORS_BATCH_1}"'",
                   "payouts_connectors": "",
+                  "platform_connectors": "",
                   "parallel": 4,
                   "report_artifact_name": "cypress-mock-test-results-payments-1",
                   "server_logs_artifact": "mock-server-logs-payments-1"
@@ -729,6 +730,7 @@ jobs:
                   "name": "mock-payments-2",
                   "payments_connectors": "'"${MOCK_PAYMENTS_CONNECTORS_BATCH_2}"'",
                   "payouts_connectors": "",
+                  "platform_connectors": "",
                   "parallel": 3,
                   "report_artifact_name": "cypress-mock-test-results-payments-2",
                   "server_logs_artifact": "mock-server-logs-payments-2"
@@ -737,9 +739,19 @@ jobs:
                   "name": "mock-payouts",
                   "payments_connectors": "",
                   "payouts_connectors": "'"${MOCK_PAYOUTS_CONNECTORS}"'",
+                  "platform_connectors": "",
                   "parallel": 2,
                   "report_artifact_name": "cypress-mock-test-results-payouts",
                   "server_logs_artifact": "mock-server-logs-payouts"
+                },
+                {
+                  "name": "mock-platform",
+                  "payments_connectors": "",
+                  "payouts_connectors": "",
+                  "platform_connectors": "'"${PLATFORM_CONNECTORS}"'",
+                  "parallel": 2,
+                  "report_artifact_name": "cypress-mock-test-results-platform",
+                  "server_logs_artifact": "mock-server-logs-platform"
                 }
               ]
             }'
@@ -917,16 +929,33 @@ jobs:
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI }}
         shell: bash
         run: |
-          # Cassette tarballs are packed as {connector}/spec/ctx/.../NNN.json
-          # so we extract directly into mitm-proxy/captures/ (no --strip-components).
+          # S3 layout: cassettes/{connector}/{Type}.tar.gz
+          # Each batch downloads only the tarball that matches its type so that
+          # unrelated cassettes are never loaded into the replay proxy.
           mkdir -p "mitm-proxy/captures"
-          ALL_CONNECTORS="${{ matrix.batch.payments_connectors }} ${{ matrix.batch.payouts_connectors }}"
-          for connector in $ALL_CONNECTORS; do
+
+          for connector in ${{ matrix.batch.platform_connectors }}; do
             [ -z "${connector}" ] && continue
-            aws s3 cp "${CONNECTOR_CREDS_S3_BUCKET_URI}/cassettes/${connector}.tar.gz" \
-              "/tmp/${connector}-cassettes.tar.gz"
-            tar -xzf "/tmp/${connector}-cassettes.tar.gz" -C "mitm-proxy/captures/"
-            echo "Downloaded cassettes for ${connector}: $(find mitm-proxy/captures/${connector} -name '*.json' | wc -l) files"
+            aws s3 cp "${CONNECTOR_CREDS_S3_BUCKET_URI}/cassettes/${connector}/Platform.tar.gz" \
+              "/tmp/${connector}-platform-cassettes.tar.gz"
+            tar -xzf "/tmp/${connector}-platform-cassettes.tar.gz" -C "mitm-proxy/captures/"
+            echo "Downloaded platform cassettes for ${connector}: $(find mitm-proxy/captures/${connector} -name '*.json' | wc -l) files"
+          done
+
+          for connector in ${{ matrix.batch.payments_connectors }}; do
+            [ -z "${connector}" ] && continue
+            aws s3 cp "${CONNECTOR_CREDS_S3_BUCKET_URI}/cassettes/${connector}/Payment.tar.gz" \
+              "/tmp/${connector}-payment-cassettes.tar.gz"
+            tar -xzf "/tmp/${connector}-payment-cassettes.tar.gz" -C "mitm-proxy/captures/"
+            echo "Downloaded payment cassettes for ${connector}: $(find mitm-proxy/captures/${connector} -name '*.json' | wc -l) files"
+          done
+
+          for connector in ${{ matrix.batch.payouts_connectors }}; do
+            [ -z "${connector}" ] && continue
+            aws s3 cp "${CONNECTOR_CREDS_S3_BUCKET_URI}/cassettes/${connector}/Payout.tar.gz" \
+              "/tmp/${connector}-payout-cassettes.tar.gz"
+            tar -xzf "/tmp/${connector}-payout-cassettes.tar.gz" -C "mitm-proxy/captures/"
+            echo "Downloaded payout cassettes for ${connector}: $(find mitm-proxy/captures/${connector} -name '*.json' | wc -l) files"
           done
 
       - name: Install uv
@@ -1011,6 +1040,7 @@ jobs:
           CYPRESS_BASEURL: "http://localhost:8080"
           PAYMENTS_CONNECTORS: "${{ matrix.batch.payments_connectors }}"
           PAYOUTS_CONNECTORS: "${{ matrix.batch.payouts_connectors }}"
+          PLATFORM_CONNECTORS: "${{ matrix.batch.platform_connectors }}"
           CYPRESS_MOCK_SERVER: "true"
           # Notifies the MITM proxy of each test start/end so cassette matching
           # can use test-name fallback for server-UUID cassettes (3DS redirects etc.)
