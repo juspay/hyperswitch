@@ -8455,7 +8455,7 @@ Cypress.Commands.add("initiatePaymentLinkTest", (data, globalState) => {
       const contentType = response.headers["content-type"] || "";
       const isHtml = contentType.includes("text/html");
 
-      if (response.status >= 200 && response.status < 400 && isHtml) {
+      if (response.status === 200 && isHtml) {
         const bodyText = typeof response.body === "string" ? response.body : "";
         const hasHyperLoader =
           bodyText.includes("HyperLoader") ||
@@ -8473,14 +8473,14 @@ Cypress.Commands.add("initiatePaymentLinkTest", (data, globalState) => {
           );
         }
 
-        expect(response.status).to.be.within(200, 399);
+        expect(response.status).to.equal(200);
         expect(isHtml).to.be.true;
       } else {
         cy.task(
           "cli_log",
           `Payment Link non-HTML or error response (CI): status=${response.status}, content-type=${contentType}`
         );
-        expect(response.status).to.be.within(200, 399);
+        expect(response.status).to.equal(200);
       }
     });
   } else {
