@@ -13,9 +13,7 @@ describe("Poll Config - Payment status polling", () => {
         globalState = new State(state);
         const connectorId = globalState.get("connectorId");
 
-        if (
-          !utils.CONNECTOR_LISTS.INCLUDE.POLL_CONFIG.includes(connectorId)
-        ) {
+        if (!utils.CONNECTOR_LISTS.INCLUDE.POLL_CONFIG.includes(connectorId)) {
           skip = true;
         }
       })
