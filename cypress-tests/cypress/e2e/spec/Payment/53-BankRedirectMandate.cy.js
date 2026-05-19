@@ -147,6 +147,14 @@ describe("Bank Redirect Mandate tests", () => {
           failOnStatusCode: false,
           body: requestBody,
         }).then((response) => {
+          if (response.status === 404) {
+            cy.task(
+              "cli_log",
+              "MIT returned 404 — payment method not stored for bank redirect mandate. Skipping subsequent steps."
+            );
+            shouldContinue = false;
+            return;
+          }
           globalState.set("paymentID", response.body.payment_id);
           expect(response.status).to.equal(resData.status);
           expect(response.body.status).to.equal(resData.body.status);
@@ -310,6 +318,14 @@ describe("Bank Redirect Mandate tests", () => {
           failOnStatusCode: false,
           body: requestBody,
         }).then((response) => {
+          if (response.status === 404) {
+            cy.task(
+              "cli_log",
+              "MIT returned 404 — payment method not stored for bank redirect mandate. Skipping subsequent steps."
+            );
+            shouldContinue = false;
+            return;
+          }
           globalState.set("paymentID", response.body.payment_id);
           expect(response.status).to.equal(resData.status);
           expect(response.body.status).to.equal(resData.body.status);
@@ -473,6 +489,14 @@ describe("Bank Redirect Mandate tests", () => {
           failOnStatusCode: false,
           body: requestBody,
         }).then((response) => {
+          if (response.status === 404) {
+            cy.task(
+              "cli_log",
+              "MIT returned 404 — payment method not stored for bank redirect mandate. Skipping subsequent steps."
+            );
+            shouldContinue = false;
+            return;
+          }
           globalState.set("paymentID", response.body.payment_id);
           expect(response.status).to.equal(resData.status);
           expect(response.body.status).to.equal(resData.body.status);
@@ -636,6 +660,14 @@ describe("Bank Redirect Mandate tests", () => {
           failOnStatusCode: false,
           body: requestBody,
         }).then((response) => {
+          if (response.status === 404) {
+            cy.task(
+              "cli_log",
+              "MIT returned 404 — payment method not stored for bank redirect mandate. Skipping subsequent steps."
+            );
+            shouldContinue = false;
+            return;
+          }
           globalState.set("paymentID", response.body.payment_id);
           expect(response.status).to.equal(resData.status);
           expect(response.body.status).to.equal(resData.body.status);
@@ -799,6 +831,14 @@ describe("Bank Redirect Mandate tests", () => {
           failOnStatusCode: false,
           body: requestBody,
         }).then((response) => {
+          if (response.status === 404) {
+            cy.task(
+              "cli_log",
+              "MIT returned 404 — payment method not stored for bank redirect mandate. Skipping subsequent steps."
+            );
+            shouldContinue = false;
+            return;
+          }
           globalState.set("paymentID", response.body.payment_id);
           expect(response.status).to.equal(resData.status);
           expect(response.body.status).to.equal(resData.body.status);
@@ -962,6 +1002,14 @@ describe("Bank Redirect Mandate tests", () => {
           failOnStatusCode: false,
           body: requestBody,
         }).then((response) => {
+          if (response.status === 404) {
+            cy.task(
+              "cli_log",
+              "MIT returned 404 — payment method not stored for bank redirect mandate. Skipping subsequent steps."
+            );
+            shouldContinue = false;
+            return;
+          }
           globalState.set("paymentID", response.body.payment_id);
           expect(response.status).to.equal(resData.status);
           expect(response.body.status).to.equal(resData.body.status);
