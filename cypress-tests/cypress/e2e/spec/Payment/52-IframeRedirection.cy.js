@@ -19,7 +19,7 @@ describe("Iframe Redirection Payment Flow Tests", () => {
   });
 
   before(function () {
-    const connectorId = Cypress.env("CYPRESS_CONNECTOR");
+    const connectorId = Cypress.env("CONNECTOR");
     if (!CONNECTOR_LISTS.INCLUDE.IFRAME_REDIRECTION.includes(connectorId)) {
       cy.task(
         "cli_log",
