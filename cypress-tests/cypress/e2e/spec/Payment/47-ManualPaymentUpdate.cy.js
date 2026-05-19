@@ -102,17 +102,9 @@ describe("Payment Manual Update Tests", () => {
           return;
         }
 
-        const data = {
-          Request: {
-            attempt_status: "pending",
-          },
-          Response: {
-            status: 200,
-            body: {
-              attempt_status: "pending",
-            },
-          },
-        };
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ManualPaymentUpdateStatusOnly"];
 
         cy.manualPaymentStatusUpdateTest(globalState, data);
       });

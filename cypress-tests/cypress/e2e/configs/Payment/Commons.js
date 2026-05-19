@@ -2862,6 +2862,17 @@ export const connectorDetails = {
         },
       },
     }),
+    ManualPaymentUpdateStatusOnly: getCustomExchange({
+      Request: {
+        attempt_status: "pending",
+      },
+      Response: {
+        status: 200,
+        body: {
+          attempt_status: "pending",
+        },
+      },
+    }),
     OrderDetails: getCustomExchange({
       Request: {
         payment_method: "card",
