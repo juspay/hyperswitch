@@ -1495,7 +1495,6 @@ pub fn tonic_status_to_report(
         | tonic::Code::ResourceExhausted
         | tonic::Code::Aborted
         | tonic::Code::OutOfRange
-        | tonic::Code::Unimplemented
         | tonic::Code::Internal
         | tonic::Code::Unavailable
         | tonic::Code::DataLoss => default_error,
