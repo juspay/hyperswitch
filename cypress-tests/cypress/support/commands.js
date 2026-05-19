@@ -790,7 +790,7 @@ Cypress.Commands.add(
             );
           }
         } else {
-          defaultErrorHandler(response, resData);
+          defaultErrorHandler(response);
         }
       });
     });
