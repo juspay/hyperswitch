@@ -8297,9 +8297,7 @@ Cypress.Commands.add("verifyIframeRedirection", (globalState, options = {}) => {
   expect(globalState.get("paymentIntentStatus")).to.equal(expectedStatus);
 
   if (expectRedirectInsidePopup) {
-    expect(globalState.get("nextActionType")).to.equal(
-      "redirect_inside_popup"
-    );
+    expect(globalState.get("nextActionType")).to.equal("redirect_inside_popup");
     expect(globalState.get("nextActionUrl")).to.not.be.null;
   } else {
     expect(
