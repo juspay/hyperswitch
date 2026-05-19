@@ -32,6 +32,7 @@ describe("Bank Redirect Mandate tests", () => {
   context("iDEAL - Single-use Mandate CIT and MIT", () => {
     it("Create Intent -> Confirm CIT -> Handle Redirect -> Retrieve CIT -> MIT -> Retrieve MIT", () => {
       let shouldContinue = true;
+      let mandateCreated = false;
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -99,6 +100,7 @@ describe("Bank Redirect Mandate tests", () => {
           expect(response.status).to.equal(200);
           if (response.body.mandate_id) {
             globalState.set("mandateId", response.body.mandate_id);
+            mandateCreated = true;
           }
         });
       });
@@ -153,12 +155,29 @@ describe("Bank Redirect Mandate tests", () => {
         ]["IdealMITAutoCapture"];
         cy.retrievePaymentCallTest({ globalState, data });
       });
+
+      cy.step("List Mandates", () => {
+        if (!mandateCreated) {
+          cy.task("cli_log", "Skipping step: List Mandates - no mandate created");
+          return;
+        }
+        cy.listMandateCallTest(globalState);
+      });
+
+      cy.step("Revoke Mandate", () => {
+        if (!mandateCreated) {
+          cy.task("cli_log", "Skipping step: Revoke Mandate - no mandate created");
+          return;
+        }
+        cy.revokeMandateCallTest(globalState);
+      });
     });
   });
 
   context("iDEAL - Multi-use Mandate CIT and MIT", () => {
     it("Create Intent -> Confirm CIT -> Handle Redirect -> Retrieve CIT -> MIT -> Retrieve MIT", () => {
       let shouldContinue = true;
+      let mandateCreated = false;
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -226,6 +245,7 @@ describe("Bank Redirect Mandate tests", () => {
           expect(response.status).to.equal(200);
           if (response.body.mandate_id) {
             globalState.set("mandateId", response.body.mandate_id);
+            mandateCreated = true;
           }
         });
       });
@@ -280,12 +300,29 @@ describe("Bank Redirect Mandate tests", () => {
         ]["IdealMITAutoCapture"];
         cy.retrievePaymentCallTest({ globalState, data });
       });
+
+      cy.step("List Mandates", () => {
+        if (!mandateCreated) {
+          cy.task("cli_log", "Skipping step: List Mandates - no mandate created");
+          return;
+        }
+        cy.listMandateCallTest(globalState);
+      });
+
+      cy.step("Revoke Mandate", () => {
+        if (!mandateCreated) {
+          cy.task("cli_log", "Skipping step: Revoke Mandate - no mandate created");
+          return;
+        }
+        cy.revokeMandateCallTest(globalState);
+      });
     });
   });
 
   context("EPS - Single-use Mandate CIT and MIT", () => {
     it("Create Intent -> Confirm CIT -> Handle Redirect -> Retrieve CIT -> MIT -> Retrieve MIT", () => {
       let shouldContinue = true;
+      let mandateCreated = false;
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -353,6 +390,7 @@ describe("Bank Redirect Mandate tests", () => {
           expect(response.status).to.equal(200);
           if (response.body.mandate_id) {
             globalState.set("mandateId", response.body.mandate_id);
+            mandateCreated = true;
           }
         });
       });
@@ -407,12 +445,29 @@ describe("Bank Redirect Mandate tests", () => {
         ]["EpsMITAutoCapture"];
         cy.retrievePaymentCallTest({ globalState, data });
       });
+
+      cy.step("List Mandates", () => {
+        if (!mandateCreated) {
+          cy.task("cli_log", "Skipping step: List Mandates - no mandate created");
+          return;
+        }
+        cy.listMandateCallTest(globalState);
+      });
+
+      cy.step("Revoke Mandate", () => {
+        if (!mandateCreated) {
+          cy.task("cli_log", "Skipping step: Revoke Mandate - no mandate created");
+          return;
+        }
+        cy.revokeMandateCallTest(globalState);
+      });
     });
   });
 
   context("EPS - Multi-use Mandate CIT and MIT", () => {
     it("Create Intent -> Confirm CIT -> Handle Redirect -> Retrieve CIT -> MIT -> Retrieve MIT", () => {
       let shouldContinue = true;
+      let mandateCreated = false;
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -480,6 +535,7 @@ describe("Bank Redirect Mandate tests", () => {
           expect(response.status).to.equal(200);
           if (response.body.mandate_id) {
             globalState.set("mandateId", response.body.mandate_id);
+            mandateCreated = true;
           }
         });
       });
@@ -534,12 +590,29 @@ describe("Bank Redirect Mandate tests", () => {
         ]["EpsMITAutoCapture"];
         cy.retrievePaymentCallTest({ globalState, data });
       });
+
+      cy.step("List Mandates", () => {
+        if (!mandateCreated) {
+          cy.task("cli_log", "Skipping step: List Mandates - no mandate created");
+          return;
+        }
+        cy.listMandateCallTest(globalState);
+      });
+
+      cy.step("Revoke Mandate", () => {
+        if (!mandateCreated) {
+          cy.task("cli_log", "Skipping step: Revoke Mandate - no mandate created");
+          return;
+        }
+        cy.revokeMandateCallTest(globalState);
+      });
     });
   });
 
   context("Giropay - Single-use Mandate CIT and MIT", () => {
     it("Create Intent -> Confirm CIT -> Handle Redirect -> Retrieve CIT -> MIT -> Retrieve MIT", () => {
       let shouldContinue = true;
+      let mandateCreated = false;
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -607,6 +680,7 @@ describe("Bank Redirect Mandate tests", () => {
           expect(response.status).to.equal(200);
           if (response.body.mandate_id) {
             globalState.set("mandateId", response.body.mandate_id);
+            mandateCreated = true;
           }
         });
       });
@@ -661,12 +735,29 @@ describe("Bank Redirect Mandate tests", () => {
         ]["GiropayMITAutoCapture"];
         cy.retrievePaymentCallTest({ globalState, data });
       });
+
+      cy.step("List Mandates", () => {
+        if (!mandateCreated) {
+          cy.task("cli_log", "Skipping step: List Mandates - no mandate created");
+          return;
+        }
+        cy.listMandateCallTest(globalState);
+      });
+
+      cy.step("Revoke Mandate", () => {
+        if (!mandateCreated) {
+          cy.task("cli_log", "Skipping step: Revoke Mandate - no mandate created");
+          return;
+        }
+        cy.revokeMandateCallTest(globalState);
+      });
     });
   });
 
   context("Giropay - Multi-use Mandate CIT and MIT", () => {
     it("Create Intent -> Confirm CIT -> Handle Redirect -> Retrieve CIT -> MIT -> Retrieve MIT", () => {
       let shouldContinue = true;
+      let mandateCreated = false;
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -734,6 +825,7 @@ describe("Bank Redirect Mandate tests", () => {
           expect(response.status).to.equal(200);
           if (response.body.mandate_id) {
             globalState.set("mandateId", response.body.mandate_id);
+            mandateCreated = true;
           }
         });
       });
@@ -787,6 +879,22 @@ describe("Bank Redirect Mandate tests", () => {
           "bank_redirect_pm"
         ]["GiropayMITAutoCapture"];
         cy.retrievePaymentCallTest({ globalState, data });
+      });
+
+      cy.step("List Mandates", () => {
+        if (!mandateCreated) {
+          cy.task("cli_log", "Skipping step: List Mandates - no mandate created");
+          return;
+        }
+        cy.listMandateCallTest(globalState);
+      });
+
+      cy.step("Revoke Mandate", () => {
+        if (!mandateCreated) {
+          cy.task("cli_log", "Skipping step: Revoke Mandate - no mandate created");
+          return;
+        }
+        cy.revokeMandateCallTest(globalState);
       });
     });
   });
