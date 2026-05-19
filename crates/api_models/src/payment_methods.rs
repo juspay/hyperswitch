@@ -663,6 +663,7 @@ impl PaymentMethodCreateData {
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
     BankDebit(BankDebitDetail),
+    Wallet(WalletDetail),
 }
 
 #[cfg(feature = "v1")]
@@ -684,6 +685,26 @@ pub enum BankDebitDetail {
         #[schema(value_type = Option<BankHolderType>)]
         #[serde(default)]
         bank_holder_type: Option<common_enums::BankHolderType>,
+    },
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub enum WalletDetail {
+    ApplePayDecryptedData {
+        /// The application primary account number associated with the card
+        #[schema(value_type = String, example = "4242424242424242")]
+        application_primary_account_number: CardNumber,
+
+        /// The card's expiry month
+        #[schema(value_type = String)]
+        expiry_month: hyperswitch_masking::Secret<String>,
+
+        /// The card's expiry year
+        #[schema(value_type = String)]
+        expiry_year: hyperswitch_masking::Secret<String>,
     },
 }
 
