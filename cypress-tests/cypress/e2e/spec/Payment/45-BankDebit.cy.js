@@ -287,4 +287,88 @@ describe("Bank Debit tests", () => {
       });
     });
   });
+
+  context("SEPA Bank Debit Mandate flow test", () => {
+    it("CIT mandate creation -> MIT mandate reuse for SEPA", () => {
+      let shouldContinue = true;
+
+      cy.step("CIT mandate creation for SEPA", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["MandateSingleUseSepa"];
+        cy.citForMandatesCallTest(
+          fixtures.citConfirmBody,
+          data,
+          6540,
+          true,
+          "automatic",
+          "new_mandate",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("MIT mandate reuse for SEPA", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: MIT mandate reuse for SEPA");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["MITAutoCapture"];
+        cy.mitForMandatesCallTest(
+          fixtures.mitConfirmBody,
+          data,
+          6540,
+          true,
+          "automatic",
+          globalState
+        );
+      });
+    });
+  });
+
+  context("BECS Bank Debit Mandate flow test", () => {
+    it("CIT mandate creation -> MIT mandate reuse for BECS", () => {
+      let shouldContinue = true;
+
+      cy.step("CIT mandate creation for BECS", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["MandateSingleUseBecs"];
+        cy.citForMandatesCallTest(
+          fixtures.citConfirmBody,
+          data,
+          6540,
+          true,
+          "automatic",
+          "new_mandate",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("MIT mandate reuse for BECS", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: MIT mandate reuse for BECS");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["MITAutoCaptureBecs"];
+        cy.mitForMandatesCallTest(
+          fixtures.mitConfirmBody,
+          data,
+          6540,
+          true,
+          "automatic",
+          globalState
+        );
+      });
+    });
+  });
 });
