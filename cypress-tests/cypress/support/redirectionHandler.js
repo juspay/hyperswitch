@@ -670,6 +670,9 @@ function bankRedirectRedirection(
     );
 
     verifyUrl = false;
+  } else if (connectorId === "globalpay" && paymentMethodType === "eps") {
+    cy.log("GlobalPay EPS redirects to PPRO sandbox — skipping interaction to avoid JS errors");
+    verifyUrl = false;
   } else {
     handleFlow(
       redirectionUrl,
