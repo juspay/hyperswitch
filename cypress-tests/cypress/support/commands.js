@@ -8481,7 +8481,6 @@ Cypress.Commands.add(
   }
 );
 
-
 Cypress.Commands.add("initiatePaymentLinkTest", (data, globalState) => {
   const paymentLinkUrl = globalState.get("paymentLinkUrl");
 
@@ -8652,7 +8651,6 @@ Cypress.Commands.add(
     });
   }
 );
-
 
 Cypress.Commands.add("setExtendedCardInfoConfigTest", (globalState) => {
   const apiKey = globalState.get("apiKey");
