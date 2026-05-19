@@ -448,6 +448,13 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
                     }
                     .into())
                 }
+                api_models::payouts::BankTransfer::OpenBanking(..) => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "OpenBanking payouts are not supported".to_string(),
+                        connector: "stripe",
+                    }
+                    .into())
+                }
                 api_models::payouts::BankTransfer::Trustly(_) => {
                     Err(errors::ConnectorError::NotSupported {
                         message: "Trustly payouts are not supported".to_string(),

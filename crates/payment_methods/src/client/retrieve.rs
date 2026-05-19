@@ -27,7 +27,7 @@ pub struct RetrievePaymentMethodResponse {
     pub merchant_id: id_type::MerchantId,
     pub customer_id: Option<id_type::CustomerId>,
     pub payment_method: common_enums::PaymentMethod,
-    pub payment_method_type: common_enums::PaymentMethodType,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub recurring_enabled: Option<bool>,
     pub created: Option<PrimitiveDateTime>,
     pub last_used_at: Option<PrimitiveDateTime>,
