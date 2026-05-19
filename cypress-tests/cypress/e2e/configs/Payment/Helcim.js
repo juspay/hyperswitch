@@ -88,48 +88,36 @@ export const connectorDetails = {
       },
     },
     Refund: {
-      Configs: {
-        TRIGGER_SKIP: true, // Helcim sandbox does not support refund — duplicate transaction detection blocks refunds
-      },
       Request: {
         amount: 6000,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },
     SyncRefund: {
-      Configs: {
-        TRIGGER_SKIP: true, // Helcim sandbox does not support refund — duplicate transaction detection blocks refunds
-      },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },
     PartialRefund: {
-      Configs: {
-        TRIGGER_SKIP: true, // Helcim sandbox does not support refund — duplicate transaction detection blocks refunds
-      },
       Request: {
         amount: 2000,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },
     manualPaymentRefund: {
-      Configs: {
-        TRIGGER_SKIP: true, // Helcim sandbox does not support refund — duplicate transaction detection blocks refunds
-      },
       Request: {
         amount: 6000,
       },
@@ -141,16 +129,13 @@ export const connectorDetails = {
       },
     },
     manualPaymentPartialRefund: {
-      Configs: {
-        TRIGGER_SKIP: true, // Helcim sandbox does not support refund — duplicate transaction detection blocks refunds
-      },
       Request: {
         amount: 2000,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },
