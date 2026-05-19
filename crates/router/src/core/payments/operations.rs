@@ -674,7 +674,7 @@ where
         &'a self,
         state: &SessionState,
         payment_data: &mut D,
-        request: Option<CustomerDetails>,
+        _request: Option<CustomerDetails>,
         provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
@@ -686,15 +686,13 @@ where
         ),
         errors::StorageError,
     > {
-        let customer_id = request
-            .as_ref()
-            .and_then(|r| r.customer_id.as_ref())
-            .or(payment_data.get_payment_intent().customer_id.as_ref());
-
         let db = &*state.store;
         let merchant_key_store = provider.get_key_store();
         let storage_scheme = provider.get_account().storage_scheme;
-        let customer = customer_id
+        let customer = payment_data
+            .get_payment_intent()
+            .customer_id
+            .as_ref()
             .async_map(|customer_id| async {
                 db.find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
                     customer_id,
