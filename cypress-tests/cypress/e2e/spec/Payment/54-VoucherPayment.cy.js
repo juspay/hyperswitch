@@ -1,9 +1,6 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import getConnectorDetails, {
-  CONNECTOR_LISTS,
-  shouldIncludeConnector,
-} from "../../configs/Payment/Utils";
+import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 let connector;
@@ -18,7 +15,10 @@ describe("Voucher Payment tests", () => {
         connector = globalState.get("connectorId");
 
         if (
-          shouldIncludeConnector(connector, CONNECTOR_LISTS.INCLUDE.VOUCHER)
+          utils.shouldIncludeConnector(
+            connector,
+            utils.CONNECTOR_LISTS.INCLUDE.VOUCHER
+          )
         ) {
           skip = true;
           return;
@@ -43,26 +43,64 @@ describe("Voucher Payment tests", () => {
   });
 
   context("Boleto Voucher Payment", () => {
-    it("Create and Confirm Boleto Voucher Payment -> Retrieve Payment", () => {
+    it("Create Payment Intent -> List Payment Methods -> Confirm Voucher Payment -> Handle Voucher Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
-      cy.step("Create and Confirm Boleto Voucher Payment", () => {
+      cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "voucher_pm"
-        ]["Boleto"];
-
-        cy.createConfirmPaymentTest(
-          fixtures.createConfirmPaymentBody,
+        ]["PaymentIntent"]("Boleto");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
           data,
           "no_three_ds",
           "automatic",
           globalState
         );
-
-        if (!shouldContinue) return;
-        if (data && data.Response && data.Response.status === 501) {
+        if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Boleto Voucher Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Boleto Voucher Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "voucher_pm"
+        ]["Boleto"];
+        cy.confirmVoucherCallTest(
+          fixtures.confirmBody,
+          data,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle Voucher Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle Voucher Redirection");
+          return;
+        }
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleVoucherRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
       });
 
       cy.step("Retrieve Payment", () => {
@@ -73,33 +111,70 @@ describe("Voucher Payment tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "voucher_pm"
         ]["Boleto"];
-
         cy.retrievePaymentCallTest({ globalState, data });
       });
     });
   });
 
   context("OXXO Voucher Payment", () => {
-    it("Create and Confirm OXXO Voucher Payment -> Retrieve Payment", () => {
+    it("Create Payment Intent -> List Payment Methods -> Confirm Voucher Payment -> Handle Voucher Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
-      cy.step("Create and Confirm OXXO Voucher Payment", () => {
+      cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "voucher_pm"
-        ]["Oxxo"];
-
-        cy.createConfirmPaymentTest(
-          fixtures.createConfirmPaymentBody,
+        ]["PaymentIntent"]("Oxxo");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
           data,
           "no_three_ds",
           "automatic",
           globalState
         );
-
-        if (!shouldContinue) return;
-        if (data && data.Response && data.Response.status === 501) {
+        if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm OXXO Voucher Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm OXXO Voucher Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "voucher_pm"
+        ]["Oxxo"];
+        cy.confirmVoucherCallTest(
+          fixtures.confirmBody,
+          data,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle Voucher Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle Voucher Redirection");
+          return;
+        }
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleVoucherRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
       });
 
       cy.step("Retrieve Payment", () => {
@@ -110,7 +185,6 @@ describe("Voucher Payment tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "voucher_pm"
         ]["Oxxo"];
-
         cy.retrievePaymentCallTest({ globalState, data });
       });
     });
@@ -131,26 +205,64 @@ describe("Voucher Payment tests", () => {
   });
 
   context("Alfamart Voucher Payment", () => {
-    it("Create and Confirm Alfamart Voucher Payment -> Retrieve Payment", () => {
+    it("Create Payment Intent -> List Payment Methods -> Confirm Voucher Payment -> Handle Voucher Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
-      cy.step("Create and Confirm Alfamart Voucher Payment", () => {
+      cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "voucher_pm"
-        ]["Alfamart"];
-
-        cy.createConfirmPaymentTest(
-          fixtures.createConfirmPaymentBody,
+        ]["PaymentIntent"]("Alfamart");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
           data,
           "no_three_ds",
           "automatic",
           globalState
         );
-
-        if (!shouldContinue) return;
-        if (data && data.Response && data.Response.status === 501) {
+        if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Alfamart Voucher Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Alfamart Voucher Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "voucher_pm"
+        ]["Alfamart"];
+        cy.confirmVoucherCallTest(
+          fixtures.confirmBody,
+          data,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle Voucher Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle Voucher Redirection");
+          return;
+        }
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleVoucherRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
       });
 
       cy.step("Retrieve Payment", () => {
@@ -161,33 +273,70 @@ describe("Voucher Payment tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "voucher_pm"
         ]["Alfamart"];
-
         cy.retrievePaymentCallTest({ globalState, data });
       });
     });
   });
 
   context("Indomaret Voucher Payment", () => {
-    it("Create and Confirm Indomaret Voucher Payment -> Retrieve Payment", () => {
+    it("Create Payment Intent -> List Payment Methods -> Confirm Voucher Payment -> Handle Voucher Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
-      cy.step("Create and Confirm Indomaret Voucher Payment", () => {
+      cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "voucher_pm"
-        ]["Indomaret"];
-
-        cy.createConfirmPaymentTest(
-          fixtures.createConfirmPaymentBody,
+        ]["PaymentIntent"]("Indomaret");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
           data,
           "no_three_ds",
           "automatic",
           globalState
         );
-
-        if (!shouldContinue) return;
-        if (data && data.Response && data.Response.status === 501) {
+        if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Indomaret Voucher Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Indomaret Voucher Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "voucher_pm"
+        ]["Indomaret"];
+        cy.confirmVoucherCallTest(
+          fixtures.confirmBody,
+          data,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle Voucher Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle Voucher Redirection");
+          return;
+        }
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleVoucherRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
       });
 
       cy.step("Retrieve Payment", () => {
@@ -198,33 +347,70 @@ describe("Voucher Payment tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "voucher_pm"
         ]["Indomaret"];
-
         cy.retrievePaymentCallTest({ globalState, data });
       });
     });
   });
 
   context("Seven-Eleven Voucher Payment", () => {
-    it("Create and Confirm Seven-Eleven Voucher Payment -> Retrieve Payment", () => {
+    it("Create Payment Intent -> List Payment Methods -> Confirm Voucher Payment -> Handle Voucher Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
-      cy.step("Create and Confirm Seven-Eleven Voucher Payment", () => {
+      cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "voucher_pm"
-        ]["SevenEleven"];
-
-        cy.createConfirmPaymentTest(
-          fixtures.createConfirmPaymentBody,
+        ]["PaymentIntent"]("SevenEleven");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
           data,
           "no_three_ds",
           "automatic",
           globalState
         );
-
-        if (!shouldContinue) return;
-        if (data && data.Response && data.Response.status === 501) {
+        if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Seven-Eleven Voucher Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Seven-Eleven Voucher Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "voucher_pm"
+        ]["SevenEleven"];
+        cy.confirmVoucherCallTest(
+          fixtures.confirmBody,
+          data,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle Voucher Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle Voucher Redirection");
+          return;
+        }
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleVoucherRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
       });
 
       cy.step("Retrieve Payment", () => {
@@ -235,33 +421,70 @@ describe("Voucher Payment tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "voucher_pm"
         ]["SevenEleven"];
-
         cy.retrievePaymentCallTest({ globalState, data });
       });
     });
   });
 
   context("Lawson Voucher Payment", () => {
-    it("Create and Confirm Lawson Voucher Payment -> Retrieve Payment", () => {
+    it("Create Payment Intent -> List Payment Methods -> Confirm Voucher Payment -> Handle Voucher Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
-      cy.step("Create and Confirm Lawson Voucher Payment", () => {
+      cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "voucher_pm"
-        ]["Lawson"];
-
-        cy.createConfirmPaymentTest(
-          fixtures.createConfirmPaymentBody,
+        ]["PaymentIntent"]("Lawson");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
           data,
           "no_three_ds",
           "automatic",
           globalState
         );
-
-        if (!shouldContinue) return;
-        if (data && data.Response && data.Response.status === 501) {
+        if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Lawson Voucher Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Lawson Voucher Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "voucher_pm"
+        ]["Lawson"];
+        cy.confirmVoucherCallTest(
+          fixtures.confirmBody,
+          data,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle Voucher Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle Voucher Redirection");
+          return;
+        }
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleVoucherRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
       });
 
       cy.step("Retrieve Payment", () => {
@@ -272,33 +495,70 @@ describe("Voucher Payment tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "voucher_pm"
         ]["Lawson"];
-
         cy.retrievePaymentCallTest({ globalState, data });
       });
     });
   });
 
   context("MiniStop Voucher Payment", () => {
-    it("Create and Confirm MiniStop Voucher Payment -> Retrieve Payment", () => {
+    it("Create Payment Intent -> List Payment Methods -> Confirm Voucher Payment -> Handle Voucher Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
-      cy.step("Create and Confirm MiniStop Voucher Payment", () => {
+      cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "voucher_pm"
-        ]["MiniStop"];
-
-        cy.createConfirmPaymentTest(
-          fixtures.createConfirmPaymentBody,
+        ]["PaymentIntent"]("MiniStop");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
           data,
           "no_three_ds",
           "automatic",
           globalState
         );
-
-        if (!shouldContinue) return;
-        if (data && data.Response && data.Response.status === 501) {
+        if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm MiniStop Voucher Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm MiniStop Voucher Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "voucher_pm"
+        ]["MiniStop"];
+        cy.confirmVoucherCallTest(
+          fixtures.confirmBody,
+          data,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle Voucher Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle Voucher Redirection");
+          return;
+        }
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleVoucherRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
       });
 
       cy.step("Retrieve Payment", () => {
@@ -309,33 +569,70 @@ describe("Voucher Payment tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "voucher_pm"
         ]["MiniStop"];
-
         cy.retrievePaymentCallTest({ globalState, data });
       });
     });
   });
 
   context("FamilyMart Voucher Payment", () => {
-    it("Create and Confirm FamilyMart Voucher Payment -> Retrieve Payment", () => {
+    it("Create Payment Intent -> List Payment Methods -> Confirm Voucher Payment -> Handle Voucher Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
-      cy.step("Create and Confirm FamilyMart Voucher Payment", () => {
+      cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "voucher_pm"
-        ]["FamilyMart"];
-
-        cy.createConfirmPaymentTest(
-          fixtures.createConfirmPaymentBody,
+        ]["PaymentIntent"]("FamilyMart");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
           data,
           "no_three_ds",
           "automatic",
           globalState
         );
-
-        if (!shouldContinue) return;
-        if (data && data.Response && data.Response.status === 501) {
+        if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm FamilyMart Voucher Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm FamilyMart Voucher Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "voucher_pm"
+        ]["FamilyMart"];
+        cy.confirmVoucherCallTest(
+          fixtures.confirmBody,
+          data,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle Voucher Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle Voucher Redirection");
+          return;
+        }
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleVoucherRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
       });
 
       cy.step("Retrieve Payment", () => {
@@ -346,33 +643,70 @@ describe("Voucher Payment tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "voucher_pm"
         ]["FamilyMart"];
-
         cy.retrievePaymentCallTest({ globalState, data });
       });
     });
   });
 
   context("Seicomart Voucher Payment", () => {
-    it("Create and Confirm Seicomart Voucher Payment -> Retrieve Payment", () => {
+    it("Create Payment Intent -> List Payment Methods -> Confirm Voucher Payment -> Handle Voucher Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
-      cy.step("Create and Confirm Seicomart Voucher Payment", () => {
+      cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "voucher_pm"
-        ]["Seicomart"];
-
-        cy.createConfirmPaymentTest(
-          fixtures.createConfirmPaymentBody,
+        ]["PaymentIntent"]("Seicomart");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
           data,
           "no_three_ds",
           "automatic",
           globalState
         );
-
-        if (!shouldContinue) return;
-        if (data && data.Response && data.Response.status === 501) {
+        if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Seicomart Voucher Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Seicomart Voucher Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "voucher_pm"
+        ]["Seicomart"];
+        cy.confirmVoucherCallTest(
+          fixtures.confirmBody,
+          data,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle Voucher Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle Voucher Redirection");
+          return;
+        }
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleVoucherRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
       });
 
       cy.step("Retrieve Payment", () => {
@@ -383,33 +717,70 @@ describe("Voucher Payment tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "voucher_pm"
         ]["Seicomart"];
-
         cy.retrievePaymentCallTest({ globalState, data });
       });
     });
   });
 
   context("PayEasy Voucher Payment", () => {
-    it("Create and Confirm PayEasy Voucher Payment -> Retrieve Payment", () => {
+    it("Create Payment Intent -> List Payment Methods -> Confirm Voucher Payment -> Handle Voucher Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
-      cy.step("Create and Confirm PayEasy Voucher Payment", () => {
+      cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "voucher_pm"
-        ]["PayEasy"];
-
-        cy.createConfirmPaymentTest(
-          fixtures.createConfirmPaymentBody,
+        ]["PaymentIntent"]("PayEasy");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
           data,
           "no_three_ds",
           "automatic",
           globalState
         );
-
-        if (!shouldContinue) return;
-        if (data && data.Response && data.Response.status === 501) {
+        if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm PayEasy Voucher Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm PayEasy Voucher Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "voucher_pm"
+        ]["PayEasy"];
+        cy.confirmVoucherCallTest(
+          fixtures.confirmBody,
+          data,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle Voucher Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle Voucher Redirection");
+          return;
+        }
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleVoucherRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
       });
 
       cy.step("Retrieve Payment", () => {
@@ -420,7 +791,6 @@ describe("Voucher Payment tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "voucher_pm"
         ]["PayEasy"];
-
         cy.retrievePaymentCallTest({ globalState, data });
       });
     });

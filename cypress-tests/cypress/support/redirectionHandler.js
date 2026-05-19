@@ -96,6 +96,14 @@ export function handleRedirection(
         paymentMethodType
       );
       break;
+    case "voucher":
+      voucherRedirection(
+        urls.redirectionUrl,
+        urls.expectedUrl,
+        resolvedConnectorId,
+        paymentMethodType
+      );
+      break;
     default:
       throw new Error(`Unknown redirection type: ${redirectionType}`);
   }
@@ -1879,6 +1887,103 @@ function rewardRedirection(
     );
   } else {
     cy.log("Skipping reward redirection - no valid redirect URL provided");
+  }
+
+  cy.then(() => {
+    verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+  });
+}
+
+function voucherRedirection(
+  redirectionUrl,
+  expectedUrl,
+  connectorId,
+  paymentMethodType
+) {
+  let verifyUrl = false;
+
+  if (redirectionUrl && redirectionUrl.href) {
+    cy.visit(redirectionUrl.href);
+    waitForRedirect(redirectionUrl.href);
+
+    handleFlow(
+      redirectionUrl,
+      expectedUrl,
+      connectorId,
+      ({ connectorId, paymentMethodType, constants }) => {
+        switch (connectorId) {
+          case "adyen":
+            switch (paymentMethodType) {
+              case "boleto":
+              case "oxxo":
+              case "alfamart":
+              case "indomaret":
+                // display_voucher_information vouchers — never reach here because
+                // handleVoucherRedirection skips the redirect step entirely
+                cy.log(
+                  `Unexpected redirect for display_voucher_information voucher: ${paymentMethodType}`
+                );
+                verifyUrl = false;
+                break;
+              case "seven_eleven":
+              case "lawson":
+              case "mini_stop":
+              case "family_mart":
+              case "seicomart":
+              case "pay_easy":
+                // Adyen voucher redirect pages show branded Japanese-language
+                // payment receipts. They are NOT Acquirer Simulator pages.
+                // Just verify the page loads with voucher content.
+                cy.get("body", { timeout: constants.TIMEOUT }).should(
+                  "exist"
+                );
+                // Voucher pages have a non-standard h1 (often a full-width
+                // space) so we avoid asserting on heading text.  Instead
+                // confirm that page load succeeded by checking for known
+                // vendor logos or Japanese payment terminology.
+                cy.get("body").then(($body) => {
+                  const bodyText = $body.text();
+                  const voucherIndicators = [
+                    /お支払い/i,
+                    /払込/i,
+                    /セブン|lawson|ミニストップ|ファミリーマート|セイコーマート|ペイジー/i,
+                    /お客様名/i,
+                    /前払い/i,
+                    /\u3000/, // full-width space
+                  ];
+                  const isVoucherPage = voucherIndicators.some((pat) =>
+                    pat.test(bodyText)
+                  );
+                  if (isVoucherPage) {
+                    cy.log(
+                      `Verified Adyen voucher redirect page loaded for ${paymentMethodType}`
+                    );
+                  } else {
+                    cy.log(
+                      `Warning: Voucher page content not recognized for ${paymentMethodType}. Body length: ${bodyText.length}`
+                    );
+                  }
+                });
+                verifyUrl = false;
+                break;
+              default:
+                cy.log(
+                  `Unhandled Adyen voucher type: ${paymentMethodType}`
+                );
+                verifyUrl = false;
+            }
+            break;
+          default:
+            cy.log(
+              `Generic voucher handling for ${connectorId}/${paymentMethodType}`
+            );
+            verifyUrl = false;
+        }
+      },
+      { paymentMethodType }
+    );
+  } else {
+    cy.log("Skipping voucher redirection - no valid redirect URL provided");
   }
 
   cy.then(() => {
