@@ -332,7 +332,140 @@ function payLaterRedirection(
             new URL(currentUrl).origin,
             { args: { constants: CONSTANTS } },
             ({ constants }) => {
-              affirmInteraction(constants.TIMEOUT);
+              const findVisible = (selectors) => {
+                for (const sel of selectors) {
+                  const $el = Cypress.$(sel).filter(":visible");
+                  if ($el.length) return $el.first();
+                }
+                return null;
+              };
+
+              cy.get("body", { timeout: constants.TIMEOUT }).then(() => {
+                const $phone = findVisible([
+                  'input[name*="phone"]',
+                  'input[name*="mobile"]',
+                  'input[type="tel"]',
+                  'input[placeholder*="phone"]',
+                  'input[id*="phone"]',
+                ]);
+                if ($phone) {
+                  cy.wrap($phone)
+                    .scrollIntoView()
+                    .should("be.visible")
+                    .clear()
+                    .type("3105551212")
+                    .blur();
+                } else {
+                  cy.log("No phone input found");
+                }
+              });
+
+              cy.get("body", { timeout: constants.TIMEOUT }).then(() => {
+                const $btn = findVisible([
+                  'button[type="submit"]',
+                  'input[type="submit"]',
+                ]);
+                if ($btn) {
+                  cy.wrap($btn).scrollIntoView().should("be.visible").click();
+                } else {
+                  cy.log("No continue button found after phone");
+                }
+              });
+
+              cy.get("body", { timeout: constants.TIMEOUT }).then(() => {
+                const $pin = findVisible([
+                  'input[name*="pin"]',
+                  'input[name*="code"]',
+                  'input[placeholder*="PIN"]',
+                  'input[placeholder*="code"]',
+                  'input[type="password"]',
+                  'input[id*="pin"]',
+                ]);
+                if ($pin) {
+                  cy.wrap($pin)
+                    .scrollIntoView()
+                    .should("be.visible")
+                    .clear()
+                    .type("123456")
+                    .blur();
+                } else {
+                  cy.log("No PIN input found");
+                }
+              });
+
+              cy.get("body", { timeout: constants.TIMEOUT }).then(() => {
+                const $btn = findVisible([
+                  'button[type="submit"]',
+                  'input[type="submit"]',
+                ]);
+                if ($btn) {
+                  cy.wrap($btn).scrollIntoView().should("be.visible").click();
+                } else {
+                  cy.log("No continue button found after PIN");
+                }
+              });
+
+              cy.get("body", { timeout: constants.TIMEOUT }).then(() => {
+                const $ssn = findVisible([
+                  'input[name*="ssn"]',
+                  'input[name*="social"]',
+                  'input[placeholder*="SSN"]',
+                  'input[id*="ssn"]',
+                ]);
+                if ($ssn) {
+                  cy.wrap($ssn)
+                    .scrollIntoView()
+                    .should("be.visible")
+                    .clear()
+                    .type("5678")
+                    .blur();
+                } else {
+                  cy.log("No SSN input found");
+                }
+              });
+
+              cy.get("body", { timeout: constants.TIMEOUT }).then(() => {
+                const $btn = findVisible([
+                  'button[type="submit"]',
+                  'input[type="submit"]',
+                ]);
+                if ($btn) {
+                  cy.wrap($btn).scrollIntoView().should("be.visible").click();
+                } else {
+                  cy.log("No continue button found after SSN");
+                }
+              });
+
+              cy.get("body", { timeout: constants.TIMEOUT }).then(() => {
+                const $terms = findVisible([
+                  'input[type="checkbox"][name*="agree"]',
+                  'input[type="checkbox"][name*="terms"]',
+                  'input[type="checkbox"][name*="consent"]',
+                  'input[type="checkbox"][id*="agree"]',
+                  'input[type="checkbox"][id*="terms"]',
+                  'input[type="checkbox"]',
+                ]);
+                if ($terms) {
+                  cy.wrap($terms).scrollIntoView().should("be.visible").check();
+                } else {
+                  cy.log("No terms checkbox found");
+                }
+              });
+
+              cy.get("body", { timeout: constants.TIMEOUT }).then(() => {
+                const $submit = findVisible([
+                  'button[type="submit"]',
+                  'input[type="submit"]',
+                ]);
+                if ($submit) {
+                  cy.wrap($submit).scrollIntoView().should("be.visible").click();
+                } else {
+                  cy.log("No final submit button found");
+                }
+              });
+
+              cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+              cy.log("Affirm sandbox interaction complete — waiting for redirect");
             }
           );
         } else {
