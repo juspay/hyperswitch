@@ -1182,7 +1182,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
       MandateSingleUse: {
@@ -1251,7 +1251,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "requires_customer_action",
+            status: "succeeded",
           },
         },
       },
@@ -1392,6 +1392,9 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       MandateSingleUse: {
         Request: {
           payment_method: "bank_redirect",
@@ -1457,6 +1460,9 @@ export const connectorDetails = {
           body: {
             status: "requires_customer_action",
           },
+        },
+        Configs: {
+          TRIGGER_SKIP: true,
         },
       },
     },
