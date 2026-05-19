@@ -4,6 +4,48 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.19.0
+
+### Features
+
+- **core:** Add support to save apple_pay_decrypted_data in locker ([#12301](https://github.com/juspay/hyperswitch/pull/12301)) ([`2565408`](https://github.com/juspay/hyperswitch/commit/2565408d126624d9c190f7f433f67773ae044d4b))
+- **platform:** Support platform-aware outgoing webhook delivery ([#11643](https://github.com/juspay/hyperswitch/pull/11643)) ([`91ff74e`](https://github.com/juspay/hyperswitch/commit/91ff74e2058cb017a377fe53b0e36b56f9fd4e1f))
+- **scripts:** Add hyperswitch-explore.sh for zero-config local setup ([#12280](https://github.com/juspay/hyperswitch/pull/12280)) ([`df822c3`](https://github.com/juspay/hyperswitch/commit/df822c3263ca135c156fedeaf28b361f37ca875c))
+
+### Bug Fixes
+
+- **novalnet:** Add No3DSFailPayment test configuration ([#12289](https://github.com/juspay/hyperswitch/pull/12289)) ([`3a24c0b`](https://github.com/juspay/hyperswitch/commit/3a24c0b61feba9569d8610ce23b56ca14d957425))
+- **router:** Treat ApplePay session Response as an opaque object ([#12336](https://github.com/juspay/hyperswitch/pull/12336)) ([`378dc3a`](https://github.com/juspay/hyperswitch/commit/378dc3aba3d5cd9ed77b235e6e52e413a3a8c50c))
+
+### Refactors
+
+- **cypress:** Move CardTestingGuard spec above DynamicFields ([#12325](https://github.com/juspay/hyperswitch/pull/12325)) ([`11c4f95`](https://github.com/juspay/hyperswitch/commit/11c4f95fcc285ba312643016e6655f42cabf81f2))
+
+### Testing
+
+- **cypress:**
+  - Add BancontactCard mandate CIT coverage for stripe bankredirect ([#12283](https://github.com/juspay/hyperswitch/pull/12283)) ([`673f428`](https://github.com/juspay/hyperswitch/commit/673f428dcde77d799f6fe538667d91f27b5957a4))
+  - Add Relay Operations test specs ([#12144](https://github.com/juspay/hyperswitch/pull/12144)) ([`b6c75c2`](https://github.com/juspay/hyperswitch/commit/b6c75c26fafcf776a15ee3d146cbccbffa594c68))
+  - Add RealTimePayment DuitNow coverage for fiuu ([#12346](https://github.com/juspay/hyperswitch/pull/12346)) ([`d4321ea`](https://github.com/juspay/hyperswitch/commit/d4321ea846bef71d3f0718f81e61526ec34a268e))
+
+**Full Changelog:** [`2026.05.18.0...2026.05.19.0`](https://github.com/juspay/hyperswitch/compare/2026.05.18.0...2026.05.19.0)
+
+- - -
+
+## 2026.05.18.0
+
+### Features
+
+- **payment-methods:** Backwards compatibility for payments flow ([#12205](https://github.com/juspay/hyperswitch/pull/12205)) ([`76f9af1`](https://github.com/juspay/hyperswitch/commit/76f9af1fa0866ebb03be0292265c89cd232c0e61))
+
+### Testing
+
+- **cypress:** Add step-up auth coverage for cybersource ([#12249](https://github.com/juspay/hyperswitch/pull/12249)) ([`f30db23`](https://github.com/juspay/hyperswitch/commit/f30db23bc0ecb46125bf926fb3f842fd73063bc5))
+
+**Full Changelog:** [`2026.05.17.0...2026.05.18.0`](https://github.com/juspay/hyperswitch/compare/2026.05.17.0...2026.05.18.0)
+
+- - -
+
 ## 2026.05.17.0
 
 ### Features
