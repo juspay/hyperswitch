@@ -158,7 +158,55 @@ describe("Card - Payment Response Hash flow test", () => {
     });
 
     it("setup 3DS payment", () => {
-      cy.setup3DSPayment(globalState);
+      globalState.set("_setup3DSContinue", true);
+
+      cy.step("create payment intent (3DS)", () => {
+        const connectorId = globalState.get("connectorId");
+        const data = getConnectorDetails(connectorId)["card_pm"]["PaymentIntent"];
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+
+        cy.then(() => {
+          if (
+            data &&
+            data.Response &&
+            data.Response.status &&
+            data.Response.status !== 200
+          ) {
+            globalState.set("_setup3DSContinue", false);
+          }
+        });
+      });
+
+      cy.step("confirm payment (3DS)", () => {
+        if (!globalState.get("_setup3DSContinue")) {
+          cy.task("cli_log", "Skipping step: confirm payment (3DS)");
+          return;
+        }
+
+        const connectorId = globalState.get("connectorId");
+        const data =
+          getConnectorDetails(connectorId)["card_pm"]["3DSAutoCapture"];
+
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+        cy.then(() => {
+          if (
+            data &&
+            data.Response &&
+            data.Response.status &&
+            data.Response.status !== 200
+          ) {
+            globalState.set("_setup3DSContinue", false);
+          }
+        });
+      });
 
       cy.then(() => {
         if (!globalState.get("_setup3DSContinue")) {
