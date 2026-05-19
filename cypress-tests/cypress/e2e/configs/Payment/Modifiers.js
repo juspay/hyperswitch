@@ -128,10 +128,13 @@ const CURRENCY_MAP = {
   Klarna: "EUR",
   Przelewy24: "EUR",
   Sofort: "EUR",
+  Trustly: "EUR",
+  BancontactCard: "EUR",
   OpenBankingUk: "GBP", // Great British Pound payment method
   OnlineBankingFpx: "MYR", // Malaysian payment methods
   Interac: "CAD", // Canadian payment method
   AliPayHk: "HKD", // Hong Kong payment method
+  Mifinity: "EUR", // Mifinity wallet payment method
 };
 
 export const getCurrency = (paymentMethodType) => {
