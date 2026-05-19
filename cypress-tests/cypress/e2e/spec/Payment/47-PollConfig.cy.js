@@ -79,72 +79,6 @@ describe("Poll Config - Payment status polling", () => {
   });
 
   context(
-    "Poll endpoint with valid poll_id returns 200 for 3DS payment",
-    () => {
-      it("create payment intent -> confirm 3DS -> poll with valid poll_id -> verify 200", () => {
-        let shouldContinue = true;
-
-        cy.step("create payment intent", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["PaymentIntent"];
-
-          cy.createPaymentIntentTest(
-            fixtures.createPaymentBody,
-            data,
-            "three_ds",
-            "automatic",
-            globalState
-          );
-
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("confirm 3DS payment", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: confirm 3DS payment");
-            return;
-          }
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["PollConfig"];
-
-          cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("poll with valid poll_id", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: poll with valid poll_id");
-            return;
-          }
-          const paymentID = globalState.get("paymentID");
-          const pollId = `external_authentication_${paymentID}`;
-          const data = {
-            Response: {
-              status: 404,
-              body: {
-                error: {
-                  type: "invalid_request",
-                  message: "Poll does not exist in our records",
-                  code: "HE_02",
-                },
-              },
-            },
-          };
-
-          cy.pollStatusCallTest(pollId, data, globalState, true);
-        });
-      });
-    }
-  );
-
-  context(
     "Poll endpoint with constructed poll_id returns 404 when poll_id not in Redis",
     () => {
       it("create payment intent -> confirm 3DS -> poll with constructed poll_id -> verify 404", () => {
@@ -191,18 +125,9 @@ describe("Poll Config - Payment status polling", () => {
           }
           const paymentID = globalState.get("paymentID");
           const pollId = `external_authentication_${paymentID}`;
-          const data = {
-            Response: {
-              status: 404,
-              body: {
-                error: {
-                  type: "invalid_request",
-                  message: "Poll does not exist in our records",
-                  code: "HE_02",
-                },
-              },
-            },
-          };
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PollConfigNotFound"];
 
           cy.pollStatusCallTest(pollId, data, globalState, true);
         });

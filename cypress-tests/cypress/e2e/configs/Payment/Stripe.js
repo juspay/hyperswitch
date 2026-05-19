@@ -900,6 +900,18 @@ export const connectorDetails = {
         },
       },
     },
+    PollConfigNotFound: {
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Poll does not exist in our records",
+            code: "HE_02",
+          },
+        },
+      },
+    },
     external_three_ds: {
       Request: {
         payment_method: "card",
