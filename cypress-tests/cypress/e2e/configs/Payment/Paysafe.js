@@ -562,9 +562,6 @@ export const connectorDetails = {
         },
       }),
     Interac: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "interac",
@@ -581,9 +578,9 @@ export const connectorDetails = {
             line1: "1467",
             line2: "Harrison Street",
             line3: "Harrison Street",
-            city: "San Fransico",
-            state: "CA",
-            zip: "94122",
+            city: "Toronto",
+            state: "ON",
+            zip: "M5V 2T6",
             country: "CA",
             first_name: "joseph",
             last_name: "Doe",
@@ -604,10 +601,7 @@ export const connectorDetails = {
     PaymentIntent: (paymentMethodType) =>
       getCustomExchange({
         Request: {
-          currency:
-            paymentMethodType === "Skrill"
-              ? "USD"
-              : getCurrency(paymentMethodType),
+          currency: getCurrency(paymentMethodType),
         },
         Response: {
           status: 200,
@@ -657,6 +651,17 @@ export const connectorDetails = {
         payment_method_data: {
           gift_card: {
             pay_safe_card: {},
+          },
+        },
+        billing: {
+          email: "guest@example.com",
+          address: {
+            city: "Toronto",
+            state: "ON",
+            zip: "M5V 2T6",
+            country: "CA",
+            first_name: "John",
+            last_name: "Doe",
           },
         },
         currency: "USD",

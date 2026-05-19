@@ -198,8 +198,8 @@ const CURRENCY_MAP = {
   Interac: "CAD", // Canadian payment method
   AliPayHk: "HKD", // Hong Kong payment method
   Mifinity: "EUR", // Mifinity wallet payment method
-  Skrill: "EUR", // Skrill wallet payment method
-  PaySafeCard: "EUR", // PaySafeCard gift card payment method
+  Skrill: "USD", // Skrill wallet payment method
+  PaySafeCard: "USD", // PaySafeCard gift card payment method
 };
 
 export const getCurrency = (paymentMethodType) => {
