@@ -458,14 +458,19 @@ function payLaterRedirection(
                   'input[type="submit"]',
                 ]);
                 if ($submit) {
-                  cy.wrap($submit).scrollIntoView().should("be.visible").click();
+                  cy.wrap($submit)
+                    .scrollIntoView()
+                    .should("be.visible")
+                    .click();
                 } else {
                   cy.log("No final submit button found");
                 }
               });
 
               cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
-              cy.log("Affirm sandbox interaction complete — waiting for redirect");
+              cy.log(
+                "Affirm sandbox interaction complete — waiting for redirect"
+              );
             }
           );
         } else {
