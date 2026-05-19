@@ -1460,8 +1460,7 @@ where
         .await?;
 
     utils::trigger_payments_webhook(
-        platform.get_processor(),
-        platform.get_initiator(),
+        platform,
         business_profile,
         cloned_payment_data,
         state,
@@ -1710,8 +1709,7 @@ where
     let cloned_payment_data = payment_data.clone();
 
     utils::trigger_payments_webhook(
-        platform.get_processor(),
-        platform.get_initiator(),
+        &platform,
         business_profile,
         cloned_payment_data,
         state,
