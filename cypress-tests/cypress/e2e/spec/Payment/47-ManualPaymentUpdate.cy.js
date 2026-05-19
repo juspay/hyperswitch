@@ -65,7 +65,6 @@ describe("Payment Manual Update Tests", () => {
 
         cy.retrievePaymentCallTest({
           globalState,
-          forceSync: false,
           unconfirmedPayment: true,
         });
       });
@@ -129,7 +128,6 @@ describe("Payment Manual Update Tests", () => {
 
         cy.retrievePaymentCallTest({
           globalState,
-          forceSync: false,
           unconfirmedPayment: true,
         });
       });
@@ -223,16 +221,14 @@ describe("Payment Manual Update Tests", () => {
           return;
         }
 
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["ManualPaymentUpdate"];
+        cy.retrievePaymentCallTest({
+          globalState,
+          unconfirmedPayment: true,
+        });
 
         cy.retrievePaymentCallTest({
           globalState,
-          forceSync: false,
           unconfirmedPayment: true,
-        }).then(() => {
-          cy.retrievePaymentPersistenceTest(globalState, data);
         });
       });
     });

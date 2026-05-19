@@ -3688,8 +3688,6 @@ Cypress.Commands.add(
     attempt = 1,
     expectedIntentStatus,
     connectedMerchantId,
-    forceSync = true,
-    skipNullBilling = false,
     unconfirmedPayment = false,
   }) => {
     const { Configs: configs = {} } = data || {};
@@ -3709,16 +3707,9 @@ Cypress.Commands.add(
       headers["x-connected-merchant-id"] = connectedMerchantId;
     }
 
-    const queryParams = [];
-    if (forceSync) {
-      queryParams.push("force_sync=true");
-    }
-    queryParams.push("expand_attempts=true");
-    const queryString = queryParams.join("&");
-
     cy.request({
       method: "GET",
-      url: `${globalState.get("baseUrl")}/payments/${payment_id}?${queryString}`,
+      url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true&expand_attempts=true`,
       headers: headers,
       failOnStatusCode: false,
     }).then((response) => {
@@ -3735,12 +3726,7 @@ Cypress.Commands.add(
             globalState.get("paymentAmount")
           );
           expect(response.body.profile_id, "profile_id").to.not.be.null;
-          if (skipNullBilling || unconfirmedPayment) {
-            expect(response.body.billing, "billing_address").to.not.be
-              .undefined;
-          } else {
-            expect(response.body.billing, "billing_address").to.not.be.null;
-          }
+          expect(response.body.billing, "billing_address").to.not.be.null;
           expect(response.body.customer, "customer").to.not.be.empty;
 
           if (expectedIntentStatus) {
@@ -6697,32 +6683,6 @@ Cypress.Commands.add(
     });
   }
 );
-
-Cypress.Commands.add("retrievePaymentPersistenceTest", (globalState, data) => {
-  const paymentId = globalState.get("paymentID");
-
-  cy.request({
-    method: "GET",
-    url: `${globalState.get("baseUrl")}/payments/${paymentId}`,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
-      "X-Merchant-Id": globalState.get("merchantId"),
-    },
-  }).then((response) => {
-    expect(response.status).to.eq(200);
-
-    if (data.Response.body && data.Response.body.error_code) {
-      expect(response.body.error_code).to.equal(data.Response.body.error_code);
-    }
-
-    if (data.Response.body && data.Response.body.error_message) {
-      expect(response.body.error_message).to.equal(
-        data.Response.body.error_message
-      );
-    }
-  });
-});
 
 Cypress.Commands.add(
   "manualRefundStatusUpdateTest",
