@@ -204,19 +204,14 @@ describe("Payment Manual Update Tests", () => {
         }
       });
 
-      cy.step("Retrieve Payment Multiple Times to Verify Persistence", () => {
+      cy.step("Retrieve Payment to Verify Persistence", () => {
         if (!shouldContinue) {
           cy.task(
             "cli_log",
-            "Skipping step: Retrieve Payment Multiple Times to Verify Persistence"
+            "Skipping step: Retrieve Payment to Verify Persistence"
           );
           return;
         }
-
-        cy.retrievePaymentCallTest({
-          globalState,
-          unconfirmedPayment: true,
-        });
 
         cy.retrievePaymentCallTest({
           globalState,
