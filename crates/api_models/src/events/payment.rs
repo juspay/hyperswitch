@@ -9,8 +9,8 @@ use super::{
 };
 #[cfg(feature = "v2")]
 use crate::payment_methods::{
-    ListMethodsForPaymentMethodsRequest, PaymentMethodGetTokenDetailsResponse,
-    PaymentMethodListResponseForSession,
+    ListMethodsForPaymentMethodsRequest, PaymentMethodDetailsResponse,
+    PaymentMethodGetTokenDetailsResponse, PaymentMethodListResponseForSession,
 };
 use crate::{
     payment_methods::{
@@ -323,6 +323,17 @@ impl ApiEventMetric for PaymentMethodResponse {
     }
 }
 
+#[cfg(feature = "v2")]
+impl ApiEventMetric for PaymentMethodDetailsResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethod {
+            payment_method_id: self.id.clone(),
+            payment_method_type: self.payment_method_type,
+            payment_method_subtype: self.payment_method_subtype,
+        })
+    }
+}
+
 #[cfg(feature = "v1")]
 impl ApiEventMetric for CustomerPaymentMethodUpdateResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
@@ -423,6 +434,9 @@ impl ApiEventMetric for ListCountriesCurrenciesResponse {}
 
 #[cfg(feature = "v1")]
 impl ApiEventMetric for PaymentMethodListResponse {}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for payment_methods::ClientPaymentMethodsListResponse {}
 
 #[cfg(feature = "v1")]
 impl ApiEventMetric for payment_methods::CustomerDefaultPaymentMethodResponse {

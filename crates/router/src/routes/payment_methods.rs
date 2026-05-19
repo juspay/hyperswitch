@@ -915,6 +915,49 @@ pub async fn list_customer_payment_method_api(
 }
 
 #[cfg(all(feature = "v2", feature = "olap"))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsRetrieveOlap))]
+pub async fn payment_method_retrieve_olap_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsRetrieveOlap;
+    let payload = web::Json(PaymentMethodId {
+        payment_method_id: path.into_inner(),
+    })
+    .into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, pm, _| {
+            payment_methods_routes::retrieve_payment_method_olap(
+                state,
+                pm,
+                auth.profile,
+                auth.platform,
+            )
+        },
+        auth::auth_type(
+            &auth::V2ApiKeyAuth {
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: true,
+            },
+            &auth::JWTAuth {
+                permission: Permission::MerchantCustomerRead,
+                allow_connected: true,
+                allow_platform: true,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
 #[instrument(skip_all, fields(flow = ?Flow::GetPaymentMethodTokenData))]
 pub async fn get_payment_method_token_data(
     state: web::Data<AppState>,
@@ -1985,6 +2028,42 @@ pub async fn payment_method_get_token_details_api(
             }
         },
         &*auth_type,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
+/// List payment methods for a Payment (client SDK endpoint)
+///
+/// Returns a unified response combining merchant-enabled payment methods and
+/// customer saved payment methods, filtered via Euclid constraint graph and
+/// session flow routing.
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
+pub async fn list_payment_methods_for_payments_client(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::PaymentId>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsList;
+    let payment_id = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payment_id.clone(),
+        |state, auth: auth::AuthenticationData, payment_id, _| {
+            payment_methods_routes::client::list_payment_methods_client(
+                state,
+                auth.platform,
+                payment_id,
+            )
+        },
+        &auth::SdkAuthorizationAuth {
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

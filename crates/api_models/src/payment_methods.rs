@@ -534,6 +534,12 @@ impl PaymentMethodCreate {
             api_enums::PaymentMethod::Wallet => {
                 matches!(payment_method_data, PaymentMethodCreateData::Wallet(_))
             }
+            api_enums::PaymentMethod::BankRedirect => {
+                matches!(
+                    payment_method_data,
+                    PaymentMethodCreateData::BankRedirect(_)
+                )
+            }
             _ => false,
         }
     }
@@ -619,6 +625,13 @@ pub enum WalletPaymentMethodData {
     PayPal(Box<payments::PaypalRedirection>),
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub enum BankRedirectDetail {
+    BancontactCard {},
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -629,6 +642,7 @@ pub enum PaymentMethodCreateData {
     ProxyCard(ProxyCardDetails),
     BankDebit(BankDebitDetail),
     Wallet(WalletPaymentMethodData),
+    BankRedirect(BankRedirectDetail),
 }
 
 #[cfg(feature = "v2")]
@@ -1419,6 +1433,98 @@ pub struct PaymentMethodResponse {
     /// The acknowledgement status of the payment method update
     #[schema(value_type = Option<AcknowledgementStatus>)]
     pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, serde::Deserialize, ToSchema, Clone)]
+pub struct PaymentMethodDetailsResponse {
+    /// The unique identifier of the Payment method
+    #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub id: id_type::GlobalPaymentMethodId,
+
+    /// Unique identifier for a merchant
+    #[schema(value_type = String, example = "merchant_1671528864")]
+    pub merchant_id: id_type::MerchantId,
+
+    /// The unique identifier of the customer.
+    #[schema(
+        min_length = 32,
+        max_length = 64,
+        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        value_type = String
+    )]
+    pub customer_id: Option<id_type::GlobalCustomerId>,
+
+    /// The type of payment method use for the payment.
+    #[schema(value_type = PaymentMethod, example = "card")]
+    pub payment_method_type: Option<api_enums::PaymentMethod>,
+
+    /// This is a sub-category of payment method.
+    #[schema(value_type = Option<PaymentMethodType>, example = "credit")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
+
+    /// Indicates whether the payment method supports recurring payments. Optional.
+    #[schema(example = true)]
+    pub recurring_enabled: Option<bool>,
+
+    /// A timestamp (ISO 8601 code) that determines when the payment method was created
+    #[schema(value_type = Option<PrimitiveDateTime>, example = "2023-01-18T11:04:09.922Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub created: Option<time::PrimitiveDateTime>,
+
+    /// A timestamp (ISO 8601 code) that determines when the payment method was last used
+    #[schema(value_type = Option<PrimitiveDateTime>, example = "2024-02-24T11:04:09.922Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub last_used_at: Option<time::PrimitiveDateTime>,
+
+    /// The payment method details related to the payment method
+    pub payment_method_data: Option<PaymentMethodResponseData>,
+
+    /// The connector token details if available
+    pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
+
+    /// Network token details if available
+    pub network_token: Option<NetworkTokenResponse>,
+
+    /// The storage type for the payment method
+    #[schema(value_type = StorageType)]
+    pub storage_type: common_enums::StorageType,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
+    /// when `setup_future_usage` is set to `off_session`.
+    #[schema(value_type = String)]
+    pub network_transaction_id: Option<hyperswitch_masking::Secret<String>>,
+
+    /// Billing details of the payment method
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<payments::Address>,
+
+    /// The acknowledgement status of the payment method update
+    #[schema(value_type = Option<AcknowledgementStatus>)]
+    pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
+}
+
+#[cfg(feature = "v2")]
+impl From<PaymentMethodResponse> for PaymentMethodDetailsResponse {
+    fn from(resp: PaymentMethodResponse) -> Self {
+        Self {
+            id: resp.id,
+            merchant_id: resp.merchant_id,
+            customer_id: resp.customer_id,
+            payment_method_type: resp.payment_method_type,
+            payment_method_subtype: resp.payment_method_subtype,
+            recurring_enabled: resp.recurring_enabled,
+            created: resp.created,
+            last_used_at: resp.last_used_at,
+            payment_method_data: resp.payment_method_data,
+            connector_tokens: resp.connector_tokens,
+            network_token: resp.network_token,
+            storage_type: resp.storage_type,
+            network_transaction_id: resp.network_transaction_id,
+            billing: resp.billing,
+            acknowledgement_status: resp.acknowledgement_status,
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -2664,6 +2770,27 @@ pub struct PaymentMethodListResponse {
     pub intent_data: Option<PaymentMethodListIntentData>,
 }
 
+/// Extra caller-supplied fields required to fully populate [`PaymentMethodListIntentData`].
+///
+/// Callers build this struct from their business-layer context and pass it into
+/// [`PaymentIntent::into_payment_method_list_intent_data`], keeping the function pure
+/// (no post-construction mutation).
+#[cfg(feature = "v1")]
+#[derive(Debug)]
+pub struct PaymentMethodListIntentDataInput {
+    /// The merchant's display name
+    pub merchant_name: Option<String>,
+
+    /// Mandate payment data derived from the payment attempt's mandate_details
+    pub mandate_payment: Option<payments::MandateData>,
+
+    /// The inferred payment type (normal / new_mandate / recurring_mandate)
+    pub payment_type: Option<api_enums::PaymentType>,
+
+    /// Capture method for the payment (e.g. "automatic", "manual")
+    pub capture_method: Option<api_enums::CaptureMethod>,
+}
+
 /// Intent-only payment details returned as part of the Payment Method List response
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PaymentMethodListIntentData {
@@ -2734,6 +2861,204 @@ pub struct PaymentMethodListIntentData {
 
     /// Installment options available for this payment
     pub installment_options: Option<Vec<PaymentMethodListInstallmentOption>>,
+
+    /// The capture method for the payment
+    #[schema(value_type = Option<CaptureMethod>)]
+    pub capture_method: Option<api_enums::CaptureMethod>,
+
+    /// The merchant's display name
+    pub merchant_name: Option<String>,
+
+    /// Mandate payment data associated with this payment
+    #[schema(value_type = Option<MandateData>)]
+    pub mandate_payment: Option<payments::MandateData>,
+
+    /// The type of payment
+    #[schema(value_type = Option<PaymentType>)]
+    pub payment_type: Option<api_enums::PaymentType>,
+
+    /// Whether external 3DS authentication was requested
+    pub request_external_three_ds_authentication: Option<bool>,
+
+    /// Whether tax calculation is enabled for this payment
+    pub is_tax_calculation_enabled: Option<bool>,
+
+    /// Whether the customer is a guest (not saved)
+    pub is_guest_customer: Option<bool>,
+}
+
+/// Bank payment method types returned in the client payment method list
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+pub struct BankTypes {
+    /// The list of supported bank names (null for bank_debit / bank_transfer)
+    #[schema(value_type = Option<Vec<BankNames>>)]
+    pub bank_names: Option<Vec<common_enums::BankNames>>,
+
+    /// The list of eligible connectors for this bank payment method
+    #[schema(example = json!(["stripe", "adyen"]))]
+    pub eligible_connectors: Vec<String>,
+}
+
+/// Subtype-specific data for each payment method entry in the client list
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
+#[serde(untagged)]
+pub enum PaymentMethodSubtypeSpecificDataForClient {
+    /// Card payment method — contains card network info
+    Card {
+        /// The list of card networks supported
+        card_networks: Vec<CardNetworkTypes>,
+    },
+    /// Bank payment method (bank_redirect / bank_debit / bank_transfer) — contains bank info
+    Bank {
+        /// The list of bank types supported
+        bank: Vec<BankTypes>,
+    },
+}
+
+/// A single flat entry in the client payment method list — one per (payment_method_type × payment_method_subtype)
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
+pub struct ResponsePaymentMethodsEnabledForClient {
+    /// The top-level payment method type (e.g. "card", "wallet")
+    #[schema(value_type = PaymentMethod)]
+    pub payment_method: api_enums::PaymentMethod,
+
+    /// The payment method subtype (e.g. "credit", "apple_pay")
+    #[schema(value_type = PaymentMethodType)]
+    pub payment_method_type: api_enums::PaymentMethodType,
+
+    /// Subtype-specific data (card_networks or bank list); absent (null) for wallets/pay_later/etc.
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub data: Option<PaymentMethodSubtypeSpecificDataForClient>,
+
+    /// Payment experience options for this method (wallets, pay_later, etc.)
+    pub payment_experience: Option<Vec<PaymentExperienceTypes>>,
+
+    /// Whether to collect shipping details from the wallet connector (null for non-wallet)
+    pub collect_shipping_details_from_wallets: Option<bool>,
+
+    /// Whether to collect billing details from the wallet connector (null for non-wallet)
+    pub collect_billing_details_from_wallets: Option<bool>,
+}
+
+/// Typed subtype-specific data for a saved customer payment method, returned in the
+/// `GET /payments/{payment_id}/payment-methods/client` response.
+///
+/// Serializes as an externally-tagged enum, producing e.g.:
+/// `{ "card": { "last4_digits": "4242", ... } }`
+///
+/// Only variants for subtypes that actually carry extra data are included;
+/// for all other subtypes the `payment_method_data` field on
+/// `CustomerPaymentMethodForClient` is `None`.
+/// Wallet payment method data returned in the client-facing PM list.
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum WalletPaymentMethodDataForClient {
+    ApplePay(Box<PaymentMethodDataWalletInfo>),
+    GooglePay(Box<PaymentMethodDataWalletInfo>),
+    PayPal(Box<payments::PaypalRedirection>),
+}
+
+/// Bank debit payment method data returned in the client-facing PM list.
+/// Field names use `_last4_digits` to match the modular service response.
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDataForClient {
+    AchBankDebit {
+        account_number_last4_digits: String,
+        routing_number_last4_digits: String,
+        #[schema(value_type = Option<String>)]
+        bank_account_holder_name: Option<hyperswitch_masking::Secret<String>>,
+        #[schema(value_type = String, example = "ach")]
+        bank_name: Option<common_enums::BankNames>,
+        #[schema(value_type = String, example = "checking")]
+        bank_type: Option<common_enums::BankType>,
+        #[schema(value_type = String, example = "personal")]
+        bank_holder_type: Option<common_enums::BankHolderType>,
+    },
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CustomerPaymentMethodDataForClient {
+    /// Masked card details from the card locker.
+    Card(Box<CardDetailFromLocker>),
+    /// Wallet details (Apple Pay, Google Pay, PayPal).
+    Wallet(WalletPaymentMethodDataForClient),
+    /// Bank debit details (ACH, …).
+    BankDebit(BankDebitDataForClient),
+}
+
+/// A saved customer payment method as returned in the client-facing PM list.
+///
+/// This is a slimmed-down version of `CustomerPaymentMethod` intended for the
+/// `GET /payments/{payment_id}/payment-methods/client` endpoint.  Fields that are
+/// Only the fields needed by the SDK are included; server-side fields
+/// (e.g. `surcharge_details`, `metadata`) are omitted.
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
+pub struct CustomerPaymentMethodForClient {
+    /// Token for payment method in temporary card locker which gets refreshed often.
+    /// The SDK passes this back when submitting the payment.
+    #[schema(example = "7ebf443f-a050-4067-84e5-e6f6d4800aef")]
+    pub payment_token: String,
+
+    /// Top-level payment method category (card, wallet, …)
+    #[schema(value_type = PaymentMethod, example = "card")]
+    pub payment_method: api_enums::PaymentMethod,
+
+    /// Specific subtype within the category (credit, debit, apple_pay, …)
+    #[schema(value_type = Option<PaymentMethodType>, example = "credit")]
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+
+    /// Whether this is the customer's default payment method
+    #[schema(example = true)]
+    pub default_payment_method_set: bool,
+
+    /// Whether CVV collection is required before using this method
+    #[schema(example = true)]
+    pub requires_cvv: bool,
+
+    /// When the payment method was saved
+    #[schema(value_type = Option<PrimitiveDateTime>, example = "2023-01-18T11:04:09.922Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub created: Option<time::PrimitiveDateTime>,
+
+    /// When this payment method was last used for a payment
+    #[schema(value_type = Option<PrimitiveDateTime>, example = "2024-02-24T11:04:09.922Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub last_used_at: Option<time::PrimitiveDateTime>,
+
+    /// Whether this payment method supports recurring / off-session payments
+    #[schema(example = true)]
+    pub recurring_enabled: Option<bool>,
+
+    /// Subtype-specific details (e.g. masked card info for card methods)
+    #[schema(value_type = Option<CustomerPaymentMethodDataForClient>)]
+    pub payment_method_data: Option<CustomerPaymentMethodDataForClient>,
+}
+
+/// Response for the GET /payments/{payment_id}/payment-methods/client endpoint
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct ClientPaymentMethodsListResponse {
+    /// Flat list of enabled payment methods — one entry per (payment_method_type × payment_method_subtype)
+    pub payment_methods_enabled: Vec<ResponsePaymentMethodsEnabledForClient>,
+
+    /// The customer's saved payment methods
+    pub customer_payment_methods: Vec<CustomerPaymentMethodForClient>,
+
+    /// The next action the SDK should take
+    #[schema(value_type = SdkNextAction)]
+    pub sdk_next_action: payments::SdkNextAction,
+
+    /// Payment intent context data
+    pub intent_data: PaymentMethodListIntentData,
 }
 
 /// Installment options for a payment method, as returned in the payment method list response

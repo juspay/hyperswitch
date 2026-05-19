@@ -656,6 +656,7 @@ impl PaymentResourceUpdateStatus {
 
 #[derive(
     Clone,
+    Copy,
     Debug,
     PartialEq,
     Eq,
@@ -802,7 +803,6 @@ pub enum CallConnectorAction {
     },
     HandleResponse(Vec<u8>),
     UCSConsumeResponse(Vec<u8>),
-    UCSHandleResponse(Vec<u8>),
     HandleResponseWithoutBuildRequest,
 }
 
@@ -2357,6 +2357,7 @@ pub enum PaymentMethodType {
     DuitNow,
     Efecty,
     Eft,
+    EftDebitOrder,
     Eps,
     Flexiti,
     Fps,
@@ -2394,6 +2395,8 @@ pub enum PaymentMethodType {
     Paypal,
     Paze,
     Pix,
+    PixKey,
+    PixEmv,
     PixAutomaticoQr,
     PixAutomaticoPush,
     PaySafeCard,
@@ -2488,6 +2491,7 @@ impl PaymentMethodType {
             Self::DuitNow => "DuitNow",
             Self::Efecty => "Efecty",
             Self::Eft => "EFT",
+            Self::EftDebitOrder => "EFT Debit Order",
             Self::Eps => "EPS",
             Self::Flexiti => "Flexiti",
             Self::Fps => "FPS",
@@ -2529,6 +2533,8 @@ impl PaymentMethodType {
             Self::Paypal => "PayPal",
             Self::Paze => "Paze",
             Self::Pix => "Pix",
+            Self::PixKey => "Pix Key",
+            Self::PixEmv => "Pix EMV",
             Self::PixAutomaticoQr => "Pix Automático QR",
             Self::PixAutomaticoPush => "Pix Automático Push",
             Self::PaySafeCard => "PaySafeCard",
@@ -9645,6 +9651,7 @@ pub enum PermissionScope {
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankNames {
+    Absa,
     AmericanExpress,
     AffinBank,
     AgroBank,
@@ -10703,6 +10710,7 @@ pub enum ProcessTrackerRunner {
     DisputeListWorkflow,
     InvoiceSyncflow,
     PayoutSyncWorkFlow,
+    BatchBlocklistUpload,
 }
 
 #[derive(
@@ -11333,4 +11341,26 @@ impl PostCaptureVoidStatus {
 pub enum VaultEnv {
     Sandbox,
     Live,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum BatchBlocklistJobStatus {
+    Initiated,
+    Processing,
+    Completed,
+    Failed,
 }

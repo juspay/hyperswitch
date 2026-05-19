@@ -549,21 +549,21 @@ pub struct NetworkErrorDetails {
 #[cfg(feature = "v1")]
 impl NetworkErrorDetails {
     fn new(
-        network_details: Option<Option<NetworkDetails>>,
-        network_error_message: Option<Option<String>>,
+        network_advice_code: Option<Option<String>>,
+        advice_message: Option<Option<String>>,
         card_network: Option<storage_enums::CardNetwork>,
     ) -> Option<Option<Self>> {
-        if network_details.is_none() && network_error_message.is_none() {
+        if network_advice_code.is_none() && advice_message.is_none() {
             None
         } else {
-            let network_details_val = network_details.flatten();
-            let network_error_message_val = network_error_message.flatten();
+            let network_advice_code_val = network_advice_code.flatten();
+            let advice_message_val = advice_message.flatten();
 
-            if network_details_val.is_some() || network_error_message_val.is_some() {
+            if network_advice_code_val.is_some() || advice_message_val.is_some() {
                 Some(Some(Self {
                     name: card_network,
-                    advice_code: network_details_val.and_then(|n| n.network_advice_code),
-                    advice_message: network_error_message_val,
+                    advice_code: network_advice_code_val,
+                    advice_message: advice_message_val,
                 }))
             } else {
                 Some(None)
@@ -1705,6 +1705,33 @@ impl PaymentAttempt {
         self.net_amount.get_total_amount()
     }
 
+    /// Infer the payment type (Normal / NewMandate / SetupMandate / RecurringMandate)
+    /// from the attempt's mandate state and whether this is a CIT transaction.
+    pub fn infer_payment_type(&self, is_cit_transaction: bool) -> api_models::enums::PaymentType {
+        use api_models::payments::{Amount, MandateTransactionType};
+        let amount = Amount::from(self.net_amount.get_order_amount());
+        let mandate_type = if self.mandate_id.is_some() {
+            Some(MandateTransactionType::RecurringMandateTransaction)
+        } else if is_cit_transaction {
+            Some(MandateTransactionType::NewMandateTransaction)
+        } else {
+            None
+        };
+        match mandate_type {
+            Some(MandateTransactionType::NewMandateTransaction) => {
+                if let Amount::Value(_) = amount {
+                    api_models::enums::PaymentType::NewMandate
+                } else {
+                    api_models::enums::PaymentType::SetupMandate
+                }
+            }
+            Some(MandateTransactionType::RecurringMandateTransaction) => {
+                api_models::enums::PaymentType::RecurringMandate
+            }
+            None => api_models::enums::PaymentType::Normal,
+        }
+    }
+
     pub fn get_total_surcharge_amount(&self) -> Option<MinorUnit> {
         self.net_amount.get_total_surcharge_amount()
     }
@@ -2029,6 +2056,7 @@ pub enum PaymentAttemptUpdate {
         issuer_error_message: Option<Option<String>>,
         network_details: Option<Option<NetworkDetails>>,
         network_error_message: Option<Option<String>>,
+        advice_message: Option<Option<String>>,
         recommended_action: Option<Option<storage_enums::RecommendedAction>>,
         card_network: Option<storage_enums::CardNetwork>,
     },
@@ -2069,6 +2097,7 @@ pub enum PaymentAttemptUpdate {
         issuer_error_message: Option<Option<String>>,
         network_details: Option<Option<NetworkDetails>>,
         network_error_message: Option<Option<String>>,
+        advice_message: Option<Option<String>>,
         recommended_action: Option<Option<storage_enums::RecommendedAction>>,
         card_network: Option<storage_enums::CardNetwork>,
     },
@@ -2377,7 +2406,8 @@ impl PaymentAttemptUpdate {
                 issuer_error_code,
                 issuer_error_message,
                 network_details,
-                network_error_message,
+                network_error_message: _,
+                advice_message,
                 recommended_action,
                 card_network,
             } => {
@@ -2394,11 +2424,10 @@ impl PaymentAttemptUpdate {
                     user_guidance_message.clone(),
                     recommended_action,
                 );
-                let network_error_details = NetworkErrorDetails::new(
-                    network_details,
-                    network_error_message.clone(),
-                    card_network,
-                );
+                let network_advice_code =
+                    network_details.map(|opt| opt.and_then(|n| n.network_advice_code));
+                let network_error_details =
+                    NetworkErrorDetails::new(network_advice_code, advice_message, card_network);
                 let issuer_details = IssuerErrorDetails::new(
                     issuer_error_code.clone(),
                     issuer_error_message.clone(),
@@ -2519,7 +2548,8 @@ impl PaymentAttemptUpdate {
                 issuer_error_code,
                 issuer_error_message,
                 network_details,
-                network_error_message,
+                network_error_message: _,
+                advice_message,
                 encrypted_payment_method_data,
                 recommended_action,
                 card_network,
@@ -2537,11 +2567,11 @@ impl PaymentAttemptUpdate {
                     user_guidance_message.clone(),
                     recommended_action,
                 );
-                let network_error_details = NetworkErrorDetails::new(
-                    network_details.clone(),
-                    network_error_message.clone(),
-                    card_network,
-                );
+                let network_advice_code = network_details
+                    .clone()
+                    .map(|opt| opt.and_then(|n| n.network_advice_code));
+                let network_error_details =
+                    NetworkErrorDetails::new(network_advice_code, advice_message, card_network);
                 let issuer_details = IssuerErrorDetails::new(
                     issuer_error_code.clone(),
                     issuer_error_message.clone(),

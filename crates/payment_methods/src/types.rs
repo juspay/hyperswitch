@@ -154,3 +154,56 @@ pub struct CardCVCTokenStorageDetails {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub expires_at: Option<PrimitiveDateTime>,
 }
+
+// ---------------------------------------------------------------------------
+// From conversions → api_models client-facing types
+// ---------------------------------------------------------------------------
+
+impl From<WalletPaymentMethodData>
+    for api_models::payment_methods::WalletPaymentMethodDataForClient
+{
+    fn from(wallet_info: WalletPaymentMethodData) -> Self {
+        match wallet_info {
+            WalletPaymentMethodData::ApplePay(apple_pay_info) => Self::ApplePay(apple_pay_info),
+            WalletPaymentMethodData::GooglePay(google_pay_info) => Self::GooglePay(google_pay_info),
+            WalletPaymentMethodData::PayPal(paypal_info) => Self::PayPal(paypal_info),
+        }
+    }
+}
+
+impl From<BankDebitDetailsPaymentMethod> for api_models::payment_methods::BankDebitDataForClient {
+    fn from(bank_debit_info: BankDebitDetailsPaymentMethod) -> Self {
+        match bank_debit_info {
+            BankDebitDetailsPaymentMethod::AchBankDebit {
+                account_number_last4_digits,
+                routing_number_last4_digits,
+                bank_account_holder_name,
+                bank_name,
+                bank_type,
+                bank_holder_type,
+            } => Self::AchBankDebit {
+                account_number_last4_digits,
+                routing_number_last4_digits,
+                bank_account_holder_name,
+                bank_name,
+                bank_type,
+                bank_holder_type,
+            },
+        }
+    }
+}
+
+impl From<PaymentMethodResponseData>
+    for Option<api_models::payment_methods::CustomerPaymentMethodDataForClient>
+{
+    fn from(payment_method_response_data: PaymentMethodResponseData) -> Self {
+        use api_models::payment_methods::CustomerPaymentMethodDataForClient as C;
+        match payment_method_response_data {
+            PaymentMethodResponseData::Card(card_info) => Some(C::Card(card_info)),
+            PaymentMethodResponseData::Wallet(wallet_info) => Some(C::Wallet(wallet_info.into())),
+            PaymentMethodResponseData::BankDebit(bank_debit_info) => {
+                Some(C::BankDebit(bank_debit_info.into()))
+            }
+        }
+    }
+}
