@@ -737,7 +737,9 @@ impl
                             merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                                 reason: Some("7".to_string()),
                                 original_authorized_amount,
-                                previous_transaction_id: Some(Secret::new(network_transaction_id)),
+                                previous_transaction_id: Some(Secret::new(
+                                    network_transaction_id.network_transaction_id.clone(),
+                                )),
                             }),
                         }),
                     )
@@ -904,16 +906,13 @@ fn build_bill_to(
 fn convert_metadata_to_merchant_defined_info(metadata: Value) -> Vec<MerchantDefinedInformation> {
     let hashmap: std::collections::BTreeMap<String, Value> =
         serde_json::from_str(&metadata.to_string()).unwrap_or(std::collections::BTreeMap::new());
-    let mut vector = Vec::new();
-    let mut iter = 1;
-    for (key, value) in hashmap {
-        vector.push(MerchantDefinedInformation {
+    (1..)
+        .zip(hashmap)
+        .map(|(iter, (key, value))| MerchantDefinedInformation {
             key: iter,
             value: format!("{key}={value}"),
-        });
-        iter += 1;
-    }
-    vector
+        })
+        .collect()
 }
 
 impl
@@ -1182,6 +1181,7 @@ impl
             ))),
             BankDebitData::SepaBankDebit { .. }
             | BankDebitData::BacsBankDebit { .. }
+            | BankDebitData::EftDebitOrder { .. }
             | BankDebitData::BecsBankDebit { .. }
             | BankDebitData::SepaGuarenteedBankDebit { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
@@ -1810,6 +1810,7 @@ fn get_payment_response(
                 network_txn_id: info_response.processor_information.as_ref().and_then(
                     |processor_information| processor_information.network_transaction_id.clone(),
                 ),
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     info_response
                         .client_reference_information
@@ -2000,6 +2001,7 @@ impl
                             processor_information.network_transaction_id.clone()
                         },
                     ),
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(
                         item.response
                             .client_reference_information
@@ -2111,6 +2113,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<WellsfargoTransactionResponse>>
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: item
                                 .response
                                 .client_reference_information
@@ -2132,6 +2135,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<WellsfargoTransactionResponse>>
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
                     authentication_data: None,

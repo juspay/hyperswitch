@@ -16,6 +16,7 @@ use hyperswitch_masking::ExposeInterface;
 use prost::Message;
 
 use crate::{
+    errors::ConnectorError,
     helpers::{ForeignFrom, ForeignTryFrom},
     unified_connector_service::payments_grpc,
 };
@@ -88,80 +89,19 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to inject metadata into request headers: {0}")]
     HeaderInjectionFailed(String),
 
-    /// Tonic gRPC status error - InvalidArgument (HTTP 400)
-    #[error("UCS validation error: {message}")]
-    TonicInvalidArgument {
+    /// Tonic gRPC status error from UCS.
+    /// Use http_status() to get the corresponding HTTP status code.
+    #[error("UCS error: {code:?} - {message}")]
+    TonicStatus {
+        /// Tonic status code
+        code: tonic::Code,
         /// Error message from UCS
         message: String,
     },
 
-    /// Tonic gRPC status error - NotFound (HTTP 404)
-    #[error("UCS resource not found: {message}")]
-    TonicNotFound {
-        /// Error message from UCS
-        message: String,
-    },
-
-    /// Tonic gRPC status error - AlreadyExists (HTTP 409)
-    #[error("UCS resource already exists: {message}")]
-    TonicAlreadyExists {
-        /// Error message from UCS
-        message: String,
-    },
-
-    /// Tonic gRPC status error - PermissionDenied (HTTP 403)
-    #[error("UCS permission denied: {message}")]
-    TonicPermissionDenied {
-        /// Error message from UCS
-        message: String,
-    },
-
-    /// Tonic gRPC status error - Unauthenticated (HTTP 401)
-    #[error("UCS unauthenticated: {message}")]
-    TonicUnauthenticated {
-        /// Error message from UCS
-        message: String,
-    },
-
-    /// Tonic gRPC status error - FailedPrecondition (HTTP 400)
-    #[error("UCS precondition failed: {message}")]
-    TonicFailedPrecondition {
-        /// Error message from UCS
-        message: String,
-    },
-
-    /// Tonic gRPC status error - Unimplemented (HTTP 501)
-    #[error("UCS unimplemented: {message}")]
-    TonicUnimplemented {
-        /// Error message from UCS
-        message: String,
-    },
-
-    /// Tonic gRPC status error - Unavailable (HTTP 503)
-    #[error("UCS service unavailable: {message}")]
-    TonicUnavailable {
-        /// Error message from UCS
-        message: String,
-    },
-
-    /// Tonic gRPC status error - DeadlineExceeded (HTTP 504)
-    #[error("UCS deadline exceeded: {message}")]
-    TonicDeadlineExceeded {
-        /// Error message from UCS
-        message: String,
-    },
-
-    /// Tonic gRPC status error - Internal (HTTP 500)
-    #[error("UCS internal error: {message}")]
-    TonicInternal {
-        /// Error message from UCS
-        message: String,
-    },
-
-    /// Connector error received through UCS (contains original connector HTTP status code)
-    /// When status_code is present and 4xx/5xx, this is a connector error (not a UCS error).
-    /// When status_code is None, the error originated from UCS itself.
-    #[error("Connector error via UCS: {code} - {message} (status: {status_code})")]
+    /// Connector error received through UCS (contains original connector HTTP status code).
+    /// Distinguishes connector errors from UCS errors by presence of status_code.
+    #[error("Connector error via UCS: {code} - {message}")]
     ConnectorError {
         /// Connector error code
         code: String,
@@ -171,6 +111,8 @@ pub enum UnifiedConnectorServiceError {
         status_code: u16,
         /// Optional reason for the error
         reason: Option<String>,
+        /// Name of the connector that returned the error
+        connector: String,
     },
 
     /// Failed to perform Payment Create Order from gRPC Server
@@ -241,6 +183,10 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to handle incoming webhook event from gRPC Server")]
     IncomingWebhookHandleEventFailure,
 
+    /// Failed to parse incoming webhook event from gRPC Server
+    #[error("Failed to parse incoming webhook event from gRPC Server")]
+    IncomingWebhookParseEventFailure,
+
     /// Failed to perform Payment Void from gRPC Server
     #[error("Failed to perform Void from gRPC Server")]
     PaymentVoidFailure,
@@ -280,26 +226,6 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Payout Enroll Disburse Account from gRPC Server
     #[error("Failed to perform Payout Enroll Disburse Account from gRPC Server")]
     PayoutEnrollDisburseAccountFailure,
-}
-
-/// UCS Webhook transformation status
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub enum WebhookTransformationStatus {
-    /// Transformation completed successfully, no further action needed
-    Complete,
-    /// Transformation incomplete, requires second call for final status
-    Incomplete,
-}
-
-#[allow(missing_docs)]
-/// Webhook transform data structure containing UCS response information
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct WebhookTransformData {
-    pub event_type: api_models::webhooks::IncomingWebhookEvent,
-    pub source_verified: bool,
-    pub webhook_content: Option<payments_grpc::EventContent>,
-    pub response_ref_id: Option<String>,
-    pub webhook_transformation_status: WebhookTransformationStatus,
 }
 
 impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
@@ -388,6 +314,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                     mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata: None,
                     network_txn_id: response.network_transaction_id.clone(),
+                    network_txn_link_id: None,
                     connector_response_reference_id: response.merchant_transaction_id,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
@@ -629,28 +556,6 @@ pub fn convert_connector_service_status_code(
     })
 }
 
-/// Determines if a UCS response represents a connector error or UCS validation error.
-/// Returns Some(UnifiedConnectorServiceError) if it's a connector error that should
-/// bypass normal ErrorResponse handling, None otherwise.
-pub fn resolve_ucs_connector_error(
-    status_code: u16,
-    error_code: String,
-    error_message: String,
-    error_reason: Option<String>,
-) -> Option<UnifiedConnectorServiceError> {
-    // Connector errors have status codes in the 4xx or 5xx range
-    if (400..600).contains(&status_code) {
-        Some(UnifiedConnectorServiceError::ConnectorError {
-            code: error_code,
-            message: error_message,
-            status_code,
-            reason: error_reason,
-        })
-    } else {
-        None
-    }
-}
-
 // Bank Debit Reverse Transformations: Proto -> Hyperswitch
 
 impl ForeignTryFrom<payments_grpc::Ach>
@@ -780,10 +685,14 @@ impl ForeignTryFrom<payments_grpc::BankType> for common_enums::BankType {
         match bank_type {
             payments_grpc::BankType::Checking => Ok(Self::Checking),
             payments_grpc::BankType::Savings => Ok(Self::Savings),
-            payments_grpc::BankType::Unspecified => Err(error_stack::Report::new(
+            payments_grpc::BankType::Bond
+            | payments_grpc::BankType::Transmission
+            | payments_grpc::BankType::Current
+            | payments_grpc::BankType::SubscriptionShare
+            | payments_grpc::BankType::Unspecified => Err(error_stack::Report::new(
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
-            .attach_printable("BankType unspecified")),
+            .attach_printable("BankType unsupported")),
         }
     }
 }
@@ -968,80 +877,79 @@ impl ForeignFrom<payments_grpc::UpiSource>
 }
 
 impl UnifiedConnectorServiceError {
-    /// Maps a tonic::Status to UnifiedConnectorServiceError based on the status code.
-    pub fn from_tonic_status(status: &tonic::Status) -> Self {
-        let message = status.message().to_string();
-
-        if let Some(connector_error) = Self::try_parse_structured_error(&message) {
-            return connector_error;
+    /// Converts tonic::Code to HTTP status code.
+    pub fn tonic_to_http_status(code: tonic::Code) -> u16 {
+        match code {
+            tonic::Code::InvalidArgument | tonic::Code::FailedPrecondition => 400,
+            tonic::Code::Unauthenticated => 401,
+            tonic::Code::PermissionDenied => 403,
+            tonic::Code::NotFound => 404,
+            tonic::Code::AlreadyExists => 409,
+            tonic::Code::Unimplemented => 501,
+            tonic::Code::Unavailable => 503,
+            tonic::Code::DeadlineExceeded => 504,
+            _ => 500,
         }
-        if let Some(error_from_details) = Self::try_parse_from_details(status) {
+    }
+
+    /// Returns HTTP status code for this error.
+    pub fn http_status(&self) -> u16 {
+        match self {
+            Self::TonicStatus { code, .. } => Self::tonic_to_http_status(*code),
+            Self::ConnectorError { status_code, .. } => *status_code,
+            Self::ConnectionError(_) => 503,
+            Self::InvalidDataFormat { .. }
+            | Self::MissingRequiredField { .. }
+            | Self::MissingRequiredFields { .. }
+            | Self::RequestEncodingFailed
+            | Self::RequestEncodingFailedWithReason(_)
+            | Self::InvalidConnectorName
+            | Self::MissingConnectorName => 400,
+            Self::NotImplemented(_) => 501,
+            _ => 500,
+        }
+    }
+
+    /// Maps tonic::Status to UnifiedConnectorServiceError.
+    /// First tries to extract connector error from proto details.
+    pub fn from_tonic_status(status: &tonic::Status, connector_name: &str) -> Self {
+        // Try to extract ConnectorError from proto-encoded status details
+        if let Some(error_from_details) = Self::try_parse_from_details(status, connector_name) {
             return error_from_details;
         }
-        match status.code() {
-            tonic::Code::InvalidArgument => Self::TonicInvalidArgument { message },
-            tonic::Code::NotFound => Self::TonicNotFound { message },
-            tonic::Code::AlreadyExists => Self::TonicAlreadyExists { message },
-            tonic::Code::PermissionDenied => Self::TonicPermissionDenied { message },
-            tonic::Code::Unauthenticated => Self::TonicUnauthenticated { message },
-            tonic::Code::FailedPrecondition => Self::TonicFailedPrecondition { message },
-            tonic::Code::Unimplemented => Self::TonicUnimplemented { message },
-            tonic::Code::Unavailable => Self::TonicUnavailable { message },
-            tonic::Code::DeadlineExceeded => Self::TonicDeadlineExceeded { message },
-            tonic::Code::Internal => Self::TonicInternal { message },
-            _ => Self::TonicInternal { message },
+
+        Self::TonicStatus {
+            code: status.code(),
+            message: status.message().to_string(),
         }
     }
 
-    fn try_parse_structured_error(message: &str) -> Option<Self> {
-        let parsed: serde_json::Value = serde_json::from_str(message).ok()?;
-
-        let error_type = parsed.get("type")?.as_str()?;
-
-        match error_type {
-            "connector_error" => {
-                let status_code = u16::try_from(parsed.get("status_code")?.as_u64()?).ok()?;
-                let code = parsed
-                    .get("code")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("UNKNOWN")
-                    .to_string();
-                let error_message = parsed
-                    .get("message")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                let reason = parsed
-                    .get("reason")
-                    .and_then(|v| v.as_str())
-                    .map(String::from);
-
-                Some(Self::ConnectorError {
-                    code,
-                    message: error_message,
-                    status_code,
-                    reason,
-                })
-            }
-            "validation_error" | "ucs_error" => None,
-            _ => None,
-        }
-    }
-
-    fn try_parse_from_details(status: &tonic::Status) -> Option<Self> {
+    fn try_parse_from_details(status: &tonic::Status, connector_name: &str) -> Option<Self> {
         let details = status.details();
         if details.is_empty() {
             return None;
         }
 
-        // Attempt to decode the ConnectorError from the status details
-        let connector_error = payments_grpc::ConnectorError::decode(details).ok()?;
+        let connector_error = payments_grpc::ConnectorError::decode(details)
+            .inspect_err(|e| {
+                router_env::logger::warn!(
+                    error = ?e,
+                    connector_name = connector_name,
+                    "Failed to decode ConnectorError from tonic status details"
+                );
+            })
+            .ok()?;
         let status_code = u16::try_from(connector_error.http_status_code?).ok()?;
         Some(Self::ConnectorError {
             code: connector_error.error_code,
             message: connector_error.error_message,
             status_code,
-            reason: None,
+            reason: connector_error
+                .error_info
+                .as_ref()
+                .and_then(|ei| ei.connector_details.as_ref())
+                .and_then(|cd| cd.reason.clone()),
+            connector: connector_name.to_string(),
         })
     }
 }
@@ -1049,48 +957,125 @@ impl UnifiedConnectorServiceError {
 impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
     fn switch(&self) -> ApiErrorResponse {
         match self {
-            // === UCS validation errors (no connector status_code) -> client-facing 4xx ===
-            Self::TonicInvalidArgument { message } => ApiErrorResponse::InvalidRequestData {
-                message: message.clone(),
+            Self::TonicStatus { code, message } => match code {
+                tonic::Code::InvalidArgument | tonic::Code::FailedPrecondition => {
+                    ApiErrorResponse::InvalidRequestData {
+                        message: message.clone(),
+                    }
+                }
+                tonic::Code::NotFound => ApiErrorResponse::InvalidRequestData {
+                    message: format!("Resource not found: {message}"),
+                },
+                tonic::Code::AlreadyExists => ApiErrorResponse::InvalidRequestData {
+                    message: format!("Resource already exists: {message}"),
+                },
+                tonic::Code::PermissionDenied => ApiErrorResponse::AccessForbidden {
+                    resource: message.clone(),
+                },
+                tonic::Code::Unauthenticated => ApiErrorResponse::Unauthorized,
+                tonic::Code::Unimplemented => ApiErrorResponse::NotImplemented {
+                    message: NotImplementedMessage::Reason(message.clone()),
+                },
+                tonic::Code::Unavailable
+                | tonic::Code::DeadlineExceeded
+                | tonic::Code::Internal => ApiErrorResponse::InternalServerError,
+                _ => ApiErrorResponse::InternalServerError,
             },
-            Self::TonicNotFound { message } => ApiErrorResponse::InvalidRequestData {
-                message: format!("Resource not found: {message}"),
-            },
-            Self::TonicAlreadyExists { message } => ApiErrorResponse::InvalidRequestData {
-                message: format!("Resource already exists: {message}"),
-            },
-            Self::TonicPermissionDenied { message } => ApiErrorResponse::AccessForbidden {
-                resource: message.clone(),
-            },
-            Self::TonicUnauthenticated { .. } => ApiErrorResponse::Unauthorized,
-            Self::TonicFailedPrecondition { message } => ApiErrorResponse::InvalidRequestData {
-                message: format!("Precondition failed: {message}"),
-            },
-            Self::TonicUnimplemented { message } => ApiErrorResponse::NotImplemented {
-                message: NotImplementedMessage::Reason(message.clone()),
-            },
-
-            // === UCS server errors -> 5xx ===
-            Self::TonicUnavailable { .. }
-            | Self::TonicDeadlineExceeded { .. }
-            | Self::TonicInternal { .. } => ApiErrorResponse::InternalServerError,
-
-            // === Connector error passed through UCS (has status_code) ===
             Self::ConnectorError {
                 code,
                 message,
                 status_code,
                 reason,
+                connector,
             } => ApiErrorResponse::ExternalConnectorError {
                 code: code.clone(),
                 message: message.clone(),
-                connector: "ucs".to_string(),
+                connector: connector.clone(),
                 status_code: *status_code,
                 reason: reason.clone(),
             },
-
-            // === All other legacy/generic errors -> 500 ===
             _ => ApiErrorResponse::InternalServerError,
+        }
+    }
+}
+
+impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
+    fn switch(&self) -> ConnectorError {
+        match self {
+            // UCS validation errors (4xx from tonic) → ProcessingStepFailed with encoded error
+            // body so the upstream handler can return the right HTTP status code.
+            Self::TonicStatus { code, message } => {
+                let status_code = Self::tonic_to_http_status(*code);
+                let error_body = serde_json::json!({
+                    "code": format!("UCS_{}", status_code),
+                    "message": message,
+                    "status_code": status_code,
+                    "type": "ucs_validation_error"
+                });
+                ConnectorError::ProcessingStepFailed(Some(bytes::Bytes::from(
+                    error_body.to_string(),
+                )))
+            }
+            // Connector errors with status code → ResponseHandlingFailed
+            Self::ConnectorError { .. } => ConnectorError::ResponseHandlingFailed,
+            // Connection/availability errors → ResponseHandlingFailed
+            Self::ConnectionError(_) => ConnectorError::ResponseHandlingFailed,
+            // Request encoding errors
+            Self::RequestEncodingFailed
+            | Self::RequestEncodingFailedWithReason(_)
+            | Self::InvalidDataFormat { .. } => ConnectorError::RequestEncodingFailed,
+            // Missing field errors
+            Self::MissingRequiredField { field_name } => {
+                ConnectorError::MissingRequiredField { field_name }
+            }
+            Self::MissingRequiredFields { field_names } => ConnectorError::MissingRequiredFields {
+                field_names: field_names.clone(),
+            },
+            // Response deserialization errors
+            Self::ResponseDeserializationFailed | Self::ParsingFailed => {
+                ConnectorError::ResponseDeserializationFailed
+            }
+            // Auth errors
+            Self::FailedToObtainAuthType => ConnectorError::FailedToObtainAuthType,
+            // Not implemented
+            Self::NotImplemented(msg) => ConnectorError::NotImplemented(msg.clone()),
+            // Invalid connector name
+            Self::InvalidConnectorName | Self::MissingConnectorName => {
+                ConnectorError::InvalidConnectorName
+            }
+            // Header injection errors → request encoding failure
+            Self::HeaderInjectionFailed(_) => ConnectorError::RequestEncodingFailed,
+            // Webhook processing errors
+            Self::WebhookProcessingFailure => ConnectorError::ResponseHandlingFailed,
+            // All other gRPC operation failures
+            Self::PaymentCreateOrderFailure
+            | Self::PaymentAuthorizeGranularFailure
+            | Self::CreateSessionTokenFailure
+            | Self::CreateAccessTokenFailure
+            | Self::PaymentMethodTokenizeFailure
+            | Self::CreateConnectorCustomerFailure
+            | Self::PaymentAuthorizeFailure
+            | Self::PaymentPreAuthenticateFailure
+            | Self::PaymentAuthenticateFailure
+            | Self::PaymentPostAuthenticateFailure
+            | Self::PaymentGetFailure
+            | Self::PaymentCaptureFailure
+            | Self::PaymentSetupRecurringFailure
+            | Self::RecurringPaymentChargeFailure
+            | Self::PaymentRefundFailure
+            | Self::RefundSyncFailure
+            | Self::IncomingWebhookHandleEventFailure
+            | Self::IncomingWebhookParseEventFailure
+            | Self::PaymentVoidFailure
+            | Self::CreateSdkSessionTokenFailure
+            | Self::PaymentIncrementalAuthorizationFailure
+            | Self::PayoutCreateFailure
+            | Self::PayoutTransferFailure
+            | Self::PayoutGetFailure
+            | Self::PayoutVoidFailure
+            | Self::PayoutStageFailure
+            | Self::PayoutCreateRecipientFailure
+            | Self::PayoutEnrollDisburseAccountFailure => ConnectorError::ResponseHandlingFailed,
         }
     }
 }

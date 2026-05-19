@@ -1,0 +1,22 @@
+{
+  "dispute_id": "",
+  "evidence": {
+    "product_description": "Test product description for dispute evidence",
+    "customer_name": "Test Customer",
+    "customer_email_address": "test@example.com",
+    "billing_address": {
+      "line1": "1467 Harrison Street",
+      "city": "San Francisco",
+      "state": "CA",
+      "zip": "94122",
+      "country": "US"
+    },
+    "shipping_address": {
+      "line1": "1467 Harrison Street",
+      "city": "San Francisco",
+      "state": "CA",
+      "zip": "94122",
+      "country": "US"
+    }
+  }
+}

@@ -236,6 +236,7 @@ impl ProxyRecord {
                     &platform,
                     &self.get_vault_id()?,
                     &customer_id,
+                    payment_method.payment_method_type,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)

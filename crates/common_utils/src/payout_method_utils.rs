@@ -91,7 +91,11 @@ pub enum BankAdditionalData {
     Sepa(Box<SepaBankTransferAdditionalData>),
     /// Additional data for pix bank transfer payout method
     Pix(Box<PixBankTransferAdditionalData>),
+    /// Additional data for open banking payout method
+    OpenBanking(Box<OpenBankingAdditionalData>),
 }
+
+crate::impl_to_sql_from_sql_json!(BankAdditionalData);
 
 /// Masked payout method details for ach bank transfer payout method
 #[derive(
@@ -182,7 +186,11 @@ pub struct SepaBankTransferAdditionalData {
 pub struct PixBankTransferAdditionalData {
     /// Partially masked unique key for pix transfer
     #[schema(value_type = String, example = "a1f4102e ****** 6fa48899c1d1")]
-    pub pix_key: MaskedBankAccount,
+    pub pix_key: Option<MaskedBankAccount>,
+
+    /// Partially masked string formatted QR code for pix payout
+    #[schema(value_type = String, example = "0002**************************************************I63041D3D")]
+    pub emv: Option<MaskedBankAccount>,
 
     /// Partially masked CPF - CPF is a Brazilian tax identification number
     #[schema(value_type = Option<String>, example = "**** 124689")]
@@ -190,7 +198,7 @@ pub struct PixBankTransferAdditionalData {
 
     /// Bank account number is an unique identifier assigned by a bank to a customer.
     #[schema(value_type = String, example = "**** 23456")]
-    pub bank_account_number: MaskedBankAccount,
+    pub bank_account_number: Option<MaskedBankAccount>,
 
     /// Bank name
     #[schema(value_type = Option<String>, example = "Deutsche Bank")]
@@ -332,6 +340,20 @@ pub struct OpenBankingUkAdditionalData {
     pub iban: Secret<String>,
 }
 
+/// Masked payout method details for OpenBanking bank transfer payout method
+#[derive(
+    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct OpenBankingAdditionalData {
+    /// Account holder name
+    #[schema(value_type = String, example = "John Doe")]
+    pub account_holder_name: Secret<String>,
+    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
+    #[schema(value_type = String, example = "DE89370400440532013000")]
+    pub iban: Secret<String>,
+}
+
 /// additional payout method details for passthrough payout method
 #[derive(
     Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
@@ -357,6 +379,7 @@ impl From<&AdditionalPayoutMethodData> for common_enums::PaymentMethodType {
                 BankAdditionalData::Sepa(_) => Self::SepaBankTransfer,
                 BankAdditionalData::Pix(_) => Self::Pix,
                 BankAdditionalData::Trustly(_) => Self::Trustly,
+                BankAdditionalData::OpenBanking(_) => Self::OpenBanking,
             },
             AdditionalPayoutMethodData::Wallet(wallet) => match **wallet {
                 WalletAdditionalData::ApplePayDecrypt(_) => Self::ApplePay,

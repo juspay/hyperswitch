@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use common_enums::connector_enums::Connector;
 use common_utils::{consts as common_utils_consts, errors::CustomResult, types::Url};
+use error_stack::ResultExt;
 pub use hyperswitch_interfaces::unified_connector_service::transformers::UnifiedConnectorServiceError;
 use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::logger;
@@ -97,12 +98,53 @@ pub struct ConnectorAuthMetadata {
     pub connector_config: Option<Secret<String>>,
 }
 
+/// Type of the vault connector
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VaultConnectorType {
+    /// Proxy vault - forwards requests through a proxy (e.g., VGS forward proxy)
+    Proxy,
+    /// Transformation vault - transforms/tokenizes data (e.g., HyperswitchVault)
+    Transformation,
+}
+
+/// Authentication credentials for vault connectors
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct VaultConnectorAuth {
+    /// API key for authenticating with the vault connector
+    pub api_key: Secret<String>,
+    /// API secret for authenticating with the vault connector
+    pub profile_id: Secret<String>,
+}
+
 /// External Vault Proxy Related Metadata
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(untagged)]
 pub enum ExternalVaultProxyMetadata {
     /// VGS proxy data variant
     VgsMetadata(VgsMetadata),
+    /// HyperswitchVault data variant
+    HyperswitchVaultMetadata(HyperswitchVaultMetadata),
+}
+
+/// Complete external vault proxy configuration to be serialized and sent to UCS
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct ExternalVaultProxyConfig {
+    /// Type of the vault connector (e.g., Proxy or Transformation)
+    pub vault_connector_type: VaultConnectorType,
+    /// Name/ID of the vault connector (e.g., "vgs", "hyperswitch_vault")
+    pub vault_connector_id: Option<String>,
+    /// Metadata specific to the vault connector type
+    pub metadata: ExternalVaultProxyMetadata,
+}
+
+/// HyperswitchVault proxy data
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct HyperswitchVaultMetadata {
+    /// External vault url
+    pub vault_endpoint: Url,
+    /// Authentication data for the vault connector
+    pub vault_auth_data: VaultConnectorAuth,
 }
 
 /// Builds a gRPC client with timeout handling
@@ -296,6 +338,7 @@ impl UnifiedConnectorServiceClient {
                 tonic_status_to_report(
                     e,
                     UnifiedConnectorServiceError::PaymentMethodTokenizeFailure,
+                    &connector_name,
                 )
             })
             .inspect_err(|error| {
@@ -334,6 +377,7 @@ impl UnifiedConnectorServiceClient {
                 tonic_status_to_report(
                     e,
                     UnifiedConnectorServiceError::CreateSdkSessionTokenFailure,
+                    &connector_name,
                 )
             })
             .inspect_err(|error| {
@@ -370,6 +414,7 @@ impl UnifiedConnectorServiceClient {
                 tonic_status_to_report(
                     e,
                     UnifiedConnectorServiceError::PaymentIncrementalAuthorizationFailure,
+                    &connector_name,
                 )
             })
             .inspect_err(|error| {
@@ -405,6 +450,7 @@ impl UnifiedConnectorServiceClient {
                 tonic_status_to_report(
                     e,
                     UnifiedConnectorServiceError::CreateConnectorCustomerFailure,
+                    &connector_name,
                 )
             })
             .inspect_err(|error| {
@@ -438,7 +484,11 @@ impl UnifiedConnectorServiceClient {
             .create_order(request)
             .await
             .map_err(|e| {
-                tonic_status_to_report(e, UnifiedConnectorServiceError::PaymentCreateOrderFailure)
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PaymentCreateOrderFailure,
+                    &connector_name,
+                )
             })
             .inspect_err(|error| {
                 logger::error!(
@@ -475,6 +525,7 @@ impl UnifiedConnectorServiceClient {
                 tonic_status_to_report(
                     e,
                     UnifiedConnectorServiceError::PaymentPreAuthenticateFailure,
+                    &connector_name,
                 )
             })
             .inspect_err(|error| {
@@ -509,7 +560,11 @@ impl UnifiedConnectorServiceClient {
             .authenticate(request)
             .await
             .map_err(|e| {
-                tonic_status_to_report(e, UnifiedConnectorServiceError::PaymentAuthenticateFailure)
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PaymentAuthenticateFailure,
+                    &connector_name,
+                )
             })
             .inspect_err(|error| {
                 logger::error!(
@@ -542,7 +597,11 @@ impl UnifiedConnectorServiceClient {
             .create_server_session_authentication_token(request)
             .await
             .map_err(|e| {
-                tonic_status_to_report(e, UnifiedConnectorServiceError::CreateSessionTokenFailure)
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::CreateSessionTokenFailure,
+                    &connector_name,
+                )
             })
             .inspect_err(|error| {
                 logger::error!(
@@ -579,6 +638,7 @@ impl UnifiedConnectorServiceClient {
                 tonic_status_to_report(
                     e,
                     UnifiedConnectorServiceError::PaymentPostAuthenticateFailure,
+                    &connector_name,
                 )
             })
             .inspect_err(|error| {
@@ -613,7 +673,11 @@ impl UnifiedConnectorServiceClient {
             .authorize(request)
             .await
             .map_err(|e| {
-                tonic_status_to_report(e, UnifiedConnectorServiceError::PaymentAuthorizeFailure)
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PaymentAuthorizeFailure,
+                    &connector_name,
+                )
             })
             .inspect_err(|error| {
                 logger::error!(
@@ -644,7 +708,13 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .get(request)
             .await
-            .map_err(|e| tonic_status_to_report(e, UnifiedConnectorServiceError::PaymentGetFailure))
+            .map_err(|e| {
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PaymentGetFailure,
+                    &connector_name,
+                )
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -675,7 +745,11 @@ impl UnifiedConnectorServiceClient {
             .capture(request)
             .await
             .map_err(|e| {
-                tonic_status_to_report(e, UnifiedConnectorServiceError::PaymentCaptureFailure)
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PaymentCaptureFailure,
+                    &connector_name,
+                )
             })
             .inspect_err(|error| {
                 logger::error!(
@@ -711,6 +785,7 @@ impl UnifiedConnectorServiceClient {
                 tonic_status_to_report(
                     e,
                     UnifiedConnectorServiceError::PaymentSetupRecurringFailure,
+                    &connector_name,
                 )
             })
             .inspect_err(|error| {
@@ -747,6 +822,7 @@ impl UnifiedConnectorServiceClient {
                 tonic_status_to_report(
                     e,
                     UnifiedConnectorServiceError::RecurringPaymentChargeFailure,
+                    &connector_name,
                 )
             })
             .inspect_err(|error| {
@@ -779,7 +855,11 @@ impl UnifiedConnectorServiceClient {
             .void(request)
             .await
             .map_err(|e| {
-                tonic_status_to_report(e, UnifiedConnectorServiceError::PaymentVoidFailure)
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PaymentVoidFailure,
+                    &connector_name,
+                )
             })
             .inspect_err(|error| {
                 logger::error!(
@@ -814,6 +894,7 @@ impl UnifiedConnectorServiceClient {
                 tonic_status_to_report(
                     e,
                     UnifiedConnectorServiceError::IncomingWebhookHandleEventFailure,
+                    &connector_name,
                 )
             })
             .inspect_err(|error| {
@@ -822,6 +903,41 @@ impl UnifiedConnectorServiceClient {
                     method="incoming_webhook_handle_event",
                     connector_name=?connector_name,
                     "UCS incoming webhook handle event gRPC call failed"
+                )
+            })
+    }
+
+    /// Phase 1 of the two-phase UCS webhook API.
+    ///
+    /// Parses the raw inbound webhook payload to extract a typed `EventReference` and the
+    /// `WebhookEventType`, without requiring credentials or making any outbound connector
+    /// call. The caller uses the returned reference to resolve the merchant-connector
+    /// account (and thus the webhook secret) before invoking `incoming_webhook_handle_event`.
+    pub async fn incoming_webhook_parse_event(
+        &self,
+        incoming_webhook_parse_event_request: payments_grpc::EventServiceParseRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::EventServiceParseResponse>>
+    {
+        let mut request = tonic::Request::new(incoming_webhook_parse_event_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.event_service_client
+            .clone()
+            .parse_event(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::IncomingWebhookParseEventFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="incoming_webhook_parse_event",
+                    connector_name=?connector_name,
+                    "UCS incoming webhook parse event gRPC call failed"
                 )
             })
     }
@@ -845,7 +961,11 @@ impl UnifiedConnectorServiceClient {
             .refund(request)
             .await
             .map_err(|e| {
-                tonic_status_to_report(e, UnifiedConnectorServiceError::PaymentRefundFailure)
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PaymentRefundFailure,
+                    &connector_name,
+                )
             })
             .inspect_err(|error| {
                 logger::error!(
@@ -875,7 +995,13 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .get(request)
             .await
-            .map_err(|e| tonic_status_to_report(e, UnifiedConnectorServiceError::RefundSyncFailure))
+            .map_err(|e| {
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::RefundSyncFailure,
+                    &connector_name,
+                )
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -907,7 +1033,11 @@ impl UnifiedConnectorServiceClient {
             .create(request)
             .await
             .map_err(|e| {
-                tonic_status_to_report(e, UnifiedConnectorServiceError::PayoutCreateFailure)
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PayoutCreateFailure,
+                    &connector_name,
+                )
             })
             .inspect_err(|error| {
                 logger::error!(
@@ -941,7 +1071,11 @@ impl UnifiedConnectorServiceClient {
             .create_server_authentication_token(request)
             .await
             .map_err(|e| {
-                tonic_status_to_report(e, UnifiedConnectorServiceError::CreateAccessTokenFailure)
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::CreateAccessTokenFailure,
+                    &connector_name,
+                )
             })
             .inspect_err(|error| {
                 logger::error!(
@@ -974,7 +1108,11 @@ impl UnifiedConnectorServiceClient {
             .transfer(request)
             .await
             .map_err(|e| {
-                tonic_status_to_report(e, UnifiedConnectorServiceError::PayoutTransferFailure)
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PayoutTransferFailure,
+                    &connector_name,
+                )
             })
             .inspect_err(|error| {
                 logger::error!(
@@ -1006,7 +1144,13 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .get(request)
             .await
-            .map_err(|e| tonic_status_to_report(e, UnifiedConnectorServiceError::PayoutGetFailure))
+            .map_err(|e| {
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PayoutGetFailure,
+                    &connector_name,
+                )
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -1037,7 +1181,13 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .void(request)
             .await
-            .map_err(|e| tonic_status_to_report(e, UnifiedConnectorServiceError::PayoutVoidFailure))
+            .map_err(|e| {
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PayoutVoidFailure,
+                    &connector_name,
+                )
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -1069,7 +1219,11 @@ impl UnifiedConnectorServiceClient {
             .stage(request)
             .await
             .map_err(|e| {
-                tonic_status_to_report(e, UnifiedConnectorServiceError::PayoutStageFailure)
+                tonic_status_to_report(
+                    e,
+                    UnifiedConnectorServiceError::PayoutStageFailure,
+                    &connector_name,
+                )
             })
             .inspect_err(|error| {
                 logger::error!(
@@ -1106,6 +1260,7 @@ impl UnifiedConnectorServiceClient {
                 tonic_status_to_report(
                     e,
                     UnifiedConnectorServiceError::PayoutCreateRecipientFailure,
+                    &connector_name,
                 )
             })
             .inspect_err(|error| {
@@ -1143,6 +1298,7 @@ impl UnifiedConnectorServiceClient {
                 tonic_status_to_report(
                     e,
                     UnifiedConnectorServiceError::PayoutEnrollDisburseAccountFailure,
+                    &connector_name,
                 )
             })
             .inspect_err(|error| {
@@ -1309,20 +1465,27 @@ pub fn build_unified_connector_service_grpc_headers(
 }
 
 /// Converts tonic::Status to error_stack::Report<UnifiedConnectorServiceError>
-/// This helper properly maps tonic gRPC errors to our error types
+/// This helper properly maps tonic gRPC errors to our error types.
+///
+/// Always attempts to extract a ConnectorError from the status details first,
+/// since UCS may forward connector errors with any gRPC status code.
+/// Falls back to specific tonic error variants for 4xx codes, or the
+/// provided default error for 5xx codes.
 pub fn tonic_status_to_report(
     status: tonic::Status,
     default_error: UnifiedConnectorServiceError,
+    connector_name: &str,
 ) -> error_stack::Report<UnifiedConnectorServiceError> {
     let err = match status.code() {
-        // 4xx equivalent gRPC status codes
+        // 4xx equivalent gRPC status codes - parse into specific tonic variants
         tonic::Code::InvalidArgument
         | tonic::Code::NotFound
         | tonic::Code::AlreadyExists
         | tonic::Code::PermissionDenied
         | tonic::Code::Unauthenticated
-        | tonic::Code::FailedPrecondition => {
-            UnifiedConnectorServiceError::from_tonic_status(&status)
+        | tonic::Code::FailedPrecondition
+        | tonic::Code::Unimplemented => {
+            UnifiedConnectorServiceError::from_tonic_status(&status, connector_name)
         }
         // 5xx equivalent gRPC status codes - use the default error
         tonic::Code::Ok

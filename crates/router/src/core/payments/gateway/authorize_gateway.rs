@@ -3,7 +3,7 @@ use std::str::FromStr;
 use async_trait::async_trait;
 use common_enums::{CallConnectorAction, ExecutionPath};
 use common_utils::{errors::CustomResult, id_type, request::Request, ucs_types};
-use error_stack::{Report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{router_data::RouterData, router_flow_types as domain};
 use hyperswitch_interfaces::{
     api::gateway as payment_gateway,
@@ -148,10 +148,12 @@ where
                                 message,
                                 status_code,
                                 reason,
+                                connector,
                             } = report.current_context()
                             {
                                 logger::info!(
-                                    "Connector error via UCS for recurring charge (status {}): {} - {}",
+                                    "Connector error via UCS for recurring charge (connector {}, status {}): {} - {}",
+                                    connector,
                                     status_code,
                                     code,
                                     message
@@ -176,8 +178,7 @@ where
                                     payments_grpc::RecurringPaymentServiceChargeResponse::default(),
                                 ));
                             }
-                            // UCS validation errors (4xx) - propagate as Err
-                            // so the API layer returns proper HTTP 4xx response
+                            // Propagate as Err for proper HTTP error handling
                             return Err(report.attach_printable("Failed to charge recurring payment"));
                         }
                     };
@@ -229,7 +230,7 @@ where
             ))
             .await
             .map(|(router_data, _)| router_data)
-            .map_err(convert_ucs_error_to_connector_error)?
+            .map_err(super::convert_ucs_error_to_connector_error)?
         } else {
             logger::debug!("Granular Gateway: Regular authorize flow");
             let granular_authorize_request =
@@ -264,10 +265,12 @@ where
                                 message,
                                 status_code,
                                 reason,
+                                connector,
                             } = report.current_context()
                             {
                                 logger::info!(
-                                    "Connector error via UCS (status {}): {} - {}",
+                                    "Connector error via UCS (connector {}, status {}): {} - {}",
+                                    connector,
                                     status_code,
                                     code,
                                     message
@@ -295,8 +298,6 @@ where
                                     payments_grpc::PaymentServiceAuthorizeResponse::default(),
                                 ));
                             }
-                            // For UCS validation errors (TonicInvalidArgument, etc.)
-                            // propagate as Err so they become HTTP 4xx at the API layer
                             return Err(report.attach_printable("Failed to authorize payment"));
                         }
                     };
@@ -346,7 +347,7 @@ where
             ))
             .await
             .map(|(router_data, _)| router_data)
-            .map_err(convert_ucs_error_to_connector_error)?
+            .map_err(super::convert_ucs_error_to_connector_error)?
         };
 
         Ok(updated_router_data)
@@ -388,89 +389,5 @@ where
             ExecutionPath::UnifiedConnectorService
             | ExecutionPath::ShadowUnifiedConnectorService => Box::new(Self),
         }
-    }
-}
-
-/// Maps a `UnifiedConnectorServiceError` to an (error_code, error_message, http_status_code) tuple.
-///
-/// This is used to convert UCS validation errors (non-connector errors) into proper HTTP error
-/// responses instead of blanket 500s. The mapping follows the tonic gRPC status → HTTP status
-/// convention:
-///
-/// - InvalidArgument / FailedPrecondition → 400
-/// - Unauthenticated → 401
-/// - PermissionDenied → 403
-/// - NotFound → 404
-/// - AlreadyExists → 409
-/// - Unimplemented → 501
-/// - Unavailable → 503
-/// - DeadlineExceeded → 504
-/// - Internal / others → 500
-fn map_ucs_error_to_response(error: &UnifiedConnectorServiceError) -> (String, String, u16) {
-    match error {
-        UnifiedConnectorServiceError::TonicInvalidArgument { message } => {
-            ("UCS_400".to_string(), message.clone(), 400)
-        }
-        UnifiedConnectorServiceError::TonicNotFound { message } => {
-            ("UCS_404".to_string(), message.clone(), 404)
-        }
-        UnifiedConnectorServiceError::TonicAlreadyExists { message } => {
-            ("UCS_409".to_string(), message.clone(), 409)
-        }
-        UnifiedConnectorServiceError::TonicPermissionDenied { message } => {
-            ("UCS_403".to_string(), message.clone(), 403)
-        }
-        UnifiedConnectorServiceError::TonicUnauthenticated { message } => {
-            ("UCS_401".to_string(), message.clone(), 401)
-        }
-        UnifiedConnectorServiceError::TonicFailedPrecondition { message } => {
-            ("UCS_400".to_string(), message.clone(), 400)
-        }
-        UnifiedConnectorServiceError::TonicUnimplemented { message } => {
-            ("UCS_501".to_string(), message.clone(), 501)
-        }
-        UnifiedConnectorServiceError::TonicUnavailable { message } => {
-            ("UCS_503".to_string(), message.clone(), 503)
-        }
-        UnifiedConnectorServiceError::TonicDeadlineExceeded { message } => {
-            ("UCS_504".to_string(), message.clone(), 504)
-        }
-        UnifiedConnectorServiceError::TonicInternal { message } => {
-            ("UCS_500".to_string(), message.clone(), 500)
-        }
-        // All other legacy/generic UCS errors → 500
-        other => ("UCS_500".to_string(), format!("{other}"), 500),
-    }
-}
-
-fn convert_ucs_error_to_connector_error(
-    report: Report<UnifiedConnectorServiceError>,
-) -> Report<ConnectorError> {
-    let ucs_error = report.current_context();
-
-    // Check if this is a UCS validation error (tonic 4xx equivalent)
-    match ucs_error {
-        UnifiedConnectorServiceError::TonicInvalidArgument { .. }
-        | UnifiedConnectorServiceError::TonicNotFound { .. }
-        | UnifiedConnectorServiceError::TonicAlreadyExists { .. }
-        | UnifiedConnectorServiceError::TonicPermissionDenied { .. }
-        | UnifiedConnectorServiceError::TonicFailedPrecondition { .. }
-        | UnifiedConnectorServiceError::TonicUnimplemented { .. } => {
-            let (_code, _message, status_code) = map_ucs_error_to_response(ucs_error);
-            let error_body = serde_json::json!({
-                "code": _code,
-                "message": _message,
-                "status_code": status_code,
-                "type": "ucs_validation_error"
-            });
-            report.change_context(ConnectorError::ProcessingStepFailed(Some(
-                bytes::Bytes::from(error_body.to_string()),
-            )))
-        }
-        UnifiedConnectorServiceError::TonicUnauthenticated { .. } => {
-            report.change_context(ConnectorError::FailedToObtainAuthType)
-        }
-        // Server errors and other failures → generic handling
-        _ => report.change_context(ConnectorError::ResponseHandlingFailed),
     }
 }

@@ -9,6 +9,7 @@ use hyperswitch_interfaces::{
     api::gateway as payment_gateway,
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
     errors::ConnectorError,
+    unified_connector_service::transformers::UnifiedConnectorServiceError,
 };
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -112,14 +113,55 @@ where
             header_payload,
             unified_connector_service_execution_mode,
             |mut router_data, payment_capture_request, grpc_headers| async move {
-                let response = client
+                let response = match client
                     .payment_capture(
                         payment_capture_request,
                         connector_auth_metadata,
                         grpc_headers,
                     )
                     .await
-                    .attach_printable("Failed to capture payment")?;
+                {
+                    Ok(resp) => resp,
+                    Err(report) => {
+                        if let UnifiedConnectorServiceError::ConnectorError {
+                            code,
+                            message,
+                            status_code,
+                            reason,
+                            connector,
+                        } = report.current_context()
+                        {
+                            logger::info!(
+                                "Connector error via UCS for capture (connector {}, status {}): {} - {}",
+                                connector,
+                                status_code,
+                                code,
+                                message
+                            );
+                            router_data.response = Err(
+                                hyperswitch_domain_models::router_data::ErrorResponse {
+                                    code: code.clone(),
+                                    message: message.clone(),
+                                    reason: reason.clone(),
+                                    status_code: *status_code,
+                                    attempt_status: None,
+                                    connector_transaction_id: None,
+                                    connector_response_reference_id: None,
+                                    network_decline_code: None,
+                                    network_advice_code: None,
+                                    network_error_message: None,
+                                    connector_metadata: None,
+                                },
+                            );
+                            return Ok((
+                                router_data,
+                                (),
+                                payments_grpc::PaymentServiceCaptureResponse::default(),
+                            ));
+                        }
+                        return Err(report.attach_printable("Failed to capture payment"));
+                    }
+                };
 
                 let payment_capture_response = response.into_inner();
 
@@ -155,7 +197,7 @@ where
         ))
         .await
         .map(|(router_data, _)| router_data)
-        .change_context(ConnectorError::ResponseHandlingFailed)
+        .map_err(super::convert_ucs_error_to_connector_error)
     }
 }
 
