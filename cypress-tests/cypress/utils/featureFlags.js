@@ -17,7 +17,13 @@ function validateType(value, type) {
 // Helper function to validate specific config keys based on schema rules
 function validateConfigValue(key, value) {
   // At present, there are only 2 api keys for connectors. Will be scaled based on the need
-  const SUPPORTED_CONNECTOR_CREDENTIAL = ["connector_1", "connector_2"];
+  const SUPPORTED_CONNECTOR_CREDENTIAL = [
+    "connector_1",
+    "connector_2",
+    "connector_3",
+    "connector_4",
+    "connector_5",
+  ];
 
   if (config_fields.includes(key)) {
     switch (key) {
@@ -121,6 +127,18 @@ export function getProfileAndConnectorId(connectorType) {
     connector_2: {
       profileId: "profile1",
       connectorId: "merchantConnector1",
+    },
+    connector_3: {
+      profileId: "profile2",
+      connectorId: "merchantConnector2",
+    },
+    connector_4: {
+      profileId: "profile3",
+      connectorId: "merchantConnector3",
+    },
+    connector_5: {
+      profileId: "profile4",
+      connectorId: "merchantConnector4",
     },
   };
 
