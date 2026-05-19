@@ -61,7 +61,7 @@ describe("Gift Card Payment - Adyen Givex", () => {
         );
 
         if (!shouldContinue) return;
-        if (data && data.Response && data.Response.status === 501) {
+        if (!should_continue_further(data)) {
           shouldContinue = false;
         }
       });
@@ -100,7 +100,7 @@ describe("Gift Card Payment - Adyen Givex", () => {
           );
 
           if (!shouldContinue) return;
-          if (data && data.Response && data.Response.status === 501) {
+          if (!should_continue_further(data)) {
             shouldContinue = false;
           }
         }
@@ -140,7 +140,7 @@ describe("Gift Card Payment - Adyen Givex", () => {
           );
 
           if (!shouldContinue) return;
-          if (data && data.Response && data.Response.status === 501) {
+          if (!should_continue_further(data)) {
             shouldContinue = false;
           }
         }
@@ -191,6 +191,11 @@ describe("Gift Card Payment - Adyen Givex", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "gift_card_pm"
         ]["PaySafeCardGiftCard"];
+
+        if (!should_continue_further(confirmData)) {
+          shouldContinue = false;
+          return;
+        }
 
         cy.confirmBankRedirectCallTest(
           fixtures.confirmBody,
@@ -251,7 +256,7 @@ describe("Gift Card Payment - Adyen Givex", () => {
         );
 
         if (!shouldContinue) return;
-        if (data && data.Response && data.Response.status === 501) {
+        if (!should_continue_further(data)) {
           shouldContinue = false;
         }
       });
@@ -265,14 +270,15 @@ describe("Gift Card Payment - Adyen Givex", () => {
           "gift_card_pm"
         ]["GivexGiftCardRefund"];
 
+        if (!should_continue_further(refundData)) {
+          shouldContinue = false;
+          return;
+        }
+
         cy.refundCallTest(fixtures.refundBody, refundData, globalState);
 
         if (!shouldContinue) return;
-        if (
-          refundData &&
-          refundData.Response &&
-          refundData.Response.status === 501
-        ) {
+        if (!should_continue_further(refundData)) {
           shouldContinue = false;
         }
       });

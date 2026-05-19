@@ -1325,20 +1325,6 @@ export const connectorDetails = {
       },
     }),
     PaymentIntent: (paymentMethodType) => {
-      if (paymentMethodType === "PaySafeCard") {
-        return getCustomExchange({
-          Request: {
-            currency: "EUR",
-          },
-          Response: {
-            status: 200,
-            body: {
-              status: "requires_payment_method",
-              payment_method: "gift_card",
-            },
-          },
-        });
-      }
       return getCustomExchange({
         Request: {
           currency: "EUR",
