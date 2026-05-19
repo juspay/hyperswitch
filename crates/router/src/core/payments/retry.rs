@@ -638,6 +638,10 @@ where
                 advice_message: None,
                 recommended_action: None,
                 card_network: payment_data.get_payment_attempt().extract_card_network(),
+                sender_payment_instrument_id: payment_data
+                    .get_payment_attempt()
+                    .sender_payment_instrument_id
+                    .clone(),
             };
 
             #[cfg(feature = "v1")]
@@ -871,6 +875,7 @@ pub fn make_new_auto_retry_payment_attempt(
         retry_type: Some(storage_enums::RetryType::AutoRetry),
         installment_data: Default::default(),
         external_surcharge_details: Default::default(),
+        sender_payment_instrument_id: Default::default(),
     }
 }
 
