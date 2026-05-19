@@ -135,6 +135,18 @@ const CURRENCY_MAP = {
   Interac: "CAD", // Canadian payment method
   AliPayHk: "HKD", // Hong Kong payment method
   Mifinity: "EUR", // Mifinity wallet payment method
+
+  // Voucher payment methods
+  Boleto: "BRL",
+  Oxxo: "MXN",
+  Alfamart: "IDR",
+  Indomaret: "IDR",
+  SevenEleven: "JPY",
+  Lawson: "JPY",
+  MiniStop: "JPY",
+  FamilyMart: "JPY",
+  Seicomart: "JPY",
+  PayEasy: "JPY",
 };
 
 export const getCurrency = (paymentMethodType) => {
