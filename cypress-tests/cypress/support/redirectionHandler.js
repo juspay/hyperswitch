@@ -973,7 +973,6 @@ function bankRedirectRedirection(
           case "globalpay":
             switch (paymentMethodType) {
               case "ideal":
-              case "eps":
                 cy.get("body", { timeout: 15000 }).then(($body) => {
                   if ($body.find('button[type="submit"]').length > 0) {
                     cy.get('button[type="submit"]').first().click();
@@ -989,6 +988,10 @@ function bankRedirectRedirection(
                       .click();
                   }
                 });
+                verifyUrl = false;
+                break;
+              case "eps":
+                cy.log("GlobalPay EPS redirects to PPRO — skipping interaction to avoid sandbox JS errors");
                 verifyUrl = false;
                 break;
               case "giropay":
