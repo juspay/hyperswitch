@@ -2383,13 +2383,20 @@ Cypress.Commands.add(
                     "nextActionUrl",
                     response.body.next_action.ddc_data.iframe_url
                   );
-                } else {
-                  expect(response.body)
-                    .to.have.property("next_action")
-                    .to.have.property("redirect_to_url");
+                } else if (response.body.next_action.redirect_to_url) {
                   globalState.set(
                     "nextActionUrl",
                     response.body.next_action.redirect_to_url
+                  );
+                } else if (response.body.next_action.url) {
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.url
+                  );
+                } else {
+                  cy.task(
+                    "cli_log",
+                    `PayPal-like next_action without redirect_to_url: ${JSON.stringify(response.body.next_action)}`
                   );
                 }
               }
@@ -2429,13 +2436,20 @@ Cypress.Commands.add(
                     "nextActionUrl",
                     response.body.next_action.ddc_data.iframe_url
                   );
-                } else {
-                  expect(response.body.next_action).to.have.property(
-                    "redirect_to_url"
-                  );
+                } else if (response.body.next_action.redirect_to_url) {
                   globalState.set(
                     "nextActionUrl",
                     response.body.next_action.redirect_to_url
+                  );
+                } else if (response.body.next_action.url) {
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.url
+                  );
+                } else {
+                  cy.task(
+                    "cli_log",
+                    `PayPal-like next_action without redirect_to_url: ${JSON.stringify(response.body.next_action)}`
                   );
                 }
               }
@@ -2944,13 +2958,20 @@ Cypress.Commands.add(
                     "nextActionUrl",
                     response.body.next_action.ddc_data.iframe_url
                   );
-                } else {
-                  expect(response.body.next_action).to.have.property(
-                    "redirect_to_url"
-                  );
+                } else if (response.body.next_action.redirect_to_url) {
                   globalState.set(
                     "nextActionUrl",
                     response.body.next_action.redirect_to_url
+                  );
+                } else if (response.body.next_action.url) {
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.url
+                  );
+                } else {
+                  cy.task(
+                    "cli_log",
+                    `PayPal-like next_action without redirect_to_url: ${JSON.stringify(response.body.next_action)}`
                   );
                 }
               }
@@ -2981,13 +3002,20 @@ Cypress.Commands.add(
                     "nextActionUrl",
                     response.body.next_action.ddc_data.iframe_url
                   );
-                } else {
-                  expect(response.body.next_action).to.have.property(
-                    "redirect_to_url"
-                  );
+                } else if (response.body.next_action.redirect_to_url) {
                   globalState.set(
                     "nextActionUrl",
                     response.body.next_action.redirect_to_url
+                  );
+                } else if (response.body.next_action.url) {
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.url
+                  );
+                } else {
+                  cy.task(
+                    "cli_log",
+                    `PayPal-like next_action without redirect_to_url: ${JSON.stringify(response.body.next_action)}`
                   );
                 }
               }

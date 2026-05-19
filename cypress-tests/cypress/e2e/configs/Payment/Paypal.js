@@ -102,9 +102,6 @@ export const connectorDetails = {
       },
     },
     "3DSManualCapture": {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -122,9 +119,6 @@ export const connectorDetails = {
       },
     },
     "3DSAutoCapture": {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
