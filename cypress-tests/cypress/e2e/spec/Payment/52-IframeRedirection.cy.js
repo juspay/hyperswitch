@@ -100,7 +100,7 @@ describeIfSupported("Iframe Redirection Payment Flow Tests", () => {
   });
 
   context("Edge Case - Iframe Redirection Not Explicitly Enabled", () => {
-    it("Create Payment Intent without iframe flag -> Confirm Payment -> Verify Redirect Response", function () {
+    it("Create Payment Intent without iframe flag -> Confirm Payment -> Verify redirect still inside popup", function () {
       let shouldContinue = true;
 
       cy.step(
@@ -132,7 +132,7 @@ describeIfSupported("Iframe Redirection Payment Flow Tests", () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.step("Confirm Payment without iframe redirection", () => {
+      cy.step("Confirm Payment without iframe redirection flag", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Confirm Payment");
           return;
@@ -140,8 +140,6 @@ describeIfSupported("Iframe Redirection Payment Flow Tests", () => {
         const fullData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["3DSAutoCapture"];
-        // Strip payment_method_data from expected response to avoid
-        // deep-equal failures on connector-specific card_issuer values
         const data = JSON.parse(JSON.stringify(fullData));
         if (data?.Response?.body?.payment_method_data) {
           delete data.Response.body.payment_method_data;
@@ -154,14 +152,14 @@ describeIfSupported("Iframe Redirection Payment Flow Tests", () => {
         }
       });
 
-      cy.step("Verify Redirect Response", () => {
+      cy.step("Verify Redirect Still Inside Popup", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Verify Redirect");
           return;
         }
 
         cy.verifyIframeRedirection(globalState, {
-          expectRedirectInsidePopup: false,
+          expectRedirectInsidePopup: true,
         });
       });
     });
