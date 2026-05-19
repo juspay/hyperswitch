@@ -8403,5 +8403,3 @@ Cypress.Commands.add(
     });
   }
 );
-
-
