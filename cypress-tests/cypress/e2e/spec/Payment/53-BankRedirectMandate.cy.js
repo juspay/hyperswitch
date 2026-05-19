@@ -52,7 +52,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("Confirm CIT for single-use mandate", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm CIT for single-use mandate");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm CIT for single-use mandate"
+          );
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -85,7 +88,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("Retrieve CIT and extract mandate_id", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve CIT and extract mandate_id");
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve CIT and extract mandate_id"
+          );
           return;
         }
         cy.request({
@@ -158,7 +164,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("List Mandates", () => {
         if (!mandateCreated) {
-          cy.task("cli_log", "Skipping step: List Mandates - no mandate created");
+          cy.task(
+            "cli_log",
+            "Skipping step: List Mandates - no mandate created"
+          );
           return;
         }
         cy.listMandateCallTest(globalState);
@@ -166,7 +175,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("Revoke Mandate", () => {
         if (!mandateCreated) {
-          cy.task("cli_log", "Skipping step: Revoke Mandate - no mandate created");
+          cy.task(
+            "cli_log",
+            "Skipping step: Revoke Mandate - no mandate created"
+          );
           return;
         }
         cy.revokeMandateCallTest(globalState);
@@ -197,7 +209,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("Confirm CIT for multi-use mandate", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm CIT for multi-use mandate");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm CIT for multi-use mandate"
+          );
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -230,7 +245,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("Retrieve CIT and extract mandate_id", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve CIT and extract mandate_id");
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve CIT and extract mandate_id"
+          );
           return;
         }
         cy.request({
@@ -303,7 +321,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("List Mandates", () => {
         if (!mandateCreated) {
-          cy.task("cli_log", "Skipping step: List Mandates - no mandate created");
+          cy.task(
+            "cli_log",
+            "Skipping step: List Mandates - no mandate created"
+          );
           return;
         }
         cy.listMandateCallTest(globalState);
@@ -311,7 +332,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("Revoke Mandate", () => {
         if (!mandateCreated) {
-          cy.task("cli_log", "Skipping step: Revoke Mandate - no mandate created");
+          cy.task(
+            "cli_log",
+            "Skipping step: Revoke Mandate - no mandate created"
+          );
           return;
         }
         cy.revokeMandateCallTest(globalState);
@@ -342,7 +366,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("Confirm CIT for single-use mandate", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm CIT for single-use mandate");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm CIT for single-use mandate"
+          );
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -375,7 +402,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("Retrieve CIT and extract mandate_id", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve CIT and extract mandate_id");
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve CIT and extract mandate_id"
+          );
           return;
         }
         cy.request({
@@ -448,7 +478,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("List Mandates", () => {
         if (!mandateCreated) {
-          cy.task("cli_log", "Skipping step: List Mandates - no mandate created");
+          cy.task(
+            "cli_log",
+            "Skipping step: List Mandates - no mandate created"
+          );
           return;
         }
         cy.listMandateCallTest(globalState);
@@ -456,7 +489,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("Revoke Mandate", () => {
         if (!mandateCreated) {
-          cy.task("cli_log", "Skipping step: Revoke Mandate - no mandate created");
+          cy.task(
+            "cli_log",
+            "Skipping step: Revoke Mandate - no mandate created"
+          );
           return;
         }
         cy.revokeMandateCallTest(globalState);
@@ -487,7 +523,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("Confirm CIT for multi-use mandate", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm CIT for multi-use mandate");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm CIT for multi-use mandate"
+          );
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -520,7 +559,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("Retrieve CIT and extract mandate_id", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve CIT and extract mandate_id");
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve CIT and extract mandate_id"
+          );
           return;
         }
         cy.request({
@@ -593,7 +635,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("List Mandates", () => {
         if (!mandateCreated) {
-          cy.task("cli_log", "Skipping step: List Mandates - no mandate created");
+          cy.task(
+            "cli_log",
+            "Skipping step: List Mandates - no mandate created"
+          );
           return;
         }
         cy.listMandateCallTest(globalState);
@@ -601,7 +646,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("Revoke Mandate", () => {
         if (!mandateCreated) {
-          cy.task("cli_log", "Skipping step: Revoke Mandate - no mandate created");
+          cy.task(
+            "cli_log",
+            "Skipping step: Revoke Mandate - no mandate created"
+          );
           return;
         }
         cy.revokeMandateCallTest(globalState);
@@ -632,7 +680,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("Confirm CIT for single-use mandate", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm CIT for single-use mandate");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm CIT for single-use mandate"
+          );
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -665,7 +716,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("Retrieve CIT and extract mandate_id", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve CIT and extract mandate_id");
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve CIT and extract mandate_id"
+          );
           return;
         }
         cy.request({
@@ -738,7 +792,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("List Mandates", () => {
         if (!mandateCreated) {
-          cy.task("cli_log", "Skipping step: List Mandates - no mandate created");
+          cy.task(
+            "cli_log",
+            "Skipping step: List Mandates - no mandate created"
+          );
           return;
         }
         cy.listMandateCallTest(globalState);
@@ -746,7 +803,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("Revoke Mandate", () => {
         if (!mandateCreated) {
-          cy.task("cli_log", "Skipping step: Revoke Mandate - no mandate created");
+          cy.task(
+            "cli_log",
+            "Skipping step: Revoke Mandate - no mandate created"
+          );
           return;
         }
         cy.revokeMandateCallTest(globalState);
@@ -777,7 +837,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("Confirm CIT for multi-use mandate", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm CIT for multi-use mandate");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm CIT for multi-use mandate"
+          );
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -810,7 +873,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("Retrieve CIT and extract mandate_id", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve CIT and extract mandate_id");
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve CIT and extract mandate_id"
+          );
           return;
         }
         cy.request({
@@ -883,7 +949,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("List Mandates", () => {
         if (!mandateCreated) {
-          cy.task("cli_log", "Skipping step: List Mandates - no mandate created");
+          cy.task(
+            "cli_log",
+            "Skipping step: List Mandates - no mandate created"
+          );
           return;
         }
         cy.listMandateCallTest(globalState);
@@ -891,7 +960,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("Revoke Mandate", () => {
         if (!mandateCreated) {
-          cy.task("cli_log", "Skipping step: Revoke Mandate - no mandate created");
+          cy.task(
+            "cli_log",
+            "Skipping step: Revoke Mandate - no mandate created"
+          );
           return;
         }
         cy.revokeMandateCallTest(globalState);
@@ -921,7 +993,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("Confirm CIT for single-use mandate", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm CIT for single-use mandate");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm CIT for single-use mandate"
+          );
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -962,7 +1037,10 @@ describe("Bank Redirect Mandate tests", () => {
 
       cy.step("Confirm CIT for multi-use mandate", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm CIT for multi-use mandate");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm CIT for multi-use mandate"
+          );
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
