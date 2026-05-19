@@ -3650,6 +3650,7 @@ export const connectorDetails = {
         },
       },
     },
+  },
   relay_pm: {
     RefundRelay: {
       Request: {
