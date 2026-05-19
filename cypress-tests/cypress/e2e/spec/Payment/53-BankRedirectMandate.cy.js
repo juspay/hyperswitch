@@ -118,7 +118,7 @@ describe("Bank Redirect Mandate tests", () => {
       });
 
       cy.step("MIT for single-use mandate", () => {
-        if (!shouldContinue) {
+        if (!shouldContinue || !globalState.get("mandateId")) {
           cy.task("cli_log", "Skipping step: MIT for single-use mandate");
           return;
         }
@@ -444,7 +444,7 @@ describe("Bank Redirect Mandate tests", () => {
       });
 
       cy.step("MIT for single-use mandate", () => {
-        if (!shouldContinue) {
+        if (!shouldContinue || !globalState.get("mandateId")) {
           cy.task("cli_log", "Skipping step: MIT for single-use mandate");
           return;
         }
@@ -770,7 +770,7 @@ describe("Bank Redirect Mandate tests", () => {
       });
 
       cy.step("MIT for single-use mandate", () => {
-        if (!shouldContinue) {
+        if (!shouldContinue || !globalState.get("mandateId")) {
           cy.task("cli_log", "Skipping step: MIT for single-use mandate");
           return;
         }

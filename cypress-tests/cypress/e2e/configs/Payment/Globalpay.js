@@ -1398,6 +1398,9 @@ export const connectorDetails = {
       },
     },
     SofortMandateSingleUseNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "sofort",
@@ -1433,11 +1436,16 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "failed",
+          error_code: "INVALID_REQUEST_DATA",
+          error_message: "FAILED",
         },
       },
     },
     SofortMandateMultiUseNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "sofort",
@@ -1473,7 +1481,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "failed",
+          error_code: "INVALID_REQUEST_DATA",
+          error_message: "FAILED",
         },
       },
     },

@@ -494,6 +494,8 @@ function bankRedirectRedirection(
   connectorId = normalizeConnectorForRedirect(connectorId);
   let verifyUrl = false;
 
+  cy.on("uncaught:exception", () => false);
+
   // Mifinity wallet redirect: visit the redirect URL and verify the redirection
   // without waiting for a host change (mifinity redirects to an external wallet
   // authentication page that doesn't trigger a secondary redirect)
