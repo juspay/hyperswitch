@@ -3,10 +3,7 @@ use error_stack::ResultExt;
 
 use super::{add_payment_method_modular_backward_compat_task, utils};
 use crate::{
-    core::{
-        configs::dimension_state,
-        errors::ProcessTrackerError,
-    },
+    core::{configs::dimension_state, errors::ProcessTrackerError},
     errors as router_errors, logger,
     routes::SessionState,
     types::{domain, storage},

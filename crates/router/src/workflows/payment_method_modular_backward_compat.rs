@@ -1,14 +1,18 @@
 #[cfg(feature = "v1")]
 use api_models::payment_methods::Card;
+use common_utils::ext_traits::{Encode, OptionExt, StringExt, ValueExt};
 #[cfg(feature = "v2")]
 use common_utils::id_type;
-use common_utils::ext_traits::{Encode, OptionExt, StringExt, ValueExt};
 use error_stack::ResultExt;
 use hyperswitch_masking::PeekInterface;
 use scheduler::{
     consumer::types::process_data, utils as pt_utils, workflows::ProcessTrackerWorkflow,
 };
 
+#[cfg(feature = "v2")]
+use crate::core::payment_methods::add_payment_method_to_legacy_locker;
+#[cfg(feature = "v1")]
+use crate::core::payment_methods::transformers;
 use crate::{
     core::payment_methods::{cards, vault},
     errors,
@@ -19,10 +23,6 @@ use crate::{
         storage::{self, PaymentMethodModularCompatTrackingData},
     },
 };
-#[cfg(feature = "v1")]
-use crate::core::payment_methods::transformers;
-#[cfg(feature = "v2")]
-use crate::core::payment_methods::add_payment_method_to_legacy_locker;
 
 #[cfg(feature = "v1")]
 pub async fn backfill_legacy_db_fields(
