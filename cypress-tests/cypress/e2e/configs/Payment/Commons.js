@@ -1067,9 +1067,8 @@ export const connectorDetails = {
           },
           billing: standardBillingAddress,
         },
-        billing: standardBillingAddress,
-      },
-    }),
+      }),
+    },
     BancontactCard: {
       MandateSingleUse: getCustomExchange({
         Configs: {
