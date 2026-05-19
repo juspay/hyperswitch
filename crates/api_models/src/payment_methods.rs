@@ -663,6 +663,7 @@ impl PaymentMethodCreateData {
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
     BankDebit(BankDebitDetail),
+    Wallet(WalletDetail),
 }
 
 #[cfg(feature = "v1")]
@@ -684,6 +685,26 @@ pub enum BankDebitDetail {
         #[schema(value_type = Option<BankHolderType>)]
         #[serde(default)]
         bank_holder_type: Option<common_enums::BankHolderType>,
+    },
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub enum WalletDetail {
+    ApplePayDecryptedData {
+        /// The application primary account number associated with the card
+        #[schema(value_type = String, example = "4242424242424242")]
+        application_primary_account_number: CardNumber,
+
+        /// The card's expiry month
+        #[schema(value_type = String)]
+        expiry_month: hyperswitch_masking::Secret<String>,
+
+        /// The card's expiry year
+        #[schema(value_type = String)]
+        expiry_year: hyperswitch_masking::Secret<String>,
     },
 }
 
@@ -2356,6 +2377,17 @@ pub struct RequiredFieldInfo {
     pub value: Option<hyperswitch_masking::Secret<String>>,
 }
 
+impl RequiredFieldInfo {
+    pub fn for_config(&self) -> Self {
+        Self {
+            required_field: self.required_field.clone(),
+            display_name: self.display_name.clone(),
+            field_type: self.field_type.clone(),
+            value: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct ResponsePaymentMethodsEnabled {
     /// The payment method enabled
@@ -2826,6 +2858,10 @@ pub struct PaymentMethodListIntentData {
 
     /// Installment options available for this payment
     pub installment_options: Option<Vec<PaymentMethodListInstallmentOption>>,
+
+    /// The capture method for the payment
+    #[schema(value_type = Option<CaptureMethod>)]
+    pub capture_method: Option<api_enums::CaptureMethod>,
 }
 
 /// Installment options for a payment method, as returned in the payment method list response

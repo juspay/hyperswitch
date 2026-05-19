@@ -3729,6 +3729,10 @@ merchant_secret="Source verification key"
 [itaubank_payout]
 [[itaubank_payout.bank_transfer]]
   payment_method_type = "pix"
+[[itaubank_payout.bank_transfer]]
+  payment_method_type = "pix_key"
+[[itaubank_payout.bank_transfer]]
+  payment_method_type = "pix_emv"
 [itaubank_payout.connector_auth.MultiAuthKey]
 key1="Client Id"
 api_key="Client Secret"
@@ -6146,7 +6150,7 @@ options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
   placeholder="Enter Payment Processing Details At"
   required=true
   type="Radio"
-  options=["Connector"]
+  options=["Connector","Hyperswitch"]
 
 [worldpayxml.connector_auth.SignatureKey]
 api_secret = "Merchant Code"
@@ -7460,8 +7464,8 @@ options=["Connector"]
 [truelayer_payout.connector_auth.BodyKey]
 api_key = "Client ID"
 key1 = "Client Secret"
-[[truelayer_payout.bank_redirect]]
-payment_method_type = "open_banking_uk"
+[[truelayer_payout.bank_transfer]]
+payment_method_type = "open_banking"
 
 [truelayer_payout.metadata.kid]
 name = "kid"
@@ -7528,7 +7532,7 @@ api_secret = "Private Key(Base64 encoded)"
 [[trustly_payout.bank_transfer]]
 payment_method_type = "trustly"
 [trustly_payout.connector_webhook_details]
-merchant_secret="Trustly's public key"
+merchant_secret="Trustly's public key(Base64 encoded)"
 
 [revolv3]
 [[revolv3.credit]]
@@ -7578,7 +7582,7 @@ api_secret = "Private Key(Base64 encoded)"
 [[trustly.bank_redirect]]
 payment_method_type = "trustly"
 [trustly.connector_webhook_details]
-merchant_secret="Trustly's public key"
+merchant_secret="Trustly's public key(Base64 encoded)"
 
 [imerchantsolutions]
 [imerchantsolutions.connector_auth.HeaderKey]
@@ -7618,3 +7622,6 @@ key1 = "Merchant Id"
 payment_method_type = "eft_debit_order"
 [sanlam.connector_webhook_details]
 merchant_secret="Source verification key"
+[interpayments]
+[interpayments.connector_auth.HeaderKey]
+api_key = "API Key"

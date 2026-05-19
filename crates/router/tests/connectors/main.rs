@@ -66,6 +66,7 @@ mod hyperwallet;
 mod iatapay;
 mod imerchantsolutions;
 mod inespay;
+mod interpayments;
 mod itaubank;
 mod jpmorgan;
 mod juspaythreedsserver;
