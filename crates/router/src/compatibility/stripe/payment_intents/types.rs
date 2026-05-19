@@ -429,7 +429,8 @@ impl From<api_enums::IntentStatus> for StripePaymentStatus {
             | api_enums::IntentStatus::PartiallyCapturedAndProcessing => Self::Processing,
             api_enums::IntentStatus::RequiresCustomerAction
             | api_enums::IntentStatus::RequiresMerchantAction
-            | api_enums::IntentStatus::Conflicted => Self::RequiresAction,
+            | api_enums::IntentStatus::Conflicted
+            | api_enums::IntentStatus::Review => Self::RequiresAction,
             api_enums::IntentStatus::RequiresPaymentMethod => Self::RequiresPaymentMethod,
             api_enums::IntentStatus::RequiresConfirmation => Self::RequiresConfirmation,
             api_enums::IntentStatus::RequiresCapture
@@ -468,7 +469,7 @@ impl From<StripePaymentCancelRequest> for payments::PaymentsCancelRequest {
     }
 }
 
-#[derive(Default, Eq, PartialEq, Serialize, Debug)]
+#[derive(Default, PartialEq, Serialize, Debug)]
 pub struct StripePaymentIntentResponse {
     pub id: id_type::PaymentId,
     pub object: &'static str,
@@ -676,7 +677,7 @@ fn from_timestamp_to_datetime(
     }
 }
 
-#[derive(Default, Eq, PartialEq, Serialize)]
+#[derive(Default, PartialEq, Serialize)]
 pub struct StripePaymentIntentListResponse {
     pub object: String,
     pub url: String,
@@ -814,7 +815,7 @@ pub struct RedirectUrl {
     pub url: Option<String>,
 }
 
-#[derive(Eq, PartialEq, serde::Serialize, Debug)]
+#[derive(PartialEq, serde::Serialize, Debug)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum StripeNextAction {
     RedirectToUrl {

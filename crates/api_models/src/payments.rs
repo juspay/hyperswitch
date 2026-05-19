@@ -2408,14 +2408,26 @@ impl MandateIds {
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum MandateReferenceId {
     ConnectorMandateId(ConnectorMandateReferenceId), // mandate_id send by connector
-    NetworkMandateId(String), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns along with card data
+    NetworkMandateId(NetworkMandateIdRef), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns along with card data
     NetworkTokenWithNTI(NetworkTokenWithNTIRef), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns along with network token data
     CardWithLimitedData, // indicates the recurring transaction is done by card data only
+}
+
+/// Scheme-level identifiers for PSP-agnostic MIT flows (raw card path).
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
+pub struct NetworkMandateIdRef {
+    pub network_transaction_id: String,
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
+    pub transaction_link_id: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub struct NetworkTokenWithNTIRef {
     pub network_transaction_id: String,
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
+    pub transaction_link_id: Option<String>,
     pub token_exp_month: Option<Secret<String>>,
     pub token_exp_year: Option<Secret<String>>,
 }
@@ -6650,7 +6662,7 @@ pub struct UrlDetails {
 pub struct AuthenticationForStartResponse {
     pub authentication: UrlDetails,
 }
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum NextActionType {
     RedirectToUrl,
@@ -6665,9 +6677,7 @@ pub enum NextActionType {
     InvokeUpiQrFlow,
 }
 
-#[derive(
-    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
-)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum NextActionData {
@@ -10296,9 +10306,7 @@ pub struct GooglePayTokenizationParameters {
     pub stripe_version: Option<Secret<String>>,
 }
 
-#[derive(
-    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
-)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[serde(tag = "wallet_name")]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -10640,9 +10648,7 @@ pub struct OpenBankingSessionToken {
     pub open_banking_session_token: String,
 }
 
-#[derive(
-    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
-)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "lowercase")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplepaySessionTokenResponse {
@@ -10706,9 +10712,7 @@ pub enum NextActionCall {
     EligibilityCheck,
 }
 
-#[derive(
-    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
-)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[serde(untagged)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum ApplePaySessionResponse {
@@ -10717,52 +10721,10 @@ pub enum ApplePaySessionResponse {
     ThirdPartySdk(ThirdPartySdkSessionResponse),
     ///  We get this session response, when there is no involvement of third party sdk
     /// This is the common response most of the times
-    #[smithy(value_type = "NoThirdPartySdkSessionResponse")]
-    NoThirdPartySdk(NoThirdPartySdkSessionResponse),
+    NoThirdPartySdk(serde_json::Value),
     /// This is for the empty session response
     #[smithy(value_type = "smithy.api#Unit")]
     NoSessionResponse(NullObject),
-}
-
-#[derive(
-    Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize, SmithyModel,
-)]
-#[serde(rename_all(deserialize = "camelCase"))]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct NoThirdPartySdkSessionResponse {
-    /// Timestamp at which session is requested
-    #[smithy(value_type = "u64")]
-    pub epoch_timestamp: u64,
-    /// Timestamp at which session expires
-    #[smithy(value_type = "u64")]
-    pub expires_at: u64,
-    /// The identifier for the merchant session
-    #[smithy(value_type = "String")]
-    pub merchant_session_identifier: String,
-    /// Apple pay generated unique ID (UUID) value
-    #[smithy(value_type = "String")]
-    pub nonce: String,
-    /// The identifier for the merchant
-    #[smithy(value_type = "String")]
-    pub merchant_identifier: String,
-    /// The domain name of the merchant which is registered in Apple Pay
-    #[smithy(value_type = "String")]
-    pub domain_name: String,
-    /// The name to be displayed on Apple Pay button
-    #[smithy(value_type = "String")]
-    pub display_name: String,
-    /// A string which represents the properties of a payment
-    #[smithy(value_type = "String")]
-    pub signature: String,
-    /// The identifier for the operational analytics
-    #[smithy(value_type = "String")]
-    pub operational_analytics_identifier: String,
-    /// The number of retries to get the session response
-    #[smithy(value_type = "u8")]
-    pub retries: u8,
-    /// The identifier for the connector transaction
-    #[smithy(value_type = "String")]
-    pub psp_id: String,
 }
 
 #[derive(

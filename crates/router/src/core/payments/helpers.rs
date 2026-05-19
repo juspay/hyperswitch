@@ -644,7 +644,7 @@ pub async fn get_token_pm_type_mandate_details(
                         .payment_method_type
                         .map(|payment_method_type_value| {
                             payment_method_type_value
-                                .should_check_for_customer_saved_payment_method_type()
+                                .should_check_for_customer_saved_payment_method_type(false)
                         })
                         .unwrap_or(false)
                     {
@@ -3004,6 +3004,10 @@ pub async fn fetch_card_details_from_external_vault(
             Err(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Bank Debit not supported")
         }
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::Wallet(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Wallet not supported")
+        }
     }
 }
 #[cfg(feature = "v1")]
@@ -5161,7 +5165,8 @@ pub fn get_attempt_type(
                     | enums::AttemptStatus::DeviceDataCollectionPending
                     | enums::AttemptStatus::IntegrityFailure
                     | enums::AttemptStatus::Expired
-                    | enums::AttemptStatus::PartiallyAuthorized => {
+                    | enums::AttemptStatus::PartiallyAuthorized
+                    | enums::AttemptStatus::CaptureReview => {
                         metrics::MANUAL_RETRY_VALIDATION_FAILED.add(
                             1,
                             router_env::metric_attributes!((
@@ -5221,7 +5226,8 @@ pub fn get_attempt_type(
         | enums::IntentStatus::Succeeded
         | enums::IntentStatus::Conflicted
         | enums::IntentStatus::Expired
-        | enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
+        | enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+        | enums::IntentStatus::Review => {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message: format!(
                     "You cannot {action} this payment because it has status {}",
@@ -5363,6 +5369,7 @@ impl AttemptType {
             routing_approach: old_payment_attempt.routing_approach,
             connector_request_reference_id: None,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             network_details: None,
             is_stored_credential: old_payment_attempt.is_stored_credential,
             authorized_amount: old_payment_attempt.authorized_amount,
@@ -5378,6 +5385,7 @@ impl AttemptType {
             error_details: None,
             retry_type: Some(enums::RetryType::ManualRetry),
             installment_data: None,
+            external_surcharge_details: None,
         }
     }
 
@@ -5510,7 +5518,8 @@ pub fn is_manual_retry_allowed(
             | enums::AttemptStatus::DeviceDataCollectionPending
             | enums::AttemptStatus::IntegrityFailure
             | enums::AttemptStatus::Expired
-            | enums::AttemptStatus::PartiallyAuthorized => {
+            | enums::AttemptStatus::PartiallyAuthorized
+            | enums::AttemptStatus::CaptureReview => {
                 logger::error!("Payment Attempt should not be in this state because Attempt to Intent status mapping doesn't allow it");
                 None
             }
@@ -5533,7 +5542,8 @@ pub fn is_manual_retry_allowed(
         | enums::IntentStatus::Succeeded
         | enums::IntentStatus::Conflicted
         | enums::IntentStatus::Expired
-        | enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => Some(false),
+        | enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+        | enums::IntentStatus::Review => Some(false),
 
         enums::IntentStatus::RequiresCustomerAction
         | enums::IntentStatus::RequiresMerchantAction
