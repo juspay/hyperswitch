@@ -1124,7 +1124,7 @@ export const connectorDetails = {
           mandate_data: {
             customer_acceptance: {
               acceptance_type: "online",
-              accepted_at: new Date().toISOString(),
+              accepted_at: "2025-01-01T00:00:00.000Z",
               online: {
                 ip_address: "127.0.0.1",
                 user_agent: "Mozilla/5.0",
@@ -1182,11 +1182,8 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "requires_customer_action",
         },
-      },
-      Configs: {
-        TRIGGER_SKIP: true,
       },
       MandateSingleUse: {
         Request: {
@@ -1235,7 +1232,7 @@ export const connectorDetails = {
           mandate_data: {
             customer_acceptance: {
               acceptance_type: "online",
-              accepted_at: new Date().toISOString(),
+              accepted_at: "2025-01-01T00:00:00.000Z",
               online: {
                 ip_address: "127.0.0.1",
                 user_agent: "Mozilla/5.0",
@@ -1254,11 +1251,8 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "succeeded",
+            status: "requires_customer_action",
           },
-        },
-        Configs: {
-          TRIGGER_SKIP: true,
         },
       },
     },
@@ -1340,7 +1334,7 @@ export const connectorDetails = {
           mandate_data: {
             customer_acceptance: {
               acceptance_type: "online",
-              accepted_at: new Date().toISOString(),
+              accepted_at: "2025-01-01T00:00:00.000Z",
               online: {
                 ip_address: "127.0.0.1",
                 user_agent: "Mozilla/5.0",
@@ -1398,9 +1392,6 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       MandateSingleUse: {
         Request: {
           payment_method: "bank_redirect",
@@ -1445,7 +1436,7 @@ export const connectorDetails = {
           mandate_data: {
             customer_acceptance: {
               acceptance_type: "online",
-              accepted_at: new Date().toISOString(),
+              accepted_at: "2025-01-01T00:00:00.000Z",
               online: {
                 ip_address: "127.0.0.1",
                 user_agent: "Mozilla/5.0",
@@ -1466,9 +1457,6 @@ export const connectorDetails = {
           body: {
             status: "requires_customer_action",
           },
-        },
-        Configs: {
-          TRIGGER_SKIP: true,
         },
       },
     },
