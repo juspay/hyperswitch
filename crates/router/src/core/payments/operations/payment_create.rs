@@ -1967,6 +1967,7 @@ impl PaymentCreate {
                 .clone(),
             state_metadata: None,
             installment_options: request.installment_options.clone(),
+            profile_acquirer_id: request.profile_acquirer_id.clone(),
         })
     }
 }
