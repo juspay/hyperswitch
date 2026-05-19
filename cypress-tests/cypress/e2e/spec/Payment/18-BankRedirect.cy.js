@@ -459,6 +459,10 @@ describe("Bank Redirect tests", () => {
         const refundData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["OpenBankingUk"]["Refund"];
+        if (!refundData) {
+          cy.task("cli_log", "Refund config not found for OpenBankingUk — skipping");
+          return;
+        }
         const newRefundData = {
           ...refundData,
           Response: refundData.ResponseCustom || refundData.Response,
@@ -724,6 +728,10 @@ describe("Bank Redirect tests", () => {
         const refundData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["OpenBanking"]["Refund"];
+        if (!refundData) {
+          cy.task("cli_log", "Refund config not found for OpenBanking — skipping");
+          return;
+        }
         const newRefundData = {
           ...refundData,
           Response: refundData.ResponseCustom || refundData.Response,
