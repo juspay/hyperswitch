@@ -1,4 +1,4 @@
-import { customerAcceptance } from "./Commons";
+import { customerAcceptance, standardBillingAddress } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
@@ -1043,6 +1043,189 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    }),
+    Atome: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "atome",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            atome_redirect: {},
+          },
+        },
+        billing: {
+          email: "test@example.com",
+          address: {
+            line1: "123 Test St",
+            city: "Singapore",
+            zip: "238863",
+            country: "SG",
+            first_name: "Test",
+            last_name: "User",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+            total_amount: 6000,
+            description: "Test Product Description",
+          },
+        ],
+        return_url: "https://example.com",
+      },
+    }),
+  },
+  bank_transfer_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: getCurrency(paymentMethodType),
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
+    IndonesianBankTransfer: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "indonesian_bank_transfer",
+        payment_method_data: {
+          bank_transfer: {
+            indonesian_bank_transfer: {
+              bank_name: "bca",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "123 Test St",
+            city: "Jakarta",
+            zip: "10110",
+            country: "ID",
+            first_name: "Test",
+            last_name: "User",
+          },
+        },
+        currency: "IDR",
+      },
+    }),
+    AutoCapture: getCustomExchange({
+      Request: {
+        currency: "IDR",
+        capture_method: "automatic",
+        return_url: "https://example.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    ManualCapture: getCustomExchange({
+      Request: {
+        currency: "IDR",
+        capture_method: "manual",
+        return_url: "https://example.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+  },
+  wallet_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: getCurrency(paymentMethodType),
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
+    PaypalRedirect: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+        billing: standardBillingAddress,
+        return_url: "https://example.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    Skrill: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "skrill",
+        authentication_type: "no_three_ds",
+        payment_method_data: {
+          wallet: {
+            skrill: {},
+          },
+        },
+        billing: standardBillingAddress,
+        return_url: "https://example.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    AutoCapture: getCustomExchange({
+      Request: {
+        currency: "USD",
+        capture_method: "automatic",
+        return_url: "https://example.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    ManualCapture: getCustomExchange({
+      Request: {
+        currency: "USD",
+        capture_method: "manual",
+        return_url: "https://example.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
         },
       },
     }),
