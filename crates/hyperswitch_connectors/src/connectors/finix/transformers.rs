@@ -466,6 +466,7 @@ pub(crate) fn get_setup_mandate_router_data<Request>(
             })),
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             authentication_data: None,
@@ -567,7 +568,7 @@ pub(crate) fn convert_to_additional_payment_method_connector_response(
 
     let mut payment_checks = serde_json::Map::new();
     if let Some(code) = address_verification_check {
-        payment_checks.insert("address_verification".to_string(), serde_json::json!(code));
+        payment_checks.insert("avs_result".to_string(), serde_json::json!(code));
     }
 
     let card_network = network_details.and_then(|details| details.brand.clone());
@@ -639,6 +640,7 @@ pub(crate) fn get_finix_response<F, T>(
                 })),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,

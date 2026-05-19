@@ -69,7 +69,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCaptureR
 
         helpers::validate_payment_status_against_not_allowed_statuses(
             payment_intent.status,
-            &[IntentStatus::Failed, IntentStatus::Succeeded],
+            &[
+                IntentStatus::Failed,
+                IntentStatus::Succeeded,
+                IntentStatus::Review,
+            ],
             "approve",
         )?;
 
