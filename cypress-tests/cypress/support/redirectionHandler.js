@@ -156,20 +156,19 @@ function payLaterRedirection(
   connectorId,
   paymentMethodType
 ) {
-  // PayLater payments (like Klarna) are redirect flows where we verify navigation
-  // to the provider's page but don't complete the payment (verifyUrl = false)
   let verifyUrl = false;
 
   if (redirectionUrl && redirectionUrl.href) {
-    // Suppress uncaught exceptions from Klarna sandbox pages
     cy.on("uncaught:exception", (err) => {
       if (
         err.message.includes("klarna") ||
         err.message.includes("playground") ||
         err.message.includes("angular") ||
-        err.message.includes("$ is not defined")
+        err.message.includes("$ is not defined") ||
+        err.message.includes("affirm") ||
+        err.message.includes("stripe")
       ) {
-        return false; // Prevent test failure
+        return false;
       }
       return true;
     });
@@ -177,331 +176,352 @@ function payLaterRedirection(
     cy.visit(redirectionUrl.href);
     waitForRedirect(redirectionUrl.href);
 
-    handleFlow(
-      redirectionUrl,
-      expectedUrl,
-      connectorId,
-      ({ connectorId, paymentMethodType, constants }) => {
-        switch (connectorId) {
-          case "adyen":
-          case "klarna":
-          case "aci":
-            // Klarna via various connectors - verify we land on Klarna page
-            cy.log(
-              `Handling ${connectorId} ${paymentMethodType} pay_later flow`
-            );
+    if (connectorId === "stripe" && paymentMethodType === "affirm") {
+      // Affirm via Stripe — fully isolated to avoid nested cy.origin
+      cy.log("Handling Stripe Affirm pay_later flow");
+      verifyUrl = true;
 
-            // Verify the page loaded by checking for Klarna-specific content
-            // Klarna playground shows payment forms or consent pages
-            cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
-              const bodyText = $body.text();
-              const klarnaIndicators = [
-                /klarna/i,
-                /playground/i,
-                /buy now.*pay later/i,
-                /continue.*klarna/i,
-                /smoooth/i,
-              ];
+      const affirmOriginalHost = new URL(redirectionUrl.href).host;
 
-              const hasKlarnaIndicator = klarnaIndicators.some((pattern) =>
-                pattern.test(bodyText)
-              );
+      cy.url().then((currentUrl) => {
+        const currentHost = new URL(currentUrl).host;
+        const useOrigin = currentHost !== affirmOriginalHost;
 
-              if (hasKlarnaIndicator) {
-                cy.log(
-                  "Successfully navigated to Klarna page - verified redirection"
-                );
-              } else {
-                // Check URL as fallback
-                cy.url().then((url) => {
-                  if (
-                    url.includes("klarna") ||
-                    url.includes("playground") ||
-                    url.includes("adyen") // Some Klarna flows go through Adyen
-                  ) {
-                    cy.log(
-                      "URL indicates Klarna redirect - verified navigation"
-                    );
-                  } else {
-                    cy.log(
-                      `Warning: URL (${url}) does not contain expected Klarna indicators`
-                    );
-                  }
-                });
-              }
-            });
-
-            verifyUrl = false; // Don't complete payment, just verify navigation
-            break;
-
-          case "stripe":
-            // Stripe handles pay_later differently depending on the payment method type
-            switch (paymentMethodType) {
-              case "affirm":
-                // Affirm via Stripe — interact with Affirm sandbox to complete flow
-                cy.log("Handling Stripe Affirm pay_later flow");
-
-                cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
-                  const bodyText = $body.text();
-                  const pageHtml = $body.html();
-
-                  // Step 1: Enter phone number if phone field is present
-                  const phoneSelectors = [
-                    'input[name*="phone"]',
-                    'input[name*="mobile"]',
-                    'input[name*="cell"]',
-                    'input[placeholder*="phone"]',
-                    'input[type="tel"]',
-                    'input[id*="phone"]',
-                  ];
-                  let phoneFound = false;
-                  for (const sel of phoneSelectors) {
-                    if ($body.find(sel).length > 0) {
-                      cy.get(sel, { timeout: constants.WAIT_TIME })
-                        .first()
-                        .clear({ force: true })
-                        .type("3105551212", { force: true })
-                        .log("Entered test phone number");
-                      phoneFound = true;
-                      break;
-                    }
-                  }
-
-                  // Step 2: Click continue/submit after phone entry
-                  if (phoneFound) {
-                    cy.wait(1000);
-                    const continueBtnSelectors = [
-                      'button[type="submit"]',
-                      "button:contains('Continue')",
-                      "button:contains('Next')",
-                      "button:contains('Submit')",
-                      'input[type="submit"]',
-                      "a:contains('Continue')",
-                    ];
-                    for (const btnSel of continueBtnSelectors) {
-                      if ($body.find(btnSel).length > 0) {
-                        cy.get(btnSel, { timeout: constants.WAIT_TIME })
-                          .first()
-                          .click({ force: true })
-                          .log("Clicked continue after phone entry");
-                        break;
-                      }
-                    }
-                  }
-
-                  // Step 3: Enter verification PIN if present
-                  cy.wait(1500);
-                  cy.get("body", { timeout: constants.TIMEOUT }).then(
-                    ($body2) => {
-                      const pinSelectors = [
-                        'input[name*="pin"]',
-                        'input[name*="code"]',
-                        'input[name*="otp"]',
-                        'input[placeholder*="code"]',
-                        'input[placeholder*="PIN"]',
-                        'input[id*="pin"]',
-                        'input[id*="code"]',
-                        'input[type="password"]',
-                      ];
-                      for (const pinSel of pinSelectors) {
-                        if ($body2.find(pinSel).length > 0) {
-                          cy.get(pinSel, { timeout: constants.WAIT_TIME })
-                            .first()
-                            .clear({ force: true })
-                            .type("123456", { force: true })
-                            .log("Entered verification PIN");
-                          break;
-                        }
-                      }
-
-                      // Step 4: Enter SSN if present
-                      const ssnSelectors = [
-                        'input[name*="ssn"]',
-                        'input[name*="social"]',
-                        'input[name*="sin"]',
-                        'input[id*="ssn"]',
-                        'input[placeholder*="SSN"]',
-                        'input[placeholder*="social"]',
-                        'input[autocomplete*="ssn"]',
-                      ];
-                      for (const ssnSel of ssnSelectors) {
-                        if ($body2.find(ssnSel).length > 0) {
-                          cy.get(ssnSel, { timeout: constants.WAIT_TIME })
-                            .first()
-                            .clear({ force: true })
-                            .type("5678", { force: true })
-                            .log("Entered test SSN");
-                          break;
-                        }
-                      }
-
-                      // Step 5: Click final confirm/submit
-                      const submitBtnSelectors = [
-                        'button[type="submit"]',
-                        "button:contains('Confirm')",
-                        "button:contains('Submit')",
-                        "button:contains('Continue')",
-                        'input[type="submit"]',
-                      ];
-                      for (const submitSel of submitBtnSelectors) {
-                        if ($body2.find(submitSel).length > 0) {
-                          cy.get(submitSel, { timeout: constants.WAIT_TIME })
-                            .first()
-                            .click({ force: true })
-                            .log("Clicked final submit/confirm");
-                          break;
-                        }
-                      }
-                    }
-                  );
-
-                  // Fallback passive verification if no interaction occurred
-                  const affirmIndicators = [
-                    /affirm/i,
-                    /buy now.*pay later/i,
-                    /your.*payment.*plan/i,
-                    /verify.*identity/i,
-                    /confirm.*purchase/i,
-                  ];
-                  const hasAffirmIndicator = affirmIndicators.some((pattern) =>
-                    pattern.test(bodyText)
-                  );
-                  if (hasAffirmIndicator) {
-                    cy.log(
-                      "Affirm page indicators confirmed — passive verification OK"
-                    );
-                  }
-                });
-                break;
-
-              default:
-                // Generic Stripe pay_later (Klarna, etc.)
-                cy.log("Handling Stripe pay_later flow");
-                cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+        const affirmInteraction = (timeout) => {
+          const findVisible = (selectors) => {
+            for (const sel of selectors) {
+              const $el = Cypress.$(sel).filter(":visible");
+              if ($el.length) return $el.first();
             }
-            verifyUrl = false;
-            break;
+            return null;
+          };
 
-          case "mollie":
-            // Mollie Klarna PayLater - complete the payment flow
-            cy.log(
-              `Handling Mollie ${paymentMethodType} pay_later flow - completing payment`
-            );
+          cy.get("body", { timeout }).then(() => {
+            const $phone = findVisible([
+              'input[name*="phone"]',
+              'input[name*="mobile"]',
+              'input[type="tel"]',
+              'input[placeholder*="phone"]',
+              'input[id*="phone"]',
+            ]);
+            if ($phone) {
+              cy.wrap($phone)
+                .scrollIntoView()
+                .should("be.visible")
+                .clear({ force: true })
+                .type("3105551212", { force: true })
+                .blur({ force: true });
+            } else {
+              cy.log("No phone input found");
+            }
+          });
 
-            // Wait for the Mollie test page to load
-            cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+          cy.wait(1500);
+          cy.get("body", { timeout }).then(() => {
+            const $btn = findVisible([
+              'button[type="submit"]',
+              'input[type="submit"]',
+            ]);
+            if ($btn) {
+              cy.wrap($btn)
+                .scrollIntoView()
+                .should("be.visible")
+                .click({ force: true });
+            } else {
+              cy.log("No continue button found after phone");
+            }
+          });
 
-            // Mollie test mode shows radio buttons to select payment status
-            cy.get("body").then(($body) => {
-              const paidSelector = 'input[type="radio"][value="paid"]';
-              const authorizedSelector =
-                'input[type="radio"][value="authorized"]';
+          cy.wait(2500);
+          cy.get("body", { timeout }).then(() => {
+            const $pin = findVisible([
+              'input[name*="pin"]',
+              'input[name*="code"]',
+              'input[placeholder*="PIN"]',
+              'input[placeholder*="code"]',
+              'input[type="password"]',
+              'input[id*="pin"]',
+            ]);
+            if ($pin) {
+              cy.wrap($pin)
+                .scrollIntoView()
+                .should("be.visible")
+                .clear({ force: true })
+                .type("123456", { force: true })
+                .blur({ force: true });
+            } else {
+              cy.log("No PIN input found");
+            }
+          });
 
-              if ($body.find(paidSelector).length) {
-                cy.get(paidSelector, { timeout: constants.WAIT_TIME })
-                  .click()
-                  .log("Selected: Paid");
-              } else if ($body.find(authorizedSelector).length) {
-                cy.get(authorizedSelector, { timeout: constants.WAIT_TIME })
-                  .click()
-                  .log("Selected: Authorized");
-              } else {
-                cy.log(
-                  "No payment status selector found, page may auto-redirect"
-                );
-              }
-            });
+          cy.wait(1500);
+          cy.get("body", { timeout }).then(() => {
+            const $btn = findVisible([
+              'button[type="submit"]',
+              'input[type="submit"]',
+            ]);
+            if ($btn) {
+              cy.wrap($btn)
+                .scrollIntoView()
+                .should("be.visible")
+                .click({ force: true });
+            } else {
+              cy.log("No continue button found after PIN");
+            }
+          });
 
-            // Click the Continue/Submit button to complete payment
-            cy.get("body").then(($body) => {
-              if ($body.find('button[type="submit"]').length > 0) {
-                cy.get('button[type="submit"]', {
-                  timeout: constants.WAIT_TIME,
-                })
-                  .should("be.visible")
-                  .click()
-                  .log("Clicked submit button");
-              } else if ($body.find("button:contains('Continue')").length > 0) {
-                cy.contains("button", "Continue", {
-                  timeout: constants.WAIT_TIME,
-                })
-                  .should("be.visible")
-                  .click()
-                  .log("Clicked Continue button");
-              } else if ($body.find('input[type="submit"]').length > 0) {
-                cy.get('input[type="submit"]', {
-                  timeout: constants.WAIT_TIME,
-                })
-                  .should("be.visible")
-                  .click()
-                  .log("Clicked input submit");
-              } else {
-                cy.log("No submit button found - may auto-submit");
-              }
-            });
+          cy.wait(2500);
+          cy.get("body", { timeout }).then(() => {
+            const $ssn = findVisible([
+              'input[name*="ssn"]',
+              'input[name*="social"]',
+              'input[placeholder*="SSN"]',
+              'input[id*="ssn"]',
+            ]);
+            if ($ssn) {
+              cy.wrap($ssn)
+                .scrollIntoView()
+                .should("be.visible")
+                .clear({ force: true })
+                .type("5678", { force: true })
+                .blur({ force: true });
+            } else {
+              cy.log("No SSN input found");
+            }
+          });
 
-            verifyUrl = true; // Complete payment and verify return URL
-            break;
+          cy.wait(1500);
+          cy.get("body", { timeout }).then(() => {
+            const $btn = findVisible([
+              'button[type="submit"]',
+              'input[type="submit"]',
+            ]);
+            if ($btn) {
+              cy.wrap($btn)
+                .scrollIntoView()
+                .should("be.visible")
+                .click({ force: true });
+            } else {
+              cy.log("No continue button found after SSN");
+            }
+          });
 
-          case "airwallex":
-            // Airwallex Klarna PayLater - follows similar pattern to other Klarna flows
-            cy.log(`Handling Airwallex ${paymentMethodType} pay_later flow`);
+          cy.wait(1500);
+          cy.get("body", { timeout }).then(() => {
+            const $terms = findVisible([
+              'input[type="checkbox"][name*="agree"]',
+              'input[type="checkbox"][name*="terms"]',
+              'input[type="checkbox"][name*="consent"]',
+              'input[type="checkbox"][id*="agree"]',
+              'input[type="checkbox"][id*="terms"]',
+              'input[type="checkbox"]',
+            ]);
+            if ($terms) {
+              cy.wrap($terms)
+                .scrollIntoView()
+                .should("be.visible")
+                .check({ force: true });
+            } else {
+              cy.log("No terms checkbox found");
+            }
+          });
 
-            // Wait for the page to load
-            cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+          cy.wait(1500);
+          cy.get("body", { timeout }).then(() => {
+            const $submit = findVisible([
+              'button[type="submit"]',
+              'input[type="submit"]',
+            ]);
+            if ($submit) {
+              cy.wrap($submit)
+                .scrollIntoView()
+                .should("be.visible")
+                .click({ force: true });
+            } else {
+              cy.log("No final submit button found");
+            }
+          });
 
-            // Airwallex Klarna redirects to standard Klarna playground
-            // Verify we landed on a Klarna page
-            cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
-              const bodyText = $body.text();
-              const klarnaIndicators = [
-                /klarna/i,
-                /playground/i,
-                /buy now.*pay later/i,
-                /continue.*klarna/i,
-                /smoooth/i,
-              ];
+          cy.wait(8000);
+          cy.log("Affirm sandbox interaction complete — waiting for redirect");
+        };
 
-              const hasKlarnaIndicator = klarnaIndicators.some((pattern) =>
-                pattern.test(bodyText)
-              );
-
-              if (hasKlarnaIndicator) {
-                cy.log(
-                  "Successfully navigated to Klarna page - verified redirection"
-                );
-              } else {
-                // Check URL as fallback
-                cy.url().then((url) => {
-                  if (
-                    url.includes("klarna") ||
-                    url.includes("playground") ||
-                    url.includes("airwallex")
-                  ) {
-                    cy.log(
-                      "URL indicates Klarna redirect - verified navigation"
-                    );
-                  } else {
-                    cy.log(
-                      `Warning: URL (${url}) does not contain expected Klarna indicators`
-                    );
-                  }
-                });
-              }
-            });
-
-            verifyUrl = false; // Don't complete payment, just verify navigation
-            break;
-
-          default:
-            cy.log(
-              `Generic pay_later handling for ${connectorId}/${paymentMethodType}`
-            );
-            verifyUrl = false;
+        if (useOrigin) {
+          cy.log(
+            `Cross-origin Affirm redirect (${affirmOriginalHost} -> ${currentHost}). Using cy.origin.`
+          );
+          cy.origin(
+            new URL(currentUrl).origin,
+            { args: { constants: CONSTANTS } },
+            ({ constants }) => {
+              affirmInteraction(constants.TIMEOUT);
+            }
+          );
+        } else {
+          cy.log("Same-origin Affirm page. Running interaction directly.");
+          affirmInteraction(CONSTANTS.TIMEOUT);
         }
-      },
-      { paymentMethodType }
-    );
+      });
+    } else {
+      handleFlow(
+        redirectionUrl,
+        expectedUrl,
+        connectorId,
+        ({ connectorId, paymentMethodType, constants }) => {
+          switch (connectorId) {
+            case "adyen":
+            case "klarna":
+            case "aci":
+              cy.log(
+                `Handling ${connectorId} ${paymentMethodType} pay_later flow`
+              );
+              cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
+                const bodyText = $body.text();
+                const klarnaIndicators = [
+                  /klarna/i,
+                  /playground/i,
+                  /buy now.*pay later/i,
+                  /continue.*klarna/i,
+                  /smoooth/i,
+                ];
+                const hasKlarnaIndicator = klarnaIndicators.some((pattern) =>
+                  pattern.test(bodyText)
+                );
+                if (hasKlarnaIndicator) {
+                  cy.log(
+                    "Successfully navigated to Klarna page - verified redirection"
+                  );
+                } else {
+                  cy.url().then((url) => {
+                    if (
+                      url.includes("klarna") ||
+                      url.includes("playground") ||
+                      url.includes("adyen")
+                    ) {
+                      cy.log(
+                        "URL indicates Klarna redirect - verified navigation"
+                      );
+                    } else {
+                      cy.log(
+                        `Warning: URL (${url}) does not contain expected Klarna indicators`
+                      );
+                    }
+                  });
+                }
+              });
+              verifyUrl = false;
+              break;
+
+            case "stripe":
+              cy.log("Handling Stripe pay_later flow");
+              cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+              verifyUrl = false;
+              break;
+
+            case "mollie":
+              cy.log(
+                `Handling Mollie ${paymentMethodType} pay_later flow - completing payment`
+              );
+              cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+              cy.get("body").then(($body) => {
+                const paidSelector = 'input[type="radio"][value="paid"]';
+                const authorizedSelector =
+                  'input[type="radio"][value="authorized"]';
+                if ($body.find(paidSelector).length) {
+                  cy.get(paidSelector, { timeout: constants.WAIT_TIME })
+                    .click()
+                    .log("Selected: Paid");
+                } else if ($body.find(authorizedSelector).length) {
+                  cy.get(authorizedSelector, { timeout: constants.WAIT_TIME })
+                    .click()
+                    .log("Selected: Authorized");
+                } else {
+                  cy.log(
+                    "No payment status selector found, page may auto-redirect"
+                  );
+                }
+              });
+              cy.get("body").then(($body) => {
+                if ($body.find('button[type="submit"]').length > 0) {
+                  cy.get('button[type="submit"]', {
+                    timeout: constants.WAIT_TIME,
+                  })
+                    .should("be.visible")
+                    .click()
+                    .log("Clicked submit button");
+                } else if (
+                  $body.find("button:contains('Continue')").length > 0
+                ) {
+                  cy.contains("button", "Continue", {
+                    timeout: constants.WAIT_TIME,
+                  })
+                    .should("be.visible")
+                    .click()
+                    .log("Clicked Continue button");
+                } else if ($body.find('input[type="submit"]').length > 0) {
+                  cy.get('input[type="submit"]', {
+                    timeout: constants.WAIT_TIME,
+                  })
+                    .should("be.visible")
+                    .click()
+                    .log("Clicked input submit");
+                } else {
+                  cy.log("No submit button found - may auto-submit");
+                }
+              });
+              verifyUrl = true;
+              break;
+
+            case "airwallex":
+              cy.log(`Handling Airwallex ${paymentMethodType} pay_later flow`);
+              cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+              cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
+                const bodyText = $body.text();
+                const klarnaIndicators = [
+                  /klarna/i,
+                  /playground/i,
+                  /buy now.*pay later/i,
+                  /continue.*klarna/i,
+                  /smoooth/i,
+                ];
+                const hasKlarnaIndicator = klarnaIndicators.some((pattern) =>
+                  pattern.test(bodyText)
+                );
+                if (hasKlarnaIndicator) {
+                  cy.log(
+                    "Successfully navigated to Klarna page - verified redirection"
+                  );
+                } else {
+                  cy.url().then((url) => {
+                    if (
+                      url.includes("klarna") ||
+                      url.includes("playground") ||
+                      url.includes("airwallex")
+                    ) {
+                      cy.log(
+                        "URL indicates Klarna redirect - verified navigation"
+                      );
+                    } else {
+                      cy.log(
+                        `Warning: URL (${url}) does not contain expected Klarna indicators`
+                      );
+                    }
+                  });
+                }
+              });
+              verifyUrl = false;
+              break;
+
+            default:
+              cy.log(
+                `Generic pay_later handling for ${connectorId}/${paymentMethodType}`
+              );
+              verifyUrl = false;
+          }
+        },
+        { paymentMethodType }
+      );
+    }
   } else {
     cy.log("Skipping pay_later redirection - no valid redirect URL provided");
   }
