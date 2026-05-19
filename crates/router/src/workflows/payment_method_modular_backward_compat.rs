@@ -429,6 +429,9 @@ pub async fn run_payment_method_modular_backward_compat_backfill(
     let payment_method = db
         .find_payment_method(
             &key_store,
+            #[cfg(feature = "v1")]
+            payment_method_id,
+            #[cfg(feature = "v2")]
             &payment_method_id,
             merchant_account.storage_scheme,
         )
