@@ -168,26 +168,72 @@ describeIfSupported("Iframe Redirection Payment Flow Tests", () => {
   });
 
   context("Negative Case - Iframe Redirection with No3DS Auth Type", () => {
-    it("Create Payment with iframe flag but no_three_ds -> Confirm -> Verify no iframe redirect", function () {
+    it("Create Payment with iframe flag but no_three_ds -> Confirm -> Verify redirect still inside popup", function () {
       let shouldContinue = true;
 
-      cy.step("Create Payment Intent with iframe flag and no_three_ds", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["IframeRedirectionCreate"];
+      cy.step(
+        "Create Payment Intent with iframe flag and no_three_ds",
+        () => {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["IframeRedirectionCreate"];
 
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "no_three_ds",
-          "automatic",
-          globalState
-        );
+          cy.createPaymentIntentTest(
+            fixtures.createPaymentBody,
+            data,
+            "no_three_ds",
+            "automatic",
+            globalState
+          );
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        }
+      );
+
+      cy.step("Payment Methods Call", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Payment Methods Call");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Payment with no_three_ds on iframe-enabled intent", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+
+        const fullData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSAutoCapture"];
+        const data = JSON.parse(JSON.stringify(fullData));
+        if (data?.Response?.body?.payment_method_data) {
+          delete data.Response.body.payment_method_data;
+        }
+
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
       });
+
+      cy.step("Verify Iframe Redirect Occurred Without 3DS", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Verify Redirect");
+          return;
+        }
+
+        cy.verifyIframeRedirection(globalState, {
+          expectRedirectInsidePopup: true,
+          expectedStatus: "succeeded",
+        });
+      });
+    });
+  });
 
       cy.step("Payment Methods Call", () => {
         if (!shouldContinue) {
