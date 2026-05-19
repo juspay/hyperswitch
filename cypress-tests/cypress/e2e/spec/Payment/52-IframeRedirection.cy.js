@@ -14,21 +14,23 @@ describe("Iframe Redirection Payment Flow Tests", () => {
     });
   });
 
+  beforeEach(function () {
+    const connectorId = globalState.get("connectorId");
+    if (!CONNECTOR_LISTS.INCLUDE.IFRAME_REDIRECTION.includes(connectorId)) {
+      cy.task(
+        "cli_log",
+        `Skipping iframe redirection test - connector ${connectorId} not in supported list`
+      );
+      this.skip();
+    }
+  });
+
   after("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
   context("Happy Path - Create Payment with Iframe Redirection Enabled", () => {
     it("Create Payment Intent with is_iframe_redirection_enabled -> Confirm Payment -> Verify Redirect Response -> Retrieve Payment", function () {
-      const connectorId = globalState.get("connectorId");
-      if (!CONNECTOR_LISTS.INCLUDE.IFRAME_REDIRECTION.includes(connectorId)) {
-        cy.task(
-          "cli_log",
-          `Skipping iframe redirection test - connector ${connectorId} not in supported list`
-        );
-        this.skip();
-      }
-
       let shouldContinue = true;
 
       cy.step(
@@ -103,15 +105,6 @@ describe("Iframe Redirection Payment Flow Tests", () => {
 
   context("Edge Case - Iframe Redirection Not Explicitly Enabled", () => {
     it("Create Payment Intent without iframe flag -> Confirm Payment -> Verify Redirect Response", function () {
-      const connectorId = globalState.get("connectorId");
-      if (!CONNECTOR_LISTS.INCLUDE.IFRAME_REDIRECTION.includes(connectorId)) {
-        cy.task(
-          "cli_log",
-          `Skipping iframe redirection test - connector ${connectorId} not in supported list`
-        );
-        this.skip();
-      }
-
       let shouldContinue = true;
 
       cy.step(
@@ -174,15 +167,6 @@ describe("Iframe Redirection Payment Flow Tests", () => {
 
   context("Negative Case - Invalid Payment Intent State", () => {
     it("Attempt iframe redirection on invalid payment state -> Verify Error Response", function () {
-      const connectorId = globalState.get("connectorId");
-      if (!CONNECTOR_LISTS.INCLUDE.IFRAME_REDIRECTION.includes(connectorId)) {
-        cy.task(
-          "cli_log",
-          `Skipping iframe redirection test - connector ${connectorId} not in supported list`
-        );
-        this.skip();
-      }
-
       let shouldContinue = true;
 
       cy.step("Create Payment Intent", () => {
