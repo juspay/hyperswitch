@@ -1403,6 +1403,10 @@ impl Customers {
                         .route(web::get().to(customers::customers_retrieve))
                         .route(web::delete().to(customers::customers_delete)),
                 )
+                .service(
+                    web::resource("/{customer_id}/payment_methods/{payment_method_id}/default")
+                        .route(web::post().to(payment_methods::default_payment_method_set_api)),
+                )
         }
         route
     }

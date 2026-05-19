@@ -377,7 +377,16 @@ impl ApiEventMetric for payment_methods::DefaultPaymentMethod {
         })
     }
 }
-
+#[cfg(feature = "v2")]
+impl ApiEventMetric for payment_methods::DefaultPaymentMethod {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethod {
+            payment_method_id: self.payment_method_id.clone(),
+            payment_method_type: None,
+            payment_method_subtype: None,
+        })
+    }
+}
 #[cfg(feature = "v2")]
 impl ApiEventMetric for payment_methods::PaymentMethodDeleteResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
@@ -443,6 +452,19 @@ impl ApiEventMetric for payment_methods::CustomerDefaultPaymentMethodResponse {
             payment_method: Some(self.payment_method),
             payment_method_type: self.payment_method_type,
         })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for payment_methods::CustomerDefaultPaymentMethodResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        self.default_payment_method_id
+            .as_ref()
+            .map(|id| ApiEventsType::PaymentMethod {
+                payment_method_id: id.clone(),
+                payment_method_type: Some(self.payment_method),
+                payment_method_subtype: self.payment_method_type,
+            })
     }
 }
 

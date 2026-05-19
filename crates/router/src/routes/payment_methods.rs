@@ -1343,6 +1343,49 @@ pub async fn default_payment_method_set_api(
     .await
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::DefaultPaymentMethodsSet))]
+pub async fn default_payment_method_set_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<payment_methods::DefaultPaymentMethod>,
+) -> HttpResponse {
+    let flow = Flow::DefaultPaymentMethodsSet;
+    let payload = path.into_inner();
+    let customer_id = payload.customer_id.clone();
+
+    let auth = auth::V2ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: true,
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, default_payment_method, _| {
+            let customer_id = customer_id.clone();
+            async move {
+                cards::PmCards {
+                    state: &state,
+                    provider: auth.platform.get_provider(),
+                }
+                .set_default_payment_method(
+                    auth.platform.get_provider().get_account().get_id(),
+                    &customer_id,
+                    default_payment_method.payment_method_id,
+                    auth.platform.get_initiator(),
+                )
+                .await
+            }
+        },
+        &auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
