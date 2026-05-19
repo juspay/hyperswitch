@@ -3,6 +3,7 @@ import State from "../../../utils/State";
 import getConnectorDetails, {
   CONNECTOR_LISTS,
   shouldIncludeConnector,
+  should_continue_further,
 } from "../../configs/Payment/Utils";
 
 let globalState;
@@ -177,7 +178,7 @@ describe("Gift Card Payment - Adyen Givex", () => {
         );
 
         if (!shouldContinue) return;
-        if (data && data.Response && data.Response.status === 501) {
+        if (!should_continue_further(data)) {
           shouldContinue = false;
         }
       });
@@ -199,11 +200,7 @@ describe("Gift Card Payment - Adyen Givex", () => {
         );
 
         if (!shouldContinue) return;
-        if (
-          confirmData &&
-          confirmData.Response &&
-          confirmData.Response.status === 501
-        ) {
+        if (!should_continue_further(confirmData)) {
           shouldContinue = false;
         }
       });
