@@ -460,7 +460,10 @@ describe("Bank Redirect tests", () => {
           "bank_redirect_pm"
         ]["OpenBankingUk"]["Refund"];
         if (!refundData) {
-          cy.task("cli_log", "Refund config not found for OpenBankingUk — skipping");
+          cy.task(
+            "cli_log",
+            "Refund config not found for OpenBankingUk — skipping"
+          );
           return;
         }
         const newRefundData = {
@@ -729,7 +732,10 @@ describe("Bank Redirect tests", () => {
           "bank_redirect_pm"
         ]["OpenBanking"]["Refund"];
         if (!refundData) {
-          cy.task("cli_log", "Refund config not found for OpenBanking — skipping");
+          cy.task(
+            "cli_log",
+            "Refund config not found for OpenBanking — skipping"
+          );
           return;
         }
         const newRefundData = {
