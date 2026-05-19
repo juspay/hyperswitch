@@ -1346,7 +1346,7 @@ export const connectorDetails = {
             pay_safe_card: {},
           },
         },
-        customer_acceptance: null,
+        return_url: "https://example.com",
       },
       Response: {
         status: 200,
