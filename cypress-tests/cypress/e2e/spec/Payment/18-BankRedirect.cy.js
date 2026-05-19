@@ -660,4 +660,57 @@ describe("Bank Redirect tests", () => {
       });
     });
   });
+
+  context(
+    "BancontactCard - MandateSingleUse Create + Confirm flow test",
+    () => {
+      let shouldContinue = true;
+
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
+
+      it("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["PaymentIntent"]("BancontactCard");
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("List Merchant Payment Methods", () => {
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      it("Confirm BancontactCard mandate CIT", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["BancontactCard"]["MandateSingleUse"];
+
+        cy.citForMandatesCallTest(
+          fixtures.citConfirmBody,
+          data,
+          8000,
+          true,
+          "automatic",
+          "new_mandate",
+          globalState
+        );
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
+    }
+  );
 });
