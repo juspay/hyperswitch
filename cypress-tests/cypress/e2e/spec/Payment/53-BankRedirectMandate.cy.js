@@ -40,6 +40,15 @@ describe("Bank Redirect Mandate tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["PaymentIntentOffSession"]("Ideal");
+        cy.task("cli_log", "Config resolved: " + JSON.stringify(data));
+        if (!data || !data.Request) {
+          cy.task(
+            "cli_log",
+            "ERROR: Invalid PaymentIntentOffSession config for Ideal"
+          );
+          shouldContinue = false;
+          return;
+        }
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -63,12 +72,38 @@ describe("Bank Redirect Mandate tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["IdealMandateSingleUseNo3DSAutoCapture"];
-        cy.confirmBankRedirectCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
+        const { Request: reqData, Response: resData } = confirmData;
+
+        const requestBody = { ...fixtures.confirmBody };
+        for (const key in reqData) {
+          requestBody[key] = reqData[key];
+        }
+        delete requestBody.client_secret;
+        requestBody.confirm = true;
+        requestBody.profile_id = globalState.get("profileId");
+        requestBody.customer_id = globalState.get("customerId");
+
+        cy.request({
+          method: "POST",
+          url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}/confirm`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+          body: requestBody,
+        }).then((response) => {
+cy.wrap(response).then(() => {
+            expect(response.status).to.equal(resData.status);
+            if (response.status === 200 && resData.body.status !== "failed") {
+              globalState.set("paymentMethodType", requestBody.payment_method_type);
+              globalState.set("nextActionUrl", response.body.next_action?.redirect_to_url);
+            } else if (response.body.status === "failed") {
+              expect(response.body.error_code).to.equal(resData.body.error_code);
+            }
+          });
+        });
+
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
@@ -211,6 +246,15 @@ describe("Bank Redirect Mandate tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["PaymentIntentOffSession"]("Ideal");
+        cy.task("cli_log", "Config resolved: " + JSON.stringify(data));
+        if (!data || !data.Request) {
+          cy.task(
+            "cli_log",
+            "ERROR: Invalid PaymentIntentOffSession config for Ideal"
+          );
+          shouldContinue = false;
+          return;
+        }
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -234,12 +278,38 @@ describe("Bank Redirect Mandate tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["IdealMandateMultiUseNo3DSAutoCapture"];
-        cy.confirmBankRedirectCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
+        const { Request: reqData, Response: resData } = confirmData;
+
+        const requestBody = { ...fixtures.confirmBody };
+        for (const key in reqData) {
+          requestBody[key] = reqData[key];
+        }
+        delete requestBody.client_secret;
+        requestBody.confirm = true;
+        requestBody.profile_id = globalState.get("profileId");
+        requestBody.customer_id = globalState.get("customerId");
+
+        cy.request({
+          method: "POST",
+          url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}/confirm`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+          body: requestBody,
+        }).then((response) => {
+cy.wrap(response).then(() => {
+            expect(response.status).to.equal(resData.status);
+            if (response.status === 200 && resData.body.status !== "failed") {
+              globalState.set("paymentMethodType", requestBody.payment_method_type);
+              globalState.set("nextActionUrl", response.body.next_action?.redirect_to_url);
+            } else if (response.body.status === "failed") {
+              expect(response.body.error_code).to.equal(resData.body.error_code);
+            }
+          });
+        });
+
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
@@ -382,6 +452,15 @@ describe("Bank Redirect Mandate tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["PaymentIntentOffSession"]("Eps");
+        cy.task("cli_log", "Config resolved: " + JSON.stringify(data));
+        if (!data || !data.Request) {
+          cy.task(
+            "cli_log",
+            "ERROR: Invalid PaymentIntentOffSession config for Eps"
+          );
+          shouldContinue = false;
+          return;
+        }
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -405,12 +484,38 @@ describe("Bank Redirect Mandate tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["EpsMandateSingleUseNo3DSAutoCapture"];
-        cy.confirmBankRedirectCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
+        const { Request: reqData, Response: resData } = confirmData;
+
+        const requestBody = { ...fixtures.confirmBody };
+        for (const key in reqData) {
+          requestBody[key] = reqData[key];
+        }
+        delete requestBody.client_secret;
+        requestBody.confirm = true;
+        requestBody.profile_id = globalState.get("profileId");
+        requestBody.customer_id = globalState.get("customerId");
+
+        cy.request({
+          method: "POST",
+          url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}/confirm`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+          body: requestBody,
+        }).then((response) => {
+cy.wrap(response).then(() => {
+            expect(response.status).to.equal(resData.status);
+            if (response.status === 200 && resData.body.status !== "failed") {
+              globalState.set("paymentMethodType", requestBody.payment_method_type);
+              globalState.set("nextActionUrl", response.body.next_action?.redirect_to_url);
+            } else if (response.body.status === "failed") {
+              expect(response.body.error_code).to.equal(resData.body.error_code);
+            }
+          });
+        });
+
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
@@ -553,6 +658,15 @@ describe("Bank Redirect Mandate tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["PaymentIntentOffSession"]("Eps");
+        cy.task("cli_log", "Config resolved: " + JSON.stringify(data));
+        if (!data || !data.Request) {
+          cy.task(
+            "cli_log",
+            "ERROR: Invalid PaymentIntentOffSession config for Eps"
+          );
+          shouldContinue = false;
+          return;
+        }
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -576,12 +690,38 @@ describe("Bank Redirect Mandate tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["EpsMandateMultiUseNo3DSAutoCapture"];
-        cy.confirmBankRedirectCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
+        const { Request: reqData, Response: resData } = confirmData;
+
+        const requestBody = { ...fixtures.confirmBody };
+        for (const key in reqData) {
+          requestBody[key] = reqData[key];
+        }
+        delete requestBody.client_secret;
+        requestBody.confirm = true;
+        requestBody.profile_id = globalState.get("profileId");
+        requestBody.customer_id = globalState.get("customerId");
+
+        cy.request({
+          method: "POST",
+          url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}/confirm`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+          body: requestBody,
+        }).then((response) => {
+cy.wrap(response).then(() => {
+            expect(response.status).to.equal(resData.status);
+            if (response.status === 200 && resData.body.status !== "failed") {
+              globalState.set("paymentMethodType", requestBody.payment_method_type);
+              globalState.set("nextActionUrl", response.body.next_action?.redirect_to_url);
+            } else if (response.body.status === "failed") {
+              expect(response.body.error_code).to.equal(resData.body.error_code);
+            }
+          });
+        });
+
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
@@ -724,6 +864,15 @@ describe("Bank Redirect Mandate tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["PaymentIntentOffSession"]("Giropay");
+        cy.task("cli_log", "Config resolved: " + JSON.stringify(data));
+        if (!data || !data.Request) {
+          cy.task(
+            "cli_log",
+            "ERROR: Invalid PaymentIntentOffSession config for Giropay"
+          );
+          shouldContinue = false;
+          return;
+        }
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -747,12 +896,38 @@ describe("Bank Redirect Mandate tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["GiropayMandateSingleUseNo3DSAutoCapture"];
-        cy.confirmBankRedirectCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
+        const { Request: reqData, Response: resData } = confirmData;
+
+        const requestBody = { ...fixtures.confirmBody };
+        for (const key in reqData) {
+          requestBody[key] = reqData[key];
+        }
+        delete requestBody.client_secret;
+        requestBody.confirm = true;
+        requestBody.profile_id = globalState.get("profileId");
+        requestBody.customer_id = globalState.get("customerId");
+
+        cy.request({
+          method: "POST",
+          url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}/confirm`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+          body: requestBody,
+        }).then((response) => {
+cy.wrap(response).then(() => {
+            expect(response.status).to.equal(resData.status);
+            if (response.status === 200 && resData.body.status !== "failed") {
+              globalState.set("paymentMethodType", requestBody.payment_method_type);
+              globalState.set("nextActionUrl", response.body.next_action?.redirect_to_url);
+            } else if (response.body.status === "failed") {
+              expect(response.body.error_code).to.equal(resData.body.error_code);
+            }
+          });
+        });
+
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
@@ -895,6 +1070,15 @@ describe("Bank Redirect Mandate tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["PaymentIntentOffSession"]("Giropay");
+        cy.task("cli_log", "Config resolved: " + JSON.stringify(data));
+        if (!data || !data.Request) {
+          cy.task(
+            "cli_log",
+            "ERROR: Invalid PaymentIntentOffSession config for Giropay"
+          );
+          shouldContinue = false;
+          return;
+        }
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -918,12 +1102,38 @@ describe("Bank Redirect Mandate tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["GiropayMandateMultiUseNo3DSAutoCapture"];
-        cy.confirmBankRedirectCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
+        const { Request: reqData, Response: resData } = confirmData;
+
+        const requestBody = { ...fixtures.confirmBody };
+        for (const key in reqData) {
+          requestBody[key] = reqData[key];
+        }
+        delete requestBody.client_secret;
+        requestBody.confirm = true;
+        requestBody.profile_id = globalState.get("profileId");
+        requestBody.customer_id = globalState.get("customerId");
+
+        cy.request({
+          method: "POST",
+          url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}/confirm`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+          body: requestBody,
+        }).then((response) => {
+cy.wrap(response).then(() => {
+            expect(response.status).to.equal(resData.status);
+            if (response.status === 200 && resData.body.status !== "failed") {
+              globalState.set("paymentMethodType", requestBody.payment_method_type);
+              globalState.set("nextActionUrl", response.body.next_action?.redirect_to_url);
+            } else if (response.body.status === "failed") {
+              expect(response.body.error_code).to.equal(resData.body.error_code);
+            }
+          });
+        });
+
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
@@ -1065,6 +1275,15 @@ describe("Bank Redirect Mandate tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["PaymentIntentOffSession"]("Sofort");
+        cy.task("cli_log", "Config resolved: " + JSON.stringify(data));
+        if (!data || !data.Request) {
+          cy.task(
+            "cli_log",
+            "ERROR: Invalid PaymentIntentOffSession config for Sofort"
+          );
+          shouldContinue = false;
+          return;
+        }
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -1088,12 +1307,38 @@ describe("Bank Redirect Mandate tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["SofortMandateSingleUseNo3DSAutoCapture"];
-        cy.confirmBankRedirectCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
+        const { Request: reqData, Response: resData } = confirmData;
+
+        const requestBody = { ...fixtures.confirmBody };
+        for (const key in reqData) {
+          requestBody[key] = reqData[key];
+        }
+        delete requestBody.client_secret;
+        requestBody.confirm = true;
+        requestBody.profile_id = globalState.get("profileId");
+        requestBody.customer_id = globalState.get("customerId");
+
+        cy.request({
+          method: "POST",
+          url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}/confirm`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+          body: requestBody,
+        }).then((response) => {
+cy.wrap(response).then(() => {
+            expect(response.status).to.equal(resData.status);
+            if (response.status === 200 && resData.body.status !== "failed") {
+              globalState.set("paymentMethodType", requestBody.payment_method_type);
+              globalState.set("nextActionUrl", response.body.next_action?.redirect_to_url);
+            } else if (response.body.status === "failed") {
+              expect(response.body.error_code).to.equal(resData.body.error_code);
+            }
+          });
+        });
+
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
@@ -1109,6 +1354,15 @@ describe("Bank Redirect Mandate tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["PaymentIntentOffSession"]("Sofort");
+        cy.task("cli_log", "Config resolved: " + JSON.stringify(data));
+        if (!data || !data.Request) {
+          cy.task(
+            "cli_log",
+            "ERROR: Invalid PaymentIntentOffSession config for Sofort"
+          );
+          shouldContinue = false;
+          return;
+        }
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -1132,12 +1386,38 @@ describe("Bank Redirect Mandate tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["SofortMandateMultiUseNo3DSAutoCapture"];
-        cy.confirmBankRedirectCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
+        const { Request: reqData, Response: resData } = confirmData;
+
+        const requestBody = { ...fixtures.confirmBody };
+        for (const key in reqData) {
+          requestBody[key] = reqData[key];
+        }
+        delete requestBody.client_secret;
+        requestBody.confirm = true;
+        requestBody.profile_id = globalState.get("profileId");
+        requestBody.customer_id = globalState.get("customerId");
+
+        cy.request({
+          method: "POST",
+          url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}/confirm`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+          body: requestBody,
+        }).then((response) => {
+cy.wrap(response).then(() => {
+            expect(response.status).to.equal(resData.status);
+            if (response.status === 200 && resData.body.status !== "failed") {
+              globalState.set("paymentMethodType", requestBody.payment_method_type);
+              globalState.set("nextActionUrl", response.body.next_action?.redirect_to_url);
+            } else if (response.body.status === "failed") {
+              expect(response.body.error_code).to.equal(resData.body.error_code);
+            }
+          });
+        });
+
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }

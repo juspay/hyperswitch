@@ -916,6 +916,7 @@ export const connectorDetails = {
         Request: {
           currency: currencyMap[paymentMethodType] || "EUR",
           setup_future_usage: "off_session",
+          customer_acceptance: null,
         },
         Response: {
           status: 200,
@@ -1158,6 +1159,7 @@ export const connectorDetails = {
     IdealMITAutoCapture: {
       Request: {
         currency: "EUR",
+        off_session: true,
         billing: {
           address: {
             line1: "1467",
@@ -1266,6 +1268,7 @@ export const connectorDetails = {
     EpsMITAutoCapture: {
       Request: {
         currency: "EUR",
+        off_session: true,
         billing: {
           address: {
             line1: "1467",
@@ -1372,6 +1375,7 @@ export const connectorDetails = {
     GiropayMITAutoCapture: {
       Request: {
         currency: "EUR",
+        off_session: true,
         billing: {
           address: {
             line1: "1467",
@@ -1398,9 +1402,6 @@ export const connectorDetails = {
       },
     },
     SofortMandateSingleUseNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "sofort",
@@ -1443,9 +1444,6 @@ export const connectorDetails = {
       },
     },
     SofortMandateMultiUseNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "sofort",
@@ -1490,6 +1488,7 @@ export const connectorDetails = {
     SofortMITAutoCapture: {
       Request: {
         currency: "EUR",
+        off_session: true,
         billing: {
           address: {
             line1: "1467",
