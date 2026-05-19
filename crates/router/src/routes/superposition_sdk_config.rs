@@ -2,11 +2,14 @@ use actix_web::{web, HttpRequest, HttpResponse};
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
+#[cfg(feature = "v1")]
+use crate::core::superposition_sdk_config;
 use crate::{
-    core::{api_locking, superposition_sdk_config},
+    core::api_locking,
     services::{api, authentication as auth},
 };
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::GetSuperpositionSdkConfig))]
 pub async fn get_sdk_config(
     state: web::Data<AppState>,

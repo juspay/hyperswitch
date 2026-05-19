@@ -644,7 +644,7 @@ pub async fn get_token_pm_type_mandate_details(
                         .payment_method_type
                         .map(|payment_method_type_value| {
                             payment_method_type_value
-                                .should_check_for_customer_saved_payment_method_type()
+                                .should_check_for_customer_saved_payment_method_type(false)
                         })
                         .unwrap_or(false)
                     {
@@ -3003,6 +3003,10 @@ pub async fn fetch_card_details_from_external_vault(
         hyperswitch_domain_models::vault::PaymentMethodVaultingData::BankDebit(_) => {
             Err(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Bank Debit not supported")
+        }
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::Wallet(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Wallet not supported")
         }
     }
 }
@@ -5365,6 +5369,7 @@ impl AttemptType {
             routing_approach: old_payment_attempt.routing_approach,
             connector_request_reference_id: None,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             network_details: None,
             is_stored_credential: old_payment_attempt.is_stored_credential,
             authorized_amount: old_payment_attempt.authorized_amount,

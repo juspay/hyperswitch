@@ -612,6 +612,10 @@ diesel::table! {
         delivery_attempt -> Nullable<WebhookDeliveryAttempt>,
         metadata -> Nullable<Jsonb>,
         is_overall_delivery_successful -> Nullable<Bool>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        initiator_merchant_id -> Nullable<Varchar>,
     }
 }
 
@@ -1142,6 +1146,8 @@ diesel::table! {
         retry_type -> Nullable<Varchar>,
         installment_data -> Nullable<Jsonb>,
         external_surcharge_details -> Nullable<Jsonb>,
+        #[max_length = 255]
+        network_transaction_link_id -> Nullable<Varchar>,
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
@@ -1363,7 +1369,11 @@ diesel::table! {
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 64]
         payment_method_subtype -> Nullable<Varchar>,
+        #[max_length = 255]
+        network_transaction_link_id -> Nullable<Varchar>,
         external_vault_token_data -> Nullable<Bytea>,
+        #[max_length = 64]
+        auxiliary_fingerprint_id -> Nullable<Varchar>,
     }
 }
 

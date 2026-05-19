@@ -712,6 +712,7 @@ impl<F, T>
                     })),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -814,7 +815,10 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>>
             .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
         {
             Some(api_models::payments::MandateReferenceId::NetworkMandateId(network_trans_id)) => {
-                TransactionRequest::try_from((item, network_trans_id))?
+                TransactionRequest::try_from((
+                    item,
+                    network_trans_id.network_transaction_id.clone(),
+                ))?
             }
             Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
                 connector_mandate_id,
@@ -1622,6 +1626,7 @@ impl<F, T>
                                 .network_trans_id
                                 .clone()
                                 .map(|network_trans_id| network_trans_id.expose()),
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(
                                 transaction_response.transaction_id.clone(),
                             ),
@@ -1698,6 +1703,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, Payment
                                 .network_trans_id
                                 .clone()
                                 .map(|network_trans_id| network_trans_id.expose()),
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(
                                 transaction_response.transaction_id.clone(),
                             ),
@@ -2058,6 +2064,7 @@ impl<F, Req> TryFrom<ResponseRouterData<F, AuthorizedotnetSyncResponse, Req, Pay
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(transaction.transaction_id.clone()),
                         incremental_authorization_allowed: None,
                         authentication_data: None,
