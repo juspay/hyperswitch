@@ -247,12 +247,12 @@ function payLaterRedirection(
 
                   // Step 1: Enter phone number if phone field is present
                   const phoneSelectors = [
-                    'input[name*="phone" i]',
-                    'input[name*="mobile" i]',
-                    'input[name*="cell" i]',
-                    'input[placeholder*="phone" i]',
+                    'input[name*="phone"]',
+                    'input[name*="mobile"]',
+                    'input[name*="cell"]',
+                    'input[placeholder*="phone"]',
                     'input[type="tel"]',
-                    'input[id*="phone" i]',
+                    'input[id*="phone"]',
                   ];
                   let phoneFound = false;
                   for (const sel of phoneSelectors) {
@@ -294,13 +294,13 @@ function payLaterRedirection(
                   cy.get("body", { timeout: constants.TIMEOUT }).then(
                     ($body2) => {
                       const pinSelectors = [
-                        'input[name*="pin" i]',
-                        'input[name*="code" i]',
-                        'input[name*="otp" i]',
-                        'input[placeholder*="code" i]',
-                        'input[placeholder*="PIN" i]',
-                        'input[id*="pin" i]',
-                        'input[id*="code" i]',
+                        'input[name*="pin"]',
+                        'input[name*="code"]',
+                        'input[name*="otp"]',
+                        'input[placeholder*="code"]',
+                        'input[placeholder*="PIN"]',
+                        'input[id*="pin"]',
+                        'input[id*="code"]',
                         'input[type="password"]',
                       ];
                       for (const pinSel of pinSelectors) {
@@ -316,13 +316,13 @@ function payLaterRedirection(
 
                       // Step 4: Enter SSN if present
                       const ssnSelectors = [
-                        'input[name*="ssn" i]',
-                        'input[name*="social" i]',
-                        'input[name*="sin" i]',
-                        'input[id*="ssn" i]',
-                        'input[placeholder*="SSN" i]',
-                        'input[placeholder*="social" i]',
-                        'input[autocomplete*="ssn" i]',
+                        'input[name*="ssn"]',
+                        'input[name*="social"]',
+                        'input[name*="sin"]',
+                        'input[id*="ssn"]',
+                        'input[placeholder*="SSN"]',
+                        'input[placeholder*="social"]',
+                        'input[autocomplete*="ssn"]',
                       ];
                       for (const ssnSel of ssnSelectors) {
                         if ($body2.find(ssnSel).length > 0) {
