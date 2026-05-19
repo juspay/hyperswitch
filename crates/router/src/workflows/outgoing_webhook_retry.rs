@@ -53,14 +53,29 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             .parse_value("OutgoingWebhookTrackingData")?;
 
         let db = &*state.store;
-        let key_store = db
-            .get_merchant_key_store_by_merchant_id(
-                &tracking_data.merchant_id,
-                &db.get_master_key().to_vec().into(),
-            )
+        let master_key = &db.get_master_key().to_vec().into();
+        let provider_merchant_id = tracking_data.merchant_id.clone();
+
+        // Resolve the webhook recipient's merchant_id for keystore lookup.
+        // `initiator_merchant_id` is populated by new deployments; fall back to
+        // `merchant_id` for tracking data written by older deployments.
+        let webhook_recipient_merchant_id = tracking_data
+            .initiator_merchant_id
+            .clone()
+            .unwrap_or_else(|| tracking_data.merchant_id.clone());
+        let processor_merchant_id = tracking_data
+            .processor_merchant_id
+            .clone()
+            .unwrap_or_else(|| tracking_data.merchant_id.clone());
+
+        let webhook_key_store = db
+            .get_merchant_key_store_by_merchant_id(&webhook_recipient_merchant_id, master_key)
             .await?;
         let business_profile = db
-            .find_business_profile_by_profile_id(&key_store, &tracking_data.business_profile_id)
+            .find_business_profile_by_profile_id(
+                &webhook_key_store,
+                &tracking_data.business_profile_id,
+            )
             .await?;
 
         let event_id = webhooks_core::utils::generate_event_id();
@@ -72,30 +87,18 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
         .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
         .attach_printable("Failed to generate idempotent event ID")?;
 
-        let initial_event = match &tracking_data.initial_attempt_id {
-            Some(initial_attempt_id) => {
-                db.find_event_by_merchant_id_event_id(
-                    &business_profile.merchant_id,
-                    initial_attempt_id,
-                    &key_store,
-                )
-                .await?
-            }
-            // Tracking data inserted by old version of application, fetch event using old event ID
-            // format
-            None => {
-                let old_event_id = format!(
-                    "{}_{}",
-                    tracking_data.primary_object_id, tracking_data.event_type
-                );
-                db.find_event_by_merchant_id_event_id(
-                    &business_profile.merchant_id,
-                    &old_event_id,
-                    &key_store,
-                )
-                .await?
-            }
-        };
+        // Look up the initial event by event_id alone (event_id is globally unique).
+        // This works regardless of which merchant owns the event and also handles
+        // old tracking data created before `initial_attempt_id` was tracked.
+        let initial_attempt_id = tracking_data.initial_attempt_id.clone().unwrap_or_else(|| {
+            format!(
+                "{}_{}",
+                tracking_data.primary_object_id, tracking_data.event_type
+            )
+        });
+        let initial_event = db
+            .find_event_by_event_id(&initial_attempt_id, &webhook_key_store)
+            .await?;
 
         let now = common_utils::date_time::now();
         let new_event = domain::Event {
@@ -106,7 +109,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             primary_object_id: initial_event.primary_object_id,
             primary_object_type: initial_event.primary_object_type,
             created_at: now,
-            merchant_id: Some(business_profile.merchant_id.clone()),
+            merchant_id: Some(provider_merchant_id.clone()),
             business_profile_id: Some(business_profile.get_id().to_owned()),
             primary_object_created_at: initial_event.primary_object_created_at,
             idempotent_event_id: Some(idempotent_event_id),
@@ -116,10 +119,16 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             delivery_attempt: Some(delivery_attempt),
             metadata: initial_event.metadata,
             is_overall_delivery_successful: Some(false),
+            processor_merchant_id: initial_event
+                .processor_merchant_id
+                .or(Some(processor_merchant_id.clone())),
+            initiator_merchant_id: initial_event
+                .initiator_merchant_id
+                .or(Some(webhook_key_store.merchant_id.clone())),
         };
 
         let event = db
-            .insert_event(new_event, &key_store)
+            .insert_event(new_event, &webhook_key_store)
             .await
             .inspect_err(|error| {
                 logger::error!(?error, "Failed to insert event in events table");
@@ -135,7 +144,9 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                 Box::pin(webhooks_core::trigger_webhook_and_raise_event(
                     state.clone(),
                     business_profile,
-                    &key_store,
+                    &webhook_key_store,
+                    provider_merchant_id,
+                    processor_merchant_id,
                     event,
                     request_content,
                     delivery_attempt,
@@ -148,23 +159,48 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             // Event inserted by old version of application, fetch current information about
             // resource
             None => {
-                let merchant_account = db
-                    .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &key_store)
+                // Fetch provider merchant account and keystore
+                let provider_key_store = db
+                    .get_merchant_key_store_by_merchant_id(&provider_merchant_id, master_key)
+                    .await?;
+                let provider_account = db
+                    .find_merchant_account_by_merchant_id(
+                        &provider_merchant_id,
+                        &provider_key_store,
+                    )
                     .await?;
 
+                // Fetch processor merchant account and keystore (may be same as provider)
+                let (processor_account, processor_key_store) = if provider_merchant_id
+                    == processor_merchant_id
+                {
+                    (provider_account.clone(), provider_key_store.clone())
+                } else {
+                    let processor_key_store = db
+                        .get_merchant_key_store_by_merchant_id(&processor_merchant_id, master_key)
+                        .await?;
+                    let processor_account = db
+                        .find_merchant_account_by_merchant_id(
+                            &processor_merchant_id,
+                            &processor_key_store,
+                        )
+                        .await?;
+                    (processor_account, processor_key_store)
+                };
+
                 let platform = domain::Platform::new(
-                    merchant_account.clone(),
-                    key_store.clone(),
-                    merchant_account.clone(),
-                    key_store.clone(),
+                    provider_account,
+                    provider_key_store,
+                    processor_account,
+                    processor_key_store,
                     None,
                 );
+
                 // TODO: Add request state for the PT flows as well
                 let (content, event_type) = Box::pin(get_outgoing_webhook_content_and_event_type(
                     state.clone(),
                     state.get_req_state(),
-                    merchant_account.clone(),
-                    key_store.clone(),
+                    &platform,
                     &tracking_data,
                 ))
                 .await?;
@@ -173,15 +209,26 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                     // Resource status is same as the event type of the current event
                     Some(event_type) if event_type == tracking_data.event_type => {
                         let outgoing_webhook = OutgoingWebhook {
-                            merchant_id: tracking_data.merchant_id.clone(),
+                            merchant_id: provider_merchant_id.clone(),
                             event_id: event.event_id.clone(),
                             event_type,
                             content: content.clone(),
                             timestamp: event.created_at,
+                            processor_merchant_id: Some(processor_merchant_id.clone()),
                         };
 
+                        // Use the webhook recipient's merchant account for request construction.
+                        // If the recipient is the provider, use the provider account (platform-initiated);
+                        // otherwise use the processor account (connected-merchant-initiated).
+                        let webhook_recipient_account =
+                            if webhook_recipient_merchant_id == provider_merchant_id {
+                                platform.get_provider().get_account()
+                            } else {
+                                platform.get_processor().get_account()
+                            };
+
                         let request_content = webhooks_core::get_outgoing_webhook_request(
-                            platform.get_processor(),
+                            webhook_recipient_account,
                             outgoing_webhook,
                             &business_profile,
                         )
@@ -196,7 +243,9 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                         Box::pin(webhooks_core::trigger_webhook_and_raise_event(
                             state.clone(),
                             business_profile,
-                            &key_store,
+                            &webhook_key_store,
+                            provider_merchant_id,
+                            processor_merchant_id,
                             event,
                             request_content,
                             delivery_attempt,
@@ -351,8 +400,7 @@ pub(crate) async fn retry_webhook_delivery_task(
 async fn get_outgoing_webhook_content_and_event_type(
     state: SessionState,
     req_state: ReqState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
+    platform: &domain::Platform,
     tracking_data: &OutgoingWebhookTrackingData,
 ) -> Result<(OutgoingWebhookContent, Option<EventType>), errors::ProcessTrackerError> {
     use api_models::{
@@ -372,14 +420,6 @@ async fn get_outgoing_webhook_content_and_event_type(
         services::{ApplicationResponse, AuthFlow},
         types::{api::PSync, transformers::ForeignFrom},
     };
-
-    let platform = domain::Platform::new(
-        merchant_account.clone(),
-        key_store.clone(),
-        merchant_account.clone(),
-        key_store.clone(),
-        None,
-    );
 
     match tracking_data.event_class {
         diesel_models::enums::EventClass::Payments => {
@@ -548,7 +588,7 @@ async fn get_outgoing_webhook_content_and_event_type(
 
             let payout_data = Box::pin(payouts::make_payout_data(
                 &state,
-                &platform,
+                platform,
                 None,
                 &request,
                 DEFAULT_LOCALE,
@@ -556,7 +596,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             .await?;
 
             let payout_create_response =
-                payouts::response_handler(&state, &platform, &payout_data).await?;
+                payouts::response_handler(&state, platform, &payout_data).await?;
 
             let event_type: Option<EventType> = payout_data.payout_attempt.status.into();
             logger::debug!(current_resource_status=%payout_data.payout_attempt.status);
@@ -573,10 +613,10 @@ async fn get_outgoing_webhook_content_and_event_type(
             let response = Box::pin(
                 invoice_sync::InvoiceSyncHandler::form_response_for_retry_outgoing_webhook_task(
                     state.clone().into(),
-                    &key_store,
+                    platform.get_processor().get_key_store(),
                     invoice_id,
                     profile_id,
-                    &merchant_account,
+                    platform.get_processor().get_account(),
                 ),
             )
             .await
