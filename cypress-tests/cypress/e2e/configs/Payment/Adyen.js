@@ -39,6 +39,38 @@ const singleUseMandateData = {
   },
 };
 
+const mandateBrowserInfo = {
+  user_agent:
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+  accept_header:
+    "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+  language: "nl-NL",
+  color_depth: 24,
+  screen_height: 723,
+  screen_width: 1536,
+  time_zone: 0,
+  java_enabled: true,
+  java_script_enabled: true,
+  ip_address: "127.0.0.1",
+};
+
+const getMandateData = (currency) => ({
+  customer_acceptance: {
+    acceptance_type: "online",
+    accepted_at: "2025-01-01T00:00:00.000Z",
+    online: {
+      ip_address: "127.0.0.1",
+      user_agent: "Mozilla/5.0",
+    },
+  },
+  mandate_type: {
+    single_use: {
+      amount: 6540,
+      currency,
+    },
+  },
+});
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -1078,7 +1110,7 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
-      MandateSingleUse: {
+      MandateSingleUseAutoCapture: {
         Request: {
           payment_method: "bank_redirect",
           payment_method_type: "ideal",
@@ -1089,20 +1121,7 @@ export const connectorDetails = {
               },
             },
           },
-          browser_info: {
-            user_agent:
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
-            accept_header:
-              "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-            language: "nl-NL",
-            color_depth: 24,
-            screen_height: 723,
-            screen_width: 1536,
-            time_zone: 0,
-            java_enabled: true,
-            java_script_enabled: true,
-            ip_address: "127.0.0.1",
-          },
+          browser_info: mandateBrowserInfo,
           currency: "EUR",
           billing: {
             address: {
@@ -1121,22 +1140,7 @@ export const connectorDetails = {
               country_code: "+31",
             },
           },
-          mandate_data: {
-            customer_acceptance: {
-              acceptance_type: "online",
-              accepted_at: "2025-01-01T00:00:00.000Z",
-              online: {
-                ip_address: "127.0.0.1",
-                user_agent: "Mozilla/5.0",
-              },
-            },
-            mandate_type: {
-              single_use: {
-                amount: 6540,
-                currency: "EUR",
-              },
-            },
-          },
+          mandate_data: getMandateData("EUR"),
           payment_type: "new_mandate",
           setup_future_usage: "off_session",
         },
@@ -1185,7 +1189,7 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
-      MandateSingleUse: {
+      MandateSingleUseAutoCapture: {
         Request: {
           payment_method: "bank_redirect",
           payment_method_type: "bancontact_card",
@@ -1198,20 +1202,7 @@ export const connectorDetails = {
               },
             },
           },
-          browser_info: {
-            user_agent:
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
-            accept_header:
-              "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-            language: "nl-NL",
-            color_depth: 24,
-            screen_height: 723,
-            screen_width: 1536,
-            time_zone: 0,
-            java_enabled: true,
-            java_script_enabled: true,
-            ip_address: "127.0.0.1",
-          },
+          browser_info: mandateBrowserInfo,
           currency: "EUR",
           billing: {
             address: {
@@ -1229,22 +1220,7 @@ export const connectorDetails = {
               country_code: "+32",
             },
           },
-          mandate_data: {
-            customer_acceptance: {
-              acceptance_type: "online",
-              accepted_at: "2025-01-01T00:00:00.000Z",
-              online: {
-                ip_address: "127.0.0.1",
-                user_agent: "Mozilla/5.0",
-              },
-            },
-            mandate_type: {
-              single_use: {
-                amount: 6540,
-                currency: "EUR",
-              },
-            },
-          },
+          mandate_data: getMandateData("EUR"),
           payment_type: "new_mandate",
           setup_future_usage: "off_session",
         },
@@ -1290,7 +1266,7 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
-      MandateSingleUse: {
+      MandateSingleUseAutoCapture: {
         Request: {
           payment_method: "bank_redirect",
           payment_method_type: "open_banking_uk",
@@ -1301,20 +1277,7 @@ export const connectorDetails = {
               },
             },
           },
-          browser_info: {
-            user_agent:
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
-            accept_header:
-              "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-            language: "nl-NL",
-            color_depth: 24,
-            screen_height: 723,
-            screen_width: 1536,
-            time_zone: 0,
-            java_enabled: true,
-            java_script_enabled: true,
-            ip_address: "127.0.0.1",
-          },
+          browser_info: mandateBrowserInfo,
           currency: "GBP",
           billing: {
             address: {
@@ -1331,22 +1294,7 @@ export const connectorDetails = {
               country_code: "+44",
             },
           },
-          mandate_data: {
-            customer_acceptance: {
-              acceptance_type: "online",
-              accepted_at: "2025-01-01T00:00:00.000Z",
-              online: {
-                ip_address: "127.0.0.1",
-                user_agent: "Mozilla/5.0",
-              },
-            },
-            mandate_type: {
-              single_use: {
-                amount: 6540,
-                currency: "GBP",
-              },
-            },
-          },
+          mandate_data: getMandateData("GBP"),
           payment_type: "new_mandate",
           setup_future_usage: "off_session",
         },
@@ -1395,7 +1343,7 @@ export const connectorDetails = {
       Configs: {
         TRIGGER_SKIP: true,
       },
-      MandateSingleUse: {
+      MandateSingleUseAutoCapture: {
         Request: {
           payment_method: "bank_redirect",
           payment_method_type: "trustly",
@@ -1406,20 +1354,7 @@ export const connectorDetails = {
               },
             },
           },
-          browser_info: {
-            user_agent:
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
-            accept_header:
-              "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-            language: "nl-NL",
-            color_depth: 24,
-            screen_height: 723,
-            screen_width: 1536,
-            time_zone: 0,
-            java_enabled: true,
-            java_script_enabled: true,
-            ip_address: "127.0.0.1",
-          },
+          browser_info: mandateBrowserInfo,
           currency: "EUR",
           billing: {
             address: {
@@ -1436,22 +1371,7 @@ export const connectorDetails = {
               country_code: "+46",
             },
           },
-          mandate_data: {
-            customer_acceptance: {
-              acceptance_type: "online",
-              accepted_at: "2025-01-01T00:00:00.000Z",
-              online: {
-                ip_address: "127.0.0.1",
-                user_agent: "Mozilla/5.0",
-              },
-            },
-            mandate_type: {
-              single_use: {
-                amount: 6540,
-                currency: "EUR",
-              },
-            },
-          },
+          mandate_data: getMandateData("EUR"),
           payment_type: "new_mandate",
           setup_future_usage: "off_session",
         },

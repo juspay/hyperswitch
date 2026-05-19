@@ -816,7 +816,7 @@ export const connectorDetails = {
           },
         },
       }),
-      MandateSingleUse: getCustomExchange({
+      MandateSingleUseAutoCapture: getCustomExchange({
         Request: {},
         Response: {
           status: 200,
@@ -831,9 +831,6 @@ export const connectorDetails = {
     },
     BancontactCard: {
       ...getCustomExchange({
-        Configs: {
-          TRIGGER_SKIP: true,
-        },
         Request: {
           payment_method: "bank_redirect",
           payment_method_type: "bancontact_card",
@@ -849,16 +846,13 @@ export const connectorDetails = {
           billing: standardBillingAddress,
         },
       }),
-      MandateSingleUse: getCustomExchange({
+      MandateSingleUseAutoCapture: getCustomExchange({
         Request: {},
         Response: {
           status: 200,
           body: {
             status: "requires_customer_action",
           },
-        },
-        Configs: {
-          TRIGGER_SKIP: true,
         },
       }),
     },
@@ -878,16 +872,13 @@ export const connectorDetails = {
           billing: standardBillingAddress,
         },
       }),
-      MandateSingleUse: getCustomExchange({
+      MandateSingleUseAutoCapture: getCustomExchange({
         Request: {},
         Response: {
           status: 200,
           body: {
             status: "requires_customer_action",
           },
-        },
-        Configs: {
-          TRIGGER_SKIP: true,
         },
       }),
     },
