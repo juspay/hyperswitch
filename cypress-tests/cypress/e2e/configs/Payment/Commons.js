@@ -3624,6 +3624,132 @@ export const connectorDetails = {
       },
     }),
   },
+  payment_link_pm: {
+    PaymentLinkBasic: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        description: "Test Payment Link",
+        email: "test@example.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+
+    PaymentLinkWithTheme: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 7000,
+        description: "Test with custom theme",
+        email: "test@example.com",
+        payment_link_config: {
+          theme: "#FF6B35",
+        },
+      },
+      Response: {
+        status: 200,
+      },
+    }),
+    PaymentLinkWithLogo: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        amount: 8000,
+        description: "Test with merchant logo",
+        email: "test@example.com",
+        payment_link_config: {
+          logo: "https://example.com/logo.png",
+          seller_name: "Test Merchant Inc",
+        },
+      },
+      Response: {
+        status: 200,
+      },
+    }),
+    PaymentLinkWithSdkLayout: getCustomExchange({
+      Request: {
+        currency: "GBP",
+        amount: 5500,
+        description: "Test with accordion layout",
+        email: "test@example.com",
+        payment_link_config: {
+          sdk_layout: "accordion",
+          display_sdk_only: false,
+        },
+      },
+      Response: {
+        status: 200,
+      },
+    }),
+    PaymentLinkCardPayment: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        description: "Test Payment Link Card Payment",
+        email: "test@example.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+      CardData: {
+        card_number: "4242424242424242",
+        card_exp_month: "12",
+        card_exp_year: "35",
+        card_cvc: "123",
+      },
+    }),
+    PaymentLink3DSCard: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        description: "Test Payment Link 3DS Card",
+        email: "test@example.com",
+        authentication_type: "three_ds",
+      },
+      CardData: {
+        card_number: "4000002500003155",
+        card_exp_month: "12",
+        card_exp_year: "35",
+        card_cvc: "123",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    }),
+    PaymentLinkTabsLayout: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        amount: 6500,
+        description: "Test with tabs layout",
+        email: "test@example.com",
+        payment_link_config: {
+          sdk_layout: "tabs",
+          display_sdk_only: false,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+      CardData: {
+        card_number: "4242424242424242",
+        card_exp_month: "12",
+        card_exp_year: "35",
+        card_cvc: "123",
+      },
+    }),
+  },
   relay_pm: {
     RefundRelay: {
       Request: {
