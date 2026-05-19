@@ -18,6 +18,7 @@ pub struct DashboardMetadata {
     pub created_at: PrimitiveDateTime,
     pub last_modified_by: String,
     pub last_modified_at: PrimitiveDateTime,
+    pub profile_id: Option<String>,
 }
 
 #[derive(
@@ -34,6 +35,7 @@ pub struct DashboardMetadataNew {
     pub created_at: PrimitiveDateTime,
     pub last_modified_by: String,
     pub last_modified_at: PrimitiveDateTime,
+    pub profile_id: Option<String>,
 }
 
 #[derive(

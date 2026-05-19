@@ -46,9 +46,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        #[cfg(feature = "pm_modular")] _payment_method_wrapper: Option<
-            operations::PaymentMethodWithRawData,
-        >,
+        _payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsSessionRequest, PaymentData<F>>,
@@ -78,6 +76,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             &[
                 storage_enums::IntentStatus::Failed,
                 storage_enums::IntentStatus::Succeeded,
+                storage_enums::IntentStatus::Review,
             ],
             "create a session token for",
         )?;
@@ -227,6 +226,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             service_details: None,
             card_testing_guard_data: None,
             vault_operation: None,
+            vault_session_details: None,
             threeds_method_comp_ind: None,
             whole_connector_response: None,
             is_manual_retry_enabled: None,
@@ -530,6 +530,7 @@ where
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
     ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {

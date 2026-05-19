@@ -152,6 +152,8 @@ pub struct AdditionalData {
     #[serde(rename = "recurring.shopperReference")]
     recurring_shopper_reference: Option<String>,
     network_tx_reference: Option<Secret<String>>,
+    #[serde(rename = "transactionLinkId")]
+    transaction_link_id: Option<String>,
     #[cfg(feature = "payouts")]
     payout_eligible: Option<PayoutEligibility>,
     funds_availability: Option<String>,
@@ -1356,6 +1358,7 @@ impl TryFrom<&common_enums::BankNames> for OpenBankingUKIssuer {
             | common_enums::BankNames::TheSiamCommercialBank
             | common_enums::BankNames::Yoursafe
             | common_enums::BankNames::N26
+            | common_enums::BankNames::Absa
             | common_enums::BankNames::NationaleNederlanden
             | common_enums::BankNames::KasikornBank => {
                 Err(errors::ConnectorError::NotImplemented(
@@ -2359,12 +2362,12 @@ impl TryFrom<(&BankDebitData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMet
                 )))
             }
 
-            BankDebitData::BecsBankDebit { .. } | BankDebitData::SepaGuarenteedBankDebit { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Adyen"),
-                )
-                .into())
-            }
+            BankDebitData::BecsBankDebit { .. }
+            | BankDebitData::SepaGuarenteedBankDebit { .. }
+            | BankDebitData::EftDebitOrder { .. } => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            )
+            .into()),
         }
     }
 }
@@ -3185,7 +3188,9 @@ impl
                             cvc: None,
                             holder_name: test_holder_name.or(card_holder_name),
                             brand: Some(brand),
-                            network_payment_reference: Some(Secret::new(network_mandate_id)),
+                            network_payment_reference: Some(Secret::new(
+                                network_mandate_id.network_transaction_id.clone(),
+                            )),
                         };
                         Ok(PaymentMethod::AdyenPaymentMethod(Box::new(
                             AdyenPaymentMethod::AdyenCard(Box::new(adyen_card)),
@@ -4364,6 +4369,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<AdyenCancelResponse>> for Payments
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.reference),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -4388,6 +4394,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<AdyenBalanceResponse>>
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -4543,6 +4550,8 @@ pub fn get_adyen_response(
                 .map(|network_tx_id| network_tx_id.clone().expose())
         });
 
+    let network_txn_link_id = None; // TODO(TLID-PR2): extract from response.additional_data.transaction_link_id
+
     let charges = match &response.splits {
         Some(split_items) => Some(construct_charge_response(response.store, split_items)),
         None => None,
@@ -4554,6 +4563,7 @@ pub fn get_adyen_response(
         mandate_reference: Box::new(mandate_reference),
         connector_metadata: None,
         network_txn_id,
+        network_txn_link_id,
         connector_response_reference_id: Some(response.merchant_reference),
         incremental_authorization_allowed: None,
         authentication_data: None,
@@ -4667,6 +4677,7 @@ pub fn get_webhook_response(
             mandate_reference: Box::new(mandate_reference),
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(response.merchant_reference_id),
             incremental_authorization_allowed: None,
             authentication_data: None,
@@ -4766,6 +4777,7 @@ pub fn get_redirection_response(
         mandate_reference: Box::new(None),
         connector_metadata,
         network_txn_id: None,
+        network_txn_link_id: None,
         connector_response_reference_id: response
             .merchant_reference
             .clone()
@@ -4839,6 +4851,7 @@ pub fn get_present_to_shopper_response(
         mandate_reference: Box::new(None),
         connector_metadata,
         network_txn_id: None,
+        network_txn_link_id: None,
         connector_response_reference_id: response
             .merchant_reference
             .clone()
@@ -4910,6 +4923,7 @@ pub fn get_qr_code_response(
         mandate_reference: Box::new(None),
         connector_metadata,
         network_txn_id: None,
+        network_txn_link_id: None,
         connector_response_reference_id: response
             .merchant_reference
             .clone()
@@ -4985,6 +4999,7 @@ pub fn get_redirection_error_response(
         mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,
+        network_txn_link_id: None,
         connector_response_reference_id: response
             .merchant_reference
             .clone()
@@ -5431,6 +5446,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.reference),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -6267,13 +6283,21 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                         message: "Bank transfer via Bacs is not supported".to_string(),
                         connector: "Adyen",
                     })?,
-                    payouts::BankTransfer::Pix(..) => Err(errors::ConnectorError::NotSupported {
+                    payouts::BankTransfer::Pix(..)
+                    | payouts::BankTransfer::PixKey(..)
+                    | payouts::BankTransfer::PixEmv(..) => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfer via Pix is not supported".to_string(),
                         connector: "Adyen",
                     })?,
                     payouts::BankTransfer::Trustly(..) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Bank transfer via Trustly is not supported".to_string(),
+                            connector: "Adyen",
+                        })?
+                    }
+                    payouts::BankTransfer::OpenBanking(..) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Bank transfer via OpenBanking is not supported".to_string(),
                             connector: "Adyen",
                         })?
                     }

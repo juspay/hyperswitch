@@ -173,6 +173,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                             issuer_error_message: None,
                             network_details: None,
                             network_error_message: None,
+                            advice_message: None,
                             encrypted_payment_method_data: None,
                             recommended_action: None,
                             card_network: payment_data.payment_attempt.extract_card_network(),
@@ -216,8 +217,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                     // Trigger the outgoing webhook to notify the merchant about failed payment
                     let operation = operations::PaymentStatus;
                     Box::pin(utils::trigger_payments_webhook(
-                        platform.get_processor(),
-                        platform.get_initiator(),
+                        &platform,
                         business_profile,
                         payment_data,
                         state,

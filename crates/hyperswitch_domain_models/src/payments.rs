@@ -476,6 +476,7 @@ impl PaymentIntent {
         self,
         net_amount: MinorUnit,
         show_installments: bool,
+        capture_method: Option<common_enums::CaptureMethod>,
     ) -> CustomResult<PaymentMethodListIntentData, errors::api_error_response::ApiErrorResponse>
     {
         let billing: Option<Address> = self
@@ -540,6 +541,7 @@ impl PaymentIntent {
             merchant_order_reference_id: self.merchant_order_reference_id,
             attempt_count: self.attempt_count,
             installment_options,
+            capture_method,
         })
     }
 
@@ -1200,7 +1202,8 @@ impl PaymentIntent {
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::PartiallyCapturedAndProcessing
-            | common_enums::IntentStatus::Conflicted => false,
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Review => false,
         }
     }
 }
@@ -1545,6 +1548,9 @@ where
             pix_automatico_additional_details: payment_intent_feature_metadata
                 .as_ref()
                 .and_then(|data| data.pix_automatico_additional_details.clone()),
+            finix_additional_details: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|data| data.finix_additional_details.clone()),
         }))
     }
 }

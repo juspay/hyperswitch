@@ -15,6 +15,8 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::payment_methods::PaymentMethodWithRawData;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{payment_method_data, sdk_auth::SdkAuthorization};
 #[cfg(feature = "v1")]
@@ -44,14 +46,41 @@ use crate::{
     pii::Secret,
     routes,
     services::{api as services, encryption, EncryptionAlgorithm},
-    types::{api, domain},
+    types::{api, domain, storage, transformers},
     utils::OptionExt,
 };
 #[cfg(feature = "v2")]
-use crate::{
-    consts,
-    types::{payment_methods as pm_types, transformers},
-};
+use crate::{consts, types::payment_methods as pm_types};
+
+#[cfg(feature = "v1")]
+#[derive(Default)]
+pub struct PaymentMethodFetchData {
+    pub payment_method_info: Option<domain::PaymentMethod>,
+    pub payment_method_with_raw_data: Option<PaymentMethodWithRawData>,
+    pub token_data: Option<storage::PaymentTokenData>,
+}
+
+#[cfg(feature = "v1")]
+impl PaymentMethodFetchData {
+    pub fn from_modular(payment_method_with_raw_data: PaymentMethodWithRawData) -> Self {
+        Self {
+            payment_method_info: Some(payment_method_with_raw_data.payment_method.clone()),
+            payment_method_with_raw_data: Some(payment_method_with_raw_data),
+            token_data: None,
+        }
+    }
+
+    pub fn from_legacy(
+        payment_method_info: domain::PaymentMethod,
+        token_data: Option<storage::PaymentTokenData>,
+    ) -> Self {
+        Self {
+            payment_method_info: Some(payment_method_info),
+            payment_method_with_raw_data: None,
+            token_data,
+        }
+    }
+}
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
@@ -475,6 +504,32 @@ pub fn mk_add_bank_debit_response_hs(
         recurring_enabled: Some(false),           // [#256]
         installment_payment_enabled: Some(false), // #[#256]
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
+        last_used_at: Some(common_utils::date_time::now()),
+        client_secret: None,
+        locker_fingerprint_id: Some(locker_fingerprint_id),
+    }
+}
+
+#[cfg(feature = "v1")]
+pub fn mk_add_wallet_response_hs(
+    wallet_reference: String,
+    req: api::PaymentMethodCreate,
+    merchant_id: &id_type::MerchantId,
+    locker_fingerprint_id: String,
+) -> domain::PaymentMethodResponse {
+    domain::PaymentMethodResponse {
+        merchant_id: merchant_id.to_owned(),
+        customer_id: req.customer_id.to_owned(),
+        payment_method_id: wallet_reference,
+        payment_method: req.payment_method,
+        payment_method_type: req.payment_method_type,
+        bank_transfer: None,
+        card: None,
+        metadata: req.metadata,
+        created: Some(common_utils::date_time::now()),
+        recurring_enabled: Some(false),           // [#256]
+        installment_payment_enabled: Some(false), // #[#256]
+        payment_experience: Some(vec![api_models::enums::PaymentExperience::InvokeSdkClient]),
         last_used_at: Some(common_utils::date_time::now()),
         client_secret: None,
         locker_fingerprint_id: Some(locker_fingerprint_id),
@@ -1317,13 +1372,6 @@ pub struct DomainPaymentMethodWrapper(pub domain::PaymentMethod);
 #[cfg(feature = "v1")]
 pub struct DomainPaymentMethodDataWrapper(pub domain::PaymentMethodData);
 
-#[derive(Clone, Debug)]
-#[cfg(feature = "v1")]
-pub struct PaymentMethodWithRawData {
-    pub payment_method: DomainPaymentMethodWrapper,
-    pub raw_payment_method_data: Option<domain::PaymentMethodData>,
-}
-
 #[cfg(feature = "v1")]
 impl DomainPaymentMethodWrapper {
     pub async fn transform_pm_mod_retrieve_response(
@@ -1362,7 +1410,7 @@ impl DomainPaymentMethodWrapper {
                             token_detail.connector_id.clone(),
                             hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord {
                                 connector_mandate_id: token_detail.token.clone().expose(),
-                                payment_method_type: None,
+                                payment_method_type: response.payment_method_type,
                                 original_payment_authorized_amount: token_detail
                                     .original_payment_authorized_amount
                                     .map(|amount| amount.get_amount_as_i64()),
@@ -1415,7 +1463,7 @@ impl DomainPaymentMethodWrapper {
                 .last_used_at
                 .unwrap_or_else(common_utils::date_time::now),
             payment_method: Some(response.payment_method),
-            payment_method_type: Some(response.payment_method_type),
+            payment_method_type: response.payment_method_type,
             payment_method_issuer: None,
             payment_method_issuer_code: None,
             metadata: None,
@@ -1428,6 +1476,7 @@ impl DomainPaymentMethodWrapper {
             customer_acceptance: None,
             status: common_enums::PaymentMethodStatus::Active, //should be sent from PM service
             network_transaction_id: response.network_transaction_id.clone(),
+            network_transaction_link_id: None,
             client_secret: None,
             payment_method_billing_address: encrypted_payment_method_billing_address,
             updated_by: None,
@@ -1551,6 +1600,7 @@ impl DomainPaymentMethodWrapper {
             customer_acceptance: None,
             status: common_enums::PaymentMethodStatus::Active, //should be sent from PM service
             network_transaction_id: None,
+            network_transaction_link_id: None,
             client_secret: None,
             payment_method_billing_address: encrypted_payment_method_billing_address,
             updated_by: None,
@@ -1734,6 +1784,7 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
             customer_acceptance: None,
             status: common_enums::PaymentMethodStatus::Active, //should be sent from PM service
             network_transaction_id: None,
+            network_transaction_link_id: None,
             client_secret: None,
             payment_method_billing_address: None, //Should be sent from PM service
             updated_by: None,
@@ -1754,7 +1805,7 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
 
 #[cfg(feature = "v1")]
 impl<'a>
-    crate::types::transformers::ForeignTryFrom<
+    transformers::ForeignTryFrom<
         &'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,
     > for domain::CardDetailsForNetworkTransactionId
 {
@@ -1781,7 +1832,7 @@ impl<'a>
 
 #[cfg(feature = "v1")]
 impl<'a>
-    crate::types::transformers::ForeignTryFrom<
+    transformers::ForeignTryFrom<
         &'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,
     > for domain::PaymentMethodData
 {
@@ -1858,7 +1909,7 @@ pub async fn fetch_payment_method_from_modular_service(
         .attach_printable("Failed to convert raw payment method data")?;
 
     let pm_wrapper = PaymentMethodWithRawData {
-        payment_method,
+        payment_method: payment_method.0,
         raw_payment_method_data: raw_payment_method_data.map(|wrapper| wrapper.0),
     };
     Ok(pm_wrapper)
