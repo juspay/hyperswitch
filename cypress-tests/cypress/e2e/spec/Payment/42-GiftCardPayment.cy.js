@@ -192,41 +192,19 @@ describe("Gift Card Payment - Adyen Givex", () => {
           "gift_card_pm"
         ]["PaySafeCardGiftCard"];
 
-        const paymentIntentId = globalState.get("paymentID");
-        const reqData = confirmData.Request || {};
-        reqData.client_secret = globalState.get("clientSecret");
-        const resData = confirmData.Response || {};
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
 
-        cy.request({
-          method: "POST",
-          url: `${globalState.get("baseUrl")}/payments/${paymentIntentId}/confirm`,
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": globalState.get("publishableKey"),
-          },
-          failOnStatusCode: false,
-          body: reqData,
-        }).then((response) => {
-          cy.wrap(response).then(() => {
-            if (response.status === 200) {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
-              globalState.set(
-                "nextActionUrl",
-                response.body.next_action.redirect_to_url
-              );
-              globalState.set("paymentMethodType", reqData.payment_method_type);
-              for (const key in resData.body) {
-                expect(response.body[key], [key]).to.equal(resData.body[key]);
-              }
-            } else {
-              throw new Error(
-                `PaySafeCard confirm failed with status ${response.status}: ${JSON.stringify(response.body)}`
-              );
-            }
-          });
-        });
+        if (confirmData.Request && confirmData.Request.payment_method_type) {
+          globalState.set(
+            "paymentMethodType",
+            confirmData.Request.payment_method_type
+          );
+        }
 
         if (!shouldContinue) return;
         if (!should_continue_further(confirmData)) {
