@@ -1257,6 +1257,9 @@ export const connectorDetails = {
             status: "succeeded",
           },
         },
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
       },
     },
     OpenBankingUk: {
@@ -1463,6 +1466,9 @@ export const connectorDetails = {
           body: {
             status: "requires_customer_action",
           },
+        },
+        Configs: {
+          TRIGGER_SKIP: true,
         },
       },
     },
