@@ -991,7 +991,9 @@ function bankRedirectRedirection(
                 verifyUrl = false;
                 break;
               case "eps":
-                cy.log("GlobalPay EPS redirects to PPRO — skipping interaction to avoid sandbox JS errors");
+                cy.log(
+                  "GlobalPay EPS redirects to PPRO — skipping interaction to avoid sandbox JS errors"
+                );
                 verifyUrl = false;
                 break;
               case "giropay":
