@@ -1,4 +1,5 @@
 import { getCustomExchange } from "./Modifiers";
+import { standardBillingAddress } from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "4012000033330026",
@@ -925,6 +926,48 @@ export const connectorDetails = {
             country_code: "+91",
           },
         },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+  },
+  wallet_pm: {
+    PaypalRedirect: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        billing: standardBillingAddress,
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    PaypalRedirectMandateCIT: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        billing: standardBillingAddress,
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+        setup_future_usage: "off_session",
+        mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,

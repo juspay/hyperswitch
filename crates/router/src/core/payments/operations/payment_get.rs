@@ -47,7 +47,8 @@ impl ValidateStatusForOperation for PaymentGet {
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Conflicted
-            | common_enums::IntentStatus::Expired => Ok(()),
+            | common_enums::IntentStatus::Expired
+            | common_enums::IntentStatus::Review => Ok(()),
             // These statuses are not valid for this operation
             common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::RequiresPaymentMethod => {
@@ -66,6 +67,7 @@ impl ValidateStatusForOperation for PaymentGet {
                         common_enums::IntentStatus::PartiallyCapturedAndCapturable,
                         common_enums::IntentStatus::PartiallyCaptured,
                         common_enums::IntentStatus::Cancelled,
+                        common_enums::IntentStatus::Review,
                     ]
                     .map(|enum_value| enum_value.to_string())
                     .join(", "),

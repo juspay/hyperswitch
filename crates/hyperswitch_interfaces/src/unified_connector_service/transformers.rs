@@ -285,6 +285,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                     mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata: None,
                     network_txn_id: response.network_transaction_id.clone(),
+                    network_txn_link_id: None,
                     connector_response_reference_id: response.merchant_transaction_id,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
