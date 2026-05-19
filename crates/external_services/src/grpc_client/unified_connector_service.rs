@@ -1324,8 +1324,18 @@ pub fn tonic_status_to_report(
         | tonic::Code::FailedPrecondition => {
             UnifiedConnectorServiceError::from_tonic_status(&status)
         }
-        // 5xx equivalent gRPC status codes
-        _ => default_error,
+        // 5xx equivalent gRPC status codes - use the default error
+        tonic::Code::Ok
+        | tonic::Code::Cancelled
+        | tonic::Code::Unknown
+        | tonic::Code::DeadlineExceeded
+        | tonic::Code::ResourceExhausted
+        | tonic::Code::Aborted
+        | tonic::Code::OutOfRange
+        | tonic::Code::Unimplemented
+        | tonic::Code::Internal
+        | tonic::Code::Unavailable
+        | tonic::Code::DataLoss => default_error,
     };
     error_stack::Report::new(err)
 }
