@@ -1,5 +1,5 @@
 import { customerAcceptance, standardBillingAddress } from "./Commons";
-import { getCustomExchange } from "./Modifiers";
+import { getCurrency, getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111", // Non-3DS Airwallex test card
@@ -1184,6 +1184,9 @@ export const connectorDetails = {
       },
     }),
     Skrill: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "skrill",
@@ -1195,12 +1198,6 @@ export const connectorDetails = {
         },
         billing: standardBillingAddress,
         return_url: "https://example.com",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
       },
     }),
     AutoCapture: getCustomExchange({

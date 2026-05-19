@@ -1235,6 +1235,18 @@ function bankRedirectRedirection(
             }
             break;
 
+          case "airwallex":
+            if (["paypal", "skrill"].includes(paymentMethodType)) {
+              cy.log(`Handling Airwallex ${paymentMethodType} wallet redirect`);
+              cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+              verifyUrl = false;
+            } else {
+              throw new Error(
+                `Unsupported Airwallex payment method type: ${paymentMethodType}`
+              );
+            }
+            break;
+
           case "paypal":
             if (["eps", "ideal", "giropay"].includes(paymentMethodType)) {
               cy.get('button[name="Successful"][value="SUCCEEDED"]').click();
