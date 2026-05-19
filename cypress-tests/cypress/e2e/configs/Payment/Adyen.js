@@ -1346,6 +1346,19 @@ export const connectorDetails = {
             pay_safe_card: {},
           },
         },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
         return_url: "https://example.com",
       },
       Response: {
