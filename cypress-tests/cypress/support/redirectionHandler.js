@@ -96,6 +96,15 @@ export function handleRedirection(
         paymentMethodType
       );
       break;
+    case "payment_link_card":
+      paymentLinkCardRedirection(
+        urls.redirectionUrl,
+        urls.expectedUrl,
+        resolvedConnectorId,
+        paymentMethodType,
+        handlerMetadata
+      );
+      break;
     default:
       throw new Error(`Unknown redirection type: ${redirectionType}`);
   }
@@ -688,6 +697,10 @@ function bankRedirectRedirection(
                 cy.get("h1").should("contain.text", "Acquirer Simulator");
                 cy.get('[value="authorised"]').click();
                 verifyUrl = true;
+                break;
+              case "pay_safe_card":
+                cy.url().should("include", "paysafecard");
+                verifyUrl = false;
                 break;
               // The 'ideal' case is handled outside handleFlow
               default:
@@ -2099,6 +2112,187 @@ function waitForRedirect(redirectionUrl) {
       "Host changed or an  iframe with foreign host exist"
     ).to.be.true;
   });
+}
+
+function paymentLinkCardRedirection(
+  redirectionUrl,
+  expectedUrl,
+  connectorId,
+  paymentMethodType,
+  handlerMetadata
+) {
+  const cardData = handlerMetadata?.cardData || {};
+  const expectedOutcome = handlerMetadata?.expectedOutcome || "success";
+  const {
+    card_number = "4242424242424242",
+    card_exp_month = "12",
+    card_exp_year = "35",
+    card_cvc = "123",
+  } = cardData;
+
+  if (!redirectionUrl || !redirectionUrl.href) {
+    cy.log(
+      "Skipping payment link card redirection - no valid redirect URL provided"
+    );
+    return;
+  }
+
+  cy.visit(redirectionUrl.href, { failOnStatusCode: false });
+
+  cy.get("body", { timeout: 30000 }).should("exist");
+
+  cy.get("#sdk-spinner", { timeout: 60000 }).should("have.class", "hidden");
+  cy.task("cli_log", "Payment Link SDK initialized successfully");
+
+  cy.get("#unified-checkout", { timeout: 30000 }).should("be.visible");
+  cy.get("#payment-form", { timeout: 30000 }).should("exist");
+
+  cy.get("#unified-checkout iframe", { timeout: 30000 }).should(
+    "have.length.at.least",
+    1
+  );
+
+  function fillCardInputInIframe(iframe, index) {
+    cy.wrap(iframe)
+      .its("0.contentDocument.body")
+      .should("not.be.empty")
+      .then((body) => {
+        const $body = Cypress.$(body);
+        const inputs = $body.find("input");
+
+        if (inputs.length === 0) {
+          cy.task("cli_log", `Iframe ${index}: no inputs found, skipping`);
+          return;
+        }
+
+        inputs.each((_, input) => {
+          const $input = Cypress.$(input);
+          const placeholder = ($input.attr("placeholder") || "").toLowerCase();
+          const ariaLabel = ($input.attr("aria-label") || "").toLowerCase();
+          const name = ($input.attr("name") || "").toLowerCase();
+          const autocomplete = (
+            $input.attr("autocomplete") || ""
+          ).toLowerCase();
+
+          if (
+            placeholder.includes("card") ||
+            placeholder.includes("number") ||
+            ariaLabel.includes("card") ||
+            ariaLabel.includes("number") ||
+            name.includes("cardnumber") ||
+            name.includes("card_number") ||
+            autocomplete.includes("cc-number")
+          ) {
+            /* eslint-disable cypress/no-force */
+            cy.wrap(input)
+              .focus()
+              .clear({ force: true })
+              .type(card_number, { delay: 30, force: true });
+            /* eslint-enable cypress/no-force */
+            cy.task("cli_log", `Filled card number in iframe ${index}`);
+          } else if (
+            placeholder.includes("expir") ||
+            placeholder.includes("mm") ||
+            placeholder.includes("yy") ||
+            ariaLabel.includes("expir") ||
+            name.includes("exp") ||
+            autocomplete.includes("cc-exp")
+          ) {
+            /* eslint-disable cypress/no-force */
+            cy.wrap(input)
+              .focus()
+              .clear({ force: true })
+              .type(`${card_exp_month}${card_exp_year.slice(-2)}`, {
+                delay: 30,
+                force: true,
+              });
+            /* eslint-enable cypress/no-force */
+            cy.task("cli_log", `Filled expiry in iframe ${index}`);
+          } else if (
+            placeholder.includes("cvc") ||
+            placeholder.includes("cvv") ||
+            placeholder.includes("security") ||
+            ariaLabel.includes("cvc") ||
+            ariaLabel.includes("cvv") ||
+            name.includes("cvc") ||
+            name.includes("cvv") ||
+            autocomplete.includes("cc-csc")
+          ) {
+            /* eslint-disable cypress/no-force */
+            cy.wrap(input)
+              .focus()
+              .clear({ force: true })
+              .type(card_cvc, { delay: 30, force: true });
+            /* eslint-enable cypress/no-force */
+            cy.task("cli_log", `Filled CVC in iframe ${index}`);
+          }
+        });
+      });
+  }
+
+  cy.get("#unified-checkout iframe").then(($iframes) => {
+    cy.task("cli_log", `Found ${$iframes.length} iframes in unified-checkout`);
+
+    $iframes.each((index, iframe) => {
+      fillCardInputInIframe(iframe, index);
+    });
+  });
+
+  /* eslint-disable cypress/no-force */
+  cy.get("#submit", { timeout: 30000 })
+    .should("be.visible")
+    .and("not.have.class", "hidden")
+    .click({ force: true });
+  /* eslint-enable cypress/no-force */
+  cy.task("cli_log", "Clicked submit button");
+
+  if (expectedOutcome === "error") {
+    cy.get("body", { timeout: 30000 }).should(($body) => {
+      const bodyText = $body.text().toLowerCase();
+      const hasError =
+        (bodyText.includes("error") && bodyText.includes("card")) ||
+        bodyText.includes("declined") ||
+        bodyText.includes("invalid") ||
+        bodyText.includes("expired") ||
+        bodyText.includes("failed") ||
+        $body.find('[class*="error"]').length > 0;
+      expect(hasError, "Expected error indicator on payment page").to.be.true;
+    });
+    cy.task("cli_log", "Payment page shows error indicator as expected");
+  } else {
+    cy.contains(/succeeded|success|payment successful|thank you/i, {
+      timeout: 30000,
+    }).should("exist");
+
+    cy.get("body").then(($body) => {
+      const bodyText = $body.text().toLowerCase();
+      const hasSuccess =
+        bodyText.includes("succeeded") ||
+        bodyText.includes("success") ||
+        bodyText.includes("payment successful") ||
+        bodyText.includes("thank you") ||
+        $body.find('[class*="success"]').length > 0;
+      const hasError =
+        (bodyText.includes("error") && bodyText.includes("card")) ||
+        bodyText.includes("declined") ||
+        bodyText.includes("invalid") ||
+        $body.find('[class*="error"]').length > 0;
+
+      if (hasSuccess) {
+        cy.task("cli_log", "Payment page shows success indicator");
+      } else if (hasError) {
+        cy.task("cli_log", "Payment page shows error indicator");
+      } else {
+        cy.task(
+          "cli_log",
+          "Payment page status unclear after submission - checking URL"
+        );
+        cy.url().then((url) => {
+          cy.task("cli_log", `Current URL after payment submission: ${url}`);
+        });
+      }
+    });
+  }
 }
 
 function handleFlow(
