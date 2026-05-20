@@ -807,6 +807,27 @@ export const connectorDetails = {
         },
       },
     },
+    ImplicitCustomerUpdate: {
+      Request: {
+        currency: "USD",
+        email: "updated@example.com",
+        name: "Updated Name",
+        phone: "888888888",
+        phone_country_code: "+1",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     PaymentIntentWithFeatureMetadata: {
       Request: {
         currency: "USD",
