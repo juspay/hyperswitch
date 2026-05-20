@@ -624,6 +624,10 @@ where
                     .get_payment_attempt()
                     .network_transaction_id
                     .clone(),
+                network_transaction_link_id: payment_data
+                    .get_payment_attempt()
+                    .network_transaction_link_id
+                    .clone(),
                 is_overcapture_enabled: None,
                 authorized_amount: router_data.authorized_amount,
                 tokenization: None,
@@ -631,8 +635,13 @@ where
                 issuer_error_message: None,
                 network_details: None,
                 network_error_message: None,
+                advice_message: None,
                 recommended_action: None,
                 card_network: payment_data.get_payment_attempt().extract_card_network(),
+                sender_payment_instrument_id: payment_data
+                    .get_payment_attempt()
+                    .sender_payment_instrument_id
+                    .clone(),
             };
 
             #[cfg(feature = "v1")]
@@ -670,12 +679,12 @@ where
                 None
             };
 
-            // For MIT transactions, lookup recommended action from merchant_advice_codes config
-            let recommended_action = payments_helpers::get_merchant_advice_code_recommended_action(
+            // For MIT transactions, lookup recommended action and description from merchant_advice_codes config
+            let merchant_advice = payments_helpers::get_merchant_advice_code_config(
                 &state.conf.merchant_advice_codes,
                 payment_data.get_payment_intent().off_session,
-                card_network.as_ref(),
-                error_response.network_advice_code.as_deref(),
+                card_network.clone(),
+                error_response.network_advice_code.clone(),
             );
 
             let payment_attempt_update = storage::PaymentAttemptUpdate::ErrorUpdate {
@@ -702,7 +711,8 @@ where
                 issuer_error_message: Some(error_response.network_error_message.clone()),
                 network_details: Some(Some(ForeignFrom::foreign_from(error_response))),
                 network_error_message: Some(error_response.network_error_message.clone()),
-                recommended_action: Some(recommended_action),
+                advice_message: Some(merchant_advice.map(|m| m.description.clone())),
+                recommended_action: Some(merchant_advice.map(|m| m.recommended_action)),
                 card_network: payment_data.get_payment_attempt().extract_card_network(),
             };
 
@@ -848,6 +858,7 @@ pub fn make_new_auto_retry_payment_attempt(
         routing_approach: old_payment_attempt.routing_approach,
         connector_request_reference_id: Default::default(),
         network_transaction_id: old_payment_attempt.network_transaction_id,
+        network_transaction_link_id: old_payment_attempt.network_transaction_link_id,
         network_details: Default::default(),
         is_stored_credential: old_payment_attempt.is_stored_credential,
         authorized_amount: old_payment_attempt.authorized_amount,
@@ -863,6 +874,8 @@ pub fn make_new_auto_retry_payment_attempt(
         error_details: Default::default(),
         retry_type: Some(storage_enums::RetryType::AutoRetry),
         installment_data: Default::default(),
+        external_surcharge_details: Default::default(),
+        sender_payment_instrument_id: Default::default(),
     }
 }
 
@@ -934,7 +947,8 @@ impl<F: Send + Clone + Sync, FData: Send + Sync>
                 | storage_enums::AttemptStatus::DeviceDataCollectionPending
                 | storage_enums::AttemptStatus::IntegrityFailure
                 | storage_enums::AttemptStatus::Expired
-                | storage_enums::AttemptStatus::PartiallyAuthorized => false,
+                | storage_enums::AttemptStatus::PartiallyAuthorized
+                | storage_enums::AttemptStatus::CaptureReview => false,
 
                 storage_enums::AttemptStatus::AuthenticationFailed
                 | storage_enums::AttemptStatus::AuthorizationFailed

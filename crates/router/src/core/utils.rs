@@ -73,6 +73,16 @@ pub struct FeatureConfig {
     pub is_payment_method_modular_allowed: bool,
 }
 
+impl FeatureConfig {
+    pub fn is_modular_with_pm_version(
+        &self,
+        payment_method_version: Option<common_enums::ApiVersion>,
+    ) -> bool {
+        self.is_payment_method_modular_allowed
+            || payment_method_version == Some(common_enums::ApiVersion::V2)
+    }
+}
+
 pub async fn get_feature_config(
     state: &SessionState,
     platform: &domain::Platform,
@@ -279,6 +289,7 @@ pub async fn construct_payout_router_data<'a, F>(
             browser_info,
             payout_connector_metadata: payout_attempt.payout_connector_metadata.to_owned(),
             additional_payout_method_data: payout_attempt.additional_payout_method_data.to_owned(),
+            source_bank_data: payout_data.source_bank_data.clone(),
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
@@ -314,6 +325,7 @@ pub async fn construct_payout_router_data<'a, F>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -492,6 +504,7 @@ pub async fn construct_refund_router_data<'a, F>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -689,6 +702,7 @@ pub async fn construct_refund_router_data<'a, F>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -1206,6 +1220,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1317,6 +1332,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1434,6 +1450,7 @@ pub async fn construct_upload_file_router_data<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1512,6 +1529,7 @@ pub async fn construct_dispute_list_router_data<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     })
 }
 
@@ -1625,6 +1643,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1761,6 +1780,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1875,6 +1895,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1979,6 +2000,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }

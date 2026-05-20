@@ -393,6 +393,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Truelayer => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Truelayer::new())))
                 }
+                enums::Connector::Sanlam => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Sanlam::new())))
+                }
                 enums::Connector::Trustly => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustly::new())))
                 }
@@ -421,7 +424,7 @@ impl FeatureMatrixConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Plaid::new())))
                 }
                 enums::Connector::Signifyd => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Signifyd)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Signifyd::new())))
                 }
                 enums::Connector::Silverflow => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Silverflow::new())))
@@ -442,6 +445,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Taxjar => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Taxjar::new())))
                 }
+                enums::Connector::Interpayments => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Interpayments::new(),
+                ))),
                 enums::Connector::Cardinal => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))

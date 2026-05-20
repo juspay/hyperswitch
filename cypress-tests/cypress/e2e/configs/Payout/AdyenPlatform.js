@@ -31,7 +31,7 @@ const billing = {
 
 const PaymentMethodData = {
   card: {
-    card_issuer: "Conotoxia Sp Z Oo",
+    card_issuer: "CONOTOXIA SP Z O.O.",
     card_network: "Visa",
     card_type: "DEBIT",
     card_issuing_country: "POLAND",

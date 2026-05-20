@@ -8,7 +8,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["olap", "oltp", "accounts_cache"]
+default = ["olap", "oltp", "accounts_cache", "redis-rs"]
 dynamic_routing = []
 oltp = []
 accounts_cache = []
@@ -17,6 +17,8 @@ payouts = ["hyperswitch_domain_models/payouts"]
 v1 = ["api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "common_utils/v1"]
 v2 = ["api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "common_utils/v2"]
 tokenization_v2 = ["diesel_models/tokenization_v2", "api_models/tokenization_v2", "hyperswitch_domain_models/tokenization_v2"]
+fred     = ["redis_interface/fred"]
+redis-rs = ["redis_interface/redis-rs"]
 
 [dependencies]
 # First Party dependencies
@@ -26,7 +28,7 @@ common_utils = { version = "0.1.0", path = "../common_utils" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", default-features = false }
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
 hyperswitch_masking = "0.0.1"
-redis_interface = { version = "0.1.0", path = "../redis_interface" }
+redis_interface = { version = "0.1.0", path = "../redis_interface", default-features = false }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env" }
 
