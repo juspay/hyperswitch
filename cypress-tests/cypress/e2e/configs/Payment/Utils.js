@@ -465,7 +465,7 @@ export const CONNECTOR_LISTS = {
     CONNECTOR_TESTING_DATA: ["adyen", "airwallex", "braintree", "noon"],
     // ucs connectors
     UCS_CONNECTORS: ["authorizedotnet"],
-    OVERCAPTURE: ["adyen"],
+    OVERCAPTURE: ["adyen", "stripe"],
     MANUAL_RETRY: [
       "cybersource",
       "checkout",

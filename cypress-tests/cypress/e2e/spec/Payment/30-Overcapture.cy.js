@@ -65,7 +65,7 @@ describe("[Payment] Overcapture", () => {
     it("confirm-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
-      ]["No3DSManualCapture"];
+      ]["No3DSManualCaptureOvercapture"];
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
