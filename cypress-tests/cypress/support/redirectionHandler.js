@@ -698,6 +698,10 @@ function bankRedirectRedirection(
                 cy.get('[value="authorised"]').click();
                 verifyUrl = true;
                 break;
+              case "pay_safe_card":
+                cy.url().should("include", "paysafecard");
+                verifyUrl = false;
+                break;
               // The 'ideal' case is handled outside handleFlow
               default:
                 throw new Error(
