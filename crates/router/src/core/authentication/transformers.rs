@@ -216,6 +216,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     })
 }
 

@@ -878,6 +878,64 @@ export const connectorDetails = {
         },
       },
     },
+    PollConfig: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4000000000003220",
+            card_exp_month: "10",
+            card_exp_year: "27",
+            card_holder_name: "John Doe",
+            card_cvc: "737",
+          },
+        },
+        authentication_type: "three_ds",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    },
+    PollConfigNotFound: {
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Poll does not exist in our records",
+            code: "HE_02",
+          },
+        },
+      },
+    },
+    PollConfigInvalidPollId: {
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Poll does not exist in our records",
+            code: "HE_02",
+          },
+        },
+      },
+    },
+    PollConfigUnauthorized: {
+      Response: {
+        status: 401,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "API key not provided or invalid API key used",
+            code: "IR_01",
+          },
+        },
+      },
+    },
     external_three_ds: {
       Request: {
         payment_method: "card",
