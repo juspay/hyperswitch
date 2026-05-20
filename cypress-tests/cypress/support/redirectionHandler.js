@@ -381,7 +381,9 @@ function payLaterRedirection(
               if (hasIndicator) {
                 cy.log("Successfully navigated to pay_later provider page");
               } else {
-                cy.log(`Note: URL (${url}) — checking page content for provider indicators`);
+                cy.log(
+                  `Note: URL (${url}) — checking page content for provider indicators`
+                );
               }
             });
 
@@ -996,13 +998,16 @@ function bankRedirectRedirection(
                     bodyText.includes("error") ||
                     bodyText.includes("not responding")
                   ) {
-                    cy.log("Nuvei PayPal timeout/error detected — skipping interaction");
+                    cy.log(
+                      "Nuvei PayPal timeout/error detected — skipping interaction"
+                    );
                     verifyUrl = false;
                     return;
                   }
 
                   if (
-                    $body.find('#login, #email, [name="login_email"]').length > 0
+                    $body.find('#login, #email, [name="login_email"]').length >
+                    0
                   ) {
                     cy.log("PayPal login page detected — redirection verified");
                   } else if (
@@ -1010,9 +1015,13 @@ function bankRedirectRedirection(
                       '#acceptAll, #payment-submit-btn, [data-testid="submit-button"]'
                     ).length > 0
                   ) {
-                    cy.log("PayPal approval page detected — redirection verified");
+                    cy.log(
+                      "PayPal approval page detected — redirection verified"
+                    );
                   } else {
-                    cy.log("PayPal redirect page loaded — verifying navigation");
+                    cy.log(
+                      "PayPal redirect page loaded — verifying navigation"
+                    );
                   }
                 });
 
