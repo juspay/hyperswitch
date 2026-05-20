@@ -3362,7 +3362,7 @@ pub struct CustomerDefaultPaymentMethodResponse {
     pub customer_id: id_type::GlobalCustomerId,
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
-    pub payment_method_type: api_enums::PaymentMethod,
+    pub payment_method_type: Option<api_enums::PaymentMethod>,
     /// This is a sub-category of payment method.
     #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
