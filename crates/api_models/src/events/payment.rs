@@ -1,4 +1,6 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
+#[cfg(feature = "v2")]
+use common_utils::id_type::GlobalPaymentMethodId;
 
 #[cfg(feature = "v2")]
 use super::{
@@ -381,7 +383,7 @@ impl ApiEventMetric for payment_methods::DefaultPaymentMethod {
 impl ApiEventMetric for payment_methods::DefaultPaymentMethod {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethod {
-            payment_method_id: self.payment_method_id.clone(),
+            payment_method_id: GlobalPaymentMethodId::new_unchecked(self.payment_method_id.clone()),
             payment_method_type: None,
             payment_method_subtype: None,
         })
@@ -462,8 +464,8 @@ impl ApiEventMetric for payment_methods::CustomerDefaultPaymentMethodResponse {
             .as_ref()
             .map(|id| ApiEventsType::PaymentMethod {
                 payment_method_id: id.clone(),
-                payment_method_type: Some(self.payment_method),
-                payment_method_subtype: self.payment_method_type,
+                payment_method_type: Some(self.payment_method_type),
+                payment_method_subtype: self.payment_method_subtype,
             })
     }
 }

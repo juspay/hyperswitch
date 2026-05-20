@@ -928,13 +928,21 @@ pub fn mk_card_value2(
 }
 
 #[cfg(feature = "v2")]
-impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
-    for api::CustomerPaymentMethodResponseItem
+impl
+    transformers::ForeignTryFrom<(
+        domain::PaymentMethod,
+        String,
+        Option<id_type::GlobalPaymentMethodId>,
+    )> for api::CustomerPaymentMethodResponseItem
 {
     type Error = error_stack::Report<errors::ValidationError>;
 
     fn foreign_try_from(
-        (item, payment_token): (domain::PaymentMethod, String),
+        (item, payment_token, default_payment_method_id): (
+            domain::PaymentMethod,
+            String,
+            Option<id_type::GlobalPaymentMethodId>,
+        ),
     ) -> Result<Self, Self::Error> {
         // For payment methods that are active we should always have the payment method subtype
         let payment_method_subtype =
@@ -1002,6 +1010,9 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
         // TODO: check how we can get this field
         let recurring_enabled = true;
 
+        let is_default = default_payment_method_id.is_some()
+            && default_payment_method_id == Some(item.id.clone());
+
         Ok(Self {
             customer_id: item
                 .customer_id
@@ -1017,7 +1028,7 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
             payment_method_data,
             bank: None,
             requires_cvv: true,
-            is_default: false,
+            is_default,
             billing: payment_method_billing,
             payment_method_token: payment_token,
         })
@@ -1025,10 +1036,20 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
 }
 
 #[cfg(feature = "v2")]
-impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodResponseItem {
+impl
+    transformers::ForeignTryFrom<(
+        domain::PaymentMethod,
+        Option<id_type::GlobalPaymentMethodId>,
+    )> for PaymentMethodResponseItem
+{
     type Error = error_stack::Report<errors::ValidationError>;
 
-    fn foreign_try_from(item: domain::PaymentMethod) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        (item, default_payment_method_id): (
+            domain::PaymentMethod,
+            Option<id_type::GlobalPaymentMethodId>,
+        ),
+    ) -> Result<Self, Self::Error> {
         // For payment methods that are active we should always have the payment method subtype
         let payment_method_subtype =
             item.payment_method_subtype
@@ -1119,6 +1140,9 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
             })
         });
 
+        let is_default = default_payment_method_id.is_some()
+            && default_payment_method_id == Some(item.id.clone());
+
         Ok(Self {
             id: item.id,
             customer_id: item
@@ -1135,7 +1159,7 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
             payment_method_data,
             bank: None,
             requires_cvv: true,
-            is_default: false,
+            is_default,
             billing: payment_method_billing,
             network_tokenization: network_token_resp,
             psp_tokenization_enabled: psp_tokenization_enabled.unwrap_or(false),

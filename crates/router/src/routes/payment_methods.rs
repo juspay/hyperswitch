@@ -1352,7 +1352,7 @@ pub async fn default_payment_method_set_api(
 ) -> HttpResponse {
     let flow = Flow::DefaultPaymentMethodsSet;
     let payload = path.into_inner();
-    let customer_id = payload.customer_id.clone();
+    let customer_id = id_type::GlobalCustomerId::new_unchecked(payload.customer_id.clone());
 
     let auth = auth::V2ApiKeyAuth {
         allow_connected_scope_operation: true,
@@ -1366,6 +1366,9 @@ pub async fn default_payment_method_set_api(
         payload,
         |state, auth: auth::AuthenticationData, default_payment_method, _| {
             let customer_id = customer_id.clone();
+            let payment_method_id = id_type::GlobalPaymentMethodId::new_unchecked(
+                default_payment_method.payment_method_id.clone(),
+            );
             async move {
                 cards::PmCards {
                     state: &state,
@@ -1374,7 +1377,7 @@ pub async fn default_payment_method_set_api(
                 .set_default_payment_method(
                     auth.platform.get_provider().get_account().get_id(),
                     &customer_id,
-                    default_payment_method.payment_method_id,
+                    &payment_method_id,
                     auth.platform.get_initiator(),
                 )
                 .await

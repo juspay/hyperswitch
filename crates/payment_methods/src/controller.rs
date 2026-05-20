@@ -269,7 +269,7 @@ pub trait PaymentMethodsController {
         &self,
         merchant_id: &id_type::MerchantId,
         customer_id: &id_type::GlobalCustomerId,
-        payment_method_id: id_type::GlobalPaymentMethodId,
+        payment_method_id: &id_type::GlobalPaymentMethodId,
         initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> errors::PmResponse<api_models::payment_methods::CustomerDefaultPaymentMethodResponse>;
 

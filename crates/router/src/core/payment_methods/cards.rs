@@ -1135,7 +1135,7 @@ impl PaymentMethodsController for PmCards<'_> {
         &self,
         merchant_id: &id_type::MerchantId,
         customer_id: &id_type::GlobalCustomerId,
-        payment_method_id: id_type::GlobalPaymentMethodId,
+        payment_method_id: &id_type::GlobalPaymentMethodId,
         initiator: Option<&domain::Initiator>,
     ) -> errors::RouterResponse<api_models::payment_methods::CustomerDefaultPaymentMethodResponse>
     {
@@ -1223,8 +1223,8 @@ impl PaymentMethodsController for PmCards<'_> {
         let resp = api_models::payment_methods::CustomerDefaultPaymentMethodResponse {
             default_payment_method_id: updated_customer_details.default_payment_method_id,
             customer_id,
-            payment_method_type: payment_method.get_payment_method_subtype(),
-            payment_method: pm,
+            payment_method_subtype: payment_method.get_payment_method_subtype(),
+            payment_method_type: pm,
         };
 
         Ok(services::ApplicationResponse::Json(resp))
