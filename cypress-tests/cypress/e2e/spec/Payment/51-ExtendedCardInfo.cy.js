@@ -160,13 +160,17 @@ describe("Extended Card Info Tests", () => {
       });
 
       after("Cleanup Extended Card BIN config", () => {
-        if (globalState.get("extendedCardBinEnabled")) {
-          cy.enableExtendedCardBinTest(false, globalState);
+        const profileId = globalState.get("profileId");
+        if (profileId && globalState.get("extendedCardBinEnabled")) {
+          const configKey = `${profileId}_enable_extended_card_bin`;
+          cy.setConfigs(globalState, configKey, "true", "DELETE");
         }
       });
 
       it("Enable Extended Card BIN via configs API", () => {
-        cy.enableExtendedCardBinTest(true, globalState);
+        const profileId = globalState.get("profileId");
+        const configKey = `${profileId}_enable_extended_card_bin`;
+        cy.setConfigs(globalState, configKey, "true", "CREATE");
       });
 
       it("Create Payment Intent", () => {
@@ -204,7 +208,15 @@ describe("Extended Card Info Tests", () => {
       });
 
       it("Retrieve Payment and verify extended BIN is null", () => {
-        cy.retrievePaymentAndVerifyExtendedBinTest(false, globalState);
+        cy.retrievePaymentCallTest({
+          globalState,
+          data: getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ExtendedCardInfo"],
+        }).then((response) => {
+          expect(
+            response.body.payment_method_data.card.card_extended_bin,
+            "card_extended_bin should be null"
+          ).to.be.null;
+        });
       });
     }
   );
@@ -255,7 +267,15 @@ describe("Extended Card Info Tests", () => {
       });
 
       it("Retrieve Payment and verify extended BIN is absent", () => {
-        cy.retrievePaymentAndVerifyExtendedBinTest(false, globalState);
+        cy.retrievePaymentCallTest({
+          globalState,
+          data: getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ExtendedCardInfo"],
+        }).then((response) => {
+          expect(
+            response.body.payment_method_data.card.card_extended_bin,
+            "card_extended_bin should be null"
+          ).to.be.null;
+        });
       });
     }
   );
