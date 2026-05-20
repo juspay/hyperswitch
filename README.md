@@ -184,7 +184,7 @@ Hyperswitch integrates with 100+ payment processors out of the box. Each connect
 |-----------|------|-------|
 | Global Payments | Payment Gateway | [View →](https://docs.hyperswitch.io/integrations/connectors-integrations/payment-processor-capabilities/available-connectors/globalpayments) |
 | Stripe | Payment Gateway | [View →](https://docs.hyperswitch.io/integrations/connectors-integrations/payment-processor-capabilities/available-connectors/stripe) |
-| Fiserv | Payment Gateway | [View →](https://docs.hyperswitch.io/integrations/connectors-integrations/payment-processor-capabilities/available-connectors/fiserv) |
+| Paypal | Payment Gateway | [View →](https://docs.hyperswitch.io/integrations/connectors-integrations/payment-processor-capabilities/available-connectors/paypal) |
 | Adyen | Payment Gateway | [View →](https://docs.hyperswitch.io/integrations/connectors-integrations/payment-processor-capabilities/available-connectors/adyen) |
 | Bank of America | Payment Gateway | [View →](https://docs.hyperswitch.io/integrations/connectors-integrations/payment-processor-capabilities/available-connectors/boa) |
 
