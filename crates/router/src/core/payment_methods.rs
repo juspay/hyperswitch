@@ -5001,7 +5001,7 @@ pub async fn list_payment_methods_core(
     let customer_payment_methods = saved_payment_methods
         .into_iter()
         .map(|pm| {
-            api_models::payment_methods::PaymentMethodResponseItem::foreign_try_from((
+            payment_methods::PaymentMethodResponseItem::foreign_try_from((
                 pm,
                 default_payment_method_id.clone(),
             ))
