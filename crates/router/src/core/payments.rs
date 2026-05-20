@@ -10767,14 +10767,11 @@ where
                 network_token_data.into(),
             ))
         }
-        Some(ActionType::CardWithNetworkTransactionId(network_transaction_id)) => {
+        Some(ActionType::CardWithNetworkTransactionId(card_with_nti_ref)) => {
             logger::info!("using card with network_transaction_id for MIT flow");
 
             Some(payments_api::MandateReferenceId::NetworkMandateId(
-                payments_api::NetworkMandateIdRef {
-                    network_transaction_id,
-                    transaction_link_id: None,
-                },
+                card_with_nti_ref.into(),
             ))
         }
         Some(ActionType::ConnectorMandate(connector_mandate_details)) => {
@@ -10910,12 +10907,14 @@ where
                 .as_ref()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to fetch the network transaction id")?;
+            let transaction_link_id = payment_method_info.network_transaction_link_id.clone();
 
             let mandate_reference_id = Some(payments_api::MandateReferenceId::NetworkMandateId(
-                payments_api::NetworkMandateIdRef {
+                CardWithNTIRef {
                     network_transaction_id: network_transaction_id.to_string(),
-                    transaction_link_id: None,
-                },
+                    transaction_link_id,
+                }
+                .into(),
             ));
 
             connector_choice = Some((connector_data, mandate_reference_id.clone()));
@@ -10965,6 +10964,7 @@ pub struct NetworkTokenExpiry {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub struct NTWithNTIRef {
     pub network_transaction_id: String,
+    pub transaction_link_id: Option<String>,
     pub token_exp_month: Option<Secret<String>>,
     pub token_exp_year: Option<Secret<String>>,
 }
@@ -10973,9 +10973,24 @@ impl From<NTWithNTIRef> for payments_api::NetworkTokenWithNTIRef {
     fn from(network_token_data: NTWithNTIRef) -> Self {
         Self {
             network_transaction_id: network_token_data.network_transaction_id,
-            transaction_link_id: None,
+            transaction_link_id: network_token_data.transaction_link_id,
             token_exp_month: network_token_data.token_exp_month,
             token_exp_year: network_token_data.token_exp_year,
+        }
+    }
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
+pub struct CardWithNTIRef {
+    pub network_transaction_id: String,
+    pub transaction_link_id: Option<String>,
+}
+
+impl From<CardWithNTIRef> for payments_api::NetworkMandateIdRef {
+    fn from(card_data: CardWithNTIRef) -> Self {
+        Self {
+            network_transaction_id: card_data.network_transaction_id,
+            transaction_link_id: card_data.transaction_link_id,
         }
     }
 }
@@ -10984,7 +10999,7 @@ impl From<NTWithNTIRef> for payments_api::NetworkTokenWithNTIRef {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum ActionType {
     NetworkTokenWithNetworkTransactionId(NTWithNTIRef),
-    CardWithNetworkTransactionId(String), // Network Transaction Id
+    CardWithNetworkTransactionId(CardWithNTIRef),
     #[cfg(feature = "v1")]
     ConnectorMandate(hyperswitch_domain_models::mandates::PaymentsMandateReference),
 }
@@ -11040,7 +11055,7 @@ impl ActionTypesBuilder {
         payment_method_data: Option<&domain::PaymentMethodData>,
     ) -> Self {
         match is_network_token_with_ntid_flow {
-            IsNtWithNtiFlow::NtWithNtiSupported(network_transaction_id)
+            IsNtWithNtiFlow::NtWithNtiSupported(card_with_nti_ref)
                 if is_nt_with_ntid_supported_connector =>
             {
                 match payment_method_data {
@@ -11062,7 +11077,12 @@ impl ActionTypesBuilder {
                                             .token_exp_year
                                             .clone(),
                                     ),
-                                    network_transaction_id,
+                                    network_transaction_id: card_with_nti_ref
+                                        .network_transaction_id
+                                        .clone(),
+                                    transaction_link_id: card_with_nti_ref
+                                        .transaction_link_id
+                                        .clone(),
                                 },
                             ));
                     }
@@ -11082,7 +11102,12 @@ impl ActionTypesBuilder {
                                     ActionType::NetworkTokenWithNetworkTransactionId(NTWithNTIRef {
                                         token_exp_month,
                                         token_exp_year,
-                                        network_transaction_id,
+                                        network_transaction_id: card_with_nti_ref
+                                            .network_transaction_id
+                                            .clone(),
+                                        transaction_link_id: card_with_nti_ref
+                                            .transaction_link_id
+                                            .clone(),
                                     })
                                 },
                             ),
@@ -11101,12 +11126,20 @@ impl ActionTypesBuilder {
         payment_method_info: &domain::PaymentMethod,
     ) -> Self {
         if is_card_with_ntid_flow {
-            self.action_types.extend(
-                payment_method_info
-                    .network_transaction_id
-                    .as_ref()
-                    .map(|ntid| ActionType::CardWithNetworkTransactionId(ntid.clone())),
-            );
+            self.action_types
+                .extend(
+                    payment_method_info
+                        .network_transaction_id
+                        .as_ref()
+                        .map(|ntid| {
+                            ActionType::CardWithNetworkTransactionId(CardWithNTIRef {
+                                network_transaction_id: ntid.clone(),
+                                transaction_link_id: payment_method_info
+                                    .network_transaction_link_id
+                                    .clone(),
+                            })
+                        }),
+                );
         }
         self
     }
@@ -11205,8 +11238,8 @@ pub fn is_network_transaction_id_flow(
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub enum IsNtWithNtiFlow {
-    NtWithNtiSupported(String), //Network token with Network transaction id supported flow
-    NTWithNTINotSupported,      //Network token with Network transaction id not supported
+    NtWithNtiSupported(CardWithNTIRef), //Network token with Network transaction id + TLID supported flow
+    NTWithNTINotSupported,              //Network token with Network transaction id not supported
 }
 
 pub fn is_network_token_with_network_transaction_id_flow(
@@ -11221,6 +11254,7 @@ pub fn is_network_token_with_network_transaction_id_flow(
         is_network_tokenization_enabled,
         payment_method_info.get_payment_method_type(),
         payment_method_info.network_transaction_id.clone(),
+        payment_method_info.network_transaction_link_id.clone(),
         payment_method_info.network_token_locker_id.is_some(),
         payment_method_info
             .network_token_requestor_reference_id
@@ -11233,21 +11267,29 @@ pub fn is_network_token_with_network_transaction_id_flow(
             true,
             Some(storage_enums::PaymentMethod::Card),
             Some(network_transaction_id),
+            transaction_link_id,
             true,
             true,
             _,
             _,
-        ) => IsNtWithNtiFlow::NtWithNtiSupported(network_transaction_id),
+        ) => IsNtWithNtiFlow::NtWithNtiSupported(CardWithNTIRef {
+            network_transaction_id,
+            transaction_link_id,
+        }),
         (
             Some(true),
             true,
             Some(storage_enums::PaymentMethod::Card),
             Some(network_transaction_id),
+            transaction_link_id,
             _,
             _,
             true,
             Some(domain::PaymentMethodData::CardWithNetworkTokenDetails(_)),
-        ) => IsNtWithNtiFlow::NtWithNtiSupported(network_transaction_id),
+        ) => IsNtWithNtiFlow::NtWithNtiSupported(CardWithNTIRef {
+            network_transaction_id,
+            transaction_link_id,
+        }),
         _ => IsNtWithNtiFlow::NTWithNTINotSupported,
     }
 }
