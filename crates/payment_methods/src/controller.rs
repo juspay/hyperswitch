@@ -185,6 +185,18 @@ pub trait PaymentMethodsController {
     )>;
 
     #[cfg(feature = "v1")]
+    async fn add_wallet_to_locker(
+        &self,
+        req: api::PaymentMethodCreate,
+        wallet_data: api_models::payment_methods::WalletDetail,
+        key_store: &merchant_key_store::MerchantKeyStore,
+        customer_id: &id_type::CustomerId,
+    ) -> errors::VaultResult<(
+        payment_methods::PaymentMethodResponse,
+        Option<DataDuplicationCheck>,
+    )>;
+
+    #[cfg(feature = "v1")]
     async fn get_or_insert_payment_method(
         &self,
         req: api::PaymentMethodCreate,

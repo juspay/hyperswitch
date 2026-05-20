@@ -1591,6 +1591,10 @@ pub struct PaymentsRequest {
 
     /// Installment data selected by the customer during payment confirmation. This is used to specify the chosen number of installments and billing frequency.
     pub installment_data: Option<InstallmentRequest>,
+
+    /// Identification for the profile acquirer to be used for this payment.
+    #[schema(value_type = Option<String>)]
+    pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -6662,7 +6666,7 @@ pub struct UrlDetails {
 pub struct AuthenticationForStartResponse {
     pub authentication: UrlDetails,
 }
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum NextActionType {
     RedirectToUrl,
@@ -6677,9 +6681,7 @@ pub enum NextActionType {
     InvokeUpiQrFlow,
 }
 
-#[derive(
-    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
-)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum NextActionData {
@@ -7348,6 +7350,12 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<String>")]
     pub modified_at: Option<PrimitiveDateTime>,
 
+    /// A unique identifier for a customer provided by the connector.
+    #[schema(value_type = Option<String>, example = "cus_Rnm2pDKGyQi506")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<String>")]
+    pub connector_customer_id: Option<String>,
+
     /// Three-letter ISO currency code (e.g., USD, EUR) for the payment amount.
     #[schema(value_type = Currency, example = "USD")]
     #[smithy(value_type = "Currency")]
@@ -7822,6 +7830,9 @@ pub struct PaymentsResponse {
     /// Installment selection confirmed by the customer for this payment
     #[schema(value_type = Option<InstallmentData>)]
     pub installment_data: Option<common_types::payments::InstallmentData>,
+
+    /// A connector-specific identifier representing the stored payment instrument
+    pub sender_payment_instrument_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -10308,9 +10319,7 @@ pub struct GooglePayTokenizationParameters {
     pub stripe_version: Option<Secret<String>>,
 }
 
-#[derive(
-    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
-)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[serde(tag = "wallet_name")]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -10652,9 +10661,7 @@ pub struct OpenBankingSessionToken {
     pub open_banking_session_token: String,
 }
 
-#[derive(
-    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
-)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "lowercase")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ApplepaySessionTokenResponse {
@@ -10718,9 +10725,7 @@ pub enum NextActionCall {
     EligibilityCheck,
 }
 
-#[derive(
-    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
-)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[serde(untagged)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum ApplePaySessionResponse {
@@ -10729,52 +10734,10 @@ pub enum ApplePaySessionResponse {
     ThirdPartySdk(ThirdPartySdkSessionResponse),
     ///  We get this session response, when there is no involvement of third party sdk
     /// This is the common response most of the times
-    #[smithy(value_type = "NoThirdPartySdkSessionResponse")]
-    NoThirdPartySdk(NoThirdPartySdkSessionResponse),
+    NoThirdPartySdk(serde_json::Value),
     /// This is for the empty session response
     #[smithy(value_type = "smithy.api#Unit")]
     NoSessionResponse(NullObject),
-}
-
-#[derive(
-    Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema, serde::Deserialize, SmithyModel,
-)]
-#[serde(rename_all(deserialize = "camelCase"))]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct NoThirdPartySdkSessionResponse {
-    /// Timestamp at which session is requested
-    #[smithy(value_type = "u64")]
-    pub epoch_timestamp: u64,
-    /// Timestamp at which session expires
-    #[smithy(value_type = "u64")]
-    pub expires_at: u64,
-    /// The identifier for the merchant session
-    #[smithy(value_type = "String")]
-    pub merchant_session_identifier: String,
-    /// Apple pay generated unique ID (UUID) value
-    #[smithy(value_type = "String")]
-    pub nonce: String,
-    /// The identifier for the merchant
-    #[smithy(value_type = "String")]
-    pub merchant_identifier: String,
-    /// The domain name of the merchant which is registered in Apple Pay
-    #[smithy(value_type = "String")]
-    pub domain_name: String,
-    /// The name to be displayed on Apple Pay button
-    #[smithy(value_type = "String")]
-    pub display_name: String,
-    /// A string which represents the properties of a payment
-    #[smithy(value_type = "String")]
-    pub signature: String,
-    /// The identifier for the operational analytics
-    #[smithy(value_type = "String")]
-    pub operational_analytics_identifier: String,
-    /// The number of retries to get the session response
-    #[smithy(value_type = "u8")]
-    pub retries: u8,
-    /// The identifier for the connector transaction
-    #[smithy(value_type = "String")]
-    pub psp_id: String,
 }
 
 #[derive(
@@ -11292,6 +11255,26 @@ pub struct PaymentsManualUpdateResponse {
     pub connector_transaction_id: Option<String>,
     /// The amount that can be captured on the payment.
     pub amount_capturable: Option<MinorUnit>,
+}
+
+/// Request to manually update payment status from Review state (Dashboard API)
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsManualStatusUpdateRequest {
+    /// The target status to transition to (Succeeded or Failed)
+    pub intent_status: enums::ManualUpdateIntentStatus,
+}
+
+/// Response for manual payment status update (Dashboard API)
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsManualStatusUpdateResponse {
+    /// The identifier for the payment
+    pub payment_id: id_type::PaymentId,
+    /// The identifier for the payment attempt
+    pub attempt_id: String,
+    /// The updated status of the intent
+    pub intent_status: enums::IntentStatus,
+    /// The updated status of the attempt
+    pub attempt_status: enums::AttemptStatus,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, SmithyModel)]
