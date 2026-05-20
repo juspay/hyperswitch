@@ -598,18 +598,16 @@ export const connectorDetails = {
     },
   },
   wallet_pm: {
-    PaymentIntent: (paymentMethodType) => {
-      const localCurrencyMap = { Skrill: "USD" };
-      return getCustomExchange({
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
         Request: {
-          currency: localCurrencyMap[paymentMethodType] || getCurrency(paymentMethodType),
+          currency: getCurrency(paymentMethodType),
         },
         Response: {
           status: 200,
           body: { status: "requires_payment_method" },
         },
-      });
-    },
+      }),
     Skrill: {
       Request: {
         payment_method: "wallet",
@@ -658,6 +656,8 @@ export const connectorDetails = {
         billing: {
           email: "guest@example.com",
           address: {
+            line1: "1467",
+            line2: "Harrison Street",
             city: "Toronto",
             state: "ON",
             zip: "M5V 2T6",
