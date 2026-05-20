@@ -859,6 +859,179 @@ export const connectorDetails = {
       },
     },
   },
+  pay_later_pm: {
+    PaymentIntent: (paymentMethodType) => ({
+      Request: {
+        amount: 11500,
+        currency: getCurrency(paymentMethodType),
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    AutoCapture: {
+      Request: {
+        currency: "USD",
+        capture_method: "automatic",
+        amount: 11500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    ManualCapture: {
+      Request: {
+        currency: "USD",
+        capture_method: "manual",
+        amount: 11500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    Klarna: {
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "klarna",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            klarna_redirect: {
+              billing_email: "guest@juspay.in",
+              billing_country: "DE",
+            },
+          },
+        },
+        billing: {
+          email: "guest@juspay.in",
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Berlin",
+            state: "Berlin",
+            zip: "10115",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 11500,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "1060",
+          error_message:
+            "Missing or invalid payment data. Provided payment option is invalid!",
+        },
+      },
+    },
+    AfterpayClearpay: {
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "afterpay_clearpay",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            afterpay_clearpay_redirect: {},
+          },
+        },
+        billing: {
+          email: "guest@juspay.in",
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Francisco",
+            state: "CA",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 11500,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "1068",
+          error_message: "Payment method is not enabled",
+        },
+      },
+    },
+  },
+  wallet_pm: {
+    PaymentIntent: (paymentMethodType) => ({
+      Request: {
+        amount: 11500,
+        currency: getCurrency(paymentMethodType),
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    PaypalRedirect: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Francisco",
+            state: "CA",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          error_code: null,
+          error_message: null,
+        },
+      },
+    },
+  },
   // Bank redirect payment methods
   bank_redirect_pm: {
     PaymentIntent: (paymentMethodType) => ({

@@ -515,7 +515,7 @@ export const CONNECTOR_LISTS = {
     BANK_DEBIT: ["adyen", "novalnet", "payload"], // payload verified as working
     BLUECODE_WALLET: ["calida"],
     ALIPAY_HK_WALLET: ["adyen"],
-    PAYPAL_WALLET: ["novalnet", "paypal"],
+    PAYPAL_WALLET: ["novalnet", "paypal", "nuvei"],
     MIFINITY_WALLET: ["mifinity"],
     PAYPAL_MANDATE: ["paypal"],
     CARD_INSTALLMENTS: ["adyen"],
@@ -555,7 +555,7 @@ export const CONNECTOR_LISTS = {
     EXTEND_AUTHORIZATION: ["adyen", "paypal"],
     GIFT_CARD: ["adyen"],
     RELAY_OPERATIONS: ["bankofamerica"],
-    PAY_LATER: ["klarna", "adyen", "aci", "stripe", "airwallex", "mollie"],
+    PAY_LATER: ["klarna", "adyen", "aci", "stripe", "airwallex", "mollie", "nuvei"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     STEP_UP_AUTH: ["cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
