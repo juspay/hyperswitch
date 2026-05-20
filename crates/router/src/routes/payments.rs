@@ -2495,8 +2495,6 @@ pub async fn payments_manual_status_update(
         },
         &auth::JWTAuth {
             permission: Permission::ProfilePaymentWrite,
-            allow_connected: true,
-            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
