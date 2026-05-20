@@ -66,6 +66,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             })?;
 
         let browser_info: Option<BrowserInformation> = self.payment_attempt.get_browser_info().ok();
+        let client_ip = browser_info.as_ref().and_then(|info| info.ip_address);
         let customer_id = self.payment_intent.customer_id.clone();
 
         let customer_details = self
@@ -83,10 +84,16 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             .attach_printable("Failed to parse customer data from payment intent")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+        let email = customer_details.as_ref().and_then(|c| c.email.clone());
+        let phone = customer_details.as_ref().and_then(|c| c.phone.clone());
+        let phone_country_code = customer_details
+            .as_ref()
+            .and_then(|c| c.phone_country_code.clone());
+
         let router_data = RouterData {
             flow: std::marker::PhantomData,
             merchant_id: processor.get_account().get_id().clone(),
-            customer_id,
+            customer_id: customer_id.clone(),
             tenant_id: state.tenant.tenant_id.clone(),
             connector: connector_id.to_string(),
             payment_id: self.payment_intent.payment_id.get_string_repr().to_owned(),
@@ -107,32 +114,33 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             amount_captured: None,
             minor_amount_captured: None,
             request: FraudCheckCheckoutData {
-                amount: self
-                    .payment_attempt
-                    .net_amount
-                    .get_total_amount()
-                    .get_amount_as_i64(),
+                amount: self.payment_attempt.net_amount.get_total_amount(),
                 order_details: self.order_details.clone(),
                 currency: self.payment_attempt.currency,
                 browser_info,
-                payment_method_data: self
-                    .payment_attempt
-                    .payment_method_data
-                    .as_ref()
-                    .map(|pm_data| {
+                payment_method_data: self.payment_attempt.payment_method_data.as_ref().and_then(
+                    |pm_data| {
                         pm_data
                             .clone()
                             .parse_value::<api_models::payments::AdditionalPaymentData>(
                                 "AdditionalPaymentData",
                             )
-                    })
-                    .transpose()
-                    .unwrap_or_default(),
-                email: customer_details
-                    .as_ref()
-                    .and_then(|customer_data| customer_data.email.clone()),
+                            .inspect_err(|err| {
+                                router_env::logger::warn!(
+                                    ?err,
+                                    "Failed to parse AdditionalPaymentData for FRM checkout flow"
+                                )
+                            })
+                            .ok()
+                    },
+                ),
                 gateway: self.payment_attempt.connector.clone(),
-            }, // self.order_details
+                client_ip,
+                customer_id,
+                email,
+                phone,
+                phone_country_code,
+            },
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId("".to_string()),
                 connector_metadata: None,
@@ -182,6 +190,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
                     "Failed to extract customer document details from payment_intent",
                 )?,
             feature_data: None,
+            sender_payment_instrument_id: None,
         };
 
         Ok(router_data)

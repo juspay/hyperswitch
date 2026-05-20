@@ -50,7 +50,7 @@ use crate::{
     utils::{
         self as connector_utils, AddressDetailsData, BrowserInformationData, CardData,
         ForeignTryFrom, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsSetupMandateRequestData, PaymentsSyncRequestData, RouterData as _,
+        PaymentsSyncRequestData, RouterData as _,
     },
 };
 
@@ -2256,7 +2256,6 @@ impl<F>
     fn try_from(
         item: ResponseRouterData<F, PaymentService, SetupMandateRequestData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let is_auto_capture = item.data.request.is_auto_capture()?;
         let reply = item
             .response
             .reply
@@ -2270,13 +2269,13 @@ impl<F>
             validate_order_status(&order_status)?;
 
             if let Some(payment_data) = order_status.payment {
-                let status = get_attempt_status(is_auto_capture, payment_data.last_event, None)?;
+                let status = get_attempt_status_for_setup_mandate(payment_data.last_event)?;
                 let response = process_payment_response(
                     status,
                     &payment_data,
                     item.http_code,
                     order_status.order_code.clone(),
-                    None,
+                    order_status.token,
                 )
                 .map_err(|err| *err);
                 Ok(Self {
@@ -2349,6 +2348,7 @@ impl<F>
             Option<HeaderMap>,
         ),
     ) -> Result<Self, Self::Error> {
+        let is_auto_capture = item.data.request.is_auto_capture()?;
         let reply = item
             .response
             .reply
@@ -2362,7 +2362,7 @@ impl<F>
             validate_order_status(&order_status)?;
 
             if let Some(payment_data) = order_status.payment {
-                let status = get_attempt_status_for_setup_mandate(payment_data.last_event)?;
+                let status = get_attempt_status(is_auto_capture, payment_data.last_event, None)?;
 
                 let response = process_payment_response(
                     status,

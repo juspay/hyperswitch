@@ -611,6 +611,10 @@ pub struct Passthrough {
     #[schema(value_type = String, example = "token_12345")]
     pub psp_token: Secret<String>,
 
+    /// PSP customer ID
+    #[schema(value_type = String, example = "customer_12345")]
+    pub psp_customer_id: Option<Secret<String>>,
+
     /// Payout method type of the token
     #[schema(value_type = PaymentMethodType, example = "paypal")]
     pub token_type: api_enums::PaymentMethodType,
