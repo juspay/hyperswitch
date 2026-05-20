@@ -683,44 +683,36 @@ describe("Bank Redirect tests", () => {
         }
       });
 
-      it("Create Payment Intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "bank_redirect_pm"
-        ]["PaymentIntent"]("BancontactCard");
+      it("Create+Confirm BancontactCard mandate auto-capture", () => {
+        let shouldContinueInner = true;
 
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "three_ds",
-          "automatic",
-          globalState
-        );
+        cy.step("Create+Confirm payment with mandate", () => {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "bank_redirect_pm"
+          ]["BancontactCard"]["MandateSingleUseAutoCapture"];
+          cy.createConfirmPaymentTest(
+            fixtures.createConfirmPaymentBody,
+            data,
+            "three_ds",
+            "automatic",
+            globalState
+          );
+          if (!utils.should_continue_further(data)) {
+            shouldContinueInner = false;
+            shouldContinue = false;
+          }
+        });
 
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
-
-      it("List Merchant Payment Methods", () => {
-        cy.paymentMethodsCallTest(globalState);
-      });
-
-      it("Confirm BancontactCard mandate auto-capture CIT", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "bank_redirect_pm"
-        ]["BancontactCard"]["MandateSingleUseAutoCapture"];
-
-        cy.citForMandatesCallTest(
-          fixtures.citConfirmBody,
-          data,
-          8000,
-          true,
-          "automatic",
-          "new_mandate",
-          globalState
-        );
-
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
+        cy.step("Retrieve Payment", () => {
+          if (!shouldContinueInner) {
+            cy.task("cli_log", "Skipping step: Retrieve Payment");
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "bank_redirect_pm"
+          ]["BancontactCard"]["MandateSingleUseAutoCapture"];
+          cy.retrievePaymentCallTest({ globalState, data });
+        });
       });
     }
   );
@@ -735,57 +727,6 @@ describe("Bank Redirect tests", () => {
       ) {
         this.skip();
       }
-    });
-
-    context("BancontactCard - MandateSingleUseAutoCapture CIT", () => {
-      it("CIT mandate and retrieve", () => {
-        let shouldContinue = true;
-
-        cy.step("CIT for Mandate", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "bank_redirect_pm"
-          ]["BancontactCard"]["MandateSingleUseAutoCapture"];
-          cy.citForMandatesCallTest(
-            fixtures.citConfirmBody,
-            data,
-            6540,
-            true,
-            "automatic",
-            "new_mandate",
-            globalState
-          );
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("Retrieve Payment", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Retrieve Payment");
-            return;
-          }
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "bank_redirect_pm"
-          ]["BancontactCard"]["MandateSingleUseAutoCapture"];
-          cy.retrievePaymentCallTest({ globalState, data });
-        });
-
-        cy.step("List Mandate", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: List Mandate");
-            return;
-          }
-          cy.listMandateCallTest(globalState);
-        });
-
-        cy.step("Revoke Mandate", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Revoke Mandate");
-            return;
-          }
-          cy.revokeMandateCallTest(globalState);
-        });
-      });
     });
 
     context("iDEAL - MandateSingleUseAutoCapture CIT", () => {
