@@ -7,12 +7,6 @@ const keyPrefixes = {
     publishable_key: "pk_snd_",
     key_id: "snd_",
   },
-  // Remote dev router reached over Tailscale — same key prefixes as a
-  // local development build.
-  "100.100.11.47": {
-    publishable_key: "pk_dev_",
-    key_id: "dev_",
-  },
 };
 
 export const setClientSecret = (requestBody, clientSecret) => {

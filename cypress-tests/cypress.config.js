@@ -1,6 +1,5 @@
 import { defineConfig } from "cypress";
 import mochawesome from "cypress-mochawesome-reporter/plugin.js";
-import crypto from "crypto";
 import fs from "fs";
 import { getTimeoutMultiplier } from "./cypress/utils/RequestBodyUtils.js";
 
