@@ -11257,6 +11257,26 @@ pub struct PaymentsManualUpdateResponse {
     pub amount_capturable: Option<MinorUnit>,
 }
 
+/// Request to manually update payment status from Review state (Dashboard API)
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsManualStatusUpdateRequest {
+    /// The target status to transition to (Succeeded or Failed)
+    pub intent_status: enums::ManualUpdateIntentStatus,
+}
+
+/// Response for manual payment status update (Dashboard API)
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentsManualStatusUpdateResponse {
+    /// The identifier for the payment
+    pub payment_id: id_type::PaymentId,
+    /// The identifier for the payment attempt
+    pub attempt_id: String,
+    /// The updated status of the intent
+    pub intent_status: enums::IntentStatus,
+    /// The updated status of the attempt
+    pub attempt_status: enums::AttemptStatus,
+}
+
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// Indicates if 3DS method data was successfully completed or not
