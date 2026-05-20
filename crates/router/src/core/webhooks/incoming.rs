@@ -1411,7 +1411,10 @@ async fn payments_incoming_webhook_flow(
                     }
                 }
             }
-            None => payments::CallConnectorAction::HandleResponse(resource_object),
+            None => payments::CallConnectorAction::HandleResponse {
+                resource_object,
+                event_type: Some(event_type.into()),
+            },
         }
     } else {
         payments::CallConnectorAction::Trigger

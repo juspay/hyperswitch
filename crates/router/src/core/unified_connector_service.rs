@@ -276,7 +276,7 @@ where
             }
             CallConnectorAction::Avoid
             | CallConnectorAction::Trigger
-            | CallConnectorAction::HandleResponse(_)
+            | CallConnectorAction::HandleResponse { .. }
             | CallConnectorAction::StatusUpdate { .. } => {
                 router_env::logger::debug!("UCS is disabled, using Direct gateway");
                 (GatewaySystem::Direct, ExecutionPath::Direct)
@@ -292,7 +292,7 @@ where
                     ExecutionPath::UnifiedConnectorService,
                 )
             }
-            CallConnectorAction::HandleResponse(_) => {
+            CallConnectorAction::HandleResponse { .. } => {
                 router_env::logger::info!(
                     "CallConnectorAction HandleResponse received, using Direct gateway"
                 );
