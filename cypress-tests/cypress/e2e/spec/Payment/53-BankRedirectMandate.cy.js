@@ -93,13 +93,21 @@ describe("Bank Redirect Mandate tests", () => {
           failOnStatusCode: false,
           body: requestBody,
         }).then((response) => {
-cy.wrap(response).then(() => {
+          cy.wrap(response).then(() => {
             expect(response.status).to.equal(resData.status);
             if (response.status === 200 && resData.body.status !== "failed") {
-              globalState.set("paymentMethodType", requestBody.payment_method_type);
-              globalState.set("nextActionUrl", response.body.next_action?.redirect_to_url);
+              globalState.set(
+                "paymentMethodType",
+                requestBody.payment_method_type
+              );
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action?.redirect_to_url
+              );
             } else if (response.body.status === "failed") {
-              expect(response.body.error_code).to.equal(resData.body.error_code);
+              expect(response.body.error_code).to.equal(
+                resData.body.error_code
+              );
             }
           });
         });
@@ -299,13 +307,21 @@ cy.wrap(response).then(() => {
           failOnStatusCode: false,
           body: requestBody,
         }).then((response) => {
-cy.wrap(response).then(() => {
+          cy.wrap(response).then(() => {
             expect(response.status).to.equal(resData.status);
             if (response.status === 200 && resData.body.status !== "failed") {
-              globalState.set("paymentMethodType", requestBody.payment_method_type);
-              globalState.set("nextActionUrl", response.body.next_action?.redirect_to_url);
+              globalState.set(
+                "paymentMethodType",
+                requestBody.payment_method_type
+              );
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action?.redirect_to_url
+              );
             } else if (response.body.status === "failed") {
-              expect(response.body.error_code).to.equal(resData.body.error_code);
+              expect(response.body.error_code).to.equal(
+                resData.body.error_code
+              );
             }
           });
         });
@@ -505,13 +521,21 @@ cy.wrap(response).then(() => {
           failOnStatusCode: false,
           body: requestBody,
         }).then((response) => {
-cy.wrap(response).then(() => {
+          cy.wrap(response).then(() => {
             expect(response.status).to.equal(resData.status);
             if (response.status === 200 && resData.body.status !== "failed") {
-              globalState.set("paymentMethodType", requestBody.payment_method_type);
-              globalState.set("nextActionUrl", response.body.next_action?.redirect_to_url);
+              globalState.set(
+                "paymentMethodType",
+                requestBody.payment_method_type
+              );
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action?.redirect_to_url
+              );
             } else if (response.body.status === "failed") {
-              expect(response.body.error_code).to.equal(resData.body.error_code);
+              expect(response.body.error_code).to.equal(
+                resData.body.error_code
+              );
             }
           });
         });
@@ -711,13 +735,21 @@ cy.wrap(response).then(() => {
           failOnStatusCode: false,
           body: requestBody,
         }).then((response) => {
-cy.wrap(response).then(() => {
+          cy.wrap(response).then(() => {
             expect(response.status).to.equal(resData.status);
             if (response.status === 200 && resData.body.status !== "failed") {
-              globalState.set("paymentMethodType", requestBody.payment_method_type);
-              globalState.set("nextActionUrl", response.body.next_action?.redirect_to_url);
+              globalState.set(
+                "paymentMethodType",
+                requestBody.payment_method_type
+              );
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action?.redirect_to_url
+              );
             } else if (response.body.status === "failed") {
-              expect(response.body.error_code).to.equal(resData.body.error_code);
+              expect(response.body.error_code).to.equal(
+                resData.body.error_code
+              );
             }
           });
         });
@@ -917,13 +949,21 @@ cy.wrap(response).then(() => {
           failOnStatusCode: false,
           body: requestBody,
         }).then((response) => {
-cy.wrap(response).then(() => {
+          cy.wrap(response).then(() => {
             expect(response.status).to.equal(resData.status);
             if (response.status === 200 && resData.body.status !== "failed") {
-              globalState.set("paymentMethodType", requestBody.payment_method_type);
-              globalState.set("nextActionUrl", response.body.next_action?.redirect_to_url);
+              globalState.set(
+                "paymentMethodType",
+                requestBody.payment_method_type
+              );
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action?.redirect_to_url
+              );
             } else if (response.body.status === "failed") {
-              expect(response.body.error_code).to.equal(resData.body.error_code);
+              expect(response.body.error_code).to.equal(
+                resData.body.error_code
+              );
             }
           });
         });
@@ -1123,13 +1163,21 @@ cy.wrap(response).then(() => {
           failOnStatusCode: false,
           body: requestBody,
         }).then((response) => {
-cy.wrap(response).then(() => {
+          cy.wrap(response).then(() => {
             expect(response.status).to.equal(resData.status);
             if (response.status === 200 && resData.body.status !== "failed") {
-              globalState.set("paymentMethodType", requestBody.payment_method_type);
-              globalState.set("nextActionUrl", response.body.next_action?.redirect_to_url);
+              globalState.set(
+                "paymentMethodType",
+                requestBody.payment_method_type
+              );
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action?.redirect_to_url
+              );
             } else if (response.body.status === "failed") {
-              expect(response.body.error_code).to.equal(resData.body.error_code);
+              expect(response.body.error_code).to.equal(
+                resData.body.error_code
+              );
             }
           });
         });
@@ -1328,13 +1376,21 @@ cy.wrap(response).then(() => {
           failOnStatusCode: false,
           body: requestBody,
         }).then((response) => {
-cy.wrap(response).then(() => {
+          cy.wrap(response).then(() => {
             expect(response.status).to.equal(resData.status);
             if (response.status === 200 && resData.body.status !== "failed") {
-              globalState.set("paymentMethodType", requestBody.payment_method_type);
-              globalState.set("nextActionUrl", response.body.next_action?.redirect_to_url);
+              globalState.set(
+                "paymentMethodType",
+                requestBody.payment_method_type
+              );
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action?.redirect_to_url
+              );
             } else if (response.body.status === "failed") {
-              expect(response.body.error_code).to.equal(resData.body.error_code);
+              expect(response.body.error_code).to.equal(
+                resData.body.error_code
+              );
             }
           });
         });
@@ -1407,13 +1463,21 @@ cy.wrap(response).then(() => {
           failOnStatusCode: false,
           body: requestBody,
         }).then((response) => {
-cy.wrap(response).then(() => {
+          cy.wrap(response).then(() => {
             expect(response.status).to.equal(resData.status);
             if (response.status === 200 && resData.body.status !== "failed") {
-              globalState.set("paymentMethodType", requestBody.payment_method_type);
-              globalState.set("nextActionUrl", response.body.next_action?.redirect_to_url);
+              globalState.set(
+                "paymentMethodType",
+                requestBody.payment_method_type
+              );
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action?.redirect_to_url
+              );
             } else if (response.body.status === "failed") {
-              expect(response.body.error_code).to.equal(resData.body.error_code);
+              expect(response.body.error_code).to.equal(
+                resData.body.error_code
+              );
             }
           });
         });

@@ -975,22 +975,31 @@ function bankRedirectRedirection(
               case "ideal":
                 cy.get("body", { timeout: 20000 }).then(($body) => {
                   const bodyText = $body.text();
-                  cy.task("cli_log", `GlobalPay ${paymentMethodType} page text: ${bodyText.substring(0, 200)}`);
-                  
+                  cy.task(
+                    "cli_log",
+                    `GlobalPay ${paymentMethodType} page text: ${bodyText.substring(0, 200)}`
+                  );
+
                   if ($body.find('button[type="submit"]').length > 0) {
                     cy.get('button[type="submit"]').first().click();
                   } else if ($body.find('input[type="submit"]').length > 0) {
                     cy.get('input[type="submit"]').first().click();
                   } else if (
-                    $body.find('[data-testid*="confirm"], [data-testid*="continue"]').length > 0
+                    $body.find(
+                      '[data-testid*="confirm"], [data-testid*="continue"]'
+                    ).length > 0
                   ) {
-                    cy.get('[data-testid*="confirm"], [data-testid*="continue"]')
+                    cy.get(
+                      '[data-testid*="confirm"], [data-testid*="continue"]'
+                    )
                       .first()
                       .click();
-                  } else if ($body.find('a.btn, button.btn').length > 0) {
-                    cy.get('a.btn, button.btn').first().click();
+                  } else if ($body.find("a.btn, button.btn").length > 0) {
+                    cy.get("a.btn, button.btn").first().click();
                   } else {
-                    cy.log(`No interactable elements found on GlobalPay ${paymentMethodType} page`);
+                    cy.log(
+                      `No interactable elements found on GlobalPay ${paymentMethodType} page`
+                    );
                   }
                 });
                 verifyUrl = false;
@@ -999,22 +1008,31 @@ function bankRedirectRedirection(
                 cy.on("uncaught:exception", () => false);
                 cy.get("body", { timeout: 20000 }).then(($body) => {
                   const bodyText = $body.text();
-                  cy.task("cli_log", `GlobalPay ${paymentMethodType} page text: ${bodyText.substring(0, 200)}`);
-                  
+                  cy.task(
+                    "cli_log",
+                    `GlobalPay ${paymentMethodType} page text: ${bodyText.substring(0, 200)}`
+                  );
+
                   if ($body.find('button[type="submit"]').length > 0) {
                     cy.get('button[type="submit"]').first().click();
                   } else if ($body.find('input[type="submit"]').length > 0) {
                     cy.get('input[type="submit"]').first().click();
                   } else if (
-                    $body.find('[data-testid*="confirm"], [data-testid*="continue"]').length > 0
+                    $body.find(
+                      '[data-testid*="confirm"], [data-testid*="continue"]'
+                    ).length > 0
                   ) {
-                    cy.get('[data-testid*="confirm"], [data-testid*="continue"]')
+                    cy.get(
+                      '[data-testid*="confirm"], [data-testid*="continue"]'
+                    )
                       .first()
                       .click();
-                  } else if ($body.find('a.btn, button.btn').length > 0) {
-                    cy.get('a.btn, button.btn').first().click();
+                  } else if ($body.find("a.btn, button.btn").length > 0) {
+                    cy.get("a.btn, button.btn").first().click();
                   } else {
-                    cy.log(`No interactable elements found on GlobalPay ${paymentMethodType} page`);
+                    cy.log(
+                      `No interactable elements found on GlobalPay ${paymentMethodType} page`
+                    );
                   }
                 });
                 verifyUrl = false;
