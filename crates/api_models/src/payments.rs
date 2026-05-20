@@ -10671,8 +10671,12 @@ pub struct PaypalSessionTokenResponse {
     /// User token required for returning customer flow, used by client to initiate sdk
     pub data_user_id_token: Option<String>,
     /// Transaction currency code
+    #[schema(example = "USD", value_type = Option<Currency>)]
+    #[smithy(value_type = "Option<Currency>")]
     pub transaction_currency_code: Option<common_enums::Currency>,
     /// PayPal capture method
+    #[schema(value_type = Option<PaypalCaptureMethod>)]
+    #[smithy(value_type = "Option<PaypalCaptureMethod>")]
     pub paypal_capture_method: Option<PaypalCaptureMethod>,
 }
 
