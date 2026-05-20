@@ -206,27 +206,3 @@ pub async fn execute_microservice_operation<O: ClientOperation>(
         .await?;
     Ok(executed.into_transformed_response()?.output)
 }
-
-/// Execute the pipeline up to the HTTP response, returning the raw V2 response without
-/// applying the `TryFrom<V2Response> for V1Response` conversion.
-///
-/// Use this when the caller needs access to fields on the V2 response that would be
-/// lost or transformed during the V1 conversion step.
-pub async fn execute_microservice_operation_raw<O: ClientOperation>(
-    state: &dyn ApiClientWrapper,
-    client: &impl MicroserviceClient,
-    request: O::V1Request,
-) -> Result<O::V2Response, MicroserviceClientError> {
-    let op = O::from_request(&request);
-    let validated = Validated::new(op, request)?;
-    let transformed = validated.into_transformed_request()?;
-    let executed = transformed
-        .execute(
-            state,
-            client.base_url(),
-            client.parent_headers().clone(),
-            client.trace(),
-        )
-        .await?;
-    Ok(executed.response)
-}

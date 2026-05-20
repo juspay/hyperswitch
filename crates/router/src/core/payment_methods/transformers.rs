@@ -1987,7 +1987,7 @@ pub async fn list_customer_payment_methods_from_modular_service(
     merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
     customer_id: id_type::CustomerId,
-) -> CustomResult<Vec<payment_methods::types::PaymentMethodResponseItem>, errors::ApiErrorResponse>
+) -> CustomResult<Vec<payment_methods::types::PaymentMethodResponseItemV1>, errors::ApiErrorResponse>
 {
     use payment_methods::client::list::{
         ListCustomerPaymentMethods, ListCustomerPaymentMethodsV1Request,
@@ -2023,9 +2023,9 @@ pub async fn list_customer_payment_methods_from_modular_service(
         modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
     };
 
-    ListCustomerPaymentMethods::call_raw(state, &client, request)
+    ListCustomerPaymentMethods::call(state, &client, request)
         .await
-        .map(|resp| resp.customer_payment_methods)
+        .map(|resp| resp.0.customer_payment_methods)
         .map_err(|err| {
             logger::error!(error=?err, "modular list customer payment methods failed");
             errors::ApiErrorResponse::InternalServerError

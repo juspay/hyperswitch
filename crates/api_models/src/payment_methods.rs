@@ -2873,19 +2873,7 @@ pub struct PaymentMethodListIntentData {
     pub is_guest_customer: Option<bool>,
 }
 
-/// Bank payment method types returned in the client payment method list
-#[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
-pub struct BankTypes {
-    /// The list of supported bank names (null for bank_debit / bank_transfer)
-    #[schema(value_type = Option<Vec<BankNames>>)]
-    pub bank_names: Option<Vec<common_enums::BankNames>>,
-
-    /// The list of eligible connectors for this bank payment method
-    #[schema(example = json!(["stripe", "adyen"]))]
-    pub eligible_connectors: Vec<String>,
-}
-
+/// Payment experience entry in the client PM list.
 /// Subtype-specific data for each payment method entry in the client list
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
@@ -2893,13 +2881,13 @@ pub struct BankTypes {
 pub enum PaymentMethodSubtypeSpecificDataForClient {
     /// Card payment method — contains card network info
     Card {
-        /// The list of card networks supported
-        card_networks: Vec<CardNetworkTypes>,
+        #[schema(value_type = Vec<CardNetwork>)]
+        card_network_details: Vec<api_enums::CardNetwork>,
     },
     /// Bank payment method (bank_redirect / bank_debit / bank_transfer) — contains bank info
     Bank {
-        /// The list of bank types supported
-        bank: Vec<BankTypes>,
+        #[schema(value_type = Option<Vec<BankNames>>)]
+        bank_names: Option<Vec<common_enums::BankNames>>,
     },
 }
 
@@ -2920,7 +2908,7 @@ pub struct ResponsePaymentMethodsEnabledForClient {
     pub data: Option<PaymentMethodSubtypeSpecificDataForClient>,
 
     /// Payment experience options for this method (wallets, pay_later, etc.)
-    pub payment_experience: Option<Vec<PaymentExperienceTypes>>,
+    pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
 
     /// Whether to collect shipping details from the wallet connector (null for non-wallet)
     pub collect_shipping_details_from_wallets: Option<bool>,

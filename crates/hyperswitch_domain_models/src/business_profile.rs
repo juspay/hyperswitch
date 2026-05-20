@@ -24,6 +24,7 @@ use router_env::logger;
 
 use crate::{
     behaviour::Conversion,
+    payments,
     errors::api_error_response,
     merchant_key_store::MerchantKeyStore,
     type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
@@ -1577,7 +1578,7 @@ impl Profile {
     #[cfg(feature = "v1")]
     pub fn get_is_tax_calculation_enabled(
         &self,
-        payment_intent: &crate::payments::PaymentIntent,
+        payment_intent: &payments::PaymentIntent,
     ) -> bool {
         self.get_is_tax_connector_enabled()
             && !payment_intent

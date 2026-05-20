@@ -2140,7 +2140,7 @@ pub struct MerchantConnectorDetailsWrap {
        "connector_account_details": {
             "auth_type": "HeaderKey",
             "api_key":"sk_test_xxxxxexamplexxxxxx12345"
-        }, 
+        },
         "metadata": {
             "user_defined_field_1": "sample_1",
             "user_defined_field_2": "sample_2",

@@ -13,7 +13,7 @@ use ::payment_methods::{
 use api_models::admin::PaymentMethodsEnabled;
 #[cfg(feature = "v1")]
 use api_models::payment_methods::{
-    BankTypes, PaymentMethodListIntentDataInput, PaymentMethodSubtypeSpecificDataForClient,
+    PaymentMethodListIntentDataInput, PaymentMethodSubtypeSpecificDataForClient,
     ResponsePaymentMethodsEnabledForClient,
 };
 use api_models::{
@@ -3145,13 +3145,8 @@ impl MerchantEnabledPmsContext {
         let mut out = vec![];
         for (payment_method, pmt_map) in &self.payment_experiences_consolidated_hm {
             for (payment_method_type, pe_map) in pmt_map {
-                let payment_experience_types: Vec<PaymentExperienceTypes> = pe_map
-                    .iter()
-                    .map(|(pe, connectors)| PaymentExperienceTypes {
-                        payment_experience_type: *pe,
-                        eligible_connectors: connectors.clone(),
-                    })
-                    .collect();
+                let payment_experience_types: Vec<api_enums::PaymentExperience> =
+                    pe_map.keys().copied().collect();
 
                 let is_wallet = *payment_method == api_enums::PaymentMethod::Wallet
                     || *payment_method == api_enums::PaymentMethod::PayLater;
@@ -3178,20 +3173,14 @@ impl MerchantEnabledPmsContext {
         let mut out = vec![];
         for (payment_method, pmt_map) in &self.card_networks_consolidated_hm {
             for (payment_method_type, cn_map) in pmt_map {
-                let card_network_types: Vec<CardNetworkTypes> = cn_map
-                    .iter()
-                    .map(|(cn, connectors)| CardNetworkTypes {
-                        card_network: cn.clone(),
-                        eligible_connectors: connectors.clone(),
-                        surcharge_details: None,
-                    })
-                    .collect();
+                let card_network_details: Vec<api_enums::CardNetwork> =
+                    cn_map.keys().cloned().collect();
 
                 out.push(ResponsePaymentMethodsEnabledForClient {
                     payment_method: *payment_method,
                     payment_method_type: *payment_method_type,
                     data: Some(PaymentMethodSubtypeSpecificDataForClient::Card {
-                        card_networks: card_network_types,
+                        card_network_details,
                     }),
                     payment_experience: None,
                     collect_shipping_details_from_wallets: None,
@@ -3210,18 +3199,17 @@ impl MerchantEnabledPmsContext {
         let mut out = vec![];
         for (payment_method_type, connectors) in &self.banks_consolidated_hm {
             let bank_names = get_banks(state, *payment_method_type, connectors.clone())?;
-            let bank_types: Vec<BankTypes> = bank_names
+            let bank_names_list: Vec<common_enums::BankNames> = bank_names
                 .into_iter()
-                .map(|bcr| BankTypes {
-                    bank_names: Some(bcr.bank_name),
-                    eligible_connectors: bcr.eligible_connectors,
-                })
+                .flat_map(|bcr| bcr.bank_name)
                 .collect();
 
             out.push(ResponsePaymentMethodsEnabledForClient {
                 payment_method: api_enums::PaymentMethod::BankRedirect,
                 payment_method_type: *payment_method_type,
-                data: Some(PaymentMethodSubtypeSpecificDataForClient::Bank { bank: bank_types }),
+                data: Some(PaymentMethodSubtypeSpecificDataForClient::Bank {
+                    bank_names: Some(bank_names_list),
+                }),
                 payment_experience: None,
                 collect_shipping_details_from_wallets: None,
                 collect_billing_details_from_wallets: None,
@@ -3233,22 +3221,16 @@ impl MerchantEnabledPmsContext {
     /// Converts `bank_debits_consolidated_hm` → client PM entries (bank_debit)
     pub fn bank_debit_pms_for_client(&self) -> Vec<ResponsePaymentMethodsEnabledForClient> {
         self.bank_debits_consolidated_hm
-            .iter()
-            .map(|(payment_method_type, connectors)| {
-                let bank_types = vec![BankTypes {
+            .keys()
+            .map(|payment_method_type| ResponsePaymentMethodsEnabledForClient {
+                payment_method: api_enums::PaymentMethod::BankDebit,
+                payment_method_type: *payment_method_type,
+                data: Some(PaymentMethodSubtypeSpecificDataForClient::Bank {
                     bank_names: None,
-                    eligible_connectors: connectors.clone(),
-                }];
-                ResponsePaymentMethodsEnabledForClient {
-                    payment_method: api_enums::PaymentMethod::BankDebit,
-                    payment_method_type: *payment_method_type,
-                    data: Some(PaymentMethodSubtypeSpecificDataForClient::Bank {
-                        bank: bank_types,
-                    }),
-                    payment_experience: None,
-                    collect_shipping_details_from_wallets: None,
-                    collect_billing_details_from_wallets: None,
-                }
+                }),
+                payment_experience: None,
+                collect_shipping_details_from_wallets: None,
+                collect_billing_details_from_wallets: None,
             })
             .collect()
     }
@@ -3256,22 +3238,16 @@ impl MerchantEnabledPmsContext {
     /// Converts `bank_transfer_consolidated_hm` → client PM entries (bank_transfer)
     pub fn bank_transfer_pms_for_client(&self) -> Vec<ResponsePaymentMethodsEnabledForClient> {
         self.bank_transfer_consolidated_hm
-            .iter()
-            .map(|(payment_method_type, connectors)| {
-                let bank_types = vec![BankTypes {
+            .keys()
+            .map(|payment_method_type| ResponsePaymentMethodsEnabledForClient {
+                payment_method: api_enums::PaymentMethod::BankTransfer,
+                payment_method_type: *payment_method_type,
+                data: Some(PaymentMethodSubtypeSpecificDataForClient::Bank {
                     bank_names: None,
-                    eligible_connectors: connectors.clone(),
-                }];
-                ResponsePaymentMethodsEnabledForClient {
-                    payment_method: api_enums::PaymentMethod::BankTransfer,
-                    payment_method_type: *payment_method_type,
-                    data: Some(PaymentMethodSubtypeSpecificDataForClient::Bank {
-                        bank: bank_types,
-                    }),
-                    payment_experience: None,
-                    collect_shipping_details_from_wallets: None,
-                    collect_billing_details_from_wallets: None,
-                }
+                }),
+                payment_experience: None,
+                collect_shipping_details_from_wallets: None,
+                collect_billing_details_from_wallets: None,
             })
             .collect()
     }

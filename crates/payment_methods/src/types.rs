@@ -13,11 +13,13 @@ pub struct ModularListCustomerPaymentMethodsRequest;
 #[derive(Debug, Deserialize)]
 // TODO: replace dummy response types with real v1/modular models.
 pub struct ModularListCustomerPaymentMethodsResponse {
-    pub customer_payment_methods: Vec<PaymentMethodResponseItem>,
+    pub customer_payment_methods: Vec<PaymentMethodResponseItemV1>,
 }
 
+/// V1 bridge shape — deserialized from the modular service response when called from v1 router.
+/// Uses v1 ID types (String, CustomerId).
 #[derive(Debug, Deserialize)]
-pub struct PaymentMethodResponseItem {
+pub struct PaymentMethodResponseItemV1 {
     pub id: String,
     pub customer_id: id_type::CustomerId,
     pub payment_method_type: PaymentMethod,
@@ -35,6 +37,7 @@ pub struct PaymentMethodResponseItem {
     pub network_tokenization: Option<NetworkTokenResponse>,
     pub psp_tokenization_enabled: bool,
 }
+
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
