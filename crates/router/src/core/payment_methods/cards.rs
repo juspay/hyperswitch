@@ -3298,9 +3298,7 @@ impl MerchantEnabledPmsContext {
                 out.push(ResponsePaymentMethodsEnabledForClient {
                     payment_method: *payment_method,
                     payment_method_type: *payment_method_type,
-                    data: Some(PaymentMethodSubtypeSpecificDataForClient::Card {
-                        card_networks,
-                    }),
+                    data: Some(PaymentMethodSubtypeSpecificDataForClient::Card { card_networks }),
                     payment_experience: None,
                     collect_shipping_details_from_wallets: None,
                     collect_billing_details_from_wallets: None,
