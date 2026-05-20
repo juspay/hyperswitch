@@ -746,6 +746,22 @@ where
         .as_ref()
         .and_then(|customer| customer.connector_customer.as_ref());
 
+    let merchant_connector_id = payment_data
+        .get_payment_attempt()
+        .merchant_connector_id
+        .clone();
+
+    let connector_customer_id = connector_customer_map.and_then(|cc| {
+        merchant_connector_id.and_then(|mca_id| {
+            cc.clone()
+                .expose()
+                .get(mca_id.get_string_repr())
+                .and_then(|val| val.as_str().map(String::from))
+        })
+    });
+
+    payment_data.set_connector_customer_id(connector_customer_id);
+
     let authentication_type = call_decision_manager(
         state,
         platform.get_processor(),
@@ -1460,8 +1476,7 @@ where
         .await?;
 
     utils::trigger_payments_webhook(
-        platform.get_processor(),
-        platform.get_initiator(),
+        platform,
         business_profile,
         cloned_payment_data,
         state,
@@ -1587,10 +1602,16 @@ where
         )
         .await?;
 
+    let dimensions = Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_profile_id(business_profile.get_id().clone());
+
     let connector = set_eligible_connector_for_proxy_in_payment_data(
         state,
         &business_profile,
         platform.get_processor().get_key_store(),
+        &dimensions,
         &mut payment_data,
         connector_choice,
     )
@@ -1704,8 +1725,7 @@ where
     let cloned_payment_data = payment_data.clone();
 
     utils::trigger_payments_webhook(
-        platform.get_processor(),
-        platform.get_initiator(),
+        &platform,
         business_profile,
         cloned_payment_data,
         state,
@@ -7490,51 +7510,72 @@ where
                 }
             };
 
-            let (should_call_connector, existing_connector_customer_id) =
-                customers::should_call_connector_create_customer(
-                    &connector,
-                    connector_customer_map,
-                    payment_data.get_payment_attempt(),
-                    &label,
-                );
-            logger::debug!(should_call_connector_customer = should_call_connector);
-            if should_call_connector {
-                // Create customer at connector and update the customer table to store this data
-                let mut customer_router_data = payment_data
-                    .construct_router_data(
-                        state,
-                        connector.connector.id(),
-                        processor,
-                        merchant_connector_account,
-                        None,
-                        None,
-                        payment_data.get_payment_attempt().payment_method,
-                        payment_data.get_payment_attempt().payment_method_type,
+            match customers::should_call_connector_create_customer(
+                &connector,
+                connector_customer_map,
+                payment_data.get_payment_attempt(),
+                &label,
+            ) {
+                customers::ConnectorCustomerAction::CreateCustomer => {
+                    // Create customer at connector and update the customer table to store this data
+                    let mut customer_router_data = payment_data
+                        .construct_router_data(
+                            state,
+                            connector.connector.id(),
+                            processor,
+                            merchant_connector_account,
+                            None,
+                            None,
+                            payment_data.get_payment_attempt().payment_method,
+                            payment_data.get_payment_attempt().payment_method_type,
+                        )
+                        .await?;
+
+                    customer_router_data.access_token = access_token.cloned();
+
+                    let connector_customer_id = customer_router_data
+                        .create_connector_customer(state, &connector, gateway_context)
+                        .await?;
+
+                    let customer_update: Option<
+                        hyperswitch_domain_models::customer::CustomerUpdate,
+                    > = customers::update_connector_customer_in_customers(
+                        &label,
+                        connector_customer_map,
+                        connector_customer_id.clone(),
+                        initiator,
                     )
-                    .await?;
+                    .await;
 
-                customer_router_data.access_token = access_token.cloned();
+                    payment_data.set_connector_customer_id(connector_customer_id);
+                    Ok(customer_update)
+                }
+                customers::ConnectorCustomerAction::StoreGeneratedCustomerId(
+                    generated_customer_id,
+                ) => {
+                    // Only update with generated customer ID if there's no existing connector customer
+                    let customer_update: Option<
+                        hyperswitch_domain_models::customer::CustomerUpdate,
+                    > = customers::update_connector_customer_in_customers(
+                        &label,
+                        connector_customer_map,
+                        Some(generated_customer_id.clone()),
+                        initiator,
+                    )
+                    .await;
 
-                let connector_customer_id = customer_router_data
-                    .create_connector_customer(state, &connector, gateway_context)
-                    .await?;
-
-                let customer_update = customers::update_connector_customer_in_customers(
-                    &label,
-                    connector_customer_map,
-                    connector_customer_id.clone(),
-                    initiator,
-                )
-                .await;
-
-                payment_data.set_connector_customer_id(connector_customer_id);
-                Ok(customer_update)
-            } else {
-                // Customer already created in previous calls use the same value, no need to update
-                payment_data.set_connector_customer_id(
-                    existing_connector_customer_id.map(ToOwned::to_owned),
-                );
-                Ok(None)
+                    payment_data.set_connector_customer_id(Some(generated_customer_id));
+                    Ok(customer_update)
+                }
+                customers::ConnectorCustomerAction::UseExistingCustomer(
+                    existing_connector_customer_id,
+                ) => {
+                    // Customer already created in previous calls use the same value, no need to update
+                    payment_data.set_connector_customer_id(
+                        existing_connector_customer_id.map(ToOwned::to_owned),
+                    );
+                    Ok(None)
+                }
             }
         }
         None => Ok(None),
@@ -9935,6 +9976,7 @@ async fn get_eligible_connector_for_proxy<T: core_routing::GetRoutableConnectors
     key_store: &domain::MerchantKeyStore,
     payment_data: &mut D,
     connector_choice: T,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     business_profile: &domain::Profile,
 ) -> RouterResult<api::ConnectorData>
 where
@@ -9950,7 +9992,7 @@ where
     let proxy_connector_filters = get_proxy_connector_filters(state, recurring_payment_details)?;
 
     let eligible_connector_data_list = connector_choice
-        .get_routable_connectors(state, business_profile, payment_data)
+        .get_routable_connectors(state, dimensions, business_profile, payment_data)
         .await?
         .filter_proxy_flow_supported_connectors(proxy_connector_filters)
         .construct_dsl_and_perform_eligibility_analysis(
@@ -10008,6 +10050,7 @@ pub async fn set_eligible_connector_for_proxy_in_payment_data<F, D>(
     state: &SessionState,
     business_profile: &domain::Profile,
     key_store: &domain::MerchantKeyStore,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     payment_data: &mut D,
     connector_choice: api::ConnectorChoice,
 ) -> RouterResult<api::ConnectorData>
@@ -10022,6 +10065,7 @@ where
                 key_store,
                 payment_data,
                 core_routing::StraightThroughAlgorithmTypeSingle(straight_through),
+                dimensions,
                 business_profile,
             )
             .await?
@@ -10032,6 +10076,7 @@ where
                 key_store,
                 payment_data,
                 core_routing::DecideConnector,
+                dimensions,
                 business_profile,
             )
             .await?
@@ -10466,6 +10511,7 @@ where
             async move {
                 static_dynamic_routing_v1_for_payments(
                     state_ref,
+                    dimensions,
                     business_profile,
                     txn_data,
                     backend_input,
@@ -10725,7 +10771,10 @@ where
             logger::info!("using card with network_transaction_id for MIT flow");
 
             Some(payments_api::MandateReferenceId::NetworkMandateId(
-                network_transaction_id,
+                payments_api::NetworkMandateIdRef {
+                    network_transaction_id,
+                    transaction_link_id: None,
+                },
             ))
         }
         Some(ActionType::ConnectorMandate(connector_mandate_details)) => {
@@ -10863,7 +10912,10 @@ where
                 .attach_printable("Failed to fetch the network transaction id")?;
 
             let mandate_reference_id = Some(payments_api::MandateReferenceId::NetworkMandateId(
-                network_transaction_id.to_string(),
+                payments_api::NetworkMandateIdRef {
+                    network_transaction_id: network_transaction_id.to_string(),
+                    transaction_link_id: None,
+                },
             ));
 
             connector_choice = Some((connector_data, mandate_reference_id.clone()));
@@ -10921,6 +10973,7 @@ impl From<NTWithNTIRef> for payments_api::NetworkTokenWithNTIRef {
     fn from(network_token_data: NTWithNTIRef) -> Self {
         Self {
             network_transaction_id: network_token_data.network_transaction_id,
+            transaction_link_id: None,
             token_exp_month: network_token_data.token_exp_month,
             token_exp_year: network_token_data.token_exp_year,
         }
@@ -11349,9 +11402,15 @@ pub async fn route_connector_v2_for_payments(
         .as_ref()
         .or(business_profile.routing_algorithm_id.as_ref());
 
+    let dimensions = Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_profile_id(business_profile.get_id().clone());
+
     let (connectors, _) = routing::perform_static_routing_v1(
         state,
         platform.get_processor().get_account().get_id(),
+        &dimensions,
         routing_algorithm_id,
         business_profile,
         &TransactionData::Payment(transaction_data.clone()),
@@ -11391,6 +11450,7 @@ pub async fn route_connector_v2_for_payments(
 #[allow(clippy::too_many_arguments)]
 pub async fn static_dynamic_routing_v1_for_payments(
     state: &SessionState,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     business_profile: &domain::Profile,
     payment_dsl_input: core_routing::PaymentsDslInput<'_>,
     backend_input: euclid::backend::BackendInput,
@@ -11408,6 +11468,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
     let (connectors, routing_approach) = routing::perform_hybrid_routing_if_enabled(
         state,
         business_profile,
+        dimensions,
         &payment_dsl_input,
         &backend_input,
         &fallback_config,
@@ -11443,6 +11504,7 @@ pub async fn route_connector_v1_for_payouts(
 pub async fn route_connector_v1_for_payouts(
     state: &SessionState,
     processor: &domain::Processor,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     business_profile: &domain::Profile,
     transaction_data: &payouts::PayoutData,
     routing_data: &mut storage::RoutingData,
@@ -11463,6 +11525,7 @@ pub async fn route_connector_v1_for_payouts(
     let (connectors, _) = routing::perform_static_routing_v1(
         state,
         processor.get_account().get_id(),
+        dimensions,
         routing_algorithm_id.as_ref(),
         business_profile,
         &TransactionData::Payout(transaction_data),
@@ -11531,6 +11594,17 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
 
     let db = &*state.store;
     let key_manager_state = &(&(state)).into();
+
+    let dimensions = Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .organization_id
+                .clone(),
+        );
 
     let processor_merchant_id = platform.get_processor().get_account().get_id();
     let storage_scheme = platform.get_processor().get_account().storage_scheme;
@@ -11706,18 +11780,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), &state)
             .await?
         {
-            let routing_region = uas_utils::fetch_routing_region_for_uas(
-                &state,
-                processor_merchant_id.clone(),
-                platform
-                    .get_processor()
-                    .get_account()
-                    .organization_id
-                    .clone(),
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch routing path")?;
+            let routing_region = uas_utils::fetch_routing_region_for_uas(&state, &dimensions).await;
             let auth_response =
                 <ExternalAuthentication as UnifiedAuthenticationService>::authentication(
                     &state,

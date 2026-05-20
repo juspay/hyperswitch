@@ -878,6 +878,64 @@ export const connectorDetails = {
         },
       },
     },
+    PollConfig: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4000000000003220",
+            card_exp_month: "10",
+            card_exp_year: "27",
+            card_holder_name: "John Doe",
+            card_cvc: "737",
+          },
+        },
+        authentication_type: "three_ds",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    },
+    PollConfigNotFound: {
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Poll does not exist in our records",
+            code: "HE_02",
+          },
+        },
+      },
+    },
+    PollConfigInvalidPollId: {
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Poll does not exist in our records",
+            code: "HE_02",
+          },
+        },
+      },
+    },
+    PollConfigUnauthorized: {
+      Response: {
+        status: 401,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "API key not provided or invalid API key used",
+            code: "IR_01",
+          },
+        },
+      },
+    },
     external_three_ds: {
       Request: {
         payment_method: "card",
@@ -1120,6 +1178,56 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    },
+    BancontactCard: {
+      MandateSingleUse: {
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "bancontact_card",
+          payment_method_data: {
+            bank_redirect: {
+              bancontact_card: {},
+            },
+          },
+          billing: {
+            email: "joseph.Doe@example.com",
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
+              country: "BE",
+              first_name: "joseph",
+              last_name: "Doe",
+            },
+            phone: {
+              number: "9123456789",
+              country_code: "+91",
+            },
+          },
+          currency: "EUR",
+          customer_acceptance: customerAcceptance,
+          mandate_data: {
+            customer_acceptance: customerAcceptance,
+            mandate_type: {
+              single_use: {
+                amount: 8000,
+                currency: "EUR",
+              },
+            },
+          },
+          setup_future_usage: "off_session",
+          payment_type: "new_mandate",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
         },
       },
     },

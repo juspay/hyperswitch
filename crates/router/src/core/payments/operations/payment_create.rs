@@ -454,7 +454,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             mandate_id: Some(mandate_obj.mandate_id),
                             mandate_reference_id: Some(
                                 api_models::payments::MandateReferenceId::NetworkMandateId(
-                                    network_tx_id,
+                                    api_models::payments::NetworkMandateIdRef {
+                                        network_transaction_id: network_tx_id,
+                                        transaction_link_id: None,
+                                    },
                                 ),
                             ),
                         }),
@@ -1688,8 +1691,9 @@ impl PaymentCreate {
                 setup_future_usage_applied: request.setup_future_usage,
                 routing_approach: Some(common_enums::RoutingApproach::default()),
                 connector_request_reference_id: None,
-                network_transaction_id:None,
-                network_details:None,
+                network_transaction_id: None,
+                network_transaction_link_id: None,
+                network_details: None,
                 is_stored_credential,
                 authorized_amount: None,
                 tokenization:request.tokenization,
@@ -1705,6 +1709,7 @@ impl PaymentCreate {
                 retry_type: None,
                 installment_data: None,
                 external_surcharge_details: None,
+                sender_payment_instrument_id: None,
             },
             additional_pm_data,
 
@@ -1962,6 +1967,7 @@ impl PaymentCreate {
                 .clone(),
             state_metadata: None,
             installment_options: request.installment_options.clone(),
+            profile_acquirer_id: request.profile_acquirer_id.clone(),
         })
     }
 }

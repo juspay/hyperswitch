@@ -6450,7 +6450,7 @@
             "$ref": "#/components/schemas/ThirdPartySdkSessionResponse"
           },
           {
-            "$ref": "#/components/schemas/NoThirdPartySdkSessionResponse"
+            "description": "We get this session response, when there is no involvement of third party sdk\nThis is the common response most of the times"
           },
           {
             "$ref": "#/components/schemas/NullObject"
@@ -7011,6 +7011,9 @@
           },
           {
             "$ref": "#/components/schemas/PixBankTransfer"
+          },
+          {
+            "$ref": "#/components/schemas/OpenBanking"
           }
         ],
         "description": "Deprecated - Use `BankTransfer` instead"
@@ -7031,6 +7034,9 @@
           },
           {
             "$ref": "#/components/schemas/PixBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/OpenBankingAdditionalData"
           }
         ],
         "description": "Masked payout method details for bank payout method"
@@ -8479,6 +8485,27 @@
                     "type": "string",
                     "enum": [
                       "trustly"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OpenBanking"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "open_banking"
                     ]
                   }
                 }
@@ -13921,6 +13948,12 @@
             "example": "evt_018e31720d1b7a2b82677d3032cab959",
             "maxLength": 64
           },
+          "processor_merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Processor Merchant Account.",
+            "nullable": true,
+            "maxLength": 64
+          },
           "created": {
             "type": "string",
             "format": "date-time",
@@ -18682,6 +18715,11 @@
           "network_transaction_id": {
             "type": "string",
             "description": "The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`."
+          },
+          "transaction_link_id": {
+            "type": "string",
+            "description": "The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`.",
+            "nullable": true
           }
         }
       },
@@ -18719,6 +18757,11 @@
           "network_transaction_id": {
             "type": "string",
             "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`."
+          },
+          "transaction_link_id": {
+            "type": "string",
+            "description": "The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`.",
+            "nullable": true
           },
           "eci": {
             "type": "string",
@@ -18819,6 +18862,11 @@
           "network_transaction_id": {
             "type": "string",
             "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`."
+          },
+          "transaction_link_id": {
+            "type": "string",
+            "description": "The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`.",
+            "nullable": true
           }
         }
       },
@@ -19246,74 +19294,6 @@
           "invoke_upi_qr_flow"
         ]
       },
-      "NoThirdPartySdkSessionResponse": {
-        "type": "object",
-        "required": [
-          "epoch_timestamp",
-          "expires_at",
-          "merchant_session_identifier",
-          "nonce",
-          "merchant_identifier",
-          "domain_name",
-          "display_name",
-          "signature",
-          "operational_analytics_identifier",
-          "retries",
-          "psp_id"
-        ],
-        "properties": {
-          "epoch_timestamp": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Timestamp at which session is requested",
-            "minimum": 0
-          },
-          "expires_at": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Timestamp at which session expires",
-            "minimum": 0
-          },
-          "merchant_session_identifier": {
-            "type": "string",
-            "description": "The identifier for the merchant session"
-          },
-          "nonce": {
-            "type": "string",
-            "description": "Apple pay generated unique ID (UUID) value"
-          },
-          "merchant_identifier": {
-            "type": "string",
-            "description": "The identifier for the merchant"
-          },
-          "domain_name": {
-            "type": "string",
-            "description": "The domain name of the merchant which is registered in Apple Pay"
-          },
-          "display_name": {
-            "type": "string",
-            "description": "The name to be displayed on Apple Pay button"
-          },
-          "signature": {
-            "type": "string",
-            "description": "A string which represents the properties of a payment"
-          },
-          "operational_analytics_identifier": {
-            "type": "string",
-            "description": "The identifier for the operational analytics"
-          },
-          "retries": {
-            "type": "integer",
-            "format": "int32",
-            "description": "The number of retries to get the session response",
-            "minimum": 0
-          },
-          "psp_id": {
-            "type": "string",
-            "description": "The identifier for the connector transaction"
-          }
-        }
-      },
       "NoonData": {
         "type": "object",
         "properties": {
@@ -19363,6 +19343,45 @@
           }
         },
         "additionalProperties": false
+      },
+      "OpenBanking": {
+        "type": "object",
+        "required": [
+          "account_holder_name",
+          "iban"
+        ],
+        "properties": {
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe"
+          },
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "DE89370400440532013000"
+          }
+        }
+      },
+      "OpenBankingAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for OpenBanking bank transfer payout method",
+        "required": [
+          "account_holder_name",
+          "iban"
+        ],
+        "properties": {
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe"
+          },
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "DE89370400440532013000"
+          }
+        }
       },
       "OpenBankingData": {
         "oneOf": [
@@ -19703,7 +19722,7 @@
         "properties": {
           "merchant_id": {
             "type": "string",
-            "description": "The merchant id of the merchant"
+            "description": "The provider merchant id (platform/business owner)"
           },
           "event_id": {
             "type": "string",
@@ -19719,6 +19738,11 @@
             "type": "string",
             "format": "date-time",
             "description": "The time at which webhook was sent"
+          },
+          "processor_merchant_id": {
+            "type": "string",
+            "description": "The merchant id of the merchant account whose connector credentials are used for payment processing",
+            "nullable": true
           }
         }
       },
@@ -19978,6 +20002,7 @@
         "type": "object",
         "required": [
           "psp_token",
+          "psp_customer_id",
           "token_type"
         ],
         "properties": {
@@ -19985,6 +20010,11 @@
             "type": "string",
             "description": "PSP token generated for the payout method",
             "example": "token_12345"
+          },
+          "psp_customer_id": {
+            "type": "string",
+            "description": "PSP customer ID",
+            "example": "customer_12345"
           },
           "token_type": {
             "$ref": "#/components/schemas/PaymentMethodType"

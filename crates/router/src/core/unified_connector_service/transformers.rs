@@ -354,6 +354,7 @@ impl
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
             l2_l3_data: None,
+            merchant_request_id: None,
         })
     }
 }
@@ -545,6 +546,7 @@ impl
                 .map(Into::into),
             l2_l3_data: None,
             connector_order_id: None,
+            merchant_request_id: None,
         })
     }
 }
@@ -720,6 +722,7 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
                 .payment_experience
                 .map(payments_grpc::PaymentExperience::foreign_from)
                 .map(Into::into),
+            merchant_request_id: None,
         })
     }
 }
@@ -1126,6 +1129,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 .map(|s| s.into()),
             test_mode: router_data.test_mode,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
+            merchant_request_id: None,
         })
     }
 }
@@ -1268,6 +1272,7 @@ impl
             continue_redirection_url: None,
             connector_order_id: None,
             l2_l3_data: None,
+            merchant_request_id: None,
         })
     }
 }
@@ -1447,6 +1452,7 @@ impl
             continue_redirection_url: None,
             connector_order_id: None,
             l2_l3_data: None,
+            merchant_request_id: None,
         })
     }
 }
@@ -1606,6 +1612,7 @@ impl
             continue_redirection_url: None,
             connector_order_id: None,
             l2_l3_data: None,
+            merchant_request_id: None,
         })
     }
 }
@@ -1805,7 +1812,7 @@ impl
                 )) => Some(payments_grpc::MandateReference {
                     mandate_id_type: Some(
                         payments_grpc::mandate_reference::MandateIdType::NetworkMandateId(
-                            network_mandate_id.clone(),
+                            network_mandate_id.network_transaction_id.clone(),
                         ),
                     ),
                 }),
@@ -2183,6 +2190,7 @@ impl
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: response.network_transaction_id.clone(),
+                    network_txn_link_id: None,
                     connector_response_reference_id: response.merchant_order_id.clone(),
                     incremental_authorization_allowed: None,
                     authentication_data,
@@ -2374,6 +2382,7 @@ impl
                     mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: response.network_transaction_id.clone(),
+                    network_txn_link_id: None,
                     connector_response_reference_id: response.merchant_transaction_id.clone(),
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
@@ -2480,6 +2489,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceCaptureResponse,
                     mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: response.merchant_capture_id.clone(),
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
@@ -2670,6 +2680,7 @@ impl
                     mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: response.network_transaction_id,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
@@ -2785,6 +2796,7 @@ impl
                     mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: response.network_transaction_id.clone(),
+                    network_txn_link_id: None,
                     connector_response_reference_id: response.merchant_charge_id.clone(),
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
@@ -4144,6 +4156,7 @@ impl
                     mandate_reference: Box::new(None),
                     connector_metadata,
                     network_txn_id: response.network_transaction_id.clone(),
+                    network_txn_link_id: None,
                     connector_response_reference_id: response.merchant_order_id.clone(),
                     incremental_authorization_allowed: None,
                     authentication_data,
@@ -5341,6 +5354,7 @@ impl
                     mandate_reference: Box::new(None),
                     connector_metadata,
                     network_txn_id: response.network_transaction_id.clone(),
+                    network_txn_link_id: None,
                     connector_response_reference_id: response.merchant_order_id.clone(),
                     incremental_authorization_allowed: None,
                     authentication_data,
@@ -5766,6 +5780,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 .customer_id
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
+            merchant_request_id: None,
         })
     }
 }
@@ -5833,6 +5848,7 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             test_mode: router_data.test_mode,
             payment_method_type,
             connector_feature_data: None,
+            merchant_request_id: None,
         })
     }
 }
@@ -5958,6 +5974,7 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 .map(|s| s.into()),
             test_mode: router_data.test_mode,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
+            merchant_request_id: None,
         })
     }
 }
@@ -6071,6 +6088,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceVoidResponse, At
                     mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: response.merchant_void_id.clone(),
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
@@ -6789,6 +6807,12 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                             .to_string(),
                     ),
                 ))?,
+                api_models::payouts::Bank::OpenBanking(_) => Err(error_stack::Report::new(
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                        "OpenBanking bank transfer not supported for Unified Connector Service"
+                            .to_string(),
+                    ),
+                ))?,
             },
             api_models::payouts::PayoutMethodData::BankTransfer(bank_transfer) => {
                 match bank_transfer {
@@ -6829,6 +6853,14 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                         payments_grpc::payout_method::PayoutMethodData::PixEmv(
                             payments_grpc::PixEmvBankTransferPayout::foreign_from(pix_emv),
                         )
+                    }
+                    api_models::payouts::BankTransfer::OpenBanking(_) => {
+                        Err(error_stack::Report::new(
+                            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                                "OpenBanking bank transfer not supported for Unified Connector Service"
+                                    .to_string(),
+                            ),
+                        ))?
                     }
                 }
             }
@@ -7130,6 +7162,12 @@ impl transformers::ForeignTryFrom<&api_models::payouts::BankTransfer>
             api_models::payouts::BankTransfer::Trustly(_) => Err(error_stack::Report::new(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Trustly bank transfer not supported for Unified Connector Service".to_string(),
+                ),
+            ))?,
+            api_models::payouts::BankTransfer::OpenBanking(_) => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "OpenBanking bank transfer not supported for Unified Connector Service"
+                        .to_string(),
                 ),
             ))?,
         };

@@ -838,6 +838,9 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         .clone(),
                     debit_routing_savings: None,
                     network_transaction_id: payment_attempt.network_transaction_id.clone(),
+                    network_transaction_link_id: payment_attempt
+                        .network_transaction_link_id
+                        .clone(),
                     is_overcapture_enabled: None,
                     network_details: payment_attempt.network_details.clone(),
                     is_stored_credential: payment_attempt.is_stored_credential,
@@ -849,6 +852,9 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     retry_type: payment_attempt.retry_type,
                     installment_data: payment_attempt.installment_data.clone(),
                     external_surcharge_details: payment_attempt.external_surcharge_details.clone(),
+                    sender_payment_instrument_id: payment_attempt
+                        .sender_payment_instrument_id
+                        .clone(),
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
