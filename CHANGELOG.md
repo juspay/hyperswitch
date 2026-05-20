@@ -4,6 +4,32 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.20.0
+
+### Features
+
+- **core/connector:** [Truelayer] Add support for closed loop payouts ([#12281](https://github.com/juspay/hyperswitch/pull/12281)) ([`08a99a6`](https://github.com/juspay/hyperswitch/commit/08a99a6f525865475a4980c085c480b76c31ef64))
+- **gigadat:** Add method to retrieve billing phone number without plus sign ([#12322](https://github.com/juspay/hyperswitch/pull/12322)) ([`4f50a8f`](https://github.com/juspay/hyperswitch/commit/4f50a8f6f90f3187e8c88243dc6b9360968b85dc))
+
+### Bug Fixes
+
+- **connector:** [WorldpayWPG] Fix status mapping ([#12265](https://github.com/juspay/hyperswitch/pull/12265)) ([`1d0801d`](https://github.com/juspay/hyperswitch/commit/1d0801dbc15194e2ba349e5c74fd4c6ea782d773))
+
+### Refactors
+
+- **authentication:** Profile acquirer module to support multi network bin ([#11736](https://github.com/juspay/hyperswitch/pull/11736)) ([`94f542c`](https://github.com/juspay/hyperswitch/commit/94f542c036d5977b805e6206f05dd8cfd57aa86b))
+- **frm:** Align Sale/Checkout request types with router conventions ([#12274](https://github.com/juspay/hyperswitch/pull/12274)) ([`ab757b6`](https://github.com/juspay/hyperswitch/commit/ab757b6c9156f761859d61c17e28e452d114cfb3))
+
+### Testing
+
+- **cypress:**
+  - OIDC Route Test Coverage ([#12224](https://github.com/juspay/hyperswitch/pull/12224)) ([`6b8222e`](https://github.com/juspay/hyperswitch/commit/6b8222e0fe170770a8e02029eeaa302e0be69991))
+  - Add Payment Link coverage to core flows ([#12023](https://github.com/juspay/hyperswitch/pull/12023)) ([`8b2871b`](https://github.com/juspay/hyperswitch/commit/8b2871bfa3d11578486930ed0144d63626da4c1e))
+
+**Full Changelog:** [`2026.05.19.0...2026.05.20.0`](https://github.com/juspay/hyperswitch/compare/2026.05.19.0...2026.05.20.0)
+
+- - -
+
 ## 2026.05.19.0
 
 ### Features
