@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix16-9
+
+### Features
+
+- **router:**
+  - Add Review status to Payments ([#12382](https://github.com/juspay/hyperswitch/pull/12382)) ([`b6a602b`](https://github.com/juspay/hyperswitch/commit/b6a602bf20c741ca4c8b0dbf1778127353da55fc))
+  - Add manual payment status update API ([#12389](https://github.com/juspay/hyperswitch/pull/12389)) ([`fbde1e4`](https://github.com/juspay/hyperswitch/commit/fbde1e458be6de8e9281ff6303d2e946e51ad8bf))
+
+**Full Changelog:** [`2026.02.02.0-hotfix16-8...2026.02.02.0-hotfix16-9`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix16-8...2026.02.02.0-hotfix16-9)
+
+- - -
+
 ## 2026.02.02.0-hotfix16-8
 
 ### Features
