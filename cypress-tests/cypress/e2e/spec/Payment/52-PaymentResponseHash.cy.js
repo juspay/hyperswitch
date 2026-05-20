@@ -154,7 +154,7 @@ describe("Card - Payment Response Hash flow test", () => {
 
             cy.request({
               method: "GET",
-              url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}`,
+              url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}?client_secret=${encodeURIComponent(globalState.get("clientSecret"))}`,
               headers: { "api-key": globalState.get("publishableKey") },
             }).then((resp) => {
               expect(resp.status).to.equal(200);
@@ -362,7 +362,7 @@ describe("Card - Payment Response Hash flow test", () => {
 
           cy.request({
             method: "GET",
-            url: `${baseUrl}/payments/${paymentId}`,
+            url: `${baseUrl}/payments/${paymentId}?client_secret=${encodeURIComponent(globalState.get("clientSecret"))}`,
             headers: {
               "Content-Type": "application/json",
               "api-key": publishableKey,
