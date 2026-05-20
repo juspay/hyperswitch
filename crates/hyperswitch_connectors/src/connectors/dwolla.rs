@@ -1019,7 +1019,7 @@ impl ConnectorSpecifications for Dwolla {
         &self,
         #[cfg(feature = "v1")]
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> bool {
-        true
+    ) -> api::ConnectorCustomerAction {
+        api::ConnectorCustomerAction::CallConnectorCustomer
     }
 }

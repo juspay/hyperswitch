@@ -1591,6 +1591,10 @@ pub struct PaymentsRequest {
 
     /// Installment data selected by the customer during payment confirmation. This is used to specify the chosen number of installments and billing frequency.
     pub installment_data: Option<InstallmentRequest>,
+
+    /// Identification for the profile acquirer to be used for this payment.
+    #[schema(value_type = Option<String>)]
+    pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -7346,6 +7350,12 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<String>")]
     pub modified_at: Option<PrimitiveDateTime>,
 
+    /// A unique identifier for a customer provided by the connector.
+    #[schema(value_type = Option<String>, example = "cus_Rnm2pDKGyQi506")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<String>")]
+    pub connector_customer_id: Option<String>,
+
     /// Three-letter ISO currency code (e.g., USD, EUR) for the payment amount.
     #[schema(value_type = Currency, example = "USD")]
     #[smithy(value_type = "Currency")]
@@ -7826,6 +7836,9 @@ pub struct PaymentsResponse {
     /// Installment selection confirmed by the customer for this payment
     #[schema(value_type = Option<InstallmentData>)]
     pub installment_data: Option<common_types::payments::InstallmentData>,
+
+    /// A connector-specific identifier representing the stored payment instrument
+    pub sender_payment_instrument_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
