@@ -206,6 +206,9 @@ where
                                     status_code,
                                     reason,
                                     connector,
+                                    network_decline_code,
+                                    network_advice_code,
+                                    network_error_message,
                                 } = report.current_context()
                                 {
                                     logger::info!(
@@ -224,9 +227,9 @@ where
                                             attempt_status: None,
                                             connector_transaction_id: None,
                                             connector_response_reference_id: None,
-                                            network_decline_code: None,
-                                            network_advice_code: None,
-                                            network_error_message: None,
+                                            network_decline_code: network_decline_code.clone(),
+                                            network_advice_code: network_advice_code.clone(),
+                                            network_error_message: network_error_message.clone(),
                                             connector_metadata: None,
                                         },
                                     );

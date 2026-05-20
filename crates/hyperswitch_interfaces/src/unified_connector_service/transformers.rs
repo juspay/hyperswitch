@@ -116,6 +116,12 @@ pub enum UnifiedConnectorServiceError {
         reason: Option<String>,
         /// Name of the connector that returned the error
         connector: String,
+        /// Network decline code from card scheme (e.g. Visa/Mastercard decline code)
+        network_decline_code: Option<String>,
+        /// Network advice code for retry logic
+        network_advice_code: Option<String>,
+        /// Network-specific error message
+        network_error_message: Option<String>,
     },
 
     /// Failed to perform Payment Create Order from gRPC Server
@@ -915,7 +921,7 @@ impl UnifiedConnectorServiceError {
 
     /// Maps tonic::Status to UnifiedConnectorServiceError.
     /// First tries to extract a connector HTTP error from proto-encoded status details.
-    pub fn from_tonic_status(status: &tonic::Status, connector_name: &str) -> Self {
+    pub fn from_grpc_error(status: &tonic::Status, connector_name: &str) -> Self {
         // Try to extract ConnectorError from proto-encoded status details
         if let Some(error_from_details) =
             Self::decode_connector_error_response(status, connector_name)
@@ -967,6 +973,24 @@ impl UnifiedConnectorServiceError {
                 .and_then(|ei| ei.connector_details.as_ref())
                 .and_then(|cd| cd.reason.clone()),
             connector: connector_name.to_string(),
+            network_decline_code: connector_error
+                .error_info
+                .as_ref()
+                .and_then(|ei| ei.issuer_details.as_ref())
+                .and_then(|id| id.network_details.as_ref())
+                .and_then(|nd| nd.decline_code.clone()),
+            network_advice_code: connector_error
+                .error_info
+                .as_ref()
+                .and_then(|ei| ei.issuer_details.as_ref())
+                .and_then(|id| id.network_details.as_ref())
+                .and_then(|nd| nd.advice_code.clone()),
+            network_error_message: connector_error
+                .error_info
+                .as_ref()
+                .and_then(|ei| ei.issuer_details.as_ref())
+                .and_then(|id| id.network_details.as_ref())
+                .and_then(|nd| nd.error_message.clone()),
         })
     }
 }
@@ -1004,6 +1028,7 @@ impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
                 status_code,
                 reason,
                 connector,
+                ..
             } => ApiErrorResponse::ExternalConnectorError {
                 code: code.clone(),
                 message: message.clone(),
@@ -1027,7 +1052,6 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
                     "code": format!("UCS_{}", status_code),
                     "message": message,
                     "status_code": status_code,
-                    "type": "ucs_validation_error"
                 });
                 ConnectorError::ProcessingStepFailed(Some(bytes::Bytes::from(
                     error_body.to_string(),
