@@ -493,7 +493,8 @@ pub(crate) fn is_successful_terminal_status(status: AttemptStatus) -> bool {
         | AttemptStatus::DeviceDataCollectionPending
         | AttemptStatus::IntegrityFailure
         | AttemptStatus::VoidFailed
-        | AttemptStatus::Expired => false,
+        | AttemptStatus::Expired
+        | AttemptStatus::CaptureReview => false,
     }
 }
 
@@ -526,7 +527,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::ConfirmationAwaited
         | AttemptStatus::DeviceDataCollectionPending
         | AttemptStatus::IntegrityFailure
-        | AttemptStatus::PartiallyAuthorized => false,
+        | AttemptStatus::PartiallyAuthorized
+        | AttemptStatus::CaptureReview => false,
     }
 }
 
@@ -562,6 +564,7 @@ pub trait RouterData {
     fn get_billing_city(&self) -> Result<String, Error>;
     fn get_billing_email(&self) -> Result<Email, Error>;
     fn get_billing_phone_number(&self) -> Result<Secret<String>, Error>;
+    fn get_billing_phone_number_without_plus(&self) -> Result<Secret<String>, Error>;
     fn to_connector_meta<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned;
@@ -914,6 +917,11 @@ impl<Flow, Request, Response> RouterData
             .map(|phone_details| phone_details.get_number_with_country_code())
             .transpose()?
             .ok_or_else(missing_field_err("payment_method_data.billing.phone"))
+    }
+
+    fn get_billing_phone_number_without_plus(&self) -> Result<Secret<String>, Error> {
+        self.get_billing_phone_number()
+            .map(|phone| Secret::new(phone.peek().trim_start_matches('+').to_string()))
     }
 
     fn get_optional_billing_line1(&self) -> Option<Secret<String>> {
@@ -2538,7 +2546,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
                 Some(payments::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
-                    Some(network_transaction_id.clone())
+                    Some(network_transaction_id.network_transaction_id.clone())
                 }
                 Some(payments::MandateReferenceId::ConnectorMandateId(_))
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
@@ -7657,6 +7665,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         authorized_amount: data.authorized_amount,
         customer_document_details: data.customer_document_details.clone(),
         feature_data: data.feature_data.clone(),
+        sender_payment_instrument_id: None,
     }
 }
 
@@ -7758,7 +7767,8 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             | AttemptStatus::Pending
             | AttemptStatus::PaymentMethodAwaited
             | AttemptStatus::ConfirmationAwaited
-            | AttemptStatus::DeviceDataCollectionPending => None,
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::CaptureReview => None,
         }
     }
 }
