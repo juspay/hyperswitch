@@ -1452,17 +1452,6 @@ export const connectorDetails = {
             },
           },
         },
-        mandate_data: {
-          customer_acceptance: customerAcceptance,
-          mandate_type: {
-            single_use: {
-              amount: 1000,
-              currency: "EUR",
-            },
-          },
-        },
-        setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
         billing: {
           address: {
             first_name: "Test",
@@ -1497,17 +1486,6 @@ export const connectorDetails = {
             },
           },
         },
-        mandate_data: {
-          customer_acceptance: customerAcceptance,
-          mandate_type: {
-            single_use: {
-              amount: 1000,
-              currency: "AUD",
-            },
-          },
-        },
-        setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
         billing: {
           address: {
             first_name: "Test",
@@ -1578,6 +1556,98 @@ export const connectorDetails = {
           },
           email: "test@example.com",
         },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MandateSingleUseAch: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "ach",
+        currency: "USD",
+        payment_method_data: {
+          bank_debit: {
+            ach_bank_debit: {
+              account_number: "000123456789",
+              routing_number: "110000000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            single_use: {
+              amount: 1000,
+              currency: "USD",
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+        billing: {
+          address: {
+            country: "US",
+          },
+          email: "test@example.com",
+        },
+        payment_type: "new_mandate",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MandateSingleUseBacs: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_3",
+        },
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "bacs",
+        currency: "GBP",
+        payment_method_data: {
+          bank_debit: {
+            bacs_bank_debit: {
+              account_number: "00012345",
+              sort_code: "108800",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            single_use: {
+              amount: 1000,
+              currency: "GBP",
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+        billing: {
+          address: {
+            country: "GB",
+          },
+          email: "test@example.com",
+        },
+        payment_type: "new_mandate",
       },
       Response: {
         status: 200,
@@ -1709,6 +1779,44 @@ export const connectorDetails = {
         off_session: true,
         confirm: true,
         currency: "AUD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MITAutoCaptureAch: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        off_session: true,
+        confirm: true,
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MITAutoCaptureGbp: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_3",
+        },
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        off_session: true,
+        confirm: true,
+        currency: "GBP",
       },
       Response: {
         status: 200,

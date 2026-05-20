@@ -371,4 +371,88 @@ describe("Bank Debit tests", () => {
       });
     });
   });
+
+  context("ACH Bank Debit Mandate flow test", () => {
+    it("CIT mandate creation -> MIT mandate reuse for ACH", () => {
+      let shouldContinue = true;
+
+      cy.step("CIT mandate creation for ACH", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["MandateSingleUseAch"];
+        cy.citForMandatesCallTest(
+          fixtures.citConfirmBody,
+          data,
+          6540,
+          true,
+          "automatic",
+          "new_mandate",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("MIT mandate reuse for ACH", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: MIT mandate reuse for ACH");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["MITAutoCaptureAch"];
+        cy.mitForMandatesCallTest(
+          fixtures.mitConfirmBody,
+          data,
+          6540,
+          true,
+          "automatic",
+          globalState
+        );
+      });
+    });
+  });
+
+  context("BACS Bank Debit Mandate flow test", () => {
+    it("CIT mandate creation -> MIT mandate reuse for BACS", () => {
+      let shouldContinue = true;
+
+      cy.step("CIT mandate creation for BACS", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["MandateSingleUseBacs"];
+        cy.citForMandatesCallTest(
+          fixtures.citConfirmBody,
+          data,
+          6540,
+          true,
+          "automatic",
+          "new_mandate",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("MIT mandate reuse for BACS", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: MIT mandate reuse for BACS");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["MITAutoCaptureGbp"];
+        cy.mitForMandatesCallTest(
+          fixtures.mitConfirmBody,
+          data,
+          6540,
+          true,
+          "automatic",
+          globalState
+        );
+      });
+    });
+  });
 });
