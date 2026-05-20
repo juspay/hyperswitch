@@ -1003,6 +1003,11 @@ export const connectorDetails = {
         Request: {
           payment_method: "bank_redirect",
           payment_method_type: "bancontact_card",
+          payment_method_data: {
+            bank_redirect: {
+              bancontact_card: {},
+            },
+          },
         },
         Response: {
           status: 200,
