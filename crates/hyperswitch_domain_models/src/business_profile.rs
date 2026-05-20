@@ -16,7 +16,7 @@ use diesel_models::business_profile::RevenueRecoveryAlgorithmData;
 use diesel_models::business_profile::{
     self as storage_types, AuthenticationConnectorDetails, BusinessPaymentLinkConfig,
     BusinessPayoutLinkConfig, CardTestingGuardConfig, ExternalVaultConnectorDetails,
-    PaymentMethodBlockingConfig, ProfileUpdateInternal, WebhookDetails,
+    PaymentMethodBlockingConfig, ProfileUpdateInternal, SurchargeConnectorDetails, WebhookDetails,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
@@ -83,7 +83,7 @@ pub struct Profile {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: bool,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
-    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
+    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigBucket>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
@@ -91,6 +91,7 @@ pub struct Profile {
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub external_vault_details: ExternalVaultDetails,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub network_tokenization_credentials: OptionalEncryptableValue,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
@@ -252,6 +253,7 @@ pub struct ProfileSetter {
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub external_vault_details: ExternalVaultDetails,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub network_tokenization_credentials: OptionalEncryptableValue,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
@@ -323,6 +325,7 @@ impl From<ProfileSetter> for Profile {
             always_enable_overcapture: value.always_enable_overcapture,
             external_vault_details: value.external_vault_details,
             billing_processor_id: value.billing_processor_id,
+            surcharge_connector_details: value.surcharge_connector_details,
             network_tokenization_credentials: value.network_tokenization_credentials,
             payment_method_blocking: value.payment_method_blocking,
             default_fallback_routing: value.default_fallback_routing,
@@ -397,6 +400,7 @@ pub struct ProfileGeneralUpdate {
     pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub network_tokenization_credentials: OptionalEncryptableValue,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
@@ -426,8 +430,8 @@ pub enum ProfileUpdate {
     CardTestingSecretKeyUpdate {
         card_testing_secret_key: OptionalEncryptableName,
     },
-    AcquirerConfigMapUpdate {
-        acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
+    AcquirerConfigBucketUpdate {
+        acquirer_config_map: Option<common_types::domain::AcquirerConfigBucket>,
     },
     DefaultRoutingFallbackUpdate {
         default_fallback_routing: Option<pii::SecretSerdeValue>,
@@ -492,6 +496,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_external_vault_enabled,
                     external_vault_connector_details,
                     billing_processor_id,
+                    surcharge_connector_details,
                     network_tokenization_credentials,
                     payment_method_blocking,
                 } = *update;
@@ -561,6 +566,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_external_vault_enabled,
                     external_vault_connector_details,
                     billing_processor_id,
+                    surcharge_connector_details,
                     network_tokenization_credentials: network_tokenization_credentials
                         .map(Encryption::from),
                     payment_method_blocking,
@@ -626,6 +632,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 billing_processor_id: None,
+                surcharge_connector_details: None,
                 is_l2_l3_enabled: None,
                 network_tokenization_credentials: None,
                 payment_method_blocking: None,
@@ -688,6 +695,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 billing_processor_id: None,
+                surcharge_connector_details: None,
                 is_l2_l3_enabled: None,
                 network_tokenization_credentials: None,
                 payment_method_blocking: None,
@@ -750,6 +758,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 billing_processor_id: None,
+                surcharge_connector_details: None,
                 is_l2_l3_enabled: None,
                 network_tokenization_credentials: None,
                 payment_method_blocking: None,
@@ -812,6 +821,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 billing_processor_id: None,
+                surcharge_connector_details: None,
                 is_l2_l3_enabled: None,
                 network_tokenization_credentials: None,
                 payment_method_blocking: None,
@@ -875,6 +885,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 billing_processor_id: None,
+                surcharge_connector_details: None,
                 is_l2_l3_enabled: None,
                 network_tokenization_credentials: network_tokenization_credentials
                     .map(Encryption::from),
@@ -938,12 +949,13 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 billing_processor_id: None,
+                surcharge_connector_details: None,
                 is_l2_l3_enabled: None,
                 network_tokenization_credentials: None,
                 payment_method_blocking: None,
                 default_fallback_routing: None,
             },
-            ProfileUpdate::AcquirerConfigMapUpdate {
+            ProfileUpdate::AcquirerConfigBucketUpdate {
                 acquirer_config_map,
             } => Self {
                 profile_name: None,
@@ -991,7 +1003,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
-                acquirer_config_map,
+                acquirer_config_map: acquirer_config_map
+                    .map(diesel_models::business_profile::AcquirerConfigBucket::New),
                 merchant_category_code: None,
                 merchant_country_code: None,
                 dispute_polling_interval: None,
@@ -1000,6 +1013,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 billing_processor_id: None,
+                surcharge_connector_details: None,
                 is_l2_l3_enabled: None,
                 network_tokenization_credentials: None,
                 payment_method_blocking: None,
@@ -1062,6 +1076,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 billing_processor_id: None,
+                surcharge_connector_details: None,
                 is_l2_l3_enabled: None,
                 payment_method_blocking: None,
                 default_fallback_routing,
@@ -1139,7 +1154,9 @@ impl Conversion for Profile {
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled: Some(self.is_pre_network_tokenization_enabled),
             three_ds_decision_rule_algorithm: self.three_ds_decision_rule_algorithm,
-            acquirer_config_map: self.acquirer_config_map,
+            acquirer_config_map: self
+                .acquirer_config_map
+                .map(diesel_models::business_profile::AcquirerConfigBucket::New),
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
@@ -1148,6 +1165,7 @@ impl Conversion for Profile {
             is_external_vault_enabled,
             external_vault_connector_details,
             billing_processor_id: self.billing_processor_id,
+            surcharge_connector_details: self.surcharge_connector_details,
             network_tokenization_credentials: self
                 .network_tokenization_credentials
                 .map(|name| name.into()),
@@ -1290,7 +1308,9 @@ impl Conversion for Profile {
                 .is_pre_network_tokenization_enabled
                 .unwrap_or(false),
             three_ds_decision_rule_algorithm: item.three_ds_decision_rule_algorithm,
-            acquirer_config_map: item.acquirer_config_map,
+            acquirer_config_map: item
+                .acquirer_config_map
+                .map(common_types::domain::AcquirerConfigBucket::from),
             merchant_category_code: item.merchant_category_code,
             merchant_country_code: item.merchant_country_code,
             dispute_polling_interval: item.dispute_polling_interval,
@@ -1298,6 +1318,7 @@ impl Conversion for Profile {
             always_enable_overcapture: item.always_enable_overcapture,
             external_vault_details,
             billing_processor_id: item.billing_processor_id,
+            surcharge_connector_details: item.surcharge_connector_details,
             network_tokenization_credentials,
             payment_method_blocking: item.payment_method_blocking,
             default_fallback_routing: item.default_fallback_routing,
@@ -1370,6 +1391,7 @@ impl Conversion for Profile {
             is_external_vault_enabled,
             external_vault_connector_details,
             billing_processor_id: self.billing_processor_id,
+            surcharge_connector_details: self.surcharge_connector_details,
             network_tokenization_credentials: self
                 .network_tokenization_credentials
                 .map(|name| name.into()),
@@ -1438,6 +1460,7 @@ pub struct Profile {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -1497,6 +1520,7 @@ pub struct ProfileSetter {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -1561,6 +1585,7 @@ impl From<ProfileSetter> for Profile {
             merchant_country_code: value.merchant_country_code,
             split_txns_enabled: value.split_txns_enabled,
             billing_processor_id: value.billing_processor_id,
+            surcharge_connector_details: value.surcharge_connector_details,
         }
     }
 }
@@ -1607,16 +1632,51 @@ impl Profile {
         &self,
         network: common_enums::CardNetwork,
     ) -> Option<AcquirerConfig> {
-        // iterate over acquirer_config_map and find the acquirer config for the given network
+        // Flatten all buckets and search across them for an AcquirerConfig matching the network.
         self.acquirer_config_map
             .as_ref()
             .and_then(|acquirer_config_map| {
                 acquirer_config_map
-                    .0
-                    .iter()
-                    .find(|&(_, acquirer_config)| acquirer_config.network == network)
+                    .configs
+                    .values()
+                    .flat_map(|bucket| bucket.iter())
+                    .find(|cfg| cfg.network == network)
+                    .cloned()
             })
-            .map(|(_, acquirer_config)| acquirer_config.clone())
+    }
+
+    /// Resolve an `AcquirerConfig` for a specific `profile_acquirer_id` bucket and `network`.
+    /// Use this when the authentication record already has a `profile_acquirer_id` scoped to a
+    /// particular acquirer, so the lookup is restricted to that bucket only.
+    #[cfg(feature = "v1")]
+    pub fn get_acquirer_details_for_profile_acquirer(
+        &self,
+        profile_acquirer_id: &common_utils::id_type::ProfileAcquirerId,
+        network: common_enums::CardNetwork,
+    ) -> Option<AcquirerConfig> {
+        self.acquirer_config_map
+            .as_ref()
+            .and_then(|map| map.configs.get(profile_acquirer_id))
+            .and_then(|bucket| bucket.iter().find(|cfg| cfg.network == network).cloned())
+    }
+
+    /// Resolve an `AcquirerConfig` from the default bucket or fallback to the first bucket.
+    #[cfg(feature = "v1")]
+    pub fn get_default_acquirer_details_from_network(
+        &self,
+        network: common_enums::CardNetwork,
+    ) -> Option<AcquirerConfig> {
+        self.acquirer_config_map.as_ref().and_then(|map| {
+            // Get the default bucket from the default_acquirer_config identifier, or fallback to the first bucket
+            let default_bucket = map
+                .default_acquirer_config
+                .as_ref()
+                .and_then(|id| map.configs.get(id))
+                .or_else(|| map.configs.values().next());
+
+            default_bucket
+                .and_then(|bucket| bucket.iter().find(|cfg| cfg.network == network).cloned())
+        })
     }
 
     #[cfg(feature = "v1")]
@@ -1812,6 +1872,7 @@ pub struct ProfileGeneralUpdate {
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -1895,6 +1956,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     revenue_recovery_retry_algorithm_type,
                     split_txns_enabled,
                     billing_processor_id,
+                    surcharge_connector_details,
                 } = *update;
                 Self {
                     profile_name,
@@ -1951,6 +2013,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_country_code,
                     split_txns_enabled,
                     billing_processor_id,
+                    surcharge_connector_details,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -2010,6 +2073,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
+                surcharge_connector_details: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -2067,6 +2131,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
+                surcharge_connector_details: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -2124,6 +2189,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
+                surcharge_connector_details: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -2181,6 +2247,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
+                surcharge_connector_details: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -2238,6 +2305,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
+                surcharge_connector_details: None,
             },
             ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -2295,6 +2363,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
+                surcharge_connector_details: None,
             },
             ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
@@ -2352,6 +2421,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
+                surcharge_connector_details: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -2409,6 +2479,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
+                surcharge_connector_details: None,
             },
             ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
                 revenue_recovery_retry_algorithm_type,
@@ -2467,6 +2538,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
+                surcharge_connector_details: None,
             },
         }
     }
@@ -2551,6 +2623,7 @@ impl Conversion for Profile {
             is_l2_l3_enabled: None,
             always_enable_overcapture: None,
             billing_processor_id: self.billing_processor_id,
+            surcharge_connector_details: self.surcharge_connector_details,
             network_tokenization_credentials: None,
             payment_method_blocking: None,
         })
@@ -2650,6 +2723,7 @@ impl Conversion for Profile {
                 merchant_country_code: item.merchant_country_code,
                 split_txns_enabled: item.split_txns_enabled.unwrap_or_default(),
                 billing_processor_id: item.billing_processor_id,
+                surcharge_connector_details: item.surcharge_connector_details,
             })
         }
         .await
@@ -2723,6 +2797,7 @@ impl Conversion for Profile {
             merchant_country_code: self.merchant_country_code,
             split_txns_enabled: Some(self.split_txns_enabled),
             billing_processor_id: self.billing_processor_id,
+            surcharge_connector_details: self.surcharge_connector_details,
             payment_method_blocking: None,
         })
     }

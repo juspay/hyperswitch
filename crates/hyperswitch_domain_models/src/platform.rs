@@ -122,6 +122,31 @@ impl Initiator {
         }
     }
 
+    /// Returns the merchant_id of the entity that initiated the operation.
+    ///
+    /// Available for `Api` and `EmbeddedToken` initiators which carry a merchant_id.
+    /// Returns `None` for `Jwt` (user-based) and `Admin` initiators.
+    pub fn get_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId> {
+        match self {
+            Self::Api { merchant_id, .. } | Self::EmbeddedToken { merchant_id, .. } => {
+                Some(merchant_id)
+            }
+            Self::Jwt { .. } | Self::Admin => None,
+        }
+    }
+
+    /// Returns `true` if the initiator is a platform merchant
+    /// (i.e. the merchant account type is `Platform`).
+    pub fn is_platform(&self) -> bool {
+        matches!(
+            self,
+            Self::Api {
+                merchant_account_type: common_enums::MerchantAccountType::Platform,
+                ..
+            }
+        )
+    }
+
     /// Computes the initiator context for API responses.
     ///
     /// # Returns
