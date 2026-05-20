@@ -930,27 +930,57 @@ impl UnifiedConnectorServiceError {
             return None;
         }
 
-        let connector_error = payments_grpc::ConnectorError::decode(details)
-            .inspect_err(|e| {
+        // First, try to decode as ConnectorError (connector HTTP error - 4xx or 5xx from connector).
+        // UCS encodes ConnectorError for all connector HTTP errors and sets http_status_code.
+        match payments_grpc::ConnectorError::decode(details) {
+            Ok(connector_error) => {
+                if let Some(status_code) = connector_error
+                    .http_status_code
+                    .and_then(|c| u16::try_from(c).ok())
+                {
+                    return Some(Self::ConnectorError {
+                        code: connector_error.error_code,
+                        message: connector_error.error_message,
+                        status_code,
+                        reason: connector_error
+                            .error_info
+                            .as_ref()
+                            .and_then(|ei| ei.connector_details.as_ref())
+                            .and_then(|cd| cd.reason.clone()),
+                        connector: connector_name.to_string(),
+                    });
+                }
+                // ConnectorError decoded but without http_status_code: this is a UCS-side
+                // transformation error (ResponseDeserializationFailed, etc.) - fall through
+                // to try IntegrationError.
+            }
+            Err(e) => {
+                router_env::logger::debug!(
+                    error = ?e,
+                    connector_name = connector_name,
+                    "Failed to decode details as ConnectorError, trying IntegrationError"
+                );
+            }
+        }
+
+        // Then, try to decode as IntegrationError (UCS request-phase transformation failure).
+        // UCS already encodes the tonic status code and message correctly for IntegrationError,
+        // so we return None to let the caller fall back to TonicStatus.
+        match payments_grpc::IntegrationError::decode(details) {
+            Ok(_integration_error) => {
+                // IntegrationError recognised; the tonic code + message already carry the
+                // error info correctly, so return None to use TonicStatus fallback.
+                None
+            }
+            Err(e) => {
                 router_env::logger::warn!(
                     error = ?e,
                     connector_name = connector_name,
-                    "Failed to decode ConnectorError from tonic status details"
+                    "Failed to decode tonic status details as either ConnectorError or IntegrationError"
                 );
-            })
-            .ok()?;
-        let status_code = u16::try_from(connector_error.http_status_code?).ok()?;
-        Some(Self::ConnectorError {
-            code: connector_error.error_code,
-            message: connector_error.error_message,
-            status_code,
-            reason: connector_error
-                .error_info
-                .as_ref()
-                .and_then(|ei| ei.connector_details.as_ref())
-                .and_then(|cd| cd.reason.clone()),
-            connector: connector_name.to_string(),
-        })
+                None
+            }
+        }
     }
 }
 

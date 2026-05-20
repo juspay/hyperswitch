@@ -1467,37 +1467,49 @@ pub fn build_unified_connector_service_grpc_headers(
 /// Converts tonic::Status to error_stack::Report<UnifiedConnectorServiceError>
 /// This helper properly maps tonic gRPC errors to our error types.
 ///
-/// Always attempts to extract a ConnectorError from the status details first,
-/// since UCS may forward connector errors with any gRPC status code.
-/// Falls back to specific tonic error variants for 4xx codes, or the
-/// provided default error for 5xx codes.
+/// Always attempts to extract a ConnectorError from the proto-encoded status details first.
+/// UCS encodes ConnectorError for all connector HTTP errors (4xx and 5xx). For example,
+/// a connector returning HTTP 500 is encoded as tonic::Code::Internal with a ConnectorError
+/// in the details, and a connector returning HTTP 503 maps to tonic::Code::Unavailable.
+/// Falls back to TonicStatus for 4xx-equivalent codes (UCS validation/config errors),
+/// or the provided default error for 5xx-equivalent codes (UCS infrastructure failures).
 pub fn tonic_status_to_report(
     status: tonic::Status,
     default_error: UnifiedConnectorServiceError,
     connector_name: &str,
 ) -> error_stack::Report<UnifiedConnectorServiceError> {
-    let err = match status.code() {
-        // 4xx equivalent gRPC status codes - parse into specific tonic variants
-        tonic::Code::InvalidArgument
-        | tonic::Code::NotFound
-        | tonic::Code::AlreadyExists
-        | tonic::Code::PermissionDenied
-        | tonic::Code::Unauthenticated
-        | tonic::Code::FailedPrecondition
-        | tonic::Code::Unimplemented => {
-            UnifiedConnectorServiceError::from_tonic_status(&status, connector_name)
-        }
-        // 5xx equivalent gRPC status codes - use the default error
-        tonic::Code::Ok
-        | tonic::Code::Cancelled
-        | tonic::Code::Unknown
-        | tonic::Code::DeadlineExceeded
-        | tonic::Code::ResourceExhausted
-        | tonic::Code::Aborted
-        | tonic::Code::OutOfRange
-        | tonic::Code::Internal
-        | tonic::Code::Unavailable
-        | tonic::Code::DataLoss => default_error,
+    // Always try to parse proto-encoded details first, regardless of tonic code.
+    // UCS encodes ConnectorError for connector 5xx errors too (e.g. Internal, Unavailable).
+    let parsed = UnifiedConnectorServiceError::from_tonic_status(&status, connector_name);
+
+    let err = match &parsed {
+        // A ConnectorError was successfully extracted from the details - use it regardless
+        // of the tonic status code, since UCS maps connector HTTP status codes to tonic codes.
+        UnifiedConnectorServiceError::ConnectorError { .. } => parsed,
+        // No ConnectorError in details (UCS-side error or infrastructure failure).
+        // Decide based on the tonic code.
+        _ => match status.code() {
+            // 4xx-equivalent tonic codes (UCS validation / config errors): keep TonicStatus
+            tonic::Code::InvalidArgument
+            | tonic::Code::NotFound
+            | tonic::Code::AlreadyExists
+            | tonic::Code::PermissionDenied
+            | tonic::Code::Unauthenticated
+            | tonic::Code::FailedPrecondition
+            | tonic::Code::Unimplemented => parsed,
+            // 5xx-equivalent tonic codes without a ConnectorError in details: UCS
+            // infrastructure failure - use the caller-supplied default error.
+            tonic::Code::Ok
+            | tonic::Code::Cancelled
+            | tonic::Code::Unknown
+            | tonic::Code::DeadlineExceeded
+            | tonic::Code::ResourceExhausted
+            | tonic::Code::Aborted
+            | tonic::Code::OutOfRange
+            | tonic::Code::Internal
+            | tonic::Code::Unavailable
+            | tonic::Code::DataLoss => default_error,
+        },
     };
     error_stack::Report::new(err)
 }
