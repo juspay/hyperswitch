@@ -1015,7 +1015,7 @@ export const connectorDetails = {
             product_name: "Test Product",
             quantity: 1,
             amount: 6000,
-            tax_rate: 0,
+            tax_rate: 2100,
           },
         ],
       },
@@ -1045,7 +1045,9 @@ export const connectorDetails = {
       Request: {
         payment_method: "wallet",
         payment_method_type: "ali_pay",
+        payment_experience: "redirect_to_url",
         authentication_type: "no_three_ds",
+        description: "hello world",
         payment_method_data: {
           wallet: {
             ali_pay_redirect: {},
@@ -1097,7 +1099,9 @@ export const connectorDetails = {
       Request: {
         payment_method: "wallet",
         payment_method_type: "we_chat_pay",
+        payment_experience: "redirect_to_url",
         authentication_type: "no_three_ds",
+        description: "hello world",
         payment_method_data: {
           wallet: {
             we_chat_pay_redirect: {},
@@ -1130,6 +1134,7 @@ export const connectorDetails = {
         payment_method: "wallet",
         payment_method_type: "mb_way",
         authentication_type: "no_three_ds",
+        description: "hello world",
         payment_method_data: {
           wallet: {
             mb_way_redirect: {},
