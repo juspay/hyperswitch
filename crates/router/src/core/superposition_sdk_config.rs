@@ -1,5 +1,3 @@
-use common_enums::ConnectorType;
-use error_stack::ResultExt;
 use std::collections::HashMap;
 
 use api_models::{
@@ -10,13 +8,14 @@ use api_models::{
         DynamicFields, PaymentMethodGroup, PaymentMethodTypeWithFields, SuperPositionConfigResponse,
     },
 };
+use common_enums::ConnectorType;
 use common_utils::{
     ext_traits::StringExt,
     id_type::{MerchantId, ProfileId},
 };
+use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount;
 use hyperswitch_masking::ExposeInterface;
-
 use serde_json::Map;
 
 use crate::{
