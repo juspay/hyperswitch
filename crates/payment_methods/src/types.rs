@@ -38,7 +38,6 @@ pub struct PaymentMethodResponseItemV1 {
     pub psp_tokenization_enabled: bool,
 }
 
-
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
@@ -191,13 +190,20 @@ impl From<PaymentMethodResponseData>
     for Option<api_models::payment_methods::CustomerPaymentMethodDataForClient>
 {
     fn from(payment_method_response_data: PaymentMethodResponseData) -> Self {
-        use api_models::payment_methods::CustomerPaymentMethodDataForClient as C;
         match payment_method_response_data {
-            PaymentMethodResponseData::Card(card_info) => Some(C::Card(card_info)),
-            PaymentMethodResponseData::Wallet(wallet_info) => Some(C::Wallet(wallet_info.into())),
-            PaymentMethodResponseData::BankDebit(bank_debit_info) => {
-                Some(C::BankDebit(bank_debit_info.into()))
-            }
+            PaymentMethodResponseData::Card(card_info) => Some(
+                api_models::payment_methods::CustomerPaymentMethodDataForClient::Card(card_info),
+            ),
+            PaymentMethodResponseData::Wallet(wallet_info) => Some(
+                api_models::payment_methods::CustomerPaymentMethodDataForClient::Wallet(
+                    wallet_info.into(),
+                ),
+            ),
+            PaymentMethodResponseData::BankDebit(bank_debit_info) => Some(
+                api_models::payment_methods::CustomerPaymentMethodDataForClient::BankDebit(
+                    bank_debit_info.into(),
+                ),
+            ),
         }
     }
 }

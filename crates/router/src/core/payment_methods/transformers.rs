@@ -26,6 +26,7 @@ use josekit::jwe;
 #[cfg(feature = "v1")]
 use payment_methods::client::{
     self as pm_client,
+    list::{ListCustomerPaymentMethods, ListCustomerPaymentMethodsV1Request},
     create::{CreatePaymentMethodResponse, CreatePaymentMethodV1Request},
     retrieve::{RetrievePaymentMethodResponse, RetrievePaymentMethodV1Request},
     UpdatePaymentMethod, UpdatePaymentMethodV1Payload, UpdatePaymentMethodV1Request,
@@ -1989,10 +1990,6 @@ pub async fn list_customer_payment_methods_from_modular_service(
     customer_id: id_type::CustomerId,
 ) -> CustomResult<Vec<payment_methods::types::PaymentMethodResponseItemV1>, errors::ApiErrorResponse>
 {
-    use payment_methods::client::list::{
-        ListCustomerPaymentMethods, ListCustomerPaymentMethodsV1Request,
-    };
-
     let internal_api_key = &state
         .conf
         .internal_merchant_id_profile_id_auth
