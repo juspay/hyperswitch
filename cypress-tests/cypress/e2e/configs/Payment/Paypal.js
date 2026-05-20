@@ -225,7 +225,13 @@ export const connectorDetails = {
       },
       Response: {
         status: 400,
-        body: {},
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_00",
+            message: "Refund is not supported for this payment",
+          },
+        },
       },
     },
     PartialRefund: {
@@ -237,7 +243,13 @@ export const connectorDetails = {
       },
       Response: {
         status: 400,
-        body: {},
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_00",
+            message: "Partial refund is not supported for this payment",
+          },
+        },
       },
     },
     manualPaymentRefund: {
@@ -249,7 +261,13 @@ export const connectorDetails = {
       },
       Response: {
         status: 400,
-        body: {},
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_00",
+            message: "Manual payment refund is not supported for this payment",
+          },
+        },
       },
     },
     manualPaymentPartialRefund: {
@@ -261,7 +279,13 @@ export const connectorDetails = {
       },
       Response: {
         status: 400,
-        body: {},
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_00",
+            message: "Manual partial refund is not supported for this payment",
+          },
+        },
       },
     },
     SyncRefund: {
@@ -974,116 +998,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
-        },
-      },
-    },
-  },
-  payment_method_blocking_pm: {
-    BlockIssuingCountry: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: {
-            card_number: "4000000000000002",
-            card_exp_month: "03",
-            card_exp_year: "30",
-            card_holder_name: "joseph Doeeee",
-            card_cvc: "737",
-            card_network: "Visa",
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        expectBlockedPayment: true,
-        body: {
-          error: {
-            type: "blocked",
-            message: "This payment method is blocked",
-            code: "HE_03",
-            reason: "Blocked",
-          },
-        },
-      },
-    },
-    BlockCardType: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: {
-            card_number: "4111111111111111",
-            card_exp_month: "03",
-            card_exp_year: "30",
-            card_holder_name: "joseph Doeeee",
-            card_cvc: "737",
-            card_network: "Visa",
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        expectBlockedPayment: true,
-        body: {
-          error: {
-            type: "blocked",
-            message: "This payment method is blocked",
-            code: "HE_03",
-            reason: "Blocked",
-          },
-        },
-      },
-    },
-    BlockCardSubtype: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: {
-            card_number: "378282246310005",
-            card_exp_month: "03",
-            card_exp_year: "30",
-            card_holder_name: "joseph Doeeee",
-            card_cvc: "737",
-            card_network: "Visa",
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        expectBlockedPayment: true,
-        body: {
-          error: {
-            type: "blocked",
-            message: "This payment method is blocked",
-            code: "HE_03",
-            reason: "Blocked",
-          },
-        },
-      },
-    },
-    BlockIfBinInfoUnavailable: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: {
-            card_number: "6304000000000000",
-            card_exp_month: "03",
-            card_exp_year: "30",
-            card_holder_name: "joseph Doeeee",
-            card_cvc: "737",
-            card_network: "Visa",
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        expectBlockedPayment: true,
-        body: {
-          error: {
-            type: "blocked",
-            message: "This payment method is blocked",
-            code: "HE_03",
-            reason: "Blocked",
-          },
         },
       },
     },

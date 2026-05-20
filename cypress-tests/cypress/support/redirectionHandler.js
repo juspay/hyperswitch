@@ -1797,9 +1797,8 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
             timeout: constants.TIMEOUT,
           })
             .should("be.visible")
-            .then(() => {
-              cy.screenshot("nexixpay-3ds-acs-page");
-            });
+            .and("contain.text", "AUTENTICAZIONE RIUSCITA");
+          cy.screenshot("nexixpay-3ds-acs-page");
           cy.contains("button", "AUTENTICAZIONE RIUSCITA").click();
           break;
 
