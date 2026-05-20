@@ -205,7 +205,6 @@ impl AttemptStatus {
             | Self::ConfirmationAwaited
             | Self::DeviceDataCollectionPending
             | Self::IntegrityFailure
-            | Self::VoidedPostCharge
             | Self::CaptureReview => false,
         }
     }

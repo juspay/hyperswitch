@@ -573,7 +573,8 @@ impl Capturable for PaymentsCancelPostCaptureData {
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::PartiallyCapturedAndProcessing
-            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => None,
+            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            | common_enums::IntentStatus::Review => None,
         }
     }
 }
