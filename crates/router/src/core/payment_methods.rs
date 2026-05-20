@@ -1349,9 +1349,7 @@ pub async fn create_persistent_payment_method_core(
         .attach_printable("Unable to parse Payment method billing address")?;
 
     let payment_method_id =
-        id_type::GlobalPaymentMethodId::generate(&state.conf.cell_information.id)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+        id_type::GlobalPaymentMethodId::generate(&state.conf.cell_information.id);
 
     match &req.payment_method_data {
         api::PaymentMethodCreateData::Card(_) | api::PaymentMethodCreateData::BankDebit(_) => {
@@ -1462,9 +1460,7 @@ pub async fn create_volatile_payment_method_core(
         .attach_printable("Unable to parse Payment method billing address")?;
 
     let payment_method_id =
-        id_type::GlobalPaymentMethodId::generate(&state.conf.cell_information.id)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+        id_type::GlobalPaymentMethodId::generate(&state.conf.cell_information.id);
 
     match &req.payment_method_data {
         api::PaymentMethodCreateData::Card(_) | api::PaymentMethodCreateData::BankDebit(_) => {
@@ -3517,9 +3513,7 @@ pub async fn payment_method_intent_create(
     // create pm entry
 
     let payment_method_id =
-        id_type::GlobalPaymentMethodId::generate(&state.conf.cell_information.id)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+        id_type::GlobalPaymentMethodId::generate(&state.conf.cell_information.id);
 
     let payment_method = create_payment_method_for_intent(
         state,
