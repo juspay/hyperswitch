@@ -1209,7 +1209,6 @@ pub async fn update_default_fallback_routing(
         )
         .await?;
 
-    let superposition_config = state.conf.superposition.get_inner().clone();
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
@@ -1219,9 +1218,6 @@ pub async fn update_default_fallback_routing(
         .set_routing_default_config(
             state.superposition_service.as_ref(),
             &serde_json::to_value(&updated_list_of_connectors).unwrap_or_default(),
-            &superposition_config.org_id,
-            &superposition_config.workspace_id,
-            None,
         )
         .await
     {
