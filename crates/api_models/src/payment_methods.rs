@@ -2914,7 +2914,7 @@ pub enum PaymentMethodSubtypeSpecificDataForClient {
     /// Card payment method — contains card network info
     Card {
         #[schema(value_type = Vec<CardNetwork>)]
-        card_network_details: Vec<api_enums::CardNetwork>,
+        card_networks: Vec<api_enums::CardNetwork>,
     },
     /// Bank payment method (bank_redirect) — contains supported bank names
     Bank {

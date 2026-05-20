@@ -3292,14 +3292,14 @@ impl MerchantEnabledPmsContext {
         let mut out = vec![];
         for (payment_method, pmt_map) in &self.card_networks_consolidated_hm {
             for (payment_method_type, card_network_hashmap) in pmt_map {
-                let card_network_details: Vec<api_enums::CardNetwork> =
+                let card_networks: Vec<api_enums::CardNetwork> =
                     card_network_hashmap.keys().cloned().collect();
 
                 out.push(ResponsePaymentMethodsEnabledForClient {
                     payment_method: *payment_method,
                     payment_method_type: *payment_method_type,
                     data: Some(PaymentMethodSubtypeSpecificDataForClient::Card {
-                        card_network_details,
+                        card_networks,
                     }),
                     payment_experience: None,
                     collect_shipping_details_from_wallets: None,
