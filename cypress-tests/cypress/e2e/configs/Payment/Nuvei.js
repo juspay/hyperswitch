@@ -944,6 +944,9 @@ export const connectorDetails = {
       },
     },
     AfterpayClearpay: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "pay_later",
         payment_method_type: "afterpay_clearpay",
@@ -979,8 +982,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code: "1068",
-          error_message: "Payment method is not enabled",
         },
       },
     },
