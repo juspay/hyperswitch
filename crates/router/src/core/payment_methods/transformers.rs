@@ -26,8 +26,8 @@ use josekit::jwe;
 #[cfg(feature = "v1")]
 use payment_methods::client::{
     self as pm_client,
-    list::{ListCustomerPaymentMethods, ListCustomerPaymentMethodsV1Request},
     create::{CreatePaymentMethodResponse, CreatePaymentMethodV1Request},
+    list::{ListCustomerPaymentMethods, ListCustomerPaymentMethodsV1Request},
     retrieve::{RetrievePaymentMethodResponse, RetrievePaymentMethodV1Request},
     UpdatePaymentMethod, UpdatePaymentMethodV1Payload, UpdatePaymentMethodV1Request,
 };
