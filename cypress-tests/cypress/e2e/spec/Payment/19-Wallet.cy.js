@@ -314,6 +314,398 @@ describe("Wallet tests", () => {
       });
     });
   });
+
+  context("ACI Apple Pay Create and Confirm flow test", () => {
+    let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.ACI_WALLET
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("create-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["PaymentIntent"]("ApplePay");
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("Confirm Apple Pay wallet", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["ApplePay"];
+
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        data,
+        true,
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+
+    it("Handle wallet redirection", () => {
+      if (!shouldContinue) {
+        return;
+      }
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
+      const nextActionUrl = globalState.get("nextActionUrl");
+
+      cy.handleWalletRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      );
+    });
+
+    it("Sync payment status", () => {
+      if (!shouldContinue) {
+        return;
+      }
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["ApplePay"];
+
+      cy.retrievePaymentCallTest({
+        globalState,
+        data,
+      });
+    });
+  });
+
+  context("ACI Google Pay Create and Confirm flow test", () => {
+    let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.ACI_WALLET
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("create-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["PaymentIntent"]("GooglePay");
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("Confirm Google Pay wallet", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["GooglePay"];
+
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        data,
+        true,
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+
+    it("Handle wallet redirection", () => {
+      if (!shouldContinue) {
+        return;
+      }
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
+      const nextActionUrl = globalState.get("nextActionUrl");
+
+      cy.handleWalletRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      );
+    });
+
+    it("Sync payment status", () => {
+      if (!shouldContinue) {
+        return;
+      }
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["GooglePay"];
+
+      cy.retrievePaymentCallTest({
+        globalState,
+        data,
+      });
+    });
+  });
+
+  context("ACI Samsung Pay Create and Confirm flow test", () => {
+    let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.ACI_WALLET
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("create-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["PaymentIntent"]("SamsungPay");
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("Confirm Samsung Pay wallet", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["SamsungPay"];
+
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        data,
+        true,
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+
+    it("Handle wallet redirection", () => {
+      if (!shouldContinue) {
+        return;
+      }
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
+      const nextActionUrl = globalState.get("nextActionUrl");
+
+      cy.handleWalletRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      );
+    });
+
+    it("Sync payment status", () => {
+      if (!shouldContinue) {
+        return;
+      }
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["SamsungPay"];
+
+      cy.retrievePaymentCallTest({
+        globalState,
+        data,
+      });
+    });
+  });
+
+  context("ACI MB Way Create and Confirm flow test", () => {
+    let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.ACI_WALLET
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("create-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["PaymentIntent"]("MbWay");
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("Confirm MB Way wallet", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["MbWay"];
+
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        data,
+        true,
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+
+    it("Handle wallet redirection", () => {
+      if (!shouldContinue) {
+        return;
+      }
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
+      const nextActionUrl = globalState.get("nextActionUrl");
+
+      cy.handleWalletRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      );
+    });
+
+    it("Sync payment status", () => {
+      if (!shouldContinue) {
+        return;
+      }
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["MbWay"];
+
+      cy.retrievePaymentCallTest({
+        globalState,
+        data,
+      });
+    });
+  });
 });
 
 describe("PayPal Wallet tests", () => {

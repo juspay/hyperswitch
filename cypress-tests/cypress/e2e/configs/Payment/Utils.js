@@ -517,6 +517,7 @@ export const CONNECTOR_LISTS = {
     ALIPAY_HK_WALLET: ["adyen"],
     PAYPAL_WALLET: ["novalnet", "paypal"],
     MIFINITY_WALLET: ["mifinity"],
+    ACI_WALLET: ["aci"],
     PAYPAL_MANDATE: ["paypal"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [
