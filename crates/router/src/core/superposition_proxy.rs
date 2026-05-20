@@ -212,6 +212,33 @@ pub async fn list_contexts(
         }
     }
 
+    if auth.role_id == crate::consts::user_role::ROLE_ID_MERCHANT_ADMIN {
+        let scoped_merchant_id = auth.merchant_id.get_string_repr().to_string();
+        let scoped_profile_id = auth.profile_id.get_string_repr().to_string();
+
+        all_contexts.retain(|ctx| {
+            let Some(dims) = ctx.get("value").and_then(|v| v.as_object()) else {
+                return true;
+            };
+
+            let dim_str = |key: &str| dims.get(key).and_then(|v| v.as_str());
+
+            if dim_str("merchant_id").is_some_and(|v| v != scoped_merchant_id) {
+                return false;
+            }
+            if dim_str("processor_merchant_id").is_some_and(|v| v != scoped_merchant_id) {
+                return false;
+            }
+            if dim_str("provider_merchant_id").is_some_and(|v| v != scoped_merchant_id) {
+                return false;
+            }
+            if dim_str("profile_id").is_some_and(|v| v != scoped_profile_id) {
+                return false;
+            }
+            true
+        });
+    }
+
     let count = all_contexts.len() as i64;
     let response = serde_json::json!({
         "total_pages": 1,
