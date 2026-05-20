@@ -111,7 +111,7 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
         } else {
             let payment_id = payment_attempt.payment_id.clone();
             // Update dispute data
-            let response = disputes::update_dispute_data(
+            let response = Box::pin(disputes::update_dispute_data(
                 state,
                 platform,
                 business_profile,
@@ -119,7 +119,7 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
                 tracking_data.dispute_payload,
                 payment_attempt,
                 tracking_data.connector_name.as_str(),
-            )
+            ))
             .await
             .map_err(|error| logger::error!("Dispute update failed: {error}"));
 
