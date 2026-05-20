@@ -105,7 +105,14 @@ beforeEach(() => {
     cy.request({
       method: "POST",
       url: `${PROXY_ADMIN_URL}/test/start`,
-      body: { titlePath: titlePath, spec: Cypress.spec.relative },
+      body: {
+        titlePath: titlePath,
+        spec: Cypress.spec.relative,
+        // Primary connector under test — used by capture to tag *every* flow
+        // (including vault/auxiliary connector calls) under this connector
+        // so they ship together in the same cassette tarball.
+        connector: Cypress.env("CONNECTOR") || "",
+      },
       failOnStatusCode: false,
       timeout: 2000,
     });

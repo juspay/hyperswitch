@@ -63,6 +63,9 @@ class State:
     current_test = None        # titlePath.join(" > ") — used as cassette "test" field
     current_title_path = []    # raw titlePath array — used to build folder path
     current_spec = None        # Cypress.spec.name (with extension)
+    current_connector = ""     # CYPRESS_CONNECTOR — primary connector under test;
+                               # tags every flow during this test, including calls
+                               # to ancillary connectors (vault, fraud, etc.)
     lock = threading.Lock()
     counter = {}               # rel_path -> int
 
@@ -77,7 +80,24 @@ def matches(url: str) -> bool:
     return any(url.startswith(b) for b in BASE_URLS)
 
 
-def connector_for(url: str, headers: dict | None = None) -> str:
+def connector_for(
+    url: str,
+    headers: dict | None = None,
+    test_connector: str = "",
+) -> str:
+    """Pick the connector tag for a captured flow.
+
+    Priority:
+      1. ``test_connector`` — primary connector under test, sent by Cypress
+         on /test/start. Ensures ancillary connector calls (e.g. an external
+         vault hit during a Stripe ExternalVault test) are bundled with the
+         primary connector's cassettes.
+      2. ``CONNECTOR`` env var (DEFAULT_CONNECTOR) — manual override.
+      3. ``x-connector`` header set by the router on the outbound flow.
+      4. Host inference as a last resort.
+    """
+    if test_connector:
+        return test_connector
     if DEFAULT_CONNECTOR:
         return DEFAULT_CONNECTOR
     if headers:
@@ -201,17 +221,21 @@ class AdminHandler(BaseHTTPRequestHandler):
             if self.path == "/test/start":
                 title_path = body.get("titlePath") or []
                 spec = body.get("spec") or "_untagged"
+                test_connector = (body.get("connector") or "").strip()
                 # Derive flat test name for cassette "test" field and _server_rid matching
                 state.current_test = " > ".join(title_path) if title_path else body.get("test", "unknown")
                 state.current_title_path = title_path
                 state.current_spec = spec
-                print(f"[capture] ▶ START: [{safe_spec(spec)}] {state.current_test}")
-                self._send(200, {"ok": True, "test": state.current_test})
+                state.current_connector = test_connector
+                tag = f"[{test_connector}] " if test_connector else ""
+                print(f"[capture] ▶ START: {tag}[{safe_spec(spec)}] {state.current_test}")
+                self._send(200, {"ok": True, "test": state.current_test, "connector": test_connector})
             elif self.path == "/test/end":
                 print(f"[capture] ⏹ END:   {state.current_test}")
                 state.current_test = None
                 state.current_title_path = []
                 state.current_spec = None
+                state.current_connector = ""
                 self._send(200, {"ok": True})
             elif self.path == "/status":
                 self._send(200, {
@@ -239,13 +263,19 @@ def response(flow: http.HTTPFlow):
     if not matches(flow.request.url):
         return
 
-    connector = connector_for(flow.request.url, dict(flow.request.headers))
     request_id = flow.request.headers.get("x-request-id", "").strip()
 
     with state.lock:
         test = state.current_test or "_untagged"
         spec = state.current_spec or "_untagged"
         title_path = list(state.current_title_path)
+        test_connector = state.current_connector
+
+    connector = connector_for(
+        flow.request.url, dict(flow.request.headers), test_connector
+    )
+
+    with state.lock:
         rel_path = build_rel_path(spec, title_path)
         counter_key = (connector, rel_path)
         idx = state.counter.get(counter_key, 0)

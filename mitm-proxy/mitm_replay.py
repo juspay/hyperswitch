@@ -6,8 +6,21 @@ recorded response identified by the propagated ``x-request-id`` header.
 Method and path act as tie-breakers when one request_id covers multiple
 outbound calls.
 
-  Matching key : (connector, request_id, method, path)
+  Matching key : (request_id, method, path)
+                 — connector-agnostic, so ancillary connector calls (vault,
+                 fraud, …) made during a primary-connector test resolve
+                 against cassettes filed under the primary connector's
+                 folder. The ``x-connector`` header is still used as the
+                 gate "is this a connector call I should try to replay?".
   Duplicates   : last file wins (later recording = successful Cypress retry)
+  Reuse        : cassettes are peeked, not popped — repeated requests for
+                 the same key (Cypress retries, parallel same-connector
+                 shards) get the same recorded response.
+
+Modes:
+  permissive (default) : MISS / no-rid → request forwarded to live connector
+  strict (REPLAY_STRICT=1) : MISS / no-rid → synthetic 599 response,
+                             connector is never called.
 
 Run with:
     mitmdump -s mitm_replay.py --listen-port 8888
@@ -26,11 +39,17 @@ from mitmproxy import http
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CAPTURE_DIR = os.environ.get("CAPTURE_DIR") or os.path.join(SCRIPT_DIR, "captures")
 ADMIN_PORT = int(os.environ.get("ADMIN_PORT", "8001"))
+STRICT_MODE = os.environ.get("REPLAY_STRICT", "").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 # Headers mitmproxy manages itself — don't replay them from the recording.
 _RESERVED_HEADERS = frozenset({"content-length", "transfer-encoding", "connection"})
 
-CassetteKey = tuple[str, str, str, str]  # (connector, request_id, method, path)
+CassetteKey = tuple[str, str, str]  # (request_id, method, path)
 
 
 # ───── cassette store ─────
@@ -40,6 +59,7 @@ class CassetteStore:
     def __init__(self, capture_dir: str):
         self._capture_dir = capture_dir
         self._queues: dict[CassetteKey, deque] = defaultdict(deque)
+        self._connectors_seen: set[str] = set()
         self._lock = threading.Lock()
 
     def load(self) -> None:
@@ -56,7 +76,6 @@ class CassetteStore:
                 continue
 
             key: CassetteKey = (
-                record["connector"],
                 request_id,
                 record["request"]["method"],
                 record["request"]["path"],
@@ -65,18 +84,25 @@ class CassetteStore:
             # processes them lexically, so reassigning here keeps the last
             # (successful) recording and discards the earlier failed one.
             self._queues[key] = deque([record["response"]])
+            recorded_connector = record.get("connector")
+            if recorded_connector:
+                self._connectors_seen.add(recorded_connector)
 
         total = sum(len(q) for q in self._queues.values())
-        connectors = sorted({k[0] for k in self._queues})
         print(f"[replay] loaded {total} cassettes from {self._capture_dir}/")
-        print(f"[replay] connectors: {connectors}")
+        print(f"[replay] connectors (tag in cassette files): {sorted(self._connectors_seen)}")
         if skipped:
             print(f"[replay] skipped {skipped} cassettes with no request_id")
 
-    def pop(self, key: CassetteKey) -> dict | None:
+    def get(self, key: CassetteKey) -> dict | None:
+        """Peek at the cassette for ``key`` without consuming it.
+
+        Repeated calls for the same key return the same recording, so
+        Cypress retries and same-connector parallel shards both work.
+        """
         with self._lock:
             queue = self._queues.get(key)
-            return queue.popleft() if queue else None
+            return queue[0] if queue else None
 
 
 # ───── response materialisation ─────
@@ -99,6 +125,18 @@ def _build_response(recorded: dict) -> http.Response:
         recorded["status"],
         _decode_body(recorded.get("body"), recorded.get("body_encoding")),
         headers,
+    )
+
+
+def _strict_block_response(reason: str, tag: str) -> http.Response:
+    """Synthetic response returned in strict mode when no cassette matches."""
+    body = json.dumps(
+        {"error": "mitm replay strict mode: connector call blocked", "reason": reason}
+    ).encode("utf-8")
+    return http.Response.make(
+        599,
+        body,
+        {"Content-Type": "application/json", "X-Cassette": tag},
     )
 
 
@@ -141,6 +179,7 @@ def _start_admin_server() -> None:
 _store = CassetteStore(CAPTURE_DIR)
 _store.load()
 _start_admin_server()
+print(f"[replay] mode {'STRICT (no live fallthrough)' if STRICT_MODE else 'permissive'}")
 
 
 # ───── mitmproxy hook ─────
@@ -154,12 +193,26 @@ def request(flow: http.HTTPFlow) -> None:
     path = flow.request.path.split("?", 1)[0]
 
     if not request_id:
+        if STRICT_MODE:
+            flow.response = _strict_block_response(
+                f"missing x-request-id for {method} {path}",
+                tag="STRICT-no-request-id",
+            )
+            print(f"[replay] BLOCK no-rid [{connector}] {method} {path}")
+            return
         print(f"[replay] LIVE no-rid [{connector}] {method} {path}")
         flow.request.headers["X-Cassette"] = "LIVE-no-request-id"
         return
 
-    recorded = _store.pop((connector, request_id, method, path))
+    recorded = _store.get((request_id, method, path))
     if recorded is None:
+        if STRICT_MODE:
+            flow.response = _strict_block_response(
+                f"no cassette for [{connector}] {method} {path} (rid={request_id})",
+                tag="STRICT-no-cassette",
+            )
+            print(f"[replay] BLOCK miss  [{connector}] {method} {path} (rid={request_id})")
+            return
         print(f"[replay] MISS       [{connector}] {method} {path} (rid={request_id})")
         flow.request.headers["X-Cassette"] = "LIVE-no-cassette"
         return

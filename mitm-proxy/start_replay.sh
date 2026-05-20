@@ -2,14 +2,29 @@
 # Start mitmproxy in replay mode — serves cassettes instead of real connectors.
 #
 # Usage:
-#   ./start_replay.sh                  # default port 8888
+#   ./start_replay.sh                  # permissive: MISS forwards to live connector
+#   ./start_replay.sh --strict         # strict: MISS returns 599, never live
 #   PROXY_PORT=9090 ./start_replay.sh
 #
 # Env overrides (also used by CI):
-#   CAPTURE_DIR   directory to load cassettes from (default: <script_dir>/captures)
-#   ADMIN_PORT    test-lifecycle admin port (default: 8001, read by mitm_replay.py)
+#   CAPTURE_DIR    directory to load cassettes from (default: <script_dir>/captures)
+#   ADMIN_PORT     test-lifecycle admin port (default: 8001, read by mitm_replay.py)
+#   REPLAY_STRICT  set to 1 to enable strict mode (same as --strict flag)
 
 set -euo pipefail
+
+STRICT_FLAG=0
+for arg in "$@"; do
+  case "$arg" in
+    --strict) STRICT_FLAG=1 ;;
+    *) echo "WARN: unknown argument '${arg}' ignored" >&2 ;;
+  esac
+done
+
+if [[ "${STRICT_FLAG}" == "1" ]]; then
+  export REPLAY_STRICT=1
+fi
+STRICT_MODE="${REPLAY_STRICT:-0}"
 
 PROXY_PORT="${PROXY_PORT:-8888}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -43,10 +58,18 @@ if [[ -t 1 ]]; then
   echo "cargo run --bin router"
   echo "──────────────────────────────────────────────────────────────────────"
   echo ""
+  if [[ "${STRICT_MODE}" == "1" ]]; then
+    MODE_DESC="STRICT — MISS / no-rid blocked with 599 (connector never called)"
+  else
+    MODE_DESC="permissive — MISS / no-rid forwarded to live connector"
+  fi
+
   echo "==> Starting mitmproxy (replay mode) on :${PROXY_PORT}  (Ctrl+C to stop)"
-  echo "    HIT  = served from cassette"
-  echo "    MISS = cassette not found — request forwarded live"
-  echo "    LIVE = request arrived with no x-request-id — forwarded live"
+  echo "    Mode : ${MODE_DESC}"
+  echo "    HIT   = served from cassette"
+  echo "    MISS  = cassette not found"
+  echo "    LIVE  = request arrived with no x-request-id"
+  echo "    BLOCK = strict-mode synthetic 599 (only in --strict)"
   echo ""
   echo "Optional, for log breadcrumbs in the Cypress terminal:"
   echo "    export CYPRESS_PROXY_ADMIN_URL=http://127.0.0.1:${ADMIN_PORT:-8001}"
