@@ -38,7 +38,6 @@ pub struct PaymentMethodResponseItemV1 {
     pub psp_tokenization_enabled: bool,
 }
 
-
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]

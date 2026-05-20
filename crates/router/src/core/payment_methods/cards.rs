@@ -3222,16 +3222,18 @@ impl MerchantEnabledPmsContext {
     pub fn bank_debit_pms_for_client(&self) -> Vec<ResponsePaymentMethodsEnabledForClient> {
         self.bank_debits_consolidated_hm
             .keys()
-            .map(|payment_method_type| ResponsePaymentMethodsEnabledForClient {
-                payment_method: api_enums::PaymentMethod::BankDebit,
-                payment_method_type: *payment_method_type,
-                data: Some(PaymentMethodSubtypeSpecificDataForClient::Bank {
-                    bank_names: None,
-                }),
-                payment_experience: None,
-                collect_shipping_details_from_wallets: None,
-                collect_billing_details_from_wallets: None,
-            })
+            .map(
+                |payment_method_type| ResponsePaymentMethodsEnabledForClient {
+                    payment_method: api_enums::PaymentMethod::BankDebit,
+                    payment_method_type: *payment_method_type,
+                    data: Some(PaymentMethodSubtypeSpecificDataForClient::Bank {
+                        bank_names: None,
+                    }),
+                    payment_experience: None,
+                    collect_shipping_details_from_wallets: None,
+                    collect_billing_details_from_wallets: None,
+                },
+            )
             .collect()
     }
 
@@ -3239,16 +3241,18 @@ impl MerchantEnabledPmsContext {
     pub fn bank_transfer_pms_for_client(&self) -> Vec<ResponsePaymentMethodsEnabledForClient> {
         self.bank_transfer_consolidated_hm
             .keys()
-            .map(|payment_method_type| ResponsePaymentMethodsEnabledForClient {
-                payment_method: api_enums::PaymentMethod::BankTransfer,
-                payment_method_type: *payment_method_type,
-                data: Some(PaymentMethodSubtypeSpecificDataForClient::Bank {
-                    bank_names: None,
-                }),
-                payment_experience: None,
-                collect_shipping_details_from_wallets: None,
-                collect_billing_details_from_wallets: None,
-            })
+            .map(
+                |payment_method_type| ResponsePaymentMethodsEnabledForClient {
+                    payment_method: api_enums::PaymentMethod::BankTransfer,
+                    payment_method_type: *payment_method_type,
+                    data: Some(PaymentMethodSubtypeSpecificDataForClient::Bank {
+                        bank_names: None,
+                    }),
+                    payment_experience: None,
+                    collect_shipping_details_from_wallets: None,
+                    collect_billing_details_from_wallets: None,
+                },
+            )
             .collect()
     }
 }
