@@ -798,6 +798,48 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "pollStatusCallTest",
+  (pollId, data, globalState, usePublishableKey = true) => {
+    const { Response: resData } = data || {};
+
+    const apiKey = usePublishableKey
+      ? globalState.get("publishableKey") || globalState.get("apiKey")
+      : globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+
+    cy.request({
+      method: "GET",
+      url: `${baseUrl}/poll/status/${pollId}`,
+      headers: {
+        "api-key": apiKey,
+        "Content-Type": "application/json",
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (resData?.status) {
+          expect(response.status, "status_code").to.equal(resData.status);
+        }
+
+        if (resData?.body) {
+          for (const key in resData.body) {
+            expect(response.body[key], [key]).to.deep.equal(resData.body[key]);
+          }
+        }
+
+        if (response.status === 200 && response.body.poll_id) {
+          expect(response.body.poll_id, "poll_id").to.equal(pollId);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
   "UpdateBusinessProfileTest",
   (
     updateBusinessProfileBody,
