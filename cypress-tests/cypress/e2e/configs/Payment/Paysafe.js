@@ -598,16 +598,18 @@ export const connectorDetails = {
     },
   },
   wallet_pm: {
-    PaymentIntent: (paymentMethodType) =>
-      getCustomExchange({
+    PaymentIntent: (paymentMethodType) => {
+      const localCurrencyMap = { Skrill: "USD" };
+      return getCustomExchange({
         Request: {
-          currency: getCurrency(paymentMethodType),
+          currency: localCurrencyMap[paymentMethodType] || getCurrency(paymentMethodType),
         },
         Response: {
           status: 200,
           body: { status: "requires_payment_method" },
         },
-      }),
+      });
+    },
     Skrill: {
       Request: {
         payment_method: "wallet",
