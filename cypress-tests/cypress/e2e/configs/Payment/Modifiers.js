@@ -134,7 +134,11 @@ const CURRENCY_MAP = {
   OnlineBankingFpx: "MYR", // Malaysian payment methods
   Interac: "CAD", // Canadian payment method
   AliPayHk: "HKD", // Hong Kong payment method
-  Mifinity: "EUR", // Mifinity wallet payment method
+  AliPay: "CNY",
+  WeChatPay: "CNY",
+  Paypal: "EUR",
+  MbWay: "EUR",
+  Mifinity: "EUR",
 };
 
 export const getCurrency = (paymentMethodType) => {

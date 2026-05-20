@@ -517,6 +517,7 @@ export const CONNECTOR_LISTS = {
     ALIPAY_HK_WALLET: ["adyen"],
     PAYPAL_WALLET: ["novalnet", "paypal"],
     MIFINITY_WALLET: ["mifinity"],
+    MULTISAFEPAY_WALLET: ["multisafepay"],
     PAYPAL_MANDATE: ["paypal"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [
@@ -555,7 +556,7 @@ export const CONNECTOR_LISTS = {
     EXTEND_AUTHORIZATION: ["adyen", "paypal"],
     GIFT_CARD: ["adyen"],
     RELAY_OPERATIONS: ["bankofamerica"],
-    PAY_LATER: ["klarna", "adyen", "aci", "stripe", "airwallex", "mollie"],
+    PAY_LATER: ["klarna", "adyen", "aci", "stripe", "airwallex", "mollie", "multisafepay"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     STEP_UP_AUTH: ["cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
