@@ -1068,39 +1068,39 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
-
         let mut query = <DieselPaymentIntent as HasTable>::table()
             .group_by(pi_dsl::status)
             .select((pi_dsl::status, diesel::dsl::count_star()))
             .filter(pi_dsl::processor_merchant_id.eq(processor_merchant_id.to_owned()))
             .into_boxed();
-
+    
         if let Some(profile_id) = profile_id_list {
             query = query.filter(pi_dsl::profile_id.eq_any(profile_id));
         }
-
+    
         query = query.filter(pi_dsl::created_at.ge(time_range.start_time));
-
+    
         query = match time_range.end_time {
             Some(ending_at) => query.filter(pi_dsl::created_at.le(ending_at)),
             None => query,
         };
-
+    
         logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
-
+    
         db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
             query.get_results_async::<(common_enums::IntentStatus, i64)>(conn),
-            db_metrics::DatabaseOperation::Filter,
+            db_metrics::DatabaseOperation::Count,
         )
         .await
         .map_err(|er| {
             StorageError::DatabaseError(
                 error_stack::report!(diesel_models::errors::DatabaseError::from(er))
-                    .attach_printable("Error filtering payment records"),
+                    .attach_printable("Error counting payment records"),
             )
             .into()
         })
     }
+    
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     #[instrument(skip_all)]
