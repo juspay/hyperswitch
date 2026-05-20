@@ -8314,7 +8314,6 @@ key1 = "Merchant Account Id"
   payment_method_type = "payjustnow"
 
 [envoy_payout]
-
 [envoy_payout.connector_auth.BodyKey]
 api_key = "Password"
 key1 = "Username"
