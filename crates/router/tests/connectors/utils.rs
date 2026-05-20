@@ -571,6 +571,7 @@ pub trait ConnectorActions: Connector {
             authorized_amount: None,
             customer_document_details: None,
             feature_data: None,
+            sender_payment_instrument_id: None,
         }
     }
 
@@ -1211,6 +1212,7 @@ pub fn get_connector_metadata(
             mandate_reference: _,
             connector_metadata,
             network_txn_id: _,
+            network_txn_link_id: None,
             connector_response_reference_id: _,
             incremental_authorization_allowed: _,
             authentication_data: None,

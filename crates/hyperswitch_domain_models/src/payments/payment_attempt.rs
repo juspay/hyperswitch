@@ -828,8 +828,11 @@ pub struct PaymentAttempt {
     pub created_by: Option<CreatedBy>,
     pub connector_request_reference_id: Option<String>,
     pub network_transaction_id: Option<String>,
+    pub network_transaction_link_id: Option<String>,
     /// stores the authorized amount in case of partial authorization
     pub authorized_amount: Option<MinorUnit>,
+    /// External surcharge details from InterPayments
+    pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
 }
 
 impl PaymentAttempt {
@@ -994,7 +997,9 @@ impl PaymentAttempt {
             created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id: None,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             authorized_amount: None,
+            external_surcharge_details: None,
         })
     }
 
@@ -1086,7 +1091,9 @@ impl PaymentAttempt {
             created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id: None,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             authorized_amount: None,
+            external_surcharge_details: None,
         })
     }
 
@@ -1185,7 +1192,9 @@ impl PaymentAttempt {
             created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id: None,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             authorized_amount: None,
+            external_surcharge_details: None,
         })
     }
 
@@ -1309,7 +1318,9 @@ impl PaymentAttempt {
             created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             authorized_amount: None,
+            external_surcharge_details: None,
         })
     }
 
@@ -1413,6 +1424,7 @@ pub struct PaymentAttempt {
     pub connector_request_reference_id: Option<String>,
     pub debit_routing_savings: Option<MinorUnit>,
     pub network_transaction_id: Option<String>,
+    pub network_transaction_link_id: Option<String>,
     pub is_overcapture_enabled: Option<OvercaptureEnabledBool>,
     pub network_details: Option<NetworkDetails>,
     pub is_stored_credential: Option<bool>,
@@ -1426,6 +1438,10 @@ pub struct PaymentAttempt {
     pub retry_type: Option<storage_enums::RetryType>,
     /// Installment data selected by the customer (number of installments and billing frequency)
     pub installment_data: Option<common_types::payments::InstallmentData>,
+    /// External surcharge details from InterPayments (stored as JSONB)
+    pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
+    /// Sender payment instrument ID
+    pub sender_payment_instrument_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -1934,6 +1950,7 @@ pub enum PaymentAttemptUpdate {
         payment_method_billing_address_id: Option<String>,
         updated_by: String,
         network_transaction_id: Option<String>,
+        network_transaction_link_id: Option<String>,
         shipping_cost: Option<MinorUnit>,
         order_tax_amount: Option<MinorUnit>,
     },
@@ -1988,6 +2005,7 @@ pub enum PaymentAttemptUpdate {
         routing_approach: Option<storage_enums::RoutingApproach>,
         connector_request_reference_id: Option<String>,
         network_transaction_id: Option<String>,
+        network_transaction_link_id: Option<String>,
         is_stored_credential: Option<bool>,
         request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     },
@@ -2022,6 +2040,7 @@ pub enum PaymentAttemptUpdate {
         connector: Option<String>,
         connector_transaction_id: Option<String>,
         network_transaction_id: Option<String>,
+        network_transaction_link_id: Option<String>,
         authentication_type: Option<storage_enums::AuthenticationType>,
         payment_method_id: Option<String>,
         mandate_id: Option<String>,
@@ -2059,6 +2078,7 @@ pub enum PaymentAttemptUpdate {
         advice_message: Option<Option<String>>,
         recommended_action: Option<Option<storage_enums::RecommendedAction>>,
         card_network: Option<storage_enums::CardNetwork>,
+        sender_payment_instrument_id: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -2183,6 +2203,7 @@ impl PaymentAttemptUpdate {
                 capture_method,
                 fingerprint_id,
                 network_transaction_id,
+                network_transaction_link_id,
                 payment_method_billing_address_id,
                 updated_by,
                 order_tax_amount,
@@ -2205,6 +2226,7 @@ impl PaymentAttemptUpdate {
                 fingerprint_id,
                 payment_method_billing_address_id,
                 network_transaction_id,
+                network_transaction_link_id,
                 updated_by,
                 order_tax_amount,
                 shipping_cost,
@@ -2308,6 +2330,7 @@ impl PaymentAttemptUpdate {
                 routing_approach,
                 connector_request_reference_id,
                 network_transaction_id,
+                network_transaction_link_id,
                 is_stored_credential,
                 request_extended_authorization,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
@@ -2356,6 +2379,7 @@ impl PaymentAttemptUpdate {
                 }),
                 connector_request_reference_id,
                 network_transaction_id,
+                network_transaction_link_id,
                 is_stored_credential,
                 request_extended_authorization,
             },
@@ -2400,6 +2424,7 @@ impl PaymentAttemptUpdate {
                 charges,
                 setup_future_usage_applied,
                 network_transaction_id,
+                network_transaction_link_id,
                 debit_routing_savings: _,
                 is_overcapture_enabled,
                 authorized_amount,
@@ -2410,6 +2435,7 @@ impl PaymentAttemptUpdate {
                 advice_message,
                 recommended_action,
                 card_network,
+                sender_payment_instrument_id,
             } => {
                 let connector_details = ConnectorErrorDetails::new(
                     error_code.clone(),
@@ -2469,11 +2495,13 @@ impl PaymentAttemptUpdate {
                     charges,
                     setup_future_usage_applied,
                     network_transaction_id,
+                    network_transaction_link_id,
                     is_overcapture_enabled,
                     authorized_amount,
                     encrypted_payment_method_data: encrypted_payment_method_data
                         .map(Encryption::from),
                     error_details,
+                    sender_payment_instrument_id,
                 }
             }
             Self::UnresolvedResponseUpdate {
@@ -2960,12 +2988,15 @@ impl behaviour::Conversion for PaymentAttempt {
             routing_approach: self.routing_approach,
             connector_request_reference_id: self.connector_request_reference_id,
             network_transaction_id: self.network_transaction_id,
+            network_transaction_link_id: self.network_transaction_link_id,
             is_overcapture_enabled: self.is_overcapture_enabled,
             network_details: self.network_details,
             is_stored_credential: self.is_stored_credential,
             authorized_amount: self.authorized_amount,
             encrypted_payment_method_data: self.encrypted_payment_method_data.map(Encryption::from),
             retry_type: self.retry_type,
+            external_surcharge_details: self.external_surcharge_details,
+            sender_payment_instrument_id: self.sender_payment_instrument_id,
         })
     }
 
@@ -3091,6 +3122,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 connector_request_reference_id: storage_model.connector_request_reference_id,
                 debit_routing_savings: None,
                 network_transaction_id: storage_model.network_transaction_id,
+                network_transaction_link_id: storage_model.network_transaction_link_id,
                 is_overcapture_enabled: storage_model.is_overcapture_enabled,
                 network_details: storage_model.network_details,
                 is_stored_credential: storage_model.is_stored_credential,
@@ -3099,6 +3131,8 @@ impl behaviour::Conversion for PaymentAttempt {
                 error_details: storage_model.error_details.map(Into::into),
                 retry_type: storage_model.retry_type,
                 installment_data: storage_model.installment_data,
+                external_surcharge_details: storage_model.external_surcharge_details,
+                sender_payment_instrument_id: storage_model.sender_payment_instrument_id,
             })
         }
         .await
@@ -3192,6 +3226,7 @@ impl behaviour::Conversion for PaymentAttempt {
             routing_approach: self.routing_approach,
             connector_request_reference_id: self.connector_request_reference_id,
             network_transaction_id: self.network_transaction_id,
+            network_transaction_link_id: self.network_transaction_link_id,
             network_details: self.network_details,
             is_stored_credential: self.is_stored_credential,
             authorized_amount: self.authorized_amount,
@@ -3199,6 +3234,8 @@ impl behaviour::Conversion for PaymentAttempt {
             error_details: self.error_details.map(Into::into),
             retry_type: self.retry_type,
             installment_data: self.installment_data,
+            external_surcharge_details: self.external_surcharge_details,
+            sender_payment_instrument_id: self.sender_payment_instrument_id,
         })
     }
 }
@@ -3273,7 +3310,9 @@ impl behaviour::Conversion for PaymentAttempt {
             created_by,
             connector_request_reference_id,
             network_transaction_id,
+            network_transaction_link_id,
             authorized_amount,
+            external_surcharge_details,
         } = self;
 
         let AttemptAmountDetails {
@@ -3372,6 +3411,7 @@ impl behaviour::Conversion for PaymentAttempt {
             created_by: created_by.map(|created_by| created_by.to_string()),
             connector_request_reference_id,
             network_transaction_id,
+            network_transaction_link_id,
             is_overcapture_enabled: None,
             network_details: None,
             attempts_group_id,
@@ -3383,6 +3423,8 @@ impl behaviour::Conversion for PaymentAttempt {
             error_details: None,
             retry_type: None,
             installment_data: None,
+            external_surcharge_details: None,
+            sender_payment_instrument_id: None,
         })
     }
 
@@ -3496,6 +3538,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 payment_method_subtype: storage_model.payment_method_subtype,
                 authentication_applied: storage_model.authentication_applied,
                 external_reference_id: storage_model.external_reference_id,
+                external_surcharge_details: storage_model.external_surcharge_details,
                 connector: storage_model.connector,
                 payment_method_billing_address,
                 connector_token_details: storage_model.connector_token_details,
@@ -3509,6 +3552,7 @@ impl behaviour::Conversion for PaymentAttempt {
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 connector_request_reference_id: storage_model.connector_request_reference_id,
                 network_transaction_id: storage_model.network_transaction_id,
+                network_transaction_link_id: storage_model.network_transaction_link_id,
                 authorized_amount: storage_model.authorized_amount,
             })
         }
@@ -3571,7 +3615,9 @@ impl behaviour::Conversion for PaymentAttempt {
             created_by,
             connector_request_reference_id,
             network_transaction_id,
+            network_transaction_link_id,
             authorized_amount,
+            external_surcharge_details: _,
         } = self;
 
         let card_network = payment_method_data
@@ -3590,6 +3636,7 @@ impl behaviour::Conversion for PaymentAttempt {
             merchant_id,
             status,
             network_transaction_id,
+            network_transaction_link_id,
             error_message: error_details
                 .as_ref()
                 .map(|details| details.message.clone()),
@@ -3665,6 +3712,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 .and_then(|details| details.network_error_message.clone()),
             processor_merchant_id: Some(processor_merchant_id),
             created_by: created_by.map(|created_by| created_by.to_string()),
+            external_surcharge_details: None,
             connector_request_reference_id,
             network_details: None,
             tokenization: None,
