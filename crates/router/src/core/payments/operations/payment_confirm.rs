@@ -356,15 +356,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     )?;
 
                     // 3
-                    (payment_intent, payment_attempt) = attempt_type
-                        .modify_payment_intent_and_payment_attempt(
+                    (payment_intent, payment_attempt) =
+                        Box::pin(attempt_type.modify_payment_intent_and_payment_attempt(
                             request,
                             payment_intent,
                             payment_attempt,
                             state,
                             platform.get_processor().get_key_store(),
                             storage_scheme,
-                        )
+                        ))
                         .await?;
 
                     (
@@ -1694,7 +1694,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     acquirer: acquirer_config.as_ref().map(|acquirer| {
                         api_models::three_ds_decision_rule::AcquirerData {
                             country: acquirer_country,
-                            fraud_rate: Some(acquirer.acquirer_fraud_rate),
+                            fraud_rate: acquirer.acquirer_fraud_rate,
                         }
                     }),
                 },
@@ -2825,6 +2825,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         installment_options: payment_data
                             .payment_intent
                             .installment_options
+                            .clone(),
+                        profile_acquirer_id: payment_data
+                            .payment_intent
+                            .profile_acquirer_id
                             .clone(),
                     })),
                     &m_key_store,
