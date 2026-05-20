@@ -2,13 +2,32 @@ import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
+let connector;
 let globalState;
 
 describe("Payment Manual Update Tests", () => {
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
+  before(function () {
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+        connector = globalState.get("connectorId");
+
+        if (
+          utils.shouldIncludeConnector(
+            connector,
+            utils.CONNECTOR_LISTS.INCLUDE.MANUAL_PAYMENT_UPDATE
+          )
+        ) {
+          skip = true;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
   });
 
   after("flush global state", () => {
