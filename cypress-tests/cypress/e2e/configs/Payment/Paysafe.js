@@ -635,7 +635,7 @@ export const connectorDetails = {
             country_code: "+1",
           },
         },
-        currency: "EUR",
+        currency: "USD",
       },
       Response: {
         status: 200,
@@ -664,7 +664,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
         },
-        currency: "EUR",
+        currency: "USD",
       },
       Response: {
         status: 200,
