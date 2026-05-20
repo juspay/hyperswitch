@@ -34,6 +34,18 @@ export default defineConfig({
         },
       });
       on("after:spec", (spec, results) => {
+        if (results && results.tests) {
+          const state = globalState || {};
+          results.tests.forEach((test) => {
+            test.attempts.forEach((attempt) => {
+              if (state.xRequestId) {
+                attempt.context =
+                  (attempt.context || "") +
+                  `\n{"x-request-id": "${state.xRequestId}"}`;
+              }
+            });
+          });
+        }
         // Clean up resources after each spec
         if (
           results &&
