@@ -1,6 +1,7 @@
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
     pii::Email,
+    types::MinorUnit,
 };
 use diesel_models::types::OrderDetailsWithAmount;
 use hyperswitch_masking::Secret;
@@ -8,23 +9,34 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::router_request_types;
+
 #[derive(Debug, Clone)]
 pub struct FraudCheckSaleData {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub currency: Option<common_enums::Currency>,
+    pub gateway: Option<String>,
+    pub client_ip: Option<std::net::IpAddr>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub email: Option<Email>,
+    pub phone: Option<Secret<String>>,
+    pub phone_country_code: Option<String>,
+    pub payment_method_data: Option<api_models::payments::AdditionalPaymentData>,
 }
 
 #[derive(Debug, Clone)]
 pub struct FraudCheckCheckoutData {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub currency: Option<common_enums::Currency>,
     pub browser_info: Option<router_request_types::BrowserInformation>,
     pub payment_method_data: Option<api_models::payments::AdditionalPaymentData>,
-    pub email: Option<Email>,
     pub gateway: Option<String>,
+    pub client_ip: Option<std::net::IpAddr>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub email: Option<Email>,
+    pub phone: Option<Secret<String>>,
+    pub phone_country_code: Option<String>,
 }
 
 #[derive(Debug, Clone)]
