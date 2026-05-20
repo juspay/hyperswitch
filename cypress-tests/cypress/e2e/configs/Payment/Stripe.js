@@ -1416,7 +1416,9 @@ export const connectorDetails = {
       const skipPaymentMethods = ["Ach", "Bacs"];
       return {
         Configs: {
-          ...(skipPaymentMethods.includes(paymentMethodType) && { TRIGGER_SKIP: true }),
+          ...(skipPaymentMethods.includes(paymentMethodType) && {
+            TRIGGER_SKIP: true,
+          }),
           CONNECTOR_CREDENTIAL: credentialMap[paymentMethodType] || {
             value: "connector_5",
           },
