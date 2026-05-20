@@ -1425,7 +1425,6 @@ export const connectorDetails = {
         },
         Request: {
           currency: currencyMap[paymentMethodType] || "USD",
-          setup_future_usage: "off_session",
         },
         Response: {
           status: 200,
@@ -1452,6 +1451,18 @@ export const connectorDetails = {
             },
           },
         },
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            single_use: {
+              amount: 1000,
+              currency: "EUR",
+            },
+          },
+        },
+        customer_acceptance: customerAcceptance,
+        setup_future_usage: "off_session",
+        payment_type: "new_mandate",
         billing: {
           address: {
             first_name: "Test",
@@ -1486,6 +1497,18 @@ export const connectorDetails = {
             },
           },
         },
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            single_use: {
+              amount: 1000,
+              currency: "AUD",
+            },
+          },
+        },
+        customer_acceptance: customerAcceptance,
+        setup_future_usage: "off_session",
+        payment_type: "new_mandate",
         billing: {
           address: {
             first_name: "Test",
