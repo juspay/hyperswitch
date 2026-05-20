@@ -2983,9 +2983,9 @@ pub async fn response_handler(
         created: Some(payouts.created_at),
         connector_transaction_id: payout_attempt.connector_payout_id,
         priority: payouts.priority,
-        attempts: payout_data.attempts.clone().map(|attempts| {
+        attempts: payout_data.attempts.as_ref().map(|attempts| {
             attempts
-                .into_iter()
+                .iter()
                 .map(|attempt| attempt.to_payout_attempt_response(&payouts))
                 .collect()
         }),
@@ -3331,15 +3331,21 @@ pub async fn make_payout_data(
         payouts::PayoutRequest::PayoutCreateRequest(_) => None,
         payouts::PayoutRequest::PayoutRetrieveRequest(retrieve_request) => {
             match retrieve_request.expand_attempts {
-                Some(true) => Some(
-                    db.find_payout_attempts_by_merchant_id_payout_id(
+                Some(true) => db
+                    .find_payout_attempts_by_merchant_id_payout_id(
                         merchant_id,
                         &retrieve_request.payout_id,
                         platform.get_processor().get_account().storage_scheme,
                     )
                     .await
-                    .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?,
-                ),
+                    .map_err(|err| {
+                        let err_msg = format!(
+                            "failed to fetch payout_attempts for payout_id: {:?}",
+                            retrieve_request.payout_id
+                        );
+                        logger::error!(?err, err_msg);
+                    })
+                    .ok(),
                 Some(false) | None => None,
             }
         }
