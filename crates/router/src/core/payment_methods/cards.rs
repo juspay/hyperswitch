@@ -1156,7 +1156,7 @@ impl PaymentMethodsController for PmCards<'_> {
         let payment_method = db
             .find_payment_method(
                 self.provider.get_key_store(),
-                &payment_method_id,
+                payment_method_id,
                 self.provider.get_account().storage_scheme,
             )
             .await
