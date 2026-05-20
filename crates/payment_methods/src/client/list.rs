@@ -26,7 +26,6 @@ impl TryFrom<&ListCustomerPaymentMethodsV1Request> for ModularListCustomerPaymen
     }
 }
 
-
 impl ListCustomerPaymentMethods {
     fn validate_request(
         &self,
