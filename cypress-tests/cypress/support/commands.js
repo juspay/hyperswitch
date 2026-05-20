@@ -3707,9 +3707,13 @@ Cypress.Commands.add(
       headers["x-connected-merchant-id"] = connectedMerchantId;
     }
 
+    const queryParams = unconfirmedPayment
+      ? "expand_attempts=true"
+      : "force_sync=true&expand_attempts=true";
+
     cy.request({
       method: "GET",
-      url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true&expand_attempts=true`,
+      url: `${globalState.get("baseUrl")}/payments/${payment_id}?${queryParams}`,
       headers: headers,
       failOnStatusCode: false,
     }).then((response) => {
