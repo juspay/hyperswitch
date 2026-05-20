@@ -1000,6 +1000,10 @@ impl Payments {
                         .route(web::post().to(payments::payments_submit_eligibility)),
                 )
                 .service(
+                    web::resource("/{payment_id}/client")
+                        .route(web::get().to(payment_methods::list_payment_methods_for_payments_client)),
+                )
+                .service(
                     web::resource("/redirect/{payment_id}/{merchant_id}/{attempt_id}")
                         .route(web::get().to(payments::payments_start)),
                 )

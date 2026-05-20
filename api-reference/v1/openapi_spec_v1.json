@@ -29475,6 +29475,42 @@
               }
             ],
             "nullable": true
+          },
+          "merchant_name": {
+            "type": "string",
+            "description": "The merchant's display name",
+            "nullable": true
+          },
+          "mandate_payment": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MandateData"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentType"
+              }
+            ],
+            "nullable": true
+          },
+          "request_external_three_ds_authentication": {
+            "type": "boolean",
+            "description": "Whether external 3DS authentication was requested",
+            "nullable": true
+          },
+          "is_tax_calculation_enabled": {
+            "type": "boolean",
+            "description": "Whether tax calculation is enabled for this payment",
+            "nullable": true
+          },
+          "is_guest_customer": {
+            "type": "boolean",
+            "description": "Whether the customer is a guest (not saved)",
+            "nullable": true
           }
         }
       },
