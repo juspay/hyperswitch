@@ -519,8 +519,6 @@ describe("PayPal Wallet tests", () => {
 });
 
 describe("Nuvei Wallet tests", () => {
-  let shouldContinue = true;
-
   before("seed global state", function () {
     let skip = false;
 
