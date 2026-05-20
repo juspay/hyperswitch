@@ -308,7 +308,10 @@ describe("Voucher Payment tests", () => {
 
       cy.step("Confirm Indomaret Voucher Payment", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Indomaret Voucher Payment");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm Indomaret Voucher Payment"
+          );
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -382,7 +385,10 @@ describe("Voucher Payment tests", () => {
 
       cy.step("Confirm Seven-Eleven Voucher Payment", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Seven-Eleven Voucher Payment");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm Seven-Eleven Voucher Payment"
+          );
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -604,7 +610,10 @@ describe("Voucher Payment tests", () => {
 
       cy.step("Confirm FamilyMart Voucher Payment", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm FamilyMart Voucher Payment");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm FamilyMart Voucher Payment"
+          );
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -678,7 +687,10 @@ describe("Voucher Payment tests", () => {
 
       cy.step("Confirm Seicomart Voucher Payment", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Seicomart Voucher Payment");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm Seicomart Voucher Payment"
+          );
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[

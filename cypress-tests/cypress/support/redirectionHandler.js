@@ -1947,9 +1947,7 @@ function voucherRedirection(
                 // Adyen voucher redirect pages show branded Japanese-language
                 // payment receipts. They are NOT Acquirer Simulator pages.
                 // Just verify the page loads with voucher content.
-                cy.get("body", { timeout: constants.TIMEOUT }).should(
-                  "exist"
-                );
+                cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
                 // Voucher pages have a non-standard h1 (often a full-width
                 // space) so we avoid asserting on heading text.  Instead
                 // confirm that page load succeeded by checking for known
@@ -1980,9 +1978,7 @@ function voucherRedirection(
                 verifyUrl = false;
                 break;
               default:
-                cy.log(
-                  `Unhandled Adyen voucher type: ${paymentMethodType}`
-                );
+                cy.log(`Unhandled Adyen voucher type: ${paymentMethodType}`);
                 verifyUrl = false;
             }
             break;
