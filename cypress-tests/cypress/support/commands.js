@@ -4754,7 +4754,10 @@ Cypress.Commands.add("simulateRedirectCallback", (globalState) => {
     failOnStatusCode: false,
     followRedirect: false,
   }).then((resp) => {
-    cy.task("cli_log", `[redirect-callback] HS responded status=${resp.status}`);
+    cy.task(
+      "cli_log",
+      `[redirect-callback] HS responded status=${resp.status}`
+    );
   });
 });
 
