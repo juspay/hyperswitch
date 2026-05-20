@@ -1103,7 +1103,7 @@ function bankRedirectRedirection(
             break;
 
           case "multisafepay":
-            if (["sofort", "eps", "mbway", "ali_pay", "paypal", "we_chat_pay"].includes(paymentMethodType)) {
+            if (["sofort", "eps", "mb_way", "ali_pay", "paypal", "we_chat_pay"].includes(paymentMethodType)) {
               // Multisafe pay has CSRF blocking cannot actually test redirection flow via cypress
               // cy.get(".btn-msp-success").click();
 
