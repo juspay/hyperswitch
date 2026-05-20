@@ -1366,7 +1366,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         payment_method: None,
         payment_method_type: None,
         split_payments: payment_data.payment_intent.split_payments,
-        capture_method: payment_data.payment_attempt.capture_method,
+        capture_method: Some(payment_data.payment_intent.capture_method),
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -5907,7 +5907,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             payment_method: Some(payment_data.payment_attempt.payment_method_type),
             payment_method_type: payment_data.payment_attempt.payment_method_subtype,
             split_payments: payment_data.payment_intent.split_payments,
-            capture_method: payment_data.payment_attempt.capture_method,
+            capture_method: Some(payment_data.payment_intent.capture_method),
         })
     }
 }
