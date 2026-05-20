@@ -11,21 +11,260 @@ use error_stack::{report, ResultExt};
 use hyperswitch_masking::ExposeInterface;
 use serde_json::Map;
 use superposition_provider::traits::AllFeatureProvider;
+pub use superposition_sdk::types::DimensionMatchStrategy;
 pub use superposition_types::api::context::PutRequest as ContextPutRequest;
 
 pub use self::types::{ConfigContext, SuperpositionClientConfig, SuperpositionError, ToDocument};
 use crate::config_metrics;
 
+/// Convert an `aws_smithy_types::Document` to a `serde_json::Value`.
+pub fn document_to_value(doc: Document) -> serde_json::Value {
+    use aws_smithy_types::Number;
+    match doc {
+        Document::Object(obj) => serde_json::Value::Object(
+            obj.into_iter()
+                .map(|(k, v)| (k, document_to_value(v)))
+                .collect(),
+        ),
+        Document::Array(arr) => {
+            serde_json::Value::Array(arr.into_iter().map(document_to_value).collect())
+        }
+        Document::Number(num) => match num {
+            Number::PosInt(v) => serde_json::Value::Number(serde_json::Number::from(v)),
+            Number::NegInt(v) => serde_json::Value::Number(serde_json::Number::from(v)),
+            Number::Float(v) => serde_json::Number::from_f64(v)
+                .map(serde_json::Value::Number)
+                .unwrap_or(serde_json::Value::Null),
+        },
+        Document::String(s) => serde_json::Value::String(s),
+        Document::Bool(b) => serde_json::Value::Bool(b),
+        Document::Null => serde_json::Value::Null,
+    }
+}
+
+/// Convert a `serde_json::Value` to an `aws_smithy_types::Document`.
+pub fn value_to_document(val: serde_json::Value) -> Document {
+    use aws_smithy_types::Number;
+    match val {
+        serde_json::Value::Null => Document::Null,
+        serde_json::Value::Bool(b) => Document::Bool(b),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_u64() {
+                Document::Number(Number::PosInt(i))
+            } else if let Some(i) = n.as_i64() {
+                Document::Number(Number::NegInt(i))
+            } else {
+                Document::Number(Number::Float(n.as_f64().unwrap_or(0.0)))
+            }
+        }
+        serde_json::Value::String(s) => Document::String(s),
+        serde_json::Value::Array(arr) => {
+            Document::Array(arr.into_iter().map(value_to_document).collect())
+        }
+        serde_json::Value::Object(obj) => Document::Object(
+            obj.into_iter()
+                .map(|(k, v)| (k, value_to_document(v)))
+                .collect(),
+        ),
+    }
+}
+
+/// Format a smithy `DateTime` as an RFC3339 string.
+pub fn datetime_to_string(dt: &aws_smithy_types::DateTime) -> String {
+    dt.fmt(aws_smithy_types::date_time::Format::DateTime)
+        .unwrap_or_default()
+}
+
+/// Convert a `HashMap<String, Document>` to a JSON object value.
+pub fn doc_map_to_json(map: &HashMap<String, Document>) -> serde_json::Value {
+    serde_json::Value::Object(
+        map.iter()
+            .map(|(k, v)| (k.clone(), document_to_value(v.clone())))
+            .collect(),
+    )
+}
+
+/// Serialize a `DimensionType` to its JSON representation.
+pub fn dimension_type_to_value(dt: &superposition_sdk::types::DimensionType) -> serde_json::Value {
+    use superposition_sdk::types::DimensionType;
+    match dt {
+        DimensionType::Regular => serde_json::Value::String("REGULAR".to_string()),
+        DimensionType::LocalCohort(s) => serde_json::json!({ "LOCAL_COHORT": s }),
+        DimensionType::RemoteCohort(s) => serde_json::json!({ "REMOTE_COHORT": s }),
+        _ => serde_json::Value::String("UNKNOWN".to_string()),
+    }
+}
+
+/// Map a Superposition SDK error to a `SuperpositionError` based on HTTP status.
+pub fn map_sdk_error<E: std::fmt::Debug>(
+    err: superposition_sdk::error::SdkError<E>,
+) -> SuperpositionError {
+    let status = err.raw_response().map(|r| r.status().as_u16());
+    match status {
+        Some(404) => SuperpositionError::NotFound(format!("{err:?}")),
+        Some(s) if (400..500).contains(&s) => SuperpositionError::BadRequest(format!("{err:?}")),
+        _ => SuperpositionError::ClientError(format!("{err:?}")),
+    }
+}
+
+/// Serialize a `ContextResponse` to a JSON value.
+pub fn context_response_to_value(
+    ctx: &superposition_sdk::types::ContextResponse,
+) -> serde_json::Value {
+    serde_json::json!({
+        "id": ctx.id(),
+        "value": doc_map_to_json(ctx.value()),
+        "override": doc_map_to_json(ctx.r#override()),
+        "override_id": ctx.override_id(),
+        "weight": ctx.weight(),
+        "description": ctx.description(),
+        "change_reason": ctx.change_reason(),
+        "created_at": datetime_to_string(ctx.created_at()),
+        "created_by": ctx.created_by(),
+        "last_modified_at": datetime_to_string(ctx.last_modified_at()),
+        "last_modified_by": ctx.last_modified_by(),
+    })
+}
+
+/// Serialize a `DefaultConfigResponse` to a JSON value.
+pub fn default_config_response_to_value(
+    cfg: &superposition_sdk::types::DefaultConfigResponse,
+) -> serde_json::Value {
+    serde_json::json!({
+        "key": cfg.key(),
+        "value": document_to_value(cfg.value().clone()),
+        "schema": doc_map_to_json(cfg.schema()),
+        "description": cfg.description(),
+        "change_reason": cfg.change_reason(),
+        "value_validation_function_name": cfg.value_validation_function_name(),
+        "value_compute_function_name": cfg.value_compute_function_name(),
+        "created_at": datetime_to_string(cfg.created_at()),
+        "created_by": cfg.created_by(),
+        "last_modified_at": datetime_to_string(cfg.last_modified_at()),
+        "last_modified_by": cfg.last_modified_by(),
+    })
+}
+
+/// Serialize a `DimensionResponse` to a JSON value.
+pub fn dimension_response_to_value(
+    dim: &superposition_sdk::types::DimensionResponse,
+) -> serde_json::Value {
+    let dep_graph: Map<String, serde_json::Value> = dim
+        .dependency_graph()
+        .iter()
+        .map(|(k, v)| {
+            (
+                k.clone(),
+                serde_json::Value::Array(
+                    v.iter()
+                        .map(|s| serde_json::Value::String(s.clone()))
+                        .collect(),
+                ),
+            )
+        })
+        .collect();
+    serde_json::json!({
+        "dimension": dim.dimension(),
+        "position": dim.position(),
+        "schema": doc_map_to_json(dim.schema()),
+        "value_validation_function_name": dim.value_validation_function_name(),
+        "description": dim.description(),
+        "change_reason": dim.change_reason(),
+        "last_modified_at": datetime_to_string(dim.last_modified_at()),
+        "last_modified_by": dim.last_modified_by(),
+        "created_at": datetime_to_string(dim.created_at()),
+        "created_by": dim.created_by(),
+        "dependency_graph": serde_json::Value::Object(dep_graph),
+        "dimension_type": dimension_type_to_value(dim.dimension_type()),
+        "value_compute_function_name": dim.value_compute_function_name(),
+        "mandatory": dim.mandatory(),
+    })
+}
+
+/// Append a pre-encoded query string to an SDK HTTP request URI.
+pub fn append_query_params(
+    req: &mut aws_smithy_runtime_api::client::orchestrator::HttpRequest,
+    qs: &str,
+) {
+    if qs.is_empty() {
+        return;
+    }
+    let current = req.uri().to_string();
+    let sep = if current.contains('?') { '&' } else { '?' };
+    let new_uri = format!("{current}{sep}{qs}");
+    let _ = req.set_uri(new_uri.as_str());
+}
+
+/// Build a URL-encoded query string from key-value pairs.
+pub fn build_query_string(params: &[(String, String)]) -> String {
+    serde_urlencoded::to_string(params).unwrap_or_default()
+}
+
+/// Convert a `ContextPutRequest` into the SDK `ContextPut` type.
+pub fn context_put_from_request(
+    body: &ContextPutRequest,
+) -> CustomResult<superposition_sdk::types::ContextPut, SuperpositionError> {
+    let context_json = serde_json::to_value(&body.context).map_err(|e| {
+        report!(SuperpositionError::ClientError(format!(
+            "Failed to serialize context: {e}"
+        )))
+    })?;
+
+    let override_json = serde_json::to_value(&body.r#override).map_err(|e| {
+        report!(SuperpositionError::ClientError(format!(
+            "Failed to serialize override: {e}"
+        )))
+    })?;
+
+    let mut builder = superposition_sdk::types::ContextPut::builder();
+
+    if let serde_json::Value::Object(ctx_map) = context_json {
+        for (k, v) in ctx_map {
+            builder = builder.context(k, value_to_document(v));
+        }
+    }
+
+    if let serde_json::Value::Object(ovr_map) = override_json {
+        for (k, v) in ovr_map {
+            builder = builder.r#override(k, value_to_document(v));
+        }
+    }
+
+    if let Some(desc) = &body.description {
+        builder = builder.description(String::from(desc));
+    }
+
+    builder = builder.change_reason(String::from(&body.change_reason));
+
+    builder.build().map_err(|e| {
+        report!(SuperpositionError::ClientError(format!(
+            "Failed to build ContextPut: {e:?}"
+        )))
+    })
+}
+
+/// Serialize a `CreateContextOutput` to JSON.
+pub fn create_context_output_to_value(
+    out: &superposition_sdk::operation::create_context::CreateContextOutput,
+) -> serde_json::Value {
+    serde_json::json!({
+        "id": out.id(),
+        "value": doc_map_to_json(out.value()),
+        "override": doc_map_to_json(out.r#override()),
+        "override_id": out.override_id(),
+        "weight": out.weight(),
+        "description": out.description(),
+        "change_reason": out.change_reason(),
+        "created_at": datetime_to_string(out.created_at()),
+        "created_by": out.created_by(),
+        "last_modified_at": datetime_to_string(out.last_modified_at()),
+        "last_modified_by": out.last_modified_by(),
+    })
+}
+
 /// Generate a default change reason from the config key
 fn generate_change_reason(key: &str) -> String {
     format!("Updating {key} configuration")
-}
-
-fn extract_superposition_error_message(body: &str) -> String {
-    serde_json::from_str::<serde_json::Value>(body)
-        .ok()
-        .and_then(|value| value.get("message")?.as_str().map(String::from))
-        .unwrap_or_else(|| body.to_string())
 }
 
 fn convert_open_feature_value(value: open_feature::Value) -> Result<serde_json::Value, String> {
@@ -177,11 +416,18 @@ impl SuperpositionClient {
                     "Configuring Superposition file fallback: path={:?}",
                     backup_path
                 );
-                Some(Box::new(
-                    superposition_provider::data_source::file::FileDataSource::new(
-                        backup_path.clone(),
-                    ),
-                ))
+                match superposition_provider::data_source::file::FileDataSource::new(
+                    backup_path.clone(),
+                ) {
+                    Ok(source) => Some(Box::new(source)
+                        as Box<dyn superposition_provider::data_source::SuperpositionDataSource>),
+                    Err(e) => {
+                        router_env::logger::warn!(
+                            "Failed to create Superposition file fallback source: {e}"
+                        );
+                        None
+                    }
+                }
             }
             None => None,
         };
@@ -336,184 +582,13 @@ impl SuperpositionClient {
                 )))
             })?;
         match response {
-            superposition_provider::data_source::FetchResponse::Data(data) => Ok(data.config),
+            superposition_provider::data_source::FetchResponse::Data(data) => Ok(data.data),
             superposition_provider::data_source::FetchResponse::NotModified => {
                 Err(report!(SuperpositionError::ProviderError(
                     "Config not modified but no data available".to_string()
                 )))
             }
         }
-    }
-
-    /// Make a GET request to the Superposition admin API.
-    pub async fn proxy_get(
-        config: &SuperpositionClientConfig,
-        org_id: &str,
-        workspace_id: &str,
-        path: &str,
-        query_params: Vec<(String, String)>,
-    ) -> CustomResult<serde_json::Value, SuperpositionError> {
-        let url = format!("{}{}", config.endpoint, path);
-        let response = reqwest::Client::new()
-            .get(&url)
-            .query(&query_params)
-            .header("x-org-id", org_id)
-            .header("x-workspace", workspace_id)
-            .bearer_auth(config.token.clone().expose())
-            .send()
-            .await
-            .map_err(|e| {
-                report!(SuperpositionError::ClientError(format!(
-                    "GET {path} failed: {e}"
-                )))
-            })?;
-
-        let status = response.status();
-        let body = response.text().await.map_err(|e| {
-            report!(SuperpositionError::ClientError(format!(
-                "Failed to read GET {path} response body: {e}"
-            )))
-        })?;
-
-        if !status.is_success() {
-            router_env::logger::error!(
-                superposition_path = path,
-                status = %status,
-                response_body = %body,
-                "Superposition GET request failed"
-            );
-            return if status == reqwest::StatusCode::NOT_FOUND {
-                Err(report!(SuperpositionError::NotFound(body)))
-            } else if status.is_client_error() {
-                Err(report!(SuperpositionError::BadRequest(
-                    extract_superposition_error_message(&body)
-                )))
-            } else {
-                Err(report!(SuperpositionError::ClientError(format!(
-                    "GET {path} returned {status}: {body}"
-                ))))
-            };
-        }
-
-        serde_json::from_str(&body).map_err(|e| {
-            report!(SuperpositionError::ClientError(format!(
-                "Failed to parse GET {path} response: {e}, body: {body}"
-            )))
-        })
-    }
-
-    /// Make a POST request to the Superposition admin API.
-    pub async fn proxy_post<B: serde::Serialize>(
-        config: &SuperpositionClientConfig,
-        org_id: &str,
-        workspace_id: &str,
-        path: &str,
-        body: &B,
-    ) -> CustomResult<serde_json::Value, SuperpositionError> {
-        let url = format!("{}{}", config.endpoint, path);
-        let response = reqwest::Client::new()
-            .post(&url)
-            .header("x-org-id", org_id)
-            .header("x-workspace", workspace_id)
-            .bearer_auth(config.token.clone().expose())
-            .json(body)
-            .send()
-            .await
-            .map_err(|e| {
-                report!(SuperpositionError::ClientError(format!(
-                    "POST {path} failed: {e}"
-                )))
-            })?;
-
-        let status = response.status();
-        let resp_body = response.text().await.map_err(|e| {
-            report!(SuperpositionError::ClientError(format!(
-                "Failed to read POST {path} response body: {e}"
-            )))
-        })?;
-
-        if !status.is_success() {
-            router_env::logger::error!(
-                superposition_path = path,
-                status = %status,
-                response_body = %resp_body,
-                "Superposition POST request failed"
-            );
-            return if status == reqwest::StatusCode::NOT_FOUND {
-                Err(report!(SuperpositionError::NotFound(resp_body)))
-            } else if status.is_client_error() {
-                Err(report!(SuperpositionError::BadRequest(
-                    extract_superposition_error_message(&resp_body)
-                )))
-            } else {
-                Err(report!(SuperpositionError::ClientError(format!(
-                    "POST {path} returned {status}: {resp_body}"
-                ))))
-            };
-        }
-
-        serde_json::from_str(&resp_body).map_err(|e| {
-            report!(SuperpositionError::ClientError(format!(
-                "Failed to parse POST {path} response: {e}, body: {resp_body}"
-            )))
-        })
-    }
-
-    /// Make a PUT request to the Superposition admin API.
-    pub async fn proxy_put<B: serde::Serialize>(
-        config: &SuperpositionClientConfig,
-        org_id: &str,
-        workspace_id: &str,
-        path: &str,
-        body: &B,
-    ) -> CustomResult<serde_json::Value, SuperpositionError> {
-        let url = format!("{}{}", config.endpoint, path);
-        let response = reqwest::Client::new()
-            .put(&url)
-            .header("x-org-id", org_id)
-            .header("x-workspace", workspace_id)
-            .bearer_auth(config.token.clone().expose())
-            .json(body)
-            .send()
-            .await
-            .map_err(|e| {
-                report!(SuperpositionError::ClientError(format!(
-                    "PUT {path} failed: {e}"
-                )))
-            })?;
-
-        let status = response.status();
-        let resp_body = response.text().await.map_err(|e| {
-            report!(SuperpositionError::ClientError(format!(
-                "Failed to read PUT {path} response body: {e}"
-            )))
-        })?;
-
-        if !status.is_success() {
-            router_env::logger::error!(
-                superposition_path = path,
-                status = %status,
-                response_body = %resp_body,
-                "Superposition PUT request failed"
-            );
-            return if status == reqwest::StatusCode::NOT_FOUND {
-                Err(report!(SuperpositionError::NotFound(resp_body)))
-            } else if status.is_client_error() {
-                Err(report!(SuperpositionError::BadRequest(
-                    extract_superposition_error_message(&resp_body)
-                )))
-            } else {
-                Err(report!(SuperpositionError::ClientError(format!(
-                    "PUT {path} returned {status}: {resp_body}"
-                ))))
-            };
-        }
-
-        serde_json::from_str(&resp_body).map_err(|e| {
-            report!(SuperpositionError::ClientError(format!(
-                "Failed to parse PUT {path} response: {e}, body: {resp_body}"
-            )))
-        })
     }
 
     /// Generic method to set a configuration value in Superposition
@@ -574,6 +649,11 @@ impl SuperpositionClient {
         router_env::logger::info!("Set {} config successfully", T::SUPERPOSITION_KEY);
 
         Ok(())
+    }
+
+    /// Return a reference to the underlying Superposition SDK client.
+    pub fn superposition_sdk_client(&self) -> &superposition_sdk::Client {
+        &self.sdk_client
     }
 }
 

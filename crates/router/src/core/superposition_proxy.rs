@@ -1,8 +1,10 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
 use external_services::superposition::{
-    ContextPutRequest, SuperpositionClient, SuperpositionError,
+    append_query_params, build_query_string, context_put_from_request, context_response_to_value,
+    create_context_output_to_value, datetime_to_string, default_config_response_to_value,
+    dimension_response_to_value, document_to_value, map_sdk_error, value_to_document,
+    ContextPutRequest, DimensionMatchStrategy, SuperpositionError,
 };
-use futures::future::join_all;
 use router_env::logger;
 use serde_json::Map;
 
@@ -86,31 +88,14 @@ fn check_admin_access(
     Ok(())
 }
 
-/// Generate all non-empty subsets of dimension query params.
-/// For dims [O, M, P] produces 7 subsets: O, M, P, OM, OP, MP, OMP.
-fn generate_dim_subsets(dim_params: &[(String, String)]) -> Vec<Vec<(String, String)>> {
-    let n = dim_params.len();
-    let mut subsets = Vec::with_capacity((1usize << n).saturating_sub(1));
-    for mask in 1u32..(1u32 << n) {
-        let subset = dim_params
-            .iter()
-            .enumerate()
-            .filter(|(i, _)| mask & (1 << i) != 0)
-            .map(|(_, p)| p.clone())
-            .collect();
-        subsets.push(subset);
-    }
-    subsets
-}
-
 fn map_superposition_err(
-    err: error_stack::Report<SuperpositionError>,
+    superposition_error: error_stack::Report<SuperpositionError>,
     context: &'static str,
 ) -> error_stack::Report<errors::ApiErrorResponse> {
-    match err.current_context() {
-        SuperpositionError::BadRequest(msg) => {
+    match superposition_error.current_context() {
+        SuperpositionError::BadRequest(error_message) => {
             error_stack::report!(errors::ApiErrorResponse::InvalidRequestData {
-                message: msg.clone(),
+                message: error_message.clone(),
             })
         }
         SuperpositionError::NotFound(_) => {
@@ -119,7 +104,7 @@ fn map_superposition_err(
                     .to_string(),
             })
         }
-        _ => err
+        _ => superposition_error
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(context),
     }
@@ -141,108 +126,88 @@ pub async fn list_contexts(
 
     check_admin_access(&auth, "list_contexts")?;
 
-    if let Err(e) = auth.require_superposition_context(&req.params) {
+    if let Err(validation_error) = auth.require_superposition_context(&req.params) {
         logger::warn!(
             user_id = %auth.user_id,
             query_params = ?req.params,
-            error = ?e,
+            error = ?validation_error,
             "superposition list_contexts rejected: missing scoping dimension"
         );
-        return Err(e);
+        return Err(validation_error);
     }
 
-    if let Err(e) = auth.validate_superposition_params(&req.params) {
+    if let Err(validation_error) = auth.validate_superposition_params(&req.params) {
         logger::warn!(
             user_id = %auth.user_id,
             role_id = %auth.role_id,
             query_params = ?req.params,
-            error = ?e,
+            error = ?validation_error,
             "superposition list_contexts rejected: param validation failed"
         );
-        return Err(e);
+        return Err(validation_error);
     }
 
-    let (dim_params, other_params): (Vec<_>, Vec<_>) = req
-        .params
-        .into_iter()
-        .partition(|(k, _)| k.starts_with("dimension["));
+    let encoded_query_params = build_query_string(&req.params);
 
-    let config = state.conf.superposition.get_inner();
-
-    let subset_params_list: Vec<Vec<(String, String)>> = generate_dim_subsets(&dim_params)
-        .into_iter()
-        .map(|subset| {
-            let mut params = other_params.clone();
-            params.extend(subset);
-            params
-        })
-        .collect();
-
-    let call_futures: Vec<_> = subset_params_list
-        .into_iter()
-        .map(|params| {
-            SuperpositionClient::proxy_get(
-                config,
-                &req.org_id,
-                &req.workspace_id,
-                "/context",
-                params,
+    let list_contexts_output = state
+        .superposition_service
+        .superposition_sdk_client()
+        .list_contexts()
+        .workspace_id(req.workspace_id.clone())
+        .org_id(req.org_id.clone())
+        .dimension_match_strategy(DimensionMatchStrategy::AnyMatch)
+        .customize()
+        .mutate_request(move |request| append_query_params(request, &encoded_query_params))
+        .send()
+        .await
+        .map_err(|sdk_error| {
+            logger::error!(error = ?sdk_error, "superposition list_contexts upstream request failed");
+            map_superposition_err(
+                error_stack::report!(map_sdk_error(sdk_error)),
+                "Failed to list contexts from Superposition",
             )
-        })
-        .collect();
-
-    let results = join_all(call_futures).await;
-
-    let mut seen_ids = std::collections::HashSet::new();
-    let mut all_contexts: Vec<serde_json::Value> = Vec::new();
-
-    for result in results {
-        let response = result.map_err(|e| {
-            logger::error!(error = ?e, "superposition list_contexts upstream request failed");
-            map_superposition_err(e, "Failed to list contexts from Superposition")
         })?;
-        if let Some(data) = response.get("data").and_then(|d| d.as_array()) {
-            for ctx in data {
-                if let Some(id) = ctx.get("id").and_then(|id| id.as_str()) {
-                    if seen_ids.insert(id.to_string()) {
-                        all_contexts.push(ctx.clone());
-                    }
-                }
-            }
-        }
-    }
+
+    let mut all_contexts: Vec<serde_json::Value> = list_contexts_output
+        .data()
+        .iter()
+        .map(context_response_to_value)
+        .collect();
 
     if auth.role_id == crate::consts::user_role::ROLE_ID_MERCHANT_ADMIN {
         let scoped_merchant_id = auth.merchant_id.get_string_repr().to_string();
         let scoped_profile_id = auth.profile_id.get_string_repr().to_string();
 
-        all_contexts.retain(|ctx| {
-            let Some(dims) = ctx.get("value").and_then(|v| v.as_object()) else {
+        all_contexts.retain(|context| {
+            let Some(context_dimensions) = context.get("value").and_then(|v| v.as_object()) else {
                 return true;
             };
 
-            let dim_str = |key: &str| dims.get(key).and_then(|v| v.as_str());
+            let get_dimension_value =
+                |key: &str| context_dimensions.get(key).and_then(|v| v.as_str());
 
-            if dim_str("merchant_id").is_some_and(|v| v != scoped_merchant_id) {
+            if get_dimension_value("merchant_id").is_some_and(|v| v != scoped_merchant_id) {
                 return false;
             }
-            if dim_str("processor_merchant_id").is_some_and(|v| v != scoped_merchant_id) {
+            if get_dimension_value("processor_merchant_id").is_some_and(|v| v != scoped_merchant_id)
+            {
                 return false;
             }
-            if dim_str("provider_merchant_id").is_some_and(|v| v != scoped_merchant_id) {
+            if get_dimension_value("provider_merchant_id").is_some_and(|v| v != scoped_merchant_id)
+            {
                 return false;
             }
-            if dim_str("profile_id").is_some_and(|v| v != scoped_profile_id) {
+            if get_dimension_value("profile_id").is_some_and(|v| v != scoped_profile_id) {
                 return false;
             }
             true
         });
     }
 
-    let count = all_contexts.len() as i64;
+    let total_items = all_contexts.len() as i64;
     let response = serde_json::json!({
-        "total_pages": 1,
-        "total_items": count,
+        "total_pages": list_contexts_output.total_pages(),
+        "total_items": total_items,
         "data": all_contexts,
     });
 
@@ -266,19 +231,40 @@ pub async fn list_default_configs(
 
     check_admin_access(&auth, "list_default_configs")?;
 
-    let config = state.conf.superposition.get_inner();
-    let response = SuperpositionClient::proxy_get(
-        config,
-        &req.org_id,
-        &req.workspace_id,
-        "/default-config",
-        req.params,
-    )
-    .await
-    .map_err(|e| {
-        logger::error!(error = ?e, "superposition list_default_configs upstream request failed");
-        map_superposition_err(e, "Failed to list default configs from Superposition")
-    })?;
+    let encoded_query_params = build_query_string(&req.params);
+
+    let list_default_configs_output = state
+        .superposition_service
+        .superposition_sdk_client()
+        .list_default_configs()
+        .workspace_id(req.workspace_id.clone())
+        .org_id(req.org_id.clone())
+        .customize()
+        .mutate_request(move |request| append_query_params(request, &encoded_query_params))
+        .send()
+        .await
+        .map_err(|sdk_error| {
+            logger::error!(
+                error = ?sdk_error,
+                "superposition list_default_configs upstream request failed"
+            );
+            map_superposition_err(
+                error_stack::report!(map_sdk_error(sdk_error)),
+                "Failed to list default configs from Superposition",
+            )
+        })?;
+
+    let default_configs: Vec<serde_json::Value> = list_default_configs_output
+        .data()
+        .iter()
+        .map(default_config_response_to_value)
+        .collect();
+
+    let response = serde_json::json!({
+        "total_pages": list_default_configs_output.total_pages(),
+        "total_items": list_default_configs_output.total_items(),
+        "data": default_configs,
+    });
 
     logger::info!(user_id = %auth.user_id, "superposition list_default_configs success");
     Ok(services::ApplicationResponse::Json(response))
@@ -300,19 +286,40 @@ pub async fn list_dimensions(
 
     check_admin_access(&auth, "list_dimensions")?;
 
-    let config = state.conf.superposition.get_inner();
-    let response = SuperpositionClient::proxy_get(
-        config,
-        &req.org_id,
-        &req.workspace_id,
-        "/dimension",
-        req.params,
-    )
-    .await
-    .map_err(|e| {
-        logger::error!(error = ?e, "superposition list_dimensions upstream request failed");
-        map_superposition_err(e, "Failed to list dimensions from Superposition")
-    })?;
+    let encoded_query_params = build_query_string(&req.params);
+
+    let list_dimensions_output = state
+        .superposition_service
+        .superposition_sdk_client()
+        .list_dimensions()
+        .workspace_id(req.workspace_id.clone())
+        .org_id(req.org_id.clone())
+        .customize()
+        .mutate_request(move |request| append_query_params(request, &encoded_query_params))
+        .send()
+        .await
+        .map_err(|sdk_error| {
+            logger::error!(
+                error = ?sdk_error,
+                "superposition list_dimensions upstream request failed"
+            );
+            map_superposition_err(
+                error_stack::report!(map_sdk_error(sdk_error)),
+                "Failed to list dimensions from Superposition",
+            )
+        })?;
+
+    let dimensions: Vec<serde_json::Value> = list_dimensions_output
+        .data()
+        .iter()
+        .map(dimension_response_to_value)
+        .collect();
+
+    let response = serde_json::json!({
+        "total_pages": list_dimensions_output.total_pages(),
+        "total_items": list_dimensions_output.total_items(),
+        "data": dimensions,
+    });
 
     logger::info!(user_id = %auth.user_id, "superposition list_dimensions success");
     Ok(services::ApplicationResponse::Json(response))
@@ -333,35 +340,45 @@ pub async fn create_context(
 
     check_admin_access(&auth, "create_context")?;
 
-    let context_json = serde_json::to_value(&req.body.context).map_err(|e| {
+    let context_json = serde_json::to_value(&req.body.context).map_err(|serialize_error| {
         error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(format!("failed to serialize context: {e}"))
+            .attach_printable(format!("failed to serialize context: {serialize_error}"))
     })?;
 
-    if let Err(e) = auth.validate_superposition_context_body(&context_json) {
+    if let Err(validation_error) = auth.validate_superposition_context_body(&context_json) {
         logger::warn!(
             user_id = %auth.user_id,
             role_id = %auth.role_id,
             context = ?context_json,
-            error = ?e,
+            error = ?validation_error,
             "superposition create_context rejected: context dimension validation failed"
         );
-        return Err(e);
+        return Err(validation_error);
     }
 
-    let config = state.conf.superposition.get_inner();
-    let response = SuperpositionClient::proxy_put(
-        config,
-        &req.org_id,
-        &req.workspace_id,
-        "/context",
-        &req.body,
-    )
-    .await
-    .map_err(|e| {
-        logger::error!(error = ?e, "superposition create_context upstream request failed");
-        map_superposition_err(e, "Failed to create context in Superposition")
+    let context_put = context_put_from_request(&req.body).map_err(|build_error| {
+        logger::error!(error = ?build_error, "superposition create_context failed to build ContextPut");
+        build_error.change_context(errors::ApiErrorResponse::InternalServerError)
     })?;
+
+    let created_context = state
+        .superposition_service
+        .superposition_sdk_client()
+        .create_context()
+        .workspace_id(req.workspace_id.clone())
+        .org_id(req.org_id.clone())
+        .request(context_put)
+        .send()
+        .await
+        .map_err(|sdk_error| {
+            logger::error!(error = ?sdk_error, "superposition create_context upstream request failed");
+            map_superposition_err(
+                error_stack::report!(map_sdk_error(sdk_error)),
+                "Failed to create context in Superposition",
+            )
+        })?;
+
+    let response = create_context_output_to_value(&created_context);
 
     logger::info!(user_id = %auth.user_id, "superposition create_context success");
     Ok(services::ApplicationResponse::Json(response))
@@ -383,30 +400,45 @@ pub async fn resolve_config(
     check_admin_access(&auth, "resolve_config")?;
 
     let context_json = serde_json::Value::Object(req.body.context.clone());
-    if let Err(e) = auth.validate_superposition_context_body(&context_json) {
+    if let Err(validation_error) = auth.validate_superposition_context_body(&context_json) {
         logger::warn!(
             user_id = %auth.user_id,
             role_id = %auth.role_id,
             context = ?context_json,
-            error = ?e,
+            error = ?validation_error,
             "superposition resolve_config rejected: context dimension validation failed"
         );
-        return Err(e);
+        return Err(validation_error);
     }
 
-    let config = state.conf.superposition.get_inner();
-    let response = SuperpositionClient::proxy_post(
-        config,
-        &req.org_id,
-        &req.workspace_id,
-        "/config/resolve",
-        &req.body,
-    )
-    .await
-    .map_err(|e| {
-        logger::error!(error = ?e, "superposition resolve_config upstream request failed");
-        map_superposition_err(e, "Failed to resolve config from Superposition")
+    let mut resolved_config_builder = state
+        .superposition_service
+        .superposition_sdk_client()
+        .get_resolved_config()
+        .workspace_id(req.workspace_id.clone())
+        .org_id(req.org_id.clone());
+
+    for (dimension_key, dimension_value) in &req.body.context {
+        resolved_config_builder = resolved_config_builder.context(
+            dimension_key.clone(),
+            value_to_document(dimension_value.clone()),
+        );
+    }
+
+    let resolved_config = resolved_config_builder.send().await.map_err(|sdk_error| {
+        logger::error!(error = ?sdk_error, "superposition resolve_config upstream request failed");
+        map_superposition_err(
+            error_stack::report!(map_sdk_error(sdk_error)),
+            "Failed to resolve config from Superposition",
+        )
     })?;
+
+    let response = serde_json::json!({
+        "config": document_to_value(resolved_config.config().clone()),
+        "version": resolved_config.version(),
+        "last_modified": datetime_to_string(resolved_config.last_modified()),
+        "audit_id": resolved_config.audit_id(),
+    });
 
     logger::info!(user_id = %auth.user_id, "superposition resolve_config success");
     Ok(services::ApplicationResponse::Json(response))
