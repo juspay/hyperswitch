@@ -10614,6 +10614,28 @@ pub enum PaypalFlow {
     Checkout,
 }
 
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PaypalCaptureMethod {
+    Capture,
+    Authorize,
+}
+
+impl From<common_enums::CaptureMethod> for PaypalCaptureMethod {
+    fn from(from: common_enums::CaptureMethod) -> Self {
+        match from {
+            common_enums::CaptureMethod::SequentialAutomatic
+            | common_enums::CaptureMethod::Automatic => Self::Capture,
+            common_enums::CaptureMethod::Manual
+            | common_enums::CaptureMethod::ManualMultiple
+            | common_enums::CaptureMethod::Scheduled => Self::Authorize,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaypalTransactionInfo {
     /// Paypal flow type
@@ -10648,6 +10670,10 @@ pub struct PaypalSessionTokenResponse {
     pub transaction_info: Option<PaypalTransactionInfo>,
     /// User token required for returning customer flow, used by client to initiate sdk
     pub data_user_id_token: Option<String>,
+    /// Transaction currency code
+    pub transaction_currency_code: Option<common_enums::Currency>,
+    /// PayPal capture method
+    pub paypal_capture_method: Option<PaypalCaptureMethod>,
 }
 
 #[derive(

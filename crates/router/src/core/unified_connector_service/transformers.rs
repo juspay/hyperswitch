@@ -4879,6 +4879,8 @@ impl transformers::ForeignTryFrom<payments_grpc::ClientAuthenticationTokenData> 
                         .transpose()?,
                     // todo UCS
                     data_user_id_token: None,
+                    transaction_currency_code: None,
+                    paypal_capture_method: None,
                 };
 
                 Ok(Self::Paypal(Box::new(paypal_session_token_response)))
