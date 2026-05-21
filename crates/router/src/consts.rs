@@ -388,6 +388,9 @@ pub mod superposition {
     /// Schedule PM modular backward compatibility PT configuration key
     pub const SHOULD_SCHEDULE_MODULAR_BACKWARD_COMPAT: &str =
         "should_schedule_modular_backward_compat";
+    /// Trigger PM modular backward compatibility inline configuration key
+    pub const SHOULD_TRIGGER_BACKWARDS_COMPATIBILITY_INLINE: &str =
+        "should_trigger_backwards_compatibility_inline";
     /// dynamic fields configuration key for sdk config
     pub const DYNAMIC_FIELDS: &str = "dynamic_fields";
     /// payout sync tracker configuration key
