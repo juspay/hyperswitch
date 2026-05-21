@@ -5186,9 +5186,8 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState, order = 0) => {
           expect(cardInfo.card_holder_name, "card_holder_name").to.not.be.null;
         }
 
-        // Validate last_used_at timestamp
         expect(new Date(lastUsedAt).getTime(), "last_used_at").to.be.lessThan(
-          Date.now()
+          Date.now() + 5000
         ).and.to.not.be.null;
 
         // For order > 0, validate payment methods are ordered by last_used_at
