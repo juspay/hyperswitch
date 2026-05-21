@@ -253,8 +253,12 @@ where
                 currency: router_data.request.currency,
                 browser_info: router_data.request.browser_info,
                 payment_method_data: router_data.request.payment_method_data,
-                email: router_data.request.email,
                 gateway: router_data.request.gateway,
+                client_ip: router_data.request.client_ip,
+                customer_id: router_data.request.customer_id,
+                email: router_data.request.email,
+                phone: router_data.request.phone,
+                phone_country_code: router_data.request.phone_country_code,
             })),
             response: FrmResponse::Checkout(router_data.response),
         })

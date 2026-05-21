@@ -1636,6 +1636,33 @@ impl From<BankDebitDetail> for payment_methods::BankDebitDetail {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum WalletDetail {
+    ApplePayDecryptedData {
+        application_primary_account_number: cards::CardNumber,
+        expiry_month: Secret<String>,
+        expiry_year: Secret<String>,
+    },
+}
+
+#[cfg(feature = "v1")]
+impl From<payment_methods::WalletDetail> for WalletDetail {
+    fn from(wallet: payment_methods::WalletDetail) -> Self {
+        match wallet {
+            payment_methods::WalletDetail::ApplePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            } => Self::ApplePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            },
+        }
+    }
+}
+
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferData {

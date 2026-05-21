@@ -6450,7 +6450,7 @@
             "$ref": "#/components/schemas/ThirdPartySdkSessionResponse"
           },
           {
-            "$ref": "#/components/schemas/NoThirdPartySdkSessionResponse"
+            "description": "We get this session response, when there is no involvement of third party sdk\nThis is the common response most of the times"
           },
           {
             "$ref": "#/components/schemas/NullObject"
@@ -13948,6 +13948,12 @@
             "example": "evt_018e31720d1b7a2b82677d3032cab959",
             "maxLength": 64
           },
+          "processor_merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Processor Merchant Account.",
+            "nullable": true,
+            "maxLength": 64
+          },
           "created": {
             "type": "string",
             "format": "date-time",
@@ -19288,74 +19294,6 @@
           "invoke_upi_qr_flow"
         ]
       },
-      "NoThirdPartySdkSessionResponse": {
-        "type": "object",
-        "required": [
-          "epoch_timestamp",
-          "expires_at",
-          "merchant_session_identifier",
-          "nonce",
-          "merchant_identifier",
-          "domain_name",
-          "display_name",
-          "signature",
-          "operational_analytics_identifier",
-          "retries",
-          "psp_id"
-        ],
-        "properties": {
-          "epoch_timestamp": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Timestamp at which session is requested",
-            "minimum": 0
-          },
-          "expires_at": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Timestamp at which session expires",
-            "minimum": 0
-          },
-          "merchant_session_identifier": {
-            "type": "string",
-            "description": "The identifier for the merchant session"
-          },
-          "nonce": {
-            "type": "string",
-            "description": "Apple pay generated unique ID (UUID) value"
-          },
-          "merchant_identifier": {
-            "type": "string",
-            "description": "The identifier for the merchant"
-          },
-          "domain_name": {
-            "type": "string",
-            "description": "The domain name of the merchant which is registered in Apple Pay"
-          },
-          "display_name": {
-            "type": "string",
-            "description": "The name to be displayed on Apple Pay button"
-          },
-          "signature": {
-            "type": "string",
-            "description": "A string which represents the properties of a payment"
-          },
-          "operational_analytics_identifier": {
-            "type": "string",
-            "description": "The identifier for the operational analytics"
-          },
-          "retries": {
-            "type": "integer",
-            "format": "int32",
-            "description": "The number of retries to get the session response",
-            "minimum": 0
-          },
-          "psp_id": {
-            "type": "string",
-            "description": "The identifier for the connector transaction"
-          }
-        }
-      },
       "NoonData": {
         "type": "object",
         "properties": {
@@ -19784,7 +19722,7 @@
         "properties": {
           "merchant_id": {
             "type": "string",
-            "description": "The merchant id of the merchant"
+            "description": "The provider merchant id (platform/business owner)"
           },
           "event_id": {
             "type": "string",
@@ -19800,6 +19738,11 @@
             "type": "string",
             "format": "date-time",
             "description": "The time at which webhook was sent"
+          },
+          "processor_merchant_id": {
+            "type": "string",
+            "description": "The merchant id of the merchant account whose connector credentials are used for payment processing",
+            "nullable": true
           }
         }
       },
@@ -20059,6 +20002,7 @@
         "type": "object",
         "required": [
           "psp_token",
+          "psp_customer_id",
           "token_type"
         ],
         "properties": {
@@ -20066,6 +20010,11 @@
             "type": "string",
             "description": "PSP token generated for the payout method",
             "example": "token_12345"
+          },
+          "psp_customer_id": {
+            "type": "string",
+            "description": "PSP customer ID",
+            "example": "customer_12345"
           },
           "token_type": {
             "$ref": "#/components/schemas/PaymentMethodType"

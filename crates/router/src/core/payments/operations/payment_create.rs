@@ -1709,6 +1709,7 @@ impl PaymentCreate {
                 retry_type: None,
                 installment_data: None,
                 external_surcharge_details: None,
+                sender_payment_instrument_id: None,
             },
             additional_pm_data,
 
@@ -1966,6 +1967,7 @@ impl PaymentCreate {
                 .clone(),
             state_metadata: None,
             installment_options: request.installment_options.clone(),
+            profile_acquirer_id: request.profile_acquirer_id.clone(),
         })
     }
 }
