@@ -87,7 +87,7 @@ describe("Clear PAN Retry Tests", () => {
         }
       });
 
-      cy.step("Confirm Payment without client_secret", () => {
+      cy.step("Confirm Payment", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Confirm Payment");
           return;
@@ -195,7 +195,7 @@ describe("Clear PAN Retry Tests", () => {
         }
       });
 
-      cy.step("Confirm Payment without client_secret", () => {
+      cy.step("Confirm Payment", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Confirm Payment");
           return;

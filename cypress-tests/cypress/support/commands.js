@@ -4053,7 +4053,7 @@ Cypress.Commands.add(
       delete confirmBody.split_payments;
     }
 
-    delete confirmBody.client_secret;
+    confirmBody.client_secret = globalState.get("clientSecret");
 
     for (const key in reqData) {
       if (key !== "split_payments") {
