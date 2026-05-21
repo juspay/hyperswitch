@@ -16,7 +16,7 @@ describe("PayLater tests", () => {
       .then((state) => {
         globalState = new State(state);
 
-        if ( 
+        if (
           shouldIncludeConnector(
             globalState.get("connectorId"),
             CONNECTOR_LISTS.INCLUDE.PAY_LATER
