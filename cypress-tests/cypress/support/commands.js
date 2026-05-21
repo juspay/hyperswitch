@@ -9032,7 +9032,8 @@ Cypress.Commands.add(
 
     const params = new URLSearchParams();
     if (missingParam !== "amount") params.set("amount", amount);
-    if (missingParam !== "from_currency") params.set("from_currency", fromCurrency);
+    if (missingParam !== "from_currency")
+      params.set("from_currency", fromCurrency);
     if (missingParam !== "to_currency") params.set("to_currency", toCurrency);
 
     cy.request({

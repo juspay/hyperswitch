@@ -10,19 +10,31 @@ describe("Forex Rates and Currency Conversion", () => {
       globalState = new State(state);
       // Ensure baseUrl and adminApiKey are set
       if (!globalState.get("baseUrl")) {
-        globalState.set("baseUrl", Cypress.env("CYPRESS_BASEURL") || Cypress.env("BASEURL"));
+        globalState.set(
+          "baseUrl",
+          Cypress.env("CYPRESS_BASEURL") || Cypress.env("BASEURL")
+        );
       }
       if (!globalState.get("adminApiKey")) {
-        globalState.set("adminApiKey", Cypress.env("ADMIN_API_KEY") || Cypress.env("CYPRESS_ADMIN_API_KEY"));
+        globalState.set(
+          "adminApiKey",
+          Cypress.env("ADMIN_API_KEY") || Cypress.env("CYPRESS_ADMIN_API_KEY")
+        );
       }
       // Skip forex tests on localhost — forex endpoints are only available on integ/sandbox
       const baseUrl = globalState.get("baseUrl");
       if (baseUrl && baseUrl.includes("localhost")) {
         skip = true;
-        cy.task("cli_log", "Skipping forex tests — localhost detected, forex endpoints not available locally");
+        cy.task(
+          "cli_log",
+          "Skipping forex tests — localhost detected, forex endpoints not available locally"
+        );
       }
       // Check if merchant account and API key already exist
-      if (!skip && (!globalState.get("merchantId") || !globalState.get("apiKey"))) {
+      if (
+        !skip &&
+        (!globalState.get("merchantId") || !globalState.get("apiKey"))
+      ) {
         // Create merchant account using admin API key
         return cy
           .merchantCreateCallTest(fixtures.merchantCreateBody, globalState)
@@ -32,7 +44,10 @@ describe("Forex Rates and Currency Conversion", () => {
           })
           .then(() => {
             // Create customer
-            return cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+            return cy.createCustomerCallTest(
+              fixtures.customerCreateBody,
+              globalState
+            );
           });
       }
     });
@@ -114,17 +129,29 @@ describe("Forex Rates and Currency Conversion", () => {
     });
 
     it("should fail to convert without from_currency", () => {
-      cy.convertCurrencyMissingParam("from_currency", 100, "USD", "EUR", globalState);
+      cy.convertCurrencyMissingParam(
+        "from_currency",
+        100,
+        "USD",
+        "EUR",
+        globalState
+      );
     });
 
     it("should fail to convert without to_currency", () => {
-      cy.convertCurrencyMissingParam("to_currency", 100, "USD", "EUR", globalState);
+      cy.convertCurrencyMissingParam(
+        "to_currency",
+        100,
+        "USD",
+        "EUR",
+        globalState
+      );
     });
   });
 
   context("Additional Edge Case Tests", () => {
     it("should handle float amount", () => {
-      const amount = 100.50;
+      const amount = 100.5;
       const fromCurrency = "USD";
       const toCurrency = "EUR";
       cy.convertCurrency(amount, fromCurrency, toCurrency, globalState);
