@@ -88,24 +88,27 @@ describe("Payment Webhook Tests", () => {
   });
 
   context("Webhook Processing - Status Update & Retrieval", () => {
+    let paymentId;
+    let merchantId;
+
     before(() => {
       connector = globalState.get("connectorId");
+      merchantId = globalState.get("merchantId");
+      paymentId = globalState.get("paymentID");
     });
 
     it("Update-payment_status", () => {
-      const data = {
-        Request: {
-          attempt_status: "pending",
-        },
-        Response: {
-          status: 200,
-          body: {
-            attempt_status: "pending",
-          },
-        },
+      const PaymentsManualUpdateRequestBody = {
+        attempt_status: "pending",
+        attempt_id: `${paymentId}_1`,
+        merchant_id: merchantId,
+        payment_id: paymentId,
       };
 
-      cy.manualPaymentStatusUpdateTest(globalState, data);
+      cy.manualPaymentStatusUpdateTest(
+        globalState,
+        PaymentsManualUpdateRequestBody
+      );
     });
 
     it("send-webhook", () => {
