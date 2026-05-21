@@ -2788,6 +2788,20 @@ Cypress.Commands.add(
                     "nextActionUrl",
                     response.body.next_action.ddc_data.iframe_url
                   );
+                } else if (
+                  response.body.next_action.type === "redirect_inside_popup"
+                ) {
+                  expect(response.body.next_action)
+                    .to.have.property("type")
+                    .to.equal("redirect_inside_popup");
+                  expect(response.body.next_action).to.have.property(
+                    "popup_url"
+                  );
+                  globalState.set("nextActionType", "redirect_inside_popup");
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.popup_url
+                  );
                 } else {
                   expect(response.body)
                     .to.have.property("next_action")
@@ -2842,6 +2856,20 @@ Cypress.Commands.add(
                   globalState.set(
                     "nextActionUrl",
                     response.body.next_action.ddc_data.iframe_url
+                  );
+                } else if (
+                  response.body.next_action.type === "redirect_inside_popup"
+                ) {
+                  expect(response.body.next_action)
+                    .to.have.property("type")
+                    .to.equal("redirect_inside_popup");
+                  expect(response.body.next_action).to.have.property(
+                    "popup_url"
+                  );
+                  globalState.set("nextActionType", "redirect_inside_popup");
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.popup_url
                   );
                 } else {
                   expect(response.body.next_action).to.have.property(
@@ -8356,6 +8384,26 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
   });
 });
 
+Cypress.Commands.add("verifyIframeRedirection", (globalState, options = {}) => {
+  const {
+    expectRedirectInsidePopup = true,
+    expectedStatus = "requires_customer_action",
+  } = options;
+
+  expect(globalState.get("paymentIntentStatus")).to.equal(expectedStatus);
+
+  if (expectRedirectInsidePopup) {
+    expect(globalState.get("nextActionType")).to.equal("redirect_inside_popup");
+    expect(globalState.get("nextActionUrl")).to.not.be.null;
+  } else {
+    expect(
+      globalState.get("nextActionType"),
+      "nextActionType should not be redirect_inside_popup"
+    ).to.not.equal("redirect_inside_popup");
+    expect(globalState.get("nextActionUrl"), "nextActionUrl should be null").to
+      .be.null;
+  }
+});
 // ============================================
 // Payment Link Commands
 // ============================================
