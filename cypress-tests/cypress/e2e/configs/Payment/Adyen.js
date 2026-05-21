@@ -1800,6 +1800,142 @@ export const connectorDetails = {
         ],
       },
     }),
+    AfterpayClearplay: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "afterpay_clearpay",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            afterpay_clearpay_redirect: {},
+          },
+        },
+        billing: {
+          email: "guest@juspay.in",
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+    }),
+    Alma: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "alma",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            alma_redirect: {},
+          },
+        },
+        billing: {
+          email: "guest@juspay.in",
+          phone: "9999999999",
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Paris",
+            state: "Ile-de-France",
+            zip: "75001",
+            country: "FR",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Paris",
+            state: "Ile-de-France",
+            zip: "75001",
+            country: "FR",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+    }),
+    Atome: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "atome",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            atome_redirect: {},
+          },
+        },
+        billing: {
+          email: "guest@juspay.in",
+          phone: "9999999999",
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Singapore",
+            state: "Singapore",
+            zip: "018956",
+            country: "SG",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+    }),
     CaptureOnWrongStatus: getCustomExchange({
       Request: {
         amount_to_capture: 6000,
@@ -1809,6 +1945,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
+            message:
+              "This Payment could not be captured because it has a payment.status of requires_customer_action. The expected state is requires_capture, partially_captured_and_capturable, processing",
             code: "IR_14",
           },
         },

@@ -1354,6 +1354,24 @@ export const connectorDetails = {
       },
       Request: {},
     }),
+    AfterpayClearplay: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+    }),
+    Alma: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+    }),
+    Atome: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+    }),
     CaptureOnWrongStatus: getCustomExchange({
       Request: {
         amount_to_capture: 6000,
@@ -1363,6 +1381,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
+            message:
+              "This Payment could not be captured because it has a payment.status of requires_customer_action. The expected state is requires_capture, partially_captured_and_capturable, processing",
             code: "IR_14",
           },
         },
