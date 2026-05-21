@@ -10,30 +10,16 @@ let globalState;
 
 describe("Card - Implicit Customer Update flow test", () => {
   before("seed global state", function () {
-    let skip = false;
-
-    cy.task("getGlobalState")
-      .then((state) => {
-        globalState = new State(state);
-
-        if (
-          shouldIncludeConnector(
-            globalState.get("connectorId"),
-            CONNECTOR_LISTS.INCLUDE.IMPLICIT_CUSTOMER_UPDATE
-          )
-        ) {
-          skip = true;
-        }
-      })
-      .then(() => {
-        if (skip) {
-          this.skip();
-        }
-      });
+    cy.log(
+      "SKIPPING — implicit_customer_update is deprecated (since 2026.01.30.0) and non-functional per API re-verification"
+    );
+    this.skip();
   });
 
   after("flush global state", () => {
-    cy.task("setGlobalState", globalState.data);
+    if (globalState && globalState.data) {
+      cy.task("setGlobalState", globalState.data);
+    }
   });
 
   context(
