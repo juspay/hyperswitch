@@ -367,6 +367,10 @@ pub struct AchBankTransfer {
     /// [9 digits] Routing number - used in USA for identifying a specific bank.
     #[schema(value_type = String, example = "110000000")]
     pub bank_routing_number: Secret<String>,
+
+    /// Account holder name
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub account_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -390,6 +394,10 @@ pub struct BacsBankTransfer {
     /// [6 digits] Sort Code - used in UK and Ireland for identifying a bank and it's branches.
     #[schema(value_type = String, example = "98-76-54")]
     pub bank_sort_code: Secret<String>,
+
+    /// Account holder name
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub account_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -414,6 +422,10 @@ pub struct SepaBankTransfer {
     /// [8 / 11 digits] Bank Identifier Code (bic) / Swift Code - used in many countries for identifying a bank and it's branches
     #[schema(value_type = String, example = "HSBCGB2LXXX")]
     pub bic: Option<Secret<String>>,
+
+    /// Account holder name
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub account_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -1103,6 +1115,7 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                 bank_city,
                 bank_account_number,
                 bank_routing_number,
+                account_holder_name,
             }) => Self::Ach(Box::new(
                 payout_method_utils::AchBankTransferAdditionalData {
                     bank_name,
@@ -1110,6 +1123,7 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                     bank_city,
                     bank_account_number: bank_account_number.into(),
                     bank_routing_number: bank_routing_number.into(),
+                    account_holder_name,
                 },
             )),
             Bank::Bacs(BacsBankTransfer {
@@ -1118,6 +1132,7 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                 bank_city,
                 bank_account_number,
                 bank_sort_code,
+                account_holder_name,
             }) => Self::Bacs(Box::new(
                 payout_method_utils::BacsBankTransferAdditionalData {
                     bank_name,
@@ -1125,6 +1140,7 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                     bank_city,
                     bank_account_number: bank_account_number.into(),
                     bank_sort_code: bank_sort_code.into(),
+                    account_holder_name,
                 },
             )),
             Bank::Sepa(SepaBankTransfer {
@@ -1133,6 +1149,7 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                 bank_city,
                 iban,
                 bic,
+                account_holder_name,
             }) => Self::Sepa(Box::new(
                 payout_method_utils::SepaBankTransferAdditionalData {
                     bank_name,
@@ -1140,6 +1157,7 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                     bank_city,
                     iban: iban.into(),
                     bic: bic.map(From::from),
+                    account_holder_name,
                 },
             )),
             Bank::Pix(PixBankTransfer {
@@ -1190,6 +1208,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                 bank_city,
                 bank_account_number,
                 bank_routing_number,
+                account_holder_name,
             }) => Self::Ach(Box::new(
                 payout_method_utils::AchBankTransferAdditionalData {
                     bank_name,
@@ -1197,6 +1216,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                     bank_city,
                     bank_account_number: bank_account_number.into(),
                     bank_routing_number: bank_routing_number.into(),
+                    account_holder_name,
                 },
             )),
             BankTransfer::Bacs(BacsBankTransfer {
@@ -1205,6 +1225,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                 bank_city,
                 bank_account_number,
                 bank_sort_code,
+                account_holder_name,
             }) => Self::Bacs(Box::new(
                 payout_method_utils::BacsBankTransferAdditionalData {
                     bank_name,
@@ -1212,6 +1233,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                     bank_city,
                     bank_account_number: bank_account_number.into(),
                     bank_sort_code: bank_sort_code.into(),
+                    account_holder_name,
                 },
             )),
             BankTransfer::Sepa(SepaBankTransfer {
@@ -1220,6 +1242,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                 bank_city,
                 iban,
                 bic,
+                account_holder_name,
             }) => Self::Sepa(Box::new(
                 payout_method_utils::SepaBankTransferAdditionalData {
                     bank_name,
@@ -1227,6 +1250,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                     bank_city,
                     iban: iban.into(),
                     bic: bic.map(From::from),
+                    account_holder_name,
                 },
             )),
             BankTransfer::Pix(PixBankTransfer {
