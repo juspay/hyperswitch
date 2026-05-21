@@ -211,7 +211,7 @@ describe("PayLater tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
         ]["AffirmManualCapture"];
-        cy.confirmCallTest(
+        cy.confirmBankRedirectCallTest(
           fixtures.confirmBody,
           confirmData,
           true,
@@ -229,7 +229,12 @@ describe("PayLater tests", () => {
         }
         const expected_redirection =
           globalState.get("baseUrl") + "/payments/completion";
-        cy.handleAffirmRedirection(globalState, "affirm", expected_redirection);
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleAffirmRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
         cy.task("cli_log", "Affirm redirection handler completed");
       });
 
@@ -338,7 +343,7 @@ describe("PayLater tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
         ]["AffirmManualCapture"];
-        cy.confirmCallTest(
+        cy.confirmBankRedirectCallTest(
           fixtures.confirmBody,
           confirmData,
           true,
@@ -356,7 +361,12 @@ describe("PayLater tests", () => {
         }
         const expected_redirection =
           globalState.get("baseUrl") + "/payments/completion";
-        cy.handleAffirmRedirection(globalState, "affirm", expected_redirection);
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleAffirmRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
       });
 
       cy.step("Retrieve Payment after Confirmation", () => {
