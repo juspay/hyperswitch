@@ -34,10 +34,6 @@ describe("Voucher Payment tests", () => {
       });
   });
 
-  after("flush global state", () => {
-    cy.task("setGlobalState", globalState.data);
-  });
-
   afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
