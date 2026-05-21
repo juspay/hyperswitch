@@ -35,6 +35,8 @@ const multiUseMandateData = {
   },
 };
 
+const returnUrl = "https://example.com/return";
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -43,6 +45,7 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        return_url: returnUrl,
       },
       Response: {
         status: 200,
@@ -59,6 +62,7 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "off_session",
+        return_url: returnUrl,
       },
       Response: {
         status: 200,
@@ -78,6 +82,7 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        return_url: returnUrl,
       },
       Response: {
         status: 200,
@@ -99,6 +104,7 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        return_url: returnUrl,
       },
       Response: {
         status: 200,
@@ -120,6 +126,7 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        return_url: returnUrl,
       },
       Response: {
         status: 200,
@@ -139,6 +146,7 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        return_url: returnUrl,
       },
       Response: {
         status: 200,
@@ -152,6 +160,7 @@ export const connectorDetails = {
         currency: "USD",
         shipping_cost: 50,
         amount: 6540,
+        return_url: returnUrl,
       },
       Response: {
         status: 200,
@@ -171,6 +180,7 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        return_url: returnUrl,
       },
       Response: {
         status: 200,
@@ -200,6 +210,7 @@ export const connectorDetails = {
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        return_url: returnUrl,
       },
       Response: {
         status: 200,
