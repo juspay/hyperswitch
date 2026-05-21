@@ -90,7 +90,6 @@ describe("Payment Manual Update Tests", () => {
             },
           },
           unconfirmedPayment: true,
-          data: { Configs: { skipBillingAssertion: true } },
         });
       });
     });
@@ -151,7 +150,6 @@ describe("Payment Manual Update Tests", () => {
             },
           },
           unconfirmedPayment: true,
-          data: { Configs: { skipBillingAssertion: true } },
         });
       });
     });
@@ -252,7 +250,6 @@ describe("Payment Manual Update Tests", () => {
             },
           },
           unconfirmedPayment: true,
-          data: { Configs: { skipBillingAssertion: true } },
         });
       });
     });
