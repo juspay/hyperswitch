@@ -5264,31 +5264,6 @@ Cypress.Commands.add(
   }
 );
 
-// Alias for handlePayLaterRedirection (shorter name used in some specs)
-Cypress.Commands.add(
-  "handlePayLaterRedirect",
-  (globalState, paymentMethodType, expected_redirection) => {
-    const connectorId = globalState.get("connectorId");
-    const nextActionUrl = globalState.get("nextActionUrl");
-
-    // Support calling with just globalState (defaults used when spec omits extra args)
-    const resolvedPaymentMethodType =
-      paymentMethodType || globalState.get("paymentMethodType");
-    const resolvedExpectedRedirection =
-      expected_redirection || "https://example.com";
-
-    const expectedUrl = new URL(resolvedExpectedRedirection);
-    const redirectionUrl = new URL(nextActionUrl);
-
-    handleRedirection(
-      "pay_later",
-      { redirectionUrl, expectedUrl },
-      connectorId,
-      resolvedPaymentMethodType,
-      { globalState }
-    );
-  }
-);
 Cypress.Commands.add("listCustomerPMCallTest", (globalState, order = 0) => {
   const apiKey = globalState.get("apiKey");
   const baseUrl = globalState.get("baseUrl");
