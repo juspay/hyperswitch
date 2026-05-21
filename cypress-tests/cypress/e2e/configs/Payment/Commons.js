@@ -1398,6 +1398,12 @@ export const connectorDetails = {
           email: "test@example.com",
         },
       },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
     }),
     MandateSingleUseBecs: getCustomExchange({
       Configs: {
@@ -1420,6 +1426,12 @@ export const connectorDetails = {
             country: "AU",
           },
           email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
         },
       },
     }),
@@ -1446,6 +1458,12 @@ export const connectorDetails = {
           email: "test@example.com",
         },
       },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
     }),
     MandateSingleUseBacs: getCustomExchange({
       Configs: {
@@ -1470,18 +1488,60 @@ export const connectorDetails = {
           email: "test@example.com",
         },
       },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
     }),
-    MITAutoCapture: getCustomExchange({
+    MITAutoCaptureSepa: getCustomExchange({
       Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
     }),
     MITAutoCaptureBecs: getCustomExchange({
       Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    }),
+    MITAutoCaptureAch: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    }),
+    MITAutoCaptureBacs: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
     }),
   },
   wallet_pm: {

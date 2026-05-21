@@ -236,6 +236,11 @@ describe("Bank Debit tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
         ]["MandateSingleUseSepa"];
+        if (!utils.should_continue_further(data)) {
+          cy.task("cli_log", "Skipping step: CIT mandate creation for SEPA");
+          shouldContinue = false;
+          return;
+        }
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           data,
@@ -257,7 +262,7 @@ describe("Bank Debit tests", () => {
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
-        ]["MITAutoCapture"];
+        ]["MITAutoCaptureSepa"];
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           data,
@@ -278,6 +283,11 @@ describe("Bank Debit tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
         ]["MandateSingleUseBecs"];
+        if (!utils.should_continue_further(data)) {
+          cy.task("cli_log", "Skipping step: CIT mandate creation for BECS");
+          shouldContinue = false;
+          return;
+        }
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           data,
@@ -393,7 +403,7 @@ describe("Bank Debit tests", () => {
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
-        ]["MITAutoCaptureGbp"];
+        ]["MITAutoCaptureBacs"];
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           data,
