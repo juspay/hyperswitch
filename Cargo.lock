@@ -11345,10 +11345,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_enums"
 version = "0.1.0"
-<<<<<<< HEAD
-=======
 source = "git+https://github.com/juspay/connector-service?tag=2026.05.19.1#975493de4198800ad67a0a2ffa8cccac8d55f254"
->>>>>>> main
 dependencies = [
  "serde",
  "strum 0.26.3",
@@ -11359,10 +11356,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_utils"
 version = "0.1.0"
-<<<<<<< HEAD
-=======
 source = "git+https://github.com/juspay/connector-service?tag=2026.05.19.1#975493de4198800ad67a0a2ffa8cccac8d55f254"
->>>>>>> main
 dependencies = [
  "anyhow",
  "base64 0.21.7",
