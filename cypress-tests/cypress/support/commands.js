@@ -4024,6 +4024,154 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "confirmCallClearPanRetryTest",
+  (confirmBody, data, confirm, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
+      cy.task(
+        "cli_log",
+        "TRIGGER_SKIP enabled, skipping confirmCallClearPanRetryTest"
+      );
+      return;
+    }
+
+    const configInfo = execConfig(validatedConfigs);
+    const merchantConnectorId = globalState.get(
+      `${configInfo.merchantConnectorPrefix}Id`
+    );
+    const paymentIntentID = globalState.get("paymentID");
+    const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
+    const url = `${globalState.get("baseUrl")}/payments/${paymentIntentID}/confirm`;
+
+    if (confirmBody.split_payments) {
+      delete confirmBody.split_payments;
+    }
+
+    delete confirmBody.client_secret;
+
+    for (const key in reqData) {
+      if (key !== "split_payments") {
+        confirmBody[key] = reqData[key];
+      }
+    }
+
+    confirmBody.confirm = confirm;
+    confirmBody.profile_id = profileId;
+
+    if (!reqData?.setup_future_usage && confirmBody.setup_future_usage) {
+      delete confirmBody.setup_future_usage;
+    }
+
+    cy.request({
+      method: "POST",
+      url: url,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("publishableKey"),
+      },
+      failOnStatusCode: false,
+      body: confirmBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
+
+      expect(response.headers["content-type"]).to.include("application/json");
+
+      if (response.status === 200) {
+        globalState.set("paymentID", paymentIntentID);
+        updateConnectorState(globalState, response.body.connector);
+        globalState.set(
+          "connectorTransactionID",
+          response.body.connector_transaction_id
+        );
+        globalState.set("paymentIntentStatus", response.body.status);
+        const expectedConnector = getOriginalConnectorName(
+          globalState.get("connectorId")
+        );
+        expect(response.body.connector, "connector").to.equal(
+          expectedConnector
+        );
+        expect(paymentIntentID, "payment_id").to.equal(
+          response.body.payment_id
+        );
+        expect(response.body.payment_method_data, "payment_method_data").to
+          .not.be.empty;
+        expect(merchantConnectorId, "connector_id").to.equal(
+          response.body.merchant_connector_id
+        );
+        expect(response.body.profile_id, "profile_id").to.equal(profileId).and
+          .to.not.be.null;
+
+        validateErrorMessage(response, resData);
+
+        for (const key in resData.body) {
+          expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
+        }
+      } else {
+        defaultErrorHandler(response, resData);
+      }
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "retrievePaymentCallClearPanRetryTest",
+  ({ globalState, isClearPanRetryEnabled }) => {
+    const paymentId = globalState.get("paymentID");
+    const baseUrl = globalState.get("baseUrl");
+    const apiKey = globalState.get("apiKey");
+
+    const url = `${baseUrl}/payments/${paymentId}?force_sync=true&expand_attempts=true`;
+
+    cy.request({
+      method: "GET",
+      url: url,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
+
+      expect(response.status).to.equal(200);
+      expect(response.headers["content-type"]).to.include("application/json");
+      expect(response.body.payment_id).to.equal(paymentId);
+      expect(response.body.profile_id).to.not.be.null;
+
+      if (response.body.attempts && response.body.attempts.length > 0) {
+        response.body.attempts.forEach((attemptObj) => {
+          expect(attemptObj.attempt_id).to.include(paymentId);
+          expect(attemptObj.connector).to.not.be.null;
+          expect(attemptObj, "each attempt should have retry_type field").to.have
+            .property("retry_type");
+        });
+
+        if (isClearPanRetryEnabled) {
+          expect(
+            response.body.attempts.length,
+            "Clear PAN retry enabled should have at least 1 attempt"
+          ).to.be.greaterThan(0);
+
+          const firstAttempt = response.body.attempts[0];
+          expect(
+            firstAttempt.retry_type,
+            "first attempt retry_type should be null"
+          ).to.be.null;
+        }
+      }
+    });
+  }
+);
+
+Cypress.Commands.add(
   "refundCallTest",
   (requestBody, data, globalState, connectedMerchantId) => {
     const {
