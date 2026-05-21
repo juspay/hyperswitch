@@ -26261,7 +26261,7 @@
             "description": "User token required for returning customer flow, used by client to initiate sdk",
             "nullable": true
           },
-          "transaction_currency_code": {
+          "currency": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/Currency"
@@ -26269,7 +26269,7 @@
             ],
             "nullable": true
           },
-          "paypal_capture_method": {
+          "intent": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaypalCaptureMethod"
