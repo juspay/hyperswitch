@@ -5036,7 +5036,7 @@ pub fn get_qr_metadata(
     {
         let qr_code_info = QrCodeInformation::QrCodeUrl {
             image_data_url,
-            qr_code_url,
+            qr_code_url: Some(qr_code_url),
             display_to_timestamp,
             expiry_type: None,
             raw_qr_data: None,
