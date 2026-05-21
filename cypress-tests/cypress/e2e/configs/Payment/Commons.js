@@ -830,6 +830,29 @@ export const connectorDetails = {
         billing: standardBillingAddress,
       },
     }),
+    OpenBanking: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "open_banking",
+        payment_method_data: {
+          bank_redirect: {
+            open_banking: {},
+          },
+        },
+        billing: standardBillingAddress,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_39",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+          },
+        },
+      },
+    }),
     OnlineBankingFpx: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
