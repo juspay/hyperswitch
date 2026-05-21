@@ -19,7 +19,7 @@ describe("Bank Debit tests", () => {
         if (
           shouldIncludeConnector(
             globalState.get("connectorId"),
-            CONNECTOR_LISTS.INCLUDE.BANK_DEBIT
+            CONNECTOR_LISTS.INCLUDE.STRIPE_BANK_DEBIT
           )
         ) {
           skip = true;
