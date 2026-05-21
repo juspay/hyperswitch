@@ -729,7 +729,7 @@ impl Vaultable for api::BankPayout {
                 tax_id: None,
                 bank_number: None,
                 emv: None,
-                account_holder_name: None,
+                account_holder_name: b.account_holder_name.clone(),
             },
             Self::Bacs(b) => TokenizedBankSensitiveValues {
                 bank_account_number: Some(b.bank_account_number.to_owned()),
@@ -741,7 +741,7 @@ impl Vaultable for api::BankPayout {
                 tax_id: None,
                 bank_number: None,
                 emv: None,
-                account_holder_name: None,
+                account_holder_name: b.account_holder_name.clone(),
             },
             Self::Sepa(b) => TokenizedBankSensitiveValues {
                 bank_account_number: None,
@@ -753,7 +753,7 @@ impl Vaultable for api::BankPayout {
                 tax_id: None,
                 bank_number: None,
                 emv: None,
-                account_holder_name: None,
+                account_holder_name: b.account_holder_name.clone(),
             },
             Self::Pix(bank_details) => TokenizedBankSensitiveValues {
                 bank_account_number: bank_details.bank_account_number.to_owned(),
