@@ -162,25 +162,6 @@ impl PaymentMethodSessionExt for api_models::payment_methods::PaymentMethodSessi
             },
         )?;
 
-        utils::when(
-            payment_method_session.psp_tokenization.is_some() && self.customer_acceptance.is_none(),
-            || {
-                Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "customer_acceptance"
-                }))
-            },
-        )?;
-
-        utils::when(
-            self.payment_method_type == api_models::enums::PaymentMethod::BankDebit
-                && self.payment_method_subtype.is_none(),
-            || {
-                Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "payment_method_subtype"
-                }))
-            },
-        )?;
-
         Ok(())
     }
 }

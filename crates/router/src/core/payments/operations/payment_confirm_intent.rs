@@ -641,7 +641,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     customer_id: Some(customer_id),
                     payment_method_data: pm_create_data,
                     billing: None,
-                    psp_tokenization: None,
                     network_tokenization: None,
                     storage_type: common_enums::StorageType::Persistent, //since customer acceptance is present, we always store it persistently
                 };
