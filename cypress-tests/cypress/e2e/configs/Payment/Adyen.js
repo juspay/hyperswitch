@@ -39,6 +39,19 @@ const singleUseMandateData = {
   },
 };
 
+const voucherCurrencyMap = {
+  Boleto: "BRL",
+  Oxxo: "MXN",
+  Alfamart: "IDR",
+  Indomaret: "IDR",
+  SevenEleven: "JPY",
+  Lawson: "JPY",
+  MiniStop: "JPY",
+  FamilyMart: "JPY",
+  Seicomart: "JPY",
+  PayEasy: "JPY",
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -1449,21 +1462,9 @@ export const connectorDetails = {
 
   voucher_pm: {
     PaymentIntent: (paymentMethodType) => {
-      const currencyMap = {
-        Boleto: "BRL",
-        Oxxo: "MXN",
-        Alfamart: "IDR",
-        Indomaret: "IDR",
-        SevenEleven: "JPY",
-        Lawson: "JPY",
-        MiniStop: "JPY",
-        FamilyMart: "JPY",
-        Seicomart: "JPY",
-        PayEasy: "JPY",
-      };
       return {
         Request: {
-          currency: currencyMap[paymentMethodType] || "USD",
+          currency: voucherCurrencyMap[paymentMethodType] || "USD",
         },
         Response: {
           status: 200,
@@ -1501,7 +1502,7 @@ export const connectorDetails = {
           },
           email: "test@example.com",
         },
-        currency: "BRL",
+        currency: voucherCurrencyMap.Boleto,
       },
       Response: {
         status: 200,
@@ -1533,7 +1534,7 @@ export const connectorDetails = {
           },
           email: "test@example.com",
         },
-        currency: "MXN",
+        currency: voucherCurrencyMap.Oxxo,
       },
       Response: {
         status: 200,
@@ -1569,7 +1570,7 @@ export const connectorDetails = {
           },
           email: "test@example.com",
         },
-        currency: "IDR",
+        currency: voucherCurrencyMap.Alfamart,
       },
       Response: {
         status: 200,
@@ -1605,7 +1606,7 @@ export const connectorDetails = {
           },
           email: "test@example.com",
         },
-        currency: "IDR",
+        currency: voucherCurrencyMap.Indomaret,
       },
       Response: {
         status: 200,
@@ -1645,7 +1646,7 @@ export const connectorDetails = {
           },
           email: "test@example.com",
         },
-        currency: "JPY",
+        currency: voucherCurrencyMap.SevenEleven,
       },
       Response: {
         status: 200,
@@ -1685,7 +1686,7 @@ export const connectorDetails = {
           },
           email: "test@example.com",
         },
-        currency: "JPY",
+        currency: voucherCurrencyMap.Lawson,
       },
       Response: {
         status: 200,
@@ -1725,7 +1726,7 @@ export const connectorDetails = {
           },
           email: "test@example.com",
         },
-        currency: "JPY",
+        currency: voucherCurrencyMap.MiniStop,
       },
       Response: {
         status: 200,
@@ -1765,7 +1766,7 @@ export const connectorDetails = {
           },
           email: "test@example.com",
         },
-        currency: "JPY",
+        currency: voucherCurrencyMap.FamilyMart,
       },
       Response: {
         status: 200,
@@ -1805,7 +1806,7 @@ export const connectorDetails = {
           },
           email: "test@example.com",
         },
-        currency: "JPY",
+        currency: voucherCurrencyMap.Seicomart,
       },
       Response: {
         status: 200,
@@ -1845,7 +1846,7 @@ export const connectorDetails = {
           },
           email: "test@example.com",
         },
-        currency: "JPY",
+        currency: voucherCurrencyMap.PayEasy,
       },
       Response: {
         status: 200,
@@ -1877,7 +1878,7 @@ export const connectorDetails = {
           },
           email: "test@example.com",
         },
-        currency: "MXN",
+        currency: voucherCurrencyMap.Oxxo,
       },
       Response: {
         status: 400,
