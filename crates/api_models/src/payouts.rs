@@ -933,6 +933,7 @@ pub struct PayoutRetrieveBody {
     pub force_sync: Option<bool>,
     #[schema(value_type = Option<String>)]
     pub merchant_id: Option<id_type::MerchantId>,
+    pub expand_attempts: Option<bool>,
 }
 
 #[derive(Debug, Serialize, ToSchema, Clone, Deserialize)]
@@ -955,6 +956,10 @@ pub struct PayoutRetrieveRequest {
     /// The identifier for the Merchant Account.
     #[schema(value_type = Option<String>)]
     pub merchant_id: Option<id_type::MerchantId>,
+
+    /// Set to true to get the list of attempts along with payout details, no further action required
+    #[schema(value_type = Option<bool>, default = false, example = true)]
+    pub expand_attempts: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Clone, ToSchema, router_derive::PolymorphicSchema)]
