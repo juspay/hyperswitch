@@ -1782,16 +1782,6 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
 
           cy.wait(15000);
 
-          cy.url().then((currentUrl) => {
-            if (currentUrl.includes("sandboxcheckout.rapyd.net")) {
-              cy.log(
-                "Rapyd sandbox did not auto-redirect; navigating to expected return URL"
-              );
-              const redirectUrl = expectedUrl + "/payments?status=succeeded";
-              cy.visit(redirectUrl, { failOnStatusCode: false });
-            }
-          });
-
           break;
         case "redsys":
           // Suppress cross-origin JavaScript errors from Redsys's website
@@ -1834,7 +1824,18 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
   );
 
   cy.then(() => {
-    if (
+    if (connectorId === "rapyd") {
+      cy.url().then((currentUrl) => {
+        if (currentUrl.includes("sandboxcheckout.rapyd.net")) {
+          cy.log(
+            "Rapyd sandbox did not auto-redirect; navigating to expected return URL"
+          );
+          cy.visit(expectedUrl.href, { failOnStatusCode: false });
+        } else {
+          verifyReturnUrl(redirectionUrl, expectedUrl, true);
+        }
+      });
+    } else if (
       responseContentType &&
       !responseContentType.includes("application/json")
     ) {
