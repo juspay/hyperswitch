@@ -198,6 +198,8 @@ const CURRENCY_MAP = {
   Interac: "CAD", // Canadian payment method
   AliPayHk: "HKD", // Hong Kong payment method
   Mifinity: "EUR", // Mifinity wallet payment method
+  Alma: "EUR", // French pay_later
+  Atome: "SGD", // Singapore pay_later
 };
 
 export const getCurrency = (paymentMethodType) => {

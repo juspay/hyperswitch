@@ -443,8 +443,8 @@ describe("PayLater tests", () => {
     });
   });
 
-  context("Affirm PayLater - Not Supported", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment with Affirm", () => {
+  context("Affirm PayLater - Sandbox Limitation", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment with Affirm (expect error)", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent", () => {
@@ -489,8 +489,8 @@ describe("PayLater tests", () => {
     });
   });
 
-  context("AfterpayClearplay PayLater - Not Supported", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment with AfterpayClearplay", () => {
+  context("AfterpayClearplay PayLater - Sandbox Limitation", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment with AfterpayClearplay (expect error)", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent", () => {
@@ -538,8 +538,8 @@ describe("PayLater tests", () => {
     });
   });
 
-  context("Alma PayLater - Not Supported", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment with Alma", () => {
+  context("Alma PayLater - Sandbox Limitation", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment with Alma (expect error)", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent", () => {
@@ -584,8 +584,8 @@ describe("PayLater tests", () => {
     });
   });
 
-  context("Atome PayLater - Not Supported", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment with Atome", () => {
+  context("Atome PayLater - Sandbox Limitation", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment with Atome (expect error)", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent", () => {

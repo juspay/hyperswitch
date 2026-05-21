@@ -1762,9 +1762,6 @@ export const connectorDetails = {
       },
     }),
     Affirm: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "pay_later",
         payment_method_type: "affirm",
@@ -1779,11 +1776,27 @@ export const connectorDetails = {
         },
         billing: {
           email: "guest@juspay.in",
+          phone: {
+            number: "4155552671",
+            country_code: "+1",
+          },
           address: {
             line1: "1467",
             line2: "Harrison Street",
             line3: "Harrison Street",
-            city: "San Fransico",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            city: "San Francisco",
             state: "California",
             zip: "94122",
             country: "US",
@@ -1799,11 +1812,16 @@ export const connectorDetails = {
           },
         ],
       },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+          },
+        },
+      },
     }),
     AfterpayClearplay: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "pay_later",
         payment_method_type: "afterpay_clearpay",
@@ -1815,11 +1833,15 @@ export const connectorDetails = {
         },
         billing: {
           email: "guest@juspay.in",
+          phone: {
+            number: "4155552671",
+            country_code: "+1",
+          },
           address: {
             line1: "1467",
             line2: "Harrison Street",
             line3: "Harrison Street",
-            city: "San Fransico",
+            city: "San Francisco",
             state: "California",
             zip: "94122",
             country: "US",
@@ -1831,8 +1853,7 @@ export const connectorDetails = {
           address: {
             line1: "1467",
             line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
+            city: "San Francisco",
             state: "California",
             zip: "94122",
             country: "US",
@@ -1848,11 +1869,16 @@ export const connectorDetails = {
           },
         ],
       },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+          },
+        },
+      },
     }),
     Alma: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "pay_later",
         payment_method_type: "alma",
@@ -1864,7 +1890,10 @@ export const connectorDetails = {
         },
         billing: {
           email: "guest@juspay.in",
-          phone: "9999999999",
+          phone: {
+            number: "0612345678",
+            country_code: "+33",
+          },
           address: {
             line1: "1467",
             line2: "Harrison Street",
@@ -1881,7 +1910,6 @@ export const connectorDetails = {
           address: {
             line1: "1467",
             line2: "Harrison Street",
-            line3: "Harrison Street",
             city: "Paris",
             state: "Ile-de-France",
             zip: "75001",
@@ -1898,11 +1926,16 @@ export const connectorDetails = {
           },
         ],
       },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+          },
+        },
+      },
     }),
     Atome: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "pay_later",
         payment_method_type: "atome",
@@ -1914,11 +1947,26 @@ export const connectorDetails = {
         },
         billing: {
           email: "guest@juspay.in",
-          phone: "9999999999",
+          phone: {
+            number: "91234567",
+            country_code: "+65",
+          },
           address: {
             line1: "1467",
             line2: "Harrison Street",
             line3: "Harrison Street",
+            city: "Singapore",
+            state: "Singapore",
+            zip: "018956",
+            country: "SG",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
             city: "Singapore",
             state: "Singapore",
             zip: "018956",
@@ -1934,6 +1982,14 @@ export const connectorDetails = {
             amount: 6000,
           },
         ],
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+          },
+        },
       },
     }),
     CaptureOnWrongStatus: getCustomExchange({
