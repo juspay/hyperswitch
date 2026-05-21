@@ -9179,10 +9179,10 @@ Cypress.Commands.add("retrievePayoutLinkTest", (data, globalState) => {
       expect(response.status).to.equal(200);
       expect(response.headers["content-type"]).to.include("application/json");
       expect(response.body).to.have.property("payout_link");
-      expect(response.body.payout_link).to.have.property("link_id");
-      expect(response.body.payout_link).to.have.property("url");
+      expect(response.body.payout_link).to.have.property("payout_link_id");
+      expect(response.body.payout_link).to.have.property("link");
 
-      cy.task("cli_log", `Payout Link retrieved: ${response.body.payout_link.link_id}`);
+      cy.task("cli_log", `Payout Link retrieved: ${response.body.payout_link.payout_link_id}`);
     });
   });
 });
@@ -9205,9 +9205,10 @@ Cypress.Commands.add("listPayoutLinksTest", (data, globalState) => {
     cy.wrap(response).then(() => {
       expect(response.status).to.equal(200);
       expect(response.headers["content-type"]).to.include("application/json");
-      expect(response.body).to.be.an("array");
+      expect(response.body).to.have.property("data");
+      expect(response.body.data).to.be.an("array");
 
-      cy.task("cli_log", `Listed ${response.body.length} payouts`);
+      cy.task("cli_log", `Listed ${response.body.data.length} payouts`);
     });
   });
 });

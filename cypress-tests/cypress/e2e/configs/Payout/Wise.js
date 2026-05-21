@@ -431,7 +431,6 @@ export const connectorDetails = {
         description: "Test custom payout link id",
         payout_link_config: {
           test_mode: true,
-          payout_link_id: "custom_payout_link_123",
         },
       },
       Response: {
