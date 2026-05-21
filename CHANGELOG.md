@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.02.0-hotfix7.9
+
+### Features
+
+- **Payouts:** add account holder name ([#12416](https://github.com/juspay/hyperswitch/pull/12416)) ([`37893fd`](https://github.com/juspay/hyperswitch/commit/37893fd002758ed0de008b3a04fa11d0a830a68c))
+
+**Full Changelog:** [`2026.04.02.0-hotfix7.8...2026.04.02.0-hotfix7.9`](https://github.com/juspay/hyperswitch/compare/2026.04.02.0-hotfix7.8...2026.04.02.0-hotfix7.9)
+
+- - -
+
 ## 2026.04.02.0-hotfix7.8
 
 ### Features
