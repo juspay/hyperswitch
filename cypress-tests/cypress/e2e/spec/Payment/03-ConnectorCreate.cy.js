@@ -61,7 +61,7 @@ describe("Connector Account Create flow test", () => {
       globalState = new State(state);
       isBankDebitConnector = !shouldIncludeConnector(
         globalState.get("connectorId"),
-        CONNECTOR_LISTS.INCLUDE.BANK_DEBIT
+        CONNECTOR_LISTS.INCLUDE.STRIPE_BANK_DEBIT
       );
     });
   });

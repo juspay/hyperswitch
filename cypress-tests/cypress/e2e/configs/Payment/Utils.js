@@ -535,6 +535,7 @@ export const CONNECTOR_LISTS = {
       "stripe",
     ],
     BANK_DEBIT: ["adyen", "novalnet", "payload", "stax", "stripe", "wellsfargo"], // payload verified as working
+    STRIPE_BANK_DEBIT: ["stripe"],
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
     BANK_REDIRECT_MANDATE: ["adyen"],
     BLUECODE_WALLET: ["calida"],
