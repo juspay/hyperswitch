@@ -4130,7 +4130,6 @@ export const connectorDetails = {
         },
       },
     },
-
   },
   payment_link_pm: {
     PaymentLinkBasic: getCustomExchange({
