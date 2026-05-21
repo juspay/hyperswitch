@@ -69,6 +69,8 @@ use api_models::enums::FrmSuggestion;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
+#[cfg(feature = "v1")]
+use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -670,7 +672,7 @@ where
         &'a self,
         state: &SessionState,
         payment_data: &mut D,
-        request: Option<CustomerDetails>,
+        _request: Option<CustomerDetails>,
         provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
         _dimensions: DimensionsWithMerchantIdAndProfileId,
@@ -681,17 +683,26 @@ where
         ),
         errors::StorageError,
     > {
-        let customer = helpers::get_customer_if_exists(
-            state,
-            request.as_ref().and_then(|r| r.customer_id.as_ref()),
-            payment_data.get_payment_intent().customer_id.as_ref(),
-            provider,
-        )
-        .await?;
-        // We don't need to fetch customer here.
-        // Customer details have already been populated in the payment_intent during Confirm
-        // The customer returned from this method is only used for updating connector_customer_id
-        // which does not happen in case of Retrieve
+        let db = &*state.store;
+        let merchant_key_store = provider.get_key_store();
+        let storage_scheme = provider.get_account().storage_scheme;
+        let customer = payment_data
+            .get_payment_intent()
+            .customer_id
+            .as_ref()
+            .async_map(|customer_id| async {
+                db.find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
+                    customer_id,
+                    &merchant_key_store.merchant_id,
+                    merchant_key_store,
+                    storage_scheme,
+                )
+                .await
+            })
+            .await
+            .transpose()?
+            .flatten();
+
         Ok((Box::new(self), customer))
     }
 
