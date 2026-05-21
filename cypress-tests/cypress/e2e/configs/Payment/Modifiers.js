@@ -135,8 +135,6 @@ const CURRENCY_MAP = {
   Interac: "CAD", // Canadian payment method
   AliPayHk: "HKD", // Hong Kong payment method
   Mifinity: "EUR", // Mifinity wallet payment method
-  ApplePay: "USD", // Apple Pay wallet
-  GooglePay: "USD", // Google Pay wallet
   SamsungPay: "USD", // Samsung Pay wallet
   MbWay: "EUR", // MB Way wallet
 };
