@@ -30823,8 +30823,7 @@
             "example": "acct_1234567890",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "StripeSplitRefundRequest": {
         "type": "object",
