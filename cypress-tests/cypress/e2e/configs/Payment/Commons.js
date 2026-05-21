@@ -612,6 +612,17 @@ export const payment_methods_enabled = [
         recurring_enabled: false,
         installment_payment_enabled: false,
       },
+      {
+        payment_method_type: "pay_safe_card",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
     ],
   },
   {
@@ -777,48 +788,100 @@ export const connectorDetails = {
           },
         },
       }),
-    Ideal: getCustomExchange({
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "ideal",
-        payment_method_data: {
-          bank_redirect: {
-            ideal: {
-              bank_name: "ing",
+    Ideal: {
+      ...getCustomExchange({
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "ideal",
+          payment_method_data: {
+            bank_redirect: {
+              ideal: {
+                bank_name: "ing",
+                country: "NL",
+              },
+            },
+          },
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
               country: "NL",
+              first_name: "john",
+              last_name: "doe",
             },
           },
         },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "NL",
-            first_name: "john",
-            last_name: "doe",
+      }),
+      MandateSingleUseAutoCapture: getCustomExchange({
+        Request: {},
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
           },
         },
-      },
-    }),
-    OpenBankingUk: getCustomExchange({
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "open_banking_uk",
-        payment_method_data: {
-          bank_redirect: {
-            open_banking_uk: {
-              issuer: "citi",
-              country: "GB",
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+      }),
+    },
+    BancontactCard: {
+      ...getCustomExchange({
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "bancontact_card",
+          payment_method_data: {
+            bank_redirect: {
+              bancontact_card: {
+                card_number: "6703444444444449",
+                card_exp_month: "03",
+                card_exp_year: "2030",
+              },
             },
           },
+          billing: standardBillingAddress,
         },
-        billing: standardBillingAddress,
-      },
-    }),
+      }),
+      MandateSingleUseAutoCapture: getCustomExchange({
+        Request: {},
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+      }),
+    },
+    OpenBankingUk: {
+      ...getCustomExchange({
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "open_banking_uk",
+          payment_method_data: {
+            bank_redirect: {
+              open_banking_uk: {
+                issuer: "citi",
+                country: "GB",
+              },
+            },
+          },
+          billing: standardBillingAddress,
+        },
+      }),
+      MandateSingleUseAutoCapture: getCustomExchange({
+        Request: {},
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+      }),
+    },
     OnlineBankingFpx: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
@@ -978,42 +1041,22 @@ export const connectorDetails = {
         },
       },
     }),
-    Trustly: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "trustly",
-        payment_method_data: {
-          bank_redirect: {
-            trustly: {
-              country: "NL",
-            },
-          },
-        },
-        billing: standardBillingAddress,
-      },
-    }),
-    BancontactCard: {
-      MandateSingleUse: getCustomExchange({
+    Trustly: {
+      ...getCustomExchange({
         Configs: {
           TRIGGER_SKIP: true,
         },
         Request: {
           payment_method: "bank_redirect",
-          payment_method_type: "bancontact_card",
+          payment_method_type: "trustly",
           payment_method_data: {
             bank_redirect: {
-              bancontact_card: {},
+              trustly: {
+                country: "NL",
+              },
             },
           },
-        },
-        Response: {
-          status: 200,
-          body: {
-            status: "requires_customer_action",
-          },
+          billing: standardBillingAddress,
         },
       }),
     },

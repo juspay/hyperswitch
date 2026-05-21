@@ -990,7 +990,7 @@ impl
                             year: expiry_year,
                         },
                     },
-                    card_holder_name: item.customer_name.clone(),
+                    card_holder_name: None,
                     cryptogram: apple_pay_decrypt_data
                         .payment_data
                         .online_payment_cryptogram,

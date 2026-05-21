@@ -470,6 +470,17 @@ export const CONNECTOR_LISTS = {
     // ucs connectors
     UCS_CONNECTORS: ["authorizedotnet"],
     OVERCAPTURE: ["adyen"],
+    IFRAME_REDIRECTION: [
+      "adyen",
+      "cybersource",
+      "barclaycard",
+      "paypal",
+      "bluesnap",
+      "braintree",
+      "nmi",
+      "nexixpay",
+      "deutschebank",
+    ],
     MANUAL_RETRY: [
       "cybersource",
       "checkout",
@@ -517,6 +528,8 @@ export const CONNECTOR_LISTS = {
       "stripe",
     ],
     BANK_DEBIT: ["adyen", "novalnet", "payload"], // payload verified as working
+    BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
+    BANK_REDIRECT_MANDATE: ["adyen"],
     BLUECODE_WALLET: ["calida"],
     ALIPAY_HK_WALLET: ["adyen"],
     PAYPAL_WALLET: ["novalnet", "paypal"],
@@ -600,6 +613,7 @@ export const CONNECTOR_LISTS = {
       "worldpay",
       "worldpayvantiv",
     ],
+    POLL_CONFIG: ["stripe"],
     // Add more inclusion lists
   },
 };

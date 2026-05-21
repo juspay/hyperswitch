@@ -1,14 +1,9 @@
-use api_models::payment_methods::{
-    CustomerPaymentMethod,
-    CustomerPaymentMethodsListResponse as ListCustomerPaymentMethodsV1Response,
-    PaymentMethodListRequest,
-};
+use api_models::payment_methods::PaymentMethodListRequest;
 use common_utils::{id_type, request::Method};
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 
 use crate::types::{
     ModularListCustomerPaymentMethodsRequest, ModularListCustomerPaymentMethodsResponse,
-    PaymentMethodResponseData,
 };
 
 /// V1-facing retrieve flow type.
@@ -20,6 +15,7 @@ pub struct ListCustomerPaymentMethods;
 pub struct ListCustomerPaymentMethodsV1Request {
     pub customer_id: id_type::CustomerId,
     pub query_params: PaymentMethodListRequest,
+    pub modular_service_prefix: String,
 }
 
 impl TryFrom<&ListCustomerPaymentMethodsV1Request> for ModularListCustomerPaymentMethodsRequest {
@@ -27,50 +23,6 @@ impl TryFrom<&ListCustomerPaymentMethodsV1Request> for ModularListCustomerPaymen
 
     fn try_from(_value: &ListCustomerPaymentMethodsV1Request) -> Result<Self, Self::Error> {
         Ok(Self)
-    }
-}
-
-impl TryFrom<ModularListCustomerPaymentMethodsResponse> for ListCustomerPaymentMethodsV1Response {
-    type Error = MicroserviceClientError;
-
-    fn try_from(
-        v2_response: ModularListCustomerPaymentMethodsResponse,
-    ) -> Result<Self, Self::Error> {
-        let customer_payment_methods = v2_response
-            .customer_payment_methods
-            .into_iter()
-            .map(|pm| CustomerPaymentMethod {
-                payment_token: pm.id.clone(),
-                payment_method_id: pm.id,
-                customer_id: pm.customer_id,
-                payment_method: pm.payment_method_type,
-                payment_method_type: Some(pm.payment_method_subtype),
-                payment_method_issuer: None,
-                payment_method_issuer_code: None,
-                recurring_enabled: pm.recurring_enabled,
-                installment_payment_enabled: None,
-                payment_experience: None,
-                card: pm.payment_method_data.and_then(|data| match data {
-                    PaymentMethodResponseData::Card(card_detail) => Some(*card_detail),
-                    PaymentMethodResponseData::BankDebit(_) => None,
-                    PaymentMethodResponseData::Wallet(_) => None,
-                }),
-                metadata: None,
-                created: Some(pm.created),
-                bank_transfer: None,
-                bank: pm.bank,
-                surcharge_details: None,
-                requires_cvv: pm.requires_cvv,
-                last_used_at: Some(pm.last_used_at),
-                default_payment_method_set: pm.is_default,
-                billing: pm.billing,
-            })
-            .collect();
-
-        Ok(Self {
-            customer_payment_methods,
-            is_guest_customer: None,
-        })
     }
 }
 
@@ -94,10 +46,13 @@ impl ListCustomerPaymentMethods {
         &self,
         request: &ListCustomerPaymentMethodsV1Request,
     ) -> Vec<(&'static str, String)> {
-        vec![(
-            "customer_id",
-            request.customer_id.get_string_repr().to_string(),
-        )]
+        vec![
+            ("prefix", request.modular_service_prefix.clone()),
+            (
+                "customer_id",
+                request.customer_id.get_string_repr().to_string(),
+            ),
+        ]
     }
 
     fn query_params(
@@ -146,14 +101,23 @@ impl ListCustomerPaymentMethods {
     }
 }
 
+pub struct ListCustomerPaymentMethodsRawResponse(pub ModularListCustomerPaymentMethodsResponse);
+
+impl TryFrom<ModularListCustomerPaymentMethodsResponse> for ListCustomerPaymentMethodsRawResponse {
+    type Error = MicroserviceClientError;
+    fn try_from(value: ModularListCustomerPaymentMethodsResponse) -> Result<Self, Self::Error> {
+        Ok(Self(value))
+    }
+}
+
 hyperswitch_interfaces::impl_microservice_flow!(
     ListCustomerPaymentMethods,
     method = Method::Get,
-    path = "/v2/customers/{customer_id}/saved-payment-methods",
+    path = "/{prefix}/customers/{customer_id}/saved-payment-methods",
     v1_request = ListCustomerPaymentMethodsV1Request,
     v2_request = ModularListCustomerPaymentMethodsRequest,
     v2_response = ModularListCustomerPaymentMethodsResponse,
-    v1_response = ListCustomerPaymentMethodsV1Response,
+    v1_response = ListCustomerPaymentMethodsRawResponse,
     client = crate::client::PaymentMethodClient<'_>,
     path_params = ListCustomerPaymentMethods::build_path_params,
     query_params = ListCustomerPaymentMethods::query_params,
