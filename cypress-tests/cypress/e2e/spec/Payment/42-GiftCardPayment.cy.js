@@ -357,9 +357,30 @@ describe("PaySafeCard Payment - Paysafe", () => {
           globalState
         );
 
+        if (data.Request && data.Request.payment_method_type) {
+          globalState.set(
+            "paymentMethodType",
+            data.Request.payment_method_type
+          );
+        }
+
         if (!should_continue_further(data)) {
           shouldContinue = false;
         }
+      });
+
+      cy.step("Handle Bank Redirect Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle Bank Redirect Redirection");
+          return;
+        }
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleBankRedirectRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
       });
 
       cy.step("Retrieve Payment", () => {

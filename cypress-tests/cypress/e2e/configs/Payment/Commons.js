@@ -1222,15 +1222,13 @@ export const connectorDetails = {
       },
     }),
     Skrill: getCustomExchange({
-      Configs: { TRIGGER_SKIP: true },
       Request: {
         payment_method: "wallet",
         payment_method_type: "skrill",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
+        payment_method_data: {
+          wallet: {
+            skrill: {},
+          },
         },
       },
     }),
@@ -3648,15 +3646,13 @@ export const connectorDetails = {
       },
     }),
     PaySafeCard: getCustomExchange({
-      Configs: { TRIGGER_SKIP: true },
       Request: {
         payment_method: "gift_card",
         payment_method_type: "pay_safe_card",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
+        payment_method_data: {
+          gift_card: {
+            pay_safe_card: {},
+          },
         },
       },
     }),

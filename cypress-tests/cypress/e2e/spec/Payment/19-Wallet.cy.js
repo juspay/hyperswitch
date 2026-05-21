@@ -593,5 +593,23 @@ describe("Skrill Wallet tests", () => {
 
       if (shouldContinue) shouldContinue = should_continue_further(data);
     });
+
+    it("Handle Skrill bank redirect redirection", () => {
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
+      cy.handleBankRedirectRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      );
+    });
+
+    it("Sync payment status", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["Skrill"];
+
+      cy.retrievePaymentCallTest({ globalState, data });
+    });
   });
 });
