@@ -50,7 +50,36 @@ pub mod routes {
     impl Analytics {
         #[cfg(feature = "v2")]
         pub fn server(state: AppState) -> Scope {
-            web::scope("/analytics").app_data(web::Data::new(state))
+            web::scope("/v2/analytics")
+                .app_data(web::Data::new(state))
+                .service(
+                    web::scope("/profile")
+                        .service(
+                            web::resource("report/payments")
+                                .route(web::post().to(generate_profile_payment_report)),
+                        )
+                        .service(
+                            web::resource("payment_intents/aggregate")
+                                .route(web::get().to(get_profile_payment_intent_aggregate)),
+                        ),
+                )
+                .service(
+                    web::scope("/merchant")
+                        .service(
+                            web::resource("report/payments")
+                                .route(web::post().to(generate_merchant_payment_report)),
+                        )
+                        .service(
+                            web::resource("payment_intents/aggregate")
+                                .route(web::get().to(get_merchant_payment_intent_aggregate)),
+                        ),
+                )
+                .service(
+                    web::scope("/org").service(
+                        web::resource("report/payments")
+                            .route(web::post().to(generate_org_payment_report)),
+                    ),
+                )
         }
         #[cfg(feature = "v1")]
         pub fn server(state: AppState) -> Scope {
@@ -760,12 +789,15 @@ pub mod routes {
             &req,
             payload,
             |state, auth: AuthenticationData, req, _| async move {
+                #[cfg(feature = "v1")]
                 let profile_id = auth
                     .profile
                     .ok_or(report!(UserErrors::JwtProfileIdMissing))
                     .change_context(AnalyticsError::AccessForbiddenError)?
                     .get_id()
                     .clone();
+                #[cfg(feature = "v2")]
+                let profile_id = auth.profile.get_id().clone();
                 let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
                 let status_with_count = state
                     .pool
