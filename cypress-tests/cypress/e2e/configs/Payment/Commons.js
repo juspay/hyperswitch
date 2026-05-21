@@ -1348,6 +1348,44 @@ export const connectorDetails = {
       },
     }),
     SyncRefund: getCustomExchange({}),
+    Affirm: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+    }),
+    CaptureOnWrongStatus: getCustomExchange({
+      Request: {
+        amount_to_capture: 6000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_14",
+          },
+        },
+      },
+    }),
+    ConfirmWithoutPmData: getCustomExchange({
+      Request: {
+        payment_method: undefined,
+        payment_method_type: undefined,
+        payment_experience: undefined,
+        payment_method_data: undefined,
+        order_details: undefined,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_04",
+          },
+        },
+      },
+    }),
   },
   real_time_payment_pm: {
     PaymentIntent: getCustomExchange({

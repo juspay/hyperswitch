@@ -1751,6 +1751,86 @@ export const connectorDetails = {
       Request: {
         amount_to_capture: 6000,
       },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+          amount: 6000,
+          amount_capturable: 6000,
+          amount_received: null,
+        },
+      },
+    }),
+    Affirm: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "affirm",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            affirm_redirect: {
+              billing_email: "guest@juspay.in",
+              billing_country: "US",
+            },
+          },
+        },
+        billing: {
+          email: "guest@juspay.in",
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 5000,
+          },
+        ],
+      },
+    }),
+    CaptureOnWrongStatus: getCustomExchange({
+      Request: {
+        amount_to_capture: 6000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_14",
+          },
+        },
+      },
+    }),
+    ConfirmWithoutPmData: getCustomExchange({
+      Request: {
+        payment_method: undefined,
+        payment_method_type: undefined,
+        payment_experience: undefined,
+        payment_method_data: undefined,
+        order_details: undefined,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_06",
+          },
+        },
+      },
     }),
   },
 
