@@ -433,18 +433,14 @@ function affirmPayLaterRedirection(
           bodyText.includes("cell")
         )
           return "phone";
-        if (bodyText.includes("continue to plans"))
-          return "continue_to_plans";
+        if (bodyText.includes("continue to plans")) return "continue_to_plans";
         if (
           bodyText.includes("social") ||
           bodyText.includes("ssn") ||
           bodyText.includes("last 4")
         )
           return "ssn";
-        if (
-          bodyText.includes("first name") ||
-          bodyText.includes("legal name")
-        )
+        if (bodyText.includes("first name") || bodyText.includes("legal name"))
           return "first_name";
         if (bodyText.includes("last name") || bodyText.includes("surname"))
           return "last_name";
@@ -590,9 +586,7 @@ function affirmPayLaterRedirection(
                   const continueBtn = $body
                     .find("button:visible")
                     .filter((i, btn) =>
-                      /continue|next|submit/i.test(
-                        btn.innerText.toLowerCase()
-                      )
+                      /continue|next|submit/i.test(btn.innerText.toLowerCase())
                     );
                   if (continueBtn.length > 0) {
                     cy.wrap(continueBtn.first()).click({ force: true });
@@ -778,9 +772,7 @@ function affirmPayLaterRedirection(
           if (currentUrl.includes(returnOrigin)) {
             cy.log(`Reached return URL: ${currentUrl} — DONE`);
           } else {
-            cy.log(
-              `Step remaining: ${maxSteps} | Current URL: ${currentUrl}`
-            );
+            cy.log(`Step remaining: ${maxSteps} | Current URL: ${currentUrl}`);
 
             handleAffirmStep();
 

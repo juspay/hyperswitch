@@ -229,11 +229,7 @@ describe("PayLater tests", () => {
         }
         const expected_redirection =
           globalState.get("baseUrl") + "/payments/completion";
-        cy.handleAffirmRedirection(
-          globalState,
-          "affirm",
-          expected_redirection
-        );
+        cy.handleAffirmRedirection(globalState, "affirm", expected_redirection);
         cy.task("cli_log", "Affirm redirection handler completed");
       });
 
@@ -360,11 +356,7 @@ describe("PayLater tests", () => {
         }
         const expected_redirection =
           globalState.get("baseUrl") + "/payments/completion";
-        cy.handleAffirmRedirection(
-          globalState,
-          "affirm",
-          expected_redirection
-        );
+        cy.handleAffirmRedirection(globalState, "affirm", expected_redirection);
       });
 
       cy.step("Retrieve Payment after Confirmation", () => {
