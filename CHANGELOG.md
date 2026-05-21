@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.20.0-hotfix1
+
+### Features
+
+- **connector:** [SANTANDER] Accept Receiver Account Details from Merchant ([#12417](https://github.com/juspay/hyperswitch/pull/12417)) ([`ee43766`](https://github.com/juspay/hyperswitch/commit/ee43766b38a386b116e57a51e0b93634799cd3bf))
+
+**Full Changelog:** [`2026.05.20.0...2026.05.20.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.05.20.0...2026.05.20.0-hotfix1)
+
+- - -
+
 ## 2026.05.20.0
 
 ### Features
