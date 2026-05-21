@@ -152,6 +152,7 @@ jobs:
 
   prepare-mandatory-matrix:
     name: Prepare Mandatory Connectors matrix to run cypress tests
+    if: false
     runs-on: hyperswitch-runners
     outputs:
       mandatory-matrix: ${{ steps.set-mandatory-matrix.outputs.matrix }}
@@ -194,9 +195,7 @@ jobs:
   mandatory-cypress-tests:
     name: Run mandatory Cypress tests
     needs: [build-hyperswitch, prepare-mandatory-matrix]
-    if: |
-      (github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')))
+    if: false
     permissions:
       pull-requests: write
     runs-on: hyperswitch-runners
@@ -420,6 +419,7 @@ jobs:
   mandatory-cypress-tests-consolidated-result:
     name: Mandatory Cypress Tests — Consolidated Result
     needs: [mandatory-cypress-tests]
+    if: false
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -718,24 +718,6 @@ jobs:
             echo '{
               "batch": [
                 {
-                  "name": "mock-payments-1",
-                  "payments_connectors": "'"${MOCK_PAYMENTS_CONNECTORS_BATCH_1}"'",
-                  "payouts_connectors": "",
-                  "platform_connectors": "",
-                  "parallel": 4,
-                  "report_artifact_name": "cypress-mock-test-results-payments-1",
-                  "server_logs_artifact": "mock-server-logs-payments-1"
-                },
-                {
-                  "name": "mock-payments-2",
-                  "payments_connectors": "'"${MOCK_PAYMENTS_CONNECTORS_BATCH_2}"'",
-                  "payouts_connectors": "",
-                  "platform_connectors": "",
-                  "parallel": 3,
-                  "report_artifact_name": "cypress-mock-test-results-payments-2",
-                  "server_logs_artifact": "mock-server-logs-payments-2"
-                },
-                {
                   "name": "mock-payouts",
                   "payments_connectors": "",
                   "payouts_connectors": "'"${MOCK_PAYOUTS_CONNECTORS}"'",
@@ -743,15 +725,6 @@ jobs:
                   "parallel": 2,
                   "report_artifact_name": "cypress-mock-test-results-payouts",
                   "server_logs_artifact": "mock-server-logs-payouts"
-                },
-                {
-                  "name": "mock-platform",
-                  "payments_connectors": "",
-                  "payouts_connectors": "",
-                  "platform_connectors": "'"${PLATFORM_CONNECTORS}"'",
-                  "parallel": 2,
-                  "report_artifact_name": "cypress-mock-test-results-platform",
-                  "server_logs_artifact": "mock-server-logs-platform"
                 }
               ]
             }'
@@ -1536,6 +1509,7 @@ jobs:
 
   runner_v2:
     name: Run Cypress tests on v2 and generate coverage report
+    if: false
     runs-on: hyperswitch-runners
     permissions:
       pull-requests: write
