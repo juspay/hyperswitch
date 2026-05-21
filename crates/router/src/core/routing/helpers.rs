@@ -1710,7 +1710,8 @@ fn get_desired_payment_status_for_dynamic_routing_metrics(
         | common_enums::AttemptStatus::PaymentMethodAwaited
         | common_enums::AttemptStatus::ConfirmationAwaited
         | common_enums::AttemptStatus::DeviceDataCollectionPending
-        | common_enums::AttemptStatus::Expired => common_enums::AttemptStatus::Pending,
+        | common_enums::AttemptStatus::Expired
+        | common_enums::AttemptStatus::CaptureReview => common_enums::AttemptStatus::Pending,
     }
 }
 
@@ -1740,13 +1741,14 @@ impl ForeignFrom<common_enums::AttemptStatus> for open_router::TxnStatus {
             common_enums::AttemptStatus::AutoRefunded => Self::AutoRefunded,
             common_enums::AttemptStatus::PartialCharged => Self::PartialCharged,
             common_enums::AttemptStatus::PartialChargedAndChargeable => Self::ToBeCharged,
-            common_enums::AttemptStatus::Unresolved => Self::Pending,
-            common_enums::AttemptStatus::Pending
-            | common_enums::AttemptStatus::IntegrityFailure => Self::Pending,
             common_enums::AttemptStatus::Failure => Self::Failure,
-            common_enums::AttemptStatus::PaymentMethodAwaited => Self::Pending,
-            common_enums::AttemptStatus::ConfirmationAwaited => Self::Pending,
-            common_enums::AttemptStatus::DeviceDataCollectionPending => Self::Pending,
+            common_enums::AttemptStatus::Unresolved
+            | common_enums::AttemptStatus::Pending
+            | common_enums::AttemptStatus::IntegrityFailure
+            | common_enums::AttemptStatus::PaymentMethodAwaited
+            | common_enums::AttemptStatus::ConfirmationAwaited
+            | common_enums::AttemptStatus::DeviceDataCollectionPending
+            | common_enums::AttemptStatus::CaptureReview => Self::Pending,
         }
     }
 }
@@ -1980,7 +1982,7 @@ pub async fn enable_dynamic_routing_algorithm(
             dynamic_routing
                 .disable_algorithm_id(routing_types::DynamicRoutingType::ContractBasedRouting);
 
-            enable_specific_routing_algorithm(
+            Box::pin(enable_specific_routing_algorithm(
                 state,
                 key_store,
                 business_profile,
@@ -1989,11 +1991,11 @@ pub async fn enable_dynamic_routing_algorithm(
                 dynamic_routing_type,
                 dynamic_routing.success_based_algorithm,
                 payload,
-            )
+            ))
             .await
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
-            enable_specific_routing_algorithm(
+            Box::pin(enable_specific_routing_algorithm(
                 state,
                 key_store,
                 business_profile,
@@ -2002,7 +2004,7 @@ pub async fn enable_dynamic_routing_algorithm(
                 dynamic_routing_type,
                 dynamic_routing.elimination_routing_algorithm,
                 payload,
-            )
+            ))
             .await
         }
         routing_types::DynamicRoutingType::ContractBasedRouting => {

@@ -263,7 +263,7 @@ impl RouterDataPSync
         gateway_context: payments::flows::gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let mut capture_sync_response_map = HashMap::new();
-        if let payments::CallConnectorAction::HandleResponse(_) = call_connector_action {
+        if let payments::CallConnectorAction::HandleResponse { .. } = call_connector_action {
             // webhook consume flow, only call connector once. Since there will only be a single event in every webhook
             let resp = services::execute_connector_processing_step(
                 state,

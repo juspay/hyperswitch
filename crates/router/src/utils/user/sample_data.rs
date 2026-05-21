@@ -300,6 +300,7 @@ pub async fn generate_sample_data(
             partner_merchant_identifier_details: None,
             state_metadata: None,
             installment_options: None,
+            profile_acquirer_id: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());
@@ -396,11 +397,13 @@ pub async fn generate_sample_data(
             routing_approach: None,
             connector_request_reference_id: None,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             network_details: None,
             is_stored_credential: None,
             authorized_amount: None,
             tokenization: None,
             encrypted_payment_method_data: None,
+            sender_payment_instrument_id: None,
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {

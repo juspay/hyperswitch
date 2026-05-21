@@ -297,6 +297,7 @@ hipay.third_base_url = "https://stage-api-gateway.hipay.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 imerchantsolutions.base_url = "https://imerchantsolutions.com/api"
 inespay.base_url = "https://apiflow.inespay.com/san/v21"
+interpayments.base_url = "https://api-test.interpayments.com/v1"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br/"
 jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
 juspaythreedsserver.base_url = "http://localhost:8000"
@@ -541,7 +542,7 @@ debit = { currency = "INR,USD,GBP,EUR" }
 open_banking = { currency = "GBP,EUR" }
 
 [payout_method_filters.truelayer]
-open_banking_uk = { currency = "GBP,EUR,PLN" }
+open_banking = { currency = "GBP,EUR,PLN" }
 
 [payout_method_filters.trustly]
 trustly = { currency = "BGN,GBP,EUR,PLN,CZK,DKK,HRK,HUF,NOK,PLN,RON,SEK" }
@@ -1473,7 +1474,7 @@ enabled = "true"
 [grpc_client.unified_connector_service]
 base_url = "http://localhost:8000"
 connection_timeout = 10
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, sanlam"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, sanlam, interpayments"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [revenue_recovery]
@@ -1566,3 +1567,7 @@ backup_file_path = "./config/superposition_seed.toml" # Path to a local file for
 payment_methods_base_url = "http://localhost:8082"
 payment_methods_prefix = "v2"
 use_legacy_locker = false
+
+[micro_services.authentication_service]
+base_url = "http://localhost:8080"
+api_key = "api-key"
