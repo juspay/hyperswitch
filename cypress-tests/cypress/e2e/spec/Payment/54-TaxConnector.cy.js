@@ -200,7 +200,7 @@ describe("Tax Connector Business Profile Flag", () => {
           ]["PaymentIntent"];
 
           const paymentBody = { ...fixtures.createPaymentBody };
-          paymentBody.skip_external_tax_calculation = "skip";
+          paymentBody.skip_external_tax_calculation = true;
 
           cy.createPaymentIntentTest(
             paymentBody,
