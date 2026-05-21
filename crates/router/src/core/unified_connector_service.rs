@@ -2938,17 +2938,15 @@ pub async fn call_unified_connector_service_for_refund_execute(
             {
                 Ok(resp) => resp,
                 Err(report) => {
-                    if let UnifiedConnectorServiceError::ConnectorError {
-                        code,
-                        message,
-                        status_code,
-                        reason,
-                        connector,
-                        network_decline_code,
-                        network_advice_code,
-                        network_error_message,
-                    } = report.current_context()
+                    if let UnifiedConnectorServiceError::ConnectorError(inner) =
+                        report.current_context()
                     {
+                        let (code, message, status_code, reason, connector,
+                             network_decline_code, network_advice_code, network_error_message) = (
+                            &inner.code, &inner.message, inner.status_code, &inner.reason,
+                            &inner.connector, &inner.network_decline_code,
+                            &inner.network_advice_code, &inner.network_error_message,
+                        );
                         logger::info!(
                             "Connector error via UCS for refund execute (connector {}, status {}): {} - {}",
                             connector,
@@ -2960,7 +2958,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
                             code: code.clone(),
                             message: message.clone(),
                             reason: reason.clone(),
-                            status_code: *status_code,
+                            status_code,
                             attempt_status: None,
                             connector_transaction_id: None,
                             connector_response_reference_id: None,
@@ -3070,17 +3068,15 @@ pub async fn call_unified_connector_service_for_refund_sync(
             {
                 Ok(resp) => resp,
                 Err(report) => {
-                    if let UnifiedConnectorServiceError::ConnectorError {
-                        code,
-                        message,
-                        status_code,
-                        reason,
-                        connector,
-                        network_decline_code,
-                        network_advice_code,
-                        network_error_message,
-                    } = report.current_context()
+                    if let UnifiedConnectorServiceError::ConnectorError(inner) =
+                        report.current_context()
                     {
+                        let (code, message, status_code, reason, connector,
+                             network_decline_code, network_advice_code, network_error_message) = (
+                            &inner.code, &inner.message, inner.status_code, &inner.reason,
+                            &inner.connector, &inner.network_decline_code,
+                            &inner.network_advice_code, &inner.network_error_message,
+                        );
                         logger::info!(
                             "Connector error via UCS for refund sync (connector {}, status {}): {} - {}",
                             connector,
@@ -3092,7 +3088,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
                             code: code.clone(),
                             message: message.clone(),
                             reason: reason.clone(),
-                            status_code: *status_code,
+                            status_code,
                             attempt_status: None,
                             connector_transaction_id: None,
                             connector_response_reference_id: None,

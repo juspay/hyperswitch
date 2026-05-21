@@ -143,17 +143,17 @@ where
                         Ok(resp) => resp,
                         Err(report) => {
                             // Check if this is a connector error (4xx/5xx from connector via UCS)
-                            if let UnifiedConnectorServiceError::ConnectorError {
-                                code,
-                                message,
-                                status_code,
-                                reason,
-                                connector,
-                                network_decline_code,
-                                network_advice_code,
-                                network_error_message,
-                            } = report.current_context()
+                            if let UnifiedConnectorServiceError::ConnectorError(inner) =
+                                report.current_context()
                             {
+                                let (code, message, status_code, reason,
+                                     network_decline_code, network_advice_code,
+                                     network_error_message, connector) = (
+                                    &inner.code, &inner.message, inner.status_code,
+                                    &inner.reason, &inner.network_decline_code,
+                                    &inner.network_advice_code, &inner.network_error_message,
+                                    &inner.connector,
+                                );
                                 logger::info!(
                                     "Connector error via UCS for recurring charge (connector {}, status {}): {} - {}",
                                     connector,
@@ -166,7 +166,7 @@ where
                                         code: code.clone(),
                                         message: message.clone(),
                                         reason: reason.clone(),
-                                        status_code: *status_code,
+                                        status_code,
                                         attempt_status: None,
                                         connector_transaction_id: None,
                                         connector_response_reference_id: None,
@@ -263,17 +263,28 @@ where
                             // Check if this is a connector error (4xx/5xx from connector via UCS)
                             // If so, set it as router_data.response = Err(ErrorResponse) and return Ok
                             // This matches how direct connector errors are handled
-                            if let UnifiedConnectorServiceError::ConnectorError {
-                                code,
-                                message,
-                                status_code,
-                                reason,
-                                connector,
-                                network_decline_code,
-                                network_advice_code,
-                                network_error_message,
-                            } = report.current_context()
+                            if let UnifiedConnectorServiceError::ConnectorError(inner) =
+                                report.current_context()
                             {
+                                let (
+                                    code,
+                                    message,
+                                    status_code,
+                                    reason,
+                                    network_decline_code,
+                                    network_advice_code,
+                                    network_error_message,
+                                    connector,
+                                ) = (
+                                    &inner.code,
+                                    &inner.message,
+                                    inner.status_code,
+                                    &inner.reason,
+                                    &inner.network_decline_code,
+                                    &inner.network_advice_code,
+                                    &inner.network_error_message,
+                                    &inner.connector,
+                                );
                                 logger::info!(
                                     "Connector error via UCS (connector {}, status {}): {} - {}",
                                     connector,
@@ -286,7 +297,7 @@ where
                                         code: code.clone(),
                                         message: message.clone(),
                                         reason: reason.clone(),
-                                        status_code: *status_code,
+                                        status_code,
                                         attempt_status: None,
                                         connector_transaction_id: None,
                                         connector_response_reference_id: None,

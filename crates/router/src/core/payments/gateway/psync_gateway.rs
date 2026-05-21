@@ -200,17 +200,17 @@ where
                         {
                             Ok(resp) => resp,
                             Err(report) => {
-                                if let UnifiedConnectorServiceError::ConnectorError {
-                                    code,
-                                    message,
-                                    status_code,
-                                    reason,
-                                    connector,
-                                    network_decline_code,
-                                    network_advice_code,
-                                    network_error_message,
-                                } = report.current_context()
+                                if let UnifiedConnectorServiceError::ConnectorError(inner) =
+                                    report.current_context()
                                 {
+                                    let (code, message, status_code, reason,
+                                         network_decline_code, network_advice_code,
+                                         network_error_message, connector) = (
+                                        &inner.code, &inner.message, inner.status_code,
+                                        &inner.reason, &inner.network_decline_code,
+                                        &inner.network_advice_code, &inner.network_error_message,
+                                        &inner.connector,
+                                    );
                                     logger::info!(
                                         "Connector error via UCS for psync (connector {}, status {}): {} - {}",
                                         connector,
@@ -223,7 +223,7 @@ where
                                             code: code.clone(),
                                             message: message.clone(),
                                             reason: reason.clone(),
-                                            status_code: *status_code,
+                                            status_code,
                                             attempt_status: None,
                                             connector_transaction_id: None,
                                             connector_response_reference_id: None,

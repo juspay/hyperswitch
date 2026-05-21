@@ -104,25 +104,8 @@ pub enum UnifiedConnectorServiceError {
 
     /// Connector error received through UCS (contains original connector HTTP status code).
     /// Distinguishes connector errors from UCS errors by presence of status_code.
-    #[error("Connector error via UCS: {code} - {message}")]
-    ConnectorError {
-        /// Connector error code
-        code: String,
-        /// Connector error message
-        message: String,
-        /// Original HTTP status code from connector
-        status_code: u16,
-        /// Optional reason for the error
-        reason: Option<String>,
-        /// Name of the connector that returned the error
-        connector: String,
-        /// Network decline code from card scheme (e.g. Visa/Mastercard decline code)
-        network_decline_code: Option<String>,
-        /// Network advice code for retry logic
-        network_advice_code: Option<String>,
-        /// Network-specific error message
-        network_error_message: Option<String>,
-    },
+    #[error("Connector error via UCS: {0:?}")]
+    ConnectorError(Box<ConnectorErrorInner>),
 
     /// Failed to perform Payment Create Order from gRPC Server
     #[error("Failed to perform Payment Create Order from gRPC Server")]
@@ -235,6 +218,28 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Payout Enroll Disburse Account from gRPC Server
     #[error("Failed to perform Payout Enroll Disburse Account from gRPC Server")]
     PayoutEnrollDisburseAccountFailure,
+}
+
+/// Inner data for [`UnifiedConnectorServiceError::ConnectorError`].
+/// Boxed to keep the enum's memory footprint small.
+#[derive(Debug, Clone)]
+pub struct ConnectorErrorInner {
+    /// Connector error code
+    pub code: String,
+    /// Connector error message
+    pub message: String,
+    /// Original HTTP status code from connector
+    pub status_code: u16,
+    /// Optional reason for the error
+    pub reason: Option<String>,
+    /// Name of the connector that returned the error
+    pub connector: String,
+    /// Network decline code from card scheme (e.g. Visa/Mastercard decline code)
+    pub network_decline_code: Option<String>,
+    /// Network advice code for retry logic
+    pub network_advice_code: Option<String>,
+    /// Network-specific error message
+    pub network_error_message: Option<String>,
 }
 
 impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
@@ -905,7 +910,7 @@ impl UnifiedConnectorServiceError {
     pub fn http_status(&self) -> u16 {
         match self {
             Self::TonicStatus { code, .. } => Self::tonic_to_http_status(*code),
-            Self::ConnectorError { status_code, .. } => *status_code,
+            Self::ConnectorError(inner) => inner.status_code,
             Self::ConnectionError(_) => 503,
             Self::InvalidDataFormat { .. }
             | Self::MissingRequiredField { .. }
@@ -963,7 +968,7 @@ impl UnifiedConnectorServiceError {
 
         let status_code = u16::try_from(connector_error.http_status_code?).ok()?;
 
-        Some(Self::ConnectorError {
+        Some(Self::ConnectorError(Box::new(ConnectorErrorInner {
             code: connector_error.error_code,
             message: connector_error.error_message,
             status_code,
@@ -991,7 +996,7 @@ impl UnifiedConnectorServiceError {
                 .and_then(|ei| ei.issuer_details.as_ref())
                 .and_then(|id| id.network_details.as_ref())
                 .and_then(|nd| nd.error_message.clone()),
-        })
+        })))
     }
 }
 
@@ -1022,19 +1027,12 @@ impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
                 | tonic::Code::Internal => ApiErrorResponse::InternalServerError,
                 _ => ApiErrorResponse::InternalServerError,
             },
-            Self::ConnectorError {
-                code,
-                message,
-                status_code,
-                reason,
-                connector,
-                ..
-            } => ApiErrorResponse::ExternalConnectorError {
-                code: code.clone(),
-                message: message.clone(),
-                connector: connector.clone(),
-                status_code: *status_code,
-                reason: reason.clone(),
+            Self::ConnectorError(inner) => ApiErrorResponse::ExternalConnectorError {
+                code: inner.code.clone(),
+                message: inner.message.clone(),
+                connector: inner.connector.clone(),
+                status_code: inner.status_code,
+                reason: inner.reason.clone(),
             },
             _ => ApiErrorResponse::InternalServerError,
         }
@@ -1058,7 +1056,7 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
                 )))
             }
             // Connector errors with status code → ResponseHandlingFailed
-            Self::ConnectorError { .. } => ConnectorError::ResponseHandlingFailed,
+            Self::ConnectorError(_) => ConnectorError::ResponseHandlingFailed,
             // Connection/availability errors → ResponseHandlingFailed
             Self::ConnectionError(_) => ConnectorError::ResponseHandlingFailed,
             // Request encoding errors
