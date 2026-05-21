@@ -3747,6 +3747,59 @@
         ]
       }
     },
+    "/v1/{customer_id}/payment-methods/{payment_method_id}/default": {
+      "post": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - Set Default Payment Method for Customer",
+        "description": "Set the Payment Method as Default for the Customer.",
+        "operationId": "Set the Payment Method as Default",
+        "parameters": [
+          {
+            "name": "customer_id",
+            "in": "path",
+            "description": "The unique identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "payment_method_id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Method has been set as default",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerDefaultPaymentMethodResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payment Method has already been set as default for that customer"
+          },
+          "404": {
+            "description": "Payment Method not found for the customer"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/payment-method-sessions": {
       "post": {
         "tags": [
@@ -12515,6 +12568,39 @@
           }
         },
         "additionalProperties": false
+      },
+      "CustomerDefaultPaymentMethodResponse": {
+        "type": "object",
+        "required": [
+          "default_payment_method_id",
+          "customer_id",
+          "payment_method_type"
+        ],
+        "properties": {
+          "default_payment_method_id": {
+            "type": "string",
+            "description": "The unique identifier of the Payment method",
+            "example": "card_rGK4Vi5iSW70MY7J2mIg"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The unique identifier of the customer.",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "CustomerDeleteResponse": {
         "type": "object",
@@ -26033,6 +26119,10 @@
           "merchant_id": {
             "type": "string",
             "nullable": true
+          },
+          "expand_attempts": {
+            "type": "boolean",
+            "nullable": true
           }
         }
       },
@@ -26059,6 +26149,13 @@
           "merchant_id": {
             "type": "string",
             "description": "The identifier for the Merchant Account.",
+            "nullable": true
+          },
+          "expand_attempts": {
+            "type": "boolean",
+            "description": "Set to true to get the list of attempts along with payout details, no further action required",
+            "default": false,
+            "example": true,
             "nullable": true
           }
         }
@@ -26461,7 +26558,7 @@
           {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PixAutomaticoPushDetails"
+                "$ref": "#/components/schemas/PixAutomaticoPushData"
               },
               {
                 "type": "object",
@@ -26478,36 +26575,53 @@
                 }
               }
             ]
-          }
-        ],
-        "discriminator": {
-          "propertyName": "type"
-        }
-      },
-      "PixAutomaticoCitData": {
-        "type": "object",
-        "description": "Data for Santander Pix Automatico CIT (Customer Initiated Transaction) - used during mandate setup",
-        "properties": {
-          "contract_id": {
-            "type": "string",
-            "description": "Contract ID to identify the recurring payment contract",
-            "example": "pm_16503867",
-            "nullable": true
           },
-          "retry_policy": {
-            "type": "boolean",
-            "description": "Enable retry policy for failed payments (maps to PERMITE_3R_7D if true)",
-            "example": true,
-            "nullable": true
-          },
-          "mandate_details": {
+          {
             "allOf": [
               {
-                "$ref": "#/components/schemas/SantanderMandateDetails"
+                "$ref": "#/components/schemas/PixAutomaticoQrData"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "pix_automatico_qr"
+                    ]
+                  }
+                }
               }
-            ],
-            "nullable": true
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixAutomaticoMitData"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "pix_automatico_mit"
+                    ]
+                  }
+                }
+              }
+            ]
           }
+        ],
+        "description": "Represents the specific data for Santander Pix Automatico (recurring PIX payments)\nSplit into CIT (Customer Initiated Transaction) and MIT (Merchant Initiated Transaction) variants",
+        "discriminator": {
+          "propertyName": "type"
         }
       },
       "PixAutomaticoMitData": {
@@ -26559,8 +26673,9 @@
           }
         }
       },
-      "PixAutomaticoPushDetails": {
+      "PixAutomaticoPushData": {
         "type": "object",
+        "description": "Data for PixAutomaticoPush Payment Method Type CIT (Customer Initiated Transaction) - used during mandate setup",
         "required": [
           "time"
         ],
@@ -26571,6 +26686,40 @@
             "description": "Time in seconds until which the push notification is valid",
             "example": 3600,
             "minimum": 0
+          },
+          "retry_policy": {
+            "type": "boolean",
+            "description": "Enable retry policy for failed payments (maps to PERMITE_3R_7D if true)",
+            "example": true,
+            "nullable": true
+          },
+          "mandate_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderMandateDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PixAutomaticoQrData": {
+        "type": "object",
+        "description": "Data for PixAutomaticoQr Payment Method Type CIT (Customer Initiated Transaction) - used during mandate setup + non 0$ mandate setup",
+        "properties": {
+          "retry_policy": {
+            "type": "boolean",
+            "description": "Enable retry policy for failed payments (maps to PERMITE_3R_7D if true)",
+            "example": true,
+            "nullable": true
+          },
+          "mandate_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderMandateDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -29656,14 +29805,6 @@
               }
             ],
             "nullable": true
-          },
-          "pix_automatico": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/SantanderPixAutomaticoData"
-              }
-            ],
-            "nullable": true
           }
         }
       },
@@ -29680,10 +29821,18 @@
       "SantanderMandateDetails": {
         "type": "object",
         "properties": {
-          "amount": {
+          "fixed_recurring_amount": {
             "type": "integer",
             "format": "int64",
-            "description": "Maximum amount for each recurring charge",
+            "description": "Fixed amount for each recurring charge in minor units (e.g., cents). If not provided, the mandate will allow variable amounts.",
+            "example": 6540,
+            "nullable": true,
+            "minimum": 0
+          },
+          "min_recurring_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Minimum amount for each recurring charge in minor units (e.g., cents). If not provided, there will be no minimum limit on the amount.",
             "example": 6540,
             "nullable": true,
             "minimum": 0
@@ -29743,33 +29892,6 @@
             "description": "A generic vector of discount tiers"
           }
         }
-      },
-      "SantanderPixAutomaticoData": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "cit"
-            ],
-            "properties": {
-              "cit": {
-                "$ref": "#/components/schemas/PixAutomaticoCitData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "mit"
-            ],
-            "properties": {
-              "mit": {
-                "$ref": "#/components/schemas/PixAutomaticoMitData"
-              }
-            }
-          }
-        ],
-        "description": "Represents the specific data for Santander Pix Automatico (recurring PIX payments)\nSplit into CIT (Customer Initiated Transaction) and MIT (Merchant Initiated Transaction) variants"
       },
       "SantanderPixAutomaticoReceiverDetails": {
         "type": "object",
