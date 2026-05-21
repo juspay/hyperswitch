@@ -2839,6 +2839,48 @@ pub async fn payments_submit_eligibility(
     .await
 }
 
+#[cfg(all(feature = "oltp", feature = "v1"))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsSubmitPreConfirm, payment_id))]
+pub async fn payments_submit_pre_confirm(
+    state: web::Data<app::AppState>,
+    http_req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsPreConfirmRequest>,
+    path: web::Path<common_utils::id_type::PaymentId>,
+) -> impl Responder {
+    let flow = Flow::PaymentsSubmitPreConfirm;
+    let payment_id = path.into_inner();
+    let mut payload = json_payload.into_inner();
+    payload.payment_id = payment_id.clone();
+
+    let api_auth = auth::ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: false,
+    };
+
+    let (auth_type, _auth_flow) =
+        match auth::check_sdk_auth_and_get_auth(http_req.headers(), &payload, api_auth) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(report!(err)),
+        };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &http_req,
+        payment_id,
+        |state, auth: auth::AuthenticationData, payment_id, _| {
+            let mut payload = payload.clone();
+            if let Some(client_secret) = auth.client_secret {
+                payload.client_secret = Some(Secret::new(client_secret));
+            }
+            payments::payments_submit_pre_confirm(state, auth.platform, payload.clone(), payment_id)
+        },
+        &*auth_type,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(feature = "v1")]
 pub fn get_or_generate_payment_id(
     payload: &mut payment_types::PaymentsRequest,

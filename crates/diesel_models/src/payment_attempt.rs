@@ -800,6 +800,10 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     },
+    ExternalSurchargeUpdate {
+        external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
+        updated_by: String,
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -1245,6 +1249,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub authorized_amount: Option<MinorUnit>,
     pub error_details: Option<Option<ErrorDetails>>,
+    pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -1454,6 +1459,7 @@ impl PaymentAttemptUpdate {
             authorized_amount,
             error_details,
             installment_data,
+            external_surcharge_details,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
             amount: amount.unwrap_or(source.amount),
@@ -1539,6 +1545,8 @@ impl PaymentAttemptUpdate {
             authorized_amount: authorized_amount.or(source.authorized_amount),
             tokenization: tokenization.or(source.tokenization),
             error_details: error_details.unwrap_or(source.error_details),
+            external_surcharge_details: external_surcharge_details
+                .or(source.external_surcharge_details),
             ..source
         }
     }
@@ -2907,6 +2915,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
@@ -2983,6 +2992,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::ConfirmUpdate {
                 amount,
@@ -3098,6 +3108,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -3175,6 +3186,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 installment_data: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::RejectUpdate {
                 status,
@@ -3253,6 +3265,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 installment_data: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::BlocklistUpdate {
                 status,
@@ -3331,6 +3344,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 installment_data: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
                 connector_mandate_detail,
@@ -3408,6 +3422,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 installment_data: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
                 payment_method_id,
@@ -3484,6 +3499,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 installment_data: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::ResponseUpdate {
                 status,
@@ -3597,6 +3613,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     encrypted_payment_method_data,
                     error_details,
                     installment_data: None,
+                    external_surcharge_details: None,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {
@@ -3697,6 +3714,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     installment_data: None,
                     encrypted_payment_method_data,
                     error_details,
+                    external_surcharge_details: None,
                 }
             }
             PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {
@@ -3771,6 +3789,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
@@ -3855,6 +3874,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,
@@ -3946,6 +3966,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     installment_data: None,
                     encrypted_payment_method_data: None,
                     error_details,
+                    external_surcharge_details: None,
                 }
             }
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -4034,6 +4055,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     installment_data: None,
                     encrypted_payment_method_data: None,
                     error_details: None,
+                    external_surcharge_details: None,
                 }
             }
             PaymentAttemptUpdate::CaptureUpdate {
@@ -4112,6 +4134,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status,
@@ -4189,6 +4212,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::ConnectorResponse {
                 authentication_data,
@@ -4275,6 +4299,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     installment_data: None,
                     encrypted_payment_method_data: None,
                     error_details: None,
+                    external_surcharge_details: None,
                 }
             }
             PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
@@ -4352,6 +4377,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::AuthenticationUpdate {
                 status,
@@ -4431,6 +4457,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::ManualUpdate {
                 status,
@@ -4520,6 +4547,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     installment_data: None,
                     encrypted_payment_method_data: None,
                     error_details: None,
+                    external_surcharge_details: None,
                 }
             }
             PaymentAttemptUpdate::PostSessionTokensUpdate {
@@ -4597,6 +4625,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                external_surcharge_details: None,
             },
             PaymentAttemptUpdate::RecurrenceUpdate {
                 status,
@@ -4677,6 +4706,84 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authorized_amount: None,
                 installment_data: None,
                 encrypted_payment_method_data: None,
+                external_surcharge_details: None,
+            },
+            PaymentAttemptUpdate::ExternalSurchargeUpdate {
+                external_surcharge_details,
+                updated_by,
+            } => Self {
+                external_surcharge_details,
+                updated_by,
+                modified_at: common_utils::date_time::now(),
+                amount: None,
+                net_amount: None,
+                currency: None,
+                status: None,
+                connector_transaction_id: None,
+                amount_to_capture: None,
+                connector: None,
+                authentication_type: None,
+                payment_method: None,
+                error_message: None,
+                payment_method_id: None,
+                cancellation_reason: None,
+                mandate_id: None,
+                browser_info: None,
+                payment_token: None,
+                error_code: None,
+                connector_metadata: None,
+                payment_method_data: None,
+                encrypted_payment_method_data: None,
+                payment_method_type: None,
+                payment_experience: None,
+                business_sub_label: None,
+                straight_through_algorithm: None,
+                preprocessing_step_id: None,
+                error_reason: None,
+                capture_method: None,
+                connector_response_reference_id: None,
+                multiple_capture_count: None,
+                surcharge_amount: None,
+                tax_amount: None,
+                amount_capturable: None,
+                merchant_connector_id: None,
+                authentication_data: None,
+                encoded_data: None,
+                unified_code: None,
+                unified_message: None,
+                external_three_ds_authentication_attempted: None,
+                authentication_connector: None,
+                authentication_id: None,
+                fingerprint_id: None,
+                payment_method_billing_address_id: None,
+                client_source: None,
+                client_version: None,
+                customer_acceptance: None,
+                card_network: None,
+                shipping_cost: None,
+                order_tax_amount: None,
+                capture_before: None,
+                extended_authorization_applied: None,
+                extended_authorization_last_applied_at: None,
+                tokenization: None,
+                processor_transaction_data: None,
+                card_discovery: None,
+                charges: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
+                setup_future_usage_applied: None,
+                routing_approach: None,
+                connector_request_reference_id: None,
+                network_transaction_id: None,
+                network_transaction_link_id: None,
+                is_overcapture_enabled: None,
+                network_details: None,
+                is_stored_credential: None,
+                request_extended_authorization: None,
+                authorized_amount: None,
+                installment_data: None,
+                connector_mandate_detail: None,
+                error_details: None,
             },
         }
     }

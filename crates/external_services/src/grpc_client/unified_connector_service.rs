@@ -46,6 +46,8 @@ pub struct UnifiedConnectorServiceClient {
         payments_grpc::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient<tonic::transport::Channel>,
         /// The Payout Service Client
     pub payout_service_client: payments_grpc::payout_service_client::PayoutServiceClient<tonic::transport::Channel>,
+    /// The Surcharge Service Client
+    pub surcharge_service_client: payments_grpc::surcharge_service_client::SurchargeServiceClient<tonic::transport::Channel>,
 }
 
 /// Contains the Unified Connector Service Client config
@@ -292,6 +294,15 @@ impl UnifiedConnectorServiceClient {
                     timeout
                 );
 
+                let surcharge_service_client = build_grpc_client!(
+                    payments_grpc::surcharge_service_client::SurchargeServiceClient<
+                        tonic::transport::Channel,
+                    >,
+                    "surcharge_service_client",
+                    uri,
+                    timeout
+                );
+
                 logger::info!("Successfully connected to Unified Connector Service");
 
                 Some(Self {
@@ -305,6 +316,7 @@ impl UnifiedConnectorServiceClient {
                     merchant_authentication_service_client,
                     payment_method_authentication_service_client,
                     payout_service_client,
+                    surcharge_service_client,
                 })
             }
             None => {
@@ -1151,6 +1163,38 @@ impl UnifiedConnectorServiceClient {
                     method="payout_enroll_disburse_account",
                     connector_name=?connector_name,
                     "UCS payout enroll disburse account gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs surcharge calculation via the Surcharge Service
+    pub async fn surcharge_calculate(
+        &self,
+        surcharge_calculate_request: payments_grpc::SurchargeServiceCalculateRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::SurchargeServiceCalculateResponse>,
+    > {
+        let mut request = tonic::Request::new(surcharge_calculate_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+
+        *request.metadata_mut() = metadata;
+
+        self.surcharge_service_client
+            .clone()
+            .calculate(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::SurchargeCalculateFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="surcharge_calculate",
+                    connector_name=?connector_name,
+                    "UCS surcharge_calculate gRPC call failed"
                 )
             })
     }

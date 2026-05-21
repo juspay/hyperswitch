@@ -1430,7 +1430,6 @@ pub struct PaymentsRequest {
     #[smithy(value_type = "Option<String>")]
     pub profile_id: Option<id_type::ProfileId>,
 
-    #[remove_in(PaymentsConfirmRequest)]
     #[schema(value_type = Option<RequestSurchargeDetails>)]
     #[smithy(value_type = "Option<RequestSurchargeDetails>")]
     pub surcharge_details: Option<RequestSurchargeDetails>,
@@ -10710,6 +10709,8 @@ pub enum NextActionCall {
     Deny { message: String },
     /// The next action is to perform eligibility check
     EligibilityCheck,
+    /// The next action is to perform pre-confirm (combined eligibility + surcharge calculation)
+    PreConfirm,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -12655,6 +12656,49 @@ pub struct PaymentsEligibilityResponse {
     pub payment_id: id_type::PaymentId,
     /// Next action to be performed by the SDK
     pub sdk_next_action: SdkNextAction,
+}
+
+/// Request body for the pre_confirm endpoint.
+/// Combines eligibility checks with external surcharge calculation in a single call.
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, ToSchema)]
+pub struct PaymentsPreConfirmRequest {
+    /// The identifier for the payment
+    /// Added in the payload for ApiEventMetrics, populated from the path param
+    #[serde(skip)]
+    pub payment_id: id_type::PaymentId,
+    /// Token used for client side verification
+    #[schema(value_type = String, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
+    pub client_secret: Option<Secret<String>>,
+    /// The payment method to be used for the payment
+    #[schema(value_type = PaymentMethod, example = "card")]
+    pub payment_method_type: api_enums::PaymentMethod,
+    /// The payment method type to be used for the payment
+    #[schema(value_type = Option<PaymentMethodType>)]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
+    /// The payment instrument data for eligibility check and surcharge BIN lookup
+    #[serde(with = "eligibility_payment_method_data_serde", default)]
+    pub payment_method_data: Option<EligibilityPaymentMethodDataRequest>,
+    /// The browser information for the payment
+    #[schema(value_type = Option<BrowserInformation>)]
+    pub browser_info: Option<BrowserInformation>,
+    /// The payment token to look up the saved payment method
+    #[schema(value_type = String, example = "token_abc123xyz")]
+    pub payment_token: Option<Secret<String>>,
+}
+
+/// Response body for the pre_confirm endpoint.
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsPreConfirmResponse {
+    /// The identifier for the payment
+    #[schema(value_type = String)]
+    pub payment_id: id_type::PaymentId,
+    /// Next action to be performed by the SDK
+    pub sdk_next_action: SdkNextAction,
+    /// Surcharge details if an external surcharge was calculated. None if eligibility was denied
+    /// or no surcharge connector is configured for this merchant.
+    pub surcharge_details: Option<payment_methods::SurchargeDetailsResponse>,
 }
 
 #[cfg(feature = "v1")]

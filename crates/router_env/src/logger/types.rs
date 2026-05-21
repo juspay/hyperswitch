@@ -729,6 +729,8 @@ pub enum Flow {
     PaymentMethodBalanceCheck,
     /// Payments Submit Eligibility flow
     PaymentsSubmitEligibility,
+    /// Payments Submit PreConfirm flow (combined eligibility + external surcharge)
+    PaymentsSubmitPreConfirm,
     /// Apply payment method data flow
     ApplyPaymentMethodData,
     /// Payouts aggregates flow

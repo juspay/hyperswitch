@@ -996,6 +996,10 @@ impl Payments {
                         .route(web::post().to(payments::payments_submit_eligibility)),
                 )
                 .service(
+                    web::resource("/{payment_id}/pre_confirm")
+                        .route(web::post().to(payments::payments_submit_pre_confirm)),
+                )
+                .service(
                     web::resource("/redirect/{payment_id}/{merchant_id}/{attempt_id}")
                         .route(web::get().to(payments::payments_start)),
                 )

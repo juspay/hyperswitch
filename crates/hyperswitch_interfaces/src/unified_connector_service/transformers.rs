@@ -197,6 +197,10 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Payout Enroll Disburse Account from gRPC Server
     #[error("Failed to perform Payout Enroll Disburse Account from gRPC Server")]
     PayoutEnrollDisburseAccountFailure,
+
+    /// Failed to perform Surcharge Calculate from gRPC Server
+    #[error("Failed to perform Surcharge Calculate from gRPC Server")]
+    SurchargeCalculateFailure,
 }
 
 impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>

@@ -866,6 +866,20 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .net_amount
             .set_order_tax_amount(order_tax_amount);
 
+        // If the SDK passed surcharge details from a prior /pre_confirm call (external surcharge
+        // via InterPayments), apply them to net_amount now so that populate_surcharge_details
+        // picks them up in the non-DSS path and persists them with the attempt.
+        if let Some(ref req_surcharge) = request.surcharge_details {
+            let surcharge_details =
+                hyperswitch_domain_models::router_request_types::SurchargeDetails::from((
+                    req_surcharge,
+                    &payment_attempt,
+                ));
+            payment_attempt
+                .net_amount
+                .set_surcharge_details(Some(surcharge_details));
+        }
+
         payment_attempt.connector_mandate_detail = Some(
             DieselConnectorMandateReferenceId::foreign_from(ConnectorMandateReferenceId::new(
                 None,

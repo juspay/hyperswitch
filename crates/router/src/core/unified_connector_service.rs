@@ -3035,3 +3035,90 @@ pub async fn call_unified_connector_service_for_refund_sync(
     .await
     .map(|(router_data, _flow_response)| router_data)
 }
+
+/// Execute a surcharge calculation call via UCS SurchargeService.Calculate.
+///
+/// This is a lightweight helper — it does not go through the full RouterData
+/// machinery. It is called from `payments_submit_pre_confirm` after eligibility
+/// checks pass.
+#[cfg(all(feature = "oltp", feature = "v1"))]
+#[instrument(skip_all, fields(connector_name))]
+pub async fn call_unified_connector_service_for_surcharge_calculate(
+    state: &SessionState,
+    processor: &Processor,
+    #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
+    surcharge_data: hyperswitch_domain_models::router_request_types::PaymentsSurchargeCalculationData,
+    payment_id: &id_type::PaymentId,
+    profile_id: &id_type::ProfileId,
+    connector_name: String,
+) -> RouterResult<hyperswitch_domain_models::router_response_types::SurchargeCalculationResponseData>
+{
+    use hyperswitch_domain_models::router_request_types::SurchargeStrategy;
+
+    let ucs_client = get_ucs_client(state)?;
+
+    let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+        merchant_connector_account,
+        processor,
+        connector_name.clone(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to build UCS auth metadata for surcharge calculate")?;
+
+    // Build the gRPC request directly
+    let amount = payments_grpc::Money {
+        minor_amount: surcharge_data.amount.get_amount_as_i64(),
+        currency: payments_grpc::Currency::foreign_try_from(surcharge_data.currency)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert currency for surcharge gRPC request")?
+            .into(),
+    };
+    let surcharge_request = payments_grpc::SurchargeServiceCalculateRequest {
+        merchant_surcharge_id: Some(payment_id.get_string_repr().to_owned()),
+        amount: Some(amount),
+        card_bin: surcharge_data.card_iin.clone(),
+        postal_code: surcharge_data.postal_code.clone(),
+        previous_connector_surcharge_id: surcharge_data.previous_connector_surcharge_id.clone(),
+        country: surcharge_data
+            .country
+            .as_ref()
+            .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+            .map(|c| c.into()),
+        surcharge_strategy: surcharge_data.surcharge_strategy.as_ref().map(|s| {
+            match s {
+                SurchargeStrategy::Apply => payments_grpc::SurchargeStrategy::Apply,
+                SurchargeStrategy::Waive => payments_grpc::SurchargeStrategy::Waive,
+            }
+            .into()
+        }),
+    };
+
+    // Build gRPC headers
+    let lineage_ids = LineageIds::new(processor.get_account().get_id().clone(), profile_id.clone());
+    let merchant_reference_id = id_type::PaymentReferenceId::from_str(payment_id.get_string_repr())
+        .inspect_err(
+            |err| logger::warn!(error=?err, "Invalid PaymentId for surcharge UCS reference id"),
+        )
+        .ok()
+        .map(ucs_types::UcsReferenceId::Payment);
+
+    let grpc_header_builder = state
+        .get_grpc_headers_ucs(ExecutionMode::Primary)
+        .lineage_ids(lineage_ids)
+        .external_vault_proxy_metadata(None)
+        .merchant_reference_id(merchant_reference_id)
+        .resource_id(None);
+    let grpc_headers = grpc_header_builder.build();
+
+    let response = ucs_client
+        .surcharge_calculate(surcharge_request, connector_auth_metadata, grpc_headers)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("UCS surcharge_calculate gRPC call failed")?;
+
+    hyperswitch_domain_models::router_response_types::SurchargeCalculationResponseData::foreign_try_from(
+        response.into_inner(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to parse UCS surcharge calculate response")
+}

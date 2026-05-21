@@ -105,6 +105,7 @@ use super::{
     payment_methods::surcharge_decision_configs,
     routing::{transaction_type_from_payments_dsl, TransactionData},
     unified_connector_service::{
+        call_unified_connector_service_for_surcharge_calculate,
         extract_gateway_system_from_payment_intent, should_call_unified_connector_service,
     },
 };
@@ -12343,6 +12344,235 @@ pub async fn payments_submit_eligibility(
         api_models::payments::PaymentsEligibilityResponse {
             payment_id,
             sdk_next_action,
+        },
+    ))
+}
+
+#[cfg(all(feature = "oltp", feature = "v1"))]
+pub async fn payments_submit_pre_confirm(
+    state: SessionState,
+    platform: domain::Platform,
+    req: api_models::payments::PaymentsPreConfirmRequest,
+    payment_id: id_type::PaymentId,
+) -> RouterResponse<api_models::payments::PaymentsPreConfirmResponse> {
+    // Convert to eligibility request so we can reuse the existing data-fetching logic
+    // Extract postal code and country from payment_method_data.billing.address for surcharge BIN lookup
+    let billing_address = req
+        .payment_method_data
+        .as_ref()
+        .and_then(|pmd| pmd.billing.as_ref())
+        .and_then(|billing| billing.address.as_ref());
+    let postal_code = billing_address.and_then(|addr| addr.zip.clone());
+    let billing_country = billing_address.and_then(|addr| addr.country);
+    let eligibility_req = api_models::payments::PaymentsEligibilityRequest {
+        payment_id: req.payment_id.clone(),
+        client_secret: req.client_secret.clone(),
+        payment_method_type: req.payment_method_type,
+        payment_method_subtype: req.payment_method_subtype,
+        payment_method_data: req.payment_method_data,
+        browser_info: req.browser_info,
+        payment_token: req.payment_token,
+    };
+    let payment_eligibility_data = Box::pin(PaymentEligibilityData::from_request(
+        &state,
+        &platform,
+        &eligibility_req,
+    ))
+    .await?;
+    let profile_id = payment_eligibility_data
+        .payment_intent
+        .profile_id
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("'profile_id' not set in payment intent")?;
+
+    // Capture data needed for the surcharge call before moving into the handler
+    let pi_amount = payment_eligibility_data.payment_intent.amount;
+    let pi_currency = payment_eligibility_data.payment_intent.currency;
+    let active_attempt_id = payment_eligibility_data
+        .payment_intent
+        .active_attempt
+        .get_id()
+        .clone();
+    let card_iin: Option<String> = match &payment_eligibility_data.payment_method_data {
+        Some(domain::EligibilityPaymentMethodData::Card(card)) => {
+            Some(card.card_number.get_card_isin())
+        }
+        _ => None,
+    };
+
+    let business_profile = state
+        .store
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+
+    // Clone state/platform so we retain them after the handler takes ownership
+    let state_for_surcharge = state.clone();
+    let platform_for_surcharge = platform.clone();
+
+    let eligibility_handler =
+        EligibilityHandler::new(state, platform, payment_eligibility_data, business_profile);
+    // Run eligibility checks; short-circuit on deny
+    let sdk_next_action = eligibility_handler
+        .run_check(BlockListCheck)
+        .await
+        .transpose()
+        .async_or_else(|| async {
+            eligibility_handler
+                .run_check(CardTestingCheck)
+                .await
+                .transpose()
+        })
+        .await
+        .transpose()?
+        .unwrap_or(api_models::payments::SdkNextAction {
+            next_action: api_models::payments::NextActionCall::Confirm,
+        });
+
+    // If eligibility was denied, return without surcharge details
+    let surcharge_details = if matches!(
+        sdk_next_action.next_action,
+        api_models::payments::NextActionCall::Deny { .. }
+    ) {
+        None
+    } else {
+        // Look for a SurchargeProcessor MCA on this profile
+        let surcharge_mcas = state_for_surcharge
+            .store
+            .list_enabled_connector_accounts_by_profile_id(
+                &profile_id,
+                platform_for_surcharge.get_processor().get_key_store(),
+                common_enums::ConnectorType::SurchargeProcessor,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to list SurchargeProcessor MCAs")?;
+
+        if let Some(surcharge_mca) = surcharge_mcas.into_iter().next() {
+            // Surcharge only applies to cards — skip if no card BIN
+            if let (Some(card_iin), Some(currency)) = (card_iin, pi_currency) {
+                let amount = pi_amount;
+                let surcharge_data = hyperswitch_domain_models::router_request_types::PaymentsSurchargeCalculationData {
+                    amount,
+                    currency,
+                    postal_code: postal_code.clone(),
+                    card_iin,
+                    previous_connector_surcharge_id: None,
+                    country: billing_country,
+                    surcharge_strategy: None,
+                };
+                let connector_name = surcharge_mca.connector_name.clone();
+                let mca_type =
+                    helpers::MerchantConnectorAccountType::DbVal(Box::new(surcharge_mca));
+
+                match call_unified_connector_service_for_surcharge_calculate(
+                    &state_for_surcharge,
+                    platform_for_surcharge.get_processor(),
+                    mca_type,
+                    surcharge_data,
+                    &payment_id,
+                    &profile_id,
+                    connector_name,
+                )
+                .await
+                {
+                    Ok(resp) if resp.surcharge_amount.get_amount_as_i64() > 0 => {
+                        let surcharge_amount = resp.surcharge_amount;
+                        let connector_surcharge_id = resp.connector_surcharge_id.clone();
+                        let surcharge_f64 = surcharge_amount.get_amount_as_i64() as f64;
+
+                        // Best-effort: persist connector_surcharge_id to payment_attempt
+                        let merchant_id = platform_for_surcharge
+                            .get_processor()
+                            .get_account()
+                            .get_id()
+                            .clone();
+                        let storage_scheme = platform_for_surcharge
+                            .get_processor()
+                            .get_account()
+                            .storage_scheme;
+                        let key_store = platform_for_surcharge
+                            .get_processor()
+                            .get_key_store()
+                            .clone();
+                        // active_attempt_id is already a String from RemoteStorageObject::get_id()
+                        let attempt_id_str = active_attempt_id.clone();
+                        let persist_result = async {
+                            let payment_attempt = state_for_surcharge
+                                .store
+                                .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                                    &payment_id,
+                                    &merchant_id,
+                                    &attempt_id_str,
+                                    storage_scheme,
+                                    &key_store,
+                                )
+                                .await
+                                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                            let external_surcharge_details =
+                                common_types::payments::ExternalSurchargeDetails {
+                                    external_surcharge_id: connector_surcharge_id,
+                                    external_surcharge_amount: surcharge_amount,
+                                    sale_notified: false,
+                                };
+                            state_for_surcharge
+                                .store
+                                .update_payment_attempt_with_attempt_id(
+                                    payment_attempt,
+                                    hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ExternalSurchargeUpdate {
+                                        external_surcharge_details: Some(external_surcharge_details),
+                                        updated_by: merchant_id.get_string_repr().to_owned(),
+                                    },
+                                    storage_scheme,
+                                    &key_store,
+                                )
+                                .await
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                        }
+                        .await;
+                        if let Err(err) = persist_result {
+                            logger::warn!(
+                                error=?err,
+                                "Failed to persist connector_surcharge_id to payment_attempt; proceeding"
+                            );
+                        }
+
+                        Some(api_models::payment_methods::SurchargeDetailsResponse {
+                            surcharge: api_models::payment_methods::SurchargeResponse::Fixed(
+                                surcharge_amount,
+                            ),
+                            tax_on_surcharge: None,
+                            display_surcharge_amount: surcharge_f64,
+                            display_tax_on_surcharge_amount: 0.0,
+                            display_total_surcharge_amount: surcharge_f64,
+                        })
+                    }
+                    Ok(_) => None,
+                    Err(err) => {
+                        // Log but do not fail the call — surcharge is best-effort
+                        logger::warn!(
+                            error=?err,
+                            "Surcharge calculation failed; proceeding without surcharge"
+                        );
+                        None
+                    }
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    };
+
+    Ok(services::ApplicationResponse::Json(
+        api_models::payments::PaymentsPreConfirmResponse {
+            payment_id,
+            sdk_next_action,
+            surcharge_details,
         },
     ))
 }

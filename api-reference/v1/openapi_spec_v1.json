@@ -1721,6 +1721,74 @@
         ]
       }
     },
+    "/payments/{payment_id}/pre_confirm": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Submit Pre-Confirm Data",
+        "description": "Runs eligibility checks (blocklist, card testing guard) and calculates an external surcharge\nin a single call. Intended to be called by the SDK before the final confirm step.\n\n- If eligibility is denied the response will contain `sdk_next_action: deny` and no surcharge details.\n- If the merchant has no surcharge connector configured, `surcharge_details` will be `null`.\n- Surcharge calculation is best-effort: if the external call fails the payment still proceeds\nwith `surcharge_details: null`.",
+        "operationId": "Submit Pre-Confirm data for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for the payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsPreConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Pre-confirm checks successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsPreConfirmResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/relay": {
       "post": {
         "tags": [
@@ -16613,7 +16681,8 @@
           "tax_processor",
           "surcharge_processor",
           "billing_processor",
-          "vault_processor"
+          "vault_processor",
+          "surcharge_processor"
         ]
       },
       "ConnectorVolumeSplit": {
@@ -25863,6 +25932,13 @@
             "enum": [
               "eligibility_check"
             ]
+          },
+          {
+            "type": "string",
+            "description": "The next action is to perform pre-confirm (combined eligibility + surcharge calculation)",
+            "enum": [
+              "pre_confirm"
+            ]
           }
         ]
       },
@@ -30473,6 +30549,14 @@
           "payment_link_config_id": {
             "type": "string",
             "description": "Custom payment link config id set at business profile, send only if business_specific_configs is configured",
+            "nullable": true
+          },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequestSurchargeDetails"
+              }
+            ],
             "nullable": true
           },
           "payment_type": {

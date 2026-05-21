@@ -5565,6 +5565,15 @@ impl ClientSecretFetch for payments::PaymentsEligibilityRequest {
 }
 
 #[cfg(feature = "v1")]
+impl ClientSecretFetch for payments::PaymentsPreConfirmRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret
+            .as_ref()
+            .map(|client_secret| client_secret.peek())
+    }
+}
+
+#[cfg(feature = "v1")]
 impl ClientSecretFetch for api_models::blocklist::ListBlocklistQuery {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()

@@ -90,6 +90,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_post_session_tokens,
         routes::payments::payments_update_metadata,
         routes::payments::payments_submit_eligibility,
+        routes::payments::payments_submit_pre_confirm,
 
         // Routes for relay
         routes::relay::relay,
