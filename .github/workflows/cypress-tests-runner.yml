@@ -903,14 +903,14 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
         shell: bash
         run: |
-          # S3 layout: cassettes/{connector}/{Type}.tar.gz.gpg
+          # S3 layout: cassettes/{connector}/{type}.tar.gz.gpg
           # Each batch downloads only the encrypted tarball that matches its type so that
           # unrelated cassettes are never loaded into the replay proxy.
           mkdir -p "mitm-proxy/captures"
 
           for connector in ${{ matrix.batch.platform_connectors }}; do
             [ -z "${connector}" ] && continue
-            aws s3 cp "${CONNECTOR_CREDS_S3_BUCKET_URI}/cassettes/${connector}/Platform.tar.gz.gpg" \
+            aws s3 cp "${CONNECTOR_CREDS_S3_BUCKET_URI}/cassettes/${connector}/platform.tar.gz.gpg" \
               "/tmp/${connector}-platform-cassettes.tar.gz.gpg"
             gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" \
               --output "/tmp/${connector}-platform-cassettes.tar.gz" \
@@ -921,7 +921,7 @@ jobs:
 
           for connector in ${{ matrix.batch.payments_connectors }}; do
             [ -z "${connector}" ] && continue
-            aws s3 cp "${CONNECTOR_CREDS_S3_BUCKET_URI}/cassettes/${connector}/Payment.tar.gz.gpg" \
+            aws s3 cp "${CONNECTOR_CREDS_S3_BUCKET_URI}/cassettes/${connector}/payment.tar.gz.gpg" \
               "/tmp/${connector}-payment-cassettes.tar.gz.gpg"
             gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" \
               --output "/tmp/${connector}-payment-cassettes.tar.gz" \
@@ -932,7 +932,7 @@ jobs:
 
           for connector in ${{ matrix.batch.payouts_connectors }}; do
             [ -z "${connector}" ] && continue
-            aws s3 cp "${CONNECTOR_CREDS_S3_BUCKET_URI}/cassettes/${connector}/Payout.tar.gz.gpg" \
+            aws s3 cp "${CONNECTOR_CREDS_S3_BUCKET_URI}/cassettes/${connector}/payout.tar.gz.gpg" \
               "/tmp/${connector}-payout-cassettes.tar.gz.gpg"
             gpg --quiet --batch --yes --decrypt --passphrase="${CONNECTOR_AUTH_PASSPHRASE}" \
               --output "/tmp/${connector}-payout-cassettes.tar.gz" \
