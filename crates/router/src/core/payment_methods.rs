@@ -1351,9 +1351,7 @@ pub async fn create_persistent_payment_method_core(
         .attach_printable("Unable to parse Payment method billing address")?;
 
     let payment_method_id =
-        id_type::GlobalPaymentMethodId::generate(&state.conf.cell_information.id)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+        id_type::GlobalPaymentMethodId::generate(&state.conf.cell_information.id);
 
     match &req.payment_method_data {
         api::PaymentMethodCreateData::Card(_) | api::PaymentMethodCreateData::BankDebit(_) => {
@@ -1464,9 +1462,7 @@ pub async fn create_volatile_payment_method_core(
         .attach_printable("Unable to parse Payment method billing address")?;
 
     let payment_method_id =
-        id_type::GlobalPaymentMethodId::generate(&state.conf.cell_information.id)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+        id_type::GlobalPaymentMethodId::generate(&state.conf.cell_information.id);
 
     match &req.payment_method_data {
         api::PaymentMethodCreateData::Card(_) | api::PaymentMethodCreateData::BankDebit(_) => {
@@ -3481,9 +3477,7 @@ pub async fn payment_method_intent_create(
     // create pm entry
 
     let payment_method_id =
-        id_type::GlobalPaymentMethodId::generate(&state.conf.cell_information.id)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+        id_type::GlobalPaymentMethodId::generate(&state.conf.cell_information.id);
 
     let payment_method = create_payment_method_for_intent(
         state,
@@ -4996,9 +4990,26 @@ pub async fn list_payment_methods_core(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
+    let customer = db
+        .find_customer_by_global_id_merchant_id(
+            customer_id,
+            provider.get_account().get_id(),
+            provider.get_key_store(),
+            provider.get_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+
+    let default_payment_method_id = customer.default_payment_method_id;
+
     let customer_payment_methods = saved_payment_methods
         .into_iter()
-        .map(ForeignTryFrom::foreign_try_from)
+        .map(|pm| {
+            payment_methods::PaymentMethodResponseItem::foreign_try_from((
+                pm,
+                default_payment_method_id.clone(),
+            ))
+        })
         .collect::<Result<Vec<payment_methods::PaymentMethodResponseItem>, _>>()
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -5037,45 +5048,62 @@ pub async fn list_customer_payment_methods_core(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
+    let customer = db
+        .find_customer_by_global_id_merchant_id(
+            customer_id,
+            provider.get_account().get_id(),
+            provider.get_key_store(),
+            provider.get_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+
+    let default_payment_method_id = customer.default_payment_method_id;
+
     let mut customer_payment_methods = Vec::new();
 
     let payment_method_results: Result<Vec<_>, error_stack::Report<errors::ApiErrorResponse>> =
         saved_payment_methods
             .into_iter()
-            .map(|pm| async move {
-                let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+            .map(|pm| {
+                let default_payment_method_id = default_payment_method_id.clone();
+                async move {
+                    let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
 
-                // For payment methods that are active we should always have the payment method type
-                let payment_method_type = pm
-                    .payment_method_type
-                    .get_required_value("payment_method_type")?;
+                    // For payment methods that are active we should always have the payment method type
+                    let payment_method_type = pm
+                        .payment_method_type
+                        .get_required_value("payment_method_type")?;
 
-                let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
+                    let intent_fulfillment_time =
+                        common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
 
-                let token_data = get_pm_list_token_data(
-                    payment_method_type,
-                    &pm,
-                    // storage type is hardcoded to Persistent as we are fetching saved payment methods from the database
-                    enums::StorageType::Persistent,
-                )?;
+                    let token_data = get_pm_list_token_data(
+                        payment_method_type,
+                        &pm,
+                        // storage type is hardcoded to Persistent as we are fetching saved payment methods from the database
+                        enums::StorageType::Persistent,
+                    )?;
 
-                if let Some(token_data) = token_data {
-                    pm_routes::ParentPaymentMethodToken::create_key_for_token(
-                        &parent_payment_method_token,
-                    )
-                    .insert(intent_fulfillment_time, token_data, state)
-                    .await?;
+                    if let Some(token_data) = token_data {
+                        pm_routes::ParentPaymentMethodToken::create_key_for_token(
+                            &parent_payment_method_token,
+                        )
+                        .insert(intent_fulfillment_time, token_data, state)
+                        .await?;
 
-                    let final_pm = api::CustomerPaymentMethodResponseItem::foreign_try_from((
-                        pm,
-                        parent_payment_method_token,
-                    ))
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to convert payment method to response format")?;
+                        let final_pm = api::CustomerPaymentMethodResponseItem::foreign_try_from((
+                            pm,
+                            parent_payment_method_token,
+                            default_payment_method_id,
+                        ))
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to convert payment method to response format")?;
 
-                    Ok(Some(final_pm))
-                } else {
-                    Ok(None)
+                        Ok(Some(final_pm))
+                    } else {
+                        Ok(None)
+                    }
                 }
             })
             .collect::<futures::stream::FuturesUnordered<_>>()

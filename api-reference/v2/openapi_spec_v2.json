@@ -3747,6 +3747,59 @@
         ]
       }
     },
+    "/v1/{customer_id}/payment-methods/{payment_method_id}/default": {
+      "post": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - Set Default Payment Method for Customer",
+        "description": "Set the Payment Method as Default for the Customer.",
+        "operationId": "Set the Payment Method as Default",
+        "parameters": [
+          {
+            "name": "customer_id",
+            "in": "path",
+            "description": "The unique identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "payment_method_id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Method has been set as default",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerDefaultPaymentMethodResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payment Method has already been set as default for that customer"
+          },
+          "404": {
+            "description": "Payment Method not found for the customer"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/payment-method-sessions": {
       "post": {
         "tags": [
@@ -12515,6 +12568,39 @@
           }
         },
         "additionalProperties": false
+      },
+      "CustomerDefaultPaymentMethodResponse": {
+        "type": "object",
+        "required": [
+          "default_payment_method_id",
+          "customer_id",
+          "payment_method_type"
+        ],
+        "properties": {
+          "default_payment_method_id": {
+            "type": "string",
+            "description": "The unique identifier of the Payment method",
+            "example": "card_rGK4Vi5iSW70MY7J2mIg"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The unique identifier of the customer.",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "CustomerDeleteResponse": {
         "type": "object",
