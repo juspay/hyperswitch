@@ -167,7 +167,7 @@ pub struct KafkaSettings {
     external_service_call_topic: String,
     /// Optional SASL authentication settings. When omitted, the client connects
     /// over plaintext without authentication (backwards compatible behaviour).
-    sasl: Option<KafkaSaslAuth>,
+    pub sasl: Option<KafkaSaslAuth>,
 }
 
 /// SASL authentication configuration for the Kafka client.
@@ -182,7 +182,7 @@ pub struct KafkaSaslAuth {
     /// SASL username.
     username: String,
     /// SASL password.
-    password: Secret<String>,
+    pub password: Secret<String>,
     /// Optional path to a CA certificate bundle used to verify the broker when
     /// using `SASL_SSL`.
     #[serde(default)]

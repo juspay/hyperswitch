@@ -1212,7 +1212,7 @@ external_service_call_topic = "topic"   # Kafka topic to be used for external se
 # mechanism = "PLAIN"             # SASL mechanism: PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, ...
 # security_protocol = "SASL_SSL"  # Security protocol: SASL_SSL (default) or SASL_PLAINTEXT
 # username = "user"               # SASL username
-# password = "password"           # SASL password
+# password = "password"           # SASL password (decrypted at startup via the configured secrets manager)
 # ca_certificate_path = "/path/to/ca.pem" # Optional CA bundle to verify the broker when using SASL_SSL
 
 # File storage configuration
