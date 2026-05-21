@@ -413,6 +413,16 @@ impl Card {
             co_badged_card_data: self.co_badged_card_data.clone(),
         }
     }
+
+    pub fn is_indian_issued_card(&self) -> bool {
+        self.card_issuing_country
+            .as_ref()
+            .map(|country| {
+                country.to_lowercase() == common_enums::Country::India.to_string().to_lowercase()
+                    || country.to_uppercase() == api_enums::CountryAlpha2::IN.to_string()
+            })
+            .unwrap_or(false)
+    }
 }
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]

@@ -5020,6 +5020,7 @@ where
             .as_ref(),
     ) {
         if let Ok(connector_enum) = enums::Connector::from_str(connector_str.as_str()) {
+            // Alt-ID is required by RBI for Indian merchant + Indian card transactions
             match network_tokenization::try_get_altid_for_guest_checkout(
                 state,
                 card,
@@ -5037,13 +5038,15 @@ where
                         domain::PaymentMethodData::NetworkToken(network_token_data),
                     ));
                 }
+                // Alt-ID not applicable - merchant/card not Indian or network/connector not supported
                 Ok(None) => {
-                    logger::debug!("Alt-ID not available or not eligible, using raw card");
+                    logger::debug!("Alt-ID not applicable for this transaction, using raw card");
                 }
+                // Alt-ID evaluation failed - RBI compliance violation
                 Err(err) => {
-                    return Err(err)
+                    Err(err)
                         .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to fetch Alt-ID for guest checkout");
+                        .attach_printable("Failed to fetch Alt-ID for guest checkout")?;
                 }
             }
         }

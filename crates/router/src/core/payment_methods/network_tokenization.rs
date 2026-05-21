@@ -3,7 +3,7 @@ use std::fmt::Debug;
 #[cfg(feature = "v2")]
 use std::str::FromStr;
 
-use ::payment_methods::controller::PaymentMethodsController;
+use ::payment_methods::{controller::PaymentMethodsController, types as ext_pm_types};
 use api_models::payment_methods as api_payment_methods;
 #[cfg(feature = "v2")]
 use cards::{CardNumber, NetworkToken};
@@ -34,6 +34,49 @@ use crate::{
 };
 
 pub const NETWORK_TOKEN_SERVICE: &str = "NETWORK_TOKEN";
+
+#[derive(Debug, Clone)]
+pub enum AltIdDecision {
+    Proceed, // Fetch Alt-ID for this transaction
+    Skip, // Transaction not eligible for Alt-ID (merchant/card not Indian, or network/connector not supported)
+    Error, // RBI compliance violation
+}
+
+impl AltIdDecision {
+    pub fn evaluate(
+        state: &routes::SessionState,
+        card: &domain::Card,
+        business_profile: &domain::Profile,
+        connector: api_models::enums::Connector,
+    ) -> Self {
+        match (
+            business_profile.is_alt_id_eligible_merchant(),
+            card.is_indian_issued_card(),
+        ) {
+            (true, true) => {
+                let alt_id_required = card.card_network.as_ref().is_some_and(|network| {
+                    state
+                        .conf
+                        .alt_id_required_card_networks_and_connector
+                        .networks
+                        .get(network)
+                        .map(|connectors| connectors.contains(&connector))
+                        .unwrap_or(false)
+                });
+
+                match (
+                    alt_id_required,
+                    business_profile.is_network_tokenization_enabled,
+                ) {
+                    (true, true) => Self::Proceed,
+                    (true, false) => Self::Error,
+                    (false, _) => Self::Skip,
+                }
+            }
+            (false, _) | (_, false) => Self::Skip,
+        }
+    }
+}
 
 /// Builds and sends a request to the network tokenization service.
 async fn call_network_token_service(
@@ -1102,9 +1145,9 @@ pub async fn delete_network_token_from_locker_and_token_service(
 pub async fn fetch_altid_and_cryptogram(
     state: &routes::SessionState,
     payload_bytes: &[u8],
-    order_data: pm_types::AltIdOrderData,
+    order_data: ext_pm_types::AltIdOrderData,
     tokenization_service: &settings::NetworkTokenizationService,
-) -> CustomResult<pm_types::AltIdResponsePayload, errors::NetworkTokenizationError> {
+) -> CustomResult<ext_pm_types::AltIdResponsePayload, errors::NetworkTokenizationError> {
     let enc_key = tokenization_service.public_key.peek().clone();
     let key_id = tokenization_service.key_id.clone();
 
@@ -1120,7 +1163,7 @@ pub async fn fetch_altid_and_cryptogram(
     .attach_printable("Failed to JWE encrypt card data for Alt-ID")?;
 
     // Build the Alt-ID request payload
-    let payload = pm_types::FetchAltIdRequest {
+    let payload = ext_pm_types::FetchAltIdRequest {
         card_data: Secret::new(encrypted_card_data),
         order_data,
         key_id: Some(key_id),
@@ -1169,7 +1212,7 @@ pub async fn fetch_altid_and_cryptogram(
         })?;
 
     // Parse the raw response (altIdDetails is still JWE encrypted)
-    let altid_response_raw: pm_types::AltIdResponse = res
+    let altid_response_raw: ext_pm_types::AltIdResponse = res
         .response
         .parse_struct("Alt-ID Response")
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
@@ -1188,7 +1231,7 @@ pub async fn fetch_altid_and_cryptogram(
     .change_context(errors::NetworkTokenizationError::ResponseDecryptionFailed)
     .attach_printable("Failed to decrypt altIdDetails from Alt-ID response")?;
 
-    let alt_id_details: pm_types::AltIdDetails =
+    let alt_id_details: ext_pm_types::AltIdDetails =
         serde_json::from_str(&decrypted_altid_details_json)
             .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
             .attach_printable("Failed to parse decrypted altIdDetails")?;
@@ -1220,7 +1263,7 @@ pub async fn get_altid_for_card(
                 .change_context(errors::NetworkTokenizationError::RequestEncodingFailed)
                 .attach_printable("Failed to convert amount to major unit")?;
 
-            let card_data = pm_types::AltIdCardData::from((card, optional_cvc));
+            let card_data = ext_pm_types::AltIdCardData::from((card, optional_cvc));
 
             // Double-encode card data for JWE encryption (matches expected format)
             let payload = card_data
@@ -1229,7 +1272,7 @@ pub async fn get_altid_for_card(
                 .change_context(errors::NetworkTokenizationError::RequestEncodingFailed)?;
             let payload_bytes = payload.as_bytes();
 
-            let order_data = pm_types::AltIdOrderData {
+            let order_data = ext_pm_types::AltIdOrderData {
                 amount: float_amount,
                 currency,
                 auth_ref_number,
@@ -1261,39 +1304,6 @@ pub async fn get_altid_for_card(
     }
 }
 
-/// Check if Alt-ID should be attempted for the given card and business profile
-fn should_attempt_altid(
-    state: &routes::SessionState,
-    card: &domain::Card,
-    business_profile: &domain::Profile,
-    connector: api_models::enums::Connector,
-) -> bool {
-    business_profile.is_network_tokenization_enabled &&
-    // RBI mandatory requirement: Merchant must be Indian and Card must be domestic Indian
-    business_profile
-        .merchant_business_country
-        .as_ref()
-        .map(|country| *country == api_models::enums::CountryAlpha2::IN)
-        .unwrap_or(true) &&
-    card.card_issuing_country
-        .as_ref()
-        .map(|country| {
-            country.to_lowercase() == common_enums::Country::India.to_string().to_lowercase()
-                || country.to_uppercase() == api_models::enums::CountryAlpha2::IN.to_string()
-        })
-        .unwrap_or(false) &&
-    // Check if card network is supported and connector supports Alt-ID for that network
-    card.card_network.as_ref().is_some_and(|network| {
-        state
-            .conf
-            .alt_id_supported_card_networks_and_connector
-            .networks
-            .get(network)
-            .map(|connectors| connectors.contains(&connector))
-            .unwrap_or(false)
-    })
-}
-
 /// Attempt to get Alt-ID (network token) for guest checkout card payments.
 #[cfg(feature = "v1")]
 pub async fn try_get_altid_for_guest_checkout(
@@ -1305,21 +1315,28 @@ pub async fn try_get_altid_for_guest_checkout(
     auth_ref_number: Option<String>,
     connector: api_models::enums::Connector,
 ) -> CustomResult<Option<domain::NetworkTokenData>, errors::NetworkTokenizationError> {
-    if should_attempt_altid(state, card, business_profile, connector) {
-        // Build card detail for Alt-ID using From impl
-        let card_detail: domain::CardDetail = card.into();
+    match AltIdDecision::evaluate(state, card, business_profile, connector) {
+        AltIdDecision::Proceed => {
+            let card_detail: domain::CardDetail = card.into();
 
-        // Attempt to fetch Alt-ID
-        get_altid_for_card(
-            state,
-            &card_detail,
-            Some(card.card_cvc.clone()),
-            amount,
-            *currency,
-            auth_ref_number,
-        )
-        .await
-    } else {
-        Ok(None)
+            get_altid_for_card(
+                state,
+                &card_detail,
+                Some(card.card_cvc.clone()),
+                amount,
+                *currency,
+                auth_ref_number,
+            )
+            .await
+        }
+
+        AltIdDecision::Skip => Ok(None),
+
+        AltIdDecision::Error => Err(report!(
+            errors::NetworkTokenizationError::NetworkTokenizationNotEnabledForProfile
+        ))
+        .attach_printable(
+            "Network tokenization is disabled but RBI requires Alt-ID for this transaction",
+        ),
     }
 }

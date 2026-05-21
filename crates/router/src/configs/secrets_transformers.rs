@@ -621,8 +621,8 @@ pub(crate) async fn fetch_raw_secrets(
         cell_information: conf.cell_information,
         network_tokenization_supported_card_networks: conf
             .network_tokenization_supported_card_networks,
-        alt_id_supported_card_networks_and_connector: conf
-            .alt_id_supported_card_networks_and_connector,
+        alt_id_required_card_networks_and_connector: conf
+            .alt_id_required_card_networks_and_connector,
         network_tokenization_service,
         network_tokenization_supported_connectors: conf.network_tokenization_supported_connectors,
         theme: conf.theme,

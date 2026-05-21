@@ -169,7 +169,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "v2")]
     pub cell_information: CellInformation,
     pub network_tokenization_supported_card_networks: NetworkTokenizationSupportedCardNetworks,
-    pub alt_id_supported_card_networks_and_connector: AltIdSupportedCardNetworksAndConnector,
+    pub alt_id_required_card_networks_and_connector: AltIdRequiredCardNetworksAndConnector,
     pub network_tokenization_service: Option<SecretStateContainer<NetworkTokenizationService, S>>,
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
     pub theme: ThemeSettings,
@@ -613,7 +613,7 @@ pub struct NetworkTokenizationSupportedCardNetworks {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct AltIdSupportedCardNetworksAndConnector {
+pub struct AltIdRequiredCardNetworksAndConnector {
     pub networks: HashMap<enums::CardNetwork, HashSet<enums::Connector>>,
 }
 
