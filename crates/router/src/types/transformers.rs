@@ -639,6 +639,12 @@ impl ForeignFrom<domain::Address> for api_types::Address {
     }
 }
 
+impl ForeignFrom<hyperswitch_domain_models::address::Address> for payments::Address {
+    fn foreign_from(address: hyperswitch_domain_models::address::Address) -> Self {
+        address.into()
+    }
+}
+
 impl
     ForeignFrom<(
         diesel_models::api_keys::ApiKey,
