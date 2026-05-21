@@ -6915,7 +6915,7 @@ pub struct PollConfigResponse {
 pub enum QrCodeInformation {
     QrCodeUrl {
         image_data_url: Url,
-        qr_code_url: Url,
+        qr_code_url: Option<Url>,
         display_to_timestamp: Option<i64>,
         expiry_type: Option<common_enums::enums::ExpiryType>,
         raw_qr_data: Option<String>,
@@ -10010,47 +10010,6 @@ impl ConnectorMetadata {
                 })
         })
     }
-    pub fn get_mandatory_pix_automatico_maximum_permissible_mandate_amount(
-        self,
-    ) -> common_utils::errors::CustomResult<MinorUnit, ValidationError> {
-        let santander = self
-            .santander
-            .ok_or(ValidationError::MissingRequiredField {
-                field_name: "connector_metadata.santander".to_string(),
-            })?;
-
-        let pix_automatico =
-            santander
-                .pix_automatico
-                .ok_or(ValidationError::MissingRequiredField {
-                    field_name: "connector_metadata.santander.pix_automatico".to_string(),
-                })?;
-
-        let cit_data = match pix_automatico {
-            SantanderPixAutomaticoData::Cit(cit) => cit,
-            SantanderPixAutomaticoData::Mit(_) => {
-                return Err(error_stack::report!(ValidationError::InvalidValue {
-                    message: "Expected pix_automatico CIT variant, but got MIT".to_string(),
-                }))
-            }
-        };
-
-        let mandate_details =
-            cit_data
-                .mandate_details
-                .ok_or(ValidationError::MissingRequiredField {
-                    field_name: "connector_metadata.santander.pix_automatico.cit.mandate_details"
-                        .to_string(),
-                })?;
-
-        mandate_details.amount.ok_or(error_stack::report!(
-            ValidationError::MissingRequiredField {
-                field_name:
-                    "connector_metadata.santander.pix_automatico.cit.mandate_details.amount"
-                        .to_string(),
-            }
-        ))
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -11544,12 +11503,78 @@ impl FeatureMetadata {
             })
             .and_then(|details| match details {
                 PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => Ok(push.time),
-                _ => Err(ValidationError::InvalidValue {
-                    message: "pix_automatico_additional_details is not of type PixAutomaticoPush"
-                        .to_string(),
-                }),
+                PixAutomaticoAdditionalDetails::PixAutomaticoQr(_) => {
+                    Err(ValidationError::InvalidValue {
+                        message: "Expected PixAutomaticoPush, found PixAutomaticoQr".to_string(),
+                    })
+                }
+                PixAutomaticoAdditionalDetails::PixAutomaticoMit(_) => {
+                    Err(ValidationError::InvalidValue {
+                        message: "Expected CIT flow (PixAutomaticoPush), found MIT flow"
+                            .to_string(),
+                    })
+                }
             })
     }
+
+    /// Gets the optional fixed recurring mandate amount for Pix Automatico CIT flow
+    pub fn get_optional_fixed_recurring_mit_amount_for_pix_automatico(
+        &self,
+    ) -> common_utils::errors::CustomResult<Option<MinorUnit>, ValidationError> {
+        let pix_automatico = self.pix_automatico_additional_details.as_ref().ok_or(
+            ValidationError::MissingRequiredField {
+                field_name: "feature_metadata.pix_automatico_additional_details".to_string(),
+            },
+        )?;
+
+        let mandate_details = match pix_automatico {
+            PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => {
+                push.mandate_details.as_ref()
+            }
+            PixAutomaticoAdditionalDetails::PixAutomaticoQr(qr) => qr.mandate_details.as_ref(),
+            PixAutomaticoAdditionalDetails::PixAutomaticoMit(_) => {
+                return Err(error_stack::report!(ValidationError::InvalidValue {
+                    message: "Expected CIT flow, found MIT flow".to_string(),
+                }))
+            }
+        };
+
+        let mandate_details = mandate_details.ok_or(ValidationError::MissingRequiredField {
+            field_name: "mandate_details".to_string(),
+        })?;
+
+        Ok(mandate_details.fixed_recurring_amount)
+    }
+
+    /// Gets the optional minimum recurring mandate amount for Pix Automatico CIT flow
+    pub fn get_optional_min_recurring_amount_for_pix_automatico(
+        &self,
+    ) -> common_utils::errors::CustomResult<Option<MinorUnit>, ValidationError> {
+        let pix_automatico = self.pix_automatico_additional_details.as_ref().ok_or(
+            ValidationError::MissingRequiredField {
+                field_name: "feature_metadata.pix_automatico_additional_details".to_string(),
+            },
+        )?;
+
+        let mandate_details = match pix_automatico {
+            PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => {
+                push.mandate_details.as_ref()
+            }
+            PixAutomaticoAdditionalDetails::PixAutomaticoQr(qr) => qr.mandate_details.as_ref(),
+            PixAutomaticoAdditionalDetails::PixAutomaticoMit(_) => {
+                return Err(error_stack::report!(ValidationError::InvalidValue {
+                    message: "Expected CIT flow, found MIT flow".to_string(),
+                }))
+            }
+        };
+
+        let mandate_details = mandate_details.ok_or(ValidationError::MissingRequiredField {
+            field_name: "mandate_details".to_string(),
+        })?;
+
+        Ok(mandate_details.min_recurring_amount)
+    }
+
     pub fn set_payment_revenue_recovery_metadata_using_api(
         self,
         payment_revenue_recovery_metadata: PaymentRevenueRecoveryMetadata,
@@ -11634,6 +11659,7 @@ pub struct FeatureMetadata {
     #[smithy(value_type = "Option<FinixAdditionalDetails>")]
     pub finix_additional_details: Option<FinixAdditionalDetails>,
 }
+
 #[cfg(feature = "v1")]
 impl FeatureMetadata {
     /// Helper to extract the optional covenant_code from boleto details
@@ -11649,8 +11675,19 @@ impl FeatureMetadata {
             .ok_or(ValidationError::MissingRequiredField {
                 field_name: "feature_metadata.pix_automatico_additional_details".to_string(),
             })
-            .map(|details| match details {
-                PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => push.time,
+            .and_then(|details| match details {
+                PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => Ok(push.time),
+                PixAutomaticoAdditionalDetails::PixAutomaticoQr(_) => {
+                    Err(ValidationError::InvalidValue {
+                        message: "Expected PixAutomaticoPush, found PixAutomaticoQr".to_string(),
+                    })
+                }
+                PixAutomaticoAdditionalDetails::PixAutomaticoMit(_) => {
+                    Err(ValidationError::InvalidValue {
+                        message: "Expected CIT flow (PixAutomaticoPush), found MIT flow"
+                            .to_string(),
+                    })
+                }
             })
     }
     pub fn merge(self, other: Option<Self>) -> Self {
@@ -11717,6 +11754,64 @@ impl FeatureMetadata {
             .as_ref()
             .map(|details| matches!(details, PixAdditionalDetails::Scheduled(_)))
             .unwrap_or(false)
+    }
+
+    /// Gets the optional fixed recurring mandate amount for Pix Automatico CIT flow
+    pub fn get_optional_fixed_recurring_mit_amount_for_pix_automatico(
+        &self,
+    ) -> common_utils::errors::CustomResult<Option<MinorUnit>, ValidationError> {
+        let pix_automatico = self.pix_automatico_additional_details.as_ref().ok_or(
+            ValidationError::MissingRequiredField {
+                field_name: "feature_metadata.pix_automatico_additional_details".to_string(),
+            },
+        )?;
+
+        let mandate_details = match pix_automatico {
+            PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => {
+                push.mandate_details.as_ref()
+            }
+            PixAutomaticoAdditionalDetails::PixAutomaticoQr(qr) => qr.mandate_details.as_ref(),
+            PixAutomaticoAdditionalDetails::PixAutomaticoMit(_) => {
+                return Err(error_stack::report!(ValidationError::InvalidValue {
+                    message: "Expected CIT flow, found MIT flow".to_string(),
+                }))
+            }
+        };
+
+        let mandate_details = mandate_details.ok_or(ValidationError::MissingRequiredField {
+            field_name: "mandate_details".to_string(),
+        })?;
+
+        Ok(mandate_details.fixed_recurring_amount)
+    }
+
+    /// Gets the optional minimum recurring mandate amount for Pix Automatico CIT flow
+    pub fn get_optional_min_recurring_amount_for_pix_automatico(
+        &self,
+    ) -> common_utils::errors::CustomResult<Option<MinorUnit>, ValidationError> {
+        let pix_automatico = self.pix_automatico_additional_details.as_ref().ok_or(
+            ValidationError::MissingRequiredField {
+                field_name: "feature_metadata.pix_automatico_additional_details".to_string(),
+            },
+        )?;
+
+        let mandate_details = match pix_automatico {
+            PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => {
+                push.mandate_details.as_ref()
+            }
+            PixAutomaticoAdditionalDetails::PixAutomaticoQr(qr) => qr.mandate_details.as_ref(),
+            PixAutomaticoAdditionalDetails::PixAutomaticoMit(_) => {
+                return Err(error_stack::report!(ValidationError::InvalidValue {
+                    message: "Expected CIT flow, found MIT flow".to_string(),
+                }))
+            }
+        };
+
+        let mandate_details = mandate_details.ok_or(ValidationError::MissingRequiredField {
+            field_name: "mandate_details".to_string(),
+        })?;
+
+        Ok(mandate_details.min_recurring_amount)
     }
 }
 
@@ -11815,18 +11910,144 @@ pub struct ScheduledExpirationTime {
     pub pix_key: Option<enums::PixKey>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+/// Represents the specific data for Santander Pix Automatico (recurring PIX payments)
+/// Split into CIT (Customer Initiated Transaction) and MIT (Merchant Initiated Transaction) variants
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum PixAutomaticoAdditionalDetails {
-    /// Pix Automatico Push notification flow
-    PixAutomaticoPush(PixAutomaticoPushDetails),
+    /// Customer Initiated Transaction - used during mandate setup for PixAutomaticoPush Payment Method Type
+    PixAutomaticoPush(PixAutomaticoPushData),
+    /// Customer Initiated Transaction - used during mandate setup + non 0$ mandate setup for PixAutomaticoQr Payment Method Type
+    PixAutomaticoQr(PixAutomaticoQrData),
+    /// Merchant Initiated Transaction - used during recurring charge creation
+    PixAutomaticoMit(PixAutomaticoMitData),
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct PixAutomaticoPushDetails {
+/// Data for PixAutomaticoPush Payment Method Type CIT (Customer Initiated Transaction) - used during mandate setup
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PixAutomaticoPushData {
     /// Time in seconds until which the push notification is valid
     #[schema(value_type = u32, example = 3600)]
     pub time: u32,
+    /// Enable retry policy for failed payments (maps to PERMITE_3R_7D if true)
+    #[smithy(value_type = "Option<bool>")]
+    #[schema(value_type = Option<bool>, example = true)]
+    pub retry_policy: Option<bool>,
+    /// Mandate details for the recurring charge
+    #[smithy(value_type = "Option<SantanderMandateDetails>")]
+    #[schema(value_type = Option<SantanderMandateDetails>)]
+    pub mandate_details: Option<SantanderMandateDetails>,
+}
+
+/// Data for PixAutomaticoQr Payment Method Type CIT (Customer Initiated Transaction) - used during mandate setup + non 0$ mandate setup
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PixAutomaticoQrData {
+    /// Enable retry policy for failed payments (maps to PERMITE_3R_7D if true)
+    #[smithy(value_type = "Option<bool>")]
+    #[schema(value_type = Option<bool>, example = true)]
+    pub retry_policy: Option<bool>,
+    /// Mandate details for the recurring charge
+    #[smithy(value_type = "Option<SantanderMandateDetails>")]
+    #[schema(value_type = Option<SantanderMandateDetails>)]
+    pub mandate_details: Option<SantanderMandateDetails>,
+}
+
+/// Data for Santander Pix Automatico MIT (Merchant Initiated Transaction) - used during recurring charge creation
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PixAutomaticoMitData {
+    /// Receiver details for the recurring charge
+    #[smithy(value_type = "Option<SantanderPixAutomaticoReceiverDetails>")]
+    #[schema(value_type = Option<SantanderPixAutomaticoReceiverDetails>)]
+    pub receiver_details: Option<SantanderPixAutomaticoReceiverDetails>,
+    /// Execution date for the mandate charge (maps to data_de_vencimento). Format: YYYY-MM-DD.
+    /// If not provided, defaults to current date + 1 day.
+    #[schema(value_type = Option<String>, example = "2026-12-31")]
+    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
+    pub mandate_execution_date: Option<PrimitiveDateTime>,
+    /// Whether to automatically adjust the due date to the next business day if it falls on a non-business day.
+    /// Maps to ajuste_dia_util in Santander API. Defaults to true if not provided.
+    #[smithy(value_type = "Option<bool>")]
+    #[schema(value_type = Option<bool>, example = true)]
+    pub auto_adjust_date: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SantanderMandateDetails {
+    /// Fixed amount for each recurring charge in minor units (e.g., cents). If not provided, the mandate will allow variable amounts.
+    #[schema(value_type = Option<u64>, example = 6540)]
+    #[smithy(value_type = "Option<MinorUnit>")]
+    pub fixed_recurring_amount: Option<MinorUnit>,
+    /// Minimum amount for each recurring charge in minor units (e.g., cents). If not provided, there will be no minimum limit on the amount.
+    #[schema(value_type = Option<u64>, example = 6540)]
+    #[smithy(value_type = "Option<MinorUnit>")]
+    pub min_recurring_amount: Option<MinorUnit>,
+    /// Start date for the recurring charges. Format: YYYY-MM-DD. If not provided, the mandate will be valid immediately.
+    #[schema(value_type = Option<String>, example="2026-12-31")]
+    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
+    pub start_date: Option<PrimitiveDateTime>,
+    /// End date for the recurring charges. Format: YYYY-MM-DD. If not provided, the mandate will be valid indefinitely.
+    #[schema(value_type = Option<String>, example="2026-12-31")]
+    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
+    pub end_date: Option<PrimitiveDateTime>,
+    /// Frequency of the recurring charges (e.g., weekly, monthly). If not provided, defaults to monthly.
+    #[schema(value_type = Option<SantanderMandatePeriodicity>, example = "weekly")]
+    #[smithy(value_type = "Option<SantanderMandatePeriodicity>")]
+    pub periodicity: Option<SantanderMandatePeriodicity>,
+}
+
+#[derive(
+    Debug, Default, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(rename_all = "snake_case")]
+pub enum SantanderMandatePeriodicity {
+    /// Every week
+    Weekly,
+    /// Every month
+    #[default]
+    Monthly,
+    /// Every 3 months
+    Quarterly,
+    /// Every 6 months
+    Semiannually,
+    /// Every year
+    Annually,
+}
+
+/// Account type for Santander Pix Automatico recurring charges
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum AccountType {
+    /// Checking account (Conta Corrente)
+    Current,
+    /// Savings account (Conta Poupança)
+    Savings,
+    /// Payment account (Conta Pagamento)
+    Payment,
+}
+
+/// Represents the receiver details for Santander Pix Automatico recurring charges
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SantanderPixAutomaticoReceiverDetails {
+    /// Branch code (agencia) of the receiver's bank account
+    #[smithy(value_type = "Option<String>")]
+    #[schema(value_type = Option<String>, example = "0001")]
+    pub branch_code: Option<Secret<String>>,
+    /// Account number (conta) of the receiver
+    #[smithy(value_type = "Option<String>")]
+    #[schema(value_type = Option<String>, example = "130333323")]
+    pub account_number: Option<Secret<String>>,
+    /// Account type (tipoConta) - CORRENTE, POUPANCA, or PAGAMENTO
+    #[smithy(value_type = "Option<AccountType>")]
+    #[schema(value_type = Option<AccountType>)]
+    pub account_type: Option<AccountType>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel, PartialEq)]
@@ -13416,9 +13637,6 @@ pub struct SantanderConnectorMetadataData {
     /// Boleto-specific data and rules for Santander payments
     #[smithy(value_type = "Option<SantanderBoletoData>")]
     pub boleto: Option<SantanderBoletoData>,
-    /// Pix Automatico-specific data for Santander recurring payments
-    #[smithy(value_type = "Option<SantanderPixAutomaticoData>")]
-    pub pix_automatico: Option<SantanderPixAutomaticoData>,
 }
 
 /// Represents the specific data and rules related to Santander Boleto payments, including discounts, penalties, collection actions, payment constraints, beneficiary details, and document kind.
@@ -13447,127 +13665,6 @@ pub struct SantanderBoletoData {
     #[smithy(value_type = "Option<BoletoDocumentKind>")]
     #[schema(value_type = Option<BoletoDocumentKind>, example = "commercial_invoice")]
     pub document_kind: Option<common_enums::BoletoDocumentKind>,
-}
-
-/// Account type for Santander Pix Automatico recurring charges
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
-#[serde(rename_all = "snake_case")]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub enum AccountType {
-    /// Checking account (Conta Corrente)
-    Current,
-    /// Savings account (Conta Poupança)
-    Savings,
-    /// Payment account (Conta Pagamento)
-    Payment,
-}
-
-/// Represents the receiver details for Santander Pix Automatico recurring charges
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct SantanderPixAutomaticoReceiverDetails {
-    /// Branch code (agencia) of the receiver's bank account
-    #[smithy(value_type = "Option<String>")]
-    #[schema(value_type = Option<String>, example = "0001")]
-    pub branch_code: Option<Secret<String>>,
-    /// Account number (conta) of the receiver
-    #[smithy(value_type = "Option<String>")]
-    #[schema(value_type = Option<String>, example = "130333323")]
-    pub account_number: Option<Secret<String>>,
-    /// Account type (tipoConta) - CORRENTE, POUPANCA, or PAGAMENTO
-    #[smithy(value_type = "Option<AccountType>")]
-    #[schema(value_type = Option<AccountType>)]
-    pub account_type: Option<AccountType>,
-}
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct SantanderMandateDetails {
-    /// Maximum amount for each recurring charge
-    #[schema(value_type = Option<u64>, example = 6540)]
-    #[smithy(value_type = "Option<MinorUnit>")]
-    pub amount: Option<MinorUnit>,
-    /// Start date for the recurring charges. Format: YYYY-MM-DD. If not provided, the mandate will be valid immediately.
-    #[schema(value_type = Option<String>, example="2026-12-31")]
-    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
-    pub start_date: Option<PrimitiveDateTime>,
-    /// End date for the recurring charges. Format: YYYY-MM-DD. If not provided, the mandate will be valid indefinitely.
-    #[schema(value_type = Option<String>, example="2026-12-31")]
-    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
-    pub end_date: Option<PrimitiveDateTime>,
-    /// Frequency of the recurring charges (e.g., weekly, monthly). If not provided, defaults to monthly.
-    #[schema(value_type = Option<SantanderMandatePeriodicity>, example = "weekly")]
-    #[smithy(value_type = "Option<SantanderMandatePeriodicity>")]
-    pub periodicity: Option<SantanderMandatePeriodicity>,
-}
-
-#[derive(
-    Debug, Default, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
-)]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-#[serde(rename_all = "snake_case")]
-pub enum SantanderMandatePeriodicity {
-    /// Every week
-    Weekly,
-    /// Every month
-    #[default]
-    Monthly,
-    /// Every 3 months
-    Quarterly,
-    /// Every 6 months
-    Semiannually,
-    /// Every year
-    Annually,
-}
-
-/// Represents the specific data for Santander Pix Automatico (recurring PIX payments)
-/// Split into CIT (Customer Initiated Transaction) and MIT (Merchant Initiated Transaction) variants
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-#[serde(rename_all = "snake_case")]
-pub enum SantanderPixAutomaticoData {
-    /// Customer Initiated Transaction - used during mandate setup
-    Cit(PixAutomaticoCitData),
-    /// Merchant Initiated Transaction - used during recurring charge creation
-    Mit(PixAutomaticoMitData),
-}
-
-/// Data for Santander Pix Automatico CIT (Customer Initiated Transaction) - used during mandate setup
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct PixAutomaticoCitData {
-    /// Contract ID to identify the recurring payment contract
-    #[smithy(value_type = "Option<String>")]
-    #[schema(value_type = Option<String>, example = "pm_16503867")]
-    pub contract_id: Option<String>,
-    /// Enable retry policy for failed payments (maps to PERMITE_3R_7D if true)
-    #[smithy(value_type = "Option<bool>")]
-    #[schema(value_type = Option<bool>, example = true)]
-    pub retry_policy: Option<bool>,
-    /// Mandate details for the recurring charge
-    #[smithy(value_type = "Option<SantanderMandateDetails>")]
-    #[schema(value_type = Option<SantanderMandateDetails>)]
-    pub mandate_details: Option<SantanderMandateDetails>,
-}
-
-/// Data for Santander Pix Automatico MIT (Merchant Initiated Transaction) - used during recurring charge creation
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct PixAutomaticoMitData {
-    /// Receiver details for the recurring charge
-    #[smithy(value_type = "Option<SantanderPixAutomaticoReceiverDetails>")]
-    #[schema(value_type = Option<SantanderPixAutomaticoReceiverDetails>)]
-    pub receiver_details: Option<SantanderPixAutomaticoReceiverDetails>,
-    /// Execution date for the mandate charge (maps to data_de_vencimento). Format: YYYY-MM-DD.
-    /// If not provided, defaults to current date + 1 day.
-    #[schema(value_type = Option<String>, example = "2026-12-31")]
-    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
-    pub mandate_execution_date: Option<PrimitiveDateTime>,
-    /// Whether to automatically adjust the due date to the next business day if it falls on a non-business day.
-    /// Maps to ajuste_dia_util in Santander API. Defaults to true if not provided.
-    #[smithy(value_type = "Option<bool>")]
-    #[schema(value_type = Option<bool>, example = true)]
-    pub auto_adjust_date: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
