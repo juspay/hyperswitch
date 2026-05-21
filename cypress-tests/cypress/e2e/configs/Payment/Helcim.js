@@ -1,4 +1,5 @@
 import { cardRequiredField } from "./Commons";
+import { getCustomExchange } from "./Modifiers";
 
 const requiredFields = {
   payment_methods: [
@@ -30,5 +31,39 @@ export const connectorDetails = {
       pmListDynamicFieldWithNames: requiredFields,
       pmListDynamicFieldWithEmail: requiredFields,
     },
+  },
+  card_pm: {
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    No3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    },
+    No3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    },
+    Refund: getCustomExchange({
+      Request: {
+        amount: 6000,
+      },
+    }),
+    PartialRefund: getCustomExchange({
+      Request: {
+        amount: 2000,
+      },
+    }),
+    SyncRefund: getCustomExchange({}),
   },
 };
