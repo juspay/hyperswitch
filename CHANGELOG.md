@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.02.0-hotfix7.8
+
+### Features
+
+- **core/connector:** [Truelayer] Add support for closed loop payouts ([#12400](https://github.com/juspay/hyperswitch/pull/12400)) ([`cbedd4a`](https://github.com/juspay/hyperswitch/commit/cbedd4a))
+
+### Bug Fixes
+
+- **connector:** [Truelayer] Pass reference id in payout request ([#12403](https://github.com/juspay/hyperswitch/pull/12403)) ([`c99ba92`](https://github.com/juspay/hyperswitch/commit/c99ba924f2e18b073e06a96284f32838fc78dd18))
+
+**Full Changelog:** [`2026.04.02.0-hotfix7.7...2026.04.02.0-hotfix7.8`](https://github.com/juspay/hyperswitch/compare/2026.04.02.0-hotfix7.7...2026.04.02.0-hotfix7.8)
+
+- - -
+
 ## 2026.04.02.0-hotfix7.7
 
 ### Features
