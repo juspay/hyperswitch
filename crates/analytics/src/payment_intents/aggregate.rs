@@ -45,8 +45,8 @@ pub async fn get_intent_status_with_count(
         .change_context(MetricsError::QueryBuildingError)?;
 
     query_builder
-        .add_select_column(Aggregate::<String>::Count {
-            field: None,
+        .add_select_column(Aggregate::<String>::Sum {
+            field: "sign_flag".to_string(),
             alias: Some("count"),
         })
         .change_context(MetricsError::QueryBuildingError)?;
