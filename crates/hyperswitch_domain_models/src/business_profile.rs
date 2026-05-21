@@ -26,6 +26,7 @@ use crate::{
     behaviour::Conversion,
     errors::api_error_response,
     merchant_key_store::MerchantKeyStore,
+    payments,
     type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
 };
 #[cfg(feature = "v1")]
@@ -1597,6 +1598,14 @@ impl Profile {
             Some(_id) => is_tax_connector_enabled,
             _ => false,
         }
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_is_tax_calculation_enabled(&self, payment_intent: &payments::PaymentIntent) -> bool {
+        self.get_is_tax_connector_enabled()
+            && !payment_intent
+                .skip_external_tax_calculation
+                .unwrap_or(false)
     }
 
     #[cfg(feature = "v1")]
