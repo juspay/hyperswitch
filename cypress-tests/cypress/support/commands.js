@@ -6686,6 +6686,9 @@ Cypress.Commands.add("diffCheckResult", (globalState) => {
 });
 
 Cypress.Commands.add("manualPaymentStatusUpdateTest", (globalState, data) => {
+  const requestData = data.Request || data;
+  const responseData = data.Response || { status: 200, body: {} };
+
   const merchantId = globalState.get("merchantId");
   const paymentId = globalState.get("paymentID");
   const completeUrl = `${Cypress.env("BASEURL")}/payments/${paymentId}/manual-update`;
@@ -6694,15 +6697,15 @@ Cypress.Commands.add("manualPaymentStatusUpdateTest", (globalState, data) => {
   const manualUpdateBody = {
     merchant_id: merchantId,
     attempt_id: `${paymentId}_1`,
-    attempt_status: data.Request.attempt_status,
+    attempt_status: requestData.attempt_status,
   };
 
-  if (data.Request.error_code) {
-    manualUpdateBody.error_code = data.Request.error_code;
+  if (requestData.error_code) {
+    manualUpdateBody.error_code = requestData.error_code;
   }
 
-  if (data.Request.error_message) {
-    manualUpdateBody.error_message = data.Request.error_message;
+  if (requestData.error_message) {
+    manualUpdateBody.error_message = requestData.error_message;
   }
 
   cy.request({
@@ -6721,28 +6724,28 @@ Cypress.Commands.add("manualPaymentStatusUpdateTest", (globalState, data) => {
     cy.wrap(response).then(() => {
       expect(response.headers["content-type"]).to.include("application/json");
 
-      const expectedStatus = data.Response.status || 200;
+      const expectedStatus = responseData.status || 200;
       expect(response.status).to.eq(expectedStatus);
 
       if (response.status === 200) {
         expect(response.body.payment_id).to.equal(paymentId);
         expect(response.body.merchant_id).to.equal(merchantId);
 
-        if (data.Response.body && data.Response.body.attempt_status) {
+        if (responseData.body && responseData.body.attempt_status) {
           expect(response.body.attempt_status).to.equal(
-            data.Response.body.attempt_status
+            responseData.body.attempt_status
           );
         }
 
-        if (data.Response.body && data.Response.body.error_code) {
+        if (responseData.body && responseData.body.error_code) {
           expect(response.body.error_code).to.equal(
-            data.Response.body.error_code
+            responseData.body.error_code
           );
         }
 
-        if (data.Response.body && data.Response.body.error_message) {
+        if (responseData.body && responseData.body.error_message) {
           expect(response.body.error_message).to.equal(
-            data.Response.body.error_message
+            responseData.body.error_message
           );
         }
       } else {
