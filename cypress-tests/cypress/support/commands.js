@@ -9018,7 +9018,7 @@ Cypress.Commands.add("retrieveNonExistentPaymentLinkTest", (globalState) => {
 
 Cypress.Commands.add(
   "calculateTaxCallTest",
-  (data, globalState, useMerchantApiKey = false) => {
+  (data, globalState, useMerchantApiKey = false, skipClientSecret = false) => {
     const {
       Configs: configs = {},
       Request: reqData,
@@ -9041,7 +9041,7 @@ Cypress.Commands.add(
       reqBody.session_id = reqData.session_id;
     }
 
-    if (!useMerchantApiKey) {
+    if (!useMerchantApiKey && !skipClientSecret) {
       reqBody.client_secret = clientSecret;
     }
 
@@ -9050,6 +9050,11 @@ Cypress.Commands.add(
       headers = {
         "Content-Type": "application/json",
         "api-key": globalState.get("apiKey"),
+      };
+    } else if (skipClientSecret) {
+      headers = {
+        "Content-Type": "application/json",
+        Authorization: `publishable-key=${publishableKey}`,
       };
     } else {
       headers = {
