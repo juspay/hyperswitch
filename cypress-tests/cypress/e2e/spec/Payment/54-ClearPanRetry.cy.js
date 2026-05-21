@@ -109,7 +109,7 @@ describe("Clear PAN Retry Tests", () => {
         }
       });
 
-      cy.step("Retrieve Payment and verify retry_type in attempts", () => {
+      cy.step("Retrieve Payment and verify attempts", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
@@ -217,7 +217,7 @@ describe("Clear PAN Retry Tests", () => {
         }
       });
 
-      cy.step("Retrieve Payment and verify retry_type in attempts", () => {
+      cy.step("Retrieve Payment and verify attempts", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;

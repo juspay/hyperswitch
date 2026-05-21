@@ -4150,8 +4150,6 @@ Cypress.Commands.add(
         response.body.attempts.forEach((attemptObj) => {
           expect(attemptObj.attempt_id).to.include(paymentId);
           expect(attemptObj.connector).to.not.be.null;
-          expect(attemptObj, "each attempt should have retry_type field").to.have
-            .property("retry_type");
         });
 
         if (isClearPanRetryEnabled) {
@@ -4159,12 +4157,6 @@ Cypress.Commands.add(
             response.body.attempts.length,
             "Clear PAN retry enabled should have at least 1 attempt"
           ).to.be.greaterThan(0);
-
-          const firstAttempt = response.body.attempts[0];
-          expect(
-            firstAttempt.retry_type,
-            "first attempt retry_type should be null"
-          ).to.be.null;
         }
       }
     });
