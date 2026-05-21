@@ -11,6 +11,11 @@ use ::payment_methods::{
 };
 #[cfg(feature = "v1")]
 use api_models::admin::PaymentMethodsEnabled;
+#[cfg(feature = "v1")]
+use api_models::payment_methods::{
+    PaymentMethodListIntentDataInput, PaymentMethodSubtypeSpecificDataForClient,
+    ResponsePaymentMethodsEnabledForClient,
+};
 use api_models::{
     enums as api_enums,
     payment_methods::{
@@ -2892,6 +2897,29 @@ pub async fn update_payment_method_connector_mandate_details_and_network_token_d
         .change_context(errors::VaultError::UpdateInPaymentMethodTableFailed)?;
     Ok(())
 }
+
+#[cfg(feature = "v1")]
+pub async fn update_payment_method_network_transaction_link_id(
+    key_store: &domain::MerchantKeyStore,
+    db: &dyn db::StorageInterface,
+    pm: domain::PaymentMethod,
+    network_transaction_link_id: Option<String>,
+    storage_scheme: MerchantStorageScheme,
+    initiator: Option<&domain::Initiator>,
+) -> errors::CustomResult<(), errors::VaultError> {
+    let pm_update = payment_method::PaymentMethodUpdate::NetworkTransactionLinkIdUpdate {
+        network_transaction_link_id,
+        last_modified_by: initiator
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|last_modified_by| last_modified_by.to_string()),
+    };
+
+    db.update_payment_method(key_store, pm, pm_update, storage_scheme)
+        .await
+        .change_context(errors::VaultError::UpdateInPaymentMethodTableFailed)?;
+    Ok(())
+}
+
 #[instrument(skip_all)]
 pub async fn get_card_from_vault<'a>(
     state: &'a routes::SessionState,
@@ -3216,130 +3244,182 @@ pub fn get_banks(
     }
 }
 
-fn get_val(str: String, val: &serde_json::Value) -> Option<String> {
+pub fn get_val(str: String, val: &serde_json::Value) -> Option<String> {
     str.split('.')
         .try_fold(val, |acc, x| acc.get(x))
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
 }
 
+// ---------------------------------------------------------------------------
+// Shared context returned by `build_merchant_enabled_pms_context`
+// ---------------------------------------------------------------------------
+
 #[cfg(feature = "v1")]
-pub async fn list_payment_methods(
-    state: routes::SessionState,
-    platform: domain::Platform,
-    // Profile resolved during JWT authentication. Used as a fallback to determine
-    // the business profile when no client_secret is provided and payment_intent is unavailable.
-    auth_profile: Option<Profile>,
-    mut req: api::PaymentMethodListRequest,
-) -> errors::RouterResponse<api::PaymentMethodListResponse> {
+pub struct MerchantEnabledPmsContext {
+    pub payment_experiences_consolidated_hm: HashMap<
+        api_enums::PaymentMethod,
+        HashMap<api_enums::PaymentMethodType, HashMap<api_enums::PaymentExperience, Vec<String>>>,
+    >,
+    pub card_networks_consolidated_hm: HashMap<
+        api_enums::PaymentMethod,
+        HashMap<api_enums::PaymentMethodType, HashMap<api_enums::CardNetwork, Vec<String>>>,
+    >,
+    pub banks_consolidated_hm: HashMap<api_enums::PaymentMethodType, Vec<String>>,
+    pub bank_debits_consolidated_hm: HashMap<api_enums::PaymentMethodType, Vec<String>>,
+    pub bank_transfer_consolidated_hm: HashMap<api_enums::PaymentMethodType, Vec<String>>,
+    pub required_fields_hm: HashMap<
+        api_enums::PaymentMethod,
+        HashMap<api_enums::PaymentMethodType, HashMap<String, RequiredFieldInfo>>,
+    >,
+    pub pmt_to_auth_connector:
+        HashMap<enums::PaymentMethod, HashMap<enums::PaymentMethodType, String>>,
+    pub connector_supports_installments: bool,
+    pub collect_shipping_details_from_wallets: Option<bool>,
+    pub collect_billing_details_from_wallets: Option<bool>,
+    pub sdk_next_action: api_models::payments::SdkNextAction,
+}
+
+#[cfg(feature = "v1")]
+impl MerchantEnabledPmsContext {
+    /// Converts `payment_experiences_consolidated_hm` → client PM entries (wallet, pay_later, upi, …)
+    pub fn payment_experience_pms_for_client(&self) -> Vec<ResponsePaymentMethodsEnabledForClient> {
+        let mut out = vec![];
+        for (payment_method, pmt_map) in &self.payment_experiences_consolidated_hm {
+            for (payment_method_type, pe_map) in pmt_map {
+                let payment_experience_types: Vec<api_enums::PaymentExperience> =
+                    pe_map.keys().copied().collect();
+
+                let is_wallet = *payment_method == api_enums::PaymentMethod::Wallet
+                    || *payment_method == api_enums::PaymentMethod::PayLater;
+
+                out.push(ResponsePaymentMethodsEnabledForClient {
+                    payment_method: *payment_method,
+                    payment_method_type: *payment_method_type,
+                    data: None,
+                    payment_experience: Some(payment_experience_types),
+                    collect_shipping_details_from_wallets: is_wallet
+                        .then_some(self.collect_shipping_details_from_wallets)
+                        .flatten(),
+                    collect_billing_details_from_wallets: is_wallet
+                        .then_some(self.collect_billing_details_from_wallets)
+                        .flatten(),
+                });
+            }
+        }
+        out
+    }
+
+    /// Converts `card_networks_consolidated_hm` → client PM entries (card, card_redirect)
+    pub fn card_network_pms_for_client(&self) -> Vec<ResponsePaymentMethodsEnabledForClient> {
+        let mut out = vec![];
+        for (payment_method, pmt_map) in &self.card_networks_consolidated_hm {
+            for (payment_method_type, card_network_hashmap) in pmt_map {
+                let card_networks: Vec<api_enums::CardNetwork> =
+                    card_network_hashmap.keys().cloned().collect();
+
+                out.push(ResponsePaymentMethodsEnabledForClient {
+                    payment_method: *payment_method,
+                    payment_method_type: *payment_method_type,
+                    data: Some(PaymentMethodSubtypeSpecificDataForClient::Card { card_networks }),
+                    payment_experience: None,
+                    collect_shipping_details_from_wallets: None,
+                    collect_billing_details_from_wallets: None,
+                });
+            }
+        }
+        out
+    }
+
+    /// Converts `banks_consolidated_hm` → client PM entries (bank_redirect)
+    pub fn bank_redirect_pms_for_client(
+        &self,
+        state: &routes::SessionState,
+    ) -> errors::RouterResult<Vec<ResponsePaymentMethodsEnabledForClient>> {
+        let mut out = vec![];
+        for (payment_method_type, connectors) in &self.banks_consolidated_hm {
+            let bank_names = get_banks(state, *payment_method_type, connectors.clone())?;
+            let bank_names_list: Vec<common_enums::BankNames> = bank_names
+                .into_iter()
+                .flat_map(|bank_code_response| bank_code_response.bank_name)
+                .collect();
+
+            out.push(ResponsePaymentMethodsEnabledForClient {
+                payment_method: api_enums::PaymentMethod::BankRedirect,
+                payment_method_type: *payment_method_type,
+                data: if bank_names_list.is_empty() {
+                    None
+                } else {
+                    Some(PaymentMethodSubtypeSpecificDataForClient::Bank {
+                        bank_names: bank_names_list,
+                    })
+                },
+                payment_experience: None,
+                collect_shipping_details_from_wallets: None,
+                collect_billing_details_from_wallets: None,
+            });
+        }
+        Ok(out)
+    }
+
+    /// Converts `bank_debits_consolidated_hm` → client PM entries (bank_debit)
+    pub fn bank_debit_pms_for_client(&self) -> Vec<ResponsePaymentMethodsEnabledForClient> {
+        self.bank_debits_consolidated_hm
+            .keys()
+            .map(
+                |payment_method_type| ResponsePaymentMethodsEnabledForClient {
+                    payment_method: api_enums::PaymentMethod::BankDebit,
+                    payment_method_type: *payment_method_type,
+                    data: None,
+                    payment_experience: None,
+                    collect_shipping_details_from_wallets: None,
+                    collect_billing_details_from_wallets: None,
+                },
+            )
+            .collect()
+    }
+
+    /// Converts `bank_transfer_consolidated_hm` → client PM entries (bank_transfer)
+    pub fn bank_transfer_pms_for_client(&self) -> Vec<ResponsePaymentMethodsEnabledForClient> {
+        self.bank_transfer_consolidated_hm
+            .keys()
+            .map(
+                |payment_method_type| ResponsePaymentMethodsEnabledForClient {
+                    payment_method: api_enums::PaymentMethod::BankTransfer,
+                    payment_method_type: *payment_method_type,
+                    data: None,
+                    payment_experience: None,
+                    collect_shipping_details_from_wallets: None,
+                    collect_billing_details_from_wallets: None,
+                },
+            )
+            .collect()
+    }
+}
+
+/// Runs the two-gate PM filter pipeline (Euclid cgraph + session flow routing)
+/// and builds all consolidated hashmaps needed to assemble a PM list response.
+///
+/// Both the legacy `list_payment_methods` and the new `list_payment_methods_client`
+/// endpoint call this function and then assemble their own response types from the
+/// returned `MerchantEnabledPmsContext`.
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+pub async fn build_merchant_enabled_pms_context(
+    state: &routes::SessionState,
+    platform: &domain::Platform,
+    business_profile: &Profile,
+    payment_intent: Option<&storage::PaymentIntent>,
+    payment_attempt: Option<&storage::PaymentAttempt>,
+    billing_address: Option<&domain::Address>,
+    shipping_address: Option<&domain::Address>,
+    customer: Option<&hyperswitch_domain_models::customer::Customer>,
+    is_cit_transaction: bool,
+) -> errors::RouterResult<MerchantEnabledPmsContext> {
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
-    let payment_intent = if let Some(cs) = &req.client_secret {
-        if cs.starts_with("pm_") {
-            validate_payment_method_and_client_secret(cs, db, platform.get_provider()).await?;
-            None
-        } else {
-            helpers::verify_payment_intent_time_and_client_secret(
-                &state,
-                &platform,
-                req.client_secret.clone(),
-            )
-            .await?
-        }
-    } else {
-        None
-    };
 
-    let shipping_address = payment_intent
-        .as_ref()
-        .async_map(|pi| async {
-            helpers::get_address_by_id(
-                &state,
-                pi.shipping_address_id.clone(),
-                platform.get_processor().get_key_store(),
-                &pi.payment_id,
-                platform.get_processor().get_account().get_id(),
-                platform.get_processor().get_account().storage_scheme,
-            )
-            .await
-        })
-        .await
-        .transpose()?
-        .flatten();
-
-    let billing_address = payment_intent
-        .as_ref()
-        .async_map(|pi| async {
-            helpers::get_address_by_id(
-                &state,
-                pi.billing_address_id.clone(),
-                platform.get_processor().get_key_store(),
-                &pi.payment_id,
-                platform.get_processor().get_account().get_id(),
-                platform.get_processor().get_account().storage_scheme,
-            )
-            .await
-        })
-        .await
-        .transpose()?
-        .flatten();
-
-    let customer = payment_intent
-        .as_ref()
-        .async_and_then(|pi| async {
-            pi.customer_id
-                .as_ref()
-                .async_and_then(|cust| async {
-                    db.find_customer_by_customer_id_merchant_id(
-                        cust,
-                        &pi.merchant_id,
-                        platform.get_provider().get_key_store(),
-                        platform.get_provider().get_account().storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
-                    .ok()
-                })
-                .await
-        })
-        .await;
-
-    let payment_attempt = payment_intent
-        .as_ref()
-        .async_map(|pi| async {
-            db.find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
-                &pi.payment_id,
-                &pi.processor_merchant_id,
-                &pi.active_attempt.get_id(),
-                platform.get_processor().get_account().storage_scheme,
-                platform.get_processor().get_key_store(),
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::PaymentNotFound)
-        })
-        .await
-        .transpose()?;
-    let setup_future_usage = payment_intent.as_ref().and_then(|pi| pi.setup_future_usage);
-    let is_cit_transaction = payment_attempt
-        .as_ref()
-        .map(|pa| pa.mandate_details.is_some())
-        .unwrap_or(false)
-        || setup_future_usage
-            .map(|future_usage| future_usage == common_enums::FutureUsage::OffSession)
-            .unwrap_or(false);
-    let payment_type = payment_attempt.as_ref().map(|pa| {
-        let amount = api::Amount::from(pa.net_amount.get_order_amount());
-        let mandate_type = if pa.mandate_id.is_some() {
-            Some(api::MandateTransactionType::RecurringMandateTransaction)
-        } else if is_cit_transaction {
-            Some(api::MandateTransactionType::NewMandateTransaction)
-        } else {
-            None
-        };
-
-        helpers::infer_payment_type(amount, mandate_type.as_ref())
-    });
-
+    // --- Load all MCAs and filter by profile + connector type ---
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
             platform.get_processor().get_account().get_id(),
@@ -3349,36 +3429,13 @@ pub async fn list_payment_methods(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let (profile_id, business_profile) =
-        match payment_intent.as_ref().and_then(|pi| pi.profile_id.clone()) {
-            Some(profile_id) => {
-                let business_profile = db
-                    .find_business_profile_by_profile_id(
-                        platform.get_processor().get_key_store(),
-                        &profile_id,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-                        id: profile_id.get_string_repr().to_owned(),
-                    })?;
-                (profile_id, business_profile)
-            }
-            None => {
-                let profile =
-                    auth_profile.ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-                        message: "Profile id not found".to_string(),
-                    })?;
-                let profile_id = profile.get_id().clone();
-                (profile_id, profile)
-            }
-        };
+    let profile_id = business_profile.get_id().clone();
 
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
         .with_profile_id(profile_id.clone());
 
-    // filter out payment connectors based on profile_id
     let filtered_mcas = all_mcas
         .clone()
         .filter_based_on_profile_and_connector_type(&profile_id, ConnectorType::PaymentProcessor);
@@ -3386,21 +3443,21 @@ pub async fn list_payment_methods(
     logger::debug!(mca_before_filtering=?filtered_mcas);
 
     let mut response: Vec<ResponsePaymentMethodIntermediate> = vec![];
-    // Key creation for storing PM_FILTER_CGRAPH
-    let key = {
-        format!(
-            "pm_filters_cgraph_{}_{}",
-            platform
-                .get_processor()
-                .get_account()
-                .get_id()
-                .get_string_repr(),
-            profile_id.get_string_repr()
-        )
-    };
 
-    if let Some(graph) = get_merchant_pm_filter_graph(&state, &key).await {
-        // Derivation of PM_FILTER_CGRAPH from MokaCache successful
+    // ---- Gate 1: Euclid constraint graph ----
+    let key = format!(
+        "pm_filters_cgraph_{}_{}",
+        platform
+            .get_processor()
+            .get_account()
+            .get_id()
+            .get_string_repr(),
+        profile_id.get_string_repr()
+    );
+
+    let mut req = api::PaymentMethodListRequest::default();
+
+    if let Some(graph) = get_merchant_pm_filter_graph(state, &key).await {
         for mca in &filtered_mcas {
             let payment_methods = match &mca.payment_methods_enabled {
                 Some(pm) => pm,
@@ -3412,16 +3469,15 @@ pub async fn list_payment_methods(
                 payment_methods,
                 &mut req,
                 &mut response,
-                payment_intent.as_ref(),
-                payment_attempt.as_ref(),
-                billing_address.as_ref(),
+                payment_intent,
+                payment_attempt,
+                billing_address,
                 mca.connector_name.clone(),
                 &state.conf,
             )
             .await?;
         }
     } else {
-        // No PM_FILTER_CGRAPH Cache present in MokaCache
         let mut builder = cgraph::ConstraintGraphBuilder::new();
         for mca in &filtered_mcas {
             let domain_id = builder.make_domain(
@@ -3453,8 +3509,7 @@ pub async fn list_payment_methods(
             }
         }
 
-        // Refreshing our CGraph cache
-        let graph = refresh_pm_filters_cache(&state, &key, builder.build()).await;
+        let graph = refresh_pm_filters_cache(state, &key, builder.build()).await;
 
         for mca in &filtered_mcas {
             let payment_methods = match &mca.payment_methods_enabled {
@@ -3467,19 +3522,22 @@ pub async fn list_payment_methods(
                 payment_methods,
                 &mut req,
                 &mut response,
-                payment_intent.as_ref(),
-                payment_attempt.as_ref(),
-                billing_address.as_ref(),
+                payment_intent,
+                payment_attempt,
+                billing_address,
                 mca.connector_name.clone(),
                 &state.conf,
             )
             .await?;
         }
     }
+
     logger::info!(
         "The Payment Methods available after Constraint Graph filtering are {:?}",
         response
     );
+
+    // ---- Gate 2: Session flow routing + pm_auth Redis write + attempt write-back ----
 
     let mut pmt_to_auth_connector: HashMap<
         enums::PaymentMethod,
@@ -3496,7 +3554,7 @@ pub async fn list_payment_methods(
             .get_pre_routing_disabled_pm_pmt_key();
 
         let skip_pre_routing =
-            load_skip_pre_routing_config(&state, pre_routing_disabled_pm_pmt_key.to_string()).await;
+            load_skip_pre_routing_config(state, pre_routing_disabled_pm_pmt_key.to_string()).await;
 
         let routing_enabled_pms = &router_consts::ROUTING_ENABLED_PAYMENT_METHODS;
         let routing_enabled_pm_types = &router_consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
@@ -3511,7 +3569,7 @@ pub async fn list_payment_methods(
                 &skip_pre_routing,
             ) {
                 let connector_data = helpers::get_connector_data_with_token(
-                    &state,
+                    state,
                     intermediate.connector.to_string(),
                     None,
                     intermediate.payment_method_type,
@@ -3529,8 +3587,8 @@ pub async fn list_payment_methods(
         }
 
         let sfr = SessionFlowRoutingInput {
-            state: &state,
-            country: billing_address.clone().and_then(|ad| ad.country),
+            state,
+            country: billing_address.and_then(|ad| ad.country),
             key_store: platform.get_processor().get_key_store(),
             merchant_account: platform.get_processor().get_account(),
             payment_attempt,
@@ -3539,7 +3597,7 @@ pub async fn list_payment_methods(
         };
         let (result, routing_approach) = routing::perform_session_flow_routing(
             sfr,
-            &business_profile,
+            business_profile,
             &enums::TransactionType::Payment,
         )
         .await
@@ -3731,7 +3789,7 @@ pub async fn list_payment_methods(
         state
             .store
             .update_payment_attempt_with_attempt_id(
-                payment_attempt.clone(),
+                (*payment_attempt).clone(),
                 attempt_update,
                 platform.get_provider().get_account().storage_scheme,
                 platform.get_provider().get_key_store(),
@@ -3740,25 +3798,27 @@ pub async fn list_payment_methods(
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
     }
 
-    // Check for `use_billing_as_payment_method_billing` config under business_profile
-    // If this is disabled, then the billing details in required fields will be empty and have to be collected by the customer
-    let billing_address_for_calculating_required_fields = business_profile
+    logger::info!("Payment methods after session flow routing: {:?}", response);
+
+    // ---- Required-fields billing address config ----
+    let billing_address_for_req = business_profile
         .use_billing_as_payment_method_billing
         .unwrap_or(true)
-        .then_some(billing_address.as_ref())
+        .then_some(billing_address)
         .flatten();
 
-    let req = api_models::payments::PaymentsRequest::foreign_try_from((
-        payment_attempt.as_ref(),
-        payment_intent.as_ref(),
-        shipping_address.as_ref(),
-        billing_address_for_calculating_required_fields,
-        customer.as_ref(),
+    let req_for_required_fields = api_models::payments::PaymentsRequest::foreign_try_from((
+        payment_attempt,
+        payment_intent,
+        shipping_address,
+        billing_address_for_req,
+        customer,
     ))?;
+    let req_val = serde_json::to_value(req_for_required_fields).ok();
 
-    let req_val = serde_json::to_value(req).ok();
     logger::debug!(filtered_payment_methods=?response);
 
+    // ---- Hashmap consolidation ----
     let mut payment_experiences_consolidated_hm: HashMap<
         api_enums::PaymentMethod,
         HashMap<api_enums::PaymentMethodType, HashMap<api_enums::PaymentExperience, Vec<String>>>,
@@ -3771,14 +3831,11 @@ pub async fn list_payment_methods(
 
     let mut banks_consolidated_hm: HashMap<api_enums::PaymentMethodType, Vec<String>> =
         HashMap::new();
+    let mut bank_debits_consolidated_hm: HashMap<api_enums::PaymentMethodType, Vec<String>> =
+        HashMap::new();
+    let mut bank_transfer_consolidated_hm: HashMap<api_enums::PaymentMethodType, Vec<String>> =
+        HashMap::new();
 
-    let mut bank_debits_consolidated_hm =
-        HashMap::<api_enums::PaymentMethodType, Vec<String>>::new();
-
-    let mut bank_transfer_consolidated_hm =
-        HashMap::<api_enums::PaymentMethodType, Vec<String>>::new();
-
-    // All the required fields will be stored here and later filtered out based on business profile config
     let mut required_fields_hm = HashMap::<
         api_enums::PaymentMethod,
         HashMap<api_enums::PaymentMethodType, HashMap<String, RequiredFieldInfo>>,
@@ -3807,43 +3864,42 @@ pub async fn list_payment_methods(
                             .get(&connector_variant)
                             .map(|required_fields_final| {
                                 let mut required_fields_hs = required_fields_final.common.clone();
-                                    if is_cit_transaction {
-                                        required_fields_hs
-                                            .extend(required_fields_final.mandate.clone());
-                                    } else {
-                                        required_fields_hs
-                                            .extend(required_fields_final.non_mandate.clone());
-                                    }
-                                 required_fields_hs = should_collect_shipping_or_billing_details_from_wallet_connector(
-                                    payment_method,
-                                    element.payment_experience.as_ref(),
-                                    &business_profile,
-                                    required_fields_hs.clone(),
-                                );
+                                if is_cit_transaction {
+                                    required_fields_hs
+                                        .extend(required_fields_final.mandate.clone());
+                                } else {
+                                    required_fields_hs
+                                        .extend(required_fields_final.non_mandate.clone());
+                                }
+                                required_fields_hs =
+                                    should_collect_shipping_or_billing_details_from_wallet_connector(
+                                        payment_method,
+                                        element.payment_experience.as_ref(),
+                                        business_profile,
+                                        required_fields_hs.clone(),
+                                    );
 
-                                // get the config, check the enums while adding
-                                {
-                                    for (key, val) in &mut required_fields_hs {
-                                        let temp = req_val
-                                            .as_ref()
-                                            .and_then(|r| get_val(key.to_owned(), r));
-                                        if let Some(s) = temp {
-                                            val.value = Some(s.into())
-                                        };
-                                    }
+                                for (key, val) in &mut required_fields_hs {
+                                    let temp = req_val
+                                        .as_ref()
+                                        .and_then(|r| get_val(key.to_owned(), r));
+                                    if let Some(s) = temp {
+                                        val.value = Some(s.into())
+                                    };
                                 }
 
                                 let existing_req_fields_hs = required_fields_hm
                                     .get_mut(&payment_method)
                                     .and_then(|inner_hm| inner_hm.get_mut(&payment_method_type));
 
-                                // If payment_method_type already exist in required_fields_hm, extend the required_fields hs to existing hs.
                                 if let Some(inner_hs) = existing_req_fields_hs {
                                     inner_hs.extend(required_fields_hs);
                                 } else {
-                                    required_fields_hm.get_mut(&payment_method).map(|inner_hm| {
-                                        inner_hm.insert(payment_method_type, required_fields_hs)
-                                    });
+                                    required_fields_hm
+                                        .get_mut(&payment_method)
+                                        .map(|inner_hm| {
+                                            inner_hm.insert(payment_method_type, required_fields_hs)
+                                        });
                                 }
                             })
                     })
@@ -3959,8 +4015,219 @@ pub async fn list_payment_methods(
         }
     }
 
+    // ---- connector_supports_installments ----
+    let currency = payment_intent.and_then(|pi| pi.currency);
+    let connector_supports_installments = currency.is_some_and(|cur| {
+        filtered_mcas.iter().any(|mca| {
+            mca.connector_name
+                .parse::<api_enums::Connector>()
+                .ok()
+                .is_some_and(|connector| {
+                    state
+                        .conf
+                        .installment_config
+                        .is_connector_currency_supported(&connector, cur)
+                })
+        })
+    });
+
+    // ---- wallet shipping/billing collect flags ----
+    let collect_shipping_details_from_wallets = if business_profile
+        .always_collect_shipping_details_from_wallet_connector
+        .unwrap_or(false)
+    {
+        business_profile.always_collect_shipping_details_from_wallet_connector
+    } else {
+        business_profile.collect_shipping_details_from_wallet_connector
+    };
+
+    let collect_billing_details_from_wallets = if business_profile
+        .always_collect_billing_details_from_wallet_connector
+        .unwrap_or(false)
+    {
+        business_profile.always_collect_billing_details_from_wallet_connector
+    } else {
+        business_profile.collect_billing_details_from_wallet_connector
+    };
+
+    // ---- sdk_next_action ----
+    let sdk_next_action = payment_method_utils::get_sdk_next_action_for_payment_method_list(
+        state,
+        &dimensions,
+        payment_intent.and_then(|pi| pi.customer_id.as_ref()),
+    )
+    .await;
+
+    Ok(MerchantEnabledPmsContext {
+        payment_experiences_consolidated_hm,
+        card_networks_consolidated_hm,
+        banks_consolidated_hm,
+        bank_debits_consolidated_hm,
+        bank_transfer_consolidated_hm,
+        required_fields_hm,
+        pmt_to_auth_connector,
+        connector_supports_installments,
+        collect_shipping_details_from_wallets,
+        collect_billing_details_from_wallets,
+        sdk_next_action,
+    })
+}
+
+#[cfg(feature = "v1")]
+pub async fn list_payment_methods(
+    state: routes::SessionState,
+    platform: domain::Platform,
+    // Profile resolved during JWT authentication. Used as a fallback to determine
+    // the business profile when no client_secret is provided and payment_intent is unavailable.
+    auth_profile: Option<Profile>,
+    req: api::PaymentMethodListRequest,
+) -> errors::RouterResponse<api::PaymentMethodListResponse> {
+    let db = &*state.store;
+    let payment_intent = if let Some(cs) = &req.client_secret {
+        if cs.starts_with("pm_") {
+            validate_payment_method_and_client_secret(cs, db, platform.get_provider()).await?;
+            None
+        } else {
+            helpers::verify_payment_intent_time_and_client_secret(
+                &state,
+                &platform,
+                req.client_secret.clone(),
+            )
+            .await?
+        }
+    } else {
+        None
+    };
+
+    let shipping_address = payment_intent
+        .as_ref()
+        .async_map(|pi| async {
+            helpers::get_address_by_id(
+                &state,
+                pi.shipping_address_id.clone(),
+                platform.get_processor().get_key_store(),
+                &pi.payment_id,
+                platform.get_processor().get_account().get_id(),
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+        })
+        .await
+        .transpose()?
+        .flatten();
+
+    let billing_address = payment_intent
+        .as_ref()
+        .async_map(|pi| async {
+            helpers::get_address_by_id(
+                &state,
+                pi.billing_address_id.clone(),
+                platform.get_processor().get_key_store(),
+                &pi.payment_id,
+                platform.get_processor().get_account().get_id(),
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+        })
+        .await
+        .transpose()?
+        .flatten();
+
+    let customer = payment_intent
+        .as_ref()
+        .async_and_then(|pi| async {
+            pi.customer_id
+                .as_ref()
+                .async_and_then(|cust| async {
+                    db.find_customer_by_customer_id_merchant_id(
+                        cust,
+                        &pi.merchant_id,
+                        platform.get_provider().get_key_store(),
+                        platform.get_provider().get_account().storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+                    .ok()
+                })
+                .await
+        })
+        .await;
+
+    let payment_attempt = payment_intent
+        .as_ref()
+        .async_map(|pi| async {
+            db.find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                &pi.payment_id,
+                &pi.processor_merchant_id,
+                &pi.active_attempt.get_id(),
+                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_key_store(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::PaymentNotFound)
+        })
+        .await
+        .transpose()?;
+    let setup_future_usage = payment_intent.as_ref().and_then(|pi| pi.setup_future_usage);
+    let is_cit_transaction = payment_attempt
+        .as_ref()
+        .map(|pa| pa.mandate_details.is_some())
+        .unwrap_or(false)
+        || setup_future_usage
+            .map(|future_usage| future_usage == common_enums::FutureUsage::OffSession)
+            .unwrap_or(false);
+    let payment_type = payment_attempt.as_ref().map(|pa| {
+        let amount = api::Amount::from(pa.net_amount.get_order_amount());
+        let mandate_type = if pa.mandate_id.is_some() {
+            Some(api::MandateTransactionType::RecurringMandateTransaction)
+        } else if is_cit_transaction {
+            Some(api::MandateTransactionType::NewMandateTransaction)
+        } else {
+            None
+        };
+
+        helpers::infer_payment_type(amount, mandate_type.as_ref())
+    });
+
+    let (_profile_id, business_profile) =
+        match payment_intent.as_ref().and_then(|pi| pi.profile_id.clone()) {
+            Some(profile_id) => {
+                let business_profile = db
+                    .find_business_profile_by_profile_id(
+                        platform.get_processor().get_key_store(),
+                        &profile_id,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                        id: profile_id.get_string_repr().to_owned(),
+                    })?;
+                (profile_id, business_profile)
+            }
+            None => {
+                let profile =
+                    auth_profile.ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                        message: "Profile id not found".to_string(),
+                    })?;
+                let profile_id = profile.get_id().clone();
+                (profile_id, profile)
+            }
+        };
+
+    let pms_ctx = Box::pin(build_merchant_enabled_pms_context(
+        &state,
+        &platform,
+        &business_profile,
+        payment_intent.as_ref(),
+        payment_attempt.as_ref(),
+        billing_address.as_ref(),
+        shipping_address.as_ref(),
+        customer.as_ref(),
+        is_cit_transaction,
+    ))
+    .await?;
+
     let mut payment_method_responses: Vec<ResponsePaymentMethodsEnabled> = vec![];
-    for key in payment_experiences_consolidated_hm.iter() {
+    for key in pms_ctx.payment_experiences_consolidated_hm.iter() {
         let mut payment_method_types = vec![];
         for payment_method_types_hm in key.1 {
             let mut payment_experience_types = vec![];
@@ -3979,12 +4246,14 @@ pub async fn list_payment_methods(
                 bank_debits: None,
                 bank_transfers: None,
                 // Required fields for PayLater payment method
-                required_fields: required_fields_hm
+                required_fields: pms_ctx
+                    .required_fields_hm
                     .get(key.0)
                     .and_then(|inner_hm| inner_hm.get(payment_method_types_hm.0))
                     .cloned(),
                 surcharge_details: None,
-                pm_auth_connector: pmt_to_auth_connector
+                pm_auth_connector: pms_ctx
+                    .pmt_to_auth_connector
                     .get(key.0)
                     .and_then(|pm_map| pm_map.get(payment_method_types_hm.0))
                     .cloned(),
@@ -3997,7 +4266,7 @@ pub async fn list_payment_methods(
         })
     }
 
-    for key in card_networks_consolidated_hm.iter() {
+    for key in pms_ctx.card_networks_consolidated_hm.iter() {
         let mut payment_method_types = vec![];
         for payment_method_types_hm in key.1 {
             let mut card_network_types = vec![];
@@ -4017,12 +4286,14 @@ pub async fn list_payment_methods(
                 bank_debits: None,
                 bank_transfers: None,
                 // Required fields for Card payment method
-                required_fields: required_fields_hm
+                required_fields: pms_ctx
+                    .required_fields_hm
                     .get(key.0)
                     .and_then(|inner_hm| inner_hm.get(payment_method_types_hm.0))
                     .cloned(),
                 surcharge_details: None,
-                pm_auth_connector: pmt_to_auth_connector
+                pm_auth_connector: pms_ctx
+                    .pmt_to_auth_connector
                     .get(key.0)
                     .and_then(|pm_map| pm_map.get(payment_method_types_hm.0))
                     .cloned(),
@@ -4037,7 +4308,7 @@ pub async fn list_payment_methods(
 
     let mut bank_redirect_payment_method_types = vec![];
 
-    for key in banks_consolidated_hm.iter() {
+    for key in pms_ctx.banks_consolidated_hm.iter() {
         let payment_method_type = *key.0;
         let connectors = key.1.clone();
         let bank_names = get_banks(&state, payment_method_type, connectors)?;
@@ -4050,12 +4321,14 @@ pub async fn list_payment_methods(
                 bank_debits: None,
                 bank_transfers: None,
                 // Required fields for BankRedirect payment method
-                required_fields: required_fields_hm
+                required_fields: pms_ctx
+                    .required_fields_hm
                     .get(&api_enums::PaymentMethod::BankRedirect)
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
                 surcharge_details: None,
-                pm_auth_connector: pmt_to_auth_connector
+                pm_auth_connector: pms_ctx
+                    .pmt_to_auth_connector
                     .get(&enums::PaymentMethod::BankRedirect)
                     .and_then(|pm_map| pm_map.get(key.0))
                     .cloned(),
@@ -4072,7 +4345,7 @@ pub async fn list_payment_methods(
 
     let mut bank_debit_payment_method_types = vec![];
 
-    for key in bank_debits_consolidated_hm.iter() {
+    for key in pms_ctx.bank_debits_consolidated_hm.iter() {
         let payment_method_type = *key.0;
         let connectors = key.1.clone();
         bank_debit_payment_method_types.push({
@@ -4086,12 +4359,14 @@ pub async fn list_payment_methods(
                 }),
                 bank_transfers: None,
                 // Required fields for BankDebit payment method
-                required_fields: required_fields_hm
+                required_fields: pms_ctx
+                    .required_fields_hm
                     .get(&api_enums::PaymentMethod::BankDebit)
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
                 surcharge_details: None,
-                pm_auth_connector: pmt_to_auth_connector
+                pm_auth_connector: pms_ctx
+                    .pmt_to_auth_connector
                     .get(&enums::PaymentMethod::BankDebit)
                     .and_then(|pm_map| pm_map.get(key.0))
                     .cloned(),
@@ -4108,7 +4383,7 @@ pub async fn list_payment_methods(
 
     let mut bank_transfer_payment_method_types = vec![];
 
-    for key in bank_transfer_consolidated_hm.iter() {
+    for key in pms_ctx.bank_transfer_consolidated_hm.iter() {
         let payment_method_type = *key.0;
         let connectors = key.1.clone();
         bank_transfer_payment_method_types.push({
@@ -4122,12 +4397,14 @@ pub async fn list_payment_methods(
                     eligible_connectors: connectors,
                 }),
                 // Required fields for BankTransfer payment method
-                required_fields: required_fields_hm
+                required_fields: pms_ctx
+                    .required_fields_hm
                     .get(&api_enums::PaymentMethod::BankTransfer)
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
                 surcharge_details: None,
-                pm_auth_connector: pmt_to_auth_connector
+                pm_auth_connector: pms_ctx
+                    .pmt_to_auth_connector
                     .get(&enums::PaymentMethod::BankTransfer)
                     .and_then(|pm_map| pm_map.get(key.0))
                     .cloned(),
@@ -4142,41 +4419,15 @@ pub async fn list_payment_methods(
         });
     }
     let currency = payment_intent.as_ref().and_then(|pi| pi.currency);
-    let capture_method = payment_attempt.as_ref().and_then(|pa| pa.capture_method);
-    let skip_external_tax_calculation = payment_intent
-        .as_ref()
-        .and_then(|intent| intent.skip_external_tax_calculation)
-        .unwrap_or(false);
     let request_external_three_ds_authentication = payment_intent
         .as_ref()
-        .and_then(|intent| intent.request_external_three_ds_authentication)
+        .map(|intent| intent.get_request_external_three_ds_authentication())
         .unwrap_or(false);
 
-    let sdk_next_action = payment_method_utils::get_sdk_next_action_for_payment_method_list(
-        &state,
-        &dimensions,
-        payment_intent
-            .as_ref()
-            .and_then(|pi| pi.customer_id.as_ref()),
-    )
-    .await;
     let is_guest_customer = payment_intent
         .as_ref()
-        .map(|payment_intent| payment_intent.customer_id.is_none())
+        .map(|intent| intent.is_guest_customer())
         .unwrap_or(true);
-    let connector_supports_installments = currency.is_some_and(|cur| {
-        filtered_mcas.iter().any(|mca| {
-            mca.connector_name
-                .parse::<api_enums::Connector>()
-                .ok()
-                .is_some_and(|connector| {
-                    state
-                        .conf
-                        .installment_config
-                        .is_connector_currency_supported(&connector, cur)
-                })
-        })
-    });
 
     let merchant_surcharge_configs = if let Some((payment_attempt, payment_intent)) =
         payment_attempt.as_ref().zip(payment_intent.clone())
@@ -4195,37 +4446,37 @@ pub async fn list_payment_methods(
         api_surcharge_decision_configs::MerchantSurchargeConfigs::default()
     };
 
-    let collect_shipping_details_from_wallets = if business_profile
-        .always_collect_shipping_details_from_wallet_connector
-        .unwrap_or(false)
-    {
-        business_profile.always_collect_shipping_details_from_wallet_connector
-    } else {
-        business_profile.collect_shipping_details_from_wallet_connector
-    };
-
-    let collect_billing_details_from_wallets = if business_profile
-        .always_collect_billing_details_from_wallet_connector
-        .unwrap_or(false)
-    {
-        business_profile.always_collect_billing_details_from_wallet_connector
-    } else {
-        business_profile.collect_billing_details_from_wallet_connector
-    };
-
-    let is_tax_connector_enabled = business_profile.get_is_tax_connector_enabled();
+    let is_tax_connector_enabled = payment_intent
+        .as_ref()
+        .map(|pi| business_profile.get_is_tax_calculation_enabled(pi))
+        .unwrap_or(false);
 
     let intent_data = payment_intent
         .clone()
-        .map(|pi| {
+        .map(|pi| -> errors::CustomResult<_, errors::ApiErrorResponse> {
             let net_amount = payment_attempt
                 .as_ref()
                 .map(|pa| pa.net_amount.get_total_amount())
                 .unwrap_or(pi.amount);
+            let extra = PaymentMethodListIntentDataInput {
+                merchant_name: platform
+                    .get_processor()
+                    .get_account()
+                    .merchant_name
+                    .as_ref()
+                    .map(|n| n.clone().into_inner().peek().clone()),
+                mandate_payment: payment_attempt
+                    .as_ref()
+                    .and_then(|pa| pa.mandate_details.as_ref())
+                    .map(|d| d.to_api_mandate_data()),
+                payment_type,
+                capture_method: payment_attempt.as_ref().and_then(|pa| pa.capture_method),
+            };
             pi.into_payment_method_list_intent_data(
                 net_amount,
-                connector_supports_installments,
-                capture_method,
+                pms_ctx.connector_supports_installments,
+                extra,
+                &business_profile,
             )
         })
         .transpose()
@@ -4243,40 +4494,17 @@ pub async fn list_payment_methods(
             payment_type,
             payment_methods: payment_method_responses,
             mandate_payment: payment_attempt
-                .as_ref()
-                .and_then(|inner| inner.mandate_details.clone())
-                .map(|d| match d {
-                    hyperswitch_domain_models::mandates::MandateDataType::SingleUse(i) => {
-                        api::MandateType::SingleUse(api::MandateAmountData {
-                            amount: i.amount,
-                            currency: i.currency,
-                            start_date: i.start_date,
-                            end_date: i.end_date,
-                            metadata: i.metadata,
-                        })
-                    }
-                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(i)) => {
-                        api::MandateType::MultiUse(Some(api::MandateAmountData {
-                            amount: i.amount,
-                            currency: i.currency,
-                            start_date: i.start_date,
-                            end_date: i.end_date,
-                            metadata: i.metadata,
-                        }))
-                    }
-                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None) => {
-                        api::MandateType::MultiUse(None)
-                    }
-                }),
+                .and_then(|inner| inner.mandate_details)
+                .map(|mandate_data_type| mandate_data_type.to_api_mandate_type()),
             show_surcharge_breakup_screen: merchant_surcharge_configs
                 .show_surcharge_breakup_screen
                 .unwrap_or_default(),
             currency,
             request_external_three_ds_authentication,
-            collect_shipping_details_from_wallets,
-            collect_billing_details_from_wallets,
-            is_tax_calculation_enabled: is_tax_connector_enabled && !skip_external_tax_calculation,
-            sdk_next_action,
+            collect_shipping_details_from_wallets: pms_ctx.collect_shipping_details_from_wallets,
+            collect_billing_details_from_wallets: pms_ctx.collect_billing_details_from_wallets,
+            is_tax_calculation_enabled: is_tax_connector_enabled,
+            sdk_next_action: pms_ctx.sdk_next_action,
             is_guest_customer,
             intent_data,
         },
@@ -4284,7 +4512,7 @@ pub async fn list_payment_methods(
 }
 
 #[cfg(feature = "v1")]
-fn should_collect_shipping_or_billing_details_from_wallet_connector(
+pub fn should_collect_shipping_or_billing_details_from_wallet_connector(
     payment_method: api_enums::PaymentMethod,
     payment_experience_optional: Option<&api_enums::PaymentExperience>,
     business_profile: &Profile,

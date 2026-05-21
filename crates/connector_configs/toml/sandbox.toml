@@ -8214,12 +8214,17 @@ key1 = "Merchant Account Id"
 
 
 [envoy_payout]
-[[envoy_payout.bank_transfer]]
-  payment_method_type = "sepa_bank_transfer"
 [envoy_payout.connector_auth.BodyKey]
 api_key = "Password"
 key1 = "Username"
+[[envoy_payout.bank_transfer]]
+  payment_method_type = "sepa_bank_transfer"
+[[envoy_payout.bank_transfer]]
+  payment_method_type = "bacs"
+[[envoy_payout.bank_transfer]]
+  payment_method_type = "ach"
 
+  
 [vgs]
 [vgs.connector_auth.SignatureKey]
   api_key="Client Id"

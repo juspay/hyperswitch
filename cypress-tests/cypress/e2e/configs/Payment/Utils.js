@@ -466,6 +466,17 @@ export const CONNECTOR_LISTS = {
     // ucs connectors
     UCS_CONNECTORS: ["authorizedotnet"],
     OVERCAPTURE: ["adyen"],
+    IFRAME_REDIRECTION: [
+      "adyen",
+      "cybersource",
+      "barclaycard",
+      "paypal",
+      "bluesnap",
+      "braintree",
+      "nmi",
+      "nexixpay",
+      "deutschebank",
+    ],
     MANUAL_RETRY: [
       "cybersource",
       "checkout",
@@ -561,6 +572,7 @@ export const CONNECTOR_LISTS = {
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
     USE_BILLING_AS_PAYMENT_METHOD_BILLING: ["bankofamerica"],
     MIT_WITH_LIMITED_CARD_DATA: ["peachpayments"],
+    PAYMENT_LINK_CARD: ["stripe"],
     ORDER_DETAILS: [
       "stripe",
       "cybersource",
@@ -595,6 +607,7 @@ export const CONNECTOR_LISTS = {
       "worldpay",
       "worldpayvantiv",
     ],
+    POLL_CONFIG: ["stripe"],
     // Add more inclusion lists
   },
 };
