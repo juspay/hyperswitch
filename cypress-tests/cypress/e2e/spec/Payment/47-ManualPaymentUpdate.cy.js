@@ -84,6 +84,11 @@ describe("Payment Manual Update Tests", () => {
 
         cy.retrievePaymentCallTest({
           globalState,
+          data: {
+            Configs: {
+              skipBillingAssertion: true,
+            },
+          },
           unconfirmedPayment: true,
           data: { Configs: { skipBillingAssertion: true } },
         });
@@ -140,6 +145,11 @@ describe("Payment Manual Update Tests", () => {
 
         cy.retrievePaymentCallTest({
           globalState,
+          data: {
+            Configs: {
+              skipBillingAssertion: true,
+            },
+          },
           unconfirmedPayment: true,
           data: { Configs: { skipBillingAssertion: true } },
         });
@@ -236,6 +246,11 @@ describe("Payment Manual Update Tests", () => {
 
         cy.retrievePaymentCallTest({
           globalState,
+          data: {
+            Configs: {
+              skipBillingAssertion: true,
+            },
+          },
           unconfirmedPayment: true,
           data: { Configs: { skipBillingAssertion: true } },
         });
