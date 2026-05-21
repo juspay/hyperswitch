@@ -27,6 +27,7 @@ use josekit::jwe;
 use payment_methods::client::{
     self as pm_client,
     create::{CreatePaymentMethodResponse, CreatePaymentMethodV1Request},
+    list::{ListCustomerPaymentMethods, ListCustomerPaymentMethodsV1Request},
     retrieve::{RetrievePaymentMethodResponse, RetrievePaymentMethodV1Request},
     UpdatePaymentMethod, UpdatePaymentMethodV1Payload, UpdatePaymentMethodV1Request,
 };
@@ -2008,6 +2009,54 @@ pub async fn create_payment_method_in_modular_service(
     let payment_method_with_raw_data = DomainPaymentMethodWrapper::try_from(pm_response)?;
 
     Ok(payment_method_with_raw_data.0)
+}
+
+#[cfg(feature = "v1")]
+pub async fn list_customer_payment_methods_from_modular_service(
+    state: &routes::SessionState,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+    customer_id: id_type::CustomerId,
+) -> CustomResult<Vec<payment_methods::types::PaymentMethodResponseItemV1>, errors::ApiErrorResponse>
+{
+    let internal_api_key = &state
+        .conf
+        .internal_merchant_id_profile_id_auth
+        .internal_api_key;
+    let mut parent_headers = Headers::new();
+    parent_headers.insert((
+        headers::X_PROFILE_ID.to_string(),
+        profile_id.get_string_repr().to_string().into_masked(),
+    ));
+    parent_headers.insert((
+        headers::X_MERCHANT_ID.to_string(),
+        merchant_id.get_string_repr().to_string().into_masked(),
+    ));
+    parent_headers.insert((
+        headers::X_INTERNAL_API_KEY.to_string(),
+        internal_api_key.clone().expose().to_string().into_masked(),
+    ));
+
+    let client = pm_client::PaymentMethodClient::new(
+        &state.conf.micro_services.payment_methods_base_url,
+        &parent_headers,
+        &state.conf.trace_header.header_name,
+    );
+
+    let request = ListCustomerPaymentMethodsV1Request {
+        customer_id,
+        query_params: api_models::payment_methods::PaymentMethodListRequest::default(),
+        modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
+    };
+
+    ListCustomerPaymentMethods::call(state, &client, request)
+        .await
+        .map(|resp| resp.0.customer_payment_methods)
+        .map_err(|err| {
+            logger::error!(error=?err, "modular list customer payment methods failed");
+            errors::ApiErrorResponse::InternalServerError
+        })
+        .attach_printable("Failed to list customer payment methods from modular service")
 }
 
 #[cfg(feature = "v1")]
