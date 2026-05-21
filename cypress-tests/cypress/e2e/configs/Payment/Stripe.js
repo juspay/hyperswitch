@@ -1461,6 +1461,7 @@ export const connectorDetails = {
           },
         },
         customer_acceptance: customerAcceptance,
+        setup_future_usage: "off_session",
         billing: {
           address: {
             first_name: "Test",
@@ -1505,6 +1506,7 @@ export const connectorDetails = {
           },
         },
         customer_acceptance: customerAcceptance,
+        setup_future_usage: "off_session",
         billing: {
           address: {
             first_name: "Test",
