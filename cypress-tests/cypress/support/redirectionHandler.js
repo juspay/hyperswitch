@@ -105,6 +105,15 @@ export function handleRedirection(
         handlerMetadata
       );
       break;
+    case "payout_link_bank":
+      payoutLinkBankRedirection(
+        urls.redirectionUrl,
+        urls.expectedUrl,
+        resolvedConnectorId,
+        paymentMethodType,
+        handlerMetadata
+      );
+      break;
     default:
       throw new Error(`Unknown redirection type: ${redirectionType}`);
   }
@@ -2297,6 +2306,183 @@ function paymentLinkCardRedirection(
         );
         cy.url().then((url) => {
           cy.task("cli_log", `Current URL after payment submission: ${url}`);
+        });
+      }
+    });
+  }
+}
+
+function payoutLinkBankRedirection(
+  redirectionUrl,
+  expectedUrl,
+  connectorId,
+  paymentMethodType,
+  handlerMetadata
+) {
+  const bankData = handlerMetadata?.bankData || {};
+  const expectedOutcome = handlerMetadata?.expectedOutcome || "success";
+  const {
+    account_number = "000123456",
+    routing_number = "110000000",
+    bank_name = "Test Bank",
+  } = bankData;
+
+  if (!redirectionUrl || !redirectionUrl.href) {
+    cy.log(
+      "Skipping payout link bank redirection - no valid redirect URL provided"
+    );
+    return;
+  }
+
+  cy.visit(redirectionUrl.href, { failOnStatusCode: false });
+
+  cy.get("body", { timeout: 30000 }).should("exist");
+
+  cy.get("#sdk-spinner", { timeout: 60000 }).should("have.class", "hidden");
+  cy.task("cli_log", "Payout Link SDK initialized successfully");
+
+  cy.get("#unified-checkout", { timeout: 30000 }).should("be.visible");
+  cy.get("#payment-form", { timeout: 30000 }).should("exist");
+
+  cy.get("#unified-checkout iframe", { timeout: 30000 }).should(
+    "have.length.at.least",
+    1
+  );
+
+  function fillBankInputInIframe(iframe, index) {
+    cy.wrap(iframe)
+      .its("0.contentDocument.body")
+      .should("not.be.empty")
+      .then((body) => {
+        const $body = Cypress.$(body);
+        const inputs = $body.find("input");
+
+        if (inputs.length === 0) {
+          cy.task("cli_log", `Iframe ${index}: no inputs found, skipping`);
+          return;
+        }
+
+        inputs.each((_, input) => {
+          const $input = Cypress.$(input);
+          const placeholder = ($input.attr("placeholder") || "").toLowerCase();
+          const ariaLabel = ($input.attr("aria-label") || "").toLowerCase();
+          const name = ($input.attr("name") || "").toLowerCase();
+          const autocomplete = (
+            $input.attr("autocomplete") || ""
+          ).toLowerCase();
+
+          if (
+            placeholder.includes("account") ||
+            placeholder.includes("account number") ||
+            ariaLabel.includes("account") ||
+            ariaLabel.includes("account number") ||
+            name.includes("account_number") ||
+            name.includes("accountnumber") ||
+            autocomplete.includes("account_number")
+          ) {
+            /* eslint-disable cypress/no-force */
+            cy.wrap(input)
+              .focus()
+              .clear({ force: true })
+              .type(account_number, { delay: 30, force: true });
+            /* eslint-enable cypress/no-force */
+            cy.task("cli_log", `Filled account number in iframe ${index}`);
+          } else if (
+            placeholder.includes("routing") ||
+            placeholder.includes("routing number") ||
+            placeholder.includes("sort") ||
+            ariaLabel.includes("routing") ||
+            ariaLabel.includes("sort") ||
+            name.includes("routing_number") ||
+            name.includes("routingnumber") ||
+            name.includes("sort_code") ||
+            autocomplete.includes("routing_number")
+          ) {
+            /* eslint-disable cypress/no-force */
+            cy.wrap(input)
+              .focus()
+              .clear({ force: true })
+              .type(routing_number, { delay: 30, force: true });
+            /* eslint-enable cypress/no-force */
+            cy.task("cli_log", `Filled routing number in iframe ${index}`);
+          } else if (
+            placeholder.includes("bank") ||
+            placeholder.includes("bank name") ||
+            ariaLabel.includes("bank") ||
+            ariaLabel.includes("bank name") ||
+            name.includes("bank_name") ||
+            name.includes("bankname")
+          ) {
+            /* eslint-disable cypress/no-force */
+            cy.wrap(input)
+              .focus()
+              .clear({ force: true })
+              .type(bank_name, { delay: 30, force: true });
+            /* eslint-enable cypress/no-force */
+            cy.task("cli_log", `Filled bank name in iframe ${index}`);
+          }
+        });
+      });
+  }
+
+  cy.get("#unified-checkout iframe").then(($iframes) => {
+    cy.task("cli_log", `Found ${$iframes.length} iframes in unified-checkout`);
+
+    $iframes.each((index, iframe) => {
+      fillBankInputInIframe(iframe, index);
+    });
+  });
+
+  /* eslint-disable cypress/no-force */
+  cy.get("#submit", { timeout: 30000 })
+    .should("be.visible")
+    .and("not.have.class", "hidden")
+    .click({ force: true });
+  /* eslint-enable cypress/no-force */
+  cy.task("cli_log", "Clicked submit button");
+
+  if (expectedOutcome === "error") {
+    cy.get("body", { timeout: 30000 }).should(($body) => {
+      const bodyText = $body.text().toLowerCase();
+      const hasError =
+        (bodyText.includes("error") && bodyText.includes("bank")) ||
+        bodyText.includes("declined") ||
+        bodyText.includes("invalid") ||
+        bodyText.includes("failed") ||
+        $body.find('[class*="error"]').length > 0;
+      expect(hasError, "Expected error indicator on payout page").to.be.true;
+    });
+    cy.task("cli_log", "Payout page shows error indicator as expected");
+  } else {
+    cy.contains(/succeeded|success|payout successful|thank you/i, {
+      timeout: 30000,
+    }).should("exist");
+
+    cy.get("body").then(($body) => {
+      const bodyText = $body.text().toLowerCase();
+      const hasSuccess =
+        bodyText.includes("succeeded") ||
+        bodyText.includes("success") ||
+        bodyText.includes("payout successful") ||
+        bodyText.includes("thank you") ||
+        $body.find('[class*="success"]').length > 0;
+      const hasError =
+        (bodyText.includes("error") && bodyText.includes("bank")) ||
+        bodyText.includes("declined") ||
+        bodyText.includes("invalid") ||
+        $body.find('[class*="error"]').length > 0;
+
+      if (hasSuccess) {
+        cy.task("cli_log", "Payout page shows success indicator");
+      } else if (hasError) {
+        cy.task("cli_log", "Payout page shows error indicator");
+      } else {
+        cy.task(
+          "cli_log",
+          "Payout page status unclear after submission - checking URL"
+        );
+        cy.url().then((url) => {
+          cy.task("cli_log", `Current URL after payout submission: ${url}`);
         });
       }
     });

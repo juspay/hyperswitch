@@ -154,4 +154,176 @@ export const connectorDetails = {
       },
     }),
   },
+  payout_link_pm: {
+    PayoutLinkBasic: getCustomExchange({
+      Request: {
+        payout_link: true,
+        currency: "USD",
+        amount: 100,
+        description: "Test Payout Link",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_confirmation",
+        },
+      },
+    }),
+    PayoutLinkWithTheme: getCustomExchange({
+      Request: {
+        payout_link: true,
+        currency: "USD",
+        amount: 100,
+        description: "Test with custom theme",
+        payout_link_config: {
+          theme: "#FF6B35",
+        },
+      },
+      Response: {
+        status: 200,
+      },
+    }),
+    PayoutLinkWithLogo: getCustomExchange({
+      Request: {
+        payout_link: true,
+        currency: "EUR",
+        amount: 100,
+        description: "Test with merchant logo",
+        payout_link_config: {
+          logo: "https://example.com/logo.png",
+          merchant_name: "Test Merchant Inc",
+        },
+      },
+      Response: {
+        status: 200,
+      },
+    }),
+    PayoutLinkWithSdkLayout: getCustomExchange({
+      Request: {
+        payout_link: true,
+        currency: "GBP",
+        amount: 100,
+        description: "Test with accordion layout",
+        payout_link_config: {
+          sdk_layout: "accordion",
+        },
+      },
+      Response: {
+        status: 200,
+      },
+    }),
+    PayoutLinkTabsLayout: getCustomExchange({
+      Request: {
+        payout_link: true,
+        currency: "EUR",
+        amount: 100,
+        description: "Test with tabs layout",
+        payout_link_config: {
+          sdk_layout: "tabs",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_confirmation",
+        },
+      },
+    }),
+    PayoutLinkBankTransfer: getCustomExchange({
+      Request: {
+        payout_link: true,
+        currency: "USD",
+        amount: 100,
+        description: "Test Payout Link Bank Transfer",
+        payout_link_config: {
+          enabled_payment_methods: ["bank_transfer"],
+        },
+      },
+      Response: {
+        status: 200,
+      },
+      BankData: {
+        account_number: "000123456",
+        routing_number: "110000000",
+        bank_name: "Test Bank",
+      },
+    }),
+    PayoutLinkValidationError: getCustomExchange({
+      Request: {
+        payout_link: true,
+        currency: "USD",
+        amount: 100,
+        description: "Test missing customer_id",
+        customer_id: null,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_04",
+            message: "Provide either customer or customer_id when payout_link is true",
+          },
+        },
+      },
+    }),
+    PayoutLinkConfirmConflict: getCustomExchange({
+      Request: {
+        payout_link: true,
+        confirm: true,
+        currency: "USD",
+        amount: 100,
+        description: "Test confirm + payout_link conflict",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_04",
+            message: "Cannot confirm a payout while creating a payout link",
+          },
+        },
+      },
+    }),
+    PayoutLinkWithoutLink: getCustomExchange({
+      Request: {
+        payout_link: false,
+        currency: "USD",
+        amount: 100,
+        description: "Test without payout link",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payout_method_data",
+        },
+      },
+    }),
+    PayoutLinkProfileConfig: getCustomExchange({
+      Request: {
+        payout_link: true,
+        currency: "USD",
+        amount: 100,
+        description: "Test profile-level payout link config",
+      },
+      Response: {
+        status: 200,
+      },
+    }),
+    PayoutLinkCustomId: getCustomExchange({
+      Request: {
+        payout_link: true,
+        currency: "USD",
+        amount: 100,
+        description: "Test custom payout link id",
+        payout_link_config: {
+          payout_link_id: "custom_payout_link_123",
+        },
+      },
+      Response: {
+        status: 200,
+      },
+    }),
+  },
 };

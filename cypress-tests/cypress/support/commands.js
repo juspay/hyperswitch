@@ -9015,3 +9015,292 @@ Cypress.Commands.add("retrieveNonExistentPaymentLinkTest", (globalState) => {
     });
   });
 });
+
+// ============================================
+// Payout Link Commands
+// ============================================
+
+Cypress.Commands.add(
+  "createPayoutWithLinkTest",
+  (createPayoutBody, data, globalState) => {
+    const { Request: reqData = {}, Response: resData = {} } = data || {};
+
+    const profileId =
+      globalState.get("profileId") || globalState.get("defaultProfileId");
+
+    const requestBody = {
+      ...createPayoutBody,
+      ...reqData,
+      profile_id: profileId,
+    };
+
+    if (!("customer_id" in reqData)) {
+      requestBody.customer_id = globalState.get("customerId");
+    } else if (reqData.customer_id === null) {
+      delete requestBody.customer_id;
+    }
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payouts/create`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      failOnStatusCode: false,
+      body: requestBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (resData.status === 200 || response.status === 200) {
+          expect(response.status).to.equal(200);
+          expect(response.body).to.have.property("payout_id");
+          expect(response.body).to.have.property("payout_link");
+          expect(response.body.payout_link).to.have.property("link");
+          expect(response.body.payout_link).to.have.property("payout_link_id");
+
+          globalState.set("payoutID", response.body.payout_id);
+          globalState.set(
+            "payoutLinkId",
+            response.body.payout_link.payout_link_id
+          );
+          globalState.set("payoutLinkUrl", response.body.payout_link.link);
+
+          cy.task(
+            "cli_log",
+            `Payout Link created: ${response.body.payout_link.payout_link_id}`
+          );
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add("initiatePayoutLinkTest", (data, globalState) => {
+  const payoutLinkUrl = globalState.get("payoutLinkUrl");
+
+  if (!payoutLinkUrl) {
+    cy.task("cli_log", "Skipping: No payout link URL available");
+    return;
+  }
+
+  const runningInCI = RequestBodyUtils.isCI();
+
+  if (runningInCI) {
+    cy.request({
+      method: "GET",
+      url: payoutLinkUrl,
+      failOnStatusCode: false,
+      followRedirect: true,
+      timeout: 30000,
+    }).then((response) => {
+      const contentType = response.headers["content-type"] || "";
+      const isHtml = contentType.includes("text/html");
+
+      if (response.status === 200 && isHtml) {
+        const bodyText =
+          typeof response.body === "string" ? response.body : "";
+        const hasHyperLoader =
+          bodyText.includes("HyperLoader") ||
+          bodyText.includes("hyperloader-sdk");
+
+        if (hasHyperLoader) {
+          cy.task(
+            "cli_log",
+            "Payout Link page validated (CI): contains HyperLoader SDK"
+          );
+        } else {
+          cy.task(
+            "cli_log",
+            `Payout Link page validated (CI): status=${response.status}, body length=${bodyText.length}`
+          );
+        }
+
+        expect(response.status).to.equal(200);
+        expect(isHtml).to.be.true;
+      } else {
+        cy.task(
+          "cli_log",
+          `Payout Link non-HTML or error response (CI): status=${response.status}, content-type=${contentType}`
+        );
+        expect(response.status).to.equal(200);
+      }
+    });
+  } else {
+    cy.visit(payoutLinkUrl, { failOnStatusCode: false });
+
+    cy.get("body", { timeout: 30000 }).then(($body) => {
+      const bodyText = $body.text() || "";
+      const hasHyperLoader =
+        bodyText.includes("HyperLoader") ||
+        $body.find("#hyperloader-sdk").length > 0;
+
+      if (hasHyperLoader) {
+        cy.task("cli_log", "Payout Link page loaded with HyperLoader SDK");
+      } else {
+        cy.task(
+          "cli_log",
+          `Payout Link page loaded (body length: ${bodyText.length})`
+        );
+      }
+    });
+  }
+});
+
+Cypress.Commands.add("retrievePayoutLinkTest", (data, globalState) => {
+  const payoutId = globalState.get("payoutID");
+  const merchantId = globalState.get("merchantId");
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+
+  if (!payoutId || !merchantId) {
+    cy.task("cli_log", "Skipping: No payout ID or merchant ID available");
+    return;
+  }
+
+  cy.request({
+    method: "GET",
+    url: `${baseUrl}/payout_link/${merchantId}/${payoutId}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status).to.equal(200);
+      expect(response.headers["content-type"]).to.include("application/json");
+      expect(response.body).to.have.property("link_id");
+      expect(response.body).to.have.property("link_to_pay");
+      expect(response.body).to.have.property("status");
+
+      cy.task("cli_log", `Payout Link retrieved: ${response.body.status}`);
+    });
+  });
+});
+
+Cypress.Commands.add("listPayoutLinksTest", (data, globalState) => {
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+
+  cy.request({
+    method: "POST",
+    url: `${baseUrl}/payout_link/list`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    body: {
+      limit: 10,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status).to.equal(200);
+      expect(response.headers["content-type"]).to.include("application/json");
+      expect(response.body).to.be.an("array");
+
+      cy.task("cli_log", `Listed ${response.body.length} payout links`);
+    });
+  });
+});
+
+Cypress.Commands.add(
+  "createPayoutWithoutLinkTest",
+  (createPayoutBody, globalState) => {
+    const profileId =
+      globalState.get("profileId") || globalState.get("defaultProfileId");
+
+    const requestBody = {
+      ...createPayoutBody,
+      currency: "USD",
+      amount: 100,
+      description: "Test without Payout Link",
+      customer_id: globalState.get("customerId"),
+      profile_id: profileId,
+    };
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payouts/create`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      failOnStatusCode: false,
+      body: requestBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.equal(200);
+        expect(response.body).to.have.property("payout_id");
+        expect(response.body.payout_link).to.be.null;
+      });
+    });
+  }
+);
+
+Cypress.Commands.add("retrieveNonExistentPayoutLinkTest", (globalState) => {
+  const merchantId = globalState.get("merchantId");
+
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/payout_link/${merchantId}/non_existent_payout_12345`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status).to.equal(404);
+    });
+  });
+});
+
+Cypress.Commands.add(
+  "handlePayoutLinkBankRedirection",
+  (globalState, bankData, expectedOutcome = "success") => {
+    const payoutLinkUrl = globalState.get("payoutLinkUrl");
+
+    if (!payoutLinkUrl) {
+      cy.task("cli_log", "Skipping: No payout link URL available");
+      return;
+    }
+
+    if (RequestBodyUtils.isCI()) {
+      cy.task(
+        "cli_log",
+        "Skipping bank UI interaction in CI - payout link SDK iframe automation not supported in headless mode"
+      );
+      return;
+    }
+
+    const connectorId = globalState.get("connectorId") || "stripe";
+    const redirectionUrl = new URL(payoutLinkUrl);
+    const expectedUrl = new URL("https://example.com/return");
+
+    handleRedirection(
+      "payout_link_bank",
+      { redirectionUrl, expectedUrl },
+      connectorId,
+      null,
+      { bankData, expectedOutcome }
+    );
+  }
+);
+
