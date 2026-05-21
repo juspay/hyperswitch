@@ -3672,6 +3672,33 @@ export const connectorDetails = {
       },
     }),
   },
+  pm_collect_link: {
+    pmCollectLinkCreate: {
+      Request: {
+        return_url: "https://example.com/return",
+      },
+      Response: {
+        status: 200,
+      },
+    },
+    pmCollectLinkRender: {
+      Response: {
+        status: 200,
+      },
+    },
+    pmCollectLinkRenderNotFound: {
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_37",
+            message: "payment method collect link not found",
+          },
+        },
+      },
+    },
+  },
   payment_link_pm: {
     PaymentLinkBasic: getCustomExchange({
       Request: {
