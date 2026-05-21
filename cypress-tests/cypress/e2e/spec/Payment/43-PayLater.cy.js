@@ -230,7 +230,10 @@ describe("PayLater tests", () => {
 
         cy.step("Capture Payment on wrong status", () => {
           if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Capture Payment on wrong status");
+            cy.task(
+              "cli_log",
+              "Skipping step: Capture Payment on wrong status"
+            );
             return;
           }
           const captureData = getConnectorDetails(
@@ -247,9 +250,9 @@ describe("PayLater tests", () => {
             );
             return;
           }
-          const klarnaData = getConnectorDetails(globalState.get("connectorId"))[
-            "pay_later_pm"
-          ]["Klarna"];
+          const klarnaData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["pay_later_pm"]["Klarna"];
           cy.retrievePaymentCallTest({ globalState, data: klarnaData });
         });
       });
