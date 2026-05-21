@@ -1966,6 +1966,7 @@ impl PaymentCreate {
                 .clone(),
             state_metadata: None,
             installment_options: request.installment_options.clone(),
+            surcharge_strategy: request.surcharge_strategy,
         })
     }
 }

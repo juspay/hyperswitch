@@ -12364,6 +12364,8 @@ pub async fn payments_submit_pre_confirm(
         .and_then(|billing| billing.address.as_ref());
     let postal_code = billing_address.and_then(|addr| addr.zip.clone());
     let billing_country = billing_address.and_then(|addr| addr.country);
+    // Capture surcharge_strategy from request before building eligibility_req
+    let req_surcharge_strategy = req.surcharge_strategy;
     let eligibility_req = api_models::payments::PaymentsEligibilityRequest {
         payment_id: req.payment_id.clone(),
         client_secret: req.client_secret.clone(),
@@ -12389,6 +12391,8 @@ pub async fn payments_submit_pre_confirm(
     // Capture data needed for the surcharge call before moving into the handler
     let pi_amount = payment_eligibility_data.payment_intent.amount;
     let pi_currency = payment_eligibility_data.payment_intent.currency;
+    let pi_surcharge_strategy = payment_eligibility_data.payment_intent.surcharge_strategy;
+    let pi_for_update = payment_eligibility_data.payment_intent.clone();
     let active_attempt_id = payment_eligibility_data
         .payment_intent
         .active_attempt
@@ -12455,14 +12459,65 @@ pub async fn payments_submit_pre_confirm(
             // Surcharge only applies to cards — skip if no card BIN
             if let (Some(card_iin), Some(currency)) = (card_iin, pi_currency) {
                 let amount = pi_amount;
+                let merchant_id = platform_for_surcharge
+                    .get_processor()
+                    .get_account()
+                    .get_id()
+                    .clone();
+                let storage_scheme = platform_for_surcharge
+                    .get_processor()
+                    .get_account()
+                    .storage_scheme;
+                let key_store = platform_for_surcharge
+                    .get_processor()
+                    .get_key_store()
+                    .clone();
+                // Fetch payment_attempt BEFORE calling UCS so we can read
+                // previous_connector_surcharge_id and reuse it for the write.
+                let attempt_id_str = active_attempt_id.clone();
+                let payment_attempt_result = state_for_surcharge
+                    .store
+                    .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                        &payment_id,
+                        &merchant_id,
+                        &attempt_id_str,
+                        storage_scheme,
+                        &key_store,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError);
+
+                let (payment_attempt_opt, previous_connector_surcharge_id) =
+                    match payment_attempt_result {
+                        Ok(attempt) => {
+                            // If sale_notified is true treat as fresh call (send None);
+                            // otherwise forward the stored id.
+                            let prev_id = attempt
+                                .external_surcharge_details
+                                .as_ref()
+                                .filter(|d| !d.sale_notified)
+                                .map(|d| d.external_surcharge_id.clone());
+                            (Some(attempt), prev_id)
+                        }
+                        Err(err) => {
+                            logger::warn!(error=?err, "Failed to fetch payment_attempt before surcharge calc; proceeding without previous_id");
+                            (None, None)
+                        }
+                    };
+
+                // Resolve surcharge strategy: request > payment_intent > default (Apply)
+                let surcharge_strategy = req_surcharge_strategy
+                    .or(pi_surcharge_strategy)
+                    .unwrap_or_default();
+
                 let surcharge_data = hyperswitch_domain_models::router_request_types::PaymentsSurchargeCalculationData {
                     amount,
                     currency,
                     postal_code: postal_code.clone(),
                     card_iin,
-                    previous_connector_surcharge_id: None,
+                    previous_connector_surcharge_id,
                     country: billing_country,
-                    surcharge_strategy: None,
+                    surcharge_strategy: Some(surcharge_strategy),
                 };
                 let connector_name = surcharge_mca.connector_name.clone();
                 let mca_type =
@@ -12485,58 +12540,55 @@ pub async fn payments_submit_pre_confirm(
                         let surcharge_f64 = surcharge_amount.get_amount_as_i64() as f64;
 
                         // Best-effort: persist connector_surcharge_id to payment_attempt
-                        let merchant_id = platform_for_surcharge
-                            .get_processor()
-                            .get_account()
-                            .get_id()
-                            .clone();
-                        let storage_scheme = platform_for_surcharge
-                            .get_processor()
-                            .get_account()
-                            .storage_scheme;
-                        let key_store = platform_for_surcharge
-                            .get_processor()
-                            .get_key_store()
-                            .clone();
-                        // active_attempt_id is already a String from RemoteStorageObject::get_id()
-                        let attempt_id_str = active_attempt_id.clone();
+                        // and update payment_intent.surcharge_strategy if request provided one.
                         let persist_result = async {
-                            let payment_attempt = state_for_surcharge
-                                .store
-                                .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
-                                    &payment_id,
-                                    &merchant_id,
-                                    &attempt_id_str,
-                                    storage_scheme,
-                                    &key_store,
-                                )
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                            // If merchant sent surcharge_strategy in this request, persist it on the PI
+                            if let Some(strategy) = req_surcharge_strategy {
+                                state_for_surcharge
+                                    .store
+                                    .update_payment_intent(
+                                        pi_for_update,
+                                        hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SurchargeStrategyUpdate {
+                                            surcharge_strategy: Some(strategy),
+                                            updated_by: merchant_id.get_string_repr().to_owned(),
+                                        },
+                                        &key_store,
+                                        storage_scheme,
+                                    )
+                                    .await
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable("Failed to update surcharge_strategy on payment_intent")?;
+                            }
+
                             let external_surcharge_details =
                                 common_types::payments::ExternalSurchargeDetails {
                                     external_surcharge_id: connector_surcharge_id,
                                     external_surcharge_amount: surcharge_amount,
                                     sale_notified: false,
                                 };
-                            state_for_surcharge
-                                .store
-                                .update_payment_attempt_with_attempt_id(
-                                    payment_attempt,
-                                    hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ExternalSurchargeUpdate {
-                                        external_surcharge_details: Some(external_surcharge_details),
-                                        updated_by: merchant_id.get_string_repr().to_owned(),
-                                    },
-                                    storage_scheme,
-                                    &key_store,
-                                )
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
+
+                            if let Some(payment_attempt) = payment_attempt_opt {
+                                state_for_surcharge
+                                    .store
+                                    .update_payment_attempt_with_attempt_id(
+                                        payment_attempt,
+                                        hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ExternalSurchargeUpdate {
+                                            external_surcharge_details: Some(external_surcharge_details),
+                                            updated_by: merchant_id.get_string_repr().to_owned(),
+                                        },
+                                        storage_scheme,
+                                        &key_store,
+                                    )
+                                    .await
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                            }
+                            Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(())
                         }
                         .await;
                         if let Err(err) = persist_result {
                             logger::warn!(
                                 error=?err,
-                                "Failed to persist connector_surcharge_id to payment_attempt; proceeding"
+                                "Failed to persist surcharge data; proceeding"
                             );
                         }
 

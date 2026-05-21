@@ -359,6 +359,10 @@ pub enum PaymentIntentUpdate {
         status: common_enums::IntentStatus,
         updated_by: String,
     },
+    SurchargeStrategyUpdate {
+        surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+        updated_by: String,
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -491,6 +495,7 @@ pub struct PaymentIntentUpdateInternal {
     pub shipping_cost: Option<MinorUnit>,
     pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
+    pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -1066,6 +1071,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_amount_tax: value.shipping_amount_tax,
                 duty_amount: value.duty_amount,
                 installment_options: value.installment_options,
+                surcharge_strategy: None,
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1274,6 +1280,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: None,
                 shipping_cost: None,
                 installment_options: None,
+                surcharge_strategy: None,
             },
             PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => Self {
                 status: Some(status),
@@ -1326,6 +1333,15 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: None,
                 shipping_cost: None,
                 installment_options: None,
+                surcharge_strategy: None,
+            },
+            PaymentIntentUpdate::SurchargeStrategyUpdate {
+                surcharge_strategy,
+                updated_by,
+            } => Self {
+                surcharge_strategy,
+                updated_by,
+                ..Default::default()
             },
         }
     }
@@ -1432,6 +1448,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     installment_options: value
                         .installment_options
                         .map(common_types::payments::InstallmentOptions),
+                    surcharge_strategy: None,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1548,6 +1565,13 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
             PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => {
                 Self::RecurrenceUpdate { status, updated_by }
             }
+            PaymentIntentUpdate::SurchargeStrategyUpdate {
+                surcharge_strategy,
+                updated_by,
+            } => Self::SurchargeStrategyUpdate {
+                surcharge_strategy,
+                updated_by,
+            },
         }
     }
 }
@@ -1607,6 +1631,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             shipping_cost,
             state_metadata,
             installment_options,
+            surcharge_strategy,
         } = value;
         Self {
             amount,
@@ -1661,6 +1686,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             state_metadata,
             installment_options: installment_options
                 .map(common_types::payments::InstallmentOptions),
+            surcharge_strategy,
         }
     }
 }
@@ -2511,6 +2537,7 @@ impl behaviour::Conversion for PaymentIntent {
             installment_options: self
                 .installment_options
                 .map(common_types::payments::InstallmentOptions),
+            surcharge_strategy: self.surcharge_strategy,
         })
     }
 
@@ -2627,6 +2654,7 @@ impl behaviour::Conversion for PaymentIntent {
                     .partner_merchant_identifier_details,
                 state_metadata: storage_model.state_metadata,
                 installment_options: storage_model.installment_options.map(|o| o.0),
+                surcharge_strategy: storage_model.surcharge_strategy,
             })
         }
         .await
@@ -2716,6 +2744,7 @@ impl behaviour::Conversion for PaymentIntent {
             installment_options: self
                 .installment_options
                 .map(common_types::payments::InstallmentOptions),
+            surcharge_strategy: self.surcharge_strategy,
         })
     }
 }

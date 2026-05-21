@@ -857,18 +857,25 @@ pub async fn get_sdk_next_action_for_payment_method_list(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     customer_id: Option<&common_utils::id_type::CustomerId>,
+    has_surcharge_processor: bool,
 ) -> api_models::payments::SdkNextAction {
-    let should_perform_eligibility_check = dimensions
-        .get_should_perform_eligibility(
-            state.store.as_ref(),
-            state.superposition_service.as_ref(),
-            customer_id,
-        )
-        .await;
-    let next_action_call = if should_perform_eligibility_check {
-        api_models::payments::NextActionCall::EligibilityCheck
+    let next_action_call = if has_surcharge_processor {
+        // A SurchargeProcessor MCA is enabled for this profile — SDK must call
+        // pre_confirm so that card surcharge is calculated via the external service.
+        api_models::payments::NextActionCall::PreConfirm
     } else {
-        api_models::payments::NextActionCall::Confirm
+        let should_perform_eligibility_check = dimensions
+            .get_should_perform_eligibility(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                customer_id,
+            )
+            .await;
+        if should_perform_eligibility_check {
+            api_models::payments::NextActionCall::EligibilityCheck
+        } else {
+            api_models::payments::NextActionCall::Confirm
+        }
     };
     api_models::payments::SdkNextAction {
         next_action: next_action_call,

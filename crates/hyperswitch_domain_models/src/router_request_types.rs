@@ -1762,18 +1762,12 @@ pub struct PaymentsSurchargeCalculationData {
     pub previous_connector_surcharge_id: Option<String>,
     /// Country in ISO alpha-2 format (optional, defaults to USA)
     pub country: Option<common_enums::CountryAlpha2>,
-    /// wave strategy for surcharge application (optional, defaults to Apply)
-    pub surcharge_strategy: Option<SurchargeStrategy>,
+    /// Strategy for surcharge application (optional, defaults to Apply)
+    pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
-#[derive(Debug, Default, Clone)]
-pub enum SurchargeStrategy {
-    /// Apply the calculated surcharge to the payment
-    #[default]
-    Apply,
-    /// Do not apply the surcharge, just return the calculated amount
-    Waive,
-}
+/// Re-export for backward compatibility within this crate
+pub use common_enums::SurchargeStrategy;
 
 #[derive(Debug, Clone)]
 pub struct PaymentsCompleteSurchargeData {

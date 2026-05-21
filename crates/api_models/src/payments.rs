@@ -1590,6 +1590,10 @@ pub struct PaymentsRequest {
 
     /// Installment data selected by the customer during payment confirmation. This is used to specify the chosen number of installments and billing frequency.
     pub installment_data: Option<InstallmentRequest>,
+
+    /// The strategy to use when applying surcharge for this payment.
+    #[schema(value_type = Option<SurchargeStrategy>)]
+    pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -12685,6 +12689,9 @@ pub struct PaymentsPreConfirmRequest {
     /// The payment token to look up the saved payment method
     #[schema(value_type = String, example = "token_abc123xyz")]
     pub payment_token: Option<Secret<String>>,
+    /// The strategy to use when applying surcharge for this payment.
+    #[schema(value_type = Option<SurchargeStrategy>)]
+    pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
 /// Response body for the pre_confirm endpoint.

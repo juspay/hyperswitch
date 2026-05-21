@@ -4152,12 +4152,18 @@ pub async fn list_payment_methods(
         .and_then(|intent| intent.request_external_three_ds_authentication)
         .unwrap_or(false);
 
+    let has_surcharge_processor = !all_mcas
+        .clone()
+        .filter_based_on_profile_and_connector_type(&profile_id, ConnectorType::SurchargeProcessor)
+        .is_empty();
+
     let sdk_next_action = payment_method_utils::get_sdk_next_action_for_payment_method_list(
         &state,
         &dimensions,
         payment_intent
             .as_ref()
             .and_then(|pi| pi.customer_id.as_ref()),
+        has_surcharge_processor,
     )
     .await;
     let is_guest_customer = payment_intent

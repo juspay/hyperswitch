@@ -4669,6 +4669,7 @@ mod tests {
             partner_merchant_identifier_details: None,
             state_metadata: None,
             installment_options: None,
+            surcharge_strategy: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -4760,6 +4761,7 @@ mod tests {
             partner_merchant_identifier_details: None,
             state_metadata: None,
             installment_options: None,
+            surcharge_strategy: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4849,6 +4851,7 @@ mod tests {
             partner_merchant_identifier_details: None,
             state_metadata: None,
             installment_options: None,
+            surcharge_strategy: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
