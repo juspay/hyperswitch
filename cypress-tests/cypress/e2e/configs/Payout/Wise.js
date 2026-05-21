@@ -236,6 +236,9 @@ export const connectorDetails = {
         currency: "EUR",
         amount: 100,
         description: "Test Payout Link",
+        payout_link_config: {
+          test_mode: true,
+        },
       },
       Response: {
         status: 200,
@@ -251,11 +254,15 @@ export const connectorDetails = {
         amount: 100,
         description: "Test with custom theme",
         payout_link_config: {
+          test_mode: true,
           theme: "#FF6B35",
         },
       },
       Response: {
         status: 200,
+        body: {
+          status: "requires_confirmation",
+        },
       },
     },
     PayoutLinkWithLogo: {
@@ -265,12 +272,16 @@ export const connectorDetails = {
         amount: 100,
         description: "Test with merchant logo",
         payout_link_config: {
+          test_mode: true,
           logo: "https://example.com/logo.png",
           merchant_name: "Test Merchant Inc",
         },
       },
       Response: {
         status: 200,
+        body: {
+          status: "requires_confirmation",
+        },
       },
     },
     PayoutLinkWithSdkLayout: {
@@ -280,11 +291,15 @@ export const connectorDetails = {
         amount: 100,
         description: "Test with accordion layout",
         payout_link_config: {
+          test_mode: true,
           sdk_layout: "accordion",
         },
       },
       Response: {
         status: 200,
+        body: {
+          status: "requires_confirmation",
+        },
       },
     },
     PayoutLinkTabsLayout: {
@@ -294,6 +309,7 @@ export const connectorDetails = {
         amount: 100,
         description: "Test with tabs layout",
         payout_link_config: {
+          test_mode: true,
           sdk_layout: "tabs",
         },
       },
@@ -311,11 +327,15 @@ export const connectorDetails = {
         amount: 100,
         description: "Test Payout Link Bank Transfer",
         payout_link_config: {
+          test_mode: true,
           enabled_payment_methods: ["bank_transfer"],
         },
       },
       Response: {
         status: 200,
+        body: {
+          status: "requires_confirmation",
+        },
       },
       BankData: {
         account_number: "000123456",
@@ -330,6 +350,9 @@ export const connectorDetails = {
         amount: 100,
         description: "Test missing customer_id",
         customer_id: null,
+        payout_link_config: {
+          test_mode: true,
+        },
       },
       Response: {
         status: 400,
@@ -349,6 +372,9 @@ export const connectorDetails = {
         currency: "EUR",
         amount: 100,
         description: "Test confirm + payout_link conflict",
+        payout_link_config: {
+          test_mode: true,
+        },
       },
       Response: {
         status: 400,
@@ -381,9 +407,15 @@ export const connectorDetails = {
         currency: "EUR",
         amount: 100,
         description: "Test profile-level payout link config",
+        payout_link_config: {
+          test_mode: true,
+        },
       },
       Response: {
         status: 200,
+        body: {
+          status: "requires_confirmation",
+        },
       },
     },
     PayoutLinkCustomId: {
@@ -393,11 +425,15 @@ export const connectorDetails = {
         amount: 100,
         description: "Test custom payout link id",
         payout_link_config: {
+          test_mode: true,
           payout_link_id: "custom_payout_link_123",
         },
       },
       Response: {
         status: 200,
+        body: {
+          status: "requires_confirmation",
+        },
       },
     },
   },
