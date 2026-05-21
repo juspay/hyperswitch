@@ -384,8 +384,8 @@ impl TryFrom<&TruelayerRouterData<&PayoutsRouterData<PoFulfill>>> for TruelayerP
                     currency: item.router_data.request.destination_currency,
                     beneficiary: TruelayerBeneficiary {
                         _type: TruelayerBeneficiaryType::ExternalAccount,
-                        reference: normalize_payment_id(
-                            item.router_data.request.payout_id.get_string_repr(),
+                        reference: normalize_connector_request_reference_id(
+                            &item.router_data.connector_request_reference_id.clone(),
                         ),
                         account_holder_name: Some(open_banking_data.account_holder_name),
                         account_identifier: Some(TruelayerAccountIdentifier {
@@ -405,8 +405,8 @@ impl TryFrom<&TruelayerRouterData<&PayoutsRouterData<PoFulfill>>> for TruelayerP
                     currency: item.router_data.request.destination_currency,
                     beneficiary: TruelayerBeneficiary {
                         _type: TruelayerBeneficiaryType::PaymentSource,
-                        reference: normalize_payment_id(
-                            item.router_data.request.payout_id.get_string_repr(),
+                        reference: normalize_connector_request_reference_id(
+                            &item.router_data.connector_request_reference_id.clone(),
                         ),
                         account_holder_name: None,
                         account_identifier: None,
@@ -660,10 +660,10 @@ pub fn generate_tl_signature(
     }
 }
 
-pub fn normalize_payment_id(payment_id: &str) -> String {
-    payment_id
+fn normalize_connector_request_reference_id(reference_id: &str) -> String {
+    reference_id
         .chars()
-        .filter(|c| c.is_ascii_alphanumeric())
+        .map(|c| if c == '_' { '-' } else { c })
         .collect()
 }
 
