@@ -1567,8 +1567,8 @@ impl
             client_token: None,
             data_user_id_token: response.id_token.clone().map(|id| id.expose()),
             transaction_info: None,
-            transaction_currency_code: Some(data.request.currency),
-            paypal_capture_method: data.request.capture_method.map(PaypalCaptureMethod::from),
+            currency: Some(data.request.currency),
+            intent: data.request.capture_method.map(PaypalCaptureMethod::from),
         }));
         Ok(Self {
             response: Ok(PaymentsResponseData::SessionResponse { session_token }),

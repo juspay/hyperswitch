@@ -1404,8 +1404,8 @@ fn create_paypal_sdk_session_token(
                     data_user_id_token: None,
                     client_token: None,
                     transaction_info: None,
-                    transaction_currency_code: Some(router_data.request.currency),
-                    paypal_capture_method: router_data
+                    currency: Some(router_data.request.currency),
+                    intent: router_data
                         .request
                         .capture_method
                         .map(PaypalCaptureMethod::from),

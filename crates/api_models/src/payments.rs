@@ -10673,11 +10673,11 @@ pub struct PaypalSessionTokenResponse {
     /// Transaction currency code
     #[schema(example = "USD", value_type = Option<Currency>)]
     #[smithy(value_type = "Option<Currency>")]
-    pub transaction_currency_code: Option<common_enums::Currency>,
+    pub currency: Option<common_enums::Currency>,
     /// PayPal capture method
     #[schema(value_type = Option<PaypalCaptureMethod>)]
     #[smithy(value_type = "Option<PaypalCaptureMethod>")]
-    pub paypal_capture_method: Option<PaypalCaptureMethod>,
+    pub intent: Option<PaypalCaptureMethod>,
 }
 
 #[derive(

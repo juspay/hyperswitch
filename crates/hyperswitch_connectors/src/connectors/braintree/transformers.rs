@@ -2003,11 +2003,8 @@ impl
                                             )?,
                                     },
                                 ),
-                                transaction_currency_code: Some(data.request.currency),
-                                paypal_capture_method: data
-                                    .request
-                                    .capture_method
-                                    .map(PaypalCaptureMethod::from),
+                                currency: Some(data.request.currency),
+                                intent: data.request.capture_method.map(PaypalCaptureMethod::from),
                             },
                         ))
                     }
