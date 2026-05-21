@@ -9015,3 +9015,149 @@ Cypress.Commands.add("retrieveNonExistentPaymentLinkTest", (globalState) => {
     });
   });
 });
+
+Cypress.Commands.add(
+  "calculateTaxCallTest",
+  (data, globalState, useMerchantApiKey = false) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+    execConfig(validateConfig(configs));
+
+    const publishableKey = globalState.get("publishableKey");
+    const clientSecret = globalState.get("clientSecret");
+    const paymentId = globalState.get("paymentID");
+    const baseUrl = globalState.get("baseUrl");
+    const url = `${baseUrl}/payments/${paymentId}/calculate_tax`;
+
+    const reqBody = {
+      shipping: reqData?.shipping || {},
+      payment_method_type: reqData?.payment_method_type || "credit",
+    };
+
+    if (reqData?.session_id) {
+      reqBody.session_id = reqData.session_id;
+    }
+
+    if (!useMerchantApiKey) {
+      reqBody.client_secret = clientSecret;
+    }
+
+    let headers;
+    if (useMerchantApiKey) {
+      headers = {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      };
+    } else {
+      headers = {
+        "Content-Type": "application/json",
+        Authorization: `publishable-key=${publishableKey},client-secret=${clientSecret}`,
+      };
+    }
+
+    cy.request({
+      method: "POST",
+      url: url,
+      headers: headers,
+      body: reqBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        if (response.status === 200) {
+          expect(response.body).to.have.property("payment_id");
+          expect(response.body).to.have.property("net_amount");
+          expect(response.body).to.have.property("order_tax_amount");
+
+          if (
+            resData?.body?.order_tax_amount !== null &&
+            resData?.body?.order_tax_amount !== undefined
+          ) {
+            expect(response.body.order_tax_amount).to.equal(
+              resData.body.order_tax_amount
+            );
+          }
+        } else if (resData?.status && response.status === resData.status) {
+          if (resData.body?.error) {
+            for (const key in resData.body.error) {
+              if (
+                typeof response.body.error[key] === "string" &&
+                response.body.error[key].includes("Json deserialize error")
+              ) {
+                expect(response.body.error[key]).to.include(
+                  resData.body.error[key]
+                );
+              } else {
+                expect(response.body.error[key]).to.equal(
+                  resData.body.error[key]
+                );
+              }
+            }
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "updateBusinessProfileWithTaxConnector",
+  (
+    updateBusinessProfileBody,
+    is_tax_connector_enabled,
+    tax_connector_id,
+    globalState,
+    profilePrefix = "profile"
+  ) => {
+    const apiKey = globalState.get("apiKey");
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get(`${profilePrefix}Id`);
+
+    const body = { ...updateBusinessProfileBody };
+    body.is_tax_connector_enabled = is_tax_connector_enabled;
+    if (tax_connector_id) {
+      body.tax_connector_id = tax_connector_id;
+    } else {
+      delete body.tax_connector_id;
+    }
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body: body,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        if (response.status === 200) {
+          expect(response.body).to.have.property(
+            "is_tax_connector_enabled",
+            is_tax_connector_enabled
+          );
+          if (tax_connector_id) {
+            expect(response.body).to.have.property(
+              "tax_connector_id",
+              tax_connector_id
+            );
+          }
+        } else {
+          throw new Error(
+            `Update Business Profile with Tax Connector failed with status ${response.status}: ${JSON.stringify(response.body)}`
+          );
+        }
+      });
+    });
+  }
+);
