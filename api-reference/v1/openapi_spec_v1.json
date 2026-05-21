@@ -8780,6 +8780,12 @@
             "type": "string",
             "description": "[9 digits] Routing number - used in USA for identifying a specific bank.",
             "example": "110000000"
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe",
+            "nullable": true
           }
         }
       },
@@ -8821,6 +8827,12 @@
             "type": "string",
             "description": "Bank city",
             "example": "California",
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe",
             "nullable": true
           }
         }
@@ -11435,6 +11447,12 @@
             "type": "string",
             "description": "[6 digits] Sort Code - used in UK and Ireland for identifying a bank and it's branches.",
             "example": "98-76-54"
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe",
+            "nullable": true
           }
         }
       },
@@ -11474,6 +11492,12 @@
             "type": "string",
             "description": "Bank city",
             "example": "California",
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe",
             "nullable": true
           }
         }
@@ -40803,6 +40827,12 @@
             "type": "string",
             "description": "[8 / 11 digits] Bank Identifier Code (bic) / Swift Code - used in many countries for identifying a bank and it's branches",
             "example": "HSBCGB2LXXX"
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe",
+            "nullable": true
           }
         }
       },
@@ -40842,6 +40872,12 @@
             "type": "string",
             "description": "[8 / 11 digits] Bank Identifier Code (bic) / Swift Code - used in many countries for identifying a bank and it's branches",
             "example": "HSBCGB2LXXX",
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe",
             "nullable": true
           }
         }
