@@ -1,5 +1,5 @@
-import { customerAcceptance } from "./Commons";
-import { getCustomExchange } from "./Modifiers";
+import { customerAcceptance, standardBillingAddress } from "./Commons";
+import { getCurrency, getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
@@ -920,5 +920,67 @@ export const connectorDetails = {
         amount_to_capture: 6000,
       },
     }),
+  },
+  wallet_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: getCurrency(paymentMethodType),
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
+    SamsungPay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "samsung_pay",
+        payment_method_data: {
+          wallet: {
+            samsung_pay: {
+              payment_credential: "test_payment_credential",
+            },
+          },
+        },
+        billing: billingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "800.900.300",
+          error_message: "invalid authentication information",
+        },
+      },
+    },
+    MbWay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "mb_way",
+        payment_method_data: {
+          wallet: {
+            mb_way_redirect: {},
+          },
+        },
+        billing: {
+          ...billingAddress,
+          phone: {
+            number: "351910000001",
+            country_code: "+351",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "800.900.300",
+          error_message: "invalid authentication information",
+        },
+      },
+    },
   },
 };
