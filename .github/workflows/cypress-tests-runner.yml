@@ -97,7 +97,8 @@ jobs:
     if: |
       github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
-    runs-on: ${{ github.event_name == 'merge_group' && 'hyperswitch-runners-merge' || 'hyperswitch-runners' }}
+    # use hyperswitch-runners-merge for merge queue level checks
+    runs-on: ${{ github.event_name == 'merge_group' && 'hyperswitch-runners' || 'hyperswitch-runners-merge' }}
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
@@ -155,6 +156,7 @@ jobs:
     if: |
       github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+    # use hyperswitch-runners-merge for merge queue level checks
     runs-on: ${{ github.event_name == 'merge_group' && 'hyperswitch-runners-merge' || 'hyperswitch-runners' }}
     outputs:
       mandatory-matrix: ${{ steps.set-mandatory-matrix.outputs.matrix }}
@@ -202,6 +204,7 @@ jobs:
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')))
     permissions:
       pull-requests: write
+    # use hyperswitch-runners-merge for merge queue level checks
     runs-on: ${{ github.event_name == 'merge_group' && 'hyperswitch-runners-merge' || 'hyperswitch-runners' }}
     strategy:
       fail-fast: false
@@ -1333,7 +1336,8 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           RUSTFLAGS: "-Cinstrument-coverage"
-        run: just build_v2 --jobs 3
+          CARGO_BUILD_JOBS: 6
+        run: just build_v2
 
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}
