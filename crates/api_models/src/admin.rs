@@ -18,12 +18,12 @@ use smithy::SmithyModel;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
+#[cfg(feature = "v1")]
+use crate::routing;
 use crate::{
     consts::{MAX_ORDER_FULFILLMENT_EXPIRY, MIN_ORDER_FULFILLMENT_EXPIRY},
-    enums as api_enums, payment_methods,
+    enums as api_enums, payment_methods, profile_acquirer,
 };
-#[cfg(feature = "v1")]
-use crate::{profile_acquirer::ProfileAcquirerResponse, routing};
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantAccountListRequest {
@@ -339,6 +339,13 @@ pub struct ExternalVaultConnectorDetails {
 
     /// Fields to tokenization in vault
     pub vault_token_selector: Option<Vec<VaultTokenField>>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct SurchargeConnectorDetails {
+    /// The surcharge connector ID for calculating external surcharge
+    #[schema(value_type = Option<String>)]
+    pub surcharge_connector_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -2145,7 +2152,7 @@ pub struct MerchantConnectorDetailsWrap {
     pub creds_identifier: String,
     /// Merchant connector details type type. Base64 Encode the credentials and send it in  this type and send as a string.
     #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
-        "connector_account_details": {
+       "connector_account_details": {
             "auth_type": "HeaderKey",
             "api_key":"sk_test_xxxxxexamplexxxxxx12345"
         },
@@ -2358,6 +2365,9 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
@@ -2530,6 +2540,9 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
@@ -2697,9 +2710,13 @@ pub struct ProfileResponse {
     #[schema(default = false, example = false)]
     pub is_pre_network_tokenization_enabled: bool,
 
-    /// Acquirer configs
-    #[schema(value_type = Option<Vec<ProfileAcquirerResponse>>)]
-    pub acquirer_configs: Option<Vec<ProfileAcquirerResponse>>,
+    /// Acquirer configs (Deprecated - use `acquirer_config_bucket` instead)
+    #[schema(value_type = Option<Vec<ProfileAcquirerResponse>>, deprecated)]
+    pub acquirer_configs: Option<Vec<profile_acquirer::ProfileAcquirerResponse>>,
+
+    /// Acquirer config buckets: map of acquirer profile configurations
+    #[schema(value_type = Option<ProfileAcquirerConfigsResponse>)]
+    pub acquirer_config_bucket: Option<profile_acquirer::ProfileAcquirerConfigsResponse>,
 
     /// Indicates if the redirection has to open in the iframe
     #[schema(example = false)]
@@ -2737,6 +2754,9 @@ pub struct ProfileResponse {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
@@ -2922,6 +2942,9 @@ pub struct ProfileResponse {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
@@ -3121,6 +3144,9 @@ pub struct ProfileUpdate {
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
@@ -3286,6 +3312,9 @@ pub struct ProfileUpdate {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

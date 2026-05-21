@@ -223,6 +223,7 @@ where
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -584,6 +585,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -932,6 +934,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -1070,6 +1073,7 @@ pub async fn construct_router_data_for_psync<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -1438,6 +1442,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -1670,6 +1675,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -1735,6 +1741,7 @@ where
         mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,
+        network_txn_link_id: None,
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
         authentication_data: None,
@@ -2001,6 +2008,7 @@ where
         authorized_amount: None,
         customer_document_details,
         feature_data,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -2222,6 +2230,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -4037,6 +4046,7 @@ where
             payment_id: payment_intent.payment_id,
             merchant_id: payment_intent.merchant_id,
             status: payment_intent.status,
+            connector_customer_id: payment_data.get_connector_customer_id(),
             amount: payment_attempt.net_amount.get_order_amount(),
             net_amount: payment_attempt.get_total_amount(),
             amount_capturable: payment_attempt.amount_capturable,
@@ -4139,6 +4149,7 @@ where
             browser_info: payment_attempt.browser_info,
             payment_method_id: payment_attempt.payment_method_id,
             network_transaction_id: payment_attempt.network_transaction_id,
+            network_transaction_link_id: payment_attempt.network_transaction_link_id,
             payment_method_status: payment_data
                 .get_payment_method_info()
                 .map(|info| info.status),
@@ -4177,6 +4188,7 @@ where
             installment_options: payment_intent.installment_options,
             installment_data: payment_data.get_installment_details().cloned(),
             connector_response_metadata,
+            sender_payment_instrument_id: payment_attempt.sender_payment_instrument_id.clone(),
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -4448,6 +4460,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             processor_merchant_id: pi.processor_merchant_id,
             initiator: None,
             sdk_authorization: None,
+            connector_customer_id: None,
             refunds: None,
             disputes: None,
             attempts: None,
@@ -4511,6 +4524,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             is_iframe_redirection_enabled:pi.is_iframe_redirection_enabled,
             payment_channel: pi.payment_channel,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             enable_partial_authorization: pi.enable_partial_authorization,
             enable_overcapture: pi.enable_overcapture,
             is_overcapture_enabled: pa.is_overcapture_enabled,
@@ -4522,6 +4536,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             payment_method_tokenization_details: None,
             installment_options: pi.installment_options,
             installment_data: pa.installment_data,
+            sender_payment_instrument_id: pa.sender_payment_instrument_id.clone(),
         }
     }
 }
@@ -4546,6 +4561,7 @@ impl ForeignTryFrom<&domain::PaymentMethod> for api_payments::PaymentMethodToken
             psp_tokenization,
             network_tokenization,
             network_transaction_id: payment_method.network_transaction_id.clone(),
+            network_transaction_link_id: payment_method.network_transaction_link_id.clone(),
             is_eligible_for_mit_payment: psp_tokenization || is_network_transaction_id_present,
         })
     }

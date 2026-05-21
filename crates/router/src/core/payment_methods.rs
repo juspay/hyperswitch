@@ -1,7 +1,11 @@
 pub mod access_token;
+#[cfg(feature = "v2")]
+mod backward_compat;
 #[cfg(feature = "v1")]
 pub mod batch_retrieve;
 pub mod cards;
+#[cfg(feature = "v1")]
+pub mod client;
 pub mod migration;
 pub mod network_tokenization;
 pub mod surcharge_decision_configs;
@@ -109,8 +113,12 @@ use crate::{
 
 const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
 const PAYMENT_METHOD_STATUS_TAG: &str = "PAYMENT_METHOD_STATUS";
-const PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TASK: &str = "PAYMENT_METHOD_MODULAR_FORWARD_COMPAT";
-const PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TAG: &str = "PAYMENT_METHOD_MODULAR_FORWARD_COMPAT";
+const PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TASK: &str = "PM_MOD_FORWARD_COMPAT";
+const PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TAG: &str = "PM_MOD_FORWARD_COMPAT";
+#[cfg(feature = "v2")]
+const PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TASK: &str = "PM_MOD_BACK_COMPAT";
+#[cfg(feature = "v2")]
+const PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TAG: &str = "PM_MOD_BACK_COMPAT";
 #[cfg(feature = "v2")]
 const PAYMENT_METHOD_REDACTED_FINGERPRINT_ID: &str = "FINGERPRINT_ID_REDACTED";
 
@@ -561,7 +569,7 @@ pub async fn add_payment_method_modular_forward_compat_task(
         tracking_data,
         None,
         common_utils::date_time::now(),
-        common_types::consts::API_VERSION,
+        common_enums::ApiVersion::V1,
         application_source,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -576,6 +584,62 @@ pub async fn add_payment_method_modular_forward_compat_task(
             format!(
                 "Failed while inserting PAYMENT_METHOD_MODULAR_FORWARD_COMPAT task to process_tracker for payment_method_id: {}",
                 payment_method.payment_method_id
+            )
+        })?;
+
+    Ok(())
+}
+
+#[cfg(feature = "v2")]
+pub async fn add_payment_method_modular_backward_compat_task(
+    db: &dyn StorageInterface,
+    payment_method: &domain::PaymentMethod,
+    merchant_id: &id_type::MerchantId,
+    application_source: common_enums::ApplicationSource,
+    initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
+) -> Result<(), ProcessTrackerError> {
+    let payment_method_id = payment_method.get_id().get_string_repr().to_owned();
+
+    let tracking_data = storage::PaymentMethodModularCompatTrackingData {
+        payment_method_id: payment_method_id.clone(),
+        merchant_id: merchant_id.to_owned(),
+        last_modified_by: initiator
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|last_modified_by| last_modified_by.to_string()),
+    };
+
+    let runner = storage::ProcessTrackerRunner::PaymentMethodModularBackwardCompatWorkflow;
+    let task = PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TASK;
+    let tag = [PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TAG];
+    let process_tracker_id = generate_task_id_for_payment_method_status_update_workflow(
+        &payment_method_id,
+        runner,
+        task,
+    );
+
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        tracking_data,
+        None,
+        common_utils::date_time::now(),
+        common_enums::ApiVersion::V1,
+        application_source,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable(
+        "Failed to construct PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT process tracker task",
+    )?;
+
+    db.insert_process(process_tracker_entry)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while inserting PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT task to process_tracker for payment_method_id: {}",
+                payment_method_id
             )
         })?;
 
@@ -970,9 +1034,48 @@ pub(crate) async fn get_payment_method_create_request(
     customer_id: &Option<id_type::CustomerId>,
     billing_name: Option<Secret<String>>,
     payment_method_billing_address: Option<&hyperswitch_domain_models::address::Address>,
+    payment_method_token: Option<hyperswitch_domain_models::router_data::PaymentMethodToken>,
 ) -> RouterResult<payment_methods::PaymentMethodCreate> {
-    match payment_method_data {
-        Some(pm_data) => match payment_method {
+    match (payment_method_data, payment_method_token) {
+        (
+            _,
+            Some(hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
+                apple_pay_decrypted_data,
+            )),
+        ) => {
+            let payment_method_data = Some(payment_methods::PaymentMethodCreateData::Wallet(
+                payment_methods::WalletDetail::ApplePayDecryptedData {
+                    application_primary_account_number: apple_pay_decrypted_data
+                        .application_primary_account_number,
+                    expiry_month: apple_pay_decrypted_data.application_expiration_month,
+                    expiry_year: apple_pay_decrypted_data.application_expiration_year,
+                },
+            ));
+            let payment_method_request = payment_methods::PaymentMethodCreate {
+                payment_method,
+                payment_method_type,
+                payment_method_issuer: None,
+                payment_method_issuer_code: None,
+                #[cfg(feature = "payouts")]
+                bank_transfer: None,
+                #[cfg(feature = "payouts")]
+                bank_transfer_data: None,
+                #[cfg(feature = "payouts")]
+                wallet: None,
+                card: None,
+                metadata: None,
+                customer_id: customer_id.clone(),
+                card_network: None,
+                client_secret: None,
+                payment_method_data,
+                //TODO: why are we using api model in router internally
+                billing: payment_method_billing_address.cloned().map(From::from),
+                connector_mandate_details: None,
+                network_transaction_id: None,
+            };
+            Ok(payment_method_request)
+        }
+        (Some(pm_data), _) => match payment_method {
             Some(payment_method) => match pm_data {
                 domain::PaymentMethodData::Card(card) => {
                     let card_network = get_card_network_with_us_local_debit_network_override(
@@ -1093,7 +1196,7 @@ pub(crate) async fn get_payment_method_create_request(
             })
             .attach_printable("PaymentMethodType Required")),
         },
-        None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+        _ => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
             field_name: "payment_method_data"
         })
         .attach_printable("PaymentMethodData required Or Card is already saved")),
@@ -1473,10 +1576,16 @@ pub enum PaymentMethodResolution {
         source_payment_method_data: domain::PaymentMethodVaultingData,
     },
     Create {
-        fingerprint_id: Option<String>,
+        fingerprint_details: Option<FingerprintDetails>,
         payment_method_data: domain::PaymentMethodVaultingData,
         locker_resolver: LockerTypeResolver,
     },
+}
+
+#[cfg(feature = "v2")]
+pub struct FingerprintDetails {
+    pub fingerprint_id: Option<String>,
+    pub auxiliary_fingerprint_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -1693,13 +1802,30 @@ impl LockerOperations for GenericLocker {
 
                 logger::debug!("Payment method not found, falling back to creation");
 
+                let auxiliary_fingerprint_id =
+                    vault::get_auxiliary_fingerprint_id_for_payment_method(
+                        state,
+                        &payment_method_data,
+                        customer_id.get_string_repr().to_owned(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to get auxiliary fingerprint_id from vault using generic strategy",
+                    )?;
+
                 let locker_resolver = LockerTypeResolver {
                     locker_type: LockerType::Generic,
                     card_reference: None,
                 };
 
-                Ok(PaymentMethodResolver(PaymentMethodResolution::Create {
+                let fingerprint_details = FingerprintDetails {
                     fingerprint_id: Some(fingerprint_id),
+                    auxiliary_fingerprint_id: Some(auxiliary_fingerprint_id.clone()),
+                };
+
+                Ok(PaymentMethodResolver(PaymentMethodResolution::Create {
+                    fingerprint_details: Some(fingerprint_details),
                     payment_method_data,
                     locker_resolver,
                 }))
@@ -1974,8 +2100,9 @@ impl LockerOperations for LegacyLocker {
                     locker_type: LockerType::Legacy,
                     card_reference: Some(legacy_locker_res.card_reference),
                 };
+
                 Ok(PaymentMethodResolver(PaymentMethodResolution::Create {
-                    fingerprint_id: None,
+                    fingerprint_details: None,
                     payment_method_data: payment_method_data.clone(),
                     locker_resolver,
                 }))
@@ -2349,10 +2476,17 @@ impl PaymentMethodResolver {
             }
 
             PaymentMethodResolution::Create {
-                fingerprint_id,
+                fingerprint_details,
                 payment_method_data,
                 locker_resolver,
             } => {
+                let fingerprint_id = fingerprint_details
+                    .as_ref()
+                    .and_then(|details| details.fingerprint_id.clone());
+
+                let auxiliary_fingerprint_id = fingerprint_details
+                    .and_then(|details| details.auxiliary_fingerprint_id.clone());
+
                 let payment_method = create_payment_method_for_intent(
                     state,
                     req.metadata.clone(),
@@ -2363,6 +2497,7 @@ impl PaymentMethodResolver {
                     platform.get_provider().get_account().storage_scheme,
                     billing_address.clone(),
                     platform.get_initiator(),
+                    auxiliary_fingerprint_id,
                 )
                 .await?;
                 Box::pin(execute_payment_method_create(
@@ -2508,6 +2643,15 @@ async fn execute_payment_method_create(
                 payment_method_billing_address.map(|add| add.get_inner().clone().into()),
                 None,
             )?;
+
+            Box::pin(
+                backward_compat::trigger_payment_method_modular_backward_compat_best_effort(
+                    state,
+                    &payment_method,
+                    platform,
+                ),
+            )
+            .await;
 
             Ok((resp, payment_method))
         }
@@ -3351,6 +3495,7 @@ pub async fn payment_method_intent_create(
         provider.get_account().storage_scheme,
         payment_method_billing_address,
         initiator,
+        None,
     )
     .await
     .attach_printable("Failed to add Payment method to DB")?;
@@ -3738,6 +3883,7 @@ pub async fn create_payment_method_for_intent(
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
     initiator: Option<&domain::Initiator>,
+    auxiliary_fingerprint_id: Option<String>,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     use josekit::jwe::zip::deflate::DeflateJweCompression::Def;
 
@@ -3761,6 +3907,7 @@ pub async fn create_payment_method_for_intent(
                 client_secret: None,
                 status: enums::PaymentMethodStatus::AwaitingData,
                 network_transaction_id: None,
+                network_transaction_link_id: None,
                 created_at: current_time,
                 last_modified: current_time,
                 last_used_at: current_time,
@@ -3778,6 +3925,7 @@ pub async fn create_payment_method_for_intent(
                 last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                 customer_details: None,
                 network_tokenization_data: None,
+                auxiliary_fingerprint_id,
             },
             storage_scheme,
         )
@@ -3848,6 +3996,7 @@ pub async fn construct_payment_method_object(
         client_secret: None,
         status: enums::PaymentMethodStatus::New,
         network_transaction_id: None,
+        network_transaction_link_id: None,
         created_at: current_time,
         last_modified: current_time,
         last_used_at: current_time,
@@ -3865,6 +4014,7 @@ pub async fn construct_payment_method_object(
         last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
         customer_details: None,
         network_tokenization_data: None,
+        auxiliary_fingerprint_id: None,
     })
 }
 
@@ -3913,6 +4063,7 @@ pub async fn create_payment_method_for_confirm(
                 client_secret: None,
                 status,
                 network_transaction_id: None,
+                network_transaction_link_id: None,
                 created_at: current_time,
                 last_modified: current_time,
                 last_used_at: current_time,
@@ -3930,6 +4081,7 @@ pub async fn create_payment_method_for_confirm(
                 last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                 customer_details: None,
                 network_tokenization_data: None,
+                auxiliary_fingerprint_id: None,
             },
             storage_scheme,
         )
@@ -4156,10 +4308,11 @@ pub async fn create_pm_additional_data_update(
             .map(|data| data.network_token_requestor_reference_id),
         network_token_locker_id: nt_data.clone().map(|data| data.network_token_locker_id),
         network_token_payment_method_data: nt_data.map(|data| data.network_token_pmd.into()),
-        connector_mandate_details: connector_mandate_details_update,
+        connector_mandate_details: Box::new(connector_mandate_details_update),
         locker_fingerprint_id: vault_fingerprint_id,
         external_vault_source,
         network_transaction_id,
+        network_transaction_link_id: None,
         last_modified_by: initiator
             .and_then(|initiator| initiator.to_created_by())
             .map(|last_modified_by| last_modified_by.to_string()),
@@ -4214,7 +4367,8 @@ async fn build_legacy_locker_add_req(
             }),
         ),
         domain::PaymentMethodVaultingData::CardNumber(_)
-        | domain::PaymentMethodVaultingData::BankDebit(_) => {
+        | domain::PaymentMethodVaultingData::BankDebit(_)
+        | domain::PaymentMethodVaultingData::Wallet(_) => {
             Err(report!(errors::ApiErrorResponse::NotSupported {
                 message: "Legacy locker only supports Card and NetworkToken".into(),
             }))
@@ -4438,6 +4592,10 @@ pub fn get_payment_method_custom_data(
                     hyperswitch_domain_models::vault::PaymentMethodVaultingData::BankDebit(_) => {
                         Err(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Unexpected Behaviour, Bank Debit variant is not supported for Custom Tokenization")?
+                    }
+                    hyperswitch_domain_models::vault::PaymentMethodVaultingData::Wallet(_) => {
+                        Err(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Unexpected Behaviour, Wallet variant is not supported for Custom Tokenization")?
                     }
                 }
             }
@@ -6663,6 +6821,7 @@ async fn create_single_use_tokenization_flow(
             authorized_amount: None,
             customer_document_details: None,
             feature_data: None,
+            sender_payment_instrument_id: None,
         };
 
     let payment_method_token_response = Box::pin(tokenization::add_token_for_payment_method(
