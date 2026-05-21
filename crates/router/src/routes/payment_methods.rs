@@ -820,7 +820,8 @@ pub async fn list_customer_payment_method_api_client(
         payload,
         |state, auth: auth::AuthenticationData, mut req, _| {
             Box::pin(async move {
-                validate_legacy_endpoint_access(&state, &auth.platform).await?;
+                // TODO: Enable it back once combined PML API is provisioned
+                // validate_legacy_endpoint_access(&state, &auth.platform).await?;
                 if let Some(client_secret) = auth.client_secret {
                     req.client_secret = Some(client_secret);
                 }
@@ -1322,7 +1323,8 @@ pub async fn default_payment_method_set_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, default_payment_method, _| async move {
-            validate_legacy_endpoint_access(&state, &auth.platform).await?;
+            // TODO: Enable it back once combined PML API is provisioned
+            // validate_legacy_endpoint_access(&state, &auth.platform).await?;
             cards::PmCards {
                 state: &state,
                 provider: auth.platform.get_provider(),
@@ -2021,6 +2023,42 @@ pub async fn payment_method_get_token_details_api(
             }
         },
         &*auth_type,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
+/// List payment methods for a Payment (client SDK endpoint)
+///
+/// Returns a unified response combining merchant-enabled payment methods and
+/// customer saved payment methods, filtered via Euclid constraint graph and
+/// session flow routing.
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
+pub async fn list_payment_methods_for_payments_client(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::PaymentId>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsList;
+    let payment_id = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payment_id.clone(),
+        |state, auth: auth::AuthenticationData, payment_id, _| {
+            payment_methods_routes::client::list_payment_methods_client(
+                state,
+                auth.platform,
+                payment_id,
+            )
+        },
+        &auth::SdkAuthorizationAuth {
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

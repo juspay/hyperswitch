@@ -386,7 +386,7 @@ describe("External Vault (VGS) - Connector Integration Tests", () => {
   context("Remove VGS external vault from business profile", () => {
     it("Remove external_vault_connector_id from business profile", () => {
       const updateBusinessProfileBody = {
-        is_external_vault_enabled: "disable",
+        is_external_vault_enabled: "skip",
       };
 
       cy.UpdateBusinessProfileTest(

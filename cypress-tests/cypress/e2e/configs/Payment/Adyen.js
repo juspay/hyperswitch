@@ -1,5 +1,9 @@
 import { customerAcceptance, multiUseMandateData } from "./Commons";
-import { getCurrency, getCustomExchange } from "./Modifiers";
+import {
+  getCurrency,
+  getCustomExchange,
+  getIframeRedirectionConfig,
+} from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
@@ -133,6 +137,9 @@ export const connectorDetails = {
         },
       },
     },
+    ...getIframeRedirectionConfig({
+      cardDetails: successfulThreeDSTestCardDetails,
+    }),
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
@@ -1324,6 +1331,70 @@ export const connectorDetails = {
         },
       },
     }),
+    PaymentIntent: () => {
+      return getCustomExchange({
+        Request: {
+          currency: "EUR",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      });
+    },
+    PaySafeCardGiftCard: getCustomExchange({
+      Request: {
+        payment_method: "gift_card",
+        payment_method_type: "pay_safe_card",
+        payment_method_data: {
+          gift_card: {
+            pay_safe_card: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        return_url: "https://example.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    GivexGiftCardRefund: {
+      Request: {
+        amount: 1000,
+        reason: "Test refund",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    GivexGiftCardSyncRefund: {
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
   },
 
   pay_later_pm: {
