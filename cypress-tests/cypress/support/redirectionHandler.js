@@ -420,7 +420,7 @@ function affirmPayLaterRedirection(
       const returnOrigin = expectedUrl.origin;
 
       const determineAffirmStep = (doc, bodyText, currentUrl, returnOrigin) => {
-        if (currentUrl.includes(returnOrigin)) return "done";
+        if (currentUrl.includes("/payments/completion")) return "done";
 
         const hasPinInput = doc.querySelector(
           '[data-testid="phone-pin-field"]:not([aria-hidden="true"])'
@@ -769,21 +769,17 @@ function affirmPayLaterRedirection(
         }
 
         cy.url().then((currentUrl) => {
-          if (currentUrl.includes(returnOrigin)) {
-            cy.log(`Reached return URL: ${currentUrl} — DONE`);
-          } else {
-            cy.log(`Step remaining: ${maxSteps} | Current URL: ${currentUrl}`);
+          cy.log(`Step remaining: ${maxSteps} | Current URL: ${currentUrl}`);
 
-            handleAffirmStep();
+          handleAffirmStep();
 
-            cy.wait(delay).then(() => {
-              runUntilComplete(maxSteps - 1, delay, returnOrigin);
-            });
-          }
+          cy.wait(delay).then(() => {
+            runUntilComplete(maxSteps - 1, delay, returnOrigin);
+          });
         });
       }
 
-      runUntilComplete(10, 6000, returnOrigin);
+      runUntilComplete(3, 6000, returnOrigin);
     });
   } else {
     cy.log("Skipping Affirm redirection - no valid redirect URL provided");
