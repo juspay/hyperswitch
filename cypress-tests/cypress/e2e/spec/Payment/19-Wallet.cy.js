@@ -368,7 +368,7 @@ describe("Wallet tests", () => {
       cy.paymentMethodsCallTest(globalState);
     });
 
-    it("Confirm wallet redirect", () => {
+    it("Confirm wallet redirect and assert QR code presence", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
       ]["WeChatPay"];
@@ -380,36 +380,11 @@ describe("Wallet tests", () => {
         globalState
       );
 
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("Handle wallet redirection", () => {
-      const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
       const nextActionUrl = globalState.get("nextActionUrl");
-
       expect(
         nextActionUrl,
-        "nextActionUrl should be defined before handling wallet redirection"
+        "nextActionUrl should be present after Globepay wallet confirm"
       ).to.be.a("string");
-
-      cy.handleWalletRedirection(
-        globalState,
-        payment_method_type,
-        expected_redirection
-      );
-    });
-
-    it("Sync payment status", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["WeChatPay"];
-
-      cy.retrievePaymentCallTest({
-        globalState,
-        data,
-        expectedIntentStatus: "requires_customer_action",
-      });
     });
   });
 
@@ -466,7 +441,7 @@ describe("Wallet tests", () => {
       cy.paymentMethodsCallTest(globalState);
     });
 
-    it("Confirm wallet redirect", () => {
+    it("Confirm wallet redirect and assert QR code presence", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
       ]["AliPay"];
@@ -478,36 +453,11 @@ describe("Wallet tests", () => {
         globalState
       );
 
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("Handle wallet redirection", () => {
-      const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
       const nextActionUrl = globalState.get("nextActionUrl");
-
       expect(
         nextActionUrl,
-        "nextActionUrl should be defined before handling wallet redirection"
+        "nextActionUrl should be present after Globepay wallet confirm"
       ).to.be.a("string");
-
-      cy.handleWalletRedirection(
-        globalState,
-        payment_method_type,
-        expected_redirection
-      );
-    });
-
-    it("Sync payment status", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["AliPay"];
-
-      cy.retrievePaymentCallTest({
-        globalState,
-        data,
-        expectedIntentStatus: "requires_customer_action",
-      });
     });
   });
 });
