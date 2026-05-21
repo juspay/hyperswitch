@@ -120,6 +120,10 @@ pub struct AchBankTransferAdditionalData {
     /// Bank city
     #[schema(value_type = Option<String>, example = "California")]
     pub bank_city: Option<String>,
+
+    /// Account holder name
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub account_holder_name: Option<Secret<String>>,
 }
 
 /// Masked payout method details for bacs bank transfer payout method
@@ -147,6 +151,10 @@ pub struct BacsBankTransferAdditionalData {
     /// Bank city
     #[schema(value_type = Option<String>, example = "California")]
     pub bank_city: Option<String>,
+
+    /// Account holder name
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub account_holder_name: Option<Secret<String>>,
 }
 
 /// Masked payout method details for sepa bank transfer payout method
@@ -174,6 +182,10 @@ pub struct SepaBankTransferAdditionalData {
     /// [8 / 11 digits] Bank Identifier Code (bic) / Swift Code - used in many countries for identifying a bank and it's branches
     #[schema(value_type = Option<String>, example = "HSBCGB2LXXX")]
     pub bic: Option<MaskedBic>,
+
+    /// Account holder name
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub account_holder_name: Option<Secret<String>>,
 }
 
 /// Masked payout method details for pix bank transfer payout method
