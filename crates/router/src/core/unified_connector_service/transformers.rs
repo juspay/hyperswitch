@@ -7253,7 +7253,6 @@ impl
             surcharge_strategy: router_data
                 .request
                 .surcharge_strategy
-                .clone()
                 .map(|s| payments_grpc::SurchargeStrategy::foreign_from(s).into()),
         })
     }

@@ -12537,7 +12537,9 @@ pub async fn payments_submit_pre_confirm(
                     Ok(resp) if resp.surcharge_amount.get_amount_as_i64() > 0 => {
                         let surcharge_amount = resp.surcharge_amount;
                         let connector_surcharge_id = resp.connector_surcharge_id.clone();
-                        let surcharge_f64 = surcharge_amount.get_amount_as_i64() as f64;
+                        let surcharge_f64 = currency
+                            .to_currency_base_unit_asf64(surcharge_amount.get_amount_as_i64())
+                            .unwrap_or_default();
 
                         // Best-effort: persist connector_surcharge_id to payment_attempt
                         // and update payment_intent.surcharge_strategy if request provided one.
@@ -12548,7 +12550,7 @@ pub async fn payments_submit_pre_confirm(
                                     .store
                                     .update_payment_intent(
                                         pi_for_update,
-                                        hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SurchargeStrategyUpdate {
+                                        payments::payment_intent::PaymentIntentUpdate::SurchargeStrategyUpdate {
                                             surcharge_strategy: Some(strategy),
                                             updated_by: merchant_id.get_string_repr().to_owned(),
                                         },
@@ -12572,7 +12574,7 @@ pub async fn payments_submit_pre_confirm(
                                     .store
                                     .update_payment_attempt_with_attempt_id(
                                         payment_attempt,
-                                        hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ExternalSurchargeUpdate {
+                                        payments::payment_attempt::PaymentAttemptUpdate::ExternalSurchargeUpdate {
                                             external_surcharge_details: Some(external_surcharge_details),
                                             updated_by: merchant_id.get_string_repr().to_owned(),
                                         },

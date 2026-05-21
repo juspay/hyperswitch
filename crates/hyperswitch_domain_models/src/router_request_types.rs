@@ -1763,7 +1763,7 @@ pub struct PaymentsSurchargeCalculationData {
     /// Country in ISO alpha-2 format (optional, defaults to USA)
     pub country: Option<common_enums::CountryAlpha2>,
     /// Strategy for surcharge application (optional, defaults to Apply)
-    pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub surcharge_strategy: Option<SurchargeStrategy>,
 }
 
 /// Re-export for backward compatibility within this crate
