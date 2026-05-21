@@ -233,9 +233,9 @@ describe("PayLater tests", () => {
             cy.task("cli_log", "Skipping step: Capture Payment");
             return;
           }
-          const captureData = getConnectorDetails(globalState.get("connectorId"))[
-            "pay_later_pm"
-          ]["Capture"];
+          const captureData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["pay_later_pm"]["Capture"];
           cy.captureCallTest(fixtures.captureBody, captureData, globalState);
           if (!utils.should_continue_further(captureData)) {
             shouldContinue = false;
@@ -244,15 +244,12 @@ describe("PayLater tests", () => {
 
         cy.step("Retrieve Payment after Capture", () => {
           if (!shouldContinue) {
-            cy.task(
-              "cli_log",
-              "Skipping step: Retrieve Payment after Capture"
-            );
+            cy.task("cli_log", "Skipping step: Retrieve Payment after Capture");
             return;
           }
-          const captureData = getConnectorDetails(globalState.get("connectorId"))[
-            "pay_later_pm"
-          ]["Capture"];
+          const captureData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["pay_later_pm"]["Capture"];
           cy.retrievePaymentCallTest({ globalState, data: captureData });
         });
       });
