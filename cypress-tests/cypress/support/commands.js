@@ -9069,6 +9069,7 @@ Cypress.Commands.add(
             response.body.payout_link.payout_link_id
           );
           globalState.set("payoutLinkUrl", response.body.payout_link.link);
+          globalState.set("payoutAmount", requestBody.amount);
 
           cy.task(
             "cli_log",
@@ -9155,18 +9156,17 @@ Cypress.Commands.add("initiatePayoutLinkTest", (data, globalState) => {
 
 Cypress.Commands.add("retrievePayoutLinkTest", (data, globalState) => {
   const payoutId = globalState.get("payoutID");
-  const merchantId = globalState.get("merchantId");
   const apiKey = globalState.get("apiKey");
   const baseUrl = globalState.get("baseUrl");
 
-  if (!payoutId || !merchantId) {
-    cy.task("cli_log", "Skipping: No payout ID or merchant ID available");
+  if (!payoutId) {
+    cy.task("cli_log", "Skipping: No payout ID available");
     return;
   }
 
   cy.request({
     method: "GET",
-    url: `${baseUrl}/payout_link/${merchantId}/${payoutId}`,
+    url: `${baseUrl}/payouts/${payoutId}`,
     headers: {
       "Content-Type": "application/json",
       "api-key": apiKey,
@@ -9178,11 +9178,11 @@ Cypress.Commands.add("retrievePayoutLinkTest", (data, globalState) => {
     cy.wrap(response).then(() => {
       expect(response.status).to.equal(200);
       expect(response.headers["content-type"]).to.include("application/json");
-      expect(response.body).to.have.property("link_id");
-      expect(response.body).to.have.property("link_to_pay");
-      expect(response.body).to.have.property("status");
+      expect(response.body).to.have.property("payout_link");
+      expect(response.body.payout_link).to.have.property("link_id");
+      expect(response.body.payout_link).to.have.property("url");
 
-      cy.task("cli_log", `Payout Link retrieved: ${response.body.status}`);
+      cy.task("cli_log", `Payout Link retrieved: ${response.body.payout_link.link_id}`);
     });
   });
 });
@@ -9192,14 +9192,11 @@ Cypress.Commands.add("listPayoutLinksTest", (data, globalState) => {
   const baseUrl = globalState.get("baseUrl");
 
   cy.request({
-    method: "POST",
-    url: `${baseUrl}/payout_link/list`,
+    method: "GET",
+    url: `${baseUrl}/payouts/list?limit=10`,
     headers: {
       "Content-Type": "application/json",
       "api-key": apiKey,
-    },
-    body: {
-      limit: 10,
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -9210,7 +9207,7 @@ Cypress.Commands.add("listPayoutLinksTest", (data, globalState) => {
       expect(response.headers["content-type"]).to.include("application/json");
       expect(response.body).to.be.an("array");
 
-      cy.task("cli_log", `Listed ${response.body.length} payout links`);
+      cy.task("cli_log", `Listed ${response.body.length} payouts`);
     });
   });
 });
