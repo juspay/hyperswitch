@@ -80,6 +80,7 @@ import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.j
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 import { connectorDetails as ziftConnectorDetails } from "./Zift.js";
 import { connectorDetails as mifinityConnectorDetails } from "./Mifinity.js";
+import { connectorDetails as taxjarConnectorDetails } from "./Taxjar.js";
 const connectorDetails = {
   aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
@@ -159,6 +160,7 @@ const connectorDetails = {
   zift: ziftConnectorDetails,
   loonio: loonioConnectorDetails,
   mifinity: mifinityConnectorDetails,
+  taxjar: taxjarConnectorDetails,
 };
 
 /**
@@ -655,6 +657,7 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     POLL_CONFIG: ["stripe"],
+    TAX_CONNECTOR: ["taxjar"],
     // Add more inclusion lists
   },
 };
