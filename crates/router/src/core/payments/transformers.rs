@@ -4150,6 +4150,7 @@ where
             browser_info: payment_attempt.browser_info,
             payment_method_id: payment_attempt.payment_method_id,
             network_transaction_id: payment_attempt.network_transaction_id,
+            network_transaction_link_id: payment_attempt.network_transaction_link_id,
             payment_method_status: payment_data
                 .get_payment_method_info()
                 .map(|info| info.status),
@@ -4524,6 +4525,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             is_iframe_redirection_enabled:pi.is_iframe_redirection_enabled,
             payment_channel: pi.payment_channel,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             enable_partial_authorization: pi.enable_partial_authorization,
             enable_overcapture: pi.enable_overcapture,
             is_overcapture_enabled: pa.is_overcapture_enabled,
@@ -4560,6 +4562,7 @@ impl ForeignTryFrom<&domain::PaymentMethod> for api_payments::PaymentMethodToken
             psp_tokenization,
             network_tokenization,
             network_transaction_id: payment_method.network_transaction_id.clone(),
+            network_transaction_link_id: payment_method.network_transaction_link_id.clone(),
             is_eligible_for_mit_payment: psp_tokenization || is_network_transaction_id_present,
         })
     }
