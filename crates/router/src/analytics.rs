@@ -767,7 +767,7 @@ pub mod routes {
                 ))
             },
             &auth::JWTAuth {
-                permission: Permission::MerchantAnalyticsRead,
+                permission: Permission::MerchantPaymentRead,
                 allow_connected: true,
                 allow_platform: false,
             },
@@ -809,7 +809,7 @@ pub mod routes {
                 ))
             },
             &auth::JWTAuth {
-                permission: Permission::ProfileAnalyticsRead,
+                permission: Permission::ProfilePaymentRead,
                 allow_connected: true,
                 allow_platform: false,
             },
