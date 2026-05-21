@@ -1721,6 +1721,33 @@ impl PaymentAttempt {
         self.net_amount.get_total_amount()
     }
 
+    /// Infer the payment type (Normal / NewMandate / SetupMandate / RecurringMandate)
+    /// from the attempt's mandate state and whether this is a CIT transaction.
+    pub fn infer_payment_type(&self, is_cit_transaction: bool) -> api_models::enums::PaymentType {
+        use api_models::payments::{Amount, MandateTransactionType};
+        let amount = Amount::from(self.net_amount.get_order_amount());
+        let mandate_type = if self.mandate_id.is_some() {
+            Some(MandateTransactionType::RecurringMandateTransaction)
+        } else if is_cit_transaction {
+            Some(MandateTransactionType::NewMandateTransaction)
+        } else {
+            None
+        };
+        match mandate_type {
+            Some(MandateTransactionType::NewMandateTransaction) => {
+                if let Amount::Value(_) = amount {
+                    api_models::enums::PaymentType::NewMandate
+                } else {
+                    api_models::enums::PaymentType::SetupMandate
+                }
+            }
+            Some(MandateTransactionType::RecurringMandateTransaction) => {
+                api_models::enums::PaymentType::RecurringMandate
+            }
+            None => api_models::enums::PaymentType::Normal,
+        }
+    }
+
     pub fn get_total_surcharge_amount(&self) -> Option<MinorUnit> {
         self.net_amount.get_total_surcharge_amount()
     }
