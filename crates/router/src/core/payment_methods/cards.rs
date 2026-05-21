@@ -1281,14 +1281,9 @@ impl PaymentMethodsController for PmCards<'_> {
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-        utils::when(
-            payment_method.status != common_enums::PaymentMethodStatus::Active,
-            || {
-                Err(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "The payment_method is not active".to_string(),
-                })
-            },
-        )?;
+        let pm = payment_method
+            .get_payment_method_type()
+            .get_required_value("payment_method")?;
 
         let pm_customer_id = payment_method
             .customer_id
@@ -1300,6 +1295,15 @@ impl PaymentMethodsController for PmCards<'_> {
             || {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "The payment_method_id is not valid".to_string(),
+                })
+            },
+        )?;
+
+        utils::when(
+            payment_method.status != common_enums::PaymentMethodStatus::Active,
+            || {
+                Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "The payment_method is not active".to_string(),
                 })
             },
         )?;
@@ -1339,7 +1343,7 @@ impl PaymentMethodsController for PmCards<'_> {
             default_payment_method_id: updated_customer_details.default_payment_method_id,
             customer_id,
             payment_method_subtype: payment_method.get_payment_method_subtype(),
-            payment_method_type: payment_method.get_payment_method_type(),
+            payment_method_type: pm,
         };
 
         Ok(services::ApplicationResponse::Json(resp))

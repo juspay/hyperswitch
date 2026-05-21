@@ -468,7 +468,7 @@ impl ApiEventMetric for payment_methods::CustomerDefaultPaymentMethodResponse {
             .as_ref()
             .map(|id| ApiEventsType::PaymentMethod {
                 payment_method_id: id.clone(),
-                payment_method_type: self.payment_method_type,
+                payment_method_type: Some(self.payment_method_type),
                 payment_method_subtype: self.payment_method_subtype,
             })
     }

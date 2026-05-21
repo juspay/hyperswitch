@@ -86,11 +86,8 @@ impl crate::events::ApiEventMetric for GlobalPaymentMethodId {
 impl GlobalPaymentMethodId {
     /// Create a new GlobalPaymentMethodId from cell id information
     pub fn generate(cell_id: &CellId) -> Self {
-        Self::new_unchecked(
-            GlobalId::generate(cell_id, GlobalEntity::PaymentMethod)
-                .get_string_repr()
-                .to_owned(),
-        )
+        let global_id = GlobalId::generate(cell_id, GlobalEntity::PaymentMethod);
+        Self(global_id)
     }
 
     /// Get string representation of the id

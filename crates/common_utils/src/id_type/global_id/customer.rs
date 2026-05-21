@@ -48,11 +48,8 @@ impl GlobalCustomerId {
 
     /// Generate a new GlobalCustomerId from a cell id
     pub fn generate(cell_id: &crate::id_type::CellId) -> Self {
-        Self::new_unchecked(
-            super::GlobalId::generate(cell_id, super::GlobalEntity::Customer)
-                .get_string_repr()
-                .to_owned(),
-        )
+        let global_id = super::GlobalId::generate(cell_id, super::GlobalEntity::Customer);
+        Self(global_id)
     }
 
     /// Create a new GlobalCustomerId without validation
