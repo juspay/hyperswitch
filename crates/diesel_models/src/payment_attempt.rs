@@ -298,6 +298,7 @@ pub struct PaymentAttempt {
     /// Indicates the type of retry for this payment attempt (None for initial attempt)
     pub retry_type: Option<storage_enums::RetryType>,
     pub installment_data: Option<common_types::payments::InstallmentData>,
+    /// A connector-specific identifier representing the stored payment instrument
     pub sender_payment_instrument_id: Option<String>,
 }
 
