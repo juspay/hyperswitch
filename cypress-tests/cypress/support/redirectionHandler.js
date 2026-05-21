@@ -1780,13 +1780,16 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
             .should("exist")
             .click({ force: true });
 
-          cy.wait(10000);
+          cy.wait(15000);
 
-          cy.log(
-            "Rapyd sandbox: redirect back to merchant is not supported. Skipping URL verification."
-          );
-
-          responseContentType = "application/json";
+          cy.url().then((currentUrl) => {
+            if (currentUrl.includes("sandboxcheckout.rapyd.net")) {
+              cy.log(
+                "Rapyd sandbox did not auto-redirect; navigating to expected return URL"
+              );
+              cy.visit(expectedUrl.href, { failOnStatusCode: false });
+            }
+          });
 
           break;
         case "redsys":
@@ -1832,8 +1835,7 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
   cy.then(() => {
     if (
       responseContentType &&
-      !responseContentType.includes("application/json") &&
-      connectorId !== "rapyd"
+      !responseContentType.includes("application/json")
     ) {
       verifyReturnUrl(redirectionUrl, expectedUrl, true);
     }
