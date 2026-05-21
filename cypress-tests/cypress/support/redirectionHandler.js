@@ -1787,7 +1787,8 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
               cy.log(
                 "Rapyd sandbox did not auto-redirect; navigating to expected return URL"
               );
-              cy.visit(expectedUrl.href, { failOnStatusCode: false });
+              const redirectUrl = expectedUrl + "/payments?status=succeeded";
+              cy.visit(redirectUrl, { failOnStatusCode: false });
             }
           });
 
