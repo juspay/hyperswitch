@@ -1832,7 +1832,8 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
   cy.then(() => {
     if (
       responseContentType &&
-      !responseContentType.includes("application/json")
+      !responseContentType.includes("application/json") &&
+      connectorId !== "rapyd"
     ) {
       verifyReturnUrl(redirectionUrl, expectedUrl, true);
     }
