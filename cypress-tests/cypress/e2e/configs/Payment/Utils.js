@@ -556,7 +556,7 @@ export const CONNECTOR_LISTS = {
     EXTEND_AUTHORIZATION: ["adyen", "paypal"],
     GIFT_CARD: ["adyen"],
     RELAY_OPERATIONS: ["bankofamerica"],
-    PAY_LATER: ["klarna", "adyen", "aci", "stripe", "airwallex", "mollie", "multisafepay"],
+    PAY_LATER: ["klarna", "adyen", "aci", "stripe", "airwallex", "mollie"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     STEP_UP_AUTH: ["cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],

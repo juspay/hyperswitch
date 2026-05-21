@@ -585,14 +585,7 @@ export const payment_methods_enabled = [
         recurring_enabled: false,
         installment_payment_enabled: false,
       },
-      {
-        payment_method_type: "mb_way",
-        payment_experience: "redirect_to_url",
-        minimum_amount: 1,
-        maximum_amount: 68607706,
-        recurring_enabled: false,
-        installment_payment_enabled: false,
-      },
+
     ],
   },
   {
