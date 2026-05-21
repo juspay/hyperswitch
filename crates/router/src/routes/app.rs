@@ -950,6 +950,10 @@ impl Payments {
                     web::resource("/{payment_id}/manual-update")
                         .route(web::put().to(payments::payments_manual_update)),
                 )
+                .service(
+                    web::resource("/{payment_id}/manual-status-update")
+                        .route(web::post().to(payments::payments_manual_status_update)),
+                )
         }
         #[cfg(feature = "oltp")]
         {
@@ -994,6 +998,10 @@ impl Payments {
                 .service(
                     web::resource("/{payment_id}/eligibility")
                         .route(web::post().to(payments::payments_submit_eligibility)),
+                )
+                .service(
+                    web::resource("/{payment_id}/client")
+                        .route(web::get().to(payment_methods::list_payment_methods_for_payments_client)),
                 )
                 .service(
                     web::resource("/redirect/{payment_id}/{merchant_id}/{attempt_id}")
