@@ -114,6 +114,10 @@ describe("Clear PAN Retry Tests", function () {
           return;
         }
 
+        // NOTE: skipRetryAssertion=true because the sandbox lacks a connector that supports
+        // PaymentMethodData::NetworkToken, so the attempts.length > 1 assertion is skipped.
+        // This step only verifies the payment has attempts with valid attempt_id/connector fields.
+        // When a sandbox connector supports clear PAN retry, remove skipRetryAssertion and run the full assertion.
         cy.retrievePaymentCallClearPanRetryTest({
           globalState,
           isClearPanRetryEnabled: true,
@@ -214,14 +218,7 @@ describe("Clear PAN Retry Tests", function () {
 
   context("reset-business-profile", () => {
     it("Reset business profile to disable clear PAN retries", () => {
-      const shouldContinue = true;
-
       cy.step("Reset business profile flags", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Reset Business Profile");
-          return;
-        }
-
         const updateBusinessProfileBody = {
           is_auto_retries_enabled: false,
           is_network_tokenization_enabled: false,
