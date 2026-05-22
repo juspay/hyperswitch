@@ -1989,6 +1989,9 @@ export const connectorDetails = {
       },
     }),
     Affirm: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "pay_later",
         payment_method_type: "affirm",
@@ -2098,7 +2101,59 @@ export const connectorDetails = {
         },
       },
     }),
+    AfterpayClearplayAutoCapture: getCustomExchange({
+      Request: {
+        currency: "USD",
+        capture_method: "automatic",
+        billing: {
+          email: "guest@juspay.in",
+          phone: {
+            number: "4155552671",
+            country_code: "+1",
+          },
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_confirmation",
+        },
+      },
+    }),
     Alma: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "pay_later",
         payment_method_type: "alma",
@@ -2146,6 +2201,9 @@ export const connectorDetails = {
       },
     }),
     Atome: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "pay_later",
         payment_method_type: "atome",
@@ -2254,6 +2312,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
+          connector: null,
           error: {
             type: "invalid_request",
             message: "Payment method type not supported",
