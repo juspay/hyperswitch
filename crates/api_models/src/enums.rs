@@ -619,3 +619,24 @@ pub enum TokenStatus {
     /// Indicates that the token is deleted and further can't be used for payments
     Deleted,
 }
+
+/// Enum representing the allowed intent statuses for manual status update
+/// Only Succeeded and Failed are valid transitions from Review state
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ManualUpdateIntentStatus {
+    /// Transition the payment to succeeded state
+    Succeeded,
+    /// Transition the payment to failed state
+    Failed,
+}
+
+impl ManualUpdateIntentStatus {
+    /// Convert ManualUpdateIntentStatus to the corresponding IntentStatus
+    pub fn to_intent_status(&self) -> IntentStatus {
+        match self {
+            Self::Succeeded => IntentStatus::Succeeded,
+            Self::Failed => IntentStatus::Failed,
+        }
+    }
+}
