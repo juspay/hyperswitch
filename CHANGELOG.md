@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix16-10
+
+### Bug Fixes
+
+- **split_payments:** Remove deny_unknown_fields from StripeSplitPayments ([#12429](https://github.com/juspay/hyperswitch/pull/12429)) ([`7d189de`](https://github.com/juspay/hyperswitch/commit/7d189de37d4adfec2d6c1612e9e86aa353c4e1fe))
+
+**Full Changelog:** [`2026.02.02.0-hotfix16-9...2026.02.02.0-hotfix16-10`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix16-9...2026.02.02.0-hotfix16-10)
+
+- - -
+
 ## 2026.02.02.0-hotfix16-9
 
 ### Features
