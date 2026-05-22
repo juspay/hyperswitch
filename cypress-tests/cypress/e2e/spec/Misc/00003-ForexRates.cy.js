@@ -1,10 +1,9 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 
-let globalState;
-let skip = false;
-
 describe("Forex Rates and Currency Conversion", () => {
+  let globalState;
+  let skip = false;
   before("seed global state and create merchant account", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);

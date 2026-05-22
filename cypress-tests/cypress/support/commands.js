@@ -8976,7 +8976,7 @@ Cypress.Commands.add(
             "cli_log",
             `Converted ${amount} ${fromCurrency} → ${response.body.converted_amount} ${response.body.currency}`
           );
-        } else if (response.status === 400 || response.status === 500) {
+        } else if (response.status === 400) {
           expect(response.body).to.exist;
         } else {
           throw new Error(
