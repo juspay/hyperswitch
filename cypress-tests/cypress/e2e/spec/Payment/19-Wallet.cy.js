@@ -316,6 +316,29 @@ describe("Wallet tests", () => {
   });
 
   context("GlobePay WeChatPay Create and Confirm flow test", () => {
+    before("seed global state", function () {
+      let skip = false;
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.GLOBEPAY_WALLET
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm WeChatPay -> Handle Globepay QR Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
@@ -414,6 +437,29 @@ describe("Wallet tests", () => {
   });
 
   context("GlobePay AliPay Create and Confirm flow test", () => {
+    before("seed global state", function () {
+      let skip = false;
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.GLOBEPAY_WALLET
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm AliPay -> Handle Globepay QR Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 

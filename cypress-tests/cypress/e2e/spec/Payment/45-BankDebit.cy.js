@@ -319,8 +319,30 @@ describe("Bank Debit tests", () => {
     });
   });
 
-  // Inespay SEPA Bank Debit - isolated context, only runs for Inespay
   context("Inespay SEPA Bank Debit Create, Confirm, Refund and Sync flow", () => {
+    before("seed global state", function () {
+      let skip = false;
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.INESPAY_BANK_SIMULATION
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm SEPA -> Simulate Redirect -> Retrieve Payment -> Refund -> Sync Refund", () => {
       let shouldContinue = true;
 
