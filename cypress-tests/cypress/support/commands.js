@@ -4100,8 +4100,8 @@ Cypress.Commands.add(
         expect(paymentIntentID, "payment_id").to.equal(
           response.body.payment_id
         );
-        expect(response.body.payment_method_data, "payment_method_data").to
-          .not.be.empty;
+        expect(response.body.payment_method_data, "payment_method_data").to.not
+          .be.empty;
         expect(merchantConnectorId, "connector_id").to.equal(
           response.body.merchant_connector_id
         );
