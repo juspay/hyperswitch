@@ -52,11 +52,11 @@ describe("Clear PAN Retry Tests", function () {
 
         cy.UpdateBusinessProfileTest(
           updateBusinessProfileBody,
-          false,
-          false,
-          false,
-          false,
-          false,
+          /* is_connector_agnostic_mit_enabled */ false,
+          /* collect_billing_details_from_wallet_connector */ false,
+          /* collect_shipping_details_from_wallet_connector */ false,
+          /* always_collect_billing_details_from_wallet_connector */ false,
+          /* always_collect_shipping_details_from_wallet_connector */ false,
           globalState
         );
 
@@ -94,9 +94,9 @@ describe("Clear PAN Retry Tests", function () {
 
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["ClearPanRetry"];
+        ]["No3DSAutoCapture"];
 
-        cy.confirmCallClearPanRetryTest(
+        cy.confirmCallTest(
           fixtures.confirmBody,
           data,
           true,
@@ -146,11 +146,11 @@ describe("Clear PAN Retry Tests", function () {
 
         cy.UpdateBusinessProfileTest(
           updateBusinessProfileBody,
-          false,
-          false,
-          false,
-          false,
-          false,
+          /* is_connector_agnostic_mit_enabled */ false,
+          /* collect_billing_details_from_wallet_connector */ false,
+          /* collect_shipping_details_from_wallet_connector */ false,
+          /* always_collect_billing_details_from_wallet_connector */ false,
+          /* always_collect_shipping_details_from_wallet_connector */ false,
           globalState
         );
 
@@ -188,9 +188,9 @@ describe("Clear PAN Retry Tests", function () {
 
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["ClearPanRetry"];
+        ]["No3DSAutoCapture"];
 
-        cy.confirmCallClearPanRetryTest(
+        cy.confirmCallTest(
           fixtures.confirmBody,
           data,
           true,
@@ -228,11 +228,11 @@ describe("Clear PAN Retry Tests", function () {
 
         cy.UpdateBusinessProfileTest(
           updateBusinessProfileBody,
-          false,
-          false,
-          false,
-          false,
-          false,
+          /* is_connector_agnostic_mit_enabled */ false,
+          /* collect_billing_details_from_wallet_connector */ false,
+          /* collect_shipping_details_from_wallet_connector */ false,
+          /* always_collect_billing_details_from_wallet_connector */ false,
+          /* always_collect_shipping_details_from_wallet_connector */ false,
           globalState
         );
       });

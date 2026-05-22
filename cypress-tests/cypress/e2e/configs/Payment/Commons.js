@@ -1553,22 +1553,6 @@ export const connectorDetails = {
         },
       },
     }),
-    ClearPanRetry: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    }),
     PaymentIntentWithSessionExpiry: getCustomExchange({
       Request: {
         currency: "USD",

@@ -660,24 +660,6 @@ export const connectorDetails = {
         },
       },
     },
-    ClearPanRetry: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-        billing: billing_with_newline,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
     ManualRetryPaymentDisabled: {
       Request: {
         payment_method: "card",
