@@ -11,6 +11,9 @@ const mockSidebarBadgesApi = vi.hoisted(() => ({
   get: vi.fn(),
 }));
 const mockUsePluginSlots = vi.hoisted(() => vi.fn());
+const mockInstanceSettingsApi = vi.hoisted(() => ({
+  getExperimental: vi.fn(),
+}));
 
 vi.mock("@/lib/router", () => ({
   Link: ({
@@ -66,6 +69,10 @@ vi.mock("@/plugins/slots", () => ({
   usePluginSlots: mockUsePluginSlots,
 }));
 
+vi.mock("@/api/instanceSettings", () => ({
+  instanceSettingsApi: mockInstanceSettingsApi,
+}));
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -92,6 +99,9 @@ describe("CompanySettingsSidebar", () => {
       slots: [],
       isLoading: false,
       errorMessage: null,
+    });
+    mockInstanceSettingsApi.getExperimental.mockResolvedValue({
+      enableCloudSync: false,
     });
   });
 
@@ -121,6 +131,7 @@ describe("CompanySettingsSidebar", () => {
     expect(container.textContent).toContain("General");
     expect(container.textContent).toContain("Environments");
     expect(container.textContent).toContain("Members");
+    expect(container.textContent).not.toContain("Cloud upstream");
     expect(container.textContent).toContain("Invites");
     expect(container.textContent).toContain("Secrets");
     expect(sidebarNavItemMock).toHaveBeenCalledWith(
@@ -202,6 +213,38 @@ describe("CompanySettingsSidebar", () => {
       expect.objectContaining({
         to: "/company/settings/permissions",
         label: "Permissions",
+        end: true,
+      }),
+    );
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("shows cloud upstream only when cloud sync is enabled", async () => {
+    mockInstanceSettingsApi.getExperimental.mockResolvedValue({
+      enableCloudSync: true,
+    });
+    const root = createRoot(container);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <CompanySettingsSidebar />
+        </QueryClientProvider>,
+      );
+    });
+    await flushReact();
+
+    expect(container.textContent).toContain("Cloud upstream");
+    expect(sidebarNavItemMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "/company/settings/cloud-upstream",
+        label: "Cloud upstream",
         end: true,
       }),
     );

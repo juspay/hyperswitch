@@ -33,6 +33,7 @@ import {
   backfillPrincipalAccessCompatibility,
   heartbeatService,
   instanceSettingsService,
+  reconcileCloudUpstreamRunsOnStartup,
   reconcilePersistedRuntimeServicesOnStartup,
   routineService,
 } from "./services/index.js";
@@ -698,6 +699,19 @@ export async function startServer(): Promise<StartedServer> {
     })
     .catch((err) => {
       logger.error({ err }, "startup reconciliation of persisted runtime services failed");
+    });
+
+  void reconcileCloudUpstreamRunsOnStartup(db as any)
+    .then((result) => {
+      if (result.reconciled > 0) {
+        logger.warn(
+          { reconciled: result.reconciled },
+          "reconciled cloud upstream runs from a previous server process",
+        );
+      }
+    })
+    .catch((err) => {
+      logger.error({ err }, "startup reconciliation of cloud upstream runs failed");
     });
   
   if (config.heartbeatSchedulerEnabled) {
