@@ -444,7 +444,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         currency: payment_data.payment_intent.amount_details.currency,
         browser_info,
         email,
-        customer_name: None,
+        customer_name: customer_details.and_then(|customer| customer.name.clone()),
         payment_experience: None,
         order_details: None,
         order_category,

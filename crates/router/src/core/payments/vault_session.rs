@@ -1,6 +1,8 @@
 pub use common_enums::enums::CallConnectorAction;
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
+use common_utils::id_type;
+#[cfg(feature = "v2")]
 pub use hyperswitch_domain_models::payments::PaymentIntentData;
 pub use hyperswitch_domain_models::{
     mandates::MandateData,
@@ -659,4 +661,193 @@ where
     )
     .await
     .to_vault_failed_response()
+}
+
+#[cfg(feature = "v2")]
+pub async fn fetch_external_vault_details(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    customer: &Option<domain::Customer>,
+) -> RouterResult<Option<api::VaultSessionDetails>> {
+    let external_vault_source = profile
+        .external_vault_connector_details
+        .as_ref()
+        .map(|details| &details.vault_connector_id);
+
+    let merchant_connector_account =
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+            helpers::get_merchant_connector_account_v2(
+                state,
+                platform.get_processor(),
+                external_vault_source,
+            )
+            .await?,
+        ));
+
+    // Retrieve the existing connector_customer_id from the customer record for this vault MCA.
+    // If none exists, create a connector customer at the vault connector.
+    let connector_customer_id =
+        get_or_create_vault_connector_customer(
+            state,
+            platform,
+            customer,
+            &merchant_connector_account,
+            profile.get_id(),
+        )
+        .await?;
+
+    generate_vault_session_details(state, platform, &merchant_connector_account, connector_customer_id).await
+}
+
+/// Returns the existing connector customer ID for the given vault MCA, or creates one if absent.
+/// Returns `None` only if the connector does not require a customer.
+#[cfg(feature = "v2")]
+async fn get_or_create_vault_connector_customer(
+    state: &SessionState,
+    platform: &domain::Platform,
+    customer: &Option<domain::Customer>,
+    merchant_connector_account_type: &domain::MerchantConnectorAccountTypeDetails,
+    profile_id: &id_type::ProfileId,
+) -> RouterResult<Option<String>> {
+    use hyperswitch_domain_models::router_request_types::ConnectorCustomerData;
+
+    let db_mca = merchant_connector_account_type
+        .get_inner_db_merchant_connector_account()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Vault MCA is missing, cannot create connector customer")?;
+
+    let connector_name = db_mca.get_connector_name_as_string();
+    let merchant_connector_id = db_mca.get_id();
+
+    let connector = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &connector_name,
+        api::GetToken::Connector,
+        Some(merchant_connector_id.clone()),
+    )?;
+
+    let (should_create, existing_id) = customers::should_call_connector_create_customer(
+        &connector,
+        customer,
+        merchant_connector_account_type,
+    );
+
+    if !should_create {
+        return Ok(existing_id.map(ToOwned::to_owned));
+    }
+
+    // No existing connector customer – create one now.
+    let gateway_context = gateway_context::RouterGatewayContext::direct(
+        platform.get_processor().clone(),
+        merchant_connector_account_type.clone(),
+        platform.get_processor().get_account().get_id().clone(),
+        profile_id.clone(),
+        None,
+    );
+
+    let vault_mca = match merchant_connector_account_type {
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(mca) => mca.as_ref(),
+        _ => {
+            return Err(errors::ApiErrorResponse::InternalServerError
+                .into());
+        }
+    };
+
+    // Construct vault router data, then convert to CreateConnectorCustomer flow
+    let vault_router_data_v2 = core_utils::construct_vault_router_data::<ExternalVaultCreateFlow>(
+        state,
+        platform.get_processor().get_account().get_id(),
+        vault_mca,
+        None,
+        None,
+        None,
+        None,
+    )
+    .await?;
+
+    let old_vault_router_data = VaultConnectorFlowData::to_old_router_data(vault_router_data_v2)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Cannot convert vault router data for connector customer creation")?;
+
+    // Extract name and email from the customer record for the connector customer creation request.
+    let (customer_name, customer_email) = if let Some(cust) = customer.as_ref() {
+        let name = cust.name.clone().map(|n| n.into_inner());
+        let email = cust.email.clone().map(common_utils::pii::Email::from);
+        router_env::logger::info!(
+            vault_customer_name_present = name.is_some(),
+            vault_customer_email_present = email.is_some(),
+            "Building vault connector customer request"
+        );
+        (name, email)
+    } else {
+        router_env::logger::warn!("No customer record available when creating vault connector customer; name will be None");
+        (None, None)
+    };
+
+    let customer_request_data = ConnectorCustomerData {
+        description: None,
+        email: customer_email,
+        phone: None,
+        name: customer_name,
+        preprocessing_id: None,
+        payment_method_data: None,
+        split_payments: None,
+        setup_future_usage: None,
+        customer_acceptance: None,
+        customer_id: None,
+        billing_address: None,
+        metadata: None,
+        currency: None,
+    };
+
+    let customer_response_data: Result<router_types::PaymentsResponseData, router_types::ErrorResponse> =
+        Err(router_types::ErrorResponse::default());
+
+    let customer_router_data = helpers::router_data_type_conversion::<
+        _,
+        api::CreateConnectorCustomer,
+        _,
+        _,
+        _,
+        _,
+    >(
+        old_vault_router_data,
+        customer_request_data,
+        customer_response_data,
+    );
+
+    let new_connector_customer_id = customers::create_connector_customer(
+        state,
+        &connector,
+        &customer_router_data,
+        customer_router_data.request.clone(),
+        &gateway_context,
+    )
+    .await?;
+
+    // Persist the newly created connector customer ID back to the customer record.
+    let customer_update = customers::update_connector_customer_in_customers(
+        merchant_connector_account_type,
+        customer.as_ref(),
+        new_connector_customer_id.clone(),
+        platform.get_initiator(),
+    )
+    .await;
+
+    if let Some((cust, update)) = customer.clone().zip(customer_update) {
+        let db = &*state.store;
+        db.update_customer_by_global_id(
+            &cust.get_id().clone(),
+            cust,
+            update,
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to persist connector customer ID for vault session")?;
+    }
+
+    Ok(new_connector_customer_id)
 }
