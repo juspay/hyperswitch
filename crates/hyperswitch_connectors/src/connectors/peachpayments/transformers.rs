@@ -19,7 +19,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
@@ -27,7 +27,7 @@ use crate::{
     types::ResponseRouterData,
     utils::{
         self, CardData, CardWithLimitedData as _, NetworkTokenData as _,
-        PaymentsAuthorizeRequestData, RouterData as OtherRouterData,
+        RouterData as OtherRouterData,
     },
 };
 
@@ -90,7 +90,7 @@ pub enum PeachpaymentsPaymentsRequest {
 #[serde(rename_all = "camelCase")]
 pub struct CardOnFileData {
     #[serde(rename = "type")]
-    pub cof_type: CofType,
+    pub _type: CofType,
     pub source: CofSource,
     pub mode: CofMode,
 }
@@ -108,10 +108,6 @@ pub struct EcommerceCardPaymentOnlyTransactionData {
     pub pre_auth_inc_ext_capture_flow: Option<PreAuthIncExtCaptureFlow>,
     #[serde(skip_serializing_if = "Option::is_none")]
     cof_data: Option<CardOnFileData>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub trace_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub transaction_link_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -148,10 +144,6 @@ pub struct EcommerceNetworkTokenPaymentOnlyTransactionData {
     pub rrn: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pre_auth_inc_ext_capture_flow: Option<PreAuthIncExtCaptureFlow>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub trace_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub transaction_link_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -506,14 +498,12 @@ impl
                 network_token_data,
                 amount,
                 cof_data: CardOnFileData {
-                    cof_type: CofType::Adhoc,
+                    _type: CofType::Adhoc,
                     source: CofSource::Cit,
                     mode: CofMode::Initial,
                 },
                 rrn: item.router_data.request.merchant_order_reference_id.clone(),
                 pre_auth_inc_ext_capture_flow,
-                trace_id: None,
-                transaction_link_id: None,
             },
         );
 
@@ -586,16 +576,6 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
             None
         };
 
-        let cof_data = if item.router_data.request.is_cit_mandate_payment() {
-            Some(CardOnFileData {
-                cof_type: CofType::Adhoc,
-                source: CofSource::Cit,
-                mode: CofMode::Initial,
-            })
-        } else {
-            None
-        };
-
         let ecommerce_data =
             EcommercePaymentOnlyTransactionData::Card(EcommerceCardPaymentOnlyTransactionData {
                 merchant_information,
@@ -604,9 +584,7 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
                 amount,
                 rrn: item.router_data.request.merchant_order_reference_id.clone(),
                 pre_auth_inc_ext_capture_flow,
-                cof_data,
-                trace_id: None,
-                transaction_link_id: None,
+                cof_data: None,
             });
 
         // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
@@ -678,16 +656,6 @@ impl
             None
         };
 
-        let cof_data = if item.router_data.request.is_cit_mandate_payment() {
-            Some(CardOnFileData {
-                cof_type: CofType::Adhoc,
-                source: CofSource::Cit,
-                mode: CofMode::Initial,
-            })
-        } else {
-            None
-        };
-
         let ecommerce_data =
             EcommercePaymentOnlyTransactionData::Card(EcommerceCardPaymentOnlyTransactionData {
                 merchant_information,
@@ -696,9 +664,7 @@ impl
                 amount,
                 rrn: item.router_data.request.merchant_order_reference_id.clone(),
                 pre_auth_inc_ext_capture_flow,
-                cof_data,
-                trace_id: None,
-                transaction_link_id: None,
+                cof_data: None,
             });
 
         // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
@@ -977,7 +943,6 @@ pub struct EcommerceCardPaymentOnlyResponseData {
     pub merchant_advice_code: Option<String>,
     pub description: Option<String>,
     pub trace_id: Option<String>,
-    pub transaction_link_id: Option<String>,
 }
 
 fn get_error_code(response_code: Option<&ResponseCode>) -> String {
@@ -1037,9 +1002,7 @@ pub fn get_peachpayments_response(
             redirection_data: Box::new(None),
             mandate_reference: Box::new(None),
             connector_metadata: None,
-            network_txn_id: response
-                .ecommerce_card_payment_only_transaction_data
-                .and_then(|data| data.trace_id),
+            network_txn_id: None,
             connector_response_reference_id: Some(response.reference_id),
             incremental_authorization_allowed: None,
             authentication_data: None,
@@ -1085,9 +1048,7 @@ pub fn get_webhook_response(
             redirection_data: Box::new(None),
             mandate_reference: Box::new(None),
             connector_metadata: None,
-            network_txn_id: transaction
-                .ecommerce_card_payment_only_transaction_data
-                .and_then(|data| data.trace_id),
+            network_txn_id: None,
             connector_response_reference_id: Some(transaction.reference_id.clone()),
             incremental_authorization_allowed: None,
             authentication_data: None,

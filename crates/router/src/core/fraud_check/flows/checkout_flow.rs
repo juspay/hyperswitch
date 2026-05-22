@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::payment_intent;
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 
 use super::{ConstructFlowSpecificData, FeatureFrm};
 use crate::{
@@ -174,6 +174,14 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
+            customer_document_details: self
+                .payment_intent
+                .get_customer_document_details()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to extract customer document details from payment_intent",
+                )?,
+            sender_payment_instrument_id: None,
         };
 
         Ok(router_data)

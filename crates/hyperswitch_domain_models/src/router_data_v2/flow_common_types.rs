@@ -255,3 +255,6 @@ pub struct ExternalVaultProxyFlowData {
     pub connector_response: Option<ConnectorResponseData>,
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
 }
+
+#[derive(Debug, Clone)]
+pub struct ConnectorWebhookConfigurationFlowData {}

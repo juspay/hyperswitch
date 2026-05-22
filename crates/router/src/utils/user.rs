@@ -19,8 +19,8 @@ use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount as DomainMerchantConnectorAccount;
 #[cfg(feature = "v1")]
-use masking::PeekInterface;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::PeekInterface;
+use hyperswitch_masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionPool;
 use router_env::{env, logger};
 
@@ -80,10 +80,13 @@ impl UserFromToken {
         Ok(merchant_account)
     }
 
-    pub async fn get_user_from_db(&self, state: &SessionState) -> UserResult<UserFromStorage> {
+    pub async fn get_active_user_from_db(
+        &self,
+        state: &SessionState,
+    ) -> UserResult<UserFromStorage> {
         let user = state
             .global_store
-            .find_user_by_id(&self.user_id)
+            .find_active_user_by_user_id(&self.user_id)
             .await
             .change_context(UserErrors::InternalServerError)?;
         Ok(user.into())
@@ -134,13 +137,13 @@ pub fn get_verification_days_left(
     return Ok(None);
 }
 
-pub async fn get_user_from_db_by_email(
+pub async fn get_active_user_from_db_by_email(
     state: &SessionState,
     email: domain::UserEmail,
 ) -> CustomResult<UserFromStorage, StorageError> {
     state
         .global_store
-        .find_user_by_email(&email)
+        .find_active_user_by_user_email(&email)
         .await
         .map(UserFromStorage::from)
 }
@@ -180,18 +183,20 @@ pub async fn construct_public_and_private_db_configs(
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to convert auth config to json")?;
 
-            let encrypted_config =
-                domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
-                    &state.into(),
-                    type_name!(diesel_models::user::User),
-                    domain::types::CryptoOperation::Encrypt(private_config_value.into()),
-                    Identifier::UserAuth(id),
-                    encryption_key,
-                )
-                .await
-                .and_then(|val| val.try_into_operation())
-                .change_context(UserErrors::InternalServerError)
-                .attach_printable("Failed to encrypt auth config")?;
+            let encrypted_config = domain::types::crypto_operation::<
+                serde_json::Value,
+                hyperswitch_masking::WithType,
+            >(
+                &state.into(),
+                type_name!(diesel_models::user::User),
+                domain::types::CryptoOperation::Encrypt(private_config_value.into()),
+                Identifier::UserAuth(id),
+                encryption_key,
+            )
+            .await
+            .and_then(|val| val.try_into_operation())
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Failed to encrypt auth config")?;
 
             Ok((
                 Some(encrypted_config.into()),
@@ -232,21 +237,22 @@ pub async fn decrypt_oidc_private_config(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
 
-    let private_config = domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
-        &state.into(),
-        type_name!(diesel_models::user::User),
-        domain::types::CryptoOperation::DecryptOptional(encrypted_config),
-        Identifier::UserAuth(id),
-        &user_auth_key,
-    )
-    .await
-    .and_then(|val| val.try_into_optionaloperation())
-    .change_context(UserErrors::InternalServerError)
-    .attach_printable("Failed to decrypt private config")?
-    .ok_or(UserErrors::InternalServerError)
-    .attach_printable("Private config not found")?
-    .into_inner()
-    .expose();
+    let private_config =
+        domain::types::crypto_operation::<serde_json::Value, hyperswitch_masking::WithType>(
+            &state.into(),
+            type_name!(diesel_models::user::User),
+            domain::types::CryptoOperation::DecryptOptional(encrypted_config),
+            Identifier::UserAuth(id),
+            &user_auth_key,
+        )
+        .await
+        .and_then(|val| val.try_into_optionaloperation())
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to decrypt private config")?
+        .ok_or(UserErrors::InternalServerError)
+        .attach_printable("Private config not found")?
+        .into_inner()
+        .expose();
 
     serde_json::from_value::<user_api::OpenIdConnectPrivateConfig>(private_config)
         .change_context(UserErrors::InternalServerError)
@@ -329,6 +335,7 @@ pub fn create_merchant_account_request_for_org(
         pm_collect_link_config: None,
         product_type: Some(product_type),
         merchant_account_type: None,
+        network_tokenization_credentials: None,
     })
 }
 
@@ -363,7 +370,7 @@ pub fn spawn_async_lineage_context_update_to_db(
     tokio::spawn(async move {
         match state
             .global_store
-            .update_user_by_user_id(
+            .update_active_user_by_user_id(
                 &user_id,
                 diesel_models::user::UserUpdate::LineageContextUpdate { lineage_context },
             )

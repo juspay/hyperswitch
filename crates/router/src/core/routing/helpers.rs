@@ -210,6 +210,7 @@ pub async fn update_merchant_active_algorithm_ref(
         default_profile: None,
         payment_link_config: None,
         pm_collect_link_config: None,
+        network_tokenization_credentials: None,
     };
 
     let db = &*state.store;
@@ -1709,8 +1710,7 @@ fn get_desired_payment_status_for_dynamic_routing_metrics(
         | common_enums::AttemptStatus::PaymentMethodAwaited
         | common_enums::AttemptStatus::ConfirmationAwaited
         | common_enums::AttemptStatus::DeviceDataCollectionPending
-        | common_enums::AttemptStatus::Expired
-        | common_enums::AttemptStatus::CaptureReview => common_enums::AttemptStatus::Pending,
+        | common_enums::AttemptStatus::Expired => common_enums::AttemptStatus::Pending,
     }
 }
 
@@ -1740,14 +1740,13 @@ impl ForeignFrom<common_enums::AttemptStatus> for open_router::TxnStatus {
             common_enums::AttemptStatus::AutoRefunded => Self::AutoRefunded,
             common_enums::AttemptStatus::PartialCharged => Self::PartialCharged,
             common_enums::AttemptStatus::PartialChargedAndChargeable => Self::ToBeCharged,
+            common_enums::AttemptStatus::Unresolved => Self::Pending,
+            common_enums::AttemptStatus::Pending
+            | common_enums::AttemptStatus::IntegrityFailure => Self::Pending,
             common_enums::AttemptStatus::Failure => Self::Failure,
-            common_enums::AttemptStatus::Unresolved
-            | common_enums::AttemptStatus::Pending
-            | common_enums::AttemptStatus::IntegrityFailure
-            | common_enums::AttemptStatus::PaymentMethodAwaited
-            | common_enums::AttemptStatus::ConfirmationAwaited
-            | common_enums::AttemptStatus::DeviceDataCollectionPending
-            | common_enums::AttemptStatus::CaptureReview => Self::Pending,
+            common_enums::AttemptStatus::PaymentMethodAwaited => Self::Pending,
+            common_enums::AttemptStatus::ConfirmationAwaited => Self::Pending,
+            common_enums::AttemptStatus::DeviceDataCollectionPending => Self::Pending,
         }
     }
 }

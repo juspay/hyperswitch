@@ -63,6 +63,14 @@ impl GlobalPaymentMethodSessionId {
     pub fn get_redis_key(&self) -> String {
         format!("payment_method_session:{}", self.get_string_repr())
     }
+
+    /// Create a new GlobalPaymentMethodSessionId without validation
+    /// WARNING: This should only be used when the input is already trusted/validated
+    pub fn new_unchecked(input_string: String) -> Self {
+        let alphanumeric_id = crate::id_type::AlphaNumericId::new_unchecked(input_string);
+        let length_id = crate::id_type::LengthId::new_unchecked(alphanumeric_id);
+        Self(GlobalId(length_id))
+    }
 }
 
 #[cfg(feature = "v2")]

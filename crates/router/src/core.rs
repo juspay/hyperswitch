@@ -33,6 +33,7 @@ pub mod health_check;
 #[cfg(feature = "v1")]
 pub mod locker_migration;
 pub mod mandate;
+pub mod merchant_connector_webhook_management;
 pub mod metrics;
 pub mod payment_link;
 #[cfg(feature = "v2")]
@@ -64,6 +65,7 @@ pub mod revenue_recovery;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_data_backfill;
 pub mod routing;
+pub mod superposition_sdk_config;
 pub mod surcharge_decision_config;
 pub mod three_ds_decision_rule;
 pub mod tokenization;

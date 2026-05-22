@@ -47,7 +47,7 @@ pub use hyperswitch_interfaces::{
         BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
     },
 };
-use masking::{Maskable, PeekInterface};
+use hyperswitch_masking::{Maskable, PeekInterface};
 pub use payment_link::{PaymentLinkFormData, PaymentLinkStatusData};
 use router_env::{instrument, tracing, RequestId, Tag};
 use serde::Serialize;
@@ -138,6 +138,14 @@ pub type BoxedGiftCardBalanceCheckIntegrationInterface<T, Req, Res> =
 pub type BoxedSubscriptionConnectorIntegrationInterface<T, Req, Res> =
     BoxedConnectorIntegrationInterface<T, common_types::SubscriptionCreateData, Req, Res>;
 
+pub type BoxedConnectorWebhookConfigurationInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<
+        T,
+        common_types::ConnectorWebhookConfigurationFlowData,
+        Req,
+        Resp,
+    >;
+
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ApplicationRedirectResponse {
     pub url: String,
@@ -182,7 +190,7 @@ where
     let mut app_state = state.get_ref().clone();
 
     let start_instant = Instant::now();
-    let serialized_request = masking::masked_serialize(&payload)
+    let serialized_request = hyperswitch_masking::masked_serialize(&payload)
         .attach_printable("Failed to serialize json request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
@@ -286,13 +294,13 @@ where
 
             if let ApplicationResponse::Json(data) = res {
                 serialized_response.replace(
-                    masking::masked_serialize(&data)
+                    hyperswitch_masking::masked_serialize(&data)
                         .attach_printable("Failed to serialize json response")
                         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
                 );
             } else if let ApplicationResponse::JsonWithHeaders((data, headers)) = res {
                 serialized_response.replace(
-                    masking::masked_serialize(&data)
+                    hyperswitch_masking::masked_serialize(&data)
                         .attach_printable("Failed to serialize json response")
                         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
                 );
@@ -689,6 +697,10 @@ pub trait Authenticate {
     fn is_external_three_ds_data_passed_by_merchant(&self) -> bool {
         false
     }
+
+    fn get_payment_method_data(&self) -> Option<api_models::payments::PaymentMethodData> {
+        None
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -718,6 +730,12 @@ impl Authenticate for api_models::payments::PaymentsRequest {
     fn is_external_three_ds_data_passed_by_merchant(&self) -> bool {
         self.three_ds_data.is_some()
     }
+
+    fn get_payment_method_data(&self) -> Option<api_models::payments::PaymentMethodData> {
+        self.payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.payment_method_data.clone())
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -730,18 +748,22 @@ impl Authenticate for api_models::payment_methods::PaymentMethodListRequest {
 #[cfg(feature = "v1")]
 impl Authenticate for api_models::payments::PaymentsSessionRequest {
     fn get_client_secret(&self) -> Option<&String> {
-        Some(&self.client_secret)
+        self.client_secret.as_ref()
     }
 }
 impl Authenticate for api_models::payments::PaymentsDynamicTaxCalculationRequest {
     fn get_client_secret(&self) -> Option<&String> {
-        Some(self.client_secret.peek())
+        self.client_secret
+            .as_ref()
+            .map(|client_secret| client_secret.peek())
     }
 }
 
 impl Authenticate for api_models::payments::PaymentsPostSessionTokensRequest {
     fn get_client_secret(&self) -> Option<&String> {
-        Some(self.client_secret.peek())
+        self.client_secret
+            .as_ref()
+            .map(|client_secret| client_secret.peek())
     }
 }
 

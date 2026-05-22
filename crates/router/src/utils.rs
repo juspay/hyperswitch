@@ -38,7 +38,7 @@ pub use hyperswitch_connectors::utils::QrImage;
 use hyperswitch_domain_models::payments::PaymentIntent;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
-use masking::{ExposeInterface, SwitchStrategy};
+use hyperswitch_masking::{ExposeInterface, SwitchStrategy};
 use nanoid::nanoid;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -700,9 +700,11 @@ pub fn get_http_status_code_type(
 }
 
 // Trims whitespace from a Secret string and returns None if empty
-pub fn trim_secret_string(secret: masking::Secret<String>) -> Option<masking::Secret<String>> {
+pub fn trim_secret_string(
+    secret: hyperswitch_masking::Secret<String>,
+) -> Option<hyperswitch_masking::Secret<String>> {
     let trimmed = secret.expose().trim().to_string();
-    (!trimmed.is_empty()).then(|| masking::Secret::new(trimmed))
+    (!trimmed.is_empty()).then(|| hyperswitch_masking::Secret::new(trimmed))
 }
 
 // Trims whitespace from a regular string and returns None if empty
@@ -805,11 +807,12 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
             country_code: self.phone_country_code.clone(),
             updated_by: storage_scheme.to_string(),
             email: encryptable_address.email.map(|email| {
-                let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
-                    Encryptable::new(
-                        email.clone().into_inner().switch_strategy(),
-                        email.into_encrypted(),
-                    );
+                let encryptable: Encryptable<
+                    hyperswitch_masking::Secret<String, pii::EmailStrategy>,
+                > = Encryptable::new(
+                    email.clone().into_inner().switch_strategy(),
+                    email.into_encrypted(),
+                );
                 encryptable
             }),
             origin_zip: encryptable_address.origin_zip,
@@ -873,11 +876,12 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
             modified_at: common_utils::date_time::now(),
             updated_by: storage_scheme.to_string(),
             email: encryptable_address.email.map(|email| {
-                let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
-                    Encryptable::new(
-                        email.clone().into_inner().switch_strategy(),
-                        email.into_encrypted(),
-                    );
+                let encryptable: Encryptable<
+                    hyperswitch_masking::Secret<String, pii::EmailStrategy>,
+                > = Encryptable::new(
+                    email.clone().into_inner().switch_strategy(),
+                    email.into_encrypted(),
+                );
                 encryptable
             }),
             origin_zip: encryptable_address.origin_zip,
@@ -944,11 +948,12 @@ impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
             country_code: self.phone_country_code.clone(),
             updated_by: storage_scheme.to_string(),
             email: encryptable_address.email.map(|email| {
-                let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
-                    Encryptable::new(
-                        email.clone().into_inner().switch_strategy(),
-                        email.into_encrypted(),
-                    );
+                let encryptable: Encryptable<
+                    hyperswitch_masking::Secret<String, pii::EmailStrategy>,
+                > = Encryptable::new(
+                    email.clone().into_inner().switch_strategy(),
+                    email.into_encrypted(),
+                );
                 encryptable
             }),
             origin_zip: encryptable_address.origin_zip,
@@ -1011,11 +1016,12 @@ impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
             modified_at: common_utils::date_time::now(),
             updated_by: storage_scheme.to_string(),
             email: encryptable_address.email.map(|email| {
-                let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
-                    Encryptable::new(
-                        email.clone().into_inner().switch_strategy(),
-                        email.into_encrypted(),
-                    );
+                let encryptable: Encryptable<
+                    hyperswitch_masking::Secret<String, pii::EmailStrategy>,
+                > = Encryptable::new(
+                    email.clone().into_inner().switch_strategy(),
+                    email.into_encrypted(),
+                );
                 encryptable
             }),
             origin_zip: encryptable_address.origin_zip,

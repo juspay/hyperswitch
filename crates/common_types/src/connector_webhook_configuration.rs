@@ -18,7 +18,7 @@ pub struct WebhookSetupCapabilities {
 /// Enum to represent the type of webhook configuration
 pub enum WebhookConfigType {
     /// Standard webhook configuration supporting all events hyperswitch provides
-    Standard,
+    AllEvents,
     /// Custom webhook configuration supporting only specific events
     #[schema(value_type = Option<EventType>)]
     CustomEvents(Vec<common_enums::EventType>),

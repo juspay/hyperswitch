@@ -27,7 +27,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{consts, errors, webhooks};
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_with::skip_serializing_none;
@@ -42,7 +42,7 @@ use crate::{
     },
     unimplemented_payment_method,
     utils::{
-        self, AdditionalCardInfo, PaymentsAuthorizeRequestData, PaymentsCaptureRequestData,
+        self, CardData, PaymentsAuthorizeRequestData, PaymentsCaptureRequestData,
         PaymentsSyncRequestData, RouterData as OtherRouterData, WalletData as OtherWalletData,
     },
 };
@@ -170,6 +170,8 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -797,7 +799,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 };
 
                 let exp_month = network_token_data.token_exp_month.clone();
-                let expiry_year_4_digit = network_token_data.get_card_expiry_year_4_digit()?;
+                let expiry_year_4_digit = network_token_data.get_expiry_year_4_digit();
 
                 let payment_source = PaymentSource::DecryptedWalletToken(DecryptedWalletToken {
                     token: cards::CardNumber::from(network_token_data.decrypted_token.clone()),
@@ -930,16 +932,21 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
 
         let payment_ip = item.router_data.request.get_ip_address_as_optional();
 
-        let billing_descriptor =
-            item.router_data
-                .request
-                .billing_descriptor
-                .as_ref()
-                .map(|descriptor| CheckoutBillingDescriptor {
+        let billing_descriptor = item
+            .router_data
+            .request
+            .billing_descriptor
+            .as_ref()
+            .and_then(|descriptor| {
+                (descriptor.name.is_some()
+                    || descriptor.city.is_some()
+                    || descriptor.reference.is_some())
+                .then(|| CheckoutBillingDescriptor {
                     name: descriptor.name.clone(),
                     city: descriptor.city.clone(),
                     reference: descriptor.reference.clone(),
-                });
+                })
+            });
 
         let request = Self {
             source: source_var,

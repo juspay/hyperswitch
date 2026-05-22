@@ -16,6 +16,27 @@ pub fn convert_to_value<T: Into<Value>>(items: Vec<T>) -> Vec<Value> {
     items.into_iter().map(|item| item.into()).collect()
 }
 
+macro_rules! append_filter {
+    ($builder:ident, $filters:ident, $field:ident, $es_key:expr) => {
+        if let Some(val) = &$filters.$field {
+            if !val.is_empty() {
+                $builder
+                    .add_filter_clause($es_key.to_string(), convert_to_value(val.clone()))
+                    .switch()?;
+            }
+        }
+    };
+    ($builder:ident, $filters:ident, $field:ident, $es_key:expr, $transform:expr) => {
+        if let Some(val) = &$filters.$field {
+            if !val.is_empty() {
+                $builder
+                    .add_filter_clause($es_key.to_string(), convert_to_value($transform(val)))
+                    .switch()?;
+            }
+        }
+    };
+}
+
 pub async fn msearch_results(
     client: &OpenSearchClient,
     req: GetGlobalSearchRequest,
@@ -37,137 +58,62 @@ pub async fn msearch_results(
         OpenSearchQuery::Msearch(indexes.clone()),
         req.query,
         search_params,
+        None,
     );
 
     if let Some(filters) = req.filters {
-        if let Some(currency) = filters.currency {
-            if !currency.is_empty() {
-                query_builder
-                    .add_filter_clause("currency.keyword".to_string(), convert_to_value(currency))
-                    .switch()?;
+        append_filter!(query_builder, filters, currency, "currency.keyword");
+        append_filter!(query_builder, filters, status, "status.keyword");
+        append_filter!(
+            query_builder,
+            filters,
+            payment_method,
+            "payment_method.keyword"
+        );
+        append_filter!(
+            query_builder,
+            filters,
+            customer_email,
+            "customer_email.keyword",
+            |emails: &Vec<_>| {
+                emails
+                    .iter()
+                    .filter_map(|email| {
+                        serde_json::to_value(email)
+                            .ok()
+                            .and_then(|a| a.as_str().map(|a| a.to_string()))
+                    })
+                    .collect::<Vec<String>>()
             }
-        };
-        if let Some(status) = filters.status {
-            if !status.is_empty() {
-                query_builder
-                    .add_filter_clause("status.keyword".to_string(), convert_to_value(status))
-                    .switch()?;
+        );
+        append_filter!(
+            query_builder,
+            filters,
+            search_tags,
+            "feature_metadata.search_tags.keyword",
+            |tags: &Vec<_>| {
+                tags.iter()
+                    .filter_map(|tag| {
+                        serde_json::to_value(tag)
+                            .ok()
+                            .and_then(|a| a.as_str().map(|a| a.to_string()))
+                    })
+                    .collect::<Vec<String>>()
             }
-        };
-        if let Some(payment_method) = filters.payment_method {
-            if !payment_method.is_empty() {
-                query_builder
-                    .add_filter_clause(
-                        "payment_method.keyword".to_string(),
-                        convert_to_value(payment_method),
-                    )
-                    .switch()?;
-            }
-        };
-        if let Some(customer_email) = filters.customer_email {
-            if !customer_email.is_empty() {
-                query_builder
-                    .add_filter_clause(
-                        "customer_email.keyword".to_string(),
-                        convert_to_value(
-                            customer_email
-                                .iter()
-                                .filter_map(|email| {
-                                    // TODO: Add trait based inputs instead of converting this to strings
-                                    serde_json::to_value(email)
-                                        .ok()
-                                        .and_then(|a| a.as_str().map(|a| a.to_string()))
-                                })
-                                .collect(),
-                        ),
-                    )
-                    .switch()?;
-            }
-        };
-        if let Some(search_tags) = filters.search_tags {
-            if !search_tags.is_empty() {
-                query_builder
-                    .add_filter_clause(
-                        "feature_metadata.search_tags.keyword".to_string(),
-                        convert_to_value(
-                            search_tags
-                                .iter()
-                                .filter_map(|search_tag| {
-                                    // TODO: Add trait based inputs instead of converting this to strings
-                                    serde_json::to_value(search_tag)
-                                        .ok()
-                                        .and_then(|a| a.as_str().map(|a| a.to_string()))
-                                })
-                                .collect(),
-                        ),
-                    )
-                    .switch()?;
-            }
-        };
-        if let Some(connector) = filters.connector {
-            if !connector.is_empty() {
-                query_builder
-                    .add_filter_clause("connector.keyword".to_string(), convert_to_value(connector))
-                    .switch()?;
-            }
-        };
-        if let Some(payment_method_type) = filters.payment_method_type {
-            if !payment_method_type.is_empty() {
-                query_builder
-                    .add_filter_clause(
-                        "payment_method_type.keyword".to_string(),
-                        convert_to_value(payment_method_type),
-                    )
-                    .switch()?;
-            }
-        };
-        if let Some(card_network) = filters.card_network {
-            if !card_network.is_empty() {
-                query_builder
-                    .add_filter_clause(
-                        "card_network.keyword".to_string(),
-                        convert_to_value(card_network),
-                    )
-                    .switch()?;
-            }
-        };
-        if let Some(card_last_4) = filters.card_last_4 {
-            if !card_last_4.is_empty() {
-                query_builder
-                    .add_filter_clause(
-                        "card_last_4.keyword".to_string(),
-                        convert_to_value(card_last_4),
-                    )
-                    .switch()?;
-            }
-        };
-        if let Some(payment_id) = filters.payment_id {
-            if !payment_id.is_empty() {
-                query_builder
-                    .add_filter_clause(
-                        "payment_id.keyword".to_string(),
-                        convert_to_value(payment_id),
-                    )
-                    .switch()?;
-            }
-        };
-        if let Some(amount) = filters.amount {
-            if !amount.is_empty() {
-                query_builder
-                    .add_filter_clause("amount".to_string(), convert_to_value(amount))
-                    .switch()?;
-            }
-        };
-        if let Some(customer_id) = filters.customer_id {
-            if !customer_id.is_empty() {
-                query_builder
-                    .add_filter_clause(
-                        "customer_id.keyword".to_string(),
-                        convert_to_value(customer_id),
-                    )
-                    .switch()?;
-            }
-        };
+        );
+
+        append_filter!(query_builder, filters, connector, "connector.keyword");
+        append_filter!(
+            query_builder,
+            filters,
+            payment_method_type,
+            "payment_method_type.keyword"
+        );
+        append_filter!(query_builder, filters, card_network, "card_network.keyword");
+        append_filter!(query_builder, filters, card_last_4, "card_last_4.keyword");
+        append_filter!(query_builder, filters, payment_id, "payment_id.keyword");
+        append_filter!(query_builder, filters, amount, "amount");
+        append_filter!(query_builder, filters, customer_id, "customer_id.keyword");
     };
 
     if let Some(time_range) = req.time_range {
@@ -233,9 +179,10 @@ pub async fn search_results(
             .filters
             .as_ref()
             .is_none_or(|filters| filters.is_all_none())
+        && search_params.is_empty()
     {
         return Err(OpenSearchError::BadRequestError(
-            "Both query and filters are empty".to_string(),
+            "Query, filters and search_params are all empty".to_string(),
         )
         .into());
     }
@@ -243,137 +190,83 @@ pub async fn search_results(
         OpenSearchQuery::Search(req.index),
         search_req.query,
         search_params,
+        search_req.order,
     );
 
     if let Some(filters) = search_req.filters {
-        if let Some(currency) = filters.currency {
-            if !currency.is_empty() {
-                query_builder
-                    .add_filter_clause("currency.keyword".to_string(), convert_to_value(currency))
-                    .switch()?;
+        append_filter!(query_builder, filters, currency, "currency.keyword");
+        append_filter!(query_builder, filters, status, "status.keyword");
+        append_filter!(
+            query_builder,
+            filters,
+            payment_method,
+            "payment_method.keyword"
+        );
+        append_filter!(
+            query_builder,
+            filters,
+            customer_email,
+            "customer_email.keyword",
+            |emails: &Vec<_>| {
+                emails
+                    .iter()
+                    .filter_map(|email| {
+                        serde_json::to_value(email)
+                            .ok()
+                            .and_then(|a| a.as_str().map(|a| a.to_string()))
+                    })
+                    .collect::<Vec<String>>()
             }
-        };
-        if let Some(status) = filters.status {
-            if !status.is_empty() {
-                query_builder
-                    .add_filter_clause("status.keyword".to_string(), convert_to_value(status))
-                    .switch()?;
+        );
+        append_filter!(
+            query_builder,
+            filters,
+            search_tags,
+            "feature_metadata.search_tags.keyword",
+            |tags: &Vec<_>| {
+                tags.iter()
+                    .filter_map(|tag| {
+                        serde_json::to_value(tag)
+                            .ok()
+                            .and_then(|a| a.as_str().map(|a| a.to_string()))
+                    })
+                    .collect::<Vec<String>>()
             }
+        );
+
+        if let Some(amount_filter) = filters.amount_filter {
+            query_builder.set_amount_range(amount_filter).switch()?;
         };
-        if let Some(payment_method) = filters.payment_method {
-            if !payment_method.is_empty() {
-                query_builder
-                    .add_filter_clause(
-                        "payment_method.keyword".to_string(),
-                        convert_to_value(payment_method),
-                    )
-                    .switch()?;
-            }
-        };
-        if let Some(customer_email) = filters.customer_email {
-            if !customer_email.is_empty() {
-                query_builder
-                    .add_filter_clause(
-                        "customer_email.keyword".to_string(),
-                        convert_to_value(
-                            customer_email
-                                .iter()
-                                .filter_map(|email| {
-                                    // TODO: Add trait based inputs instead of converting this to strings
-                                    serde_json::to_value(email)
-                                        .ok()
-                                        .and_then(|a| a.as_str().map(|a| a.to_string()))
-                                })
-                                .collect(),
-                        ),
-                    )
-                    .switch()?;
-            }
-        };
-        if let Some(search_tags) = filters.search_tags {
-            if !search_tags.is_empty() {
-                query_builder
-                    .add_filter_clause(
-                        "feature_metadata.search_tags.keyword".to_string(),
-                        convert_to_value(
-                            search_tags
-                                .iter()
-                                .filter_map(|search_tag| {
-                                    // TODO: Add trait based inputs instead of converting this to strings
-                                    serde_json::to_value(search_tag)
-                                        .ok()
-                                        .and_then(|a| a.as_str().map(|a| a.to_string()))
-                                })
-                                .collect(),
-                        ),
-                    )
-                    .switch()?;
-            }
-        };
-        if let Some(connector) = filters.connector {
-            if !connector.is_empty() {
-                query_builder
-                    .add_filter_clause("connector.keyword".to_string(), convert_to_value(connector))
-                    .switch()?;
-            }
-        };
-        if let Some(payment_method_type) = filters.payment_method_type {
-            if !payment_method_type.is_empty() {
-                query_builder
-                    .add_filter_clause(
-                        "payment_method_type.keyword".to_string(),
-                        convert_to_value(payment_method_type),
-                    )
-                    .switch()?;
-            }
-        };
-        if let Some(card_network) = filters.card_network {
-            if !card_network.is_empty() {
-                query_builder
-                    .add_filter_clause(
-                        "card_network.keyword".to_string(),
-                        convert_to_value(card_network),
-                    )
-                    .switch()?;
-            }
-        };
-        if let Some(card_last_4) = filters.card_last_4 {
-            if !card_last_4.is_empty() {
-                query_builder
-                    .add_filter_clause(
-                        "card_last_4.keyword".to_string(),
-                        convert_to_value(card_last_4),
-                    )
-                    .switch()?;
-            }
-        };
-        if let Some(payment_id) = filters.payment_id {
-            if !payment_id.is_empty() {
-                query_builder
-                    .add_filter_clause(
-                        "payment_id.keyword".to_string(),
-                        convert_to_value(payment_id),
-                    )
-                    .switch()?;
-            }
-        };
-        if let Some(amount) = filters.amount {
-            if !amount.is_empty() {
-                query_builder
-                    .add_filter_clause("amount".to_string(), convert_to_value(amount))
-                    .switch()?;
-            }
-        };
-        if let Some(customer_id) = filters.customer_id {
-            if !customer_id.is_empty() {
-                query_builder
-                    .add_filter_clause(
-                        "customer_id.keyword".to_string(),
-                        convert_to_value(customer_id),
-                    )
-                    .switch()?;
-            }
-        };
+        append_filter!(query_builder, filters, connector, "connector.keyword");
+        append_filter!(
+            query_builder,
+            filters,
+            payment_method_type,
+            "payment_method_type.keyword"
+        );
+        append_filter!(query_builder, filters, card_network, "card_network.keyword");
+        append_filter!(query_builder, filters, card_last_4, "card_last_4.keyword");
+        append_filter!(query_builder, filters, payment_id, "payment_id.keyword");
+        append_filter!(query_builder, filters, amount, "amount");
+        append_filter!(query_builder, filters, customer_id, "customer_id.keyword");
+        append_filter!(
+            query_builder,
+            filters,
+            authentication_type,
+            "authentication_type.keyword"
+        );
+        append_filter!(
+            query_builder,
+            filters,
+            card_discovery,
+            "card_discovery.keyword"
+        );
+        append_filter!(
+            query_builder,
+            filters,
+            merchant_order_reference_id,
+            "merchant_order_reference_id.keyword"
+        );
     };
 
     if let Some(time_range) = search_req.time_range {

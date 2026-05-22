@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
     type_encryption::AsyncLift,
 };
 use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
-use masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 
 use super::types::{
     IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW,
@@ -147,6 +147,8 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
+        sender_payment_instrument_id: None,
     })
 }
 
@@ -178,7 +180,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .clone()
                     .map(|billing| {
                         common_utils::ext_traits::Encode::encode_to_value(&billing)
-                            .map(masking::Secret::<serde_json::Value>::new)
+                            .map(hyperswitch_masking::Secret::<serde_json::Value>::new)
                     })
                     .transpose()
                     .change_context(ApiErrorResponse::InternalServerError)
@@ -188,7 +190,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .clone()
                     .map(|shipping| {
                         common_utils::ext_traits::Encode::encode_to_value(&shipping)
-                            .map(masking::Secret::<serde_json::Value>::new)
+                            .map(hyperswitch_masking::Secret::<serde_json::Value>::new)
                     })
                     .transpose()
                     .change_context(ApiErrorResponse::InternalServerError)
@@ -596,6 +598,7 @@ fn get_vault_details(
                         card_issuing_country: None,
                         card_holder_name: None,
                         nick_name: None,
+                        par: None,
                     },
                 ),
             )
@@ -697,6 +700,8 @@ pub fn construct_uas_webhook_router_data<F: Clone, Req, Res>(
         l2_l3_data: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
+        customer_document_details: None,
+        sender_payment_instrument_id: None,
     })
 }
 

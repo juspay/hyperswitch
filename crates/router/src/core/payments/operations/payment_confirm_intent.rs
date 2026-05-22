@@ -4,7 +4,7 @@ use common_utils::{ext_traits::Encode, fp_utils::when, id_type, types::keymanage
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_interfaces::api::ConnectorSpecifications;
-use masking::{ExposeOptionInterface, PeekInterface};
+use hyperswitch_masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
 
 use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -57,8 +57,7 @@ impl ValidateStatusForOperation for PaymentIntentConfirm {
             | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
-            | common_enums::IntentStatus::Expired
-            | common_enums::IntentStatus::Review => {
+            | common_enums::IntentStatus::Expired => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
                     field_name: "status".to_string(),
@@ -188,7 +187,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             domain_types::CryptoOperation::BatchEncrypt(
                 hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt::to_encryptable(
                     hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt {
-                        payment_method_billing_address: request.payment_method_data.billing.as_ref().map(|address| address.clone().encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode payment_method_billing address")?.map(masking::Secret::new),
+                        payment_method_billing_address: request.payment_method_data.billing.as_ref().map(|address| address.clone().encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode payment_method_billing address")?.map(hyperswitch_masking::Secret::new),
                     },
                 ),
             ),
@@ -211,7 +210,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                 cell_id,
                 storage_scheme,
                 request,
-                encrypted_data
+                encrypted_data,
+                platform.get_initiator(),
             )
             .await?;
 
@@ -325,7 +325,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             domain_types::CryptoOperation::BatchEncrypt(
                 hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt::to_encryptable(
                     hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt {
-                        payment_method_billing_address: request.payment_method_data.billing.as_ref().map(|address| address.clone().encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode payment_method_billing address")?.map(masking::Secret::new),
+                        payment_method_billing_address: request.payment_method_data.billing.as_ref().map(|address| address.clone().encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode payment_method_billing address")?.map(hyperswitch_masking::Secret::new),
                     },
                 ),
             ),
@@ -357,6 +357,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                 pm_split_amount_data
                     .payment_method_details
                     .payment_method_subtype,
+                platform.get_initiator(),
             )
             .await?;
 
@@ -640,7 +641,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     billing: None,
                     psp_tokenization: None,
                     network_tokenization: None,
-                    storage_type: Some(common_enums::StorageType::Persistent), //since customer acceptance is present, we always store it persistently
+                    storage_type: common_enums::StorageType::Persistent, //since customer acceptance is present, we always store it persistently
                 };
 
                 let (_pm_response, payment_method) =
@@ -727,7 +728,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                         payment_method,
                         payment_method_type,
                         mandate_flow_enabled,
-                        None,
                     )?;
 
                 if is_connector_tokenization_enabled {

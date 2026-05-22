@@ -156,6 +156,8 @@ impl<'a> KafkaRefundEvent<'a> {
             id,
             merchant_reference_id,
             connector_id,
+            processor_merchant_id,
+            created_by,
         } = refund;
 
         Self {

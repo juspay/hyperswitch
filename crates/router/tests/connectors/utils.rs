@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use common_utils::{id_type::GenerateId, pii::Email};
 use error_stack::Report;
 use hyperswitch_domain_models::router_data_v2::flow_common_types::PaymentFlowData;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::{
     configs::settings::Settings,
     core::{errors::ConnectorError, payments},
@@ -473,6 +473,7 @@ pub trait ConnectorActions: Connector {
                     phone: Some(Secret::new("620874518".to_string())),
                     phone_country_code: Some("+31".to_string()),
                     tax_registration_id: Some("1232343243".to_string().into()),
+                    document_details: None,
                 }),
                 vendor_details: None,
                 priority: None,
@@ -567,6 +568,8 @@ pub trait ConnectorActions: Connector {
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
+            customer_document_details: None,
+            sender_payment_instrument_id: None,
         }
     }
 
@@ -590,6 +593,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
             Ok(types::PaymentsResponseData::PaymentResourceUpdateResponse { .. }) => None,
             Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::PostCaptureVoidResponse { .. }) => None,
             Err(_) => None,
         }
     }
@@ -1020,6 +1024,9 @@ impl Default for PaymentAuthorizeType {
             tokenization: None,
             partner_merchant_identifier_details: None,
             rrn: None,
+            feature_metadata: None,
+            installment_details: None,
+            connector_intent_metadata: None,
         };
         Self(data)
     }
@@ -1182,6 +1189,7 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
         Ok(types::PaymentsResponseData::PaymentResourceUpdateResponse { .. }) => None,
         Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::PostCaptureVoidResponse { .. }) => None,
         Err(_) => None,
     }
 }

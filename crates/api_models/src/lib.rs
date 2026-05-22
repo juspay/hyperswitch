@@ -26,6 +26,7 @@ pub mod gsm;
 pub mod health_check;
 pub mod locker_migration;
 pub mod mandates;
+pub mod merchant_connector_webhook_management;
 pub mod oidc;
 pub mod open_router;
 pub mod organization;
@@ -48,6 +49,7 @@ pub mod relay;
 pub mod revenue_recovery_data_backfill;
 pub mod routing;
 pub mod subscription;
+pub mod superposition_sdk_config;
 pub mod surcharge_decision_configs;
 pub mod three_ds_decision_rule;
 #[cfg(feature = "tokenization_v2")]

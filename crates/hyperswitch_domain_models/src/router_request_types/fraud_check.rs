@@ -3,7 +3,7 @@ use common_utils::{
     pii::Email,
 };
 use diesel_models::types::OrderDetailsWithAmount;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -38,6 +38,8 @@ pub struct FraudCheckTransactionData {
     pub connector_transaction_id: Option<String>,
     //The name of the payment gateway or financial institution that processed the transaction.
     pub connector: Option<String>,
+    //The transaction ID returned by the fraud check provider during checkout
+    pub frm_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]

@@ -1,5 +1,4 @@
 pub mod accumulator;
-pub mod aggregate;
 mod core;
 pub mod filters;
 pub mod metrics;

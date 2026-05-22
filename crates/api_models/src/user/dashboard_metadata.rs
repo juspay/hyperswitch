@@ -1,7 +1,7 @@
 use common_enums::{CountryAlpha2, MerchantProductType};
 use common_types::primitive_wrappers::SafeString;
 use common_utils::{id_type, pii};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use strum::EnumString;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

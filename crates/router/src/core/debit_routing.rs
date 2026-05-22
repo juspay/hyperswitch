@@ -4,7 +4,7 @@ use api_models::{enums as api_enums, open_router};
 use common_enums::enums;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt, id_type};
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 
 use super::{
     payments::{OperationSessionGetters, OperationSessionSetters},
@@ -286,7 +286,10 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let db = state.store.as_ref();
-    let merchant_id = payment_data.get_payment_attempt().merchant_id.clone();
+    let processor_merchant_id = payment_data
+        .get_payment_attempt()
+        .processor_merchant_id
+        .clone();
     let profile_id = payment_data.get_payment_attempt().profile_id.clone();
 
     if debit_routing_supported_connectors.contains(&connector_data.connector_data.connector_name) {
@@ -302,7 +305,7 @@ where
 
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
+                &processor_merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
             .await
@@ -552,7 +555,10 @@ where
 {
     let db = state.store.as_ref();
     let profile_id = payment_data.get_payment_attempt().profile_id.clone();
-    let merchant_id = payment_data.get_payment_attempt().merchant_id.clone();
+    let processor_merchant_id = payment_data
+        .get_payment_attempt()
+        .processor_merchant_id
+        .clone();
     let is_any_debit_routing_connector_supported =
         connector_data_list.iter().any(|connector_data| {
             debit_routing_supported_connectors
@@ -564,7 +570,7 @@ where
             get_debit_routing_output::<F, D>(state, payment_data, acquirer_country).await?;
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
+                &processor_merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
             .await

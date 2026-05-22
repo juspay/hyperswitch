@@ -37,6 +37,8 @@ pub async fn api_key_create(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantApiKeyWrite,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -67,6 +69,8 @@ pub async fn api_key_create(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantApiKeyWrite,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -106,6 +110,8 @@ pub async fn api_key_retrieve(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantApiKeyRead,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -141,6 +147,8 @@ pub async fn api_key_retrieve(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantApiKeyRead,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -180,6 +188,8 @@ pub async fn api_key_update(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantApiKeyWrite,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -218,6 +228,8 @@ pub async fn api_key_update(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantApiKeyRead,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -255,6 +267,8 @@ pub async fn api_key_revoke(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantApiKeyWrite,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -288,6 +302,8 @@ pub async fn api_key_revoke(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantApiKeyWrite,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -326,6 +342,8 @@ pub async fn api_key_list(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantApiKeyRead,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -361,6 +379,8 @@ pub async fn api_key_list(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantApiKeyRead,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),

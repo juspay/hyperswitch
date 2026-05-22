@@ -6,3 +6,5 @@ pub mod helpers;
 pub mod state;
 #[cfg(feature = "v1")]
 pub mod types;
+
+pub use crate::core::errors;

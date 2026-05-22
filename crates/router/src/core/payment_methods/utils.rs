@@ -12,8 +12,8 @@ use common_utils::ext_traits::{OptionExt, StringExt};
 use error_stack::ResultExt;
 use euclid::frontend::dir;
 use hyperswitch_constraint_graph as cgraph;
+use hyperswitch_masking::ExposeInterface;
 use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
-use masking::ExposeInterface;
 #[cfg(feature = "v1")]
 use router_env::logger;
 use storage_impl::redis::cache::{CacheKey, PM_FILTERS_CGRAPH_CACHE};
@@ -32,7 +32,7 @@ use crate::{
 pub fn make_pm_graph(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     domain_id: cgraph::DomainId,
-    payment_methods: &[masking::Secret<serde_json::value::Value>],
+    payment_methods: &[hyperswitch_masking::Secret<serde_json::value::Value>],
     connector: String,
     pm_config_mapping: &settings::ConnectorFilters,
     supported_payment_methods_for_mandate: &settings::SupportedPaymentMethodsForMandate,
@@ -913,6 +913,9 @@ pub(super) async fn retrieve_payment_method_id_from_payment_method_token_data(
     let payment_method_id = match payment_method_token_data {
         storage::payment_method::PaymentTokenData::PermanentCard(card) => {
             Some(card.payment_method_id)
+        }
+        storage::payment_method::PaymentTokenData::BankDebit(bank_debit) => {
+            Some(bank_debit.payment_method_id)
         }
         _ => None,
     }

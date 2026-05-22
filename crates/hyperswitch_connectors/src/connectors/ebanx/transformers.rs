@@ -1,7 +1,7 @@
 #[cfg(feature = "payouts")]
 use api_models::enums::Currency;
 #[cfg(feature = "payouts")]
-use api_models::payouts::{Bank, PayoutMethodData};
+use api_models::payouts::{BankTransfer, PayoutMethodData};
 #[cfg(feature = "payouts")]
 use common_enums::{PayoutStatus, PayoutType};
 #[cfg(feature = "payouts")]
@@ -14,8 +14,8 @@ use hyperswitch_domain_models::router_flow_types::PoCreate;
 use hyperswitch_domain_models::types::{PayoutsResponseData, PayoutsRouterData};
 use hyperswitch_interfaces::errors::ConnectorError;
 #[cfg(feature = "payouts")]
-use masking::ExposeInterface;
-use masking::Secret;
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "payouts")]
@@ -102,7 +102,7 @@ impl TryFrom<&EbanxRouterData<&PayoutsRouterData<PoCreate>>> for EbanxPayoutCrea
     fn try_from(item: &EbanxRouterData<&PayoutsRouterData<PoCreate>>) -> Result<Self, Self::Error> {
         let ebanx_auth_type = EbanxAuthType::try_from(&item.router_data.connector_auth_type)?;
         match item.router_data.get_payout_method_data()? {
-            PayoutMethodData::Bank(Bank::Pix(pix_data)) => {
+            PayoutMethodData::BankTransfer(BankTransfer::Pix(pix_data)) => {
                 let bank_info = EbanxBankDetails {
                     bank_account: Some(pix_data.bank_account_number),
                     bank_branch: pix_data.bank_branch,
@@ -141,6 +141,7 @@ impl TryFrom<&EbanxRouterData<&PayoutsRouterData<PoCreate>>> for EbanxPayoutCrea
             }
             PayoutMethodData::Card(_)
             | PayoutMethodData::Bank(_)
+            | PayoutMethodData::BankTransfer(_)
             | PayoutMethodData::Wallet(_)
             | PayoutMethodData::BankRedirect(_)
             | PayoutMethodData::Passthrough(_) => Err(ConnectorError::NotSupported {

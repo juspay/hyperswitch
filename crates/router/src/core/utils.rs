@@ -28,10 +28,10 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 #[cfg(feature = "v2")]
-use masking::ExposeOptionInterface;
-use masking::Secret;
+use hyperswitch_masking::ExposeOptionInterface;
+use hyperswitch_masking::Secret;
 #[cfg(feature = "payouts")]
-use masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use maud::{html, PreEscaped};
 use regex::Regex;
 use router_env::{instrument, tracing};
@@ -59,6 +59,51 @@ use crate::{
     },
     utils::{generate_id, OptionExt, ValueExt},
 };
+
+#[cfg(all(feature = "v1", feature = "pm_modular"))]
+#[derive(Debug, Clone, Default)]
+pub struct FeatureConfig {
+    pub is_payment_method_modular_allowed: bool,
+}
+
+#[cfg(all(feature = "v1", feature = "pm_modular"))]
+pub async fn get_feature_config(
+    state: &SessionState,
+    platform: &domain::Platform,
+) -> FeatureConfig {
+    let is_payment_method_modular_allowed = crate::core::payment_methods::utils::get_organization_eligibility_config_for_pm_modular_service(
+        state.store.as_ref(),
+        &platform.get_processor().get_account().organization_id,
+    )
+    .await;
+    FeatureConfig {
+        is_payment_method_modular_allowed,
+    }
+}
+
+#[cfg(feature = "v1")]
+pub async fn validate_legacy_endpoint_access<E>(
+    state: &SessionState,
+    platform: &domain::Platform,
+) -> error_stack::Result<(), E>
+where
+    E: From<errors::ApiErrorResponse> + error_stack::Context,
+{
+    #[cfg(feature = "pm_modular")]
+    {
+        let feature_config = get_feature_config(state, platform).await;
+        common_utils::fp_utils::when(feature_config.is_payment_method_modular_allowed, || {
+            Err(error_stack::report!(E::from(
+                errors::ApiErrorResponse::AccessForbidden {
+                    resource: "Deprecated route".to_string(),
+                },
+            )))
+        })?;
+    }
+    #[cfg(not(feature = "pm_modular"))]
+    let _ = (state, platform);
+    Ok(())
+}
 
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_dispute_flow";
@@ -200,6 +245,7 @@ pub async fn construct_payout_router_data<'a, F>(
                     phone: c.phone.map(Encryptable::into_inner),
                     phone_country_code: c.phone_country_code,
                     tax_registration_id: c.tax_registration_id.map(Encryptable::into_inner),
+                    document_details: None,
                 }),
             connector_transfer_method_id,
             webhook_url: Some(webhook_url),
@@ -239,6 +285,8 @@ pub async fn construct_payout_router_data<'a, F>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -337,7 +385,7 @@ pub async fn construct_refund_router_data<'a, F>(
         attempt_id: payment_attempt.id.get_string_repr().to_string().clone(),
         status,
         payment_method: payment_method_type,
-        payment_method_type: Some(payment_attempt.payment_method_subtype),
+        payment_method_type: payment_attempt.payment_method_subtype,
         connector_auth_type: auth_type,
         description: None,
         // Does refund need shipping/billing address ?
@@ -415,6 +463,8 @@ pub async fn construct_refund_router_data<'a, F>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -607,6 +657,11 @@ pub async fn construct_refund_router_data<'a, F>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: payment_intent
+            .get_customer_document_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer document details from payment_intent")?,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -1066,6 +1121,11 @@ pub async fn construct_accept_dispute_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: payment_intent
+            .get_customer_document_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer document details from payment_intent")?,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1172,6 +1232,11 @@ pub async fn construct_submit_evidence_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: payment_intent
+            .get_customer_document_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer document details from payment_intent")?,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1287,6 +1352,8 @@ pub async fn construct_upload_file_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1363,6 +1430,8 @@ pub async fn construct_dispute_list_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
+        sender_payment_instrument_id: None,
     })
 }
 
@@ -1471,6 +1540,11 @@ pub async fn construct_dispute_sync_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: payment_intent
+            .get_customer_document_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer document details from payment_intent")?,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1478,7 +1552,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
 #[cfg(feature = "v2")]
 pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     payment_data: &mut PaymentData<F>,
     merchant_connector_account: &MerchantConnectorAccount,
 ) -> RouterResult<types::PaymentsTaxCalculationRouterData> {
@@ -1488,7 +1562,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
 #[cfg(feature = "v1")]
 pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     payment_data: &mut PaymentData<F>,
     merchant_connector_account: &MerchantConnectorAccount,
 ) -> RouterResult<types::PaymentsTaxCalculationRouterData> {
@@ -1536,7 +1610,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().to_owned(),
+        merchant_id: processor.get_account().get_id().to_owned(),
         customer_id: None,
         connector_customer: None,
         connector: merchant_connector_account.connector_name.clone(),
@@ -1571,7 +1645,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         response: Err(ErrorResponse::default()),
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor(),
+            processor,
             payment_intent,
             payment_attempt,
             &merchant_connector_account.connector_name,
@@ -1602,6 +1676,11 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: payment_intent
+            .get_customer_document_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer document details from payment_intent")?,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1711,6 +1790,11 @@ pub async fn construct_defend_dispute_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: payment_intent
+            .get_customer_document_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to extract customer document details from payment_intent")?,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1813,6 +1897,8 @@ pub async fn construct_retrieve_file_router_data<'a>(
         l2_l3_data: None,
         minor_amount_capturable: None,
         authorized_amount: None,
+        customer_document_details: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }

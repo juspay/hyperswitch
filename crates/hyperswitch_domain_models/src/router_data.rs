@@ -1,5 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData};
 
+use api_models::customers::CustomerDocumentDetails;
 use cards::NetworkToken;
 use common_types::{payments as common_payment_types, primitive_wrappers};
 use common_utils::{
@@ -9,7 +10,7 @@ use common_utils::{
     types::MinorUnit,
 };
 use error_stack::ResultExt;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -119,8 +120,23 @@ pub struct RouterData<Flow, Request, Response> {
     /// Indicates whether the payment ID was provided by the merchant (true),
     /// or generated internally by Hyperswitch (false)
     pub is_payment_id_from_merchant: Option<bool>,
+
+    // Document details of the customer consisting of document number and type
+    pub customer_document_details: Option<CustomerDocumentDetails>,
+
+    /// A connector-specific identifier representing the stored payment instrument
+    pub sender_payment_instrument_id: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum FeatureData {
+    PaypalReturningCustomer(Box<PaypalReturningCustomerData>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalReturningCustomerData {
+    pub paypal_vault_customer_id: Option<Secret<String>>,
+}
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct L2L3Data {
     pub order_info: Option<OrderInfo>,
@@ -447,6 +463,10 @@ impl PaymentMethodToken {
             _ => None,
         }
     }
+
+    pub fn is_apple_pay_decrypt(&self) -> bool {
+        matches!(self, Self::ApplePayDecrypt(_))
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -721,11 +741,21 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     BankRedirect {
         interac: Option<InteracCustomerInfo>,
     },
+    Upi {
+        /// UPI mode detected from the connector response
+        upi_mode: Option<payment_method_data::UpiSource>,
+    },
     GooglePay {
         auth_code: Option<String>,
     },
     ApplePay {
         auth_code: Option<String>,
+    },
+    SepaBankTransfer {
+        debitor_iban: Option<Secret<String>>,
+        debitor_bic: Option<Secret<String>>,
+        debitor_name: Option<Secret<String>>,
+        debitor_email: Option<Secret<String>>,
     },
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -952,6 +982,10 @@ impl
                             connector_response_reference_id: connector_response_reference_id
                                 .clone(),
                             amount_captured,
+                            payment_method_data: payment_data
+                                .payment_attempt
+                                .payment_method_data
+                                .clone(),
                         },
                     ))
                 }
@@ -987,6 +1021,9 @@ impl
                 router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
                     ..
                 } => todo!(),
+                router_response_types::PaymentsResponseData::PostCaptureVoidResponse { .. } => {
+                    todo!()
+                }
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -1024,11 +1061,12 @@ impl
 
                 PaymentAttemptUpdate::ErrorUpdate {
                     status: attempt_status,
-                    error: error_details,
+                    error: Box::new(error_details),
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
                     connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
+                    payment_method_data: payment_data.payment_attempt.payment_method_data.clone(),
                 }
             }
         }
@@ -1151,8 +1189,7 @@ impl
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
-            | common_enums::IntentStatus::Review => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation
@@ -1197,11 +1234,9 @@ impl
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::PartiallyCapturedAndProcessing => Some(MinorUnit::zero()),
-
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
-            | common_enums::IntentStatus::RequiresConfirmation
-            | common_enums::IntentStatus::Review => None,
+            | common_enums::IntentStatus::RequiresConfirmation => None,
             // No amount has been captured yet
             common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
@@ -1317,6 +1352,9 @@ impl
                 router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
                     ..
                 } => todo!(),
+                router_response_types::PaymentsResponseData::PostCaptureVoidResponse { .. } => {
+                    todo!()
+                }
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -1347,11 +1385,12 @@ impl
 
                 PaymentAttemptUpdate::ErrorUpdate {
                     status: attempt_status,
-                    error: error_details,
+                    error: Box::new(error_details),
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
                     connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
+                    payment_method_data: payment_data.payment_attempt.payment_method_data.clone(),
                 }
             }
         }
@@ -1396,8 +1435,7 @@ impl
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
-            | common_enums::IntentStatus::Review => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
@@ -1446,8 +1484,7 @@ impl
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
-            | common_enums::IntentStatus::Review => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
@@ -1595,11 +1632,19 @@ impl
                 router_response_types::PaymentsResponseData::TransactionResponse { .. } => {
                     let attempt_status = self.get_attempt_status_for_db_update(payment_data);
 
+                    // Extract payment_method_data from payment_attempt (already updated with connector response data in PostUpdateTracker)
+                    let payment_method_data = payment_data
+                        .payment_attempt
+                        .payment_method_data
+                        .as_ref()
+                        .map(|data| data.clone().expose());
+
                     PaymentAttemptUpdate::SyncUpdate {
                         status: attempt_status,
                         amount_capturable,
                         updated_by: storage_scheme.to_string(),
                         amount_captured,
+                        payment_method_data,
                     }
                 }
                 router_response_types::PaymentsResponseData::MultipleCaptureResponse { .. } => {
@@ -1634,6 +1679,9 @@ impl
                 router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
                     ..
                 } => todo!(),
+                router_response_types::PaymentsResponseData::PostCaptureVoidResponse { .. } => {
+                    todo!()
+                }
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -1672,11 +1720,12 @@ impl
 
                 PaymentAttemptUpdate::ErrorUpdate {
                     status: attempt_status,
-                    error: error_details,
+                    error: Box::new(error_details),
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
                     connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
+                    payment_method_data: payment_data.payment_attempt.payment_method_data.clone(),
                 }
             }
         }
@@ -1724,8 +1773,7 @@ impl
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
-            | common_enums::IntentStatus::Review => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
@@ -1768,9 +1816,7 @@ impl
             | common_enums::IntentStatus::PartiallyCapturedAndProcessing => Some(MinorUnit::zero()),
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
-            | common_enums::IntentStatus::RequiresConfirmation
-            | common_enums::IntentStatus::Review => None,
-
+            | common_enums::IntentStatus::RequiresConfirmation => None,
             common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
                 Some(MinorUnit::zero())
@@ -1888,6 +1934,10 @@ impl
                             connector_response_reference_id: connector_response_reference_id
                                 .clone(),
                             amount_captured,
+                            payment_method_data: payment_data
+                                .payment_attempt
+                                .payment_method_data
+                                .clone(),
                         },
                     ))
                 }
@@ -1923,6 +1973,9 @@ impl
                 router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
                     ..
                 } => todo!(),
+                router_response_types::PaymentsResponseData::PostCaptureVoidResponse { .. } => {
+                    todo!()
+                }
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -1960,11 +2013,12 @@ impl
 
                 PaymentAttemptUpdate::ErrorUpdate {
                     status: attempt_status,
-                    error: error_details,
+                    error: Box::new(error_details),
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
                     connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
+                    payment_method_data: payment_data.payment_attempt.payment_method_data.clone(),
                 }
             }
         }
@@ -1995,8 +2049,7 @@ impl
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
-            | common_enums::IntentStatus::Review => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
             common_enums::IntentStatus::RequiresCapture
@@ -2028,8 +2081,7 @@ impl
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
-            | common_enums::IntentStatus::Review => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
             common_enums::IntentStatus::RequiresCapture
@@ -2139,6 +2191,10 @@ impl
                                 ),
                             connector_response_reference_id: None,
                             amount_captured,
+                            payment_method_data: payment_data
+                                .payment_attempt
+                                .payment_method_data
+                                .clone(),
                         },
                     ))
                 }
@@ -2174,6 +2230,9 @@ impl
                 router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
                     ..
                 } => todo!(),
+                router_response_types::PaymentsResponseData::PostCaptureVoidResponse { .. } => {
+                    todo!()
+                }
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -2204,11 +2263,12 @@ impl
 
                 PaymentAttemptUpdate::ErrorUpdate {
                     status: attempt_status,
-                    error: error_details,
+                    error: Box::new(error_details),
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
                     connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
+                    payment_method_data: payment_data.payment_attempt.payment_method_data.clone(),
                 }
             }
         }
@@ -2242,8 +2302,7 @@ impl
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
-            | common_enums::IntentStatus::Review => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
@@ -2284,8 +2343,7 @@ impl
             common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
-            | common_enums::IntentStatus::Review => None,
+            | common_enums::IntentStatus::PartiallyCapturedAndProcessing => None,
             // Invalid states for this flow
             common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::RequiresConfirmation => None,
@@ -2389,10 +2447,11 @@ impl
                 PaymentAttemptUpdate::ErrorUpdate {
                     status,
                     amount_capturable: Some(MinorUnit::zero()),
-                    error: error_details,
+                    error: Box::new(error_details),
                     updated_by: storage_scheme.to_string(),
                     connector_payment_id: connector_transaction_id,
                     connector_response_reference_id,
+                    payment_method_data: payment_data.payment_attempt.payment_method_data.clone(),
                 }
             }
             Ok(ref _response) => PaymentAttemptUpdate::VoidUpdate {

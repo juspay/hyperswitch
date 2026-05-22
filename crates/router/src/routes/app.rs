@@ -188,10 +188,23 @@ impl SessionState {
             ExecutionMode::Shadow => Some(true),
             ExecutionMode::NotApplicable => None,
         };
+        // For shadow mode, disable event publishing in UCS
+        let config_override = match unified_connector_service_execution_mode {
+            ExecutionMode::Shadow => Some(
+                serde_json::json!({
+                    "events": {
+                        "enabled": false
+                    }
+                })
+                .to_string(),
+            ),
+            _ => None,
+        };
         GrpcHeadersUcs::builder()
             .tenant_id(tenant_id)
             .request_id(request_id)
             .shadow_mode(shadow_mode)
+            .config_override(config_override)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
@@ -211,6 +224,7 @@ pub trait SessionStateInfo {
     fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])>;
     fn session_state(&self) -> SessionState;
     fn global_store(&self) -> Box<dyn GlobalStorageInterface>;
+    fn superposition_service(&self) -> Option<Arc<SuperpositionClient>>;
 }
 
 impl SessionStateInfo for SessionState {
@@ -236,7 +250,7 @@ impl SessionStateInfo for SessionState {
     fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])> {
         use error_stack::ResultExt;
         use hyperswitch_domain_models::errors::api_error_response as errors;
-        use masking::prelude::PeekInterface as _;
+        use hyperswitch_masking::PeekInterface as _;
         use router_env::logger;
 
         let output = CHECKSUM_KEY.get_or_try_init(|| {
@@ -250,8 +264,8 @@ impl SessionStateInfo for SessionState {
             let key = conf.api_keys.get_inner().checksum_auth_key.peek();
             hex::decode(key).map(|key| {
                 (
-                    masking::StrongSecret::new(context),
-                    masking::StrongSecret::new(key),
+                    hyperswitch_masking::StrongSecret::new(context),
+                    hyperswitch_masking::StrongSecret::new(key),
                 )
             })
         });
@@ -269,6 +283,9 @@ impl SessionStateInfo for SessionState {
     }
     fn global_store(&self) -> Box<dyn GlobalStorageInterface> {
         self.global_store.to_owned()
+    }
+    fn superposition_service(&self) -> Option<Arc<SuperpositionClient>> {
+        self.superposition_service.clone()
     }
 }
 
@@ -344,8 +361,8 @@ pub trait AppStateInfo {
 
 #[cfg(feature = "partial-auth")]
 static CHECKSUM_KEY: once_cell::sync::OnceCell<(
-    masking::StrongSecret<String>,
-    masking::StrongSecret<Vec<u8>>,
+    hyperswitch_masking::StrongSecret<String>,
+    hyperswitch_masking::StrongSecret<Vec<u8>>,
 )> = once_cell::sync::OnceCell::new();
 
 impl AppStateInfo for AppState {
@@ -450,16 +467,17 @@ impl AppState {
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
                 .await
                 .expect("Failed to create store");
-            let global_store: Box<dyn GlobalStorageInterface> = Box::pin(Self::get_store_interface(
-                &storage_impl,
-                &event_handler,
-                &conf,
-                &conf.multitenancy.global_tenant,
-                Arc::clone(&cache_store),
-                testable,
-            ))
-            .await
-            .get_global_storage_interface();
+            let global_store: Box<dyn GlobalStorageInterface> =
+                Box::pin(Self::get_store_interface(
+                    &storage_impl,
+                    &event_handler,
+                    &conf,
+                    &conf.multitenancy.global_tenant,
+                    Arc::clone(&cache_store),
+                    testable,
+                ))
+                .await
+                .get_global_storage_interface();
             #[cfg(feature = "olap")]
             let pools = conf
                 .multitenancy
@@ -890,7 +908,11 @@ pub struct Proxy;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 impl Proxy {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/v2/proxy")
+        let base_path = format!(
+            "/{}/proxy",
+            state.conf.micro_services.payment_methods_prefix.0
+        );
+        web::scope(&base_path)
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(proxy::proxy)))
     }
@@ -936,10 +958,6 @@ impl Payments {
                 .service(
                     web::resource("/{payment_id}/manual-update")
                         .route(web::put().to(payments::payments_manual_update)),
-                )
-                .service(
-                    web::resource("/{payment_id}/manual-status-update")
-                        .route(web::post().to(payments::payments_manual_status_update)),
                 )
         }
         #[cfg(feature = "oltp")]
@@ -1362,7 +1380,11 @@ pub struct Customers;
 #[cfg(all(feature = "v2", any(feature = "olap", feature = "oltp")))]
 impl Customers {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/v2/customers").app_data(web::Data::new(state));
+        let base_path = format!(
+            "/{}/customers",
+            state.conf.micro_services.payment_methods_prefix.0
+        );
+        let mut route = web::scope(&base_path).app_data(web::Data::new(state));
         #[cfg(all(feature = "olap", feature = "v2"))]
         {
             route = route
@@ -1545,10 +1567,17 @@ impl Payouts {
                     web::resource("/filter")
                         .route(web::post().to(payouts_list_available_filters_for_merchant)),
                 )
-                .service(web::resource("/v2/filter").route(web::get().to(get_payout_filters)))
                 .service(
                     web::resource("/profile/filter")
                         .route(web::post().to(payouts_list_available_filters_for_profile)),
+                )
+                .service(
+                    web::scope("/v2")
+                        .service(web::resource("/filter").route(web::get().to(get_payout_filters)))
+                        .service(
+                            web::resource("/profile/filter")
+                                .route(web::get().to(get_payout_filters_profile)),
+                        ),
                 )
                 .service(
                     web::resource("/{payout_id}/manual-update")
@@ -1571,7 +1600,11 @@ impl Payouts {
 #[cfg(all(feature = "v2", any(feature = "olap", feature = "oltp")))]
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/v2/payment-methods").app_data(web::Data::new(state));
+        let base_path = format!(
+            "/{}/payment-methods",
+            state.conf.micro_services.payment_methods_prefix.0
+        );
+        let mut route = web::scope(&base_path).app_data(web::Data::new(state));
 
         #[cfg(feature = "olap")]
         {
@@ -1720,7 +1753,11 @@ pub struct PaymentMethodSession;
 #[cfg(all(feature = "v2", feature = "oltp"))]
 impl PaymentMethodSession {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/v2/payment-method-sessions").app_data(web::Data::new(state));
+        let base_path = format!(
+            "/{}/payment-method-sessions",
+            state.conf.micro_services.payment_methods_prefix.0
+        );
+        let mut route = web::scope(&base_path).app_data(web::Data::new(state));
         route = route.service(
             web::resource("")
                 .route(web::post().to(payment_methods::payment_methods_session_create)),
@@ -2018,6 +2055,11 @@ impl MerchantConnectorAccount {
                         .route(web::get().to(connector_retrieve))
                         .route(web::post().to(connector_update))
                         .route(web::delete().to(connector_delete)),
+                )
+                .service(
+                    web::resource("/{merchant_id}/connectors/webhooks/{merchant_connector_id}")
+                        .route(web::post().to(connector_webhook_register))
+                        .route(web::get().to(retrieve_connector_webhook)),
                 );
         }
         #[cfg(feature = "oltp")]
@@ -2761,7 +2803,7 @@ impl User {
         let mut route = web::scope("/user").app_data(web::Data::new(state.clone()));
 
         route = route
-            .service(web::resource("").route(web::get().to(user::get_user_details)))
+            .service(web::resource("").route(web::get().to(user::get_active_user_details)))
             .service(web::resource("/signin").route(web::post().to(user::user_signin)))
             .service(web::resource("/v2/signin").route(web::post().to(user::user_signin)))
             // signin/signup with sso using openidconnect
@@ -3099,6 +3141,19 @@ impl User {
                         ),
                 ),
         );
+
+        // Internal API endpoints (authenticated via X-Internal-API-Key header)
+        route = route.service(
+            web::scope("/internal")
+                .service(
+                    web::resource("/user/list").route(web::post().to(user::list_users_internal)),
+                )
+                .service(
+                    web::resource("/user/{user_id}")
+                        .route(web::get().to(user::get_user_details_internal)),
+                ),
+        );
+
         route
     }
 }
@@ -3304,5 +3359,18 @@ impl RecoveryDataBackfill {
                     super::revenue_recovery_data_backfill::update_revenue_recovery_additional_redis_data,
                 ),
             ))
+    }
+}
+
+pub struct SdkConfig;
+#[cfg(feature = "v1")]
+impl SdkConfig {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v1/sdk/configs")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("{profile_id}/{platform}/{sdk_config.json}")
+                    .route(web::get().to(super::superposition_sdk_config::get_sdk_config)),
+            )
     }
 }

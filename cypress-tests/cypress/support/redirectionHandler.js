@@ -26,6 +26,10 @@ const CONSTANTS = {
   ],
 };
 
+function normalizeConnectorForRedirect(connectorId) {
+  return connectorId === "stripeconnect" ? "stripe" : connectorId;
+}
+
 export function handleRedirection(
   redirectionType,
   urls,
@@ -33,12 +37,14 @@ export function handleRedirection(
   paymentMethodType,
   handlerMetadata
 ) {
+  const resolvedConnectorId = normalizeConnectorForRedirect(connectorId);
+
   switch (redirectionType) {
     case "bank_redirect":
       bankRedirectRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
-        connectorId,
+        resolvedConnectorId,
         paymentMethodType
       );
       break;
@@ -46,19 +52,23 @@ export function handleRedirection(
       bankTransferRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
-        connectorId,
+        resolvedConnectorId,
         paymentMethodType,
         handlerMetadata.nextActionType
       );
       break;
     case "three_ds":
-      threeDsRedirection(urls.redirectionUrl, urls.expectedUrl, connectorId);
+      threeDsRedirection(
+        urls.redirectionUrl,
+        urls.expectedUrl,
+        resolvedConnectorId
+      );
       break;
     case "upi":
       upiRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
-        connectorId,
+        resolvedConnectorId,
         paymentMethodType
       );
       break;
@@ -66,7 +76,7 @@ export function handleRedirection(
       rewardRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
-        connectorId,
+        resolvedConnectorId,
         paymentMethodType
       );
       break;
@@ -74,7 +84,7 @@ export function handleRedirection(
       cryptoRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
-        connectorId,
+        resolvedConnectorId,
         paymentMethodType
       );
       break;
@@ -139,6 +149,7 @@ function bankTransferRedirection(
   paymentMethodType,
   nextActionType
 ) {
+  connectorId = normalizeConnectorForRedirect(connectorId);
   let verifyUrl = true; // Default to true, can be set to false based on conditions
   switch (nextActionType) {
     case "bank_transfer_steps_and_charges_details":
@@ -252,6 +263,7 @@ function bankRedirectRedirection(
   connectorId,
   paymentMethodType
 ) {
+  connectorId = normalizeConnectorForRedirect(connectorId);
   let verifyUrl = false;
 
   cy.visit(redirectionUrl.href);
@@ -722,6 +734,45 @@ function bankRedirectRedirection(
               throw new Error(
                 `Unsupported multisafe payment method type: ${paymentMethodType}`
               );
+            }
+            break;
+
+          case "calida":
+            switch (paymentMethodType) {
+              case "bluecode":
+                cy.log("Handling Bluecode redirect flow");
+
+                cy.contains("body", /Open your Bluecode compatible App/i, {
+                  timeout: constants.TIMEOUT / 3,
+                }).should("be.visible");
+
+                // Bluecode shows a QR that the shopper scans inside their wallet app.
+                cy.get(
+                  "canvas:visible, img:visible, svg:visible, picture:visible",
+                  {
+                    timeout: constants.TIMEOUT / 2,
+                  }
+                )
+                  .first()
+                  .scrollIntoView()
+                  .should("be.visible")
+                  .then(($el) => {
+                    cy.log(
+                      "Verified Bluecode QR code is visible",
+                      $el.prop("tagName")
+                    );
+                  });
+
+                cy.contains("button, a", /Cancel/i, {
+                  timeout: constants.TIMEOUT / 3,
+                }).should("be.visible");
+
+                verifyUrl = false;
+                break;
+              default:
+                throw new Error(
+                  `Unsupported Calida payment method type: ${paymentMethodType}`
+                );
             }
             break;
 
@@ -1323,6 +1374,7 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
           break;
 
         case "worldpay":
+        case "worldpayxml":
           cy.get("iframe", { timeout: constants.WAIT_TIME })
             .its("0.contentDocument.body")
             .within(() => {

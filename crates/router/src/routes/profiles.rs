@@ -57,6 +57,8 @@ pub async fn profile_create(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::MerchantAccountWrite,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -112,6 +114,8 @@ pub async fn profile_create(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: permissions::Permission::MerchantAccountWrite,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -156,6 +160,8 @@ pub async fn profile_retrieve(
             &auth::JWTAndEmbeddedAuth {
                 merchant_id_from_route: Some(merchant_id.clone()),
                 permission: Some(permissions::Permission::ProfileAccountRead),
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -197,6 +203,8 @@ pub async fn profile_retrieve(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: permissions::Permission::MerchantAccountRead,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -270,6 +278,8 @@ pub async fn profile_update(
                 merchant_id: merchant_id.clone(),
                 profile_id: profile_id.clone(),
                 required_permission: permissions::Permission::ProfileAccountWrite,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -326,6 +336,8 @@ pub async fn profile_update(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: permissions::Permission::MerchantAccountWrite,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -385,6 +397,8 @@ pub async fn profiles_list(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::MerchantAccountRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -416,6 +430,8 @@ pub async fn profiles_list(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::MerchantAccountRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -451,6 +467,8 @@ pub async fn profiles_list_at_profile_level(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::ProfileAccountRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -487,6 +505,8 @@ pub async fn toggle_connector_agnostic_mit(
             }),
             &auth::JWTAuth {
                 permission: permissions::Permission::MerchantRoutingWrite,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -547,6 +567,8 @@ pub async fn payment_connector_list_profile(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::ProfileConnectorRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),

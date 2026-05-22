@@ -49,8 +49,8 @@ use hyperswitch_interfaces::{
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 #[cfg(feature = "payouts")]
-use masking::PeekInterface;
-use masking::{Mask as _, Maskable};
+use hyperswitch_masking::PeekInterface;
+use hyperswitch_masking::{Mask as _, Maskable};
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 
@@ -84,8 +84,6 @@ where
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
-        use masking::Mask as _;
-
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             PayoutQuoteType::get_content_type(self).to_string().into(),
@@ -871,7 +869,7 @@ impl IncomingWebhook for Wise {
         &self,
         #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,
         #[cfg(not(feature = "payouts"))] _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         #[cfg(feature = "payouts")]
         {
             let payload: wise::WisePayoutsWebhookBody = request

@@ -1,6 +1,6 @@
 use common_enums::{ParentGroup, PermissionGroup};
 use common_utils::pii;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 
 pub mod role;
 
@@ -43,6 +43,11 @@ pub enum UserStatus {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct DeleteUserRoleRequest {
     pub email: pii::Email,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct DeleteUserRoleResponse {
+    pub is_email_sent: bool,
 }
 
 #[derive(Debug, serde::Serialize)]

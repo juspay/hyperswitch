@@ -1,7 +1,7 @@
 //! Configs interface
 use common_enums::{connector_enums, ApplicationError};
 use common_utils::errors::CustomResult;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::Deserialize;
 
 use crate::errors::api_error_response;
@@ -44,6 +44,7 @@ pub struct Connectors {
     pub ctp_visa: NoParams,
     pub custombilling: NoParams,
     pub cybersource: ConnectorParams,
+    pub cybersourcedecisionmanager: ConnectorParams,
     pub datatrans: ConnectorParamsWithSecondaryBaseUrl,
     pub deutschebank: ConnectorParams,
     pub digitalvirgo: ConnectorParams,
@@ -57,6 +58,7 @@ pub struct Connectors {
     pub facilitapay: ConnectorParams,
     pub finix: ConnectorParams,
     pub fiserv: ConnectorParams,
+    pub fiservcommercehub: ConnectorParams,
     pub fiservemea: ConnectorParams,
     pub fiuu: ConnectorParamsWithThreeUrls,
     pub flexiti: ConnectorParams,
@@ -69,6 +71,7 @@ pub struct Connectors {
     pub gpayments: ConnectorParams,
     pub helcim: ConnectorParams,
     pub hipay: ConnectorParamsWithThreeUrls,
+    pub hyperpg: ConnectorParams,
     pub hyperswitch_vault: ConnectorParams,
     pub hyperwallet: ConnectorParams,
     pub iatapay: ConnectorParams,
@@ -118,6 +121,7 @@ pub struct Connectors {
     pub razorpay: ConnectorParamsWithKeys,
     pub recurly: ConnectorParams,
     pub redsys: ConnectorParams,
+    pub revolv3: ConnectorParams,
     pub riskified: ConnectorParams,
     pub santander: ConnectorParams,
     pub shift4: ConnectorParams,
@@ -134,6 +138,8 @@ pub struct Connectors {
     pub thunes: ConnectorParams,
     pub tokenex: ConnectorParams,
     pub tokenio: ConnectorParams,
+    pub truelayer: ConnectorParamsWithSecondaryBaseUrl,
+    pub trustly: ConnectorParams,
     pub trustpay: ConnectorParamsWithMoreUrls,
     pub trustpayments: ConnectorParams,
     pub tsys: ConnectorParams,
@@ -244,6 +250,8 @@ pub struct AdyenParamsWithThreeBaseUrls {
     pub payout_base_url: String,
     /// third base url
     pub dispute_base_url: String,
+    // fourth base url
+    pub management_base_url: String,
 }
 /// struct ConnectorParamsWithSecondaryBaseUrl
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]

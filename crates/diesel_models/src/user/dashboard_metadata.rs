@@ -1,6 +1,6 @@
 use common_utils::id_type;
 use diesel::{query_builder::AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use time::PrimitiveDateTime;
 
 use crate::{enums, schema::dashboard_metadata};

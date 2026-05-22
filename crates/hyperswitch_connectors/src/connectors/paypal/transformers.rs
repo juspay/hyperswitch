@@ -47,7 +47,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -553,10 +553,11 @@ pub struct PaypalVault {
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PaypalVaultResponse {
-    id: String,
+    id: Option<String>,
     status: String,
-    customer: CustomerId,
+    customer: Option<CustomerId>,
 }
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CustomerId {
     id: String,
@@ -708,6 +709,8 @@ impl TryFrom<&SetupMandateRouterData> for PaypalZeroMandateRequest {
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::OpenBanking(_)
@@ -1270,6 +1273,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::OpenBankingUk
                     | enums::PaymentMethodType::PayBright
                     | enums::PaymentMethodType::Pix
+                    | enums::PaymentMethodType::PixAutomaticoPush
+                    | enums::PaymentMethodType::PixAutomaticoQr
                     | enums::PaymentMethodType::PaySafeCard
                     | enums::PaymentMethodType::Przelewy24
                     | enums::PaymentMethodType::PromptPay
@@ -1334,6 +1339,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -1417,6 +1424,8 @@ impl TryFrom<&BankTransferData> for PaypalPaymentsRequest {
             | BankTransferData::DanamonVaBankTransfer { .. }
             | BankTransferData::MandiriVaBankTransfer { .. }
             | BankTransferData::Pix { .. }
+            | BankTransferData::PixAutomaticoPush { .. }
+            | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::Pse {}
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland {}
@@ -2130,6 +2139,7 @@ pub struct PaypalOrdersResponse {
     status: PaypalOrderStatus,
     purchase_units: Vec<PurchaseUnitItem>,
     payment_source: Option<PaymentSourceItemResponse>,
+    payer: Option<Payer>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2151,6 +2161,7 @@ pub struct PaypalRedirectResponse {
     purchase_units: Vec<RedirectPurchaseUnitItem>,
     links: Vec<PaypalLinks>,
     payment_source: Option<PaymentSourceItemResponse>,
+    payer: Option<Payer>,
 }
 
 // Note: Don't change order of deserialization of variant, priority is in descending order
@@ -2179,6 +2190,7 @@ pub struct PaypalPaymentsSyncResponse {
     amount: OrderAmount,
     invoice_id: Option<String>,
     supplementary_data: PaypalSupplementaryData,
+    payer: Option<Payer>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2360,10 +2372,10 @@ where
                     connector_mandate_id: match item.response.payment_source.clone() {
                         Some(paypal_source) => match paypal_source {
                             PaymentSourceItemResponse::Paypal(paypal_source) => {
-                                paypal_source.attributes.map(|attr| attr.vault.id)
+                                paypal_source.attributes.and_then(|attr| attr.vault.id)
                             }
                             PaymentSourceItemResponse::Card(card) => {
-                                card.attributes.map(|attr| attr.vault.id)
+                                card.attributes.and_then(|attr| attr.vault.id)
                             }
                             PaymentSourceItemResponse::Eps(_)
                             | PaymentSourceItemResponse::Ideal(_) => None,
@@ -2387,6 +2399,10 @@ where
                 authentication_data: None,
                 charges: None,
             }),
+            sender_payment_instrument_id: item
+                .response
+                .payer
+                .and_then(|payer| payer.payer_id.map(|payer_id| payer_id.expose())),
             ..item.data
         })
     }
@@ -2501,6 +2517,10 @@ impl<F, T>
                 authentication_data: None,
                 charges: None,
             }),
+            sender_payment_instrument_id: item
+                .response
+                .payer
+                .and_then(|payer| payer.payer_id.map(|payer_id| payer_id.expose())),
             ..item.data
         })
     }
@@ -2736,6 +2756,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalPaymentsSyncResponse, T, Payments
                 authentication_data: None,
                 charges: None,
             }),
+            sender_payment_instrument_id: item
+                .response
+                .payer
+                .and_then(|payer| payer.payer_id.map(|payer_id| payer_id.expose())),
             ..item.data
         })
     }
@@ -3066,6 +3090,12 @@ pub struct PaypalCaptureResponse {
     invoice_id: Option<String>,
     final_capture: bool,
     payment_source: Option<PaymentSourceItemResponse>,
+    payer: Option<Payer>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Payer {
+    payer_id: Option<Secret<String>>,
 }
 
 impl From<PaypalPaymentStatus> for storage_enums::AttemptStatus {
@@ -3117,8 +3147,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
             | storage_enums::AttemptStatus::Voided
             | storage_enums::AttemptStatus::VoidedPostCharge
             | storage_enums::AttemptStatus::Expired
-            | storage_enums::AttemptStatus::PartiallyAuthorized
-            | storage_enums::AttemptStatus::CaptureReview => 0,
+            | storage_enums::AttemptStatus::PartiallyAuthorized => 0,
             storage_enums::AttemptStatus::Charged
             | storage_enums::AttemptStatus::PartialCharged
             | storage_enums::AttemptStatus::PartialChargedAndChargeable
@@ -3495,6 +3524,7 @@ pub struct PaypalCardWebhooks {
     pub supplementary_data: PaypalSupplementaryData,
     pub amount: OrderAmount,
     pub invoice_id: Option<String>,
+    pub payer: Option<Payer>,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
@@ -3503,6 +3533,7 @@ pub struct PaypalRedirectsWebhooks {
     pub links: Vec<PaypalLinks>,
     pub id: String,
     pub intent: PaypalPaymentIntent,
+    pub payer: Option<Payer>,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
@@ -3609,7 +3640,7 @@ pub struct PaypalSourceVerificationRequest {
     pub transmission_sig: String,
     pub auth_algo: String,
     pub webhook_id: String,
-    pub webhook_event: serde_json::Value,
+    pub webhook_event: Secret<serde_json::Value>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -3672,6 +3703,7 @@ impl TryFrom<(PaypalCardWebhooks, PaypalWebhookEventType)> for PaypalPaymentsSyn
             amount: webhook_body.amount,
             supplementary_data: webhook_body.supplementary_data,
             invoice_id: webhook_body.invoice_id,
+            payer: webhook_body.payer,
         })
     }
 }
@@ -3687,6 +3719,7 @@ impl TryFrom<(PaypalRedirectsWebhooks, PaypalWebhookEventType)> for PaypalOrders
             status: PaypalOrderStatus::try_from(webhook_event)?,
             purchase_units: webhook_body.purchase_units,
             payment_source: None,
+            payer: webhook_body.payer,
         })
     }
 }
@@ -3882,7 +3915,7 @@ impl TryFrom<&VerifyWebhookSourceRequestData> for PaypalSourceVerificationReques
             webhook_id: String::from_utf8(req.merchant_secret.secret.to_vec())
                 .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)
                 .attach_printable("Could not convert secret to UTF-8")?,
-            webhook_event: req_body,
+            webhook_event: Secret::new(req_body),
         })
     }
 }

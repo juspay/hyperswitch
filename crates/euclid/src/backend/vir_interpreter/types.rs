@@ -80,6 +80,10 @@ impl Context {
             enum_values.insert(EuclidValue::CardNetwork(card_network));
         }
 
+        if let Some(card_discovery) = payment_method.card_discovery {
+            enum_values.insert(EuclidValue::CardDiscovery(card_discovery));
+        }
+
         if let Some(at) = payment.authentication_type {
             enum_values.insert(EuclidValue::AuthenticationType(at));
         }

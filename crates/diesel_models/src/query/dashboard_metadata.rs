@@ -2,7 +2,7 @@ use common_utils::id_type;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 use crate::{
-    enums,
+    enums, errors,
     query::generics,
     schema::dashboard_metadata::dsl,
     user::dashboard_metadata::{
@@ -131,5 +131,23 @@ impl DashboardMetadata {
                 .and(dsl::data_key.eq(data_key)),
         )
         .await
+    }
+
+    pub async fn delete_all_by_user_id(
+        conn: &PgPooledConn,
+        user_id: String,
+    ) -> StorageResult<bool> {
+        match generics::generic_delete::<<Self as HasTable>::Table, _>(
+            conn,
+            dsl::user_id.eq(user_id),
+        )
+        .await
+        {
+            Ok(result) => Ok(result),
+            Err(error) => match error.current_context() {
+                errors::DatabaseError::NotFound => Ok(true),
+                _ => Err(error),
+            },
+        }
     }
 }

@@ -71,6 +71,7 @@ impl DashboardRequestPayload {
                 (_, PaymentMethodType::Cashapp) | (_, PaymentMethodType::Swish) => {
                     Some(api_models::enums::PaymentExperience::DisplayQrCode)
                 }
+                (Connector::Adyen, PaymentMethodType::Givex) => None,
                 _ => Some(api_models::enums::PaymentExperience::RedirectToUrl),
             },
         }

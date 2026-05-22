@@ -1,5 +1,5 @@
 use common_utils::{pii::Email, types::StringMajorUnit};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::connectors::payload::responses;

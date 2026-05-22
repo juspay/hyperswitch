@@ -5,9 +5,9 @@ use csv::Reader;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     api::ApplicationResponse, errors::api_error_response as errors,
-    payment_methods::PaymentMethodUpdate, platform,
+    payment_methods::StoragePaymentMethodUpdate as PaymentMethodUpdate, platform,
 };
-use masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use payment_methods::core::migration::MerchantConnectorValidator;
 use rdkafka::message::ToBytes;
 use router_env::logger;
@@ -252,7 +252,10 @@ pub async fn update_payment_method_record(
                 network_transaction_id,
                 status,
                 payment_method_data: updated_payment_method_data.clone(),
-                last_modified_by: None,
+                last_modified_by: platform
+                    .get_initiator()
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
             }
         }
         // Case: Only connector_customer_id provided
@@ -338,20 +341,29 @@ pub async fn update_payment_method_record(
                 network_transaction_id,
                 status,
                 payment_method_data: updated_payment_method_data.clone(),
-                last_modified_by: None,
+                last_modified_by: platform
+                    .get_initiator()
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
             }
         }
         _ => {
             if updated_payment_method_data.is_some() {
                 PaymentMethodUpdate::PaymentMethodDataUpdate {
                     payment_method_data: updated_payment_method_data,
-                    last_modified_by: None,
+                    last_modified_by: platform
+                        .get_initiator()
+                        .and_then(|initiator| initiator.to_created_by())
+                        .map(|last_modified_by| last_modified_by.to_string()),
                 }
             } else {
                 PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                     network_transaction_id,
                     status,
-                    last_modified_by: None,
+                    last_modified_by: platform
+                        .get_initiator()
+                        .and_then(|initiator| initiator.to_created_by())
+                        .map(|last_modified_by| last_modified_by.to_string()),
                 }
             }
         }

@@ -92,6 +92,10 @@ pub enum Flow {
     MerchantConnectorsList,
     /// Merchant Transfer Keys
     MerchantTransferKey,
+    /// Merchant Connector Webhook register flow.
+    MerchantConnectorWebhookRegister,
+    /// Merchant Connector Webhook list flow.
+    MerchantConnectorWebhookList,
     /// ConfigKey create flow.
     ConfigKeyCreate,
     /// ConfigKey fetch flow.
@@ -313,10 +317,6 @@ pub enum Flow {
     UpdateCardIssuer,
     /// List card issuers from the catalog
     ListCardIssuers,
-    /// Merchant Connector Webhook Register flow
-    MerchantConnectorWebhookRegister,
-    /// Merchant Connector Webhook List flow
-    MerchantConnectorWebhookList,
     /// Add record to blocklist
     AddToBlocklist,
     /// Delete record from blocklist
@@ -621,8 +621,6 @@ pub enum Flow {
     RefundsManualUpdate,
     /// Manually update the payment details like status, error code, error message etc.
     PaymentsManualUpdate,
-    /// Manually update payment status from dashboard (Review → Succeeded/Failed)
-    PaymentsManualStatusUpdate,
     #[cfg(feature = "payouts")]
     /// Manually update the payout details like status, error code, error message etc.
     PayoutsManualUpdate,
@@ -737,6 +735,12 @@ pub enum Flow {
     GetEmbeddedToken,
     // Get embedded token info flow
     EmbeddedTokenInfo,
+    /// Superposition SDK Config Get flow
+    GetSuperpositionSdkConfig,
+    // Get user details internal
+    GetUserDetailsInternal,
+    // List users internal
+    ListUsersInternal,
 }
 
 /// Trait for providing generic behaviour to flow metric

@@ -1,5 +1,4 @@
 //! Create payment method flow types and dummy models.
-
 use api_models::payments;
 use cards::CardNumber;
 use common_utils::{
@@ -7,11 +6,14 @@ use common_utils::{
     request::{Method, RequestContent},
     types::MinorUnit,
 };
-use hyperswitch_domain_models::payment_method_data::PaymentMethodData;
+use hyperswitch_domain_models::payment_method_data::{BankDebitData, PaymentMethodData};
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
+
+use crate::types::{BankDebitDetail, BankDebitDetailsPaymentMethod};
+
 /// V1-facing create flow type.
 #[derive(Debug)]
 pub struct CreatePaymentMethod;
@@ -20,19 +22,20 @@ pub struct CreatePaymentMethod;
 pub struct CreatePaymentMethodV1Request {
     pub merchant_id: id_type::MerchantId,
     pub payment_method: common_enums::PaymentMethod,
-    pub payment_method_type: common_enums::PaymentMethodType,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub customer_id: id_type::CustomerId, // Payment method data will be saved when customer acceptance is given, hence customer id will always be present
     pub payment_method_data: PaymentMethodData,
-    pub billing: Option<payments::Address>,
+    pub billing: Option<hyperswitch_domain_models::address::Address>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub storage_type: Option<common_enums::StorageType>,
+    pub modular_service_prefix: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ModularPMCreateRequest {
     pub payment_method_type: common_enums::PaymentMethod,
-    pub payment_method_subtype: common_enums::PaymentMethodType,
+    pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub customer_id: id_type::CustomerId, // Payment method data will be saved when customer acceptance is given, hence customer id will always be present
     pub payment_method_data: PaymentMethodCreateData,
@@ -62,6 +65,7 @@ pub struct CardDetail {
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
+    BankDebit(BankDebitDetail),
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -81,12 +85,14 @@ pub struct ModularPaymentMethodResponse {
     pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
     pub network_token: Option<api_models::payment_methods::NetworkTokenResponse>,
     pub storage_type: Option<common_enums::StorageType>,
+    pub billing: Option<hyperswitch_domain_models::address::Address>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodResponseData {
-    Card(api_models::payment_methods::CardDetailFromLocker),
+    Card(Box<api_models::payment_methods::CardDetailFromLocker>),
+    BankDebit(BankDebitDetailsPaymentMethod),
 }
 
 #[derive(Clone, Debug)]
@@ -95,14 +101,16 @@ pub struct CreatePaymentMethodResponse {
     pub payment_method_id: String,
     pub merchant_id: id_type::MerchantId,
     pub customer_id: Option<id_type::CustomerId>,
-    pub payment_method_type: Option<common_enums::PaymentMethod>,
-    pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
+    pub payment_method: Option<common_enums::PaymentMethod>,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub recurring_enabled: Option<bool>,
     pub created: Option<PrimitiveDateTime>,
     pub last_used_at: Option<PrimitiveDateTime>,
     pub payment_method_data: Option<PaymentMethodResponseData>,
     pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
     pub network_token: Option<api_models::payment_methods::NetworkTokenResponse>,
+    pub billing: Option<hyperswitch_domain_models::address::Address>,
+    pub storage_type: Option<common_enums::StorageType>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -114,6 +122,7 @@ pub struct ConnectorTokenDetails {
     pub original_payment_authorized_amount: Option<MinorUnit>,
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub connector_customer_id: Option<String>,
     pub token: Secret<String>,
 }
 
@@ -137,6 +146,33 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                 };
                 Ok(Self::Card(card_detail))
             }
+            PaymentMethodData::BankDebit(bank_debit) => match bank_debit {
+                BankDebitData::AchBankDebit {
+                    account_number,
+                    routing_number,
+                    bank_account_holder_name,
+                    bank_type,
+                    bank_holder_type,
+                    bank_name,
+                    ..
+                } => {
+                    let bank_debit_detail = BankDebitDetail::Ach {
+                        account_number,
+                        routing_number,
+                        bank_account_holder_name,
+                        bank_type,
+                        bank_holder_type,
+                        bank_name,
+                    };
+                    Ok(Self::BankDebit(bank_debit_detail))
+                }
+                _ => Err(MicroserviceClientError {
+                    operation: "CreatePaymentMethodV1Request to ModularPMCreateRequest".to_string(),
+                    kind: MicroserviceClientErrorKind::InvalidRequest(
+                        "Only ACH bank debit is supported for modular PM creation".to_string(),
+                    ),
+                }),
+            },
             _ => Err(MicroserviceClientError {
                 operation: "CreatePaymentMethodV1Request to ModularPMCreateRequest".to_string(),
                 kind: MicroserviceClientErrorKind::InvalidRequest(
@@ -159,7 +195,10 @@ impl TryFrom<&CreatePaymentMethodV1Request> for ModularPMCreateRequest {
             metadata: request.metadata.clone(),
             customer_id: request.customer_id.clone(),
             payment_method_data,
-            billing: request.billing.clone(),
+            billing: request
+                .billing
+                .as_ref()
+                .map(|billing| billing.clone().into()),
             psp_tokenization: None,
             network_tokenization: request.network_tokenization.clone(),
             storage_type: request.storage_type,
@@ -175,14 +214,16 @@ impl TryFrom<ModularPaymentMethodResponse> for CreatePaymentMethodResponse {
             payment_method_id: response.id,
             merchant_id: response.merchant_id,
             customer_id: response.customer_id,
-            payment_method_type: response.payment_method_type,
-            payment_method_subtype: response.payment_method_subtype,
+            payment_method: response.payment_method_type,
+            payment_method_type: response.payment_method_subtype,
             recurring_enabled: response.recurring_enabled,
             created: response.created,
             last_used_at: response.last_used_at,
             payment_method_data: response.payment_method_data,
             connector_tokens: response.connector_tokens,
             network_token: response.network_token,
+            billing: response.billing,
+            storage_type: response.storage_type,
         })
     }
 }
@@ -191,16 +232,24 @@ impl CreatePaymentMethod {
     fn build_body(&self, request: ModularPMCreateRequest) -> Option<RequestContent> {
         Some(RequestContent::Json(Box::new(request)))
     }
+
+    fn build_path_params(
+        &self,
+        request: &CreatePaymentMethodV1Request,
+    ) -> Vec<(&'static str, String)> {
+        vec![("prefix", request.modular_service_prefix.clone())]
+    }
 }
 
 hyperswitch_interfaces::impl_microservice_flow!(
     CreatePaymentMethod,
     method = Method::Post,
-    path = "/v2/payment-methods",
+    path = "/{prefix}/payment-methods",
     v1_request = CreatePaymentMethodV1Request,
     v2_request = ModularPMCreateRequest,
     v2_response = ModularPaymentMethodResponse,
     v1_response = CreatePaymentMethodResponse,
     client = crate::client::PaymentMethodClient<'_>,
-    body = CreatePaymentMethod::build_body
+    body = CreatePaymentMethod::build_body,
+    path_params = CreatePaymentMethod::build_path_params
 );

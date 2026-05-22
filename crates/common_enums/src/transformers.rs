@@ -1864,6 +1864,8 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Paze => Self::Wallet,
             PaymentMethodType::PermataBankTransfer => Self::BankTransfer,
             PaymentMethodType::Pix => Self::BankTransfer,
+            PaymentMethodType::PixAutomaticoPush => Self::BankTransfer,
+            PaymentMethodType::PixAutomaticoQr => Self::BankTransfer,
             PaymentMethodType::Pse => Self::BankTransfer,
             PaymentMethodType::LocalBankTransfer => Self::BankTransfer,
             PaymentMethodType::PayBright => Self::PayLater,
@@ -2133,7 +2135,6 @@ impl From<AttemptStatus> for IntentStatus {
             AttemptStatus::VoidedPostCharge => Self::CancelledPostCapture,
             AttemptStatus::Expired => Self::Expired,
             AttemptStatus::PartiallyAuthorized => Self::PartiallyAuthorizedAndRequiresCapture,
-            AttemptStatus::CaptureReview => Self::Review,
         }
     }
 }
@@ -2148,8 +2149,7 @@ impl From<IntentStatus> for Option<EventType> {
             }
             IntentStatus::RequiresMerchantAction
             | IntentStatus::RequiresCustomerAction
-            | IntentStatus::Conflicted
-            | IntentStatus::Review => Some(EventType::ActionRequired),
+            | IntentStatus::Conflicted => Some(EventType::ActionRequired),
             IntentStatus::Cancelled => Some(EventType::PaymentCancelled),
             IntentStatus::CancelledPostCapture => Some(EventType::PaymentCancelledPostCapture),
             IntentStatus::Expired => Some(EventType::PaymentExpired),

@@ -72,6 +72,8 @@ pub async fn list_card_issuers(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),

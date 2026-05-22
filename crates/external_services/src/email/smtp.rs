@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use common_utils::{errors::CustomResult, pii};
 use error_stack::ResultExt;
+use hyperswitch_masking::{PeekInterface, Secret};
 use lettre::{
     address::AddressError,
     error,
@@ -9,7 +10,6 @@ use lettre::{
     transport::smtp::{self, authentication::Credentials},
     Message, SmtpTransport, Transport,
 };
-use masking::{PeekInterface, Secret};
 
 use crate::email::{EmailClient, EmailError, EmailResult, EmailSettings, IntermediateString};
 
