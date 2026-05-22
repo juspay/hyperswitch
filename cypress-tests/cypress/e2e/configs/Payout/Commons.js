@@ -344,5 +344,68 @@ export const connectorDetails = {
         status: 200,
       },
     }),
+    PayoutLinkCardPayment: getCustomExchange({
+      Request: {
+        payout_link: true,
+        currency: "USD",
+        amount: 100,
+        description: "Test Payout Link Card Payment",
+        payout_link_config: {
+          test_mode: true,
+          enabled_payment_methods: ["card"],
+        },
+      },
+      Response: {
+        status: 200,
+      },
+      CardData: {
+        card_number: "4242424242424242",
+        card_exp_month: "12",
+        card_exp_year: "35",
+        card_cvc: "123",
+      },
+    }),
+    PayoutLinkInvalidCard: getCustomExchange({
+      Request: {
+        payout_link: true,
+        currency: "USD",
+        amount: 100,
+        description: "Test Payout Link Invalid Card",
+        payout_link_config: {
+          test_mode: true,
+          enabled_payment_methods: ["card"],
+        },
+      },
+      Response: {
+        status: 200,
+      },
+      CardData: {
+        card_number: "4000000000000002",
+        card_exp_month: "12",
+        card_exp_year: "35",
+        card_cvc: "123",
+      },
+    }),
+    PayoutLinkExpiredCard: getCustomExchange({
+      Request: {
+        payout_link: true,
+        currency: "USD",
+        amount: 100,
+        description: "Test Payout Link Expired Card",
+        payout_link_config: {
+          test_mode: true,
+          enabled_payment_methods: ["card"],
+        },
+      },
+      Response: {
+        status: 200,
+      },
+      CardData: {
+        card_number: "4000000000000069",
+        card_exp_month: "12",
+        card_exp_year: "20",
+        card_cvc: "123",
+      },
+    }),
   },
 };

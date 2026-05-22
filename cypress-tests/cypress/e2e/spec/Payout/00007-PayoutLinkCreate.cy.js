@@ -332,4 +332,121 @@ describe("Payout Link", () => {
       cy.retrievePayoutLinkTest({}, globalState);
     });
   });
+
+  context("Payout Link - Card Payment Flow", () => {
+    let shouldContinue = true;
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    beforeEach(function () {
+      if (
+        Cypress.browser.isHeadless &&
+        this.currentTest.title.startsWith("Visit payout page")
+      ) {
+        cy.log(
+          "Skipping payout link card UI test in headless mode - SDK requires headed browser"
+        );
+        this.skip();
+      }
+    });
+
+    it("create-payout-link-for-card-payment-test", () => {
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "payout_link_pm"
+      ]["PayoutLinkCardPayment"];
+      cy.createPayoutWithLinkTest(
+        fixtures.createPayoutLinkBody,
+        data,
+        globalState
+      );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("Visit payout page and submit card details", () => {
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "payout_link_pm"
+      ]["PayoutLinkCardPayment"];
+      cy.handlePayoutLinkCardRedirection(
+        globalState,
+        data.CardData,
+        "success"
+      );
+    });
+
+    it("retrieve-payout-after-card-submission-test", () => {
+      cy.retrievePayoutCallTest(globalState);
+    });
+  });
+
+  context("Payout Link - Error Card Scenarios", () => {
+    let shouldContinue = true;
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    beforeEach(function () {
+      if (
+        Cypress.browser.isHeadless &&
+        this.currentTest.title.startsWith("Visit payout page")
+      ) {
+        cy.log(
+          "Skipping payout link card UI test in headless mode - SDK requires headed browser"
+        );
+        this.skip();
+      }
+    });
+
+    it("create-payout-link-for-invalid-card-test", () => {
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "payout_link_pm"
+      ]["PayoutLinkInvalidCard"];
+      cy.createPayoutWithLinkTest(
+        fixtures.createPayoutLinkBody,
+        data,
+        globalState
+      );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("Visit payout page with invalid card and verify error", () => {
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "payout_link_pm"
+      ]["PayoutLinkInvalidCard"];
+      cy.handlePayoutLinkCardRedirection(globalState, data.CardData, "error");
+    });
+
+    it("retrieve-payout-after-invalid-card-test", () => {
+      cy.retrievePayoutCallTest(globalState);
+    });
+
+    it("create-payout-link-for-expired-card-test", () => {
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "payout_link_pm"
+      ]["PayoutLinkExpiredCard"];
+      cy.createPayoutWithLinkTest(
+        fixtures.createPayoutLinkBody,
+        data,
+        globalState
+      );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("Visit payout page with expired card and verify error", () => {
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "payout_link_pm"
+      ]["PayoutLinkExpiredCard"];
+      cy.handlePayoutLinkCardRedirection(globalState, data.CardData, "error");
+    });
+
+    it("retrieve-payout-after-expired-card-test", () => {
+      cy.retrievePayoutCallTest(globalState);
+    });
+  });
 });
