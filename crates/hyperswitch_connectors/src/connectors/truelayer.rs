@@ -197,8 +197,8 @@ impl ConnectorCommon for Truelayer {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.title.clone(),
-            message: response.title.clone(),
-            reason: Some(response.detail),
+            message: response.detail.clone(),
+            reason: Some(response.title),
             attempt_status: None,
             connector_transaction_id: Some(response.trace_id),
             connector_response_reference_id: None,

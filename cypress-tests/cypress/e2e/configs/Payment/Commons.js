@@ -614,7 +614,7 @@ export const payment_methods_enabled = [
       },
       {
         payment_method_type: "pay_safe_card",
-        payment_experience: null,
+        payment_experience: "redirect_to_url",
         card_networks: null,
         accepted_currencies: null,
         accepted_countries: null,
@@ -1255,6 +1255,17 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    }),
+    Skrill: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "skrill",
+        payment_method_data: {
+          wallet: {
+            skrill: {},
+          },
         },
       },
     }),
@@ -3876,6 +3887,44 @@ export const connectorDetails = {
         body: { status: "failed" },
       },
     }),
+    PaySafeCard: getCustomExchange({
+      Request: {
+        payment_method: "gift_card",
+        payment_method_type: "pay_safe_card",
+        payment_method_data: {
+          gift_card: {
+            pay_safe_card: {},
+          },
+        },
+      },
+    }),
+  },
+  pm_collect_link: {
+    pmCollectLinkCreate: {
+      Request: {
+        return_url: "https://example.com/return",
+      },
+      Response: {
+        status: 200,
+      },
+    },
+    pmCollectLinkRender: {
+      Response: {
+        status: 200,
+      },
+    },
+    pmCollectLinkRenderNotFound: {
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_37",
+            message: "payment method collect link not found",
+          },
+        },
+      },
+    },
   },
   payment_link_pm: {
     PaymentLinkBasic: getCustomExchange({

@@ -456,7 +456,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                                 api_models::payments::MandateReferenceId::NetworkMandateId(
                                     api_models::payments::NetworkMandateIdRef {
                                         network_transaction_id: network_tx_id,
-                                        transaction_link_id: None,
+                                        transaction_link_id: mandate_obj.network_transaction_link_id,
                                     },
                                 ),
                             ),
@@ -1342,7 +1342,9 @@ impl PaymentCreate {
         logger::info!("Payment method fetched from PM Modular Service.");
 
         utils::when(
-            pm_info.payment_method.customer_id.as_ref() != req.get_customer_id(),
+            req.get_customer_id().is_some_and(|customer_id| {
+                pm_info.payment_method.customer_id.as_ref() != Some(customer_id)
+            }),
             || {
                 logger::info!(
                     "Payment method id does not belong to the customer id provided in the request."

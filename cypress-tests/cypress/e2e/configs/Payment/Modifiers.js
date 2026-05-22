@@ -200,6 +200,8 @@ const CURRENCY_MAP = {
   Mifinity: "EUR", // Mifinity wallet payment method
   Alma: "EUR", // French pay_later
   Atome: "SGD", // Singapore pay_later
+  Skrill: "USD", // Skrill wallet payment method
+  PaySafeCard: "USD", // PaySafeCard gift card payment method
 };
 
 export const getCurrency = (paymentMethodType) => {
