@@ -1,4 +1,4 @@
-import { customerAcceptance } from "./Commons";
+import { customerAcceptance, singleUseMandateData, multiUseMandateData } from "./Commons";
 import { getIframeRedirectionConfig } from "./Modifiers";
 
 const successful3DSCardDetails = {
@@ -288,6 +288,116 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           setup_future_usage: "off_session",
+        },
+      },
+    },
+  },
+  bank_debit_pm: {
+    PaymentIntent: (paymentMethodType) => {
+      const currencyMap = { Sepa: "EUR", Ach: "USD", Becs: "AUD", Bacs: "GBP" };
+      return {
+        Request: {
+          currency: currencyMap[paymentMethodType] || "USD",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+    Sepa: {
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            country: "DE",
+          },
+          email: "test@example.com",
+        },
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MandateSingleUseNo3DSAutoCapture: {
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            country: "DE",
+          },
+          email: "test@example.com",
+        },
+        currency: "EUR",
+        mandate_data: singleUseMandateData,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MandateMultiUseNo3DSAutoCapture: {
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            country: "DE",
+          },
+          email: "test@example.com",
+        },
+        currency: "EUR",
+        mandate_data: multiUseMandateData,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MITAutoCapture: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },
