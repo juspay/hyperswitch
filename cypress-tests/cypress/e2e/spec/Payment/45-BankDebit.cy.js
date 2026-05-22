@@ -99,7 +99,7 @@ describe("Bank Debit tests", () => {
 
       cy.step("Confirm ACH Bank Debit", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          cy.task("cli_log", "Skipping step: Confirm ACH Bank Debit");
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -195,7 +195,7 @@ describe("Bank Debit tests", () => {
 
       cy.step("Confirm BACS Bank Debit", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          cy.task("cli_log", "Skipping step: Confirm BACS Bank Debit");
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[

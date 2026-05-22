@@ -83,12 +83,6 @@ describe("Connector Account Create flow test", () => {
   context(
     "Create another business profile and merchant connector account if MULTIPLE_CONNECTORS flag is true",
     () => {
-      beforeEach(function () {
-        if (!isBankDebitConnector) {
-          this.skip();
-        }
-      });
-
       it("Create business profile", () => {
         utils.createBusinessProfile(
           fixtures.businessProfile.bpCreate,
