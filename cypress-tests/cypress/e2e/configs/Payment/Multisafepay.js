@@ -1009,13 +1009,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
         },
-        order_details: [
-          {
-            product_name: "Test Product",
-            quantity: 1,
-            amount: 6000,
-          },
-        ],
+        order_details: null,
       },
       Response: {
         status: 200,
