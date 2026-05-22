@@ -540,5 +540,5 @@ export const connectorDetails = {
         },
       },
     },
-  }
+  },
 };
