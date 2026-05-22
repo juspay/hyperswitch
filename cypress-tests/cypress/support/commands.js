@@ -8950,7 +8950,13 @@ Cypress.Commands.add("getForexRates", (globalState) => {
   });
 });
 
-function requestForexConvert(baseUrl, apiKey, amount, fromCurrency, toCurrency) {
+function requestForexConvert(
+  baseUrl,
+  apiKey,
+  amount,
+  fromCurrency,
+  toCurrency
+) {
   return cy.request({
     method: "GET",
     url: `${baseUrl}/forex/convert_from_minor?amount=${amount}&from_currency=${fromCurrency}&to_currency=${toCurrency}`,
