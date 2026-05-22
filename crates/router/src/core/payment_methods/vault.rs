@@ -856,6 +856,7 @@ impl Vaultable for api::BankPayout {
                 bank_city: None,
                 bank_branch: None,
                 bank_country_code: None,
+                ispb: None,
                 payout_method_type: Some(PaymentMethodType::OpenBanking),
             },
         };
@@ -1146,6 +1147,7 @@ impl Vaultable for api::BankTransferPayout {
                 bank_city: None,
                 bank_branch: None,
                 bank_country_code: None,
+                ispb: None,
                 payout_method_type: Some(PaymentMethodType::OpenBanking),
             },
         };
