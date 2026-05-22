@@ -22,7 +22,10 @@ const NULL_CARD_METADATA = {
 
 function withNullCardMetadata(data) {
   if (data?.Response?.body?.payment_method_data?.card) {
-    Object.assign(data.Response.body.payment_method_data.card, NULL_CARD_METADATA);
+    Object.assign(
+      data.Response.body.payment_method_data.card,
+      NULL_CARD_METADATA
+    );
   }
   return data;
 }
