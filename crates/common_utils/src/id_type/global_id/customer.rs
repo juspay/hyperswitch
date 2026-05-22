@@ -1,13 +1,13 @@
 use crate::errors;
 
-crate::global_id_type!(
-    GlobalCustomerId,
-    "A global id that can be used to identify a customer.
-
-The format will be `<cell_id>_<entity_prefix>_<time_ordered_id>`.
-
-Example: `cell1_cus_uu1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p`"
-);
+/// A global id that can be used to identify a customer.
+///
+/// The format will be `<cell_id>_<entity_prefix>_<time_ordered_id>`.
+///
+/// Example: `cell1_cus_uu1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p`
+#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, diesel::expression::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Text)]
+pub struct GlobalCustomerId(super::GlobalId);
 
 // Database related implementations so that this field can be used directly in the database tables
 crate::impl_queryable_id_type!(GlobalCustomerId);
@@ -61,11 +61,27 @@ impl GlobalCustomerId {
     }
 }
 
+impl<'de> serde::Deserialize<'de> for GlobalCustomerId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let deserialized_string = String::deserialize(deserializer)?;
+        Ok(Self::new_unchecked(deserialized_string))
+    }
+}
+
 impl TryFrom<GlobalCustomerId> for crate::id_type::CustomerId {
     type Error = error_stack::Report<errors::ValidationError>;
 
     fn try_from(value: GlobalCustomerId) -> Result<Self, Self::Error> {
         Self::try_from(std::borrow::Cow::from(value.get_string_repr().to_owned()))
+    }
+}
+
+impl crate::id_type::TargetingKey for GlobalCustomerId {
+    fn targeting_key_value(&self) -> &str {
+        self.get_string_repr()
     }
 }
 

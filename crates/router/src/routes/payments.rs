@@ -1690,10 +1690,18 @@ pub async fn payments_cancel(
                 HeaderPayload::default(),
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth {
-            allow_connected_scope_operation: true,
-            allow_platform_self_operation: false,
-        }),
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfilePaymentWrite,
+                allow_connected: true,
+                allow_platform: false,
+            },
+            req.headers(),
+        ),
         locking_action,
     ))
     .await
@@ -2749,6 +2757,39 @@ pub async fn payments_manual_update(
         |state, _auth, req, _req_state| payments::payments_manual_update(state, req),
         &auth::AdminApiAuthWithMerchantIdFromHeader,
         locking_action,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+/// Manually update payment status from Review to Succeeded or Failed (Dashboard API with JWT auth)
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsManualStatusUpdate, payment_id))]
+pub async fn payments_manual_status_update(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<api_models::payments::PaymentsManualStatusUpdateRequest>,
+    path: web::Path<common_utils::id_type::PaymentId>,
+) -> impl Responder {
+    let flow = Flow::PaymentsManualStatusUpdate;
+    let payload = json_payload.into_inner();
+    let payment_id = path.into_inner();
+
+    tracing::Span::current().record("payment_id", payment_id.get_string_repr());
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _req_state| {
+            payments::payments_manual_status_update(state, auth.platform, payment_id.clone(), req)
+        },
+        &auth::JWTAuth {
+            permission: Permission::ProfilePaymentWrite,
+            allow_connected: true,
+            allow_platform: true,
+        },
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }

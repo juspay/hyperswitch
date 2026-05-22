@@ -468,12 +468,22 @@ impl ConnectorCommon for Santander {
                     .cloned()
                     .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
 
+                let reason = response
+                    .violacoes
+                    .first()
+                    .and_then(|v| match (&v.propriedade, &v.razao) {
+                        (Some(prop), Some(raz)) => Some(format!("{}: {}", prop, raz)),
+                        (Some(prop), None) => Some(prop.clone()),
+                        (None, Some(raz)) => Some(raz.clone()),
+                        (None, None) => None,
+                    })
+                    .or_else(|| Some(message.clone()));
+
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: response.status.to_string(),
                     message,
-                    // reason: response.detail.clone(),
-                    reason: Some(response.title.clone()),
+                    reason,
                     attempt_status: None,
                     connector_transaction_id: None,
                     connector_response_reference_id: None,
@@ -483,19 +493,42 @@ impl ConnectorCommon for Santander {
                     connector_metadata: None,
                 })
             }
-            SantanderErrorResponse::PixAutomatico(response) => Ok(ErrorResponse {
-                status_code: res.status_code,
-                code: response.code.to_string(),
-                message: response.message.clone(),
-                reason: Some(response.description.clone()),
-                attempt_status: None,
-                connector_transaction_id: None,
-                connector_response_reference_id: None,
-                network_advice_code: None,
-                network_decline_code: None,
-                network_error_message: None,
-                connector_metadata: None,
-            }),
+            SantanderErrorResponse::PixAutomatico(response) => {
+                let (code, message, description) = match response {
+                    responses::SantanderPixAutomaticoErrorResponse::PixAutomaticoVariant1(err) => {
+                        let first_error = err.errors.first();
+                        (
+                            first_error
+                                .map(|e| e.code.to_string())
+                                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                            first_error
+                                .map(|e| e.message.clone())
+                                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                            first_error
+                                .map(|e| e.description.clone())
+                                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                        )
+                    }
+                    responses::SantanderPixAutomaticoErrorResponse::PixAutomaticoVariant2(err) => (
+                        err.code.to_string(),
+                        err.message.clone(),
+                        err.description.clone(),
+                    ),
+                };
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code,
+                    message,
+                    reason: Some(description),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
             SantanderErrorResponse::Boleto(response) => Ok(ErrorResponse {
                 status_code: res.status_code,
                 code: response.error_code.to_string(),
@@ -769,37 +802,39 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let feature_metadata = req.request.feature_metadata.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "feature_metadata",
+            },
+        )?;
+        let fixed_rec_amount_in_minor = feature_metadata
+            .get_optional_fixed_recurring_mit_amount_for_pix_automatico()
+            .change_context(errors::ConnectorError::InvalidDataFormat {
+                field_name: "feature_metadata.pix_automatico_additional_details",
+            })?;
+        let min_rec_amount_in_minor = feature_metadata
+            .get_optional_min_recurring_amount_for_pix_automatico()
+            .change_context(errors::ConnectorError::InvalidDataFormat {
+                field_name: "feature_metadata.pix_automatico_additional_details",
+            })?;
+        let fixed_rec_amount = fixed_rec_amount_in_minor
+            .map(|amount| convert_amount(self.amount_converter, amount, req.request.currency))
+            .transpose()?;
+        let min_rec_amount = min_rec_amount_in_minor
+            .map(|amount| convert_amount(self.amount_converter, amount, req.request.currency))
+            .transpose()?;
         let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.currency,
         )?;
-        let rec_amount_in_minor = req
-            .request
-            .connector_intent_metadata
-            .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_intent_metadata",
-            })?
-            .get_mandatory_pix_automatico_maximum_permissible_mandate_amount()
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name:
-                    "connector_metadata.santander.pix_automatico.cit.mandate_details.amount",
-            })?;
-        let rec_amount = convert_amount(
-            self.amount_converter,
-            rec_amount_in_minor,
-            req.request.currency,
-        )?;
-        let final_amount = if req.request.minor_amount.get_amount_as_i64()
-            < rec_amount_in_minor.get_amount_as_i64()
-        {
-            rec_amount
-        } else {
-            amount
-        };
-        let connector_router_data = SantanderRouterData::from((final_amount, req));
-        let connector_req = SantanderSetupMandateRequest::try_from(&connector_router_data)?;
+
+        let connector_router_data = SantanderRouterData::from((amount, req));
+        let connector_req = SantanderSetupMandateRequest::try_from((
+            &connector_router_data,
+            fixed_rec_amount,
+            min_rec_amount,
+        ))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -1233,11 +1268,11 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
             );
 
         if is_journey_2_cit {
-            let mandate_id = req.request.connector_reference_id.as_ref().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "connector_reference_id for Journey 2 CIT",
-                },
-            )?;
+            let mandate_id = req
+                .request
+                .connector_mandate_id
+                .clone()
+                .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
             // Journey 2 CIT flow
             Ok(format!(
                 "{}api/v1/rec/{}",
@@ -1276,14 +1311,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                             None => {
                                 let mandate_id = req
                                     .request
-                                    .mandate_id
-                                    .as_ref()
-                                    .and_then(|ids| match &ids.mandate_reference_id {
-                                        Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                                            connector_mandate_ids,
-                                        )) => connector_mandate_ids.get_connector_mandate_id(),
-                                        _ => None,
-                                    })
+                                    .connector_mandate_id
+                                    .clone()
                                     .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
                                 Ok(format!(
                                     "{}api/v1/rec/{}",
@@ -1297,7 +1326,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                     Some(enums::PaymentMethodType::PixAutomaticoPush) => {
                         let mandate_id = req
                             .request
-                            .connector_reference_id
+                            .connector_mandate_id
                             .clone()
                             .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
                         Ok(format!(
@@ -2104,8 +2133,13 @@ impl ConnectorSpecifications for Santander {
         current_flow: Option<CurrentFlowInfo>,
     ) -> bool {
         match current_flow {
-            // Journey 1/2/3/4 CIT
-            Some(CurrentFlowInfo::SetupMandate { .. }) => true,
+            // Journey 2/3/4 CIT
+            Some(CurrentFlowInfo::SetupMandate { request_data, .. }) => {
+                matches!(
+                    request_data.payment_method_type,
+                    Some(enums::PaymentMethodType::PixAutomaticoQr)
+                )
+            }
             Some(CurrentFlowInfo::CompleteAuthorize { .. })
             | Some(CurrentFlowInfo::Authorize { .. })
             | Some(CurrentFlowInfo::Psync { .. })

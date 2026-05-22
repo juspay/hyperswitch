@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, str::FromStr};
+use std::marker::PhantomData;
 
 #[cfg(feature = "v1")]
 use api_models::payments::BrowserInformation;
@@ -30,6 +30,7 @@ use super::types::{
 use crate::{
     consts::DEFAULT_SESSION_EXPIRY,
     core::{
+        configs::dimension_state,
         errors::{
             utils::{ConnectorErrorExt, StorageErrorExt},
             RouterResult,
@@ -149,6 +150,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     })
 }
 
@@ -702,62 +704,19 @@ pub fn construct_uas_webhook_router_data<F: Clone, Req, Res>(
         is_payment_id_from_merchant: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     })
 }
 
 pub async fn fetch_routing_region_for_uas(
     state: &SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
-    organization_id: common_utils::id_type::OrganizationId,
-) -> RouterResult<RoutingRegion> {
-    let merchant_path =
-        fetch_region(state, &merchant_id.get_threeds_routing_region_uas_key()).await;
-
-    Ok(merchant_path
-        .async_unwrap_or_else(|| async {
-            fetch_region(state, &organization_id.get_threeds_routing_region_uas_key())
-                .await
-                .unwrap_or(RoutingRegion::Region1)
-        })
-        .await)
-}
-
-async fn fetch_region(state: &SessionState, key: &str) -> Option<RoutingRegion> {
-    let db = &*state.store;
-    db.find_config_by_key(key)
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
+) -> RoutingRegion {
+    dimensions
+        .get_threeds_routing_region_uas(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
         .await
-        .inspect_err(|err| {
-            router_env::logger::error!("Failed to fetch region for key as {err}");
-        })
-        .ok()
-        .map(|conf| RoutingRegion::from_str(&conf.config).unwrap_or(RoutingRegion::Region1))
-}
-
-pub async fn get_bool_config(state: &SessionState, key: &str, default_value: bool) -> bool {
-    let default_str = if default_value { "true" } else { "false" };
-
-    let config = state
-        .store
-        .find_config_by_key_unwrap_or(key, Some(default_str.to_string()))
-        .await;
-
-    match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            router_env::logger::error!(?error);
-            default_value
-        }
-    }
-}
-
-pub async fn should_disable_vault_tokenization(
-    state: &SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
-) -> bool {
-    get_bool_config(
-        state,
-        &merchant_id.get_should_disable_vault_tokenization(),
-        false,
-    )
-    .await
 }

@@ -123,8 +123,10 @@ pub enum Connector {
     Hyperpg,
     HyperswitchVault,
     // Hyperwallet, added as template code for future usage
+    Interpayments,
     Inespay,
     Iatapay,
+    Imerchantsolutions,
     Itaubank,
     Jpmorgan,
     Juspaythreedsserver,
@@ -167,6 +169,7 @@ pub enum Connector {
     Recurly,
     Redsys,
     Revolv3,
+    Sanlam,
     Santander,
     Shift4,
     Silverflow,
@@ -390,6 +393,7 @@ impl Connector {
             | Self::Recurly
             | Self::Redsys
             | Self::Revolv3
+            | Self::Sanlam
             | Self::Santander
             | Self::Shift4
             | Self::Silverflow
@@ -397,6 +401,7 @@ impl Connector {
             | Self::Stax
             | Self::Stripebilling
             | Self::Taxjar
+            | Self::Interpayments
             | Self::Tesouro
             // | Self::Thunes
             | Self::Truelayer
@@ -435,7 +440,8 @@ impl Connector {
             | Self::Paytm
             | Self::Payjustnow
             | Self::Payjustnowinstore
-            | Self::Phonepe => false,
+            | Self::Phonepe
+            | Self::Imerchantsolutions => false,
             Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
         }

@@ -48,7 +48,8 @@ impl ValidateStatusForOperation for PaymentsCapture {
             | common_enums::IntentStatus::RequiresPaymentMethod
             | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::RequiresConfirmation
-            | common_enums::IntentStatus::Expired => {
+            | common_enums::IntentStatus::Expired
+            | common_enums::IntentStatus::Review => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
                     field_name: "status".to_string(),

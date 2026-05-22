@@ -172,6 +172,7 @@ impl PayoutSyncWorkFlow {
                     payout_id: payout_data.payouts.payout_id.to_owned(),
                     force_sync: Some(true),
                     merchant_id: Some(payout_data.payouts.merchant_id.to_owned()),
+                    expand_attempts: None,
                 };
                 let process_tracker_entry = storage::ProcessTrackerNew::new(
                     process_tracker_id,
@@ -272,16 +273,24 @@ impl PayoutSyncWorkFlow {
         if let Some(outgoing_event_type) = event_type {
             let payout_response = payouts::response_handler(state, platform, payout_data).await?;
 
+            let webhook_recipient = webhooks::utils::resolve_webhook_recipient_from_created_by(
+                state,
+                platform,
+                &business_profile,
+                payout_data.payouts.created_by.as_ref(),
+            )
+            .await?;
+
             Box::pin(webhooks::create_event_and_trigger_outgoing_webhook(
                 state.clone(),
-                platform.get_processor().clone(),
-                business_profile,
+                platform.clone(),
                 outgoing_event_type,
                 enums::EventClass::Payouts,
                 payout_data.payouts.payout_id.get_string_repr().to_string(),
                 enums::EventObjectType::PayoutDetails,
                 api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_response)),
                 Some(payout_data.payout_attempt.created_at),
+                webhook_recipient,
             ))
             .await?;
         }

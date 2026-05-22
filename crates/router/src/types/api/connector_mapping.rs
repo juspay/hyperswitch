@@ -307,6 +307,9 @@ impl ConnectorData {
                 enums::Connector::Iatapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
                 }
+                enums::Connector::Imerchantsolutions => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Imerchantsolutions::new(),
+                ))),
                 enums::Connector::Inespay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Inespay::new())))
                 }
@@ -473,6 +476,9 @@ impl ConnectorData {
                 enums::Connector::Truelayer => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Truelayer::new())))
                 }
+                enums::Connector::Sanlam => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Sanlam::new())))
+                }
                 enums::Connector::Trustly => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustly::new())))
                 }
@@ -506,7 +512,8 @@ impl ConnectorData {
                 | enums::Connector::Gpayments
                 | enums::Connector::Threedsecureio
                 | enums::Connector::Cardinal
-                | enums::Connector::Taxjar => {
+                | enums::Connector::Taxjar
+                | enums::Connector::Interpayments => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)

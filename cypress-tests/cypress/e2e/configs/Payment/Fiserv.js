@@ -119,10 +119,10 @@ const requiredFields = {
 const payment_method_data_no3ds = {
   card: {
     last4: "1111",
-    card_type: "CREDIT",
+    card_type: "DEBIT",
     card_network: "Visa",
-    card_issuer: "JP Morgan",
-    card_issuing_country: "INDIA",
+    card_issuer: "Conotoxia Sp Z Oo",
+    card_issuing_country: "POLAND",
     card_isin: "411111",
     card_extended_bin: null,
     card_exp_month: "12",
@@ -584,6 +584,9 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSAutoCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true, // Skip this test as off-session payments with future usage are not supported for Fiserv
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -623,6 +626,9 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true, // Skip this test as off-session payments with future usage are not supported for Fiserv
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -651,6 +657,9 @@ export const connectorDetails = {
       },
     },
     SaveCardConfirmAutoCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true, // Skip this test as off-session payments with future usage are not supported for Fiserv
+      },
       Request: {
         setup_future_usage: "off_session",
         payment_method_data: {
@@ -665,6 +674,9 @@ export const connectorDetails = {
       },
     },
     SaveCardConfirmManualCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true, // Skip this test as off-session payments with future usage are not supported for Fiserv
+      },
       Request: {
         setup_future_usage: "off_session",
         payment_method_data: {

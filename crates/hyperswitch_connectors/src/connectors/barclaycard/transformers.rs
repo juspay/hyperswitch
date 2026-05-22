@@ -524,16 +524,13 @@ impl From<common_enums::DecoupledAuthenticationType> for EffectiveAuthentication
 fn convert_metadata_to_merchant_defined_info(metadata: Value) -> Vec<MerchantDefinedInformation> {
     let hashmap: std::collections::BTreeMap<String, Value> =
         serde_json::from_str(&metadata.to_string()).unwrap_or(std::collections::BTreeMap::new());
-    let mut vector = Vec::new();
-    let mut iter = 1;
-    for (key, value) in hashmap {
-        vector.push(MerchantDefinedInformation {
+    (1..)
+        .zip(hashmap)
+        .map(|(iter, (key, value))| MerchantDefinedInformation {
             key: iter,
             value: format!("{key}={value}"),
-        });
-        iter += 1;
-    }
-    vector
+        })
+        .collect()
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -1247,6 +1244,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<BarclaycardPreProcessingR
                                 "three_ds_data": three_ds_data
                             })),
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
                             authentication_data,
@@ -1371,6 +1369,7 @@ impl TryFrom<PaymentsAuthenticateResponseRouterData<BarclaycardAuthenticationRes
                                 "three_ds_data": three_ds_data
                             })),
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
                             authentication_data,
@@ -1495,6 +1494,7 @@ impl TryFrom<PaymentsPostAuthenticateResponseRouterData<BarclaycardAuthenticatio
                                 "three_ds_data": three_ds_data
                             })),
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
                             authentication_data,
@@ -1619,6 +1619,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<BarclaycardPreProcessingRes
                                 "three_ds_data": three_ds_data
                             })),
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
                             authentication_data,
@@ -2340,6 +2341,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<BarclaycardAuthSetupRespo
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(
                         info_response
                             .client_reference_information
@@ -2424,6 +2426,7 @@ impl TryFrom<PaymentsResponseRouterData<BarclaycardAuthSetupResponse>>
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(
                         info_response
                             .client_reference_information
@@ -2835,6 +2838,7 @@ fn get_payment_response(
             mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(
                 info_response
                     .client_reference_information
@@ -3112,6 +3116,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<BarclaycardTransactionResponse>>
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: item
                                 .response
                                 .client_reference_information
@@ -3134,6 +3139,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<BarclaycardTransactionResponse>>
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
                     authentication_data: None,

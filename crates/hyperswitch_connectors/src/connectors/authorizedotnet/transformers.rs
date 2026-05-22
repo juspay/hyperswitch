@@ -712,6 +712,7 @@ impl<F, T>
                     })),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -814,7 +815,10 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>>
             .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
         {
             Some(api_models::payments::MandateReferenceId::NetworkMandateId(network_trans_id)) => {
-                TransactionRequest::try_from((item, network_trans_id))?
+                TransactionRequest::try_from((
+                    item,
+                    network_trans_id.network_transaction_id.clone(),
+                ))?
             }
             Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
                 connector_mandate_id,
@@ -1354,7 +1358,7 @@ fn get_payment_status(
             enums::AttemptStatus::Failure
         }
         AuthorizedotnetPaymentStatus::RequiresAction => enums::AttemptStatus::AuthenticationPending,
-        AuthorizedotnetPaymentStatus::HeldForReview => enums::AttemptStatus::Pending,
+        AuthorizedotnetPaymentStatus::HeldForReview => enums::AttemptStatus::Unresolved,
     }
 }
 
@@ -1622,6 +1626,7 @@ impl<F, T>
                                 .network_trans_id
                                 .clone()
                                 .map(|network_trans_id| network_trans_id.expose()),
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(
                                 transaction_response.transaction_id.clone(),
                             ),
@@ -1698,6 +1703,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, Payment
                                 .network_trans_id
                                 .clone()
                                 .map(|network_trans_id| network_trans_id.expose()),
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(
                                 transaction_response.transaction_id.clone(),
                             ),
@@ -1936,6 +1942,8 @@ pub enum SyncStatus {
     GeneralError,
     #[serde(rename = "FDSPendingReview")]
     FDSPendingReview,
+    #[serde(rename = "FDSAuthorizedPendingReview")]
+    FDSAuthorizedPendingReview,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1987,9 +1995,12 @@ impl From<SyncStatus> for enums::AttemptStatus {
             SyncStatus::Voided => Self::Voided,
             SyncStatus::CouldNotVoid => Self::VoidFailed,
             SyncStatus::GeneralError => Self::Failure,
-            SyncStatus::RefundSettledSuccessfully
-            | SyncStatus::RefundPendingSettlement
-            | SyncStatus::FDSPendingReview => Self::Pending,
+            SyncStatus::RefundSettledSuccessfully | SyncStatus::RefundPendingSettlement => {
+                Self::Charged
+            }
+            SyncStatus::FDSPendingReview | SyncStatus::FDSAuthorizedPendingReview => {
+                Self::Unresolved
+            }
         }
     }
 }
@@ -2053,6 +2064,7 @@ impl<F, Req> TryFrom<ResponseRouterData<F, AuthorizedotnetSyncResponse, Req, Pay
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(transaction.transaction_id.clone()),
                         incremental_authorization_allowed: None,
                         authentication_data: None,

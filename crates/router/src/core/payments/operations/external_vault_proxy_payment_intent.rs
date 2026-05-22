@@ -61,7 +61,8 @@ impl ValidateStatusForOperation for ExternalVaultProxyPaymentIntent {
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::PartiallyCapturedAndProcessing
-            | common_enums::IntentStatus::Expired => {
+            | common_enums::IntentStatus::Expired
+            | common_enums::IntentStatus::Review => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
                     field_name: "status".to_string(),
@@ -519,7 +520,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ExternalVaultProxy
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntent {
                 status: intent_status,
                 updated_by: storage_scheme.to_string(),
-                active_attempt_id: Some(payment_data.payment_attempt.id.clone()),
+                active_attempt_id: Some(payment_data.payment_attempt.id.clone())
             };
 
         let authentication_type = payment_data

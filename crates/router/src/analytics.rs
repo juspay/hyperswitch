@@ -34,7 +34,7 @@ pub mod routes {
     use router_env::logger;
 
     use crate::{
-        analytics_validator::request_validator,
+        analytics_validator::{request_validator, validate_report_request},
         consts::opensearch::SEARCH_INDEXES,
         core::{api_locking, errors::user::UserErrors, verification::utils},
         db::user_role::ListUserRolesByUserIdPayload,
@@ -46,6 +46,7 @@ pub mod routes {
             ApplicationResponse,
         },
         types::{domain::UserEmail, storage::UserRole},
+        utils::get_payment_response_hash_key,
     };
 
     pub struct Analytics;
@@ -1792,6 +1793,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -1813,11 +1815,25 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_merchant_level_auth_info();
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_merchant_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -1880,6 +1896,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -1901,11 +1918,14 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_org_level_auth_info();
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: None,
-                    auth: auth.platform.to_org_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: None,
                 };
 
                 let json_bytes =
@@ -1918,18 +1938,11 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            auth::auth_type(
-                &auth::ApiKeyAuth {
-                    allow_connected_scope_operation: true,
-                    allow_platform_self_operation: false,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::OrganizationReportRead,
-                    allow_connected: true,
-                    allow_platform: false,
-                },
-                req.headers(),
-            ),
+            &auth::JWTAuth {
+                permission: Permission::OrganizationReportRead,
+                allow_connected: true,
+                allow_platform: false,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -1968,6 +1981,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -1995,11 +2009,26 @@ pub mod routes {
                     .change_context(AnalyticsError::AccessForbiddenError)?
                     .get_id()
                     .clone();
+
+                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_profile_level_auth_info(profile_id),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2061,6 +2090,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -2082,11 +2112,25 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_merchant_level_auth_info();
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_merchant_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2148,6 +2192,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -2169,11 +2214,14 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_org_level_auth_info();
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: None,
-                    auth: auth.platform.to_org_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: None,
                 };
 
                 let json_bytes =
@@ -2186,18 +2234,11 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            auth::auth_type(
-                &auth::ApiKeyAuth {
-                    allow_connected_scope_operation: true,
-                    allow_platform_self_operation: false,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::OrganizationReportRead,
-                    allow_connected: true,
-                    allow_platform: false,
-                },
-                req.headers(),
-            ),
+            &auth::JWTAuth {
+                permission: Permission::OrganizationReportRead,
+                allow_connected: true,
+                allow_platform: false,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -2236,6 +2277,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -2263,11 +2305,25 @@ pub mod routes {
                     .change_context(AnalyticsError::AccessForbiddenError)?
                     .get_id()
                     .clone();
+                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_profile_level_auth_info(profile_id),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2330,6 +2386,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -2351,11 +2408,25 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_merchant_level_auth_info();
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_merchant_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2418,6 +2489,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -2439,11 +2511,14 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_org_level_auth_info();
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: None,
-                    auth: auth.platform.to_org_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: None,
                 };
 
                 let json_bytes =
@@ -2456,18 +2531,11 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            auth::auth_type(
-                &auth::ApiKeyAuth {
-                    allow_connected_scope_operation: true,
-                    allow_platform_self_operation: false,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::OrganizationReportRead,
-                    allow_connected: true,
-                    allow_platform: false,
-                },
-                req.headers(),
-            ),
+            &auth::JWTAuth {
+                permission: Permission::OrganizationReportRead,
+                allow_connected: true,
+                allow_platform: false,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -2506,6 +2574,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -2532,11 +2601,25 @@ pub mod routes {
                     .change_context(AnalyticsError::AccessForbiddenError)?
                     .get_id()
                     .clone();
+                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_profile_level_auth_info(profile_id),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2598,6 +2681,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -2619,11 +2703,25 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_merchant_level_auth_info();
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_merchant_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2685,6 +2783,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -2706,11 +2805,14 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_org_level_auth_info();
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: None,
-                    auth: auth.platform.to_org_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: None,
                 };
 
                 let json_bytes =
@@ -2723,18 +2825,11 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            auth::auth_type::<auth::AuthenticationDataWithUserId, _>(
-                &auth::ApiKeyAuth {
-                    allow_connected_scope_operation: true,
-                    allow_platform_self_operation: false,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::OrganizationReportRead,
-                    allow_connected: true,
-                    allow_platform: false,
-                },
-                req.headers(),
-            ),
+            &auth::JWTAuth {
+                permission: Permission::OrganizationReportRead,
+                allow_connected: true,
+                allow_platform: false,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -2772,6 +2867,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -2806,11 +2902,26 @@ pub mod routes {
                         auth.profile.get_id().clone()
                     }
                 };
+
+                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_profile_level_auth_info(profile_id),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2873,6 +2984,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -2894,11 +3006,25 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_merchant_level_auth_info();
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_merchant_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2961,6 +3087,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -2982,11 +3109,14 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_org_level_auth_info();
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: None,
-                    auth: auth.platform.to_org_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: None,
                 };
 
                 let json_bytes =
@@ -2999,18 +3129,11 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            auth::auth_type(
-                &auth::ApiKeyAuth {
-                    allow_connected_scope_operation: true,
-                    allow_platform_self_operation: false,
-                },
-                &auth::JWTAuth {
-                    permission: Permission::OrganizationReportRead,
-                    allow_connected: true,
-                    allow_platform: false,
-                },
-                req.headers(),
-            ),
+            &auth::JWTAuth {
+                permission: Permission::OrganizationReportRead,
+                allow_connected: true,
+                allow_platform: false,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -3049,6 +3172,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -3075,11 +3199,25 @@ pub mod routes {
                     .change_context(AnalyticsError::AccessForbiddenError)?
                     .get_id()
                     .clone();
+                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_profile_level_auth_info(profile_id),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
