@@ -37,34 +37,31 @@ describe("Clear PAN Retry Tests", function () {
     it("Enable Clear PAN Retry -> Create Payment Intent -> Confirm Payment -> Retrieve Payment", () => {
       let shouldContinue = true;
 
-      cy.step(
-        "Update Business Profile to enable clear PAN retries",
-        () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Update Business Profile");
-            return;
-          }
-
-          const updateBusinessProfileBody = {
-            is_auto_retries_enabled: true,
-            is_network_tokenization_enabled: true,
-            max_auto_retries_enabled: 2,
-            is_clear_pan_retries_enabled: true,
-          };
-
-          cy.UpdateBusinessProfileTest(
-            updateBusinessProfileBody,
-            false,
-            false,
-            false,
-            false,
-            false,
-            globalState
-          );
-
-          globalState.set("max_auto_retries_enabled", 2);
+      cy.step("Update Business Profile to enable clear PAN retries", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Update Business Profile");
+          return;
         }
-      );
+
+        const updateBusinessProfileBody = {
+          is_auto_retries_enabled: true,
+          is_network_tokenization_enabled: true,
+          max_auto_retries_enabled: 2,
+          is_clear_pan_retries_enabled: true,
+        };
+
+        cy.UpdateBusinessProfileTest(
+          updateBusinessProfileBody,
+          false,
+          false,
+          false,
+          false,
+          false,
+          globalState
+        );
+
+        globalState.set("max_auto_retries_enabled", 2);
+      });
 
       cy.step("Create Payment Intent", () => {
         if (!shouldContinue) {
@@ -130,34 +127,31 @@ describe("Clear PAN Retry Tests", function () {
     it("Disable Clear PAN Retry -> Create Payment Intent -> Confirm Payment -> Retrieve Payment", () => {
       let shouldContinue = true;
 
-      cy.step(
-        "Update Business Profile to disable clear PAN retries",
-        () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Update Business Profile");
-            return;
-          }
-
-          const updateBusinessProfileBody = {
-            is_auto_retries_enabled: true,
-            is_network_tokenization_enabled: true,
-            max_auto_retries_enabled: 2,
-            is_clear_pan_retries_enabled: false,
-          };
-
-          cy.UpdateBusinessProfileTest(
-            updateBusinessProfileBody,
-            false,
-            false,
-            false,
-            false,
-            false,
-            globalState
-          );
-
-          globalState.set("max_auto_retries_enabled", 2);
+      cy.step("Update Business Profile to disable clear PAN retries", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Update Business Profile");
+          return;
         }
-      );
+
+        const updateBusinessProfileBody = {
+          is_auto_retries_enabled: true,
+          is_network_tokenization_enabled: true,
+          max_auto_retries_enabled: 2,
+          is_clear_pan_retries_enabled: false,
+        };
+
+        cy.UpdateBusinessProfileTest(
+          updateBusinessProfileBody,
+          false,
+          false,
+          false,
+          false,
+          false,
+          globalState
+        );
+
+        globalState.set("max_auto_retries_enabled", 2);
+      });
 
       cy.step("Create Payment Intent", () => {
         if (!shouldContinue) {
@@ -220,7 +214,7 @@ describe("Clear PAN Retry Tests", function () {
 
   context("reset-business-profile", () => {
     it("Reset business profile to disable clear PAN retries", () => {
-      let shouldContinue = true;
+      const shouldContinue = true;
 
       cy.step("Reset business profile flags", () => {
         if (!shouldContinue) {
