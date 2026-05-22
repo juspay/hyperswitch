@@ -402,105 +402,136 @@ describe("Inespay SEPA Bank Debit tests", () => {
           "string"
         );
 
+        // Suppress uncaught exceptions from the simulator page
+        cy.on("uncaught:exception", () => false);
+
         // Visit the Inespay simulator page
         cy.visit(nextActionUrl);
+        cy.document().should("have.property", "readyState", "complete");
 
-        // Wait for page and dynamic content to load
-        cy.wait(5000);
+        // 1. Initial Page Handling — Click "CLOSE" button
+        cy.wait(2000);
+        cy.contains("button", "CLOSE", { timeout: 15000 })
+          .should("be.visible")
+          .click();
 
-        // Close any "Attention!" modal by clicking CLOSE button
-        cy.get("body").then(($body) => {
-          const hasModal =
-            $body.text().includes("Attention") ||
-            $body.text().includes("not currently operational");
-          if (hasModal) {
-            cy.get("button, a")
-              .filter(':contains("CLOSE")')
-              .first()
-              .click({ force: true });
-            cy.wait(2000);
+        // 2. Bank Selection — Click visible Vue multiselect wrapper, select "SIMULADOR", click "CONTINUE"
+        cy.wait(2000);
+        cy.get(".multiselect")
+          .should("be.visible")
+          .click();
+        cy.contains(".multiselect__option", "SIMULADOR", { timeout: 10000 })
+          .should("be.visible")
+          .click();
+        cy.contains("button", "CONTINUE", { timeout: 10000 })
+          .should("be.visible")
+          .click();
+
+        // 3. Login Step — Enter User1 / 1234, click "ACCESS"
+        cy.wait(2000);
+        cy.get("body", { timeout: 15000 }).then(($body) => {
+          // Find username field by common selectors
+          const userSelectors = [
+            'input[type="text"]',
+            'input[name*="user" i]',
+            'input[id*="user" i]',
+            'input[placeholder*="user" i]',
+            'input[autocomplete="username"]',
+          ];
+          let userInput = null;
+          for (const sel of userSelectors) {
+            const $el = $body.find(sel);
+            if ($el.length > 0 && $el.is(":visible")) {
+              userInput = $el.first();
+              break;
+            }
+          }
+          if (userInput) {
+            cy.wrap(userInput).clear().type("User1");
+          } else {
+            // Fallback: type into the first visible text input
+            cy.get('input[type="text"]:visible').first().clear().type("User1");
           }
         });
 
-        // Select a bank from the dropdown - pick option index 2 for a more reliable bank
-        cy.get("select", { timeout: 30000 })
-          .should("exist")
-          .then(($selects) => {
-            let selected = false;
-            $selects.each((i, sel) => {
-              if (!selected && Cypress.$(sel).is(":visible") && sel.options.length > 2) {
-                cy.wrap(sel).select(2, { force: true });
-                selected = true;
-              }
-            });
-            if (!selected && $selects.length > 0) {
-              cy.wrap($selects.first()).select(1, { force: true });
-            }
-          });
-        cy.wait(3000);
-
-        // Click Continue after bank selection
-        cy.get('button, a, input[type="submit"]')
-          .filter(":visible")
-          .filter(':contains("Continue")')
-          .first()
-          .click({ force: true });
-        cy.wait(3000);
-
-        // Click "simulador" then "continue"
-        cy.contains("button, a", /simulador/i, { timeout: 30000 })
-          .should("be.visible")
-          .click();
-        cy.contains("button", /continue/i, { timeout: 10000 })
-          .should("be.visible")
-          .click();
-
-        // Enter credentials
-        cy.get('input[type="text"], input[type="email"], input[name*="user" i]')
-          .should("be.visible")
-          .first()
-          .clear()
-          .type("user1");
-        cy.get('input[type="password"]')
+        cy.get('input[type="password"]', { timeout: 10000 })
           .should("be.visible")
           .first()
           .clear()
           .type("1234");
-
-        // Click "access"
-        cy.contains("button, a", /access/i, { timeout: 10000 })
+        cy.contains("button", "ACCESS", { timeout: 10000 })
           .should("be.visible")
           .click();
 
-        // Select Contract and Account from dropdowns
-        cy.get("select")
-          .should("be.visible")
-          .then(($selects) => {
-            cy.wrap($selects.eq(0)).select(1);
-            if ($selects.length > 1) {
-              cy.wrap($selects.eq(1)).select(1);
+        // 4. Contract Selection — Select "Contract 1"
+        cy.wait(2000);
+        cy.get("body", { timeout: 15000 }).then(($body) => {
+          const contractSelectors = [
+            'select[name*="contract" i]',
+            'select[id*="contract" i]',
+            'select',
+          ];
+          for (const sel of contractSelectors) {
+            const $el = $body.find(sel);
+            if ($el.length > 0 && $el.is(":visible")) {
+              cy.wrap($el.first()).select("Contract 1");
+              break;
             }
-          });
+          }
+        });
 
-        // Click "confirm"
-        cy.contains("button, a", /confirm/i, { timeout: 10000 })
+        // 5. Account Selection — Select "ES******************0674", click "CONFIRM"
+        cy.wait(2000);
+        cy.get("body", { timeout: 15000 }).then(($body) => {
+          const accountSelectors = [
+            'select[name*="account" i]',
+            'select[id*="account" i]',
+            'select',
+          ];
+          for (const sel of accountSelectors) {
+            const $el = $body.find(sel);
+            if ($el.length > 0 && $el.is(":visible")) {
+              // Try selecting by exact text or partial match
+              const options = $el.first().find("option");
+              let found = false;
+              options.each((_, opt) => {
+                if (
+                  !found &&
+                  (opt.text.includes("ES") || opt.text.includes("0674"))
+                ) {
+                  cy.wrap($el.first()).select(opt.text);
+                  found = true;
+                  return false;
+                }
+              });
+              if (!found && options.length > 1) {
+                cy.wrap($el.first()).select(1);
+              }
+              break;
+            }
+          }
+        });
+        cy.contains("button", "CONFIRM", { timeout: 10000 })
           .should("be.visible")
           .click();
 
-        // Enter OTP
-        cy.get('input[type="text"], input[name*="otp" i]')
+        // 6. OTP Confirmation — Enter 1111, click "CONFIRM"
+        cy.wait(2000);
+        cy.get('input[type="text"], input[type="tel"], input[inputmode="numeric"]', {
+          timeout: 15000,
+        })
           .should("be.visible")
           .first()
           .clear()
           .type("1111");
-
-        // Click "continue" to complete
-        cy.contains("button", /continue/i, { timeout: 10000 })
+        cy.contains("button", "CONFIRM", { timeout: 10000 })
           .should("be.visible")
           .click();
 
-        // Wait up to 30 seconds for transaction completion/success state
-        cy.contains(/success|completed|confirmado|realizado/i, { timeout: 30000 });
+        // 7. Final Payment Completion — Wait up to 30 seconds for success
+        cy.contains(/success|completed|confirmado|realizado|succeeded/i, {
+          timeout: 30000,
+        });
         cy.log("Inespay simulator flow completed successfully");
       });
 
