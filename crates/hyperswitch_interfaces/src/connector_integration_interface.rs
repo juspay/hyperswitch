@@ -638,6 +638,14 @@ impl ConnectorSpecifications for ConnectorEnum {
         }
     }
 
+    /// Check if connector supports pre-authorize cancel
+    fn is_pre_authorize_cancel_supported(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_pre_authorize_cancel_supported(),
+            Self::New(connector) => connector.is_pre_authorize_cancel_supported(),
+        }
+    }
+
     /// Check if connector supports authentication token
     fn authentication_token_for_token_creation(&self) -> bool {
         match self {

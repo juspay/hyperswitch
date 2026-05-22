@@ -16,9 +16,9 @@ use crate::{
         BillingConnectorPaymentsSync, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, CreateOrder, Execute, ExtendAuthorization, ExternalVaultProxy,
         GiftCardBalanceCheck, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostAuthenticate, PostCaptureVoid, PostSessionTokens, PreAuthenticate, PreProcessing,
-        ProcessIncomingWebhook, RSync, SdkSessionUpdate, Session, SettlementSplitCreate,
-        SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
+        PostAuthenticate, PostCaptureVoid, PostSessionTokens, PreAuthenticate, PreAuthorizeVoid,
+        PreProcessing, ProcessIncomingWebhook, RSync, SdkSessionUpdate, Session,
+        SettlementSplitCreate, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
     },
     router_request_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
@@ -43,8 +43,8 @@ use crate::{
         PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
-        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
+        PaymentsPreAuthorizeCancelData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
         SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SetupMandateRequestData,
         VaultRequestData, VerifyWebhookSourceRequestData,
     },
@@ -86,6 +86,8 @@ pub type PaymentsCaptureRouterData = RouterData<Capture, PaymentsCaptureData, Pa
 pub type PaymentsCancelRouterData = RouterData<Void, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsCancelPostCaptureRouterData =
     RouterData<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>;
+pub type PaymentsPreAuthorizeCancelRouterData =
+    RouterData<PreAuthorizeVoid, PaymentsPreAuthorizeCancelData, PaymentsResponseData>;
 pub type SetupMandateRouterData =
     RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>;
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;

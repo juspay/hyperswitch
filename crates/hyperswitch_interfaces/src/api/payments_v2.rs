@@ -7,7 +7,7 @@ use hyperswitch_domain_models::{
             Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, CreateOrder, ExtendAuthorization, ExternalVaultProxy,
             IncrementalAuthorization, PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing,
-            PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
+            PostSessionTokens, PreAuthorizeVoid, PreProcessing, Reject, SdkSessionUpdate, Session,
             SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
         },
         Authenticate, GiftCardBalanceCheck, PostAuthenticate, PreAuthenticate,
@@ -19,8 +19,8 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
         PaymentsCaptureData, PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
-        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsPreProcessingData,
+        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
         PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
         SetupMandateRequestData,
     },
@@ -68,6 +68,17 @@ pub trait PaymentPostCaptureVoidV2:
     PostCaptureVoid,
     PaymentFlowData,
     PaymentsCancelPostCaptureData,
+    PaymentsResponseData,
+>
+{
+}
+
+/// trait PaymentPreAuthorizeVoidV2
+pub trait PaymentPreAuthorizeVoidV2:
+    ConnectorIntegrationV2<
+    PreAuthorizeVoid,
+    PaymentFlowData,
+    PaymentsPreAuthorizeCancelData,
     PaymentsResponseData,
 >
 {
@@ -310,6 +321,7 @@ pub trait PaymentV2:
     + PaymentCaptureV2
     + PaymentVoidV2
     + PaymentPostCaptureVoidV2
+    + PaymentPreAuthorizeVoidV2
     + PaymentApproveV2
     + PaymentRejectV2
     + MandateSetupV2

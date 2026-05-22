@@ -76,6 +76,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         _auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_with_raw_data: Option<pm_transformers::PaymentMethodWithRawData>,
+        _pre_get_trackers_info: Option<operations::PreGetTrackersPaymentInformation>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;

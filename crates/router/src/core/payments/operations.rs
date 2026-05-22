@@ -191,6 +191,13 @@ pub trait ValidateRequest<F, R, D> {
     ) -> RouterResult<ValidateResult>;
 }
 
+#[cfg(feature = "v1")]
+/// Minimal payment information that can be passed to get_trackers to avoid redundant DB calls
+pub struct PreGetTrackersPaymentInformation {
+    pub payment_intent: storage::PaymentIntent,
+    pub payment_attempt: storage::PaymentAttempt,
+}
+
 #[cfg(feature = "v2")]
 pub struct GetTrackerResponse<D> {
     pub payment_data: D,
@@ -220,6 +227,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_with_raw_data: Option<PaymentMethodWithRawData>,
+        pre_get_trackers_info: Option<PreGetTrackersPaymentInformation>,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
 
     #[cfg(feature = "v2")]

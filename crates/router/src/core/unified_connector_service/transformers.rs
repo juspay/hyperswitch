@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDataType},
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
-        payments::{Authorize, Capture, PSync, SetupMandate},
+        payments::{Authorize, Capture, PSync, PreAuthorizeVoid, SetupMandate},
         refunds::{Execute, RSync},
         unified_authentication_service as uas_flows, ExternalVaultProxy, IncrementalAuthorization,
         Session,
@@ -29,8 +29,8 @@ use hyperswitch_domain_models::{
     router_request_types::{
         self, AuthenticationData, ExternalVaultProxyPaymentsData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
-        SyncRequestType,
+        PaymentsPreAuthorizeCancelData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        SetupMandateRequestData, SyncRequestType,
     },
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
 };
@@ -5812,6 +5812,55 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             merchant_account_metadata,
             test_mode: router_data.test_mode,
             merchant_order_reference_id: router_data.request.merchant_order_reference_id.clone(),
+        })
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<
+        &RouterData<PreAuthorizeVoid, PaymentsPreAuthorizeCancelData, PaymentsResponseData>,
+    > for payments_grpc::PaymentServiceVoidRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<
+            PreAuthorizeVoid,
+            PaymentsPreAuthorizeCancelData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
+        let merchant_account_metadata = router_data
+            .connector_meta_data
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+            .map(|s| s.into());
+
+        Ok(Self {
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.connector_request_reference_id.clone(),
+                )),
+            }),
+            transaction_id: None,
+            cancellation_reason: None,
+            all_keys_required: None,
+            browser_info: None,
+            amount: None,
+            currency: None,
+            metadata: None,
+            state,
+            connector_metadata: None,
+            merchant_account_metadata,
+            test_mode: router_data.test_mode,
+            merchant_order_reference_id: None,
         })
     }
 }

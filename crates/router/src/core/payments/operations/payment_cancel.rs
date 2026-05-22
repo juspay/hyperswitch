@@ -45,6 +45,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
+        _pre_get_trackers_info: Option<operations::PreGetTrackersPaymentInformation>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsCancelRequest, PaymentData<F>>,
     > {

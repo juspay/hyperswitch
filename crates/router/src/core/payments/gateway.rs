@@ -11,6 +11,7 @@ pub mod incremental_authorization_gateway;
 pub mod payment_method_token_create_gateway;
 pub mod post_authenticate_gateway;
 pub mod pre_authenticate_gateway;
+pub mod pre_authorize_void_gateway;
 pub mod psync_gateway;
 pub mod session_gateway;
 pub mod session_token_gateway;

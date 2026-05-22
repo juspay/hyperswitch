@@ -610,6 +610,7 @@ pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     header_payload: HeaderPayload,
     dimensions: DimensionsWithMerchantId,
+    pre_get_trackers_info: Option<operations::PreGetTrackersPaymentInformation>,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync + Debug + 'static,
@@ -670,6 +671,7 @@ where
             auth_flow,
             &header_payload,
             payment_method_info,
+            pre_get_trackers_info,
         )
         .await?;
 
@@ -1485,6 +1487,7 @@ where
             &platform,
             auth_flow,
             &header_payload,
+            None,
             None,
         )
         .await?;
@@ -2371,6 +2374,7 @@ pub async fn payments_core<F, Res, Req, Op, FData, D>(
     shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     eligible_connectors: Option<Vec<enums::Connector>>,
     header_payload: HeaderPayload,
+    pre_get_trackers_info: Option<operations::PreGetTrackersPaymentInformation>,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync + Debug + 'static,
@@ -2411,6 +2415,7 @@ where
             eligible_routable_connectors,
             header_payload.clone(),
             dimensions,
+            pre_get_trackers_info,
         )
         .await?;
 
@@ -3538,6 +3543,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             None,
             None,
             HeaderPayload::default(),
+            None,
         ))
         .await?;
         let payments_response = match response {
@@ -3698,6 +3704,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 None,
                 None,
                 HeaderPayload::default(),
+                None,
             ),
         )
         .await?;
@@ -4047,6 +4054,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 None,
                 None,
                 HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                None,
             ))
             .await?
         } else {
@@ -4080,6 +4088,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     None,
                     None,
                     HeaderPayload::default(),
+                    None,
                 ),
             )
             .await?
@@ -8276,11 +8285,21 @@ where
                         | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
                 ) && payment_data.get_force_sync().unwrap_or(false)
         }
-        "PaymentCancel" => matches!(
-            payment_data.get_payment_intent().status,
-            storage_enums::IntentStatus::RequiresCapture
-                | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
-        ),
+        "PaymentCancel" => {
+            let flow_name = core_utils::get_flow_name::<F>().unwrap_or_default();
+            match flow_name.as_str() {
+                "Void" => matches!(
+                    payment_data.get_payment_intent().status,
+                    storage_enums::IntentStatus::RequiresCapture
+                        | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
+                ),
+                "PreAuthorizeVoid" => matches!(
+                    payment_data.get_payment_intent().status,
+                    storage_enums::IntentStatus::RequiresCustomerAction
+                ),
+                _ => false,
+            }
+        }
         "PaymentCancelPostCapture" => matches!(
             payment_data.get_payment_intent().status,
             storage_enums::IntentStatus::Succeeded
