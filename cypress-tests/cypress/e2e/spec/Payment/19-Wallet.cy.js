@@ -549,7 +549,7 @@ describe("MultiSafepay Wallet tests", () => {
   });
 
   context("MultiSafepay AliPay Create and Confirm flow test", () => {
-    let shouldContinue = true;
+    const shouldContinue = true;
 
     beforeEach(function () {
       if (!shouldContinue) {
@@ -635,7 +635,7 @@ describe("MultiSafepay Wallet tests", () => {
   });
 
   context("MultiSafepay WeChatPay Create and Confirm flow test", () => {
-    let shouldContinue = true;
+    const shouldContinue = true;
 
     beforeEach(function () {
       if (!shouldContinue) {
@@ -721,7 +721,7 @@ describe("MultiSafepay Wallet tests", () => {
   });
 
   context("MultiSafepay MbWay Create and Confirm flow test", () => {
-    let shouldContinue = true;
+    const shouldContinue = true;
 
     beforeEach(function () {
       if (!shouldContinue) {
@@ -807,7 +807,7 @@ describe("MultiSafepay Wallet tests", () => {
   });
 
   context("MultiSafepay PayPal Create and Confirm flow test", () => {
-    let shouldContinue = true;
+    const shouldContinue = true;
 
     beforeEach(function () {
       if (!shouldContinue) {

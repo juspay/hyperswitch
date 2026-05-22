@@ -396,5 +396,4 @@ describe("PaySafeCard Payment - Paysafe", () => {
       });
     });
   });
-
 });

@@ -1024,7 +1024,9 @@ export const connectorDetails = {
     PaymentIntent: (paymentMethodType) =>
       getCustomExchange({
         Request: {
-          currency: ["AliPay", "WeChatPay"].includes(paymentMethodType) ? "EUR" : getCurrency(paymentMethodType),
+          currency: ["AliPay", "WeChatPay"].includes(paymentMethodType)
+            ? "EUR"
+            : getCurrency(paymentMethodType),
         },
         Response: {
           status: 200,

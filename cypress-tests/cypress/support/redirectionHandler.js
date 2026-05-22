@@ -362,9 +362,7 @@ function payLaterRedirection(
             break;
 
           case "multisafepay":
-            cy.log(
-              `Handling MultiSafepay ${paymentMethodType} pay_later flow`
-            );
+            cy.log(`Handling MultiSafepay ${paymentMethodType} pay_later flow`);
 
             cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
 
@@ -374,9 +372,7 @@ function payLaterRedirection(
                 url.includes("multisafepay") ||
                 url.includes("pay")
               ) {
-                cy.log(
-                  "Successfully navigated to pay_later redirect page"
-                );
+                cy.log("Successfully navigated to pay_later redirect page");
               } else {
                 cy.log(
                   `Note: URL (${url}) does not contain expected indicators`
@@ -1112,7 +1108,16 @@ function bankRedirectRedirection(
             break;
 
           case "multisafepay":
-            if (["sofort", "eps", "mb_way", "ali_pay", "paypal", "we_chat_pay"].includes(paymentMethodType)) {
+            if (
+              [
+                "sofort",
+                "eps",
+                "mb_way",
+                "ali_pay",
+                "paypal",
+                "we_chat_pay",
+              ].includes(paymentMethodType)
+            ) {
               // Multisafe pay has CSRF blocking cannot actually test redirection flow via cypress
               // cy.get(".btn-msp-success").click();
 
