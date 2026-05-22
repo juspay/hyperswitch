@@ -137,6 +137,7 @@ const CURRENCY_MAP = {
   AliPay: "CNY",
   WeChatPay: "CNY",
   Paypal: "EUR",
+  MbWay: "EUR",
   Mifinity: "EUR",
 };
 

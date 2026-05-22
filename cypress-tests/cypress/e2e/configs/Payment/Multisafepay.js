@@ -934,8 +934,98 @@ export const connectorDetails = {
         },
       },
     },
+    Mbway: {
+      Request: {
+        amount: 333,
+        currency: "EUR",
+        confirm: true,
+        capture_method: "automatic",
+        payment_method: "wallet",
+        payment_method_type: "mb_way",
+        authentication_type: "no_three_ds",
+        description: "hello world",
+        billing: {
+          address: {
+            zip: "560095",
+            first_name: "John",
+            last_name: "Doe",
+            line1: "Main street",
+            country: "PT",
+            line2: "sub street",
+            city: "city",
+          },
+        },
+        payment_method_data: {
+          wallet: {
+            mb_way_redirect: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
   },
+  pay_later_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: getCurrency(paymentMethodType),
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
 
+    Klarna: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "klarna",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            klarna_redirect: {
+              billing_email: "guest@juspay.in",
+              billing_country: "DE",
+            },
+          },
+        },
+        billing: {
+          email: "guest@juspay.in",
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Berlin",
+            state: "Berlin",
+            zip: "10115",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+  },
   wallet_pm: {
     PaymentIntent: (paymentMethodType) =>
       getCustomExchange({
@@ -1023,6 +1113,36 @@ export const connectorDetails = {
             country: "CN",
             first_name: "joseph",
             last_name: "Doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+
+    MbWay: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "mb_way",
+        authentication_type: "no_three_ds",
+        payment_method_data: {
+          wallet: {
+            mb_way_redirect: {},
+          },
+        },
+        billing: {
+          address: {
+            zip: "560095",
+            first_name: "John",
+            last_name: "Doe",
+            line1: "Main street",
+            country: "PT",
+            line2: "sub street",
+            city: "city",
           },
         },
       },
