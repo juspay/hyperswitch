@@ -13,6 +13,20 @@ const TAX_PROFILE_CONFIG = {
   },
 };
 
+const NULL_CARD_METADATA = {
+  card_type: null,
+  card_network: null,
+  card_issuer: null,
+  card_issuing_country: null,
+};
+
+function withNullCardMetadata(data) {
+  if (data?.Response?.body?.payment_method_data?.card) {
+    Object.assign(data.Response.body.payment_method_data.card, NULL_CARD_METADATA);
+  }
+  return data;
+}
+
 describe("Tax Connector Business Profile Flag", () => {
   let connectorSupported = true;
 
@@ -110,12 +124,12 @@ describe("Tax Connector Business Profile Flag", () => {
             cy.task("cli_log", "Skipping step: Confirm Payment");
             return;
           }
-          const data = {
+          const data = withNullCardMetadata({
             ...getConnectorDetails(globalState.get("connectorId"))["card_pm"][
               "No3DSAutoCapture"
             ],
             ...TAX_PROFILE_CONFIG,
-          };
+          });
 
           cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
@@ -129,12 +143,12 @@ describe("Tax Connector Business Profile Flag", () => {
             cy.task("cli_log", "Skipping step: Retrieve Payment");
             return;
           }
-          const data = {
+          const data = withNullCardMetadata({
             ...getConnectorDetails(globalState.get("connectorId"))["card_pm"][
               "No3DSAutoCapture"
             ],
             ...TAX_PROFILE_CONFIG,
-          };
+          });
 
           cy.retrievePaymentCallTest({ globalState, data });
         });
@@ -182,12 +196,12 @@ describe("Tax Connector Business Profile Flag", () => {
           cy.task("cli_log", "Skipping step: Confirm Payment");
           return;
         }
-        const data = {
+        const data = withNullCardMetadata({
           ...getConnectorDetails(globalState.get("connectorId"))["card_pm"][
             "No3DSAutoCapture"
           ],
           ...TAX_PROFILE_CONFIG,
-        };
+        });
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
@@ -201,12 +215,12 @@ describe("Tax Connector Business Profile Flag", () => {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
         }
-        const data = {
+        const data = withNullCardMetadata({
           ...getConnectorDetails(globalState.get("connectorId"))["card_pm"][
             "No3DSAutoCapture"
           ],
           ...TAX_PROFILE_CONFIG,
-        };
+        });
 
         cy.retrievePaymentCallTest({ globalState, data });
       });
@@ -259,12 +273,12 @@ describe("Tax Connector Business Profile Flag", () => {
             cy.task("cli_log", "Skipping step: Confirm Payment");
             return;
           }
-          const data = {
+          const data = withNullCardMetadata({
             ...getConnectorDetails(globalState.get("connectorId"))["card_pm"][
               "No3DSAutoCapture"
             ],
             ...TAX_PROFILE_CONFIG,
-          };
+          });
 
           cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
@@ -278,12 +292,12 @@ describe("Tax Connector Business Profile Flag", () => {
             cy.task("cli_log", "Skipping step: Retrieve Payment");
             return;
           }
-          const data = {
+          const data = withNullCardMetadata({
             ...getConnectorDetails(globalState.get("connectorId"))["card_pm"][
               "No3DSAutoCapture"
             ],
             ...TAX_PROFILE_CONFIG,
-          };
+          });
 
           cy.retrievePaymentCallTest({ globalState, data });
         });
@@ -354,12 +368,12 @@ describe("Tax Connector Business Profile Flag", () => {
           cy.task("cli_log", "Skipping step: Confirm Payment");
           return;
         }
-        const data = {
+        const data = withNullCardMetadata({
           ...getConnectorDetails(globalState.get("connectorId"))["card_pm"][
             "No3DSAutoCapture"
           ],
           ...TAX_PROFILE_CONFIG,
-        };
+        });
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
@@ -373,12 +387,12 @@ describe("Tax Connector Business Profile Flag", () => {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
         }
-        const data = {
+        const data = withNullCardMetadata({
           ...getConnectorDetails(globalState.get("connectorId"))["card_pm"][
             "No3DSAutoCapture"
           ],
           ...TAX_PROFILE_CONFIG,
-        };
+        });
 
         cy.retrievePaymentCallTest({ globalState, data });
       });
