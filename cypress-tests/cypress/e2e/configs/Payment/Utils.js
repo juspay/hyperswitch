@@ -530,6 +530,8 @@ export const CONNECTOR_LISTS = {
     ALIPAY_HK_WALLET: ["adyen"],
     PAYPAL_WALLET: ["novalnet", "paypal"],
     MIFINITY_WALLET: ["mifinity"],
+    SKRILL_WALLET: ["paysafe"],
+    PAYSAFECARD_GIFT_CARD: ["paysafe"],
     PAYPAL_MANDATE: ["paypal"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [

@@ -1342,7 +1342,9 @@ impl PaymentCreate {
         logger::info!("Payment method fetched from PM Modular Service.");
 
         utils::when(
-            pm_info.payment_method.customer_id.as_ref() != req.get_customer_id(),
+            req.get_customer_id().is_some_and(|customer_id| {
+                pm_info.payment_method.customer_id.as_ref() != Some(customer_id)
+            }),
             || {
                 logger::info!(
                     "Payment method id does not belong to the customer id provided in the request."

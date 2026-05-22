@@ -3747,6 +3747,59 @@
         ]
       }
     },
+    "/v1/{customer_id}/payment-methods/{payment_method_id}/default": {
+      "post": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "Payment Method - Set Default Payment Method for Customer",
+        "description": "Set the Payment Method as Default for the Customer.",
+        "operationId": "Set the Payment Method as Default",
+        "parameters": [
+          {
+            "name": "customer_id",
+            "in": "path",
+            "description": "The unique identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "payment_method_id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Method",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Method has been set as default",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerDefaultPaymentMethodResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payment Method has already been set as default for that customer"
+          },
+          "404": {
+            "description": "Payment Method not found for the customer"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/payment-method-sessions": {
       "post": {
         "tags": [
@@ -5285,6 +5338,12 @@
             "type": "string",
             "description": "[9 digits] Routing number - used in USA for identifying a specific bank.",
             "example": "110000000"
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe",
+            "nullable": true
           }
         }
       },
@@ -5326,6 +5385,12 @@
             "type": "string",
             "description": "Bank city",
             "example": "California",
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe",
             "nullable": true
           }
         }
@@ -6886,6 +6951,12 @@
             "type": "string",
             "description": "[6 digits] Sort Code - used in UK and Ireland for identifying a bank and it's branches.",
             "example": "98-76-54"
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe",
+            "nullable": true
           }
         }
       },
@@ -6925,6 +6996,12 @@
             "type": "string",
             "description": "Bank city",
             "example": "California",
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe",
             "nullable": true
           }
         }
@@ -12515,6 +12592,39 @@
           }
         },
         "additionalProperties": false
+      },
+      "CustomerDefaultPaymentMethodResponse": {
+        "type": "object",
+        "required": [
+          "default_payment_method_id",
+          "customer_id",
+          "payment_method_type"
+        ],
+        "properties": {
+          "default_payment_method_id": {
+            "type": "string",
+            "description": "The unique identifier of the Payment method",
+            "example": "card_rGK4Vi5iSW70MY7J2mIg"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The unique identifier of the customer.",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "CustomerDeleteResponse": {
         "type": "object",
@@ -26033,6 +26143,10 @@
           "merchant_id": {
             "type": "string",
             "nullable": true
+          },
+          "expand_attempts": {
+            "type": "boolean",
+            "nullable": true
           }
         }
       },
@@ -26059,6 +26173,13 @@
           "merchant_id": {
             "type": "string",
             "description": "The identifier for the Merchant Account.",
+            "nullable": true
+          },
+          "expand_attempts": {
+            "type": "boolean",
+            "description": "Set to true to get the list of attempts along with payout details, no further action required",
+            "default": false,
+            "example": true,
             "nullable": true
           }
         }
@@ -30051,6 +30172,12 @@
             "type": "string",
             "description": "[8 / 11 digits] Bank Identifier Code (bic) / Swift Code - used in many countries for identifying a bank and it's branches",
             "example": "HSBCGB2LXXX"
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe",
+            "nullable": true
           }
         }
       },
@@ -30090,6 +30217,12 @@
             "type": "string",
             "description": "[8 / 11 digits] Bank Identifier Code (bic) / Swift Code - used in many countries for identifying a bank and it's branches",
             "example": "HSBCGB2LXXX",
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe",
             "nullable": true
           }
         }
@@ -30848,8 +30981,7 @@
             "example": "acct_1234567890",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "StripeSplitRefundRequest": {
         "type": "object",
