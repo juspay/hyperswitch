@@ -4,14 +4,32 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
-describe("Clear PAN Retry Tests", () => {
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
+describe("Clear PAN Retry Tests", function () {
+  before(function () {
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+        const connectorId = globalState.get("connectorId");
+
+        if (
+          utils.shouldIncludeConnector(
+            connectorId,
+            utils.CONNECTOR_LISTS.INCLUDE.CLEAR_PAN_RETRY
+          )
+        ) {
+          skip = true;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
   });
 
-  after("flush global state", () => {
+  afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
@@ -19,47 +37,34 @@ describe("Clear PAN Retry Tests", () => {
     it("Enable Clear PAN Retry -> Create Payment Intent -> Confirm Payment -> Retrieve Payment", () => {
       let shouldContinue = true;
 
-      cy.step("Check if connector supports Clear PAN retry", () => {
-        const connectorId = globalState.get("connectorId");
-        if (
-          utils.shouldIncludeConnector(
-            connectorId,
-            utils.CONNECTOR_LISTS.INCLUDE.CLEAR_PAN_RETRY
-          )
-        ) {
-          cy.log(
-            `Skipping Clear PAN Retry - connector not supported: ${connectorId}`
+      cy.step(
+        "Update Business Profile to enable clear PAN retries",
+        () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Update Business Profile");
+            return;
+          }
+
+          const updateBusinessProfileBody = {
+            is_auto_retries_enabled: true,
+            is_network_tokenization_enabled: true,
+            max_auto_retries_enabled: 2,
+            is_clear_pan_retries_enabled: true,
+          };
+
+          cy.UpdateBusinessProfileTest(
+            updateBusinessProfileBody,
+            false,
+            false,
+            false,
+            false,
+            false,
+            globalState
           );
-          shouldContinue = false;
-          return;
+
+          globalState.set("max_auto_retries_enabled", 2);
         }
-      });
-
-      cy.step("Update Business Profile to enable clear PAN retries", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Update Business Profile");
-          return;
-        }
-
-        const updateBusinessProfileBody = {
-          is_auto_retries_enabled: true,
-          is_network_tokenization_enabled: true,
-          max_auto_retries_enabled: 2,
-          is_clear_pan_retries_enabled: true,
-        };
-
-        cy.UpdateBusinessProfileTest(
-          updateBusinessProfileBody,
-          false,
-          false,
-          false,
-          false,
-          false,
-          globalState
-        );
-
-        globalState.set("max_auto_retries_enabled", 2);
-      });
+      );
 
       cy.step("Create Payment Intent", () => {
         if (!shouldContinue) {
@@ -115,6 +120,7 @@ describe("Clear PAN Retry Tests", () => {
         cy.retrievePaymentCallClearPanRetryTest({
           globalState,
           isClearPanRetryEnabled: true,
+          skipRetryAssertion: true,
         });
       });
     });
@@ -124,47 +130,34 @@ describe("Clear PAN Retry Tests", () => {
     it("Disable Clear PAN Retry -> Create Payment Intent -> Confirm Payment -> Retrieve Payment", () => {
       let shouldContinue = true;
 
-      cy.step("Check if connector supports Clear PAN retry", () => {
-        const connectorId = globalState.get("connectorId");
-        if (
-          utils.shouldIncludeConnector(
-            connectorId,
-            utils.CONNECTOR_LISTS.INCLUDE.CLEAR_PAN_RETRY
-          )
-        ) {
-          cy.log(
-            `Skipping Clear PAN Retry Disabled test - connector not supported: ${connectorId}`
+      cy.step(
+        "Update Business Profile to disable clear PAN retries",
+        () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Update Business Profile");
+            return;
+          }
+
+          const updateBusinessProfileBody = {
+            is_auto_retries_enabled: true,
+            is_network_tokenization_enabled: true,
+            max_auto_retries_enabled: 2,
+            is_clear_pan_retries_enabled: false,
+          };
+
+          cy.UpdateBusinessProfileTest(
+            updateBusinessProfileBody,
+            false,
+            false,
+            false,
+            false,
+            false,
+            globalState
           );
-          shouldContinue = false;
-          return;
+
+          globalState.set("max_auto_retries_enabled", 2);
         }
-      });
-
-      cy.step("Update Business Profile to disable clear PAN retries", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Update Business Profile");
-          return;
-        }
-
-        const updateBusinessProfileBody = {
-          is_auto_retries_enabled: true,
-          is_network_tokenization_enabled: true,
-          max_auto_retries_enabled: 2,
-          is_clear_pan_retries_enabled: false,
-        };
-
-        cy.UpdateBusinessProfileTest(
-          updateBusinessProfileBody,
-          false,
-          false,
-          false,
-          false,
-          false,
-          globalState
-        );
-
-        globalState.set("max_auto_retries_enabled", 2);
-      });
+      );
 
       cy.step("Create Payment Intent", () => {
         if (!shouldContinue) {
@@ -228,19 +221,6 @@ describe("Clear PAN Retry Tests", () => {
   context("reset-business-profile", () => {
     it("Reset business profile to disable clear PAN retries", () => {
       let shouldContinue = true;
-
-      cy.step("Check if connector supports Clear PAN retry", () => {
-        const connectorId = globalState.get("connectorId");
-        if (
-          utils.shouldIncludeConnector(
-            connectorId,
-            utils.CONNECTOR_LISTS.INCLUDE.CLEAR_PAN_RETRY
-          )
-        ) {
-          shouldContinue = false;
-          return;
-        }
-      });
 
       cy.step("Reset business profile flags", () => {
         if (!shouldContinue) {

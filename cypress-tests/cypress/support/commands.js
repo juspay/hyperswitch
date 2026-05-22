@@ -4122,7 +4122,7 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "retrievePaymentCallClearPanRetryTest",
-  ({ globalState, isClearPanRetryEnabled }) => {
+  ({ globalState, isClearPanRetryEnabled, skipRetryAssertion = false }) => {
     const paymentId = globalState.get("paymentID");
     const baseUrl = globalState.get("baseUrl");
     const apiKey = globalState.get("apiKey");
@@ -4153,10 +4153,22 @@ Cypress.Commands.add(
         });
 
         if (isClearPanRetryEnabled) {
+          if (skipRetryAssertion) {
+            cy.task(
+              "cli_log",
+              "Sandbox limitation: attempts.length > 1 assertion skipped — no sandbox connector supports PaymentMethodData::NetworkToken required for clear PAN retry"
+            );
+          } else {
+            expect(
+              response.body.attempts.length,
+              "Clear PAN retry enabled should have more than 1 attempt"
+            ).to.be.greaterThan(1);
+          }
+        } else {
           expect(
             response.body.attempts.length,
-            "Clear PAN retry enabled should have at least 1 attempt"
-          ).to.be.greaterThan(0);
+            "Clear PAN retry disabled should have exactly 1 attempt"
+          ).to.equal(1);
         }
       }
     });
