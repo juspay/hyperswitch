@@ -5492,15 +5492,15 @@ impl RawPaymentMethodFetchAccess {
                     .clone()
                     .map(|enc| enc.into_inner());
                 match proxy_card_data {
-                    Some(external_vault_token_data) => Ok(Some(
-                        payment_methods::RawPaymentMethodData::ProxyCard(
+                    Some(external_vault_token_data) => {
+                        Ok(Some(payment_methods::RawPaymentMethodData::ProxyCard(
                             payment_methods::RawProxyCardDataResponse {
                                 card_number: external_vault_token_data.tokenized_card_number,
                                 card_exp_year: None,
                                 card_exp_month: None,
                             },
-                        ),
-                    )),
+                        )))
+                    }
                     None => Ok(None),
                 }
             }
@@ -5527,15 +5527,16 @@ impl RawPaymentMethodFetchAccess {
                     .attach_printable("Failed to retrieve payment method from vault")?
                     .data;
 
-                let payment_method_vault_data = vault_data
-                    .populated_payment_methods_data_and_get_payment_method_vaulting_data(
-                        payment_method.payment_method_data.as_ref(),
-                    )
-                    .attach_printable(
-                        "Failed to get card details for payment method vaulting data",
-                    )?
-                    .convert_to_raw_payment_method_data();
-                Ok(payment_method_vault_data)
+                    let payment_method_vault_data = vault_data
+                        .populated_payment_methods_data_and_get_payment_method_vaulting_data(
+                            payment_method.payment_method_data.as_ref(),
+                        )
+                        .attach_printable(
+                            "Failed to get card details for payment method vaulting data",
+                        )?
+                        .convert_to_raw_payment_method_data();
+                    Ok(payment_method_vault_data)
+                }
             }
         }
     }
