@@ -98,7 +98,7 @@ jobs:
       github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
     # use hyperswitch-runners-merge for merge queue level checks
-    runs-on: ${{ github.event_name == 'merge_group' && 'hyperswitch-runners' || 'hyperswitch-runners-merge' }}
+    runs-on: ${{ case(github.event_name == 'merge_group', 'hyperswitch-runners-merge', 'hyperswitch-runners') }}
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
@@ -157,7 +157,7 @@ jobs:
       github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
     # use hyperswitch-runners-merge for merge queue level checks
-    runs-on: ${{ github.event_name == 'merge_group' && 'hyperswitch-runners-merge' || 'hyperswitch-runners' }}
+    runs-on: ${{ case(github.event_name == 'merge_group', 'hyperswitch-runners-merge', 'hyperswitch-runners') }}
     outputs:
       mandatory-matrix: ${{ steps.set-mandatory-matrix.outputs.matrix }}
     steps:    
@@ -205,7 +205,7 @@ jobs:
     permissions:
       pull-requests: write
     # use hyperswitch-runners-merge for merge queue level checks
-    runs-on: ${{ github.event_name == 'merge_group' && 'hyperswitch-runners-merge' || 'hyperswitch-runners' }}
+    runs-on: ${{ case(github.event_name == 'merge_group', 'hyperswitch-runners-merge', 'hyperswitch-runners') }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-mandatory-matrix.outputs['mandatory-matrix']) }}
