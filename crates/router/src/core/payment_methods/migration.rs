@@ -253,6 +253,7 @@ pub async fn update_payment_method_record(
                     connector_mandate_details_value,
                 )),
                 network_transaction_id,
+                network_transaction_link_id: None,
                 status,
                 payment_method_data: updated_payment_method_data.clone(),
                 last_modified_by: platform
@@ -342,6 +343,7 @@ pub async fn update_payment_method_record(
                     connector_mandate_details_value,
                 )),
                 network_transaction_id,
+                network_transaction_link_id: None,
                 status,
                 payment_method_data: updated_payment_method_data.clone(),
                 last_modified_by: platform
@@ -362,6 +364,7 @@ pub async fn update_payment_method_record(
             } else {
                 PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                     network_transaction_id,
+                    network_transaction_link_id: None,
                     status,
                     last_modified_by: platform
                         .get_initiator()

@@ -345,7 +345,7 @@ where
             }
             CallConnectorAction::Avoid
             | CallConnectorAction::Trigger
-            | CallConnectorAction::HandleResponse(_)
+            | CallConnectorAction::HandleResponse { .. }
             | CallConnectorAction::HandleResponseWithoutBuildRequest
             | CallConnectorAction::StatusUpdate { .. } => {
                 router_env::logger::debug!("UCS is disabled, using Direct gateway");
@@ -363,7 +363,7 @@ where
                     ExecutionPath::UnifiedConnectorService,
                 )
             }
-            CallConnectorAction::HandleResponse(_) => {
+            CallConnectorAction::HandleResponse { .. } => {
                 router_env::logger::info!(
                     "CallConnectorAction HandleResponse received, using Direct gateway"
                 );
@@ -659,9 +659,14 @@ where
 
     let existing_metadata = payment_intent.feature_metadata.as_ref();
 
-    let mut feature_metadata = existing_metadata
-        .and_then(|metadata| serde_json::from_value::<FeatureMetadata>(metadata.clone()).ok())
-        .unwrap_or_default();
+    let mut feature_metadata = match existing_metadata {
+        Some(metadata) => serde_json::from_value::<FeatureMetadata>(metadata.clone())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to deserialize existing feature metadata while updating gateway system",
+            )?,
+        None => FeatureMetadata::default(),
+    };
 
     feature_metadata.gateway_system = Some(gateway_system);
 
@@ -1269,7 +1274,7 @@ pub fn build_unified_connector_service_payment_method(
                 hyperswitch_domain_models::payment_method_data::WalletData::Mifinity(
                     mifinity_data,
                 ) => Ok(payments_grpc::PaymentMethod {
-                    payment_method: Some(PaymentMethod::Mifinity(payments_grpc::MifinityWallet {
+                    payment_method: Some(PaymentMethod::MifinityRedirect(payments_grpc::MifinityRedirectWallet {
                         date_of_birth: Some(mifinity_data.date_of_birth.peek().to_string().into()),
                         language_preference: mifinity_data.language_preference,
                     })),
@@ -1288,7 +1293,7 @@ pub fn build_unified_connector_service_payment_method(
                         )?;
 
                     Ok(payments_grpc::PaymentMethod {
-                        payment_method: Some(PaymentMethod::ApplePay(payments_grpc::AppleWallet {
+                        payment_method: Some(PaymentMethod::ApplePaySdk(payments_grpc::AppleWallet {
                             payment_data: Some(payments_grpc::apple_wallet::PaymentData {
                                 payment_data: Some(payment_data),
                             }),
@@ -1315,7 +1320,7 @@ pub fn build_unified_connector_service_payment_method(
                         )?;
 
                     Ok(payments_grpc::PaymentMethod {
-                        payment_method: Some(PaymentMethod::GooglePay(payments_grpc::GoogleWallet {
+                        payment_method: Some(PaymentMethod::GooglePaySdk(payments_grpc::GoogleWallet {
                             r#type: google_pay_wallet_data.pm_type,
                             description: google_pay_wallet_data.description,
                             info: Some(payments_grpc::google_wallet::PaymentMethodInfo {
@@ -1403,8 +1408,8 @@ pub fn build_unified_connector_service_payment_method(
                     )),
                 }),
                 hyperswitch_domain_models::payment_method_data::WalletData::BluecodeRedirect {} => Ok(payments_grpc::PaymentMethod {
-                    payment_method: Some(PaymentMethod::Bluecode(
-                        payments_grpc::Bluecode {  }
+                    payment_method: Some(PaymentMethod::BluecodeRedirect(
+                        payments_grpc::BluecodeRedirectWallet {  }
                     )),
                 }),
                 hyperswitch_domain_models::payment_method_data::WalletData::PaypalRedirect(
@@ -1419,7 +1424,7 @@ pub fn build_unified_connector_service_payment_method(
                 hyperswitch_domain_models::payment_method_data::WalletData::Paze(paze_data) => {
                     let paze_wallet_data = get_paze_wallet_data(&paze_data, payment_method_token)?;
                     Ok(payments_grpc::PaymentMethod {
-                        payment_method: Some(PaymentMethod::Paze(payments_grpc::PazeWallet {
+                        payment_method: Some(PaymentMethod::PazeSdk(payments_grpc::PazeWallet {
                             paze_data: Some(paze_wallet_data),
                         })),
                     })
@@ -2818,7 +2823,7 @@ where
     let result = handler(grpc_request, grpc_header).await;
     let external_latency = start_time.elapsed().as_millis();
 
-    let router_result = match result {
+    match result {
         Ok(grpc_response) => {
             let grpc_response_body = hyperswitch_masking::masked_serialize(&grpc_response)
                 .unwrap_or_else(|error| {
@@ -2845,9 +2850,7 @@ where
             );
             Err(error)
         }
-    };
-
-    router_result
+    }
 }
 
 // ============================================================================

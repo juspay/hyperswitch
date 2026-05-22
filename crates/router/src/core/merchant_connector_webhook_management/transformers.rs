@@ -110,6 +110,7 @@ pub async fn construct_webhook_register_router_data<'a>(
         payout_id: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     })
 }
 

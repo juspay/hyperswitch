@@ -306,6 +306,7 @@ impl TryFrom<Bank> for BankTransfer {
                 bank_account_number: trustly.account_number,
                 bank_number: trustly.bank_number,
             })),
+            Bank::OpenBanking(open_banking) => Ok(Self::OpenBanking(open_banking)),
         }
     }
 }
@@ -346,6 +347,7 @@ impl From<BankTransfer> for Bank {
                 tax_id: None,
                 emv: None,
             }),
+            BankTransfer::OpenBanking(open_banking) => Self::OpenBanking(open_banking),
         }
     }
 }
@@ -382,6 +384,7 @@ pub enum Bank {
     Trustly(TrustlyBankTransfer),
     Sepa(SepaBankTransfer),
     Pix(PixBankTransfer),
+    OpenBanking(OpenBanking),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -394,6 +397,7 @@ pub enum BankTransfer {
     PixKey(PixKeyBankTransfer),
     PixEmv(PixEmvBankTransfer),
     Trustly(TrustlyBankTransferData),
+    OpenBanking(OpenBanking),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -417,6 +421,10 @@ pub struct AchBankTransfer {
     /// [9 digits] Routing number - used in USA for identifying a specific bank.
     #[schema(value_type = String, example = "110000000")]
     pub bank_routing_number: Secret<String>,
+
+    /// Account holder name
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub account_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -440,6 +448,10 @@ pub struct BacsBankTransfer {
     /// [6 digits] Sort Code - used in UK and Ireland for identifying a bank and it's branches.
     #[schema(value_type = String, example = "98-76-54")]
     pub bank_sort_code: Secret<String>,
+
+    /// Account holder name
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub account_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -464,6 +476,10 @@ pub struct SepaBankTransfer {
     /// [8 / 11 digits] Bank Identifier Code (bic) / Swift Code - used in many countries for identifying a bank and it's branches
     #[schema(value_type = String, example = "HSBCGB2LXXX")]
     pub bic: Option<Secret<String>>,
+
+    /// Account holder name
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub account_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -559,6 +575,16 @@ pub struct OpenBankingUk {
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct OpenBanking {
+    /// Account holder name
+    #[schema(value_type = String, example = "John Doe")]
+    pub account_holder_name: Secret<String>,
+    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
+    #[schema(value_type = String, example = "DE89370400440532013000")]
+    pub iban: Secret<String>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct TrustlyBankTransfer {
     /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
     #[schema(value_type = String, example = "token_12345")]
@@ -596,6 +622,10 @@ pub struct Passthrough {
     /// PSP token generated for the payout method
     #[schema(value_type = String, example = "token_12345")]
     pub psp_token: Secret<String>,
+
+    /// PSP customer ID
+    #[schema(value_type = String, example = "customer_12345")]
+    pub psp_customer_id: Option<Secret<String>>,
 
     /// Payout method type of the token
     #[schema(value_type = PaymentMethodType, example = "paypal")]
@@ -915,6 +945,7 @@ pub struct PayoutRetrieveBody {
     pub force_sync: Option<bool>,
     #[schema(value_type = Option<String>)]
     pub merchant_id: Option<id_type::MerchantId>,
+    pub expand_attempts: Option<bool>,
 }
 
 #[derive(Debug, Serialize, ToSchema, Clone, Deserialize)]
@@ -937,6 +968,10 @@ pub struct PayoutRetrieveRequest {
     /// The identifier for the Merchant Account.
     #[schema(value_type = Option<String>)]
     pub merchant_id: Option<id_type::MerchantId>,
+
+    /// Set to true to get the list of attempts along with payout details, no further action required
+    #[schema(value_type = Option<bool>, default = false, example = true)]
+    pub expand_attempts: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Clone, ToSchema, router_derive::PolymorphicSchema)]
@@ -1188,6 +1223,7 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                 bank_city,
                 bank_account_number,
                 bank_routing_number,
+                account_holder_name,
             }) => Self::Ach(Box::new(
                 payout_method_utils::AchBankTransferAdditionalData {
                     bank_name,
@@ -1195,6 +1231,7 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                     bank_city,
                     bank_account_number: bank_account_number.into(),
                     bank_routing_number: bank_routing_number.into(),
+                    account_holder_name,
                 },
             )),
             Bank::Bacs(BacsBankTransfer {
@@ -1203,6 +1240,7 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                 bank_city,
                 bank_account_number,
                 bank_sort_code,
+                account_holder_name,
             }) => Self::Bacs(Box::new(
                 payout_method_utils::BacsBankTransferAdditionalData {
                     bank_name,
@@ -1210,6 +1248,7 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                     bank_city,
                     bank_account_number: bank_account_number.into(),
                     bank_sort_code: bank_sort_code.into(),
+                    account_holder_name,
                 },
             )),
             Bank::Sepa(SepaBankTransfer {
@@ -1218,6 +1257,7 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                 bank_city,
                 iban,
                 bic,
+                account_holder_name,
             }) => Self::Sepa(Box::new(
                 payout_method_utils::SepaBankTransferAdditionalData {
                     bank_name,
@@ -1225,6 +1265,7 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                     bank_city,
                     iban: iban.into(),
                     bic: bic.map(From::from),
+                    account_holder_name,
                 },
             )),
             Bank::Pix(PixBankTransfer {
@@ -1257,6 +1298,13 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                     bank_number,
                 },
             )),
+            Bank::OpenBanking(OpenBanking {
+                account_holder_name,
+                iban,
+            }) => Self::OpenBanking(Box::new(payout_method_utils::OpenBankingAdditionalData {
+                account_holder_name,
+                iban,
+            })),
         }
     }
 }
@@ -1270,6 +1318,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                 bank_city,
                 bank_account_number,
                 bank_routing_number,
+                account_holder_name,
             }) => Self::Ach(Box::new(
                 payout_method_utils::AchBankTransferAdditionalData {
                     bank_name,
@@ -1277,6 +1326,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                     bank_city,
                     bank_account_number: bank_account_number.into(),
                     bank_routing_number: bank_routing_number.into(),
+                    account_holder_name,
                 },
             )),
             BankTransfer::Bacs(BacsBankTransfer {
@@ -1285,6 +1335,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                 bank_city,
                 bank_account_number,
                 bank_sort_code,
+                account_holder_name,
             }) => Self::Bacs(Box::new(
                 payout_method_utils::BacsBankTransferAdditionalData {
                     bank_name,
@@ -1292,6 +1343,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                     bank_city,
                     bank_account_number: bank_account_number.into(),
                     bank_sort_code: bank_sort_code.into(),
+                    account_holder_name,
                 },
             )),
             BankTransfer::Sepa(SepaBankTransfer {
@@ -1300,6 +1352,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                 bank_city,
                 iban,
                 bic,
+                account_holder_name,
             }) => Self::Sepa(Box::new(
                 payout_method_utils::SepaBankTransferAdditionalData {
                     bank_name,
@@ -1307,6 +1360,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                     bank_city,
                     iban: iban.into(),
                     bic: bic.map(From::from),
+                    account_holder_name,
                 },
             )),
             BankTransfer::Pix(PixAccountBankTransfer {
@@ -1358,6 +1412,13 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                     bank_number,
                 },
             )),
+            BankTransfer::OpenBanking(OpenBanking {
+                account_holder_name,
+                iban,
+            }) => Self::OpenBanking(Box::new(payout_method_utils::OpenBankingAdditionalData {
+                account_holder_name,
+                iban,
+            })),
         }
     }
 }
@@ -1524,6 +1585,7 @@ impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
                 Bank::Sepa(_) => Self::SepaBankTransfer,
                 Bank::Pix(_) => Self::Pix,
                 Bank::Trustly(_) => Self::Trustly,
+                Bank::OpenBanking(_) => Self::OpenBanking,
             },
             PayoutMethodData::BankTransfer(bank_transfer) => match bank_transfer {
                 BankTransfer::Ach(_) => Self::Ach,
@@ -1533,6 +1595,7 @@ impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
                 BankTransfer::PixKey(_) => Self::PixKey,
                 BankTransfer::PixEmv(_) => Self::PixEmv,
                 BankTransfer::Trustly(_) => Self::Trustly,
+                BankTransfer::OpenBanking(_) => Self::OpenBanking,
             },
             PayoutMethodData::Wallet(wallet) => match wallet {
                 Wallet::ApplePayDecrypt(_) => Self::ApplePay,

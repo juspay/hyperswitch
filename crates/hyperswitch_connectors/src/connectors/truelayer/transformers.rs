@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use actix_web::http::header::HeaderMap;
 #[cfg(feature = "payouts")]
-use api_models::payouts::{BankRedirect, PayoutMethodData};
+use api_models::payouts::{BankTransfer, PayoutMethodData};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use common_enums::enums;
 #[cfg(feature = "payouts")]
@@ -239,6 +239,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TruelayerPaymentsResponse, T, PaymentsR
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -335,7 +336,7 @@ pub struct TruelayerErrorResponse {
     pub detail: String,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct TruelayerPayoutRequest {
     merchant_account_id: Secret<String>,
     amount_in_minor: MinorUnit,
@@ -343,13 +344,23 @@ pub struct TruelayerPayoutRequest {
     beneficiary: TruelayerBeneficiary,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde_with::skip_serializing_none]
 pub struct TruelayerBeneficiary {
     #[serde(rename = "type")]
-    _type: String,
+    _type: TruelayerBeneficiaryType,
     reference: String,
-    account_holder_name: Secret<String>,
-    account_identifier: TruelayerAccountIdentifier,
+    account_holder_name: Option<Secret<String>>,
+    account_identifier: Option<TruelayerAccountIdentifier>,
+    payment_source_id: Option<Secret<String>>,
+    user_id: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum TruelayerBeneficiaryType {
+    ExternalAccount,
+    PaymentSource,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
@@ -366,22 +377,42 @@ impl TryFrom<&TruelayerRouterData<&PayoutsRouterData<PoFulfill>>> for TruelayerP
         item: &TruelayerRouterData<&PayoutsRouterData<PoFulfill>>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.get_payout_method_data()? {
-            PayoutMethodData::BankRedirect(BankRedirect::OpenBankingUk(open_banking_uk_data)) => {
+            PayoutMethodData::BankTransfer(BankTransfer::OpenBanking(open_banking_data)) => {
                 let metadata = TruelayerMetadata::try_from(&item.router_data.connector_meta_data)?;
                 Ok(Self {
                     merchant_account_id: metadata.merchant_account_id,
                     amount_in_minor: item.amount,
                     currency: item.router_data.request.destination_currency,
                     beneficiary: TruelayerBeneficiary {
-                        _type: "external_account".to_string(),
-                        reference: normalize_payment_id(
-                            item.router_data.request.payout_id.get_string_repr(),
+                        _type: TruelayerBeneficiaryType::ExternalAccount,
+                        reference: normalize_connector_request_reference_id(
+                            &item.router_data.connector_request_reference_id.clone(),
                         ),
-                        account_holder_name: open_banking_uk_data.account_holder_name,
-                        account_identifier: TruelayerAccountIdentifier {
+                        account_holder_name: Some(open_banking_data.account_holder_name),
+                        account_identifier: Some(TruelayerAccountIdentifier {
                             _type: "iban".to_string(),
-                            iban: open_banking_uk_data.iban,
-                        },
+                            iban: open_banking_data.iban,
+                        }),
+                        user_id: None,
+                        payment_source_id: None,
+                    },
+                })
+            }
+            PayoutMethodData::Passthrough(passthrough_data) => {
+                let metadata = TruelayerMetadata::try_from(&item.router_data.connector_meta_data)?;
+                Ok(Self {
+                    merchant_account_id: metadata.merchant_account_id,
+                    amount_in_minor: item.amount,
+                    currency: item.router_data.request.destination_currency,
+                    beneficiary: TruelayerBeneficiary {
+                        _type: TruelayerBeneficiaryType::PaymentSource,
+                        reference: normalize_connector_request_reference_id(
+                            &item.router_data.connector_request_reference_id.clone(),
+                        ),
+                        account_holder_name: None,
+                        account_identifier: None,
+                        user_id: passthrough_data.psp_customer_id,
+                        payment_source_id: Some(passthrough_data.psp_token),
                     },
                 })
             }
@@ -630,10 +661,10 @@ pub fn generate_tl_signature(
     }
 }
 
-pub fn normalize_payment_id(payment_id: &str) -> String {
-    payment_id
+fn normalize_connector_request_reference_id(reference_id: &str) -> String {
+    reference_id
         .chars()
-        .filter(|c| c.is_ascii_alphanumeric())
+        .map(|c| if c == '_' { '-' } else { c })
         .collect()
 }
 

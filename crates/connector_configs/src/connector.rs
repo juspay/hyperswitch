@@ -4,7 +4,8 @@ use std::collections::HashMap;
 use api_models::enums::PayoutConnectors;
 use api_models::{
     enums::{
-        AuthenticationConnectors, BillingConnectors, Connector, PmAuthConnectors, TaxConnectors,
+        AuthenticationConnectors, BillingConnectors, Connector, PmAuthConnectors,
+        SurchargeConnectors, TaxConnectors,
     },
     payments,
 };
@@ -320,6 +321,7 @@ pub struct ConnectorConfig {
     pub hyperswitch_vault: Option<ConnectorTomlConfig>,
     pub hyperwallet: Option<ConnectorTomlConfig>,
     pub inespay: Option<ConnectorTomlConfig>,
+    pub interpayments: Option<ConnectorTomlConfig>,
     pub jpmorgan: Option<ConnectorTomlConfig>,
     pub klarna: Option<ConnectorTomlConfig>,
     pub loonio: Option<ConnectorTomlConfig>,
@@ -502,6 +504,15 @@ impl ConnectorConfig {
         }
     }
 
+    pub fn get_surcharge_processor_config(
+        connector: SurchargeConnectors,
+    ) -> Result<Option<ConnectorTomlConfig>, String> {
+        let connector_data = Self::new()?;
+        match connector {
+            SurchargeConnectors::Interpayments => Ok(connector_data.interpayments),
+        }
+    }
+
     pub fn get_pm_authentication_processor_config(
         connector: PmAuthConnectors,
     ) -> Result<Option<ConnectorTomlConfig>, String> {
@@ -635,6 +646,7 @@ impl ConnectorConfig {
             Connector::Trustpayments => Ok(connector_data.trustpayments),
             Connector::Threedsecureio => Ok(connector_data.threedsecureio),
             Connector::Taxjar => Ok(connector_data.taxjar),
+            Connector::Interpayments => Ok(connector_data.interpayments),
             Connector::Tsys => Ok(connector_data.tsys),
             Connector::Vgs => Ok(connector_data.vgs),
             Connector::Volt => Ok(connector_data.volt),
