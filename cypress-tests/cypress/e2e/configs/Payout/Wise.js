@@ -365,7 +365,8 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             code: "IR_04",
-            message: "Provide either customer or customer_id when payout_link is true",
+            message:
+              "Provide either customer or customer_id when payout_link is true",
           },
         },
       },

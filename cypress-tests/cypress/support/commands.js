@@ -9105,8 +9105,7 @@ Cypress.Commands.add("initiatePayoutLinkTest", (data, globalState) => {
       const isHtml = contentType.includes("text/html");
 
       if (response.status === 200 && isHtml) {
-        const bodyText =
-          typeof response.body === "string" ? response.body : "";
+        const bodyText = typeof response.body === "string" ? response.body : "";
         const hasHyperLoader =
           bodyText.includes("HyperLoader") ||
           bodyText.includes("hyperloader-sdk");
@@ -9182,7 +9181,10 @@ Cypress.Commands.add("retrievePayoutLinkTest", (data, globalState) => {
       expect(response.body.payout_link).to.have.property("payout_link_id");
       expect(response.body.payout_link).to.have.property("link");
 
-      cy.task("cli_log", `Payout Link retrieved: ${response.body.payout_link.payout_link_id}`);
+      cy.task(
+        "cli_log",
+        `Payout Link retrieved: ${response.body.payout_link.payout_link_id}`
+      );
     });
   });
 });
@@ -9301,4 +9303,3 @@ Cypress.Commands.add(
     );
   }
 );
-

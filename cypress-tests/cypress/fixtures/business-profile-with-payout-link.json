@@ -2,10 +2,7 @@
   "bpWithPayoutLink": {
     "payout_link_config": {
       "domain_name": "checkout.example.com",
-      "allowed_domains": [
-        "*.example.com",
-        "trusted-site.com"
-      ],
+      "allowed_domains": ["*.example.com", "trusted-site.com"],
       "ui_config": {
         "logo": "https://example.com/logo.png",
         "merchant_name": "Test Merchant",

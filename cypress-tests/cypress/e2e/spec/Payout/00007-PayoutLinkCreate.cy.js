@@ -270,11 +270,7 @@ describe("Payout Link", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "payout_link_pm"
       ]["PayoutLinkBankTransfer"];
-      cy.handlePayoutLinkBankRedirection(
-        globalState,
-        data.BankData,
-        "success"
-      );
+      cy.handlePayoutLinkBankRedirection(globalState, data.BankData, "success");
     });
 
     it("retrieve-payout-after-bank-submission-test", () => {
@@ -296,7 +292,8 @@ describe("Payout Link", () => {
         fixtures.businessProfileWithPayoutLink.bpWithPayoutLink;
       const apiKey = globalState.get("apiKey");
       const merchantId = globalState.get("merchantId");
-      const profileId = globalState.get("profileId") || globalState.get("defaultProfileId");
+      const profileId =
+        globalState.get("profileId") || globalState.get("defaultProfileId");
 
       cy.request({
         method: "POST",
