@@ -546,6 +546,13 @@ fn decide_execution_path(
 /// 3. `ucs_rollout_config_<org_id>_<merchant_id>_<connector>_...` — org + merchant + connector (highest)
 ///
 /// The caller tries keys highest → lowest and uses the first match found.
+/// Builds rollout config keys in ascending precedence order (lowest → highest):
+/// 1. `ucs_rollout_config_<org_id>`                                         — org level
+/// 2. `ucs_rollout_config_<org_id>_<merchant_id>`                           — org + merchant
+/// 3. `ucs_rollout_config_<org_id>_<merchant_id>_<connector>_...`           — org + merchant + connector
+/// 4. `ucs_rollout_config_<merchant_id>_<connector>_...`                    — merchant + connector (highest)
+///
+/// The caller iterates highest → lowest and uses the first match found.
 fn build_rollout_keys(
     org_id: &str,
     merchant_id: &str,
@@ -557,31 +564,55 @@ fn build_rollout_keys(
     let prefix = consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX;
     let is_refund_flow = matches!(flow_name, "Execute" | "RSync");
 
-    let org_merchant_connector_key = if is_refund_flow {
-        format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{flow_name}")
+    let (merchant_connector_key, org_merchant_connector_key) = if is_refund_flow {
+        // Refund flows: ucs_rollout_config_<merchant_id>_<connector>_<flow>
+        (
+            format!("{prefix}_{merchant_id}_{connector_name}_{flow_name}"),
+            format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{flow_name}"),
+        )
     } else {
         match payment_method {
             common_enums::PaymentMethod::Wallet
             | common_enums::PaymentMethod::BankRedirect
             | common_enums::PaymentMethod::Voucher
             | common_enums::PaymentMethod::PayLater => {
-                let pm = payment_method.to_string();
-                let pmt = payment_method_type
-                    .map(|t| t.to_string())
+                let payment_method_str = payment_method.to_string();
+                let payment_method_type_str = payment_method_type
+                    .map(|pmt| pmt.to_string())
                     .unwrap_or_else(|| "unknown".to_string());
-                format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{pm}_{pmt}_{flow_name}")
+                (
+                    format!("{prefix}_{merchant_id}_{connector_name}_{payment_method_str}_{payment_method_type_str}_{flow_name}"),
+                    format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{payment_method_str}_{payment_method_type_str}_{flow_name}"),
+                )
             }
-            _ => {
-                let pm = payment_method.to_string();
-                format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{pm}_{flow_name}")
+            common_enums::PaymentMethod::Card
+            | common_enums::PaymentMethod::CardRedirect
+            | common_enums::PaymentMethod::Upi
+            | common_enums::PaymentMethod::Crypto
+            | common_enums::PaymentMethod::Reward
+            | common_enums::PaymentMethod::BankDebit
+            | common_enums::PaymentMethod::RealTimePayment
+            | common_enums::PaymentMethod::BankTransfer
+            | common_enums::PaymentMethod::GiftCard
+            | common_enums::PaymentMethod::MobilePayment
+            | common_enums::PaymentMethod::NetworkToken
+            | common_enums::PaymentMethod::OpenBanking => {
+                // For other payment methods, use a generic format without specific payment method type details
+                let payment_method_str = payment_method.to_string();
+                (
+                    format!("{prefix}_{merchant_id}_{connector_name}_{payment_method_str}_{flow_name}"),
+                    format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{payment_method_str}_{flow_name}"),
+                )
             }
         }
     };
 
+    // Ascending precedence order (lowest first, highest last)
     vec![
         format!("{prefix}_{org_id}"),
         format!("{prefix}_{org_id}_{merchant_id}"),
         org_merchant_connector_key,
+        merchant_connector_key,
     ]
 }
 
