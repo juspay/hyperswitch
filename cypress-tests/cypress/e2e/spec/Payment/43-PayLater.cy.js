@@ -443,14 +443,14 @@ describe("PayLater tests", () => {
     });
   });
 
-  context("Affirm PayLater - Sandbox Limitation", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment with Affirm (expect error)", () => {
+  context("Affirm PayLater - Auto Capture flow test", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
-        ]["AutoCapture"];
+        ]["AffirmAutoCapture"];
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -471,9 +471,9 @@ describe("PayLater tests", () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.step("Confirm Payment with Affirm", () => {
+      cy.step("Confirm Payment", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment with Affirm");
+          cy.task("cli_log", "Skipping step: Confirm Payment");
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -485,11 +485,307 @@ describe("PayLater tests", () => {
           true,
           globalState
         );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle PayLater Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle PayLater Redirection");
+          return;
+        }
+        const expected_redirection =
+          globalState.get("baseUrl") + "/payments/completion";
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handlePayLaterRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
       });
     });
   });
 
-  context("AfterpayClearplay PayLater - Sandbox Limitation", () => {
+  context("Affirm PayLater - Manual Capture flow test", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["AffirmManualCapture"];
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "manual",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["Affirm"];
+        cy.confirmBankRedirectCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle PayLater Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle PayLater Redirection");
+          return;
+        }
+        const expected_redirection =
+          globalState.get("baseUrl") + "/payments/completion";
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handlePayLaterRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
+      });
+    });
+  });
+
+  context("Alma PayLater - Auto Capture flow test", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["AlmaAutoCapture"];
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["Alma"];
+        cy.confirmBankRedirectCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle PayLater Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle PayLater Redirection");
+          return;
+        }
+        const expected_redirection =
+          globalState.get("baseUrl") + "/payments/completion";
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handlePayLaterRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
+      });
+    });
+  });
+
+  context("Alma PayLater - Manual Capture flow test", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["AlmaManualCapture"];
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "manual",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["Alma"];
+        cy.confirmBankRedirectCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle PayLater Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle PayLater Redirection");
+          return;
+        }
+        const expected_redirection =
+          globalState.get("baseUrl") + "/payments/completion";
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handlePayLaterRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
+      });
+    });
+  });
+
+  context("Atome PayLater - Auto Capture flow test", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["AtomeAutoCapture"];
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["Atome"];
+        cy.confirmBankRedirectCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle PayLater Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle PayLater Redirection");
+          return;
+        }
+        const expected_redirection =
+          globalState.get("baseUrl") + "/payments/completion";
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handlePayLaterRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
+      });
+    });
+  });
+
+  context("Atome Manual Capture - Not Supported", () => {
+    it("Create and Confirm Payment with manual capture (expect error)", () => {
+      let shouldContinue = true;
+
+      cy.step("Create and Confirm Payment", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["AtomeManualCaptureUnsupported"];
+        cy.createConfirmPaymentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "manual",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+    });
+  });
+
+  context("AfterpayClearplay PayLater - Routing Limitation", () => {
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment with AfterpayClearplay (expect error)", () => {
       let shouldContinue = true;
 
@@ -528,98 +824,6 @@ describe("PayLater tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
         ]["AfterpayClearplay"];
-        cy.confirmBankRedirectCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
-      });
-    });
-  });
-
-  context("Alma PayLater - Sandbox Limitation", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment with Alma (expect error)", () => {
-      let shouldContinue = true;
-
-      cy.step("Create Payment Intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "pay_later_pm"
-        ]["AutoCapture"];
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "three_ds",
-          "automatic",
-          globalState
-        );
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("List Merchant Payment Methods", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
-          return;
-        }
-        cy.paymentMethodsCallTest(globalState);
-      });
-
-      cy.step("Confirm Payment with Alma", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment with Alma");
-          return;
-        }
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "pay_later_pm"
-        ]["Alma"];
-        cy.confirmBankRedirectCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
-      });
-    });
-  });
-
-  context("Atome PayLater - Sandbox Limitation", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment with Atome (expect error)", () => {
-      let shouldContinue = true;
-
-      cy.step("Create Payment Intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "pay_later_pm"
-        ]["AutoCapture"];
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "three_ds",
-          "automatic",
-          globalState
-        );
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("List Merchant Payment Methods", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
-          return;
-        }
-        cy.paymentMethodsCallTest(globalState);
-      });
-
-      cy.step("Confirm Payment with Atome", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment with Atome");
-          return;
-        }
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "pay_later_pm"
-        ]["Atome"];
         cy.confirmBankRedirectCallTest(
           fixtures.confirmBody,
           confirmData,

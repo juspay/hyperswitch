@@ -1747,6 +1747,233 @@ export const connectorDetails = {
         },
       },
     }),
+    AffirmAutoCapture: getCustomExchange({
+      Request: {
+        currency: "USD",
+        capture_method: "automatic",
+        customer_acceptance: {
+          acceptance_type: "online",
+        },
+        billing: {
+          address: {
+            line1: "123 Test St",
+            line2: "Apt 4",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "4155552671",
+            country_code: "+1",
+          },
+          email: "test@test.com",
+        },
+        shipping: {
+          address: {
+            line1: "123 Test St",
+            line2: "Apt 4",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    AffirmManualCapture: getCustomExchange({
+      Request: {
+        currency: "USD",
+        capture_method: "manual",
+        customer_acceptance: {
+          acceptance_type: "online",
+        },
+        billing: {
+          address: {
+            line1: "123 Test St",
+            line2: "Apt 4",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "4155552671",
+            country_code: "+1",
+          },
+          email: "test@test.com",
+        },
+        shipping: {
+          address: {
+            line1: "123 Test St",
+            line2: "Apt 4",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    AlmaAutoCapture: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        capture_method: "automatic",
+        customer_acceptance: {
+          acceptance_type: "online",
+        },
+        billing: {
+          address: {
+            line1: "123 Rue de Test",
+            line2: "Apt 4",
+            city: "Paris",
+            state: "Ile-de-France",
+            zip: "75001",
+            country: "FR",
+            first_name: "Jean",
+            last_name: "Dupont",
+          },
+          phone: {
+            number: "612345678",
+            country_code: "+33",
+          },
+          email: "test@test.com",
+        },
+        shipping: {
+          address: {
+            line1: "123 Rue de Test",
+            line2: "Apt 4",
+            city: "Paris",
+            state: "Ile-de-France",
+            zip: "75001",
+            country: "FR",
+            first_name: "Jean",
+            last_name: "Dupont",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    AlmaManualCapture: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        capture_method: "manual",
+        customer_acceptance: {
+          acceptance_type: "online",
+        },
+        billing: {
+          address: {
+            line1: "123 Rue de Test",
+            line2: "Apt 4",
+            city: "Paris",
+            state: "Ile-de-France",
+            zip: "75001",
+            country: "FR",
+            first_name: "Jean",
+            last_name: "Dupont",
+          },
+          phone: {
+            number: "612345678",
+            country_code: "+33",
+          },
+          email: "test@test.com",
+        },
+        shipping: {
+          address: {
+            line1: "123 Rue de Test",
+            line2: "Apt 4",
+            city: "Paris",
+            state: "Ile-de-France",
+            zip: "75001",
+            country: "FR",
+            first_name: "Jean",
+            last_name: "Dupont",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    AtomeAutoCapture: getCustomExchange({
+      Request: {
+        currency: "SGD",
+        capture_method: "automatic",
+        customer_acceptance: {
+          acceptance_type: "online",
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+        billing: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Unit 4",
+            city: "Singapore",
+            state: "Singapore",
+            zip: "018956",
+            country: "SG",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "91234567",
+            country_code: "+65",
+          },
+          email: "test@test.com",
+        },
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Unit 4",
+            city: "Singapore",
+            state: "Singapore",
+            zip: "018956",
+            country: "SG",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
     Capture: getCustomExchange({
       Request: {
         amount_to_capture: 6000,
@@ -1768,56 +1995,46 @@ export const connectorDetails = {
         payment_experience: "redirect_to_url",
         payment_method_data: {
           pay_later: {
-            affirm_redirect: {
-              billing_email: "guest@juspay.in",
-              billing_country: "US",
-            },
+            affirm_redirect: {},
           },
         },
         billing: {
-          email: "guest@juspay.in",
+          email: "test@test.com",
           phone: {
             number: "4155552671",
             country_code: "+1",
           },
           address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
+            line1: "123 Test St",
+            line2: "Apt 4",
             city: "San Francisco",
             state: "California",
             zip: "94122",
             country: "US",
-            first_name: "joseph",
+            first_name: "John",
             last_name: "Doe",
           },
         },
         shipping: {
           address: {
-            line1: "1467",
-            line2: "Harrison Street",
+            line1: "123 Test St",
+            line2: "Apt 4",
             city: "San Francisco",
             state: "California",
             zip: "94122",
             country: "US",
-            first_name: "joseph",
+            first_name: "John",
             last_name: "Doe",
           },
         },
-        order_details: [
-          {
-            product_name: "Test Product",
-            quantity: 1,
-            amount: 5000,
-          },
-        ],
+        customer_acceptance: {
+          acceptance_type: "online",
+        },
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-          },
+          status: "requires_customer_action",
         },
       },
     }),
@@ -1874,6 +2091,9 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
           },
         },
       },
@@ -1889,49 +2109,39 @@ export const connectorDetails = {
           },
         },
         billing: {
-          email: "guest@juspay.in",
+          email: "test@test.com",
           phone: {
-            number: "0612345678",
+            number: "612345678",
             country_code: "+33",
           },
           address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
+            line1: "123 Rue de Test",
+            line2: "Apt 4",
             city: "Paris",
             state: "Ile-de-France",
             zip: "75001",
             country: "FR",
-            first_name: "joseph",
-            last_name: "Doe",
+            first_name: "Jean",
+            last_name: "Dupont",
           },
         },
         shipping: {
           address: {
-            line1: "1467",
-            line2: "Harrison Street",
+            line1: "123 Rue de Test",
+            line2: "Apt 4",
             city: "Paris",
             state: "Ile-de-France",
             zip: "75001",
             country: "FR",
-            first_name: "joseph",
-            last_name: "Doe",
+            first_name: "Jean",
+            last_name: "Dupont",
           },
         },
-        order_details: [
-          {
-            product_name: "Test Product",
-            quantity: 1,
-            amount: 6000,
-          },
-        ],
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-          },
+          status: "requires_customer_action",
         },
       },
     }),
@@ -1946,32 +2156,31 @@ export const connectorDetails = {
           },
         },
         billing: {
-          email: "guest@juspay.in",
+          email: "test@test.com",
           phone: {
             number: "91234567",
             country_code: "+65",
           },
           address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
+            line1: "123 Test Street",
+            line2: "Unit 4",
             city: "Singapore",
             state: "Singapore",
             zip: "018956",
             country: "SG",
-            first_name: "joseph",
+            first_name: "John",
             last_name: "Doe",
           },
         },
         shipping: {
           address: {
-            line1: "1467",
-            line2: "Harrison Street",
+            line1: "123 Test Street",
+            line2: "Unit 4",
             city: "Singapore",
             state: "Singapore",
             zip: "018956",
             country: "SG",
-            first_name: "joseph",
+            first_name: "John",
             last_name: "Doe",
           },
         },
@@ -1984,10 +2193,72 @@ export const connectorDetails = {
         ],
       },
       Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    AtomeManualCaptureUnsupported: getCustomExchange({
+      Request: {
+        currency: "SGD",
+        capture_method: "manual",
+        customer_acceptance: {
+          acceptance_type: "online",
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+        billing: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Unit 4",
+            city: "Singapore",
+            state: "Singapore",
+            zip: "018956",
+            country: "SG",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "91234567",
+            country_code: "+65",
+          },
+          email: "test@test.com",
+        },
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Unit 4",
+            city: "Singapore",
+            state: "Singapore",
+            zip: "018956",
+            country: "SG",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        payment_method: "pay_later",
+        payment_method_type: "atome",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            atome_redirect: {},
+          },
+        },
+      },
+      Response: {
         status: 400,
         body: {
           error: {
             type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+            reason: "manual for atome is not supported by adyen",
           },
         },
       },
