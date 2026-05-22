@@ -9040,15 +9040,6 @@ Cypress.Commands.add(
       delete requestBody.customer_id;
     }
 
-    // Auto-add test_mode to payout_link_config for CI/test environments
-    // The server requires test_mode in payout_link_config for test environments
-    if (requestBody.payout_link === true) {
-      requestBody.payout_link_config = {
-        test_mode: true,
-        ...(requestBody.payout_link_config || {}),
-      };
-    }
-
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payouts/create`,
