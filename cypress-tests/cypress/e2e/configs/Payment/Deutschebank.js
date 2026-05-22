@@ -334,6 +334,14 @@ export const connectorDetails = {
         },
       },
     },
+    SepaRetrieve: {
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+        },
+      },
+    },
     MandateSingleUseNo3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,

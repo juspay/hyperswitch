@@ -88,11 +88,11 @@ describe("Bank Debit tests", () => {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
         }
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+        const retrieveData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
-        ]["Sepa"];
-        cy.retrievePaymentCallTest({ globalState, data: confirmData });
-        if (!utils.should_continue_further(confirmData)) {
+        ]["SepaRetrieve"];
+        cy.retrievePaymentCallTest({ globalState, data: retrieveData });
+        if (!utils.should_continue_further(retrieveData)) {
           shouldContinue = false;
         }
       });
