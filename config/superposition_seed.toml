@@ -151,28 +151,16 @@ schema = { type = "boolean" }
 description = "Whether to schedule PM modular backward compatibility PT for a merchant"
 change_reason = "Initial setup"
 
+[default-configs.should_trigger_backwards_compatibility_inline]
+value = false
+schema = { type = "boolean" }
+description = "Whether to trigger PM modular backward compatibility inline for a merchant"
+change_reason = "Initial setup"
+
 [default-configs.should_return_raw_payment_method_details]
 value = false
 schema = { type = "boolean" }
 description = "Whether to return raw payment method details (v2 only)"
-change_reason = "Initial setup"
-
-[default-configs.routing_result_source]
-value = "hyperswitch_routing"
-schema = { type = "string", enum = ["decision_engine", "hyperswitch_routing"] }
-description = "Source of routing result: decision_engine (external DE) or hyperswitch_routing (inbuilt)"
-change_reason = "Initial setup"
-
-[default-configs.threeds_routing_region_uas]
-value = "region1"
-schema = { type = "string", enum = ["region1", "region2"] }
-description = "3DS routing region for UAS (Unified Authentication Service) per organization"
-change_reason = "Initial setup"
-
-[default-configs.incoming_webhook_disabled_events]
-value = false
-schema = { type = "boolean" }
-description = "Whether a specific incoming webhook event is disabled for a given connector"
 change_reason = "Initial setup"
 
 [default-configs.routing_result_source]

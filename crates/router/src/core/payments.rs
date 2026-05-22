@@ -170,7 +170,7 @@ use crate::{core::revenue_recovery::get_workflow_entries, db::storage::payment_m
 #[cfg(feature = "v1")]
 use crate::{
     core::{
-        authentication as authentication_core, unified_authentication_service::utils as uas_utils,
+        authentication as authentication_core,
         unified_connector_service::update_gateway_system_in_feature_metadata,
     },
     types::{api::authentication, BrowserInformation},
@@ -745,6 +745,22 @@ where
     let connector_customer_map = customer
         .as_ref()
         .and_then(|customer| customer.connector_customer.as_ref());
+
+    let merchant_connector_id = payment_data
+        .get_payment_attempt()
+        .merchant_connector_id
+        .clone();
+
+    let connector_customer_id = connector_customer_map.and_then(|cc| {
+        merchant_connector_id.and_then(|mca_id| {
+            cc.clone()
+                .expose()
+                .get(mca_id.get_string_repr())
+                .and_then(|val| val.as_str().map(String::from))
+        })
+    });
+
+    payment_data.set_connector_customer_id(connector_customer_id);
 
     let authentication_type = call_decision_manager(
         state,
@@ -7521,51 +7537,72 @@ where
                 }
             };
 
-            let (should_call_connector, existing_connector_customer_id) =
-                customers::should_call_connector_create_customer(
-                    &connector,
-                    connector_customer_map,
-                    payment_data.get_payment_attempt(),
-                    &label,
-                );
-            logger::debug!(should_call_connector_customer = should_call_connector);
-            if should_call_connector {
-                // Create customer at connector and update the customer table to store this data
-                let mut customer_router_data = payment_data
-                    .construct_router_data(
-                        state,
-                        connector.connector.id(),
-                        processor,
-                        merchant_connector_account,
-                        None,
-                        None,
-                        payment_data.get_payment_attempt().payment_method,
-                        payment_data.get_payment_attempt().payment_method_type,
+            match customers::should_call_connector_create_customer(
+                &connector,
+                connector_customer_map,
+                payment_data.get_payment_attempt(),
+                &label,
+            ) {
+                customers::ConnectorCustomerAction::CreateCustomer => {
+                    // Create customer at connector and update the customer table to store this data
+                    let mut customer_router_data = payment_data
+                        .construct_router_data(
+                            state,
+                            connector.connector.id(),
+                            processor,
+                            merchant_connector_account,
+                            None,
+                            None,
+                            payment_data.get_payment_attempt().payment_method,
+                            payment_data.get_payment_attempt().payment_method_type,
+                        )
+                        .await?;
+
+                    customer_router_data.access_token = access_token.cloned();
+
+                    let connector_customer_id = customer_router_data
+                        .create_connector_customer(state, &connector, gateway_context)
+                        .await?;
+
+                    let customer_update: Option<
+                        hyperswitch_domain_models::customer::CustomerUpdate,
+                    > = customers::update_connector_customer_in_customers(
+                        &label,
+                        connector_customer_map,
+                        connector_customer_id.clone(),
+                        initiator,
                     )
-                    .await?;
+                    .await;
 
-                customer_router_data.access_token = access_token.cloned();
+                    payment_data.set_connector_customer_id(connector_customer_id);
+                    Ok(customer_update)
+                }
+                customers::ConnectorCustomerAction::StoreGeneratedCustomerId(
+                    generated_customer_id,
+                ) => {
+                    // Only update with generated customer ID if there's no existing connector customer
+                    let customer_update: Option<
+                        hyperswitch_domain_models::customer::CustomerUpdate,
+                    > = customers::update_connector_customer_in_customers(
+                        &label,
+                        connector_customer_map,
+                        Some(generated_customer_id.clone()),
+                        initiator,
+                    )
+                    .await;
 
-                let connector_customer_id = customer_router_data
-                    .create_connector_customer(state, &connector, gateway_context)
-                    .await?;
-
-                let customer_update = customers::update_connector_customer_in_customers(
-                    &label,
-                    connector_customer_map,
-                    connector_customer_id.clone(),
-                    initiator,
-                )
-                .await;
-
-                payment_data.set_connector_customer_id(connector_customer_id);
-                Ok(customer_update)
-            } else {
-                // Customer already created in previous calls use the same value, no need to update
-                payment_data.set_connector_customer_id(
-                    existing_connector_customer_id.map(ToOwned::to_owned),
-                );
-                Ok(None)
+                    payment_data.set_connector_customer_id(Some(generated_customer_id));
+                    Ok(customer_update)
+                }
+                customers::ConnectorCustomerAction::UseExistingCustomer(
+                    existing_connector_customer_id,
+                ) => {
+                    // Customer already created in previous calls use the same value, no need to update
+                    payment_data.set_connector_customer_id(
+                        existing_connector_customer_id.map(ToOwned::to_owned),
+                    );
+                    Ok(None)
+                }
             }
         }
         None => Ok(None),
@@ -10757,14 +10794,11 @@ where
                 network_token_data.into(),
             ))
         }
-        Some(ActionType::CardWithNetworkTransactionId(network_transaction_id)) => {
+        Some(ActionType::CardWithNetworkTransactionId(card_with_nti_ref)) => {
             logger::info!("using card with network_transaction_id for MIT flow");
 
             Some(payments_api::MandateReferenceId::NetworkMandateId(
-                payments_api::NetworkMandateIdRef {
-                    network_transaction_id,
-                    transaction_link_id: None,
-                },
+                card_with_nti_ref.into(),
             ))
         }
         Some(ActionType::ConnectorMandate(connector_mandate_details)) => {
@@ -10900,12 +10934,14 @@ where
                 .as_ref()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to fetch the network transaction id")?;
+            let transaction_link_id = payment_method_info.network_transaction_link_id.clone();
 
             let mandate_reference_id = Some(payments_api::MandateReferenceId::NetworkMandateId(
-                payments_api::NetworkMandateIdRef {
+                CardWithNTIRef {
                     network_transaction_id: network_transaction_id.to_string(),
-                    transaction_link_id: None,
-                },
+                    transaction_link_id,
+                }
+                .into(),
             ));
 
             connector_choice = Some((connector_data, mandate_reference_id.clone()));
@@ -10955,6 +10991,7 @@ pub struct NetworkTokenExpiry {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub struct NTWithNTIRef {
     pub network_transaction_id: String,
+    pub transaction_link_id: Option<String>,
     pub token_exp_month: Option<Secret<String>>,
     pub token_exp_year: Option<Secret<String>>,
 }
@@ -10963,9 +11000,24 @@ impl From<NTWithNTIRef> for payments_api::NetworkTokenWithNTIRef {
     fn from(network_token_data: NTWithNTIRef) -> Self {
         Self {
             network_transaction_id: network_token_data.network_transaction_id,
-            transaction_link_id: None,
+            transaction_link_id: network_token_data.transaction_link_id,
             token_exp_month: network_token_data.token_exp_month,
             token_exp_year: network_token_data.token_exp_year,
+        }
+    }
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
+pub struct CardWithNTIRef {
+    pub network_transaction_id: String,
+    pub transaction_link_id: Option<String>,
+}
+
+impl From<CardWithNTIRef> for payments_api::NetworkMandateIdRef {
+    fn from(card_data: CardWithNTIRef) -> Self {
+        Self {
+            network_transaction_id: card_data.network_transaction_id,
+            transaction_link_id: card_data.transaction_link_id,
         }
     }
 }
@@ -10974,7 +11026,7 @@ impl From<NTWithNTIRef> for payments_api::NetworkTokenWithNTIRef {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum ActionType {
     NetworkTokenWithNetworkTransactionId(NTWithNTIRef),
-    CardWithNetworkTransactionId(String), // Network Transaction Id
+    CardWithNetworkTransactionId(CardWithNTIRef),
     #[cfg(feature = "v1")]
     ConnectorMandate(hyperswitch_domain_models::mandates::PaymentsMandateReference),
 }
@@ -11030,7 +11082,7 @@ impl ActionTypesBuilder {
         payment_method_data: Option<&domain::PaymentMethodData>,
     ) -> Self {
         match is_network_token_with_ntid_flow {
-            IsNtWithNtiFlow::NtWithNtiSupported(network_transaction_id)
+            IsNtWithNtiFlow::NtWithNtiSupported(card_with_nti_ref)
                 if is_nt_with_ntid_supported_connector =>
             {
                 match payment_method_data {
@@ -11052,7 +11104,12 @@ impl ActionTypesBuilder {
                                             .token_exp_year
                                             .clone(),
                                     ),
-                                    network_transaction_id,
+                                    network_transaction_id: card_with_nti_ref
+                                        .network_transaction_id
+                                        .clone(),
+                                    transaction_link_id: card_with_nti_ref
+                                        .transaction_link_id
+                                        .clone(),
                                 },
                             ));
                     }
@@ -11072,7 +11129,12 @@ impl ActionTypesBuilder {
                                     ActionType::NetworkTokenWithNetworkTransactionId(NTWithNTIRef {
                                         token_exp_month,
                                         token_exp_year,
-                                        network_transaction_id,
+                                        network_transaction_id: card_with_nti_ref
+                                            .network_transaction_id
+                                            .clone(),
+                                        transaction_link_id: card_with_nti_ref
+                                            .transaction_link_id
+                                            .clone(),
                                     })
                                 },
                             ),
@@ -11091,12 +11153,20 @@ impl ActionTypesBuilder {
         payment_method_info: &domain::PaymentMethod,
     ) -> Self {
         if is_card_with_ntid_flow {
-            self.action_types.extend(
-                payment_method_info
-                    .network_transaction_id
-                    .as_ref()
-                    .map(|ntid| ActionType::CardWithNetworkTransactionId(ntid.clone())),
-            );
+            self.action_types
+                .extend(
+                    payment_method_info
+                        .network_transaction_id
+                        .as_ref()
+                        .map(|ntid| {
+                            ActionType::CardWithNetworkTransactionId(CardWithNTIRef {
+                                network_transaction_id: ntid.clone(),
+                                transaction_link_id: payment_method_info
+                                    .network_transaction_link_id
+                                    .clone(),
+                            })
+                        }),
+                );
         }
         self
     }
@@ -11195,8 +11265,8 @@ pub fn is_network_transaction_id_flow(
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub enum IsNtWithNtiFlow {
-    NtWithNtiSupported(String), //Network token with Network transaction id supported flow
-    NTWithNTINotSupported,      //Network token with Network transaction id not supported
+    NtWithNtiSupported(CardWithNTIRef), //Network token with Network transaction id + TLID supported flow
+    NTWithNTINotSupported,              //Network token with Network transaction id not supported
 }
 
 pub fn is_network_token_with_network_transaction_id_flow(
@@ -11211,6 +11281,7 @@ pub fn is_network_token_with_network_transaction_id_flow(
         is_network_tokenization_enabled,
         payment_method_info.get_payment_method_type(),
         payment_method_info.network_transaction_id.clone(),
+        payment_method_info.network_transaction_link_id.clone(),
         payment_method_info.network_token_locker_id.is_some(),
         payment_method_info
             .network_token_requestor_reference_id
@@ -11223,21 +11294,29 @@ pub fn is_network_token_with_network_transaction_id_flow(
             true,
             Some(storage_enums::PaymentMethod::Card),
             Some(network_transaction_id),
+            transaction_link_id,
             true,
             true,
             _,
             _,
-        ) => IsNtWithNtiFlow::NtWithNtiSupported(network_transaction_id),
+        ) => IsNtWithNtiFlow::NtWithNtiSupported(CardWithNTIRef {
+            network_transaction_id,
+            transaction_link_id,
+        }),
         (
             Some(true),
             true,
             Some(storage_enums::PaymentMethod::Card),
             Some(network_transaction_id),
+            transaction_link_id,
             _,
             _,
             true,
             Some(domain::PaymentMethodData::CardWithNetworkTokenDetails(_)),
-        ) => IsNtWithNtiFlow::NtWithNtiSupported(network_transaction_id),
+        ) => IsNtWithNtiFlow::NtWithNtiSupported(CardWithNTIRef {
+            network_transaction_id,
+            transaction_link_id,
+        }),
         _ => IsNtWithNtiFlow::NTWithNTINotSupported,
     }
 }
@@ -11577,25 +11656,8 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     platform: domain::Platform,
     req: api_models::payments::PaymentsExternalAuthenticationRequest,
 ) -> RouterResponse<api_models::payments::PaymentsExternalAuthenticationResponse> {
-    use super::unified_authentication_service::types::ExternalAuthentication;
-    use crate::core::unified_authentication_service::{
-        types::UnifiedAuthenticationService, utils::external_authentication_update_trackers,
-    };
-
     let db = &*state.store;
     let key_manager_state = &(&(state)).into();
-
-    let dimensions = Dimensions::new()
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_organization_id(
-            platform
-                .get_processor()
-                .get_account()
-                .organization_id
-                .clone(),
-        );
-
     let processor_merchant_id = platform.get_processor().get_account().get_id();
     let storage_scheme = platform.get_processor().get_account().storage_scheme;
     let payment_id = req.payment_id;
@@ -11698,21 +11760,6 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     )
     .await?;
 
-    let authentication = db
-        .find_authentication_by_merchant_id_authentication_id(
-            processor_merchant_id,
-            &payment_attempt
-                .authentication_id
-                .clone()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("missing authentication_id in payment_attempt")?,
-            platform.get_processor().get_key_store(),
-            key_manager_state,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error while fetching authentication record")?;
-
     let business_profile = state
         .store
         .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), profile_id)
@@ -11770,49 +11817,68 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), &state)
             .await?
         {
-            let routing_region = uas_utils::fetch_routing_region_for_uas(&state, &dimensions).await;
-            let auth_response =
-                <ExternalAuthentication as UnifiedAuthenticationService>::authentication(
+            let authentication_id = payment_attempt
+                .authentication_id
+                .clone()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("missing authentication_id in payment_attempt")?;
+
+            let auth_config = &state.conf.micro_services.authentication_service;
+
+            let req_identifier = router_env::RequestIdentifier::new("x-request-id");
+            let client = crate::core::authentication_client::AuthenticationServiceClient::new(
+                auth_config,
+                &req_identifier,
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to create auth client")?;
+
+            let authenticate_req = api_models::authentication::AuthenticationAuthenticateRequest {
+                authentication_id,
+                client_secret: None,
+                sdk_information: req.sdk_information.clone(),
+                device_channel: req.device_channel,
+                threeds_method_comp_ind: req.threeds_method_comp_ind,
+            };
+
+            let response =
+                crate::core::authentication_client::AuthenticationAuthenticateFlow::call(
                     &state,
-                    &business_profile,
-                    &payment_method_details.1,
-                    browser_info,
-                    Some(amount),
-                    Some(currency),
-                    authentication::MessageCategory::Payment,
-                    req.device_channel,
-                    authentication.clone(),
-                    return_url,
-                    req.sdk_information.clone(),
-                    req.threeds_method_comp_ind,
-                    optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
-                    webhook_url,
-                    &merchant_connector_account,
-                    &authentication_connector,
-                    Some(payment_intent.payment_id),
-                    authentication.force_3ds_challenge,
-                    authentication.psd2_sca_exemption_type,
-                    Some(routing_region),
+                    &client,
+                    authenticate_req,
                 )
-                .await?;
-            let authentication = Box::pin(external_authentication_update_trackers(
-                &state,
-                auth_response,
-                authentication.clone(),
-                None,
-                platform.get_processor().get_key_store(),
-                None,
-                None,
-                None,
-                None,
-                req.sdk_information
-                    .and_then(|sdk_information| sdk_information.device_details),
-                None,
-                None,
-            ))
-            .await?;
-            authentication::AuthenticationResponse::try_from(authentication)?
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to call authentication authenticate flow")?;
+
+            authentication::AuthenticationResponse {
+                trans_status: response
+                    .transaction_status
+                    .unwrap_or(common_enums::TransactionStatus::VerificationNotPerformed),
+                acs_url: response.acs_url,
+                challenge_request: response.challenge_request,
+                acs_reference_number: response.acs_reference_number,
+                acs_trans_id: response.acs_trans_id,
+                three_dsserver_trans_id: response.three_ds_server_transaction_id,
+                acs_signed_content: response.acs_signed_content,
+                challenge_request_key: None,
+                error_message: response.error_message,
+            }
         } else {
+            let authentication = db
+                .find_authentication_by_merchant_id_authentication_id(
+                    processor_merchant_id,
+                    &payment_attempt
+                        .authentication_id
+                        .clone()
+                        .ok_or(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("missing authentication_id in payment_attempt")?,
+                    platform.get_processor().get_key_store(),
+                    key_manager_state,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error while fetching authentication record")?;
             Box::pin(authentication_core::perform_authentication(
                 &state,
                 business_profile.merchant_id,
@@ -12097,6 +12163,132 @@ pub async fn payments_manual_update(
             error_reason: updated_payment_attempt.error_reason,
             connector_transaction_id: updated_payment_attempt.connector_transaction_id,
             amount_capturable: Some(updated_payment_attempt.amount_capturable),
+        },
+    ))
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub async fn payments_manual_status_update(
+    state: SessionState,
+    platform: domain::Platform,
+    payment_id: id_type::PaymentId,
+    req: api_models::payments::PaymentsManualStatusUpdateRequest,
+) -> RouterResponse<api_models::payments::PaymentsManualStatusUpdateResponse> {
+    let api_models::payments::PaymentsManualStatusUpdateRequest { intent_status } = req;
+
+    let merchant_id = platform.get_processor().get_account().get_id();
+
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the key store by merchant_id")?;
+
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the merchant_account by merchant_id")?;
+
+    let payment_intent = state
+        .store
+        .find_payment_intent_by_payment_id_processor_merchant_id(
+            &payment_id,
+            merchant_account.get_id(),
+            &key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable("Error while fetching the payment_intent by payment_id, merchant_id")?;
+
+    if payment_intent.status != enums::IntentStatus::Review {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!(
+                "Payment status must be 'review' to perform manual status update, current status is '{}'",
+                payment_intent.status
+            ),
+        }
+        .into());
+    }
+
+    let attempt_id = payment_intent.active_attempt.get_id();
+
+    let attempt_status = match intent_status {
+        enums::ManualUpdateIntentStatus::Succeeded => enums::AttemptStatus::Charged,
+        enums::ManualUpdateIntentStatus::Failed => enums::AttemptStatus::Failure,
+    };
+
+    let payment_attempt = state
+        .store
+        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+            &payment_id,
+            merchant_id,
+            &attempt_id,
+            merchant_account.storage_scheme,
+            &key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable("Error while fetching the payment_attempt")?;
+
+    if payment_attempt.status != enums::AttemptStatus::CaptureReview {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!(
+                "Payment attempt status must be 'capture_review' to perform manual status update, current status is '{}'",
+                payment_attempt.status
+            ),
+        }
+        .into());
+    }
+
+    let attempt_update = storage::PaymentAttemptUpdate::StatusUpdate {
+        status: attempt_status,
+        updated_by: merchant_account.storage_scheme.to_string(),
+    };
+
+    let updated_payment_attempt = state
+        .store
+        .update_payment_attempt_with_attempt_id(
+            payment_attempt,
+            attempt_update,
+            merchant_account.storage_scheme,
+            &key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable("Error while updating the payment_attempt")?;
+
+    let intent_status = intent_status.to_intent_status();
+
+    let intent_update = storage::PaymentIntentUpdate::ManualUpdate {
+        status: Some(intent_status),
+        updated_by: merchant_account.storage_scheme.to_string(),
+    };
+
+    state
+        .store
+        .update_payment_intent(
+            payment_intent,
+            intent_update,
+            &key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable("Error while updating payment_intent")?;
+
+    Ok(services::ApplicationResponse::Json(
+        api_models::payments::PaymentsManualStatusUpdateResponse {
+            payment_id,
+            attempt_id: updated_payment_attempt.attempt_id,
+            intent_status,
+            attempt_status: updated_payment_attempt.status,
         },
     ))
 }
