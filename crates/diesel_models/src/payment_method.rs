@@ -1310,6 +1310,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 external_vault_source: None,
                 last_modified_by,
                 customer_details: None,
+                compatibility_updated_at: Some(common_utils::date_time::now()),
             },
         }
     }
