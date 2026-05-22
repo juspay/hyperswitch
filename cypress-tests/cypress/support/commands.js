@@ -255,10 +255,10 @@ function createUcsConfigs(globalState, flow, type) {
     });
 }
 
-Cypress.Commands.add("deleteBusinessProfileTest", (globalState) => {
+Cypress.Commands.add("deleteBusinessProfileTest", (globalState, profilePrefix = "profile") => {
   const adminApiKey = globalState.get("adminApiKey");
   const baseUrl = globalState.get("baseUrl");
-  const profileId = globalState.get("profileId");
+  const profileId = globalState.get(`${profilePrefix}Id`);
   const merchantId = globalState.get("merchantId");
   const url = `${baseUrl}/account/${merchantId}/business_profile/${profileId}`;
 
@@ -9074,7 +9074,7 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "retrieveBusinessProfileTest",
-  (globalState, profilePrefix = "profile") => {
+  (globalState, profilePrefix = "profile", expectedTaxEnabled = undefined) => {
     const apiKey = globalState.get("apiKey");
     const merchantId = globalState.get("merchantId");
     const profileId = globalState.get(`${profilePrefix}Id`);
@@ -9096,6 +9096,9 @@ Cypress.Commands.add(
         expect(response.body).to.have.property("profile_id", profileId);
         expect(response.body).to.have.property("is_tax_connector_enabled");
         expect(response.body).to.have.property("tax_connector_id");
+        if (typeof expectedTaxEnabled !== "undefined") {
+          expect(response.body.is_tax_connector_enabled).to.equal(expectedTaxEnabled);
+        }
       });
     });
   }

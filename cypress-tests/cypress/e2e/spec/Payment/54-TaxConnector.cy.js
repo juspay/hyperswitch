@@ -6,31 +6,36 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 let globalState;
 
 describe("Tax Connector Business Profile Flag", () => {
-  let shouldContinue = true;
+  let connectorSupported = true;
 
   before("seed global state and check inclusion gate", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
       if (
-        !utils.CONNECTOR_LISTS.INCLUDE.TAX_CONNECTOR.includes(
-          globalState.get("connectorId")
+        utils.shouldIncludeConnector(
+          globalState.get("connectorId"),
+          utils.CONNECTOR_LISTS.INCLUDE.TAX_CONNECTOR
         )
       ) {
-        shouldContinue = false;
+        connectorSupported = false;
       }
     });
   });
 
   beforeEach(function () {
-    if (!shouldContinue) {
+    if (!connectorSupported) {
       this.skip();
     }
   });
 
+  afterEach("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
+
   after("cleanup and flush global state", () => {
-    if (shouldContinue && globalState) {
-      cy.deleteBusinessProfileTest(globalState);
-      cy.task("setGlobalState", globalState.data);
+    cy.task("setGlobalState", globalState.data);
+    if (connectorSupported) {
+      cy.deleteBusinessProfileTest(globalState, "taxProfile");
     }
   });
 
@@ -38,7 +43,8 @@ describe("Tax Connector Business Profile Flag", () => {
     it("create-business-profile-test", () => {
       cy.createBusinessProfileTest(
         fixtures.businessProfile.bpCreate,
-        globalState
+        globalState,
+        "taxProfile"
       );
     });
 
@@ -47,7 +53,8 @@ describe("Tax Connector Business Profile Flag", () => {
         "payment_processor",
         fixtures.createConnectorBody,
         payment_methods_enabled,
-        globalState
+        globalState,
+        "taxProfile"
       );
     });
 
@@ -57,7 +64,8 @@ describe("Tax Connector Business Profile Flag", () => {
         fixtures.businessProfile.bpUpdate,
         true,
         merchantConnectorId,
-        globalState
+        globalState,
+        "taxProfile"
       );
     });
   });
@@ -66,7 +74,7 @@ describe("Tax Connector Business Profile Flag", () => {
     "Tax enabled - payment creates with tax calculation attempted",
     () => {
       it("tax-enabled-create-confirm-retrieve-payment-test", () => {
-        let shouldContinue = true;
+        let shouldProceed = true;
 
         cy.step("Create Payment Intent", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -82,12 +90,12 @@ describe("Tax Connector Business Profile Flag", () => {
           );
 
           if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
+            shouldProceed = false;
           }
         });
 
         cy.step("Confirm Payment", () => {
-          if (!shouldContinue) {
+          if (!shouldProceed) {
             cy.task("cli_log", "Skipping step: Confirm Payment");
             return;
           }
@@ -98,12 +106,12 @@ describe("Tax Connector Business Profile Flag", () => {
           cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
           if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
+            shouldProceed = false;
           }
         });
 
         cy.step("Retrieve Payment", () => {
-          if (!shouldContinue) {
+          if (!shouldProceed) {
             cy.task("cli_log", "Skipping step: Retrieve Payment");
             return;
           }
@@ -123,12 +131,13 @@ describe("Tax Connector Business Profile Flag", () => {
         fixtures.businessProfile.bpUpdate,
         false,
         null,
-        globalState
+        globalState,
+        "taxProfile"
       );
     });
 
     it("tax-disabled-create-confirm-retrieve-payment-test", () => {
-      let shouldContinue = true;
+      let shouldProceed = true;
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -144,12 +153,12 @@ describe("Tax Connector Business Profile Flag", () => {
         );
 
         if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
+          shouldProceed = false;
         }
       });
 
       cy.step("Confirm Payment", () => {
-        if (!shouldContinue) {
+        if (!shouldProceed) {
           cy.task("cli_log", "Skipping step: Confirm Payment");
           return;
         }
@@ -160,12 +169,12 @@ describe("Tax Connector Business Profile Flag", () => {
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
         if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
+          shouldProceed = false;
         }
       });
 
       cy.step("Retrieve Payment", () => {
-        if (!shouldContinue) {
+        if (!shouldProceed) {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
         }
@@ -187,12 +196,13 @@ describe("Tax Connector Business Profile Flag", () => {
           fixtures.businessProfile.bpUpdate,
           true,
           merchantConnectorId,
-          globalState
+          globalState,
+          "taxProfile"
         );
       });
 
       it("skip-tax-create-confirm-retrieve-payment-test", () => {
-        let shouldContinue = true;
+        let shouldProceed = true;
 
         cy.step("Create Payment Intent with skip flag", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -211,12 +221,12 @@ describe("Tax Connector Business Profile Flag", () => {
           );
 
           if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
+            shouldProceed = false;
           }
         });
 
         cy.step("Confirm Payment", () => {
-          if (!shouldContinue) {
+          if (!shouldProceed) {
             cy.task("cli_log", "Skipping step: Confirm Payment");
             return;
           }
@@ -227,12 +237,12 @@ describe("Tax Connector Business Profile Flag", () => {
           cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
           if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
+            shouldProceed = false;
           }
         });
 
         cy.step("Retrieve Payment", () => {
-          if (!shouldContinue) {
+          if (!shouldProceed) {
             cy.task("cli_log", "Skipping step: Retrieve Payment");
             return;
           }
@@ -248,7 +258,7 @@ describe("Tax Connector Business Profile Flag", () => {
 
   context("Retrieve business profile - tax fields verified", () => {
     it("retrieve-profile-tax-enabled-fields-test", () => {
-      cy.retrieveBusinessProfileTest(globalState);
+      cy.retrieveBusinessProfileTest(globalState, "taxProfile", true);
     });
   });
 
@@ -258,12 +268,13 @@ describe("Tax Connector Business Profile Flag", () => {
         fixtures.businessProfile.bpUpdate,
         false,
         null,
-        globalState
+        globalState,
+        "taxProfile"
       );
     });
 
     it("retrieve-profile-tax-disabled-fields-test", () => {
-      cy.retrieveBusinessProfileTest(globalState);
+      cy.retrieveBusinessProfileTest(globalState, "taxProfile", false);
     });
   });
 
@@ -274,12 +285,13 @@ describe("Tax Connector Business Profile Flag", () => {
         fixtures.businessProfile.bpUpdate,
         true,
         merchantConnectorId,
-        globalState
+        globalState,
+        "taxProfile"
       );
     });
 
     it("toggle-tax-create-confirm-retrieve-payment-test", () => {
-      let shouldContinue = true;
+      let shouldProceed = true;
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -295,12 +307,12 @@ describe("Tax Connector Business Profile Flag", () => {
         );
 
         if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
+          shouldProceed = false;
         }
       });
 
       cy.step("Confirm Payment", () => {
-        if (!shouldContinue) {
+        if (!shouldProceed) {
           cy.task("cli_log", "Skipping step: Confirm Payment");
           return;
         }
@@ -311,12 +323,12 @@ describe("Tax Connector Business Profile Flag", () => {
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
         if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
+          shouldProceed = false;
         }
       });
 
       cy.step("Retrieve Payment", () => {
-        if (!shouldContinue) {
+        if (!shouldProceed) {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
         }
