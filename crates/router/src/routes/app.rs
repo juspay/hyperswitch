@@ -1000,6 +1000,10 @@ impl Payments {
                         .route(web::post().to(payments::payments_submit_eligibility)),
                 )
                 .service(
+                    web::resource("/{payment_id}/client")
+                        .route(web::get().to(payment_methods::list_payment_methods_for_payments_client)),
+                )
+                .service(
                     web::resource("/redirect/{payment_id}/{merchant_id}/{attempt_id}")
                         .route(web::get().to(payments::payments_start)),
                 )
@@ -1406,6 +1410,10 @@ impl Customers {
                         .route(web::put().to(customers::customers_update))
                         .route(web::get().to(customers::customers_retrieve))
                         .route(web::delete().to(customers::customers_delete)),
+                )
+                .service(
+                    web::resource("/{customer_id}/payment-methods/{payment_method_id}/default")
+                        .route(web::post().to(payment_methods::default_payment_method_set_api)),
                 )
         }
         route
