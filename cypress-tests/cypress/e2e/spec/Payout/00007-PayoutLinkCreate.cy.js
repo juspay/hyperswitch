@@ -370,11 +370,7 @@ describe("Payout Link", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "payout_link_pm"
       ]["PayoutLinkCardPayment"];
-      cy.handlePayoutLinkCardRedirection(
-        globalState,
-        data.CardData,
-        "success"
-      );
+      cy.handlePayoutLinkCardRedirection(globalState, data.CardData, "success");
     });
 
     it("retrieve-payout-after-card-submission-test", () => {
