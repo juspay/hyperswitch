@@ -1396,7 +1396,8 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
         RecurringDetails::ProcessorPaymentToken(_)
         | RecurringDetails::NetworkTransactionIdAndCardDetails(_)
         | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
-        | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => Ok(()),
+        | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
+        | RecurringDetails::CardWithLimitedData(_) => Ok(()),
         _ => {
             req.customer_id.check_value_present("customer_id")?;
 
@@ -4306,6 +4307,7 @@ pub fn generate_mandate(
     payment_method_id: String,
     connector_mandate_id: Option<pii::SecretSerdeValue>,
     network_txn_id: Option<String>,
+    network_txn_link_id: Option<String>,
     payment_method_data_option: Option<domain::payments::PaymentMethodData>,
     mandate_reference: Option<MandateReference>,
     merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
@@ -4330,6 +4332,7 @@ pub fn generate_mandate(
                 .set_mandate_status(storage_enums::MandateStatus::Active)
                 .set_connector_mandate_ids(connector_mandate_id)
                 .set_network_transaction_id(network_txn_id)
+                .set_network_transaction_link_id(network_txn_link_id)
                 .set_customer_ip_address(
                     customer_acceptance
                         .get_ip_address()

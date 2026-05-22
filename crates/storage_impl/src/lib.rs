@@ -70,6 +70,11 @@ impl<T: DatabaseStore> RouterStore<T> {
             .as_ref()
             .ok_or_else(|| StorageError::DecryptionError)
     }
+    pub fn update_key_manager_request_id(&mut self, request_id: String) {
+        if let Some(ref mut km_state) = self.key_manager_state {
+            km_state.request_id = Some(request_id);
+        }
+    }
 }
 
 #[async_trait::async_trait]

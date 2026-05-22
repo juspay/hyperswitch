@@ -1191,6 +1191,7 @@ async fn process_payout_incoming_webhook(
             payout_id,
             force_sync: None,
             merchant_id: Some(platform.get_processor().get_account().get_id().clone()),
+            expand_attempts: None,
         });
 
     let mut payout_data = Box::pin(payouts::make_payout_data(
