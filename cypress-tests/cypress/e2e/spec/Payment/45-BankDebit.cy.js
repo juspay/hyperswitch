@@ -423,7 +423,7 @@ describe("Inespay SEPA Bank Debit tests", () => {
         cy.contains(".multiselect__option", "SIMULADOR", { timeout: 10000 })
           .should("be.visible")
           .click();
-        cy.contains("button", "CONTINUE", { timeout: 10000 })
+        cy.contains("button", "Continue", { timeout: 10000 })
           .should("be.visible")
           .click();
 
