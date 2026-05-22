@@ -78,6 +78,7 @@ pub struct PaymentMethod {
     // Do not use this column in v1 business logic.
     pub payment_method_subtype: Option<String>,
     pub network_transaction_link_id: Option<String>,
+    pub compatibility_updated_at: Option<PrimitiveDateTime>,
 }
 
 #[cfg(feature = "v2")]
@@ -116,6 +117,7 @@ pub struct PaymentMethod {
     pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub network_transaction_link_id: Option<Secret<String>>,
+    pub compatibility_updated_at: Option<PrimitiveDateTime>,
     pub external_vault_token_data: Option<Encryption>,
     pub auxiliary_fingerprint_id: Option<String>,
 }
@@ -181,6 +183,7 @@ pub struct PaymentMethodNew {
     pub locker_fingerprint_id: Option<String>,
     pub network_tokenization_data: Option<Encryption>,
     pub id: Option<String>,
+    pub compatibility_updated_at: Option<PrimitiveDateTime>,
 }
 
 #[cfg(feature = "v2")]
@@ -217,6 +220,7 @@ pub struct PaymentMethodNew {
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,
     pub customer_details: Option<Encryption>,
+    pub compatibility_updated_at: Option<PrimitiveDateTime>,
 }
 
 impl PaymentMethodNew {
@@ -415,6 +419,7 @@ pub struct PaymentMethodUpdateInternal {
     external_vault_source: Option<common_utils::id_type::MerchantConnectorAccountId>,
     last_modified_by: Option<String>,
     customer_details: Option<Encryption>,
+    compatibility_updated_at: Option<PrimitiveDateTime>,
 }
 
 #[cfg(feature = "v2")]
@@ -439,6 +444,7 @@ impl PaymentMethodUpdateInternal {
             external_vault_source,
             last_modified_by,
             customer_details,
+            compatibility_updated_at,
         } = self;
 
         PaymentMethod {
@@ -478,6 +484,7 @@ impl PaymentMethodUpdateInternal {
             customer_details: customer_details.or(source.customer_details),
             network_tokenization_data: source.network_tokenization_data,
             auxiliary_fingerprint_id: source.auxiliary_fingerprint_id,
+            compatibility_updated_at,
         }
     }
 }
@@ -598,6 +605,7 @@ impl PaymentMethodUpdateInternal {
                 .map(|payment_method_subtype| payment_method_subtype.to_string())
                 .or(source.payment_method_subtype),
             id: id.or(source.id),
+            compatibility_updated_at: source.compatibility_updated_at,
         }
     }
 }
@@ -1028,6 +1036,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 external_vault_source: None,
                 last_modified_by,
                 customer_details: None,
+                compatibility_updated_at: Some(common_utils::date_time::now()),
             },
             PaymentMethodUpdate::LastUsedUpdate { last_used_at } => Self {
                 payment_method_data: None,
@@ -1048,6 +1057,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 external_vault_source: None,
                 last_modified_by: None,
                 customer_details: None,
+                compatibility_updated_at: Some(common_utils::date_time::now()),
             },
             PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
                 payment_method_data,
@@ -1073,6 +1083,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 external_vault_source: None,
                 last_modified_by,
                 customer_details: None,
+                compatibility_updated_at: Some(common_utils::date_time::now()),
             },
             PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                 network_transaction_id,
@@ -1098,6 +1109,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 external_vault_source: None,
                 last_modified_by,
                 customer_details: None,
+                compatibility_updated_at: Some(common_utils::date_time::now()),
             },
             PaymentMethodUpdate::StatusUpdate {
                 status,
@@ -1121,6 +1133,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 external_vault_source: None,
                 last_modified_by,
                 customer_details: None,
+                compatibility_updated_at: Some(common_utils::date_time::now()),
             },
             PaymentMethodUpdate::GenericUpdate {
                 payment_method_data,
@@ -1156,6 +1169,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_transaction_link_id,
                 last_modified_by,
                 customer_details: None,
+                compatibility_updated_at: Some(common_utils::date_time::now()),
             },
             PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                 connector_mandate_details,
@@ -1179,6 +1193,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 external_vault_source: None,
                 last_modified_by,
                 customer_details: None,
+                compatibility_updated_at: Some(common_utils::date_time::now()),
             },
             PaymentMethodUpdate::StatusAndFingerprintUpdate {
                 status,
@@ -1203,6 +1218,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 external_vault_source: None,
                 last_modified_by,
                 customer_details: None,
+                compatibility_updated_at: Some(common_utils::date_time::now()),
             },
         }
     }
@@ -1263,6 +1279,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             payment_method_type_v2: None,
             payment_method_subtype: None,
             id: payment_method_new.id.clone(),
+            compatibility_updated_at: payment_method_new.compatibility_updated_at,
         }
     }
 }
@@ -1315,6 +1332,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             last_modified_by: payment_method_new.last_modified_by.clone(),
             customer_details: payment_method_new.customer_details.clone(),
             network_tokenization_data: None,
+            compatibility_updated_at: payment_method_new.compatibility_updated_at,
         }
     }
 }

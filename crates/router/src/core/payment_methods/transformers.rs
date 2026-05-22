@@ -1469,6 +1469,7 @@ impl DomainPaymentMethodWrapper {
             locker_fingerprint_id: None,
             network_tokenization_data: None,
             storage_type: response.storage_type,
+            compatibility_updated_at: None,
         }))
     }
 
@@ -1593,6 +1594,7 @@ impl DomainPaymentMethodWrapper {
             locker_fingerprint_id: None,
             network_tokenization_data: None,
             storage_type: response.storage_type,
+            compatibility_updated_at: None,
         }))
     }
 }
@@ -1773,6 +1775,7 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
             locker_fingerprint_id: None,
             network_tokenization_data: None,
             storage_type: response.storage_type,
+            compatibility_updated_at: None,
         }))
     }
 }

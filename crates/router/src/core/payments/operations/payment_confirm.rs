@@ -669,9 +669,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let payment_method_info = payment_method_info.or(prefetched_payment_method_info);
         let feature_config = core_utils::get_feature_config(state, platform, dimensions).await;
-        let payment_method_version = payment_method_info.as_ref().map(|pm| pm.version);
-        let is_modular_payment_method_flow =
-            feature_config.is_modular_with_pm_version(payment_method_version);
+        let is_modular_payment_method_flow = payment_method_info.as_ref().is_some_and(|pm| {
+            feature_config.should_use_modular_pm_path(
+                Some(pm.version),
+                pm.compatibility_updated_at,
+                Some(pm.last_modified),
+            )
+        });
         let (token_data, payment_method_info) = if is_modular_payment_method_flow {
             (None, payment_method_info)
         } else {
@@ -1316,7 +1320,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
             match payment_method_info {
                 Some(payment_method)
-                    if feature_config.is_modular_with_pm_version(Some(payment_method.version)) =>
+                    if feature_config.should_use_modular_pm_path(
+                        Some(payment_method.version),
+                        payment_method.compatibility_updated_at,
+                        Some(payment_method.last_modified),
+                    ) =>
                 {
                     logger::debug!(
                         "Payment method version is V2, fetching payment method from PM Modular Service"

@@ -1367,6 +1367,7 @@ diesel::table! {
         payment_method_subtype -> Nullable<Varchar>,
         #[max_length = 255]
         network_transaction_link_id -> Nullable<Varchar>,
+        compatibility_updated_at -> Nullable<Timestamp>,
         external_vault_token_data -> Nullable<Bytea>,
         #[max_length = 64]
         auxiliary_fingerprint_id -> Nullable<Varchar>,
