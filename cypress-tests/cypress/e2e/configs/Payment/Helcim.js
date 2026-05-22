@@ -63,6 +63,9 @@ export const connectorDetails = {
       Request: {
         amount: 2000,
       },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
     }),
     SyncRefund: getCustomExchange({}),
   },

@@ -37,6 +37,37 @@ describe("Bank Debit tests", () => {
   });
 
   context("SEPA Bank Debit Create and Confirm flow test", () => {
+    let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.INESPAY_BANK_SIMULATION
+            )
+          ) {
+            skip = true;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm SEPA Bank Debit -> Retrieve Payment", () => {
       let shouldContinue = true;
 
@@ -282,6 +313,170 @@ describe("Bank Debit tests", () => {
         ]["Bacs"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
         if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+    });
+  });
+
+  // Inespay SEPA Bank Debit - isolated context, only runs for Inespay
+  context("Inespay SEPA Bank Debit Create, Confirm, Refund and Sync flow", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm SEPA -> Simulate Redirect -> Retrieve Payment -> Refund -> Sync Refund", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent for SEPA", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["PaymentIntent"]("Sepa");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm SEPA Bank Debit", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm SEPA Bank Debit");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["Sepa"];
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Simulate Inespay Redirect Flow", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Simulate Inespay Redirect Flow");
+          return;
+        }
+        const nextActionUrl = globalState.get("nextActionUrl");
+        expect(nextActionUrl, "nextActionUrl should be present").to.be.a(
+          "string"
+        );
+
+        // Visit the Inespay simulator
+        cy.visit(nextActionUrl);
+
+        // Step 1: Click "simulador" then "continue"
+        cy.contains("button, a", /simulador/i, { timeout: 30000 })
+          .should("be.visible")
+          .click();
+        cy.contains("button", /continue/i, { timeout: 10000 })
+          .should("be.visible")
+          .click();
+
+        // Step 2: Enter credentials
+        cy.get('input[type="text"], input[type="email"], input[name*="user" i]')
+          .should("be.visible")
+          .first()
+          .clear()
+          .type("user1");
+        cy.get('input[type="password"]')
+          .should("be.visible")
+          .first()
+          .clear()
+          .type("1234");
+
+        // Step 3: Click "access"
+        cy.contains("button, a", /access/i, { timeout: 10000 })
+          .should("be.visible")
+          .click();
+
+        // Step 4: Select Contract and Account from dropdowns
+        cy.get("select")
+          .should("be.visible")
+          .then(($selects) => {
+            // Select first select (Contract)
+            cy.wrap($selects.eq(0)).select(1);
+            // Select second select (Account)
+            if ($selects.length > 1) {
+              cy.wrap($selects.eq(1)).select(1);
+            }
+          });
+
+        // Step 5: Click "confirm"
+        cy.contains("button, a", /confirm/i, { timeout: 10000 })
+          .should("be.visible")
+          .click();
+
+        // Step 6: Enter OTP
+        cy.get('input[type="text"], input[name*="otp" i]')
+          .should("be.visible")
+          .first()
+          .clear()
+          .type("1111");
+
+        // Step 7: Click "continue" to complete
+        cy.contains("button", /continue/i, { timeout: 10000 })
+          .should("be.visible")
+          .click();
+
+        // Wait for completion/success state
+        cy.wait(3000);
+        cy.log("Inespay simulator flow completed");
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["Sepa"];
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Full Refund", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Full Refund");
+          return;
+        }
+        const refundData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["Refund"];
+        cy.refundCallTest(refundData, globalState);
+        if (!utils.should_continue_further(refundData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Sync Refund", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Sync Refund");
+          return;
+        }
+        const syncRefundData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["SyncRefund"];
+        cy.syncRefundCallTest(syncRefundData, globalState);
+        if (!utils.should_continue_further(syncRefundData)) {
           shouldContinue = false;
         }
       });

@@ -316,148 +316,198 @@ describe("Wallet tests", () => {
   });
 
   context("GlobePay WeChatPay Create and Confirm flow test", () => {
-    let shouldContinue = true;
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm WeChatPay -> Handle Globepay QR Redirection -> Retrieve Payment", () => {
+      let shouldContinue = true;
 
-    before("seed global state", function () {
-      let skip = false;
+      cy.step("Create Payment Intent for WeChatPay", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["PaymentIntent"]("WeChatPay");
 
-      cy.task("getGlobalState")
-        .then((state) => {
-          globalState = new State(state);
-          const connector = globalState.get("connectorId");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+        if (!should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
 
-          if (
-            shouldIncludeConnector(
-              connector,
-              CONNECTOR_LISTS.INCLUDE.GLOBEPAY_WALLET
-            )
-          ) {
-            skip = true;
-            return;
-          }
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm WeChatPay", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm WeChatPay");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["WeChatPay"];
+
+        cy.confirmBankRedirectCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle Globepay QR redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle Globepay QR redirection");
+          return;
+        }
+        const nextActionUrl = globalState.get("nextActionUrl");
+        const payment_method_type = globalState.get("paymentMethodType");
+        const expected_redirection = fixtures.confirmBody["return_url"];
+
+        expect(
+          nextActionUrl,
+          "nextActionUrl should be present after Globepay wallet confirm"
+        ).to.be.a("string");
+
+        // Visit the Globepay redirect URL which renders inline QR code
+        cy.visit(nextActionUrl);
+
+        // Verify QR code is visible on the page (Globepay renders QR inline)
+        cy.get("canvas:visible, img:visible, svg:visible, picture:visible", {
+          timeout: 30000,
         })
-        .then(() => {
-          if (skip) {
-            this.skip();
-          }
-        });
-    });
+          .first()
+          .scrollIntoView()
+          .should("be.visible")
+          .then(($el) => {
+            cy.log(
+              "Verified Globepay QR code is visible",
+              $el.prop("tagName")
+            );
+          });
 
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
+        // Do not wait for or assert redirect URL - Globepay shows QR inline
+        cy.log("Globepay inline QR code verified - no redirect expected");
+      });
 
-    it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["PaymentIntent"]("WeChatPay");
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["WeChatPay"];
 
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("payment_methods-call-test", () => {
-      cy.paymentMethodsCallTest(globalState);
-    });
-
-    it("Confirm wallet redirect and assert QR code presence", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["WeChatPay"];
-
-      cy.confirmBankRedirectCallTest(
-        fixtures.confirmBody,
-        data,
-        true,
-        globalState
-      );
-
-      const nextActionUrl = globalState.get("nextActionUrl");
-      expect(
-        nextActionUrl,
-        "nextActionUrl should be present after Globepay wallet confirm"
-      ).to.be.a("string");
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+      });
     });
   });
 
   context("GlobePay AliPay Create and Confirm flow test", () => {
-    let shouldContinue = true;
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm AliPay -> Handle Globepay QR Redirection -> Retrieve Payment", () => {
+      let shouldContinue = true;
 
-    before("seed global state", function () {
-      let skip = false;
+      cy.step("Create Payment Intent for AliPay", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["PaymentIntent"]("AliPay");
 
-      cy.task("getGlobalState")
-        .then((state) => {
-          globalState = new State(state);
-          const connector = globalState.get("connectorId");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+        if (!should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
 
-          if (
-            shouldIncludeConnector(
-              connector,
-              CONNECTOR_LISTS.INCLUDE.GLOBEPAY_WALLET
-            )
-          ) {
-            skip = true;
-            return;
-          }
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm AliPay", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm AliPay");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["AliPay"];
+
+        cy.confirmBankRedirectCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle Globepay QR redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle Globepay QR redirection");
+          return;
+        }
+        const nextActionUrl = globalState.get("nextActionUrl");
+        const payment_method_type = globalState.get("paymentMethodType");
+        const expected_redirection = fixtures.confirmBody["return_url"];
+
+        expect(
+          nextActionUrl,
+          "nextActionUrl should be present after Globepay wallet confirm"
+        ).to.be.a("string");
+
+        // Visit the Globepay redirect URL which renders inline QR code
+        cy.visit(nextActionUrl);
+
+        // Verify QR code is visible on the page (Globepay renders QR inline)
+        cy.get("canvas:visible, img:visible, svg:visible, picture:visible", {
+          timeout: 30000,
         })
-        .then(() => {
-          if (skip) {
-            this.skip();
-          }
-        });
-    });
+          .first()
+          .scrollIntoView()
+          .should("be.visible")
+          .then(($el) => {
+            cy.log(
+              "Verified Globepay QR code is visible",
+              $el.prop("tagName")
+            );
+          });
 
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
+        // Do not wait for or assert redirect URL - Globepay shows QR inline
+        cy.log("Globepay inline QR code verified - no redirect expected");
+      });
 
-    it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["PaymentIntent"]("AliPay");
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["AliPay"];
 
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("payment_methods-call-test", () => {
-      cy.paymentMethodsCallTest(globalState);
-    });
-
-    it("Confirm wallet redirect and assert QR code presence", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["AliPay"];
-
-      cy.confirmBankRedirectCallTest(
-        fixtures.confirmBody,
-        data,
-        true,
-        globalState
-      );
-
-      const nextActionUrl = globalState.get("nextActionUrl");
-      expect(
-        nextActionUrl,
-        "nextActionUrl should be present after Globepay wallet confirm"
-      ).to.be.a("string");
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+      });
     });
   });
 });
