@@ -402,13 +402,52 @@ describe("Inespay SEPA Bank Debit tests", () => {
           "string"
         );
 
-        // Visit the Inespay simulator
+        // Visit the Inespay simulator page
         cy.visit(nextActionUrl);
 
-        // Wait 2 seconds before interacting with the simulator flow
-        cy.wait(2000);
+        // Wait for page and dynamic content to load
+        cy.wait(5000);
 
-        // Step 1: Click "simulador" then "continue"
+        // Close any "Attention!" modal by clicking CLOSE button
+        cy.get("body").then(($body) => {
+          const hasModal =
+            $body.text().includes("Attention") ||
+            $body.text().includes("not currently operational");
+          if (hasModal) {
+            cy.get("button, a")
+              .filter(':contains("CLOSE")')
+              .first()
+              .click({ force: true });
+            cy.wait(2000);
+          }
+        });
+
+        // Select a bank from the dropdown - pick option index 2 for a more reliable bank
+        cy.get("select", { timeout: 30000 })
+          .should("exist")
+          .then(($selects) => {
+            let selected = false;
+            $selects.each((i, sel) => {
+              if (!selected && Cypress.$(sel).is(":visible") && sel.options.length > 2) {
+                cy.wrap(sel).select(2, { force: true });
+                selected = true;
+              }
+            });
+            if (!selected && $selects.length > 0) {
+              cy.wrap($selects.first()).select(1, { force: true });
+            }
+          });
+        cy.wait(3000);
+
+        // Click Continue after bank selection
+        cy.get('button, a, input[type="submit"]')
+          .filter(":visible")
+          .filter(':contains("Continue")')
+          .first()
+          .click({ force: true });
+        cy.wait(3000);
+
+        // Click "simulador" then "continue"
         cy.contains("button, a", /simulador/i, { timeout: 30000 })
           .should("be.visible")
           .click();
@@ -416,7 +455,7 @@ describe("Inespay SEPA Bank Debit tests", () => {
           .should("be.visible")
           .click();
 
-        // Step 2: Enter credentials
+        // Enter credentials
         cy.get('input[type="text"], input[type="email"], input[name*="user" i]')
           .should("be.visible")
           .first()
@@ -428,36 +467,34 @@ describe("Inespay SEPA Bank Debit tests", () => {
           .clear()
           .type("1234");
 
-        // Step 3: Click "access"
+        // Click "access"
         cy.contains("button, a", /access/i, { timeout: 10000 })
           .should("be.visible")
           .click();
 
-        // Step 4: Select Contract and Account from dropdowns
+        // Select Contract and Account from dropdowns
         cy.get("select")
           .should("be.visible")
           .then(($selects) => {
-            // Select first select (Contract)
             cy.wrap($selects.eq(0)).select(1);
-            // Select second select (Account)
             if ($selects.length > 1) {
               cy.wrap($selects.eq(1)).select(1);
             }
           });
 
-        // Step 5: Click "confirm"
+        // Click "confirm"
         cy.contains("button, a", /confirm/i, { timeout: 10000 })
           .should("be.visible")
           .click();
 
-        // Step 6: Enter OTP
+        // Enter OTP
         cy.get('input[type="text"], input[name*="otp" i]')
           .should("be.visible")
           .first()
           .clear()
           .type("1111");
 
-        // Step 7: Click "continue" to complete
+        // Click "continue" to complete
         cy.contains("button", /continue/i, { timeout: 10000 })
           .should("be.visible")
           .click();
