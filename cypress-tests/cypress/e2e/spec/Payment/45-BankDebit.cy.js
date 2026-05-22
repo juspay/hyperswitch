@@ -405,6 +405,9 @@ describe("Inespay SEPA Bank Debit tests", () => {
         // Visit the Inespay simulator
         cy.visit(nextActionUrl);
 
+        // Wait 2 seconds before interacting with the simulator flow
+        cy.wait(2000);
+
         // Step 1: Click "simulador" then "continue"
         cy.contains("button, a", /simulador/i, { timeout: 30000 })
           .should("be.visible")
@@ -459,9 +462,9 @@ describe("Inespay SEPA Bank Debit tests", () => {
           .should("be.visible")
           .click();
 
-        // Wait for completion/success state
-        cy.wait(3000);
-        cy.log("Inespay simulator flow completed");
+        // Wait up to 30 seconds for transaction completion/success state
+        cy.contains(/success|completed|confirmado|realizado/i, { timeout: 30000 });
+        cy.log("Inespay simulator flow completed successfully");
       });
 
       cy.step("Retrieve Payment", () => {
