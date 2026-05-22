@@ -21,7 +21,7 @@ impl BlocklistNew {
     ) -> StorageResult<usize> {
         let query = diesel::insert_into(<Blocklist as HasTable>::table())
             .values(entries)
-            .on_conflict((dsl::merchant_id, dsl::fingerprint_id))
+            .on_conflict((dsl::processor_merchant_id, dsl::fingerprint_id))
             .do_nothing();
 
         generics::db_metrics::track_database_call::<<Blocklist as HasTable>::Table, _, _>(

@@ -12,7 +12,7 @@ use crate::{
     core::errors::{self, RouterResult, StorageErrorExt},
     logger,
     routes::SessionState,
-    types::storage,
+    types::{domain, storage},
 };
 
 const CHUNK_SIZE: usize = 2_000;
@@ -304,13 +304,19 @@ fn validate_csv(csv_bytes: &[u8]) -> RouterResult<Vec<BlocklistRow>> {
 #[instrument(skip_all, fields(flow = ?router_env::Flow::BatchBlocklistUpload))]
 pub async fn initiate_batch_blocklist_upload(
     state: &SessionState,
-    merchant_id: &id_type::MerchantId,
+    platform: &domain::Platform,
     csv_bytes: bytes::Bytes,
 ) -> RouterResult<api_blocklist::BatchBlocklistUploadResponse> {
+    let processor_merchant_id = platform.get_processor().get_account().get_id();
+    let created_by = platform
+        .get_initiator()
+        .and_then(|initiator| initiator.to_created_by())
+        .map(|created_by| created_by.to_string());
+
     let rows = validate_csv(&csv_bytes)?;
     let total_rows = rows.len();
     let job_id = common_utils::generate_id(crate::consts::ID_LENGTH, "blkbatch");
-    let mid_str = merchant_id.get_string_repr().to_owned();
+    let mid_str = processor_merchant_id.get_string_repr().to_owned();
     let original_key = original_input_key(&mid_str, &job_id);
     let chunks: Vec<&[BlocklistRow]> = rows.chunks(CHUNK_SIZE).collect();
     let chunk_total_count = u32::try_from(chunks.len())
@@ -368,7 +374,7 @@ pub async fn initiate_batch_blocklist_upload(
 
     let job_new = storage::BatchBlocklistJobNew {
         id: job_id.clone(),
-        merchant_id: merchant_id.clone(),
+        merchant_id: processor_merchant_id.clone(),
         status: common_enums::BatchBlocklistJobStatus::Initiated,
         total_rows: total_rows_i32,
         succeeded_rows: 0,
@@ -385,14 +391,20 @@ pub async fn initiate_batch_blocklist_upload(
 
     let tracking_data = storage::BatchBlocklistTrackingData {
         job_id: job_id.clone(),
-        merchant_id: merchant_id.clone(),
+        merchant_id: platform.get_provider().get_account().get_id().clone(),
+        processor_merchant_id: Some(processor_merchant_id.clone()),
         chunk_total_count,
         completed_chunks: Vec::new(),
+        created_by: created_by.clone(),
     };
 
     let runner = storage::ProcessTrackerRunner::BatchBlocklistUpload;
-    let process_tracker_id =
-        pt_utils::get_process_tracker_id(runner, BATCH_BLOCKLIST_TASK, &job_id, merchant_id);
+    let process_tracker_id = pt_utils::get_process_tracker_id(
+        runner,
+        BATCH_BLOCKLIST_TASK,
+        &job_id,
+        processor_merchant_id,
+    );
 
     let process_tracker_entry = storage::ProcessTrackerNew::new(
         process_tracker_id,
@@ -434,8 +446,10 @@ pub async fn initiate_batch_blocklist_upload(
 pub(crate) async fn process_chunk(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
+    processor_merchant_id: Option<&id_type::MerchantId>,
     chunk_idx: u32,
     chunk_rows: Vec<BlocklistRow>,
+    created_by: Option<String>,
 ) -> RouterResult<i32> {
     let now = date_time::now();
     let entries: Vec<storage::BlocklistNew> = chunk_rows
@@ -446,6 +460,8 @@ pub(crate) async fn process_chunk(
             data_kind: row.data_kind,
             metadata: row.metadata.clone(),
             created_at: now,
+            processor_merchant_id: processor_merchant_id.map(|id| id.to_owned()),
+            created_by: created_by.clone(),
         })
         .collect();
 

@@ -251,12 +251,12 @@ pub async fn upload_batch_blocklist(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -297,12 +297,12 @@ pub async fn get_batch_blocklist_job_status(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -342,12 +342,12 @@ pub async fn list_batch_blocklist_jobs(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),

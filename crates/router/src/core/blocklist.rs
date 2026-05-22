@@ -56,13 +56,9 @@ pub async fn upload_batch_blocklist(
     platform: domain::Platform,
     csv_bytes: bytes::Bytes,
 ) -> RouterResponse<api_blocklist::BatchBlocklistUploadResponse> {
-    batch::initiate_batch_blocklist_upload(
-        &state,
-        platform.get_processor().get_account().get_id(),
-        csv_bytes,
-    )
-    .await
-    .map(services::ApplicationResponse::Json)
+    batch::initiate_batch_blocklist_upload(&state, &platform, csv_bytes)
+        .await
+        .map(services::ApplicationResponse::Json)
 }
 
 pub async fn get_batch_blocklist_job_status(

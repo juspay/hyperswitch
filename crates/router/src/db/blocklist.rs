@@ -267,7 +267,8 @@ impl BlocklistInterface for MockDb {
         let mut inserted = 0usize;
         for entry in entries {
             let already_exists = blocklists.iter().any(|b| {
-                b.merchant_id == entry.merchant_id && b.fingerprint_id == entry.fingerprint_id
+                b.processor_merchant_id == entry.processor_merchant_id
+                    && b.fingerprint_id == entry.fingerprint_id
             });
             if !already_exists {
                 blocklists.push(storage::Blocklist {
@@ -276,6 +277,8 @@ impl BlocklistInterface for MockDb {
                     data_kind: entry.data_kind,
                     metadata: entry.metadata,
                     created_at: entry.created_at,
+                    processor_merchant_id: entry.processor_merchant_id,
+                    created_by: entry.created_by,
                 });
                 inserted += 1;
             }
