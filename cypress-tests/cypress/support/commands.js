@@ -9041,14 +9041,11 @@ Cypress.Commands.add(
     }
 
     // Auto-add test_mode to payout_link_config for CI/test environments
-    if (
-      requestBody.payout_link === true &&
-      requestBody.payout_link_config &&
-      !("test_mode" in requestBody.payout_link_config)
-    ) {
+    // The server requires test_mode in payout_link_config for test environments
+    if (requestBody.payout_link === true) {
       requestBody.payout_link_config = {
         test_mode: true,
-        ...requestBody.payout_link_config,
+        ...(requestBody.payout_link_config || {}),
       };
     }
 
