@@ -949,8 +949,14 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         run: |
-          uv pip install --system -r mitm-proxy/requirements.txt
-          mitmdump --version
+          # Create an isolated venv for mitmproxy so we don't touch the
+          # runner's system Python (PEP 668 / externally-managed-environment).
+          uv venv "${{ github.workspace }}/.venv-mitm"
+          uv pip install --python "${{ github.workspace }}/.venv-mitm/bin/python" \
+            -r mitm-proxy/requirements.txt
+          # Expose the venv to subsequent steps (mitmdump cert gen, start_replay.sh).
+          echo "${{ github.workspace }}/.venv-mitm/bin" >> "$GITHUB_PATH"
+          "${{ github.workspace }}/.venv-mitm/bin/mitmdump" --version
 
       - name: Generate mitmproxy CA cert
         if: ${{ env.RUN_TESTS == 'true' }}
