@@ -8970,13 +8970,21 @@ function requestForexConvert(
 
 Cypress.Commands.add(
   "convertCurrency",
-  (amount, fromCurrency, toCurrency, globalState) => {
-    const apiKey = globalState.get("apiKey") || globalState.get("adminApiKey");
+  (amount, fromCurrency, toCurrency, globalState, options = {}) => {
+    const apiKey =
+      options.apiKey ||
+      globalState.get("apiKey") ||
+      globalState.get("adminApiKey");
     const baseUrl = globalState.get("baseUrl");
 
     requestForexConvert(baseUrl, apiKey, amount, fromCurrency, toCurrency).then(
       (response) => {
         logRequestId(response.headers["x-request-id"]);
+
+        if (options.assert) {
+          options.assert(response);
+          return;
+        }
 
         cy.wrap(response).then(() => {
           if (response.status === 200) {
@@ -9015,24 +9023,6 @@ Cypress.Commands.add("getForexRatesWithoutAuth", (globalState) => {
     expect(response.status).to.equal(401);
   });
 });
-
-Cypress.Commands.add(
-  "convertCurrencyWithInvalidKey",
-  (amount, fromCurrency, toCurrency, globalState) => {
-    const baseUrl = globalState.get("baseUrl");
-
-    requestForexConvert(
-      baseUrl,
-      "invalid-api-key",
-      amount,
-      fromCurrency,
-      toCurrency
-    ).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-      expect(response.status).to.equal(401);
-    });
-  }
-);
 
 Cypress.Commands.add(
   "convertCurrencyMissingParam",

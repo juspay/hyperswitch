@@ -118,7 +118,12 @@ describe("Forex Rates and Currency Conversion", () => {
     });
 
     it("should fail to convert currency with invalid api key", () => {
-      cy.convertCurrencyWithInvalidKey(100, "USD", "EUR", globalState);
+      cy.convertCurrency(100, "USD", "EUR", globalState, {
+        apiKey: "invalid-api-key",
+        assert: (response) => {
+          expect(response.status).to.equal(401);
+        },
+      });
     });
   });
 
