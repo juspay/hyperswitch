@@ -57,6 +57,8 @@ import type {
   PluginEnvironmentRealizeWorkspaceResult,
   PluginEnvironmentExecuteParams,
   PluginEnvironmentExecuteResult,
+  PluginPerformActionActorContext,
+  PluginPerformActionContext,
 } from "./protocol.js";
 
 export interface TestHarnessOptions {
@@ -72,6 +74,20 @@ export interface TestHarnessLogEntry {
   level: "info" | "warn" | "error" | "debug";
   message: string;
   meta?: Record<string, unknown>;
+}
+
+export interface TestHarnessPerformActionOptions {
+  /**
+   * Authenticated actor context to expose to the action handler. Omitted fields
+   * default to null, and `type` defaults to `system`.
+   */
+  actor?: Partial<PluginPerformActionActorContext> | null;
+  /**
+   * Host-authorized company scope. When provided, this is injected into
+   * `params.companyId` so tests match the production bridge's anti-spoofing
+   * behavior.
+   */
+  companyId?: string | null;
 }
 
 export interface TestHarness {
@@ -98,7 +114,11 @@ export interface TestHarness {
   /** Invoke a `ctx.data.register(...)` handler by key. */
   getData<T = unknown>(key: string, params?: Record<string, unknown>): Promise<T>;
   /** Invoke a `ctx.actions.register(...)` handler by key. */
-  performAction<T = unknown>(key: string, params?: Record<string, unknown>): Promise<T>;
+  performAction<T = unknown>(
+    key: string,
+    params?: Record<string, unknown>,
+    options?: TestHarnessPerformActionOptions,
+  ): Promise<T>;
   /** Execute a registered tool handler via `ctx.tools.execute(...)`. */
   executeTool<T = ToolResult>(name: string, params: unknown, runCtx?: Partial<ToolRunContext>): Promise<T>;
   /** Read raw in-memory state for assertions. */
@@ -491,7 +511,10 @@ export function createTestHarness(options: TestHarnessOptions): TestHarness {
   const jobs = new Map<string, (job: PluginJobContext) => Promise<void>>();
   const launchers = new Map<string, PluginLauncherRegistration>();
   const dataHandlers = new Map<string, (params: Record<string, unknown>) => Promise<unknown>>();
-  const actionHandlers = new Map<string, (params: Record<string, unknown>) => Promise<unknown>>();
+  const actionHandlers = new Map<
+    string,
+    (params: Record<string, unknown>, context: PluginPerformActionContext) => Promise<unknown>
+  >();
   const toolHandlers = new Map<string, (params: unknown, runCtx: ToolRunContext) => Promise<ToolResult>>();
 
   function localFolderKey(companyId: string, folderKey: string): string {
@@ -500,6 +523,41 @@ export function createTestHarness(options: TestHarnessOptions): TestHarness {
 
   function localFolderFileKey(companyId: string, folderKey: string, relativePath: string): string {
     return `${localFolderKey(companyId, folderKey)}:${relativePath}`;
+  }
+
+  function stringOrNull(value: unknown): string | null {
+    return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+  }
+
+  function actorTypeOrSystem(value: unknown): PluginPerformActionActorContext["type"] {
+    return value === "user" || value === "agent" || value === "system" ? value : "system";
+  }
+
+  function actionContextFor(
+    params: Record<string, unknown>,
+    options?: TestHarnessPerformActionOptions,
+  ): PluginPerformActionContext {
+    const actorInput = options?.actor ?? null;
+    const companyId = stringOrNull(options?.companyId) ?? stringOrNull(actorInput?.companyId) ?? stringOrNull(params.companyId);
+    const actor = Object.freeze({
+      type: actorTypeOrSystem(actorInput?.type),
+      userId: stringOrNull(actorInput?.userId),
+      agentId: stringOrNull(actorInput?.agentId),
+      runId: stringOrNull(actorInput?.runId),
+      companyId,
+    });
+    return Object.freeze({ actor, companyId });
+  }
+
+  function paramsWithHostCompanyScope(
+    params: Record<string, unknown>,
+    context: PluginPerformActionContext,
+    options?: TestHarnessPerformActionOptions,
+  ): Record<string, unknown> {
+    if (Object.prototype.hasOwnProperty.call(options ?? {}, "companyId")) {
+      return context.companyId ? { ...params, companyId: context.companyId } : { ...params };
+    }
+    return params;
   }
 
   function normalizeLocalFolderRelativePath(relativePath: string): string {
@@ -2302,10 +2360,15 @@ export function createTestHarness(options: TestHarnessOptions): TestHarness {
       if (!handler) throw new Error(`No data handler registered for '${key}'`);
       return await handler(params) as T;
     },
-    async performAction<T = unknown>(key: string, params: Record<string, unknown> = {}) {
+    async performAction<T = unknown>(
+      key: string,
+      params: Record<string, unknown> = {},
+      options?: TestHarnessPerformActionOptions,
+    ) {
       const handler = actionHandlers.get(key);
       if (!handler) throw new Error(`No action handler registered for '${key}'`);
-      return await handler(params) as T;
+      const context = actionContextFor(params, options);
+      return await handler(paramsWithHostCompanyScope(params, context, options), context) as T;
     },
     async executeTool<T = ToolResult>(name: string, params: unknown, runCtx: Partial<ToolRunContext> = {}) {
       const handler = toolHandlers.get(name);

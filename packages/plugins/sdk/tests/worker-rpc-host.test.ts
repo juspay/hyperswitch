@@ -71,6 +71,90 @@ describe("isWorkerEntrypoint", () => {
   });
 });
 
+describe("worker performAction context", () => {
+  it("does not derive context companyId from caller params without host actor context", async () => {
+    const hostToWorker = new PassThrough();
+    const workerToHost = new PassThrough();
+    const hostReadline = createInterface({ input: workerToHost });
+    const pending = new Map<string, (response: JsonRpcResponse) => void>();
+    let nextRequestId = 1;
+    const plugin = definePlugin({
+      async setup(ctx) {
+        ctx.actions.register("inspect", async (params, context) => ({
+          paramsCompanyId: params.companyId,
+          actor: context.actor,
+          companyId: context.companyId,
+        }));
+      },
+    });
+    const worker = startWorkerRpcHost({
+      plugin,
+      stdin: hostToWorker,
+      stdout: workerToHost,
+    });
+
+    function callWorker(method: string, params: unknown) {
+      const id = `host-${nextRequestId++}`;
+      const result = new Promise<unknown>((resolve, reject) => {
+        pending.set(id, (response) => {
+          if ("error" in response && response.error) {
+            reject(new Error(response.error.message));
+            return;
+          }
+          resolve((response as { result?: unknown }).result);
+        });
+      });
+      hostToWorker.write(serializeMessage(createRequest(method, params, id)));
+      return result;
+    }
+
+    hostReadline.on("line", (line) => {
+      const message = parseMessage(line);
+      if (!isJsonRpcResponse(message)) return;
+      pending.get(String(message.id))?.(message);
+      pending.delete(String(message.id));
+    });
+
+    try {
+      await expect(callWorker("initialize", {
+        manifest: {
+          id: "paperclip.test-worker-context",
+          apiVersion: 1,
+          version: "1.0.0",
+          displayName: "Worker Context Test",
+          description: "Test plugin",
+          author: "Paperclip",
+          categories: ["automation"],
+          capabilities: [],
+          entrypoints: {},
+        },
+        config: {},
+        databaseNamespace: null,
+      })).resolves.toMatchObject({ ok: true });
+
+      await expect(callWorker("performAction", {
+        key: "inspect",
+        params: { companyId: "spoofed-company" },
+      })).resolves.toEqual({
+        paramsCompanyId: "spoofed-company",
+        actor: {
+          type: "system",
+          userId: null,
+          agentId: null,
+          runId: null,
+          companyId: null,
+        },
+        companyId: null,
+      });
+    } finally {
+      worker.stop();
+      hostReadline.close();
+      hostToWorker.destroy();
+      workerToHost.destroy();
+    }
+  });
+});
+
 describe("worker invocation scope propagation", () => {
   it("keeps overlapping company scopes local to each getData invocation", async () => {
     const hostToWorker = new PassThrough();

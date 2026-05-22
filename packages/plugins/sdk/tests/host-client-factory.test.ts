@@ -6,6 +6,7 @@ import {
   createHostClientHandlers,
   InvocationScopeDeniedError,
 } from "../src/host-client-factory.js";
+import { PLUGIN_RPC_ERROR_CODES } from "../src/protocol.js";
 
 describe("createHostClientHandlers invocation company scope", () => {
   it("rejects company-scoped host calls outside the current invocation company", async () => {
@@ -28,6 +29,14 @@ describe("createHostClientHandlers invocation company scope", () => {
         { invocationScope: { companyId: "company-a" } },
       ),
     ).rejects.toBeInstanceOf(InvocationScopeDeniedError);
+    await expect(
+      handlers["projects.list"](
+        { companyId: "company-b" },
+        { invocationScope: { companyId: "company-a" } },
+      ),
+    ).rejects.toMatchObject({
+      code: PLUGIN_RPC_ERROR_CODES.INVOCATION_SCOPE_DENIED,
+    });
     expect(projectsList).not.toHaveBeenCalled();
   });
 

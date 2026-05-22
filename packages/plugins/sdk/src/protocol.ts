@@ -233,6 +233,8 @@ export const PLUGIN_RPC_ERROR_CODES = {
   TIMEOUT: -32003,
   /** The worker does not implement the requested optional method. */
   METHOD_NOT_IMPLEMENTED: -32004,
+  /** The worker→host call attempted to escape the current invocation company scope. */
+  INVOCATION_SCOPE_DENIED: -32005,
   /** A catch-all for errors that do not fit other categories. */
   UNKNOWN: -32099,
 } as const;
@@ -368,6 +370,28 @@ export interface GetDataParams {
  *
  * @see PLUGIN_SPEC.md §13.9 — `performAction`
  */
+export type PluginPerformActionActorType = "user" | "agent" | "system";
+
+export interface PluginPerformActionActorContext {
+  /** Authenticated principal type resolved by the Paperclip host. */
+  type: PluginPerformActionActorType;
+  /** Authenticated board user id when `type === "user"`, otherwise null. */
+  userId: string | null;
+  /** Authenticated agent id when `type === "agent"`, otherwise null. */
+  agentId: string | null;
+  /** Authenticated heartbeat/run id when available. */
+  runId: string | null;
+  /** Company id authorized by the host bridge for this action, when applicable. */
+  companyId: string | null;
+}
+
+export interface PluginPerformActionContext {
+  /** Immutable authenticated actor context supplied by the host. */
+  actor: Readonly<PluginPerformActionActorContext>;
+  /** Convenience alias for `actor.companyId`. */
+  companyId: string | null;
+}
+
 export interface PerformActionParams {
   /** Plugin-defined action key (e.g. `"resync"`). */
   key: string;
@@ -375,6 +399,8 @@ export interface PerformActionParams {
   companyId?: string | null;
   /** Action parameters from the UI. */
   params: Record<string, unknown>;
+  /** Authenticated actor context resolved by the host, never by caller params. */
+  actorContext?: PluginPerformActionActorContext | null;
   /** Optional launcher/container metadata from the host render environment. */
   renderEnvironment?: PluginLauncherRenderContextSnapshot | null;
 }

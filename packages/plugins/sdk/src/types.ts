@@ -46,6 +46,7 @@ import type {
   PrincipalPermissionGrant,
   PrincipalType,
 } from "@paperclipai/shared";
+import type { PluginPerformActionContext } from "./protocol.js";
 
 // ---------------------------------------------------------------------------
 // Re-exports from @paperclipai/shared (plugin authors import from one place)
@@ -957,9 +958,12 @@ export interface PluginActionsClient {
    * Register a handler for a plugin-defined action key.
    *
    * @param key - Stable string identifier for this action (e.g. `"resync"`)
-   * @param handler - Async function that receives action params and returns a result
+   * @param handler - Async function that receives action params plus immutable host actor context and returns a result
    */
-  register(key: string, handler: (params: Record<string, unknown>) => Promise<unknown>): void;
+  register(
+    key: string,
+    handler: (params: Record<string, unknown>, context: PluginPerformActionContext) => Promise<unknown>,
+  ): void;
 }
 
 /**

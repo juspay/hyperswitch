@@ -79,7 +79,7 @@ export class CapabilityDeniedError extends Error {
  */
 export class InvocationScopeDeniedError extends Error {
   override readonly name = "InvocationScopeDeniedError";
-  readonly code = PLUGIN_RPC_ERROR_CODES.CAPABILITY_DENIED;
+  readonly code = PLUGIN_RPC_ERROR_CODES.INVOCATION_SCOPE_DENIED;
 
   constructor(pluginId: string, method: string, message: string) {
     super(`Plugin "${pluginId}" is not allowed to perform "${method}": ${message}`);
