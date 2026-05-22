@@ -210,6 +210,8 @@ const CURRENCY_MAP = {
   FamilyMart: "JPY",
   Seicomart: "JPY",
   PayEasy: "JPY",
+  Skrill: "USD", // Skrill wallet payment method
+  PaySafeCard: "USD", // PaySafeCard gift card payment method
 };
 
 export const getCurrency = (paymentMethodType) => {
