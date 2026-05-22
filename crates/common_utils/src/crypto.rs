@@ -708,6 +708,22 @@ where
     }
 }
 
+impl<'de, T: Clone> serde::Deserialize<'de> for Encryptable<T>
+where
+    T: serde::Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let inner = T::deserialize(deserializer)?;
+        Ok(Self {
+            inner,
+            encrypted: Secret::new(Vec::new()),
+        })
+    }
+}
+
 impl<T: Clone> PartialEq for Encryptable<T>
 where
     T: PartialEq,

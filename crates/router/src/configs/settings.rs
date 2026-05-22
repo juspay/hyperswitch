@@ -41,7 +41,7 @@ pub use payment_methods::configs::{
         PaymentMethodType, RequiredFieldFinal, RequiredFields, SupportedConnectorsForMandate,
         SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
     },
-    MicroServicesConfig,
+    AuthenticationServiceConfig, MicroServicesConfig,
 };
 use rand::seq::IteratorRandom;
 use redis_interface::RedisSettings;

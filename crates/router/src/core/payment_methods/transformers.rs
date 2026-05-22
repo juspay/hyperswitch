@@ -27,6 +27,7 @@ use josekit::jwe;
 use payment_methods::client::{
     self as pm_client,
     create::{CreatePaymentMethodResponse, CreatePaymentMethodV1Request},
+    list::{ListCustomerPaymentMethods, ListCustomerPaymentMethodsV1Request},
     retrieve::{RetrievePaymentMethodResponse, RetrievePaymentMethodV1Request},
     UpdatePaymentMethod, UpdatePaymentMethodV1Payload, UpdatePaymentMethodV1Request,
 };
@@ -510,6 +511,32 @@ pub fn mk_add_bank_debit_response_hs(
     }
 }
 
+#[cfg(feature = "v1")]
+pub fn mk_add_wallet_response_hs(
+    wallet_reference: String,
+    req: api::PaymentMethodCreate,
+    merchant_id: &id_type::MerchantId,
+    locker_fingerprint_id: String,
+) -> domain::PaymentMethodResponse {
+    domain::PaymentMethodResponse {
+        merchant_id: merchant_id.to_owned(),
+        customer_id: req.customer_id.to_owned(),
+        payment_method_id: wallet_reference,
+        payment_method: req.payment_method,
+        payment_method_type: req.payment_method_type,
+        bank_transfer: None,
+        card: None,
+        metadata: req.metadata,
+        created: Some(common_utils::date_time::now()),
+        recurring_enabled: Some(false),           // [#256]
+        installment_payment_enabled: Some(false), // #[#256]
+        payment_experience: Some(vec![api_models::enums::PaymentExperience::InvokeSdkClient]),
+        last_used_at: Some(common_utils::date_time::now()),
+        client_secret: None,
+        locker_fingerprint_id: Some(locker_fingerprint_id),
+    }
+}
+
 #[cfg(all(feature = "v2", feature = "payouts"))]
 pub fn mk_add_bank_response_hs(
     _bank: api::BankPayout,
@@ -928,13 +955,21 @@ pub fn mk_card_value2(
 }
 
 #[cfg(feature = "v2")]
-impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
-    for api::CustomerPaymentMethodResponseItem
+impl
+    transformers::ForeignTryFrom<(
+        domain::PaymentMethod,
+        String,
+        Option<id_type::GlobalPaymentMethodId>,
+    )> for api::CustomerPaymentMethodResponseItem
 {
     type Error = error_stack::Report<errors::ValidationError>;
 
     fn foreign_try_from(
-        (item, payment_token): (domain::PaymentMethod, String),
+        (item, payment_token, default_payment_method_id): (
+            domain::PaymentMethod,
+            String,
+            Option<id_type::GlobalPaymentMethodId>,
+        ),
     ) -> Result<Self, Self::Error> {
         // For payment methods that are active we should always have the payment method subtype
         let payment_method_subtype =
@@ -1002,6 +1037,9 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
         // TODO: check how we can get this field
         let recurring_enabled = true;
 
+        let is_default = default_payment_method_id.is_some()
+            && default_payment_method_id == Some(item.id.clone());
+
         Ok(Self {
             customer_id: item
                 .customer_id
@@ -1017,7 +1055,7 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
             payment_method_data,
             bank: None,
             requires_cvv: true,
-            is_default: false,
+            is_default,
             billing: payment_method_billing,
             payment_method_token: payment_token,
         })
@@ -1025,10 +1063,20 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
 }
 
 #[cfg(feature = "v2")]
-impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodResponseItem {
+impl
+    transformers::ForeignTryFrom<(
+        domain::PaymentMethod,
+        Option<id_type::GlobalPaymentMethodId>,
+    )> for PaymentMethodResponseItem
+{
     type Error = error_stack::Report<errors::ValidationError>;
 
-    fn foreign_try_from(item: domain::PaymentMethod) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        (item, default_payment_method_id): (
+            domain::PaymentMethod,
+            Option<id_type::GlobalPaymentMethodId>,
+        ),
+    ) -> Result<Self, Self::Error> {
         // For payment methods that are active we should always have the payment method subtype
         let payment_method_subtype =
             item.payment_method_subtype
@@ -1119,6 +1167,9 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
             })
         });
 
+        let is_default = default_payment_method_id.is_some()
+            && default_payment_method_id == Some(item.id.clone());
+
         Ok(Self {
             id: item.id,
             customer_id: item
@@ -1135,7 +1186,7 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
             payment_method_data,
             bank: None,
             requires_cvv: true,
-            is_default: false,
+            is_default,
             billing: payment_method_billing,
             network_tokenization: network_token_resp,
             psp_tokenization_enabled: psp_tokenization_enabled.unwrap_or(false),
@@ -1982,6 +2033,54 @@ pub async fn create_payment_method_in_modular_service(
     let payment_method_with_raw_data = DomainPaymentMethodWrapper::try_from(pm_response)?;
 
     Ok(payment_method_with_raw_data.0)
+}
+
+#[cfg(feature = "v1")]
+pub async fn list_customer_payment_methods_from_modular_service(
+    state: &routes::SessionState,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+    customer_id: id_type::CustomerId,
+) -> CustomResult<Vec<payment_methods::types::PaymentMethodResponseItemV1>, errors::ApiErrorResponse>
+{
+    let internal_api_key = &state
+        .conf
+        .internal_merchant_id_profile_id_auth
+        .internal_api_key;
+    let mut parent_headers = Headers::new();
+    parent_headers.insert((
+        headers::X_PROFILE_ID.to_string(),
+        profile_id.get_string_repr().to_string().into_masked(),
+    ));
+    parent_headers.insert((
+        headers::X_MERCHANT_ID.to_string(),
+        merchant_id.get_string_repr().to_string().into_masked(),
+    ));
+    parent_headers.insert((
+        headers::X_INTERNAL_API_KEY.to_string(),
+        internal_api_key.clone().expose().to_string().into_masked(),
+    ));
+
+    let client = pm_client::PaymentMethodClient::new(
+        &state.conf.micro_services.payment_methods_base_url,
+        &parent_headers,
+        &state.conf.trace_header.header_name,
+    );
+
+    let request = ListCustomerPaymentMethodsV1Request {
+        customer_id,
+        query_params: api_models::payment_methods::PaymentMethodListRequest::default(),
+        modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
+    };
+
+    ListCustomerPaymentMethods::call(state, &client, request)
+        .await
+        .map(|resp| resp.0.customer_payment_methods)
+        .map_err(|err| {
+            logger::error!(error=?err, "modular list customer payment methods failed");
+            errors::ApiErrorResponse::InternalServerError
+        })
+        .attach_printable("Failed to list customer payment methods from modular service")
 }
 
 #[cfg(feature = "v1")]

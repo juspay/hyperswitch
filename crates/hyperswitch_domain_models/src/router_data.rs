@@ -125,6 +125,8 @@ pub struct RouterData<Flow, Request, Response> {
     pub customer_document_details: Option<CustomerDocumentDetails>,
     // feature related data
     pub feature_data: Option<FeatureData>,
+    /// A connector-specific identifier representing the stored payment instrument
+    pub sender_payment_instrument_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -461,6 +463,10 @@ impl PaymentMethodToken {
             Self::Token(secret_token) => Some(secret_token.clone()),
             _ => None,
         }
+    }
+
+    pub fn is_apple_pay_decrypt(&self) -> bool {
+        matches!(self, Self::ApplePayDecrypt(_))
     }
 }
 
