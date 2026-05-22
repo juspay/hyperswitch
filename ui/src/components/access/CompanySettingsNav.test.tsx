@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-import { act } from "react";
 import { createRoot } from "react-dom/client";
+import { flushSync } from "react-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CompanySettingsNav, getCompanySettingsTab } from "./CompanySettingsNav";
 
@@ -40,6 +40,14 @@ vi.mock("@/components/PageTabBar", () => ({
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
+async function act(callback: () => void | Promise<void>) {
+  let result: void | Promise<void> = undefined;
+  flushSync(() => {
+    result = callback();
+  });
+  await result;
+}
+
 describe("CompanySettingsNav", () => {
   let container: HTMLDivElement;
 
@@ -60,11 +68,13 @@ describe("CompanySettingsNav", () => {
     expect(getCompanySettingsTab("/PAP/company/settings")).toBe("general");
     expect(getCompanySettingsTab("/company/settings/environments")).toBe("environments");
     expect(getCompanySettingsTab("/PAP/company/settings/environments")).toBe("environments");
+    expect(getCompanySettingsTab("/company/settings/cloud-upstream")).toBe("cloud-upstream");
     expect(getCompanySettingsTab("/company/settings/members")).toBe("members");
     expect(getCompanySettingsTab("/PAP/company/settings/members")).toBe("members");
     expect(getCompanySettingsTab("/company/settings/access")).toBe("members");
     expect(getCompanySettingsTab("/PAP/company/settings/access")).toBe("members");
     expect(getCompanySettingsTab("/company/settings/invites")).toBe("invites");
+    expect(getCompanySettingsTab("/PAP/company/settings/secrets")).toBe("secrets");
   });
 
   it("renders the active tab and navigates when a different tab is selected", async () => {
@@ -82,8 +92,10 @@ describe("CompanySettingsNav", () => {
         items: [
           { value: "general", label: "General" },
           { value: "environments", label: "Environments" },
+          { value: "cloud-upstream", label: "Cloud upstream" },
           { value: "members", label: "Members" },
           { value: "invites", label: "Invites" },
+          { value: "secrets", label: "Secrets" },
         ],
       }),
     );

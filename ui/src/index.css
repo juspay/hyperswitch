@@ -750,8 +750,7 @@ a.paperclip-mention-chip[data-mention-kind="agent"]::before {
 
 .paperclip-markdown-codeblock:hover .paperclip-markdown-codeblock-actions,
 .paperclip-markdown-codeblock-actions:focus-within,
-.paperclip-markdown-codeblock-action[data-copied],
-.paperclip-markdown-codeblock-action[data-active] {
+.paperclip-markdown-codeblock-actions[data-active] {
   opacity: 1;
 }
 

@@ -414,6 +414,7 @@ function CodeBlock({
           ...mergeScrollableBlockStyle(preProps.style as React.CSSProperties | undefined),
           ...(wrapLines
             ? {
+                overflowX: "hidden",
                 whiteSpace: "pre-wrap",
                 overflowWrap: "anywhere",
                 wordBreak: "break-word",
@@ -423,7 +424,10 @@ function CodeBlock({
       >
         {children}
       </pre>
-      <div className="paperclip-markdown-codeblock-actions">
+      <div
+        className="paperclip-markdown-codeblock-actions"
+        data-active={copied || failed || wrapLines || undefined}
+      >
         <button
           type="button"
           onClick={() => setWrapLines((value) => !value)}
