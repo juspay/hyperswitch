@@ -8,6 +8,7 @@ use router_env::{instrument, tracing};
 use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{
             helpers,
@@ -46,7 +47,8 @@ impl ValidateStatusForOperation for PaymentGet {
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Conflicted
-            | common_enums::IntentStatus::Expired => Ok(()),
+            | common_enums::IntentStatus::Expired
+            | common_enums::IntentStatus::Review => Ok(()),
             // These statuses are not valid for this operation
             common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::RequiresPaymentMethod => {
@@ -65,6 +67,7 @@ impl ValidateStatusForOperation for PaymentGet {
                         common_enums::IntentStatus::PartiallyCapturedAndCapturable,
                         common_enums::IntentStatus::PartiallyCaptured,
                         common_enums::IntentStatus::Cancelled,
+                        common_enums::IntentStatus::Review,
                     ]
                     .map(|enum_value| enum_value.to_string())
                     .join(", "),
@@ -194,7 +197,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
         payment_attempt.encoded_data = request
             .param
             .as_ref()
-            .map(|val| masking::Secret::new(val.clone()));
+            .map(|val| hyperswitch_masking::Secret::new(val.clone()));
 
         let should_sync_with_connector =
             request.force_sync && payment_intent.status.should_force_sync_with_connector();
@@ -372,6 +375,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentStatusData<F>, PaymentsRetrieveReq
         payment_data: PaymentStatusData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentStatusData<F>)>
     where
         F: 'b + Send,

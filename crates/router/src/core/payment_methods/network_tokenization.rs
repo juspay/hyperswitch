@@ -22,12 +22,10 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payment_method_data::{
     NetworkTokenDetails, NetworkTokenDetailsPaymentMethod,
 };
+use hyperswitch_masking::{ErasedMaskSerialize, ExposeInterface, Mask, PeekInterface, Secret};
 use josekit::jwe;
-use masking::{ErasedMaskSerialize, ExposeInterface, Mask, PeekInterface, Secret};
 
 use super::transformers::DeleteCardResp;
-#[cfg(feature = "v2")]
-use crate::utils::ext_traits::OptionExt;
 use crate::{
     core::{errors, payment_methods, payments::helpers},
     headers, logger,
@@ -35,6 +33,7 @@ use crate::{
     services::{self, encryption},
     settings,
     types::{api, domain, payment_methods as pm_types},
+    utils::ext_traits::OptionExt,
 };
 
 pub const NETWORK_TOKEN_SERVICE: &str = "NETWORK_TOKEN";
@@ -446,6 +445,7 @@ pub async fn make_card_network_tokenization_request(
         card_holder_name: card.card_holder_name.clone(),
         nick_name: card.nick_name.clone(),
         cryptogram: None,
+        par: Some(Secret::new(resp.par)),
     };
     Ok((network_token_details, network_token_req_ref_id))
 }
@@ -610,7 +610,7 @@ pub async fn get_token_from_tokenization_service(
                 async {
                     get_network_token(
                 state,
-                pm_data.customer_id.clone(),
+                pm_data.customer_id.clone().get_required_value("customer_id")?,
                 network_token_requestor_ref_id,
                 network_tokenization_service.get_inner(),
             )
@@ -663,6 +663,7 @@ pub async fn get_token_from_tokenization_service(
         card_issuing_country: None,
         bank_code: None,
         eci: token_response.eci,
+        par: token_response.card_details.map(|details| details.par),
     };
     Ok(network_token_data)
 }
@@ -743,6 +744,7 @@ pub async fn get_token_from_tokenization_service(
         card_issuing_country: token_decrypted.issuer_country,
         bank_code: None,
         eci: token_response.eci,
+        par: token_response.card_details.map(|details| details.par),
     };
     Ok(network_token_data)
 }
@@ -777,7 +779,7 @@ pub async fn do_status_check_for_network_token(
                     async {
                         check_token_status_with_tokenization_service(
                             state,
-                            &payment_method_info.customer_id.clone(),
+                            &payment_method_info.customer_id.clone().get_required_value("customer_id")?,
                             ref_id,
                             network_tokenization_service.get_inner(),
                         )

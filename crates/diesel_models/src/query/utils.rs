@@ -68,6 +68,18 @@ mod composite_key {
             self.1
         }
     }
+    impl CompositeKey for <schema::payout_attempt::table as diesel::Table>::PrimaryKey {
+        type UK = schema::payout_attempt::dsl::payout_attempt_id;
+        fn get_local_unique_key(&self) -> Self::UK {
+            self.1
+        }
+    }
+    impl CompositeKey for <schema::payouts::table as diesel::Table>::PrimaryKey {
+        type UK = schema::payouts::dsl::payout_id;
+        fn get_local_unique_key(&self) -> Self::UK {
+            self.1
+        }
+    }
 }
 
 /// This macro will implement the `GetPrimaryKey` trait for all the tables with single primary key.
@@ -86,6 +98,7 @@ macro_rules! impl_get_primary_key {
 }
 impl_get_primary_key!(
     // v1 tables
+    schema::card_issuers::table,
     schema::dashboard_metadata::table,
     schema::merchant_connector_account::table,
     schema::merchant_key_store::table,
@@ -103,6 +116,7 @@ impl_get_primary_key!(
     schema::process_tracker::table,
     schema::invoice::table,
     schema::subscription::table,
+    schema::batch_blocklist_jobs::table,
     // v2 tables
     schema_v2::dashboard_metadata::table,
     schema_v2::merchant_connector_account::table,
@@ -147,5 +161,7 @@ impl_get_primary_key_for_composite!(
     schema::incremental_authorization::table,
     schema::hyperswitch_ai_interaction::table,
     schema_v2::incremental_authorization::table,
-    schema_v2::blocklist::table
+    schema_v2::blocklist::table,
+    schema::payout_attempt::table,
+    schema::payouts::table
 );

@@ -9,7 +9,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::{
@@ -47,7 +47,7 @@ use hyperswitch_interfaces::{
     types::Response,
     webhooks,
 };
-use masking::{ExposeInterface, Mask, Maskable, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface};
 use ring::{digest, hmac};
 use time::OffsetDateTime;
 use transformers as cybersourcedecisionmanager;
@@ -474,11 +474,7 @@ impl ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseDa
             .ok_or(ConnectorError::MissingRequiredField {
                 field_name: "Currency",
             })?;
-        let amount = convert_amount(
-            self.amount_converter,
-            MinorUnit::new(req.request.amount),
-            currency,
-        )?;
+        let amount = convert_amount(self.amount_converter, req.request.amount, currency)?;
 
         let connector_router_data =
             cybersourcedecisionmanager::CybersourcedecisionmanagerRouterData::from((amount, req));
@@ -649,7 +645,7 @@ impl webhooks::IncomingWebhook for Cybersourcedecisionmanager {
     fn get_webhook_resource_object(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         Err(report!(ConnectorError::WebhooksNotImplemented))
     }
 }

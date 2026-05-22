@@ -94,6 +94,8 @@ pub enum Flow {
     MerchantTransferKey,
     /// Merchant Connector Webhook register flow.
     MerchantConnectorWebhookRegister,
+    /// Merchant Connector Webhook list flow.
+    MerchantConnectorWebhookList,
     /// ConfigKey create flow.
     ConfigKeyCreate,
     /// ConfigKey fetch flow.
@@ -152,6 +154,8 @@ pub enum Flow {
     PaymentMethodCollectLink,
     /// Payment methods retrieve flow.
     PaymentMethodsRetrieve,
+    /// Payment methods retrieve OLAP flow.
+    PaymentMethodsRetrieveOlap,
     /// Payment methods update flow.
     PaymentMethodsUpdate,
     /// Payment methods delete flow.
@@ -253,14 +257,6 @@ pub enum Flow {
     RefundsAggregate,
     // Retrieve forex flow.
     RetrieveForexFlow,
-    /// Toggles recon service for a merchant.
-    ReconMerchantUpdate,
-    /// Recon token request flow.
-    ReconTokenRequest,
-    /// Initial request for recon service.
-    ReconServiceRequest,
-    /// Recon token verification flow
-    ReconVerifyToken,
     /// Routing create flow,
     RoutingCreateConfig,
     /// Routing link config
@@ -309,6 +305,14 @@ pub enum Flow {
     ToggleDynamicRouting,
     /// Update dynamic routing config
     UpdateDynamicRoutingConfigs,
+    /// Add a card issuer to the catalog
+    AddCardIssuer,
+    /// Update a card issuer in the catalog
+    UpdateCardIssuer,
+    /// Delete a card issuer from the catalog
+    DeleteCardIssuer,
+    /// List card issuers from the catalog
+    ListCardIssuers,
     /// Add record to blocklist
     AddToBlocklist,
     /// Delete record from blocklist
@@ -317,6 +321,12 @@ pub enum Flow {
     ListBlocklist,
     /// Toggle blocklist for merchant
     ToggleBlocklistGuard,
+    /// Bulk upload blocklist entries via CSV
+    BatchBlocklistUpload,
+    /// Get status of a batch blocklist upload job
+    GetBatchBlocklistJobStatus,
+    /// List batch blocklist upload jobs for a merchant
+    ListBatchBlocklistJobs,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
     /// Recovery incoming webhook receive
@@ -613,6 +623,8 @@ pub enum Flow {
     RefundsManualUpdate,
     /// Manually update the payment details like status, error code, error message etc.
     PaymentsManualUpdate,
+    /// Manually update payment status from dashboard (Review → Succeeded/Failed)
+    PaymentsManualStatusUpdate,
     #[cfg(feature = "payouts")]
     /// Manually update the payout details like status, error code, error message etc.
     PayoutsManualUpdate,
@@ -727,6 +739,16 @@ pub enum Flow {
     GetEmbeddedToken,
     // Get embedded token info flow
     EmbeddedTokenInfo,
+    /// Superposition SDK Config Get flow
+    GetSuperpositionSdkConfig,
+    // Get user details internal
+    GetUserDetailsInternal,
+    // List users internal
+    ListUsersInternal,
+    // List members for entity
+    ListMembersForEntity,
+    /// Authorize external token
+    AuthorizeUserToken,
 }
 
 /// Trait for providing generic behaviour to flow metric

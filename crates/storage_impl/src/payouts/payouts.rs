@@ -107,6 +107,8 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     client_secret: new.client_secret.clone(),
                     priority: new.priority,
                     organization_id: new.organization_id.clone(),
+                    processor_merchant_id: new.processor_merchant_id.clone(),
+                    created_by: new.created_by.clone(),
                 };
 
                 let redis_entry = kv::TypedSql {
@@ -356,6 +358,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         active_payout_ids: &[common_utils::id_type::PayoutId],
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         connector: Option<Vec<PayoutConnectors>>,
         currency: Option<Vec<storage_enums::Currency>>,
         status: Option<Vec<storage_enums::PayoutStatus>>,
@@ -365,6 +368,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
             .get_total_count_of_filtered_payouts(
                 merchant_id,
                 active_payout_ids,
+                profile_id_list,
                 connector,
                 currency,
                 status,
@@ -779,6 +783,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         active_payout_ids: &[common_utils::id_type::PayoutId],
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         connector: Option<Vec<PayoutConnectors>>,
         currency: Option<Vec<storage_enums::Currency>>,
         status: Option<Vec<storage_enums::PayoutStatus>>,
@@ -800,6 +805,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             &conn,
             merchant_id,
             active_payout_ids,
+            profile_id_list,
             connector_strings,
             currency,
             status,
@@ -981,6 +987,8 @@ impl DataModelExt for Payouts {
             client_secret: self.client_secret,
             priority: self.priority,
             organization_id: self.organization_id,
+            processor_merchant_id: self.processor_merchant_id,
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
         }
     }
 
@@ -1011,6 +1019,10 @@ impl DataModelExt for Payouts {
             client_secret: storage_model.client_secret,
             priority: storage_model.priority,
             organization_id: storage_model.organization_id,
+            processor_merchant_id: storage_model.processor_merchant_id,
+            created_by: storage_model
+                .created_by
+                .and_then(|created_by| created_by.parse::<common_utils::types::CreatedBy>().ok()),
         }
     }
 }
@@ -1044,6 +1056,8 @@ impl DataModelExt for PayoutsNew {
             client_secret: self.client_secret,
             priority: self.priority,
             organization_id: self.organization_id,
+            processor_merchant_id: self.processor_merchant_id,
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
         }
     }
 
@@ -1074,6 +1088,10 @@ impl DataModelExt for PayoutsNew {
             client_secret: storage_model.client_secret,
             priority: storage_model.priority,
             organization_id: storage_model.organization_id,
+            processor_merchant_id: storage_model.processor_merchant_id,
+            created_by: storage_model
+                .created_by
+                .and_then(|created_by| created_by.parse::<common_utils::types::CreatedBy>().ok()),
         }
     }
 }

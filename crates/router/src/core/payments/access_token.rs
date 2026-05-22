@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use hyperswitch_interfaces::{
-    api::{gateway, ConnectorSpecifications},
+    api::{gateway, ConnectorSpecifications, ConnectorValidation},
     consts as interfaces_consts,
 };
 
@@ -124,6 +124,7 @@ pub async fn add_access_token<
     router_data: &types::RouterData<F, Req, Res>,
     creds_identifier: Option<&str>,
     gateway_context: &gateway_context::RouterGatewayContext,
+    current_flow: Option<hyperswitch_domain_models::router_request_types::CurrentFlowInfo>,
 ) -> RouterResult<types::AddAccessTokenResult> {
     if connector
         .connector_name
@@ -147,7 +148,13 @@ pub async fn add_access_token<
 
         let key = connector
             .connector
-            .get_access_token_key(router_data, merchant_connector_id_or_connector_name.clone())
+            .get_access_token_key(
+                &router_data.merchant_id,
+                merchant_connector_id_or_connector_name.clone(),
+                current_flow.clone(),
+                router_data.payment_method_type,
+                Some(router_data.recurring_mandate_payment_data.is_some()),
+            )
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(format!(
                 "Failed to get access token key for connector: {:?}",
@@ -197,6 +204,7 @@ pub async fn add_access_token<
                 let refresh_token_request_data = types::AccessTokenRequestData::try_from((
                     router_data.connector_auth_type.clone(),
                     authentication_token,
+                    current_flow,
                 ))
                 .attach_printable(
                     "Could not create access token request, invalid connector account credentials",

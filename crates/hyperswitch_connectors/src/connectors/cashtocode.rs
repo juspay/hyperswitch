@@ -41,7 +41,7 @@ use hyperswitch_interfaces::{
     types::{PaymentsAuthorizeType, Response},
     webhooks::{self, IncomingWebhookFlowError},
 };
-use masking::{Mask, PeekInterface, Secret};
+use hyperswitch_masking::{Mask, PeekInterface, Secret};
 use transformers as cashtocode;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -75,11 +75,11 @@ impl api::RefundSync for Cashtocode {}
 fn get_b64_auth_cashtocode(
     payment_method_type: Option<enums::PaymentMethodType>,
     auth_type: &transformers::CashtocodeAuth,
-) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError> {
     fn construct_basic_auth(
         username: Option<Secret<String>>,
         password: Option<Secret<String>>,
-    ) -> Result<masking::Maskable<String>, errors::ConnectorError> {
+    ) -> Result<hyperswitch_masking::Maskable<String>, errors::ConnectorError> {
         let username = username.ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
         let password = password.ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(format!(
@@ -189,7 +189,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             PaymentsAuthorizeType::get_content_type(self)
@@ -409,7 +410,8 @@ impl webhooks::IncomingWebhook for Cashtocode {
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let webhook: transformers::CashtocodeIncomingWebhook = request
             .body
             .parse_struct("CashtocodeIncomingWebhook")
@@ -422,6 +424,9 @@ impl webhooks::IncomingWebhook for Cashtocode {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _error_kind: Option<IncomingWebhookFlowError>,
+        _connector_authentication_type: Option<
+            common_utils::crypto::Encryptable<Secret<serde_json::Value>>,
+        >,
     ) -> CustomResult<ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
         let status = "EXECUTED".to_string();
         let obj: transformers::CashtocodePaymentsSyncResponse = request

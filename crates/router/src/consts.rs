@@ -220,6 +220,9 @@ pub const AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG: &str =
 /// Payment flow identifier used for performing GSM operations
 pub const PAYMENT_FLOW_STR: &str = "Payment";
 
+/// Redis key prefix for client session storage
+pub(crate) const CLIENT_SESSION_KEY_PREFIX: &str = "client_session";
+
 /// Default subflow identifier used for performing GSM operations
 pub const DEFAULT_SUBFLOW_STR: &str = "sub_flow";
 
@@ -282,8 +285,8 @@ pub const IRRELEVANT_PAYMENT_ATTEMPT_ID: &str = "irrelevant_payment_attempt_id";
 
 pub static PROFILE_ID_UNAVAILABLE: sync::LazyLock<id_type::ProfileId> = sync::LazyLock::new(|| {
     #[allow(clippy::expect_used)]
-    id_type::ProfileId::from_str("PROFILE_ID_UNAVAIABLE")
-        .expect("Failed to parse PROFILE_ID_UNAVAIABLE")
+    id_type::ProfileId::from_str("PROFILE_ID_UNAVAILABLE")
+        .expect("Failed to parse PROFILE_ID_UNAVAILABLE")
 });
 
 /// Default payment attempt id
@@ -354,6 +357,52 @@ pub mod superposition {
     pub const REQUIRES_CVV: &str = "requires_cvv";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
+    /// Fingerprint secret configuration key
+    pub const FINGERPRINT_SECRET: &str = "fingerprint_secret";
+    /// GSM (Global Status Map) call configuration key
+    pub const SHOULD_CALL_GSM: &str = "should_call_gsm";
+    /// Eligibility check configuration key
+    pub const SHOULD_PERFORM_ELIGIBILITY: &str = "should_perform_eligibility";
+    /// MIT with limited card data configuration key
+    pub const SHOULD_ENABLE_MIT_WITH_LIMITED_CARD_DATA: &str =
+        "should_enable_mit_with_limited_card_data";
+    /// Store eligibility check data for authentication configuration key
+    pub const SHOULD_STORE_ELIGIBILITY_CHECK_DATA_FOR_AUTHENTICATION: &str =
+        "should_store_eligibility_check_data_for_authentication";
+    /// Extended card BIN configuration key
+    pub const ENABLE_EXTENDED_CARD_BIN: &str = "enable_extended_card_bin";
+    /// Max auto payout retries configuration key
+    pub const MAX_AUTO_PAYOUT_RETRIES: &str = "max_auto_payout_retries";
+    /// GSM payout call configuration key (scoped by merchant, profile, and payout retry type)
+    pub const GSM_PAYOUT_CALL: &str = "gsm_payout_call";
+    /// Disable vault tokenization configuration key
+    pub const SHOULD_DISABLE_VAULT_TOKENIZATION: &str = "should_disable_vault_tokenization";
+    /// Return raw payment method details configuration key
+    pub const SHOULD_RETURN_RAW_PAYMENT_METHOD_DETAILS: &str =
+        "should_return_raw_payment_method_details";
+    /// Call PM modular service configuration key
+    pub const SHOULD_CALL_PM_MODULAR_SERVICE: &str = "should_call_pm_modular_service";
+    /// Schedule PM modular forward compatibility PT configuration key
+    pub const SHOULD_SCHEDULE_MODULAR_FORWARD_COMPAT: &str =
+        "should_schedule_modular_forward_compat";
+    /// Schedule PM modular backward compatibility PT configuration key
+    pub const SHOULD_SCHEDULE_MODULAR_BACKWARD_COMPAT: &str =
+        "should_schedule_modular_backward_compat";
+    /// Trigger PM modular backward compatibility inline configuration key
+    pub const SHOULD_TRIGGER_BACKWARDS_COMPATIBILITY_INLINE: &str =
+        "should_trigger_backwards_compatibility_inline";
+    /// dynamic fields configuration key for sdk config
+    pub const DYNAMIC_FIELDS: &str = "dynamic_fields";
+    /// payout sync tracker configuration key
+    pub const PAYOUT_TRACKER_MAPPING: &str = "payout_tracker_mapping";
+    /// client session validation enabled configuration key
+    pub const CLIENT_SESSION_VALIDATION_ENABLED: &str = "client_session_validation_enabled";
+    /// routing result source configuration key (selects between Hyperswitch and Decision Engine)
+    pub const ROUTING_RESULT_SOURCE: &str = "routing_result_source";
+    /// 3DS routing region configuration key for UAS
+    pub const THREEDS_ROUTING_REGION_UAS: &str = "threeds_routing_region_uas";
+    /// disabled webhook events configuration key per merchant and connector
+    pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "incoming_webhook_disabled_events";
 }
 
 #[cfg(test)]

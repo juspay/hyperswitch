@@ -1047,7 +1047,7 @@ impl SecretsHandler for AnalyticsConfig {
         let analytics_config = value.get_inner();
         let decrypted_password = match analytics_config {
             // Todo: Perform kms decryption of clickhouse password
-            Self::Clickhouse { .. } => masking::Secret::new(String::default()),
+            Self::Clickhouse { .. } => hyperswitch_masking::Secret::new(String::default()),
             Self::Sqlx { sqlx, .. }
             | Self::CombinedCkh { sqlx, .. }
             | Self::CombinedSqlx { sqlx, .. } => {
@@ -1159,6 +1159,7 @@ pub enum AnalyticsFlow {
     GetDisputeMetrics,
     GetSankey,
     GetRoutingEvents,
+    GetPaymentListFromOpenSearch,
 }
 
 impl FlowMetric for AnalyticsFlow {}

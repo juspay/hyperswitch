@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, str::FromStr};
+use std::marker::PhantomData;
 
 #[cfg(feature = "v1")]
 use api_models::payments::BrowserInformation;
@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
     type_encryption::AsyncLift,
 };
 use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
-use masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 
 use super::types::{
     IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW,
@@ -30,6 +30,7 @@ use super::types::{
 use crate::{
     consts::DEFAULT_SESSION_EXPIRY,
     core::{
+        configs::dimension_state,
         errors::{
             utils::{ConnectorErrorExt, StorageErrorExt},
             RouterResult,
@@ -148,6 +149,8 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
+        sender_payment_instrument_id: None,
     })
 }
 
@@ -179,7 +182,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .clone()
                     .map(|billing| {
                         common_utils::ext_traits::Encode::encode_to_value(&billing)
-                            .map(masking::Secret::<serde_json::Value>::new)
+                            .map(hyperswitch_masking::Secret::<serde_json::Value>::new)
                     })
                     .transpose()
                     .change_context(ApiErrorResponse::InternalServerError)
@@ -189,7 +192,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .clone()
                     .map(|shipping| {
                         common_utils::ext_traits::Encode::encode_to_value(&shipping)
-                            .map(masking::Secret::<serde_json::Value>::new)
+                            .map(hyperswitch_masking::Secret::<serde_json::Value>::new)
                     })
                     .transpose()
                     .change_context(ApiErrorResponse::InternalServerError)
@@ -597,6 +600,7 @@ fn get_vault_details(
                         card_issuing_country: None,
                         card_holder_name: None,
                         nick_name: None,
+                        par: None,
                     },
                 ),
             )
@@ -616,7 +620,7 @@ pub fn get_authentication_payment_method_data<F, Req>(
         authentication_details,
     }) = router_data.response.clone()
     {
-        authentication_details.into()
+        authentication_details.to_authentication_payment_method_data_response()
     } else {
         None
     }
@@ -699,33 +703,20 @@ pub fn construct_uas_webhook_router_data<F: Clone, Req, Res>(
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         customer_document_details: None,
+        feature_data: None,
+        sender_payment_instrument_id: None,
     })
 }
 
 pub async fn fetch_routing_region_for_uas(
     state: &SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
-    organization_id: common_utils::id_type::OrganizationId,
-) -> RouterResult<RoutingRegion> {
-    let merchant_path =
-        fetch_region(state, &merchant_id.get_threeds_routing_region_uas_key()).await;
-
-    Ok(merchant_path
-        .async_unwrap_or_else(|| async {
-            fetch_region(state, &organization_id.get_threeds_routing_region_uas_key())
-                .await
-                .unwrap_or(RoutingRegion::Region1)
-        })
-        .await)
-}
-
-async fn fetch_region(state: &SessionState, key: &str) -> Option<RoutingRegion> {
-    let db = &*state.store;
-    db.find_config_by_key(key)
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
+) -> RoutingRegion {
+    dimensions
+        .get_threeds_routing_region_uas(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
         .await
-        .inspect_err(|err| {
-            router_env::logger::error!("Failed to fetch region for key as {err}");
-        })
-        .ok()
-        .map(|conf| RoutingRegion::from_str(&conf.config).unwrap_or(RoutingRegion::Region1))
 }

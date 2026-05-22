@@ -43,7 +43,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::{ExposeInterface, Mask, PeekInterface, Secret, WithType};
+use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface, Secret, WithType};
 use ring::hmac;
 use router_env::logger;
 use time::OffsetDateTime;
@@ -96,7 +96,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let connector_auth = boku::BokuAuthType::try_from(&req.connector_auth_type)?;
 
         let boku_url = Self::get_url(self, req, connectors)?;
@@ -205,7 +206,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -243,7 +245,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let connector_router_data = boku::BokuRouterData::from((amount, req));
         let connector_req = boku::BokuPaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Xml(Box::new(connector_req)))
+        Ok(RequestContent::Xml(Box::new(connector_req), None))
     }
 
     fn build_request(
@@ -303,7 +305,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Bok
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -330,7 +333,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Bok
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = boku::BokuPsyncRequest::try_from(req)?;
-        Ok(RequestContent::Xml(Box::new(connector_req)))
+        Ok(RequestContent::Xml(Box::new(connector_req), None))
     }
 
     fn build_request(
@@ -386,7 +389,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -467,7 +471,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Boku {
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -501,7 +506,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Boku {
 
         let connector_router_data = boku::BokuRouterData::from((refund_amount, req));
         let connector_req = boku::BokuRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Xml(Box::new(connector_req)))
+        Ok(RequestContent::Xml(Box::new(connector_req), None))
     }
 
     fn build_request(
@@ -558,7 +563,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Boku {
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -585,7 +591,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Boku {
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = boku::BokuRsyncRequest::try_from(req)?;
-        Ok(RequestContent::Xml(Box::new(connector_req)))
+        Ok(RequestContent::Xml(Box::new(connector_req), None))
     }
 
     fn build_request(
@@ -654,7 +660,8 @@ impl IncomingWebhook for Boku {
     fn get_webhook_resource_object(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

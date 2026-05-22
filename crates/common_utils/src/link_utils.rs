@@ -12,7 +12,7 @@ use diesel::{
     AsExpression, FromSqlRow,
 };
 use error_stack::{report, ResultExt};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use regex::Regex;
 #[cfg(feature = "logs")]
 use router_env::logger;

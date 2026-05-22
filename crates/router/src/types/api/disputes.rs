@@ -4,7 +4,7 @@ pub use hyperswitch_interfaces::{
     },
     disputes::DisputePayload,
 };
-use masking::{Deserialize, Serialize};
+use hyperswitch_masking::{Deserialize, Serialize};
 
 use crate::types;
 
@@ -68,6 +68,7 @@ pub struct ProcessDisputePTData {
     pub connector_name: String,
     pub dispute_payload: types::DisputeSyncResponse,
     pub merchant_id: common_utils::id_type::MerchantId,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -75,6 +76,7 @@ pub struct DisputeListPTData {
     pub connector_name: String,
     pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     pub merchant_id: common_utils::id_type::MerchantId,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub profile_id: common_utils::id_type::ProfileId,
     pub created_from: time::PrimitiveDateTime,
     pub created_till: time::PrimitiveDateTime,

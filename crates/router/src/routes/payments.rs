@@ -9,8 +9,9 @@ pub mod helpers;
 use actix_web::{web, Responder};
 use error_stack::report;
 use hyperswitch_domain_models::{ext_traits::OptionExt, payments::HeaderPayload};
+#[cfg(feature = "v1")]
 use hyperswitch_interfaces::api::ConnectorSpecifications;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::{env, instrument, logger, tracing, types, Flow};
 
 use super::app::ReqState;
@@ -18,11 +19,14 @@ use super::app::ReqState;
 use crate::core::payment_method_balance;
 #[cfg(feature = "v2")]
 use crate::core::revenue_recovery::api as recovery;
+#[cfg(feature = "v1")]
+use crate::routes::payments::payments::operations::payment_recurrence::PaymentRecurrence;
 use crate::{
     self as app,
     core::{
+        configs::dimension_state,
         errors::{self, http_not_implemented},
-        payments::{self, PaymentRedirectFlow},
+        payments::{self, transformers::ToResponse, OperationSessionGetters, PaymentRedirectFlow},
     },
     routes::lock_utils,
     services::{api, authentication as auth},
@@ -33,7 +37,7 @@ use crate::{
             ConnectorData, GetToken,
         },
         domain,
-        transformers::ForeignTryFrom,
+        transformers::{ForeignTryFrom, ForeignTryInto},
     },
 };
 
@@ -1694,6 +1698,13 @@ pub async fn payments_cancel(
 
                 // Getting the intent status to determine which flow to use
                 let (payment_intent_status, connector_name, pre_get_trackers_info) = {
+                    let preliminary_dimensions = dimension_state::Dimensions::new()
+                        .with_processor_merchant_id(
+                            auth.platform.get_processor().get_processor_merchant_id(),
+                        )
+                        .with_provider_merchant_id(
+                            auth.platform.get_provider().get_provider_merchant_id(),
+                        );
                     let tracker_response = operation
                         .to_get_tracker()?
                         .get_trackers(
@@ -1703,7 +1714,8 @@ pub async fn payments_cancel(
                             &auth.platform,
                             api::AuthFlow::Merchant,
                             &header_payload,
-                            None,
+                            crate::core::payment_methods::transformers::PaymentMethodFetchData::default(),
+                            &preliminary_dimensions,
                             None,
                         )
                         .await?;
@@ -1795,10 +1807,18 @@ pub async fn payments_cancel(
                 }
             }
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth {
-            allow_connected_scope_operation: true,
-            allow_platform_self_operation: false,
-        }),
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfilePaymentWrite,
+                allow_connected: true,
+                allow_platform: false,
+            },
+            req.headers(),
+        ),
         locking_action,
     ))
     .await
@@ -2475,33 +2495,118 @@ where
         .await
     } else {
         let eligible_connectors = req.connector.clone();
+        let eligible_routable_connectors = eligible_connectors.clone().map(|connectors| {
+            connectors
+                .into_iter()
+                .flat_map(|c| c.foreign_try_into())
+                .collect()
+        });
+        let dimensions = dimension_state::Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
         match req.payment_type.unwrap_or_default() {
             api_models::enums::PaymentType::Normal
             | api_models::enums::PaymentType::RecurringMandate
             | api_models::enums::PaymentType::NewMandate
             | api_models::enums::PaymentType::Installment => {
-                payments::payments_core::<
-                    api_types::Authorize,
-                    payment_types::PaymentsResponse,
-                    _,
-                    _,
-                    _,
-                    payments::PaymentData<api_types::Authorize>,
-                >(
-                    state,
-                    req_state,
-                    platform,
-                    profile_id,
-                    operation,
-                    req,
+                let (payment_data, _req, connector_http_status_code, external_latency) =
+                    Box::pin(payments::payments_operation_core::<
+                        api_types::Authorize,
+                        _,
+                        _,
+                        _,
+                        payments::PaymentData<api_types::Authorize>,
+                    >(
+                        &state,
+                        req_state.clone(),
+                        &platform,
+                        profile_id.clone(),
+                        operation.clone(),
+                        req.clone(),
+                        payments::CallConnectorAction::Trigger,
+                        None,
+                        auth_flow,
+                        eligible_routable_connectors.clone(),
+                        header_payload.clone(),
+                        &dimensions,
+                        None,
+                    ))
+                    .await?;
+
+                let connector = payment_data.get_payment_attempt_connector();
+
+                if let Some(connector_name) = connector {
+                    let connector_data = ConnectorData::get_connector_by_name(
+                        &state.conf.connectors,
+                        connector_name,
+                        GetToken::Connector,
+                        None,
+                    )?;
+                    let should_continue_further = connector_data
+                        .connector
+                        .is_payment_recurrence_operation_needed(
+                            &payment_data.payment_intent.clone(),
+                        )
+                        .unwrap_or(false);
+                    if should_continue_further {
+                        logger::info!(
+                            "Re-invoking payments_operation_core | should_continue_further: {} | payment_id: {:?}",
+                            should_continue_further,
+                            payment_data.get_payment_intent().payment_id,
+                        );
+                        let (pd, _req, connector_status_code, ext_latency) =
+                            Box::pin(payments::payments_operation_core::<
+                                api_types::SetupMandate,
+                                _,
+                                _,
+                                _,
+                                payments::PaymentData<api_types::SetupMandate>,
+                            >(
+                                &state,
+                                req_state,
+                                &platform,
+                                profile_id,
+                                PaymentRecurrence,
+                                req,
+                                payments::CallConnectorAction::Trigger,
+                                None,
+                                auth_flow,
+                                eligible_routable_connectors,
+                                header_payload.clone(),
+                                &dimensions,
+                                None,
+                            ))
+                            .await?;
+                        let total_ext_latency = match (external_latency, ext_latency) {
+                            (Some(l1), Some(l2)) => Some(l1 + l2),
+                            (Some(l), None) | (None, Some(l)) => Some(l),
+                            (None, None) => None,
+                        };
+                        return payment_types::PaymentsResponse::generate_response(
+                            pd,
+                            auth_flow,
+                            &state.base_url,
+                            operation,
+                            &state.conf.connector_request_reference_id_config,
+                            connector_status_code,
+                            total_ext_latency,
+                            header_payload.x_hs_latency,
+                            &platform,
+                        );
+                    }
+                }
+
+                payment_types::PaymentsResponse::generate_response(
+                    payment_data,
                     auth_flow,
-                    payments::CallConnectorAction::Trigger,
-                    None,
-                    eligible_connectors,
-                    header_payload,
-                    None,
+                    &state.base_url,
+                    operation,
+                    &state.conf.connector_request_reference_id_config,
+                    connector_http_status_code,
+                    external_latency,
+                    header_payload.x_hs_latency,
+                    &platform,
                 )
-                .await
             }
             api_models::enums::PaymentType::SetupMandate => {
                 payments::payments_core::<
@@ -2777,6 +2882,39 @@ pub async fn payments_manual_update(
         |state, _auth, req, _req_state| payments::payments_manual_update(state, req),
         &auth::AdminApiAuthWithMerchantIdFromHeader,
         locking_action,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+/// Manually update payment status from Review to Succeeded or Failed (Dashboard API with JWT auth)
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsManualStatusUpdate, payment_id))]
+pub async fn payments_manual_status_update(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<api_models::payments::PaymentsManualStatusUpdateRequest>,
+    path: web::Path<common_utils::id_type::PaymentId>,
+) -> impl Responder {
+    let flow = Flow::PaymentsManualStatusUpdate;
+    let payload = json_payload.into_inner();
+    let payment_id = path.into_inner();
+
+    tracing::Span::current().record("payment_id", payment_id.get_string_repr());
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _req_state| {
+            payments::payments_manual_status_update(state, auth.platform, payment_id.clone(), req)
+        },
+        &auth::JWTAuth {
+            permission: Permission::ProfilePaymentWrite,
+            allow_connected: true,
+            allow_platform: true,
+        },
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }

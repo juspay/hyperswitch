@@ -12,7 +12,7 @@ use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payment_methods::PaymentMethodVaultSourceDetails;
 use hyperswitch_domain_models::{merchant_key_store, payment_methods, type_encryption};
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 #[cfg(feature = "v1")]
 use scheduler::errors as sch_errors;
 use serde::{Deserialize, Serialize};
@@ -52,6 +52,7 @@ pub trait PaymentMethodsController {
         status: Option<common_enums::PaymentMethodStatus>,
         network_transaction_id: Option<String>,
         payment_method_billing_address: crypto::OptionalEncryptableValue,
+        network_transaction_link_id: Option<String>,
         card_scheme: Option<String>,
         network_token_requestor_reference_id: Option<String>,
         network_token_locker_id: Option<String>,
@@ -59,6 +60,7 @@ pub trait PaymentMethodsController {
         vault_source_details: Option<PaymentMethodVaultSourceDetails>,
         payment_method_customer_details_encrypted: crypto::OptionalEncryptableValue,
         locker_fingerprint_id: Option<String>,
+        initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 
     #[cfg(feature = "v1")]
@@ -81,6 +83,7 @@ pub trait PaymentMethodsController {
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
         vault_source_details: Option<PaymentMethodVaultSourceDetails>,
         locker_fingerprint_id: Option<String>,
+        initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 
     #[cfg(feature = "v2")]
@@ -104,6 +107,7 @@ pub trait PaymentMethodsController {
     async fn add_payment_method(
         &self,
         req: &api::PaymentMethodCreate,
+        initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> errors::PmResponse<api::PaymentMethodResponse>;
 
     #[cfg(feature = "v1")]
@@ -116,6 +120,7 @@ pub trait PaymentMethodsController {
     async fn delete_payment_method(
         &self,
         pm_id: api::PaymentMethodId,
+        initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> errors::PmResponse<api::PaymentMethodDeleteResponse>;
 
     #[cfg(feature = "v1")]
@@ -155,11 +160,35 @@ pub trait PaymentMethodsController {
         Option<DataDuplicationCheck>,
     )>;
 
+    #[cfg(all(feature = "payouts", feature = "v1"))]
+    async fn add_bank_transfer_to_locker(
+        &self,
+        req: api::PaymentMethodCreate,
+        key_store: &merchant_key_store::MerchantKeyStore,
+        bank: &payouts::BankTransfer,
+        customer_id: &id_type::CustomerId,
+    ) -> errors::VaultResult<(
+        payment_methods::PaymentMethodResponse,
+        Option<DataDuplicationCheck>,
+    )>;
+
     #[cfg(feature = "v1")]
     async fn add_bank_debit_to_locker(
         &self,
         req: api::PaymentMethodCreate,
         bank_debit_data: api_models::payment_methods::BankDebitDetail,
+        key_store: &merchant_key_store::MerchantKeyStore,
+        customer_id: &id_type::CustomerId,
+    ) -> errors::VaultResult<(
+        payment_methods::PaymentMethodResponse,
+        Option<DataDuplicationCheck>,
+    )>;
+
+    #[cfg(feature = "v1")]
+    async fn add_wallet_to_locker(
+        &self,
+        req: api::PaymentMethodCreate,
+        wallet_data: api_models::payment_methods::WalletDetail,
         key_store: &merchant_key_store::MerchantKeyStore,
         customer_id: &id_type::CustomerId,
     ) -> errors::VaultResult<(
@@ -174,6 +203,7 @@ pub trait PaymentMethodsController {
         resp: &mut payment_methods::PaymentMethodResponse,
         customer_id: &id_type::CustomerId,
         key_store: &merchant_key_store::MerchantKeyStore,
+        initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 
     #[cfg(feature = "v2")]
@@ -234,6 +264,7 @@ pub trait PaymentMethodsController {
         network_token_data: &api_models::payment_methods::MigrateNetworkTokenData,
         network_token_requestor_ref_id: String,
         pm_id: String,
+        initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> errors::PmResult<bool>;
 
     #[cfg(feature = "v1")]
@@ -242,6 +273,16 @@ pub trait PaymentMethodsController {
         merchant_id: &id_type::MerchantId,
         customer_id: &id_type::CustomerId,
         payment_method_id: String,
+        initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
+    ) -> errors::PmResponse<api_models::payment_methods::CustomerDefaultPaymentMethodResponse>;
+
+    #[cfg(feature = "v2")]
+    async fn set_default_payment_method(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        customer_id: &id_type::GlobalCustomerId,
+        payment_method_id: &id_type::GlobalPaymentMethodId,
+        initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> errors::PmResponse<api_models::payment_methods::CustomerDefaultPaymentMethodResponse>;
 
     #[cfg(feature = "v1")]
@@ -251,6 +292,7 @@ pub trait PaymentMethodsController {
         prev_status: common_enums::PaymentMethodStatus,
         curr_status: common_enums::PaymentMethodStatus,
         merchant_id: &id_type::MerchantId,
+        initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> Result<(), sch_errors::ProcessTrackerError>;
 
     #[cfg(feature = "v1")]
@@ -287,7 +329,7 @@ where
         .change_context(storage_errors::StorageError::SerializationFailed)
         .attach_printable("Unable to encode data")?;
 
-    let secret_data = Secret::<_, masking::WithType>::new(encoded_data);
+    let secret_data = Secret::<_, hyperswitch_masking::WithType>::new(encoded_data);
 
     let encrypted_data = type_encryption::crypto_operation(
         key_manager_state,

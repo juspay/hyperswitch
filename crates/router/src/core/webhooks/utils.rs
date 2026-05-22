@@ -6,23 +6,33 @@ use common_utils::{
     crypto::{self, GenerateDigest},
     errors::CustomResult,
     ext_traits::ValueExt,
+    fp_utils,
 };
 use error_stack::{Report, ResultExt};
+use hyperswitch_domain_models::{
+    router_request_types::VerifyWebhookSourceRequestData,
+    router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
+};
+use hyperswitch_interfaces::webhooks::IncomingWebhook;
 use redis_interface as redis;
 use router_env::tracing;
 
 use super::MERCHANT_ID;
 use crate::{
     core::{
+        configs::dimension_state,
         errors::{self},
         metrics,
-        payments::helpers,
+        payments::{self, helpers},
     },
-    db::{get_and_deserialize_key, StorageInterface},
     errors::RouterResult,
     routes::app::SessionStateInfo,
-    services::logger,
-    types::{self, api, domain, PaymentAddress},
+    services::{self, connector_integration_interface::ConnectorEnum, logger},
+    types::{
+        self,
+        api::{self, ConnectorData, GetToken},
+        domain, PaymentAddress,
+    },
     SessionState,
 };
 
@@ -32,41 +42,24 @@ const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_SOURCE_VERIFICATION_FLOW: &st
     "irrelevant_connector_request_reference_id_in_source_verification_flow";
 
 /// Check whether the merchant has configured to disable the webhook `event` for the `connector`
-/// First check for the key "whconf_{merchant_id}_{connector_id}" in redis,
-/// if not found, fetch from configs table in database
+/// Uses superposition with dimensions [merchant_id, connector, incoming_webhook_events]
 pub async fn is_webhook_event_disabled(
-    db: &dyn StorageInterface,
-    connector_id: &str,
-    merchant_id: &common_utils::id_type::MerchantId,
+    state: &SessionState,
+    connector: common_enums::connector_enums::Connector,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     event: &api::IncomingWebhookEvent,
 ) -> bool {
-    let redis_key = merchant_id.get_webhook_config_disabled_events_key(connector_id);
-    let merchant_webhook_disable_config_result: CustomResult<
-        api::MerchantWebhookConfig,
-        redis_interface::errors::RedisError,
-    > = get_and_deserialize_key(db, &redis_key, "MerchantWebhookConfig").await;
+    let dimensions = dimensions
+        .with_connector(connector)
+        .with_incoming_webhook_event(*event);
 
-    match merchant_webhook_disable_config_result {
-        Ok(merchant_webhook_config) => merchant_webhook_config.contains(event),
-        Err(..) => {
-            //if failed to fetch from redis. fetch from db and populate redis
-            db.find_config_by_key(&redis_key)
-                .await
-                .map(|config| {
-                    match serde_json::from_str::<api::MerchantWebhookConfig>(&config.config) {
-                        Ok(set) => set.contains(event),
-                        Err(err) => {
-                            logger::warn!(?err, "error while parsing merchant webhook config");
-                            false
-                        }
-                    }
-                })
-                .unwrap_or_else(|err| {
-                    logger::warn!(?err, "error while fetching merchant webhook config");
-                    false
-                })
-        }
-    }
+    dimensions
+        .get_incoming_webhook_disabled_events(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await
 }
 
 pub async fn construct_webhook_router_data(
@@ -104,10 +97,11 @@ pub async fn construct_webhook_router_data(
         connector_wallets_details: None,
         amount_captured: None,
         minor_amount_captured: None,
-        request: types::VerifyWebhookSourceRequestData {
+        request: VerifyWebhookSourceRequestData {
             webhook_headers: request_details.headers.clone(),
             webhook_body: request_details.body.to_vec().clone(),
             merchant_secret: connector_wh_secrets.to_owned(),
+            webhook_uri: request_details.uri.clone(),
         },
         response: Err(types::ErrorResponse::default()),
         access_token: None,
@@ -147,8 +141,79 @@ pub async fn construct_webhook_router_data(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
+}
+
+/// Makes an outbound HTTP call to the connector's source-verification endpoint.
+/// Used when the connector requires a callback-style verification rather than a
+/// local HMAC check. Only called for connectors listed in
+/// `webhook_source_verification_call.connectors_with_webhook_source_verification_call`.
+pub(super) async fn verify_webhook_source_verification_call(
+    connector: ConnectorEnum,
+    state: &SessionState,
+    platform: &domain::Platform,
+    merchant_connector_account: domain::MerchantConnectorAccount,
+    connector_name: &str,
+    request_details: &api::IncomingWebhookRequestDetails<'_>,
+) -> CustomResult<bool, errors::ConnectorError> {
+    let connector_data = ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        connector_name,
+        GetToken::Connector,
+        None,
+    )
+    .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+    .attach_printable("invalid connector name received in payment attempt")?;
+    let connector_integration: services::BoxedWebhookSourceVerificationConnectorIntegrationInterface<
+        hyperswitch_domain_models::router_flow_types::VerifyWebhookSource,
+        VerifyWebhookSourceRequestData,
+        VerifyWebhookSourceResponseData,
+    > = connector_data.connector.get_connector_integration();
+    let connector_webhook_secrets = connector
+        .get_webhook_source_verification_merchant_secret(
+            platform.get_processor().get_account().get_id(),
+            connector_name,
+            merchant_connector_account.connector_webhook_details.clone(),
+        )
+        .await
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+    let router_data = construct_webhook_router_data(
+        state,
+        connector_name,
+        merchant_connector_account,
+        platform,
+        &connector_webhook_secrets,
+        request_details,
+    )
+    .await
+    .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+    .attach_printable("Failed while constructing webhook router data")?;
+
+    let response = services::execute_connector_processing_step(
+        state,
+        connector_integration,
+        &router_data,
+        payments::CallConnectorAction::Trigger,
+        None,
+        None,
+    )
+    .await?;
+
+    let verification_result = response
+        .response
+        .map(|response| response.verify_webhook_status);
+    match verification_result {
+        Ok(VerifyWebhookStatus::SourceVerified) => Ok(true),
+        Ok(VerifyWebhookStatus::SourceNotVerified) => Ok(false),
+        Err(err) => {
+            tracing::error!(?err, "Webhook source verification failed");
+            Ok(false)
+        }
+    }
 }
 
 #[inline]
@@ -220,6 +285,149 @@ pub fn is_outgoing_webhook_disabled(
         return true;
     }
     false
+}
+
+/// Context resolved for outgoing webhook delivery, containing the recipient's
+/// merchant account, keystore, and business profile.
+pub(crate) struct WebhookRecipientContext {
+    /// The webhook recipient's merchant account.
+    pub merchant_account: domain::MerchantAccount,
+    /// The webhook recipient's keystore (used for encryption/decryption).
+    pub key_store: domain::MerchantKeyStore,
+    /// The business profile from which the webhook URL and config are read.
+    pub profile: domain::Profile,
+}
+
+/// Resolves the webhook recipient from the `created_by` field on the resource.
+///
+/// Used in the incoming webhook flow where the Platform struct has no initiator populated.
+/// Falls back to processor/connected merchant when `created_by` is absent.
+///
+/// Only `CreatedBy::Api` is considered for platform initiation — `EmbeddedToken`
+/// and `Jwt` variants do not carry platform context.
+pub(crate) async fn resolve_webhook_recipient_from_created_by(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    created_by: Option<&common_utils::types::CreatedBy>,
+) -> CustomResult<WebhookRecipientContext, errors::ApiErrorResponse> {
+    let provider_merchant_id = platform.get_provider().get_account().get_id();
+    let processor_merchant_id = platform.get_processor().get_account().get_id();
+
+    let is_platform_initiated = if provider_merchant_id == processor_merchant_id {
+        // Standard merchant setup — provider and processor are the same entity.
+        false
+    } else {
+        // Platform setup — check if the creator is the provider (platform merchant).
+        created_by
+            .map(|created_by| created_by.is_provider_initiated(provider_merchant_id))
+            .unwrap_or_default()
+    };
+
+    logger::debug!(
+        ?created_by,
+        provider_merchant_id=?provider_merchant_id,
+        processor_merchant_id=?processor_merchant_id,
+        is_platform_initiated,
+        "Resolving webhook recipient context from created_by field"
+    );
+    resolve_webhook_recipient_inner(state, platform, profile, is_platform_initiated).await
+}
+
+/// Shared resolution logic: fetch the correct account, keystore, and profile
+/// based on whether the operation was platform-initiated.
+async fn resolve_webhook_recipient_inner(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    is_platform_initiated: bool,
+) -> CustomResult<WebhookRecipientContext, errors::ApiErrorResponse> {
+    let (merchant_account, key_store, profile) = if is_platform_initiated {
+        let provider = platform.get_provider();
+        let provider_profile = get_default_profile_for_platform_merchant(state, provider).await?;
+
+        (
+            provider.get_account().clone(),
+            provider.get_key_store().clone(),
+            provider_profile,
+        )
+    } else {
+        let processor = platform.get_processor();
+
+        (
+            processor.get_account().clone(),
+            processor.get_key_store().clone(),
+            profile.clone(),
+        )
+    };
+
+    Ok(WebhookRecipientContext {
+        merchant_account,
+        key_store,
+        profile,
+    })
+}
+
+/// Fetches the default business profile for a platform merchant.
+///
+/// Platform merchants are restricted to a single profile. This function must
+/// only be called when the provider is confirmed to be a platform merchant.
+///
+/// In V1, this uses the `default_profile` field on the merchant account.
+/// In V2, this lists all profiles and returns the single configured profile.
+#[cfg(feature = "v1")]
+async fn get_default_profile_for_platform_merchant(
+    state: &SessionState,
+    provider: &domain::Provider,
+) -> CustomResult<domain::Profile, errors::ApiErrorResponse> {
+    // Validate that merchant account type is platform
+    fp_utils::when(!provider.get_account().is_platform_account(), || {
+        Err(error_stack::report!(
+            errors::ApiErrorResponse::InternalServerError
+        ))
+        .attach_printable("Expected provider merchant to be a platform account")
+    })?;
+
+    let profile_id = provider
+        .get_account()
+        .default_profile
+        .as_ref()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Platform merchant does not have a default profile configured")?;
+
+    state
+        .store
+        .find_business_profile_by_profile_id(provider.get_key_store(), profile_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch platform merchant's default business profile")
+}
+
+#[cfg(feature = "v2")]
+async fn get_default_profile_for_platform_merchant(
+    state: &SessionState,
+    provider: &domain::Provider,
+) -> CustomResult<domain::Profile, errors::ApiErrorResponse> {
+    // Validate that merchant account type is platform
+    fp_utils::when(!provider.get_account().is_platform_account(), || {
+        Err(error_stack::report!(
+            errors::ApiErrorResponse::InternalServerError
+        ))
+        .attach_printable("Expected provider merchant to be a platform account")
+    })?;
+
+    let profiles = state
+        .store
+        .list_profile_by_merchant_id(provider.get_key_store(), provider.get_account().get_id())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to list business profiles for platform merchant")?;
+
+    profiles
+        .into_iter()
+        .next()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Platform merchant has no business profiles configured")
 }
 
 const WEBHOOK_LOCK_PREFIX: &str = "WEBHOOK_LOCK";

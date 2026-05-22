@@ -78,8 +78,8 @@ use hyperswitch_domain_models::{
     types::{OrderDetailsWithAmount, SetupMandateRouterData},
 };
 use hyperswitch_interfaces::{api, consts, errors, types::Response};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use image::{DynamicImage, ImageBuffer, ImageFormat, Luma, Rgba};
-use masking::{ExposeInterface, PeekInterface, Secret};
 use quick_xml::{
     events::{BytesDecl, BytesText, Event},
     Writer,
@@ -270,6 +270,24 @@ pub struct GooglePayWalletData {
 pub struct CardMandateInfo {
     pub card_exp_month: Secret<String>,
     pub card_exp_year: Secret<String>,
+}
+
+impl CardMandateInfo {
+    pub fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.card_exp_year.peek();
+        let year_2_digit = if year.len() == 4 {
+            year.get(2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string()
+        } else if year.len() == 2 {
+            year.to_string()
+        } else {
+            return Err(errors::ConnectorError::RequestEncodingFailed);
+        };
+        let month = self.card_exp_month.peek();
+        let month_str = format!("{:0>2}", month);
+        Ok(Secret::new(format!("{}{}", month_str, year_2_digit)))
+    }
 }
 
 impl TryFrom<payment_method_data::GooglePayWalletData> for GooglePayWalletData {
@@ -493,7 +511,8 @@ pub(crate) fn is_successful_terminal_status(status: AttemptStatus) -> bool {
         | AttemptStatus::DeviceDataCollectionPending
         | AttemptStatus::IntegrityFailure
         | AttemptStatus::VoidFailed
-        | AttemptStatus::Expired => false,
+        | AttemptStatus::Expired
+        | AttemptStatus::CaptureReview => false,
     }
 }
 
@@ -526,7 +545,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::ConfirmationAwaited
         | AttemptStatus::DeviceDataCollectionPending
         | AttemptStatus::IntegrityFailure
-        | AttemptStatus::PartiallyAuthorized => false,
+        | AttemptStatus::PartiallyAuthorized
+        | AttemptStatus::CaptureReview => false,
     }
 }
 
@@ -562,6 +582,7 @@ pub trait RouterData {
     fn get_billing_city(&self) -> Result<String, Error>;
     fn get_billing_email(&self) -> Result<Email, Error>;
     fn get_billing_phone_number(&self) -> Result<Secret<String>, Error>;
+    fn get_billing_phone_number_without_plus(&self) -> Result<Secret<String>, Error>;
     fn to_connector_meta<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned;
@@ -914,6 +935,11 @@ impl<Flow, Request, Response> RouterData
             .map(|phone_details| phone_details.get_number_with_country_code())
             .transpose()?
             .ok_or_else(missing_field_err("payment_method_data.billing.phone"))
+    }
+
+    fn get_billing_phone_number_without_plus(&self) -> Result<Secret<String>, Error> {
+        self.get_billing_phone_number()
+            .map(|phone| Secret::new(phone.peek().trim_start_matches('+').to_string()))
     }
 
     fn get_optional_billing_line1(&self) -> Option<Secret<String>> {
@@ -2538,7 +2564,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
                 Some(payments::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
-                    Some(network_transaction_id.clone())
+                    Some(network_transaction_id.network_transaction_id.clone())
                 }
                 Some(payments::MandateReferenceId::ConnectorMandateId(_))
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
@@ -2630,6 +2656,7 @@ pub trait PaymentsSyncRequestData {
     fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ConnectorError>;
     fn is_mandate_payment(&self) -> bool;
     fn get_optional_connector_transaction_id(&self) -> Option<String>;
+    fn get_connector_mandate_id(&self) -> Option<String>;
 }
 
 impl PaymentsSyncRequestData for PaymentsSyncData {
@@ -2663,6 +2690,19 @@ impl PaymentsSyncRequestData for PaymentsSyncData {
             ResponseId::ConnectorTransactionId(txn_id) => Some(txn_id),
             _ => None,
         }
+    }
+    fn get_connector_mandate_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    connector_mandate_ids.get_connector_mandate_id()
+                }
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                | None => None,
+            })
     }
 }
 
@@ -6700,6 +6740,7 @@ pub enum PaymentMethodDataType {
     SepaGuarenteedDebit,
     BecsBankDebit,
     BacsBankDebit,
+    EftDebitOrder,
     AchBankTransfer,
     SepaBankTransfer,
     BacsBankTransfer,
@@ -6713,6 +6754,10 @@ pub enum PaymentMethodDataType {
     DanamonVaBankTransfer,
     MandiriVaBankTransfer,
     Pix,
+    PixKey,
+    PixEmv,
+    PixAutomaticoPush,
+    PixAutomaticoQr,
     Pse,
     Crypto,
     MandatePayment,
@@ -6758,6 +6803,8 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
     fn from(pm_data: PaymentMethodData) -> Self {
         match pm_data {
             PaymentMethodData::Card(_) => Self::Card,
+            PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_) => Self::Card,
             PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
             PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Self::NetworkTransactionIdAndCardDetails
@@ -6872,6 +6919,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             },
             PaymentMethodData::BankDebit(bank_debit_data) => match bank_debit_data {
                 payment_method_data::BankDebitData::AchBankDebit { .. } => Self::AchBankDebit,
+                payment_method_data::BankDebitData::EftDebitOrder { .. } => Self::EftDebitOrder,
                 payment_method_data::BankDebitData::SepaBankDebit { .. } => Self::SepaBankDebit,
                 payment_method_data::BankDebitData::SepaGuarenteedBankDebit { .. } => {
                     Self::SepaGuarenteedDebit
@@ -6914,6 +6962,10 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                     Self::MandiriVaBankTransfer
                 }
                 payment_method_data::BankTransferData::Pix { .. } => Self::Pix,
+                payment_method_data::BankTransferData::PixAutomaticoPush { .. } => {
+                    Self::PixAutomaticoPush
+                }
+                payment_method_data::BankTransferData::PixAutomaticoQr {} => Self::PixAutomaticoQr,
                 payment_method_data::BankTransferData::Pse {} => Self::Pse,
                 payment_method_data::BankTransferData::LocalBankTransfer { .. } => {
                     Self::LocalBankTransfer
@@ -7563,6 +7615,8 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
             .clone(),
         rrn: None,
         feature_metadata: None,
+        installment_details: None,
+        connector_intent_metadata: None,
     }
 }
 
@@ -7628,6 +7682,8 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         minor_amount_capturable: data.minor_amount_capturable,
         authorized_amount: data.authorized_amount,
         customer_document_details: data.customer_document_details.clone(),
+        feature_data: data.feature_data.clone(),
+        sender_payment_instrument_id: None,
     }
 }
 
@@ -7729,7 +7785,8 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             | AttemptStatus::Pending
             | AttemptStatus::PaymentMethodAwaited
             | AttemptStatus::ConfirmationAwaited
-            | AttemptStatus::DeviceDataCollectionPending => None,
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::CaptureReview => None,
         }
     }
 }
@@ -7781,11 +7838,11 @@ pub trait CustomerDetails {
     fn get_customer_id(&self) -> Result<id_type::CustomerId, errors::ConnectorError>;
     fn get_customer_name(
         &self,
-    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError>;
+    ) -> Result<Secret<String, hyperswitch_masking::WithType>, errors::ConnectorError>;
     fn get_customer_email(&self) -> Result<Email, errors::ConnectorError>;
     fn get_customer_phone(
         &self,
-    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError>;
+    ) -> Result<Secret<String, hyperswitch_masking::WithType>, errors::ConnectorError>;
     fn get_customer_phone_country_code(&self) -> Result<String, errors::ConnectorError>;
 }
 
@@ -7801,7 +7858,7 @@ impl CustomerDetails for hyperswitch_domain_models::router_request_types::Custom
 
     fn get_customer_name(
         &self,
-    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError> {
+    ) -> Result<Secret<String, hyperswitch_masking::WithType>, errors::ConnectorError> {
         self.name
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {
@@ -7819,7 +7876,7 @@ impl CustomerDetails for hyperswitch_domain_models::router_request_types::Custom
 
     fn get_customer_phone(
         &self,
-    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError> {
+    ) -> Result<Secret<String, hyperswitch_masking::WithType>, errors::ConnectorError> {
         self.phone
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {

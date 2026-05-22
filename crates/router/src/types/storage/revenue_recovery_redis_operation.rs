@@ -4,7 +4,7 @@ use api_models::revenue_recovery_data_backfill::{self, AccountUpdateHistoryRecor
 use common_enums::enums::CardNetwork;
 use common_utils::{date_time, errors::CustomResult, id_type};
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use redis_interface::{DelReply, SetnxReply};
 use router_env::{instrument, logger, tracing};
 use serde::{Deserialize, Deserializer, Serialize};
@@ -379,13 +379,12 @@ impl RedisTokenManager {
         }
         let seconds = &state.conf.revenue_recovery.redis_ttl_in_seconds;
 
+        // Convert HashMap to Vec for hset_multiple
+        let items: Vec<_> = serialized_payment_processor_tokens.into_iter().collect();
+
         // Update or add tokens
         redis_conn
-            .set_hash_fields(
-                &tokens_key.into(),
-                serialized_payment_processor_tokens,
-                Some(*seconds),
-            )
+            .set_hash_fields(&tokens_key.into(), items, Some(*seconds))
             .await
             .change_context(errors::StorageError::RedisError(
                 errors::RedisError::SetHashFieldFailed.into(),

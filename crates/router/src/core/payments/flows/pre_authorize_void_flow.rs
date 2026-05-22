@@ -100,6 +100,7 @@ impl Feature<api::PreAuthorizeVoid, types::PaymentsPreAuthorizeCancelData>
             self,
             creds_identifier,
             gateway_context,
+            None,
         ))
         .await
     }

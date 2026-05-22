@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use common_enums::{EventClass, EventType, WebhookDeliveryAttempt};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
@@ -94,6 +94,10 @@ pub struct EventListItemResponse {
     /// the initial delivery attempt.
     #[schema(max_length = 64, example = "evt_018e31720d1b7a2b82677d3032cab959")]
     pub initial_attempt_id: String,
+
+    /// The identifier for the Processor Merchant Account.
+    #[schema(max_length = 64, value_type = Option<String>)]
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
 
     /// Time at which the event was created.
     #[schema(example = "2022-09-10T10:11:12Z")]

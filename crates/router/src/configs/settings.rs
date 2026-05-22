@@ -33,14 +33,16 @@ pub use hyperswitch_interfaces::{
     },
     types::{ComparisonServiceConfig, Proxy},
 };
-use masking::{Maskable, Secret};
-pub use payment_methods::configs::settings::{
-    BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields, EligiblePaymentMethods,
-    Mandates, PaymentMethodAuth, PaymentMethodType, RequiredFieldFinal, RequiredFields,
-    SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
-    SupportedPaymentMethodsForMandate, ZeroMandates,
+use hyperswitch_masking::{Maskable, Secret};
+pub use payment_methods::configs::{
+    settings::{
+        BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields,
+        EligiblePaymentMethods, InstallmentConfig, Installments, Mandates, PaymentMethodAuth,
+        PaymentMethodType, RequiredFieldFinal, RequiredFields, SupportedConnectorsForMandate,
+        SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
+    },
+    AuthenticationServiceConfig, MicroServicesConfig,
 };
-use payment_methods::configs::MicroServicesConfig;
 use rand::seq::IteratorRandom;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
@@ -117,8 +119,11 @@ pub struct Settings<S: SecretState> {
     pub cors: CorsSettings,
     pub mandates: Mandates,
     pub zero_mandates: ZeroMandates,
+    pub installments: Installments,
+    pub installment_config: InstallmentConfig,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
     pub card_only_mit_supported_connectors: CardOnlyMitSupportedConnectors,
+    pub notify_iframe_exit_and_redirect: NotifyIframeExitAndRedirectConnectors,
     pub list_dispute_supported_connectors: ListDiputeSupportedConnectors,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
@@ -587,6 +592,12 @@ pub struct CardOnlyMitSupportedConnectors {
     pub connector_list: HashSet<enums::Connector>,
 }
 
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct NotifyIframeExitAndRedirectConnectors {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<enums::Connector>,
+}
+
 /// Connectors that support only dispute list API for syncing disputes with Hyperswitch
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListDiputeSupportedConnectors {
@@ -1051,7 +1062,7 @@ pub struct NetworkTokenizationSupportedConnectors {
 #[derive(Debug, Deserialize, Clone)]
 pub struct MerchantAdviceCodeConfig {
     pub recommended_action: common_enums::RecommendedAction,
-    pub description: Option<String>,
+    pub description: String,
 }
 
 /// Domain type for merchant advice code mappings

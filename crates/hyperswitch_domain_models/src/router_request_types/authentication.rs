@@ -181,7 +181,7 @@ pub struct ExternalThreeDSConnectorMetadata {
 
 #[derive(Clone, Debug)]
 pub struct AuthenticationStore {
-    pub cavv: Option<masking::Secret<String>>,
+    pub cavv: Option<hyperswitch_masking::Secret<String>>,
     pub authentication: authentication::Authentication,
 }
 
@@ -194,4 +194,19 @@ pub struct AuthenticationInfo {
     pub device_details: Option<api_models::payments::DeviceDetails>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_enums::CountryAlpha2>,
+}
+
+#[cfg(feature = "v1")]
+impl From<api_models::authentication::AuthenticationEligibilityRequest> for AuthenticationInfo {
+    fn from(req: api_models::authentication::AuthenticationEligibilityRequest) -> Self {
+        Self {
+            billing_address: req.billing.map(address::Address::from),
+            shipping_address: req.shipping.map(address::Address::from),
+            browser_info: req.browser_information.map(BrowserInformation::from),
+            email: req.email,
+            device_details: None,
+            merchant_category_code: None,
+            merchant_country_code: None,
+        }
+    }
 }

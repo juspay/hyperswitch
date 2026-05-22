@@ -198,7 +198,7 @@ pub async fn generate_sample_data(
     for num in 1..=sample_data_size {
         let payment_id = id_type::PaymentId::generate_test_payment_id_for_sample_data();
         let attempt_id = payment_id.get_attempt_id(1);
-        let client_secret = payment_id.generate_client_secret();
+        let client_secret = payment_id.generate_client_secret(profile_id.get_string_repr());
         let amount = thread_rng().gen_range(min_amount..=max_amount);
 
         let created_at @ modified_at @ last_synced =
@@ -300,6 +300,7 @@ pub async fn generate_sample_data(
             partner_merchant_identifier_details: None,
             state_metadata: None,
             installment_options: None,
+            profile_acquirer_id: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());
@@ -396,11 +397,13 @@ pub async fn generate_sample_data(
             routing_approach: None,
             connector_request_reference_id: None,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             network_details: None,
             is_stored_credential: None,
             authorized_amount: None,
             tokenization: None,
             encrypted_payment_method_data: None,
+            sender_payment_instrument_id: None,
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {
@@ -442,6 +445,8 @@ pub async fn generate_sample_data(
                 organization_id: org_id.clone(),
                 processor_refund_data: None,
                 processor_transaction_data,
+                processor_merchant_id: None,
+                created_by: None,
             })
         } else {
             None
@@ -484,6 +489,8 @@ pub async fn generate_sample_data(
                     dispute_amount: MinorUnit::new(amount * 100),
                     organization_id: org_id.clone(),
                     dispute_currency: Some(payment_intent.currency.unwrap_or_default()),
+                    processor_merchant_id: None,
+                    created_by: None,
                 })
             } else {
                 None

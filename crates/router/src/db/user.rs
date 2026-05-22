@@ -1,6 +1,6 @@
-use diesel_models::user as storage;
+use diesel_models::{enums::TotpStatus, user as storage};
 use error_stack::report;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
 
 use super::{domain, MockDb};
@@ -19,37 +19,53 @@ pub trait UserInterface {
         user_data: storage::UserNew,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
-    async fn find_user_by_email(
+    async fn find_active_user_by_user_email(
         &self,
         user_email: &domain::UserEmail,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
-    async fn find_user_by_id(
+    async fn find_user_by_user_email(
+        &self,
+        user_email: &domain::UserEmail,
+    ) -> CustomResult<storage::User, errors::StorageError>;
+
+    async fn find_active_user_by_user_id(
         &self,
         user_id: &str,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
-    async fn update_user_by_user_id(
+    async fn find_user_by_user_id(
+        &self,
+        user_id: &str,
+    ) -> CustomResult<storage::User, errors::StorageError>;
+
+    async fn update_active_user_by_user_id(
         &self,
         user_id: &str,
         user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
-    async fn update_user_by_email(
+    async fn update_active_user_by_user_email(
         &self,
         user_email: &domain::UserEmail,
         user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
-    async fn delete_user_by_user_id(
-        &self,
-        user_id: &str,
-    ) -> CustomResult<bool, errors::StorageError>;
-
-    async fn find_users_by_user_ids(
+    async fn find_active_users_by_user_ids(
         &self,
         user_ids: Vec<String>,
     ) -> CustomResult<Vec<storage::User>, errors::StorageError>;
+
+    async fn list_users_by_user_ids(
+        &self,
+        user_ids: Vec<String>,
+    ) -> CustomResult<Vec<storage::User>, errors::StorageError>;
+
+    async fn reactivate_user_by_user_id(
+        &self,
+        user_id: &str,
+        user_update: storage::ReactivateUserUpdate,
+    ) -> CustomResult<storage::User, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -67,7 +83,18 @@ impl UserInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn find_user_by_email(
+    async fn find_active_user_by_user_email(
+        &self,
+        user_email: &domain::UserEmail,
+    ) -> CustomResult<storage::User, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::User::find_active_by_user_email(&conn, user_email.get_inner())
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
+    async fn find_user_by_user_email(
         &self,
         user_email: &domain::UserEmail,
     ) -> CustomResult<storage::User, errors::StorageError> {
@@ -78,7 +105,18 @@ impl UserInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn find_user_by_id(
+    async fn find_active_user_by_user_id(
+        &self,
+        user_id: &str,
+    ) -> CustomResult<storage::User, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::User::find_active_by_user_id(&conn, user_id)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
+    async fn find_user_by_user_id(
         &self,
         user_id: &str,
     ) -> CustomResult<storage::User, errors::StorageError> {
@@ -89,46 +127,60 @@ impl UserInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn update_user_by_user_id(
+    async fn update_active_user_by_user_id(
         &self,
         user_id: &str,
-        user: storage::UserUpdate,
+        user_update: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::User::update_by_user_id(&conn, user_id, user)
+
+        storage::User::update_active_by_user_id(&conn, user_id, user_update)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
-    async fn update_user_by_email(
+    async fn update_active_user_by_user_email(
         &self,
         user_email: &domain::UserEmail,
-        user: storage::UserUpdate,
+        user_update: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::User::update_by_user_email(&conn, user_email.get_inner(), user)
+
+        storage::User::update_active_by_user_email(&conn, user_email.get_inner(), user_update)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    #[instrument(skip_all)]
-    async fn delete_user_by_user_id(
-        &self,
-        user_id: &str,
-    ) -> CustomResult<bool, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::User::delete_by_user_id(&conn, user_id)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
-    }
-
-    async fn find_users_by_user_ids(
+    async fn find_active_users_by_user_ids(
         &self,
         user_ids: Vec<String>,
     ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::User::find_users_by_user_ids(&conn, user_ids)
+        storage::User::find_active_users_by_user_ids(&conn, user_ids)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    async fn list_users_by_user_ids(
+        &self,
+        user_ids: Vec<String>,
+    ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::User::list_users_by_user_ids(&conn, user_ids)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
+    async fn reactivate_user_by_user_id(
+        &self,
+        user_id: &str,
+        user_update: storage::ReactivateUserUpdate,
+    ) -> CustomResult<storage::User, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+
+        storage::User::reactivate_by_user_id(&conn, user_id, user_update)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -164,12 +216,30 @@ impl UserInterface for MockDb {
             totp_recovery_codes: user_data.totp_recovery_codes,
             last_password_modified_at: user_data.last_password_modified_at,
             lineage_context: user_data.lineage_context,
+            is_active: Some(user_data.is_active),
         };
         users.push(user.clone());
         Ok(user)
     }
 
-    async fn find_user_by_email(
+    async fn find_active_user_by_user_email(
+        &self,
+        user_email: &domain::UserEmail,
+    ) -> CustomResult<storage::User, errors::StorageError> {
+        let users = self.users.lock().await;
+        users
+            .iter()
+            .find(|user| user.email.eq(user_email.get_inner()) && user.is_active.unwrap_or(true))
+            .cloned()
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "No Active user available for email = {user_email:?}"
+                ))
+                .into(),
+            )
+    }
+
+    async fn find_user_by_user_email(
         &self,
         user_email: &domain::UserEmail,
     ) -> CustomResult<storage::User, errors::StorageError> {
@@ -186,7 +256,24 @@ impl UserInterface for MockDb {
             )
     }
 
-    async fn find_user_by_id(
+    async fn find_active_user_by_user_id(
+        &self,
+        user_id: &str,
+    ) -> CustomResult<storage::User, errors::StorageError> {
+        let users = self.users.lock().await;
+        users
+            .iter()
+            .find(|user| user.user_id == user_id && user.is_active.unwrap_or(true))
+            .cloned()
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "No Active user available for user_id = {user_id}"
+                ))
+                .into(),
+            )
+    }
+
+    async fn find_user_by_user_id(
         &self,
         user_id: &str,
     ) -> CustomResult<storage::User, errors::StorageError> {
@@ -203,143 +290,205 @@ impl UserInterface for MockDb {
             )
     }
 
-    async fn update_user_by_user_id(
+    async fn update_active_user_by_user_id(
         &self,
         user_id: &str,
         update_user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let mut users = self.users.lock().await;
-        let last_modified_at = common_utils::date_time::now();
-        users
+
+        let user = users
             .iter_mut()
-            .find(|user| user.user_id == user_id)
-            .map(|user| {
-                *user = match &update_user {
-                    storage::UserUpdate::VerifyUser => storage::User {
-                        last_modified_at,
-                        is_verified: true,
-                        ..user.to_owned()
-                    },
-                    storage::UserUpdate::AccountUpdate { name, is_verified } => storage::User {
-                        name: name.clone().map(Secret::new).unwrap_or(user.name.clone()),
-                        last_modified_at,
-                        is_verified: is_verified.unwrap_or(user.is_verified),
-                        ..user.to_owned()
-                    },
-                    storage::UserUpdate::TotpUpdate {
-                        totp_status,
-                        totp_secret,
-                        totp_recovery_codes,
-                    } => storage::User {
-                        last_modified_at,
-                        totp_status: totp_status.unwrap_or(user.totp_status),
-                        totp_secret: totp_secret.clone().or(user.totp_secret.clone()),
-                        totp_recovery_codes: totp_recovery_codes
-                            .clone()
-                            .or(user.totp_recovery_codes.clone()),
-                        ..user.to_owned()
-                    },
-                    storage::UserUpdate::PasswordUpdate { password } => storage::User {
-                        password: Some(password.clone()),
-                        last_password_modified_at: Some(common_utils::date_time::now()),
-                        ..user.to_owned()
-                    },
-                    storage::UserUpdate::LineageContextUpdate { lineage_context } => {
-                        storage::User {
-                            last_modified_at,
-                            lineage_context: Some(lineage_context.clone()),
-                            ..user.to_owned()
-                        }
-                    }
-                };
-                user.to_owned()
-            })
-            .ok_or(
+            .find(|user| user.user_id == user_id && user.is_active.unwrap_or(true))
+            .ok_or_else(|| {
                 errors::StorageError::ValueNotFound(format!(
-                    "No user available for user_id = {user_id}"
+                    "No Active user available for user_id = {user_id}"
                 ))
-                .into(),
-            )
+            })?;
+
+        let last_modified_at = common_utils::date_time::now();
+
+        *user = match update_user {
+            storage::UserUpdate::VerifyUser => storage::User {
+                last_modified_at,
+                is_verified: true,
+                ..user.to_owned()
+            },
+
+            storage::UserUpdate::AccountUpdate { name, is_verified } => storage::User {
+                name: name.map(Secret::new).unwrap_or(user.name.clone()),
+                last_modified_at,
+                is_verified: is_verified.unwrap_or(user.is_verified),
+                ..user.to_owned()
+            },
+
+            storage::UserUpdate::TotpUpdate {
+                totp_status,
+                totp_secret,
+                totp_recovery_codes,
+            } => storage::User {
+                last_modified_at,
+                totp_status: totp_status.unwrap_or(user.totp_status),
+                totp_secret: totp_secret.unwrap_or(user.totp_secret.clone()),
+                totp_recovery_codes: totp_recovery_codes
+                    .unwrap_or(user.totp_recovery_codes.clone()),
+                ..user.to_owned()
+            },
+
+            storage::UserUpdate::PasswordUpdate { password } => storage::User {
+                password: Some(password.clone()),
+                last_password_modified_at: Some(common_utils::date_time::now()),
+                ..user.to_owned()
+            },
+
+            storage::UserUpdate::LineageContextUpdate { lineage_context } => storage::User {
+                last_modified_at,
+                lineage_context: Some(lineage_context.clone()),
+                ..user.to_owned()
+            },
+
+            storage::UserUpdate::DeactivateUpdate => storage::User {
+                last_modified_at,
+                password: None,
+                last_password_modified_at: None,
+                totp_status: TotpStatus::NotSet,
+                totp_secret: None,
+                totp_recovery_codes: None,
+                is_verified: false,
+                lineage_context: None,
+                is_active: Some(false),
+                ..user.to_owned()
+            },
+        };
+
+        Ok(user.to_owned())
     }
 
-    async fn update_user_by_email(
+    async fn update_active_user_by_user_email(
         &self,
         user_email: &domain::UserEmail,
         update_user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let mut users = self.users.lock().await;
-        let last_modified_at = common_utils::date_time::now();
-        users
+
+        let user = users
             .iter_mut()
-            .find(|user| user.email.eq(user_email.get_inner()))
-            .map(|user| {
-                *user = match &update_user {
-                    storage::UserUpdate::VerifyUser => storage::User {
-                        last_modified_at,
-                        is_verified: true,
-                        ..user.to_owned()
-                    },
-                    storage::UserUpdate::AccountUpdate { name, is_verified } => storage::User {
-                        name: name.clone().map(Secret::new).unwrap_or(user.name.clone()),
-                        last_modified_at,
-                        is_verified: is_verified.unwrap_or(user.is_verified),
-                        ..user.to_owned()
-                    },
-                    storage::UserUpdate::TotpUpdate {
-                        totp_status,
-                        totp_secret,
-                        totp_recovery_codes,
-                    } => storage::User {
-                        last_modified_at,
-                        totp_status: totp_status.unwrap_or(user.totp_status),
-                        totp_secret: totp_secret.clone().or(user.totp_secret.clone()),
-                        totp_recovery_codes: totp_recovery_codes
-                            .clone()
-                            .or(user.totp_recovery_codes.clone()),
-                        ..user.to_owned()
-                    },
-                    storage::UserUpdate::PasswordUpdate { password } => storage::User {
-                        password: Some(password.clone()),
-                        last_password_modified_at: Some(common_utils::date_time::now()),
-                        ..user.to_owned()
-                    },
-                    storage::UserUpdate::LineageContextUpdate { lineage_context } => {
-                        storage::User {
-                            last_modified_at,
-                            lineage_context: Some(lineage_context.clone()),
-                            ..user.to_owned()
-                        }
-                    }
-                };
-                user.to_owned()
-            })
-            .ok_or(
+            .find(|user| user.email.eq(user_email.get_inner()) && user.is_active.unwrap_or(true))
+            .ok_or_else(|| {
                 errors::StorageError::ValueNotFound(format!(
-                    "No user available for user_email = {user_email:?}"
+                    "No Active user available for user_email = {user_email:?}"
                 ))
-                .into(),
-            )
+            })?;
+
+        let last_modified_at = common_utils::date_time::now();
+
+        *user = match update_user {
+            storage::UserUpdate::VerifyUser => storage::User {
+                last_modified_at,
+                is_verified: true,
+                ..user.to_owned()
+            },
+
+            storage::UserUpdate::AccountUpdate { name, is_verified } => storage::User {
+                name: name.map(Secret::new).unwrap_or_else(|| user.name.clone()),
+                last_modified_at,
+                is_verified: is_verified.unwrap_or(user.is_verified),
+                ..user.to_owned()
+            },
+
+            storage::UserUpdate::TotpUpdate {
+                totp_status,
+                totp_secret,
+                totp_recovery_codes,
+            } => storage::User {
+                last_modified_at,
+                totp_status: totp_status.unwrap_or(user.totp_status),
+                totp_secret: totp_secret.unwrap_or(user.totp_secret.clone()),
+                totp_recovery_codes: totp_recovery_codes
+                    .unwrap_or(user.totp_recovery_codes.clone()),
+                ..user.to_owned()
+            },
+
+            storage::UserUpdate::PasswordUpdate { password } => storage::User {
+                password: Some(password),
+                last_password_modified_at: Some(common_utils::date_time::now()),
+                ..user.to_owned()
+            },
+
+            storage::UserUpdate::LineageContextUpdate { lineage_context } => storage::User {
+                last_modified_at,
+                lineage_context: Some(lineage_context),
+                ..user.to_owned()
+            },
+
+            storage::UserUpdate::DeactivateUpdate => storage::User {
+                last_modified_at,
+                password: None,
+                last_password_modified_at: Some(last_modified_at),
+                totp_status: TotpStatus::NotSet,
+                totp_secret: None,
+                totp_recovery_codes: None,
+                is_verified: false,
+                lineage_context: None,
+                is_active: Some(false),
+                ..user.to_owned()
+            },
+        };
+
+        Ok(user.to_owned())
     }
 
-    async fn delete_user_by_user_id(
-        &self,
-        user_id: &str,
-    ) -> CustomResult<bool, errors::StorageError> {
-        let mut users = self.users.lock().await;
-        let user_index = users
-            .iter()
-            .position(|user| user.user_id == user_id)
-            .ok_or(errors::StorageError::ValueNotFound(format!(
-                "No user available for user_id = {user_id}"
-            )))?;
-        users.remove(user_index);
-        Ok(true)
-    }
-
-    async fn find_users_by_user_ids(
+    async fn find_active_users_by_user_ids(
         &self,
         _user_ids: Vec<String>,
     ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn list_users_by_user_ids(
+        &self,
+        _user_ids: Vec<String>,
+    ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn reactivate_user_by_user_id(
+        &self,
+        user_id: &str,
+        user_update: storage::ReactivateUserUpdate,
+    ) -> CustomResult<storage::User, errors::StorageError> {
+        let mut users = self.users.lock().await;
+
+        let last_modified_at = common_utils::date_time::now();
+        users
+            .iter_mut()
+            .find(|user| user.user_id.eq(user_id) && !user.is_active.unwrap_or(true))
+            .map(|user| {
+                *user = storage::User {
+                    user_id: user.user_id.clone(),
+                    email: user.email.clone(),
+                    name: user_update
+                        .new_name
+                        .map(Secret::new)
+                        .unwrap_or(user.name.clone()),
+                    password: user_update.new_password,
+                    is_verified: false,
+                    created_at: last_modified_at,
+                    last_modified_at,
+                    totp_status: TotpStatus::NotSet,
+                    totp_secret: None,
+                    totp_recovery_codes: None,
+                    last_password_modified_at: Some(last_modified_at),
+                    lineage_context: None,
+                    is_active: Some(true),
+                };
+                user.to_owned()
+            })
+            .ok_or_else(|| {
+                errors::StorageError::ValueNotFound(format!(
+                    "No Inactive user available for user_id = {user_id:?}"
+                ))
+                .into()
+            })
     }
 }

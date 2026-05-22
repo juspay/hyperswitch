@@ -77,6 +77,7 @@ pub trait PayoutsInterface {
         &self,
         _merchant_id: &id_type::MerchantId,
         _active_payout_ids: &[id_type::PayoutId],
+        _profile_id_list: Option<Vec<id_type::ProfileId>>,
         _connector: Option<Vec<api_models::enums::PayoutConnectors>>,
         _currency: Option<Vec<storage_enums::Currency>>,
         _status: Option<Vec<storage_enums::PayoutStatus>>,
@@ -126,6 +127,8 @@ pub struct Payouts {
     pub client_secret: Option<String>,
     pub priority: Option<storage_enums::PayoutSendPriority>,
     pub organization_id: Option<id_type::OrganizationId>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    pub created_by: Option<common_utils::types::CreatedBy>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -155,6 +158,8 @@ pub struct PayoutsNew {
     pub client_secret: Option<String>,
     pub priority: Option<storage_enums::PayoutSendPriority>,
     pub organization_id: Option<id_type::OrganizationId>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    pub created_by: Option<common_utils::types::CreatedBy>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

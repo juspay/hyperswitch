@@ -1,0 +1,10 @@
+{
+  "RefundType": "P",
+  "MerchantID": "test_merchant_id",
+  "RefID": "test_ref_id",
+  "RefundID": "{{connector_refund_id}}",
+  "TxnID": "test_txn_id",
+  "Amount": "60.00",
+  "Status": "00",
+  "Signature": "dGVzdF9zaWduYXR1cmU="
+}

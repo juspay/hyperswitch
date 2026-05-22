@@ -18,7 +18,7 @@ use api_models::{
 use async_trait::async_trait;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use common_utils::ext_traits::AsyncExt;
-use common_utils::request::Method;
+use common_utils::{ext_traits::Encode, request::Method};
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -32,6 +32,7 @@ use helpers::{
     enable_decision_engine_dynamic_routing_setup, update_decision_engine_dynamic_routing_setup,
 };
 use hyperswitch_domain_models::{mandates, payment_address};
+use hyperswitch_masking::Secret;
 use payment_methods::helpers::StorageErrorExt;
 use rustc_hash::FxHashSet;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -55,6 +56,7 @@ use crate::utils::ValueExt;
 use crate::{core::admin, db::StorageInterface, utils::ValueExt};
 use crate::{
     core::{
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResponse},
         metrics, utils as core_utils,
     },
@@ -245,9 +247,15 @@ async fn build_list_routing_result(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
+        let dimensions = dimension_state::Dimensions::new()
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_profile_id(business_profile.get_id().clone());
+
         list_result.append(
             &mut select_routing_result(
                 state,
+                &dimensions,
                 &business_profile,
                 hs_result_for_profile,
                 de_result_for_profile,
@@ -1441,8 +1449,19 @@ pub async fn retrieve_linked_routing_config(
                 hs_records.clone(),
                 "list_active_routing".to_string(),
             );
+            let dimensions = dimension_state::Dimensions::new()
+                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+                .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+                .with_profile_id(business_profile.get_id().clone());
             active_algorithms.append(
-                &mut select_routing_result(&state, &business_profile, hs_records, de_records).await,
+                &mut select_routing_result(
+                    &state,
+                    &dimensions,
+                    &business_profile,
+                    hs_records,
+                    de_records,
+                )
+                .await,
             );
         }
 
@@ -1642,6 +1661,25 @@ pub async fn update_default_routing_config_for_profile(
         transaction_type,
     )
     .await?;
+
+    // Dual-write: also update business_profile.default_fallback_routing column
+    let default_fallback_routing = Secret::from(
+        updated_config
+            .encode_to_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode updated config to value")?,
+    );
+    let profile_update = domain::ProfileUpdate::DefaultRoutingFallbackUpdate {
+        default_fallback_routing: Some(default_fallback_routing),
+    };
+    db.update_profile_by_profile_id(
+        platform.get_processor().get_key_store(),
+        business_profile.clone(),
+        profile_update,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to update default_fallback_routing in business profile")?;
 
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(
@@ -2353,6 +2391,7 @@ pub trait GetRoutableConnectorsForChoice {
     async fn get_routable_connectors<F, D>(
         &self,
         state: &SessionState,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         business_profile: &domain::Profile,
         payment_data: &mut D,
     ) -> RouterResult<RoutableConnectors>
@@ -2368,6 +2407,7 @@ impl GetRoutableConnectorsForChoice for StraightThroughAlgorithmTypeSingle {
     async fn get_routable_connectors<F, D>(
         &self,
         _state: &SessionState,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         _business_profile: &domain::Profile,
         _payment_data: &mut D,
     ) -> RouterResult<RoutableConnectors>
@@ -2406,6 +2446,7 @@ impl GetRoutableConnectorsForChoice for DecideConnector {
     async fn get_routable_connectors<F, D>(
         &self,
         state: &SessionState,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         business_profile: &domain::Profile,
         payment_data: &mut D,
     ) -> RouterResult<RoutableConnectors>
@@ -2427,6 +2468,7 @@ impl GetRoutableConnectorsForChoice for DecideConnector {
         let (connectors, routing_approach) = payments_routing::perform_static_routing_v1(
             state,
             &business_profile.merchant_id,
+            dimensions,
             routing_algorithm_id.as_ref(),
             business_profile,
             &TransactionData::Payment(transaction_data),
@@ -2737,4 +2779,45 @@ pub async fn update_gateway_score_open_router(
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
     ))
+}
+
+pub fn transaction_type_from_payments_dsl(input: &PaymentsDslInput<'_>) -> enums::TransactionType {
+    let txn_data = TransactionData::Payment(input.clone());
+    enums::TransactionType::from(&txn_data)
+}
+
+pub fn log_connectors(stage: &str, connectors: &[routing::RoutableConnectorChoice]) {
+    let names: Vec<String> = connectors.iter().map(|c| c.connector.to_string()).collect();
+
+    router_env::logger::debug!(
+        "euclid: connectors after {} = {{{}}}",
+        stage,
+        names.join(", ")
+    );
+}
+
+pub fn convert_fallback_to_connector_routing_data(
+    state: &SessionState,
+    fallback: &[routing_types::RoutableConnectorChoice],
+) -> RouterResult<Vec<api::ConnectorRoutingData>> {
+    fallback
+        .iter()
+        .map(|choice| {
+            let connector_name = choice.connector.to_string();
+
+            let connector_data = api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                &connector_name,
+                api::GetToken::Connector,
+                choice.merchant_connector_id.clone(),
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+            Ok(api::ConnectorRoutingData {
+                connector_data,
+                network: None,
+                action_type: None,
+            })
+        })
+        .collect()
 }

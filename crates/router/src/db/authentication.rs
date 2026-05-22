@@ -256,6 +256,10 @@ impl AuthenticationInterface for MockDb {
             merchant_country_code: authentication.merchant_country_code,
             billing_country: authentication.billing_country,
             shipping_country: authentication.shipping_country,
+            processor_merchant_id: authentication.processor_merchant_id,
+            created_by: authentication
+                .created_by
+                .map(|created_by| created_by.to_string()),
         };
 
         let authentication: hyperswitch_domain_models::authentication::Authentication =
@@ -496,6 +500,15 @@ impl AuthenticationInterface for MockDb {
             } => {
                 auth_to_update.trans_status = Some(trans_status);
                 auth_to_update.authentication_status = authentication_status;
+            }
+            hyperswitch_domain_models::authentication::AuthenticationUpdate::AcquirerDetailsUpdate {
+                acquirer_bin,
+                acquirer_merchant_id,
+                acquirer_country_code,
+            } => {
+                auth_to_update.acquirer_bin = acquirer_bin;
+                auth_to_update.acquirer_merchant_id = acquirer_merchant_id;
+                auth_to_update.acquirer_country_code = acquirer_country_code;
             }
         }
 

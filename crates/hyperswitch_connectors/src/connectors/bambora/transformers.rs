@@ -15,7 +15,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
@@ -225,6 +225,8 @@ impl TryFrom<BamboraRouterData<&types::PaymentsAuthorizeRouterData>> for Bambora
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -478,6 +480,7 @@ impl<F> TryFrom<ResponseRouterData<F, BamboraResponse, PaymentsAuthorizeData, Pa
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(pg_response.order_number.to_string()),
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -504,6 +507,7 @@ impl<F> TryFrom<ResponseRouterData<F, BamboraResponse, PaymentsAuthorizeData, Pa
                             .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
                         ),
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(
                             item.data.connector_request_reference_id.to_string(),
                         ),
@@ -550,6 +554,7 @@ impl<F>
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.order_number.to_string()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -590,6 +595,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<BamboraPaymentsResponse>>
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.order_number.to_string()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -619,6 +625,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BamboraPaymentsResponse>>
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.order_number.to_string()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -648,6 +655,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<BamboraPaymentsResponse>>
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.order_number.to_string()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,

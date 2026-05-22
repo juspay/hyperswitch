@@ -1,3 +1,5 @@
+import { getCustomExchange } from "./Modifiers";
+
 const successfulThreeDSTestCardDetails = {
   card_number: "4000000000001091",
   card_exp_month: "12",
@@ -8,6 +10,14 @@ const successfulThreeDSTestCardDetails = {
 
 const successfulNo3DSCardDetails = {
   card_number: "4200000000000000",
+  card_exp_month: "03",
+  card_exp_year: "30",
+  card_holder_name: "joseph Doe",
+  card_cvc: "123",
+};
+
+const failedNo3DSCardDetails = {
+  card_number: "4000000000000002",
   card_exp_month: "03",
   card_exp_year: "30",
   card_holder_name: "joseph Doe",
@@ -112,6 +122,7 @@ export const connectorDetails = {
     },
     "3DSAutoCapture": {
       Request: {
+        currency: "EUR",
         payment_method: "card",
         billing: billingAddress,
         payment_method_data: {
@@ -129,6 +140,7 @@ export const connectorDetails = {
     },
     No3DSManualCapture: {
       Request: {
+        currency: "EUR",
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -156,6 +168,22 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: failedNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
         },
       },
     },
@@ -285,6 +313,7 @@ export const connectorDetails = {
     SaveCardConfirmAutoCaptureOffSession: {
       Request: {
         setup_future_usage: "off_session",
+        currency: "EUR",
       },
       Response: {
         status: 200,
@@ -397,6 +426,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        currency: "EUR",
         mandate_data: null,
         customer_acceptance: customerAcceptance,
       },
@@ -754,6 +784,76 @@ export const connectorDetails = {
           },
         ],
       },
+    },
+  },
+  bank_debit_pm: {
+    PaymentIntent: (paymentMethodType) => {
+      const currencyMap = { Sepa: "EUR", Ach: "USD", Becs: "AUD", Bacs: "GBP" };
+      return {
+        Request: {
+          currency: currencyMap[paymentMethodType] || "USD",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+    Sepa: {
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE24300209002411761956",
+              bank_account_holder_name: "Joseph Doe",
+            },
+          },
+        },
+        billing: {
+          email: "test.accepted@novalnet.de",
+          address: {
+            country: "DE",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+  },
+  wallet_pm: {
+    PaymentIntent: () =>
+      getCustomExchange({
+        Request: {
+          currency: "EUR",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
+  },
+  webhook: {
+    TransactionIdConfig: {
+      // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
+      path: "event.tid",
+      // Type of payment reference ID
+      type: "number",
+    },
+    RefundIdConfig: {
+      // Novalnet refund webhooks use the transaction ID (tid) as the connector refund reference
+      // Must be "number" type because Rust struct expects i64
+      path: "event.tid",
+      type: "number",
     },
   },
 };

@@ -163,7 +163,7 @@ pub fn validate_for_valid_refunds(
                     (connector, payment_method_subtype),
                     (
                         api_models::enums::Connector::Braintree,
-                        diesel_models::enums::PaymentMethodType::Paypal,
+                        Some(diesel_models::enums::PaymentMethodType::Paypal),
                     )
                 ),
                 || {
@@ -237,19 +237,6 @@ pub fn validate_adyen_charge_refund(
             .find(|payment_split_item| refund_split_reference == payment_split_item.reference);
 
         if let Some(payment_split_item) = matching_payment_split_item {
-            if let Some((refund_amount, payment_amount)) =
-                refund_split_item.amount.zip(payment_split_item.amount)
-            {
-                if refund_amount > payment_amount {
-                    return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                        message: format!(
-                            "Invalid refund amount for split item, reference: {refund_split_reference}",
-
-                        ),
-                    }));
-                }
-            }
-
             if let Some((refund_account, payment_account)) = refund_split_item
                 .account
                 .as_ref()

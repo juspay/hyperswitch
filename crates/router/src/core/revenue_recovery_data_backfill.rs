@@ -9,7 +9,7 @@ use common_enums::{CardNetwork, PaymentMethodType};
 use common_utils::id_type;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::api::ApplicationResponse;
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 use router_env::{instrument, logger};
 use time::{macros::format_description, Date};
 
@@ -403,8 +403,8 @@ fn build_comprehensive_card_data(
             .as_deref(),
     )?;
 
-    let card_exp_month = exp_month.map(masking::Secret::new);
-    let card_exp_year = exp_year.map(masking::Secret::new);
+    let card_exp_month = exp_month.map(hyperswitch_masking::Secret::new);
+    let card_exp_year = exp_year.map(hyperswitch_masking::Secret::new);
 
     // Extract card network
     let card_network = record.card_network.clone();

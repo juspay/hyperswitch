@@ -1,4 +1,5 @@
 import { customerAcceptance } from "./Commons";
+import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111", // Non-3DS Airwallex test card
@@ -515,6 +516,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -845,6 +847,46 @@ export const connectorDetails = {
         },
       },
     },
+    ConnectorTestingData: {
+      Request: {
+        currency: "USD",
+        connector_metadata: {
+          airwallex: { payload: "test_payload_string" },
+        },
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    ConnectorTestingDataConfirm: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "01",
+            card_exp_year: "2030",
+            card_cvc: "999",
+            card_holder_name: "joseph Doe",
+          },
+        },
+        connector_metadata: {
+          airwallex: { payload: "test_payload_string" },
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
   },
   bank_redirect_pm: {
     Trustly: {
@@ -907,6 +949,112 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
+    },
+  },
+  pay_later_pm: {
+    AutoCapture: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        capture_method: "automatic",
+        description: "Test Order",
+        return_url: "https://example.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    ManualCapture: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        capture_method: "manual",
+        description: "Test Order",
+        return_url: "https://example.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    Klarna: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "klarna",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            klarna_redirect: {
+              billing_email: "test@example.com",
+              billing_country: "DE",
+            },
+          },
+        },
+        billing: {
+          email: "test@example.com",
+          address: {
+            line1: "123 Test St",
+            line2: "Apt 4B",
+            city: "Berlin",
+            zip: "10115",
+            country: "DE",
+            first_name: "Test",
+            last_name: "User",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "123 Test St",
+            line2: "Apt 4B",
+            city: "Berlin",
+            zip: "10115",
+            country: "DE",
+            first_name: "Test",
+            last_name: "User",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+            total_amount: 6000,
+            description: "Test Product Description",
+            product_img_link: "https://example.com/product.jpg",
+          },
+        ],
+        browser_info: {
+          java_enabled: false,
+          java_script_enabled: true,
+          language: "en-US",
+          color_depth: 24,
+          screen_width: 1920,
+          screen_height: 1080,
+          time_zone: 3600,
+          user_agent: "Mozilla/5.0",
+          accept_header: "text/html",
+        },
+        return_url: "https://example.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+  },
+  webhook: {
+    TransactionIdConfig: {
+      path: "sourceId",
+      type: "string",
+    },
+    RefundIdConfig: {
+      path: "sourceId",
+      type: "string",
     },
   },
 };

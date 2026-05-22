@@ -49,7 +49,7 @@ use hyperswitch_interfaces::{
     },
     webhooks,
 };
-use masking::{Mask, PeekInterface};
+use hyperswitch_masking::{Mask, PeekInterface};
 use router_env::logger;
 use transformers as noon;
 
@@ -70,6 +70,18 @@ impl Noon {
             amount_converter: &StringMajorUnitForConnector,
         }
     }
+}
+
+fn build_region_specific_endpoint(
+    base_url: &str,
+    connector_metadata: &Option<common_utils::pii::SecretSerdeValue>,
+) -> CustomResult<String, errors::ConnectorError> {
+    let noon_metadata_object =
+        transformers::NoonConnectorMetadataObject::try_from(connector_metadata)?;
+
+    let region = String::from(noon_metadata_object.region);
+
+    Ok(base_url.replace("{{region}}", &region))
 }
 
 impl api::Payment for Noon {}
@@ -100,7 +112,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             PaymentsAuthorizeType::get_content_type(self)
@@ -115,7 +128,7 @@ where
 
 fn get_auth_header(
     auth_type: &ConnectorAuthType,
-) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError> {
     let auth = noon::NoonAuthType::try_from(auth_type)?;
 
     let encoded_api_key = auth
@@ -255,7 +268,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -265,10 +279,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
+        req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}payment/v1/order", self.base_url(connectors)))
+        let endpoint =
+            build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
+        Ok(format!("{}payment/v1/order", endpoint))
     }
 
     fn get_request_body(
@@ -352,7 +368,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Noo
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -365,10 +382,11 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Noo
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint =
+            build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
         Ok(format!(
             "{}payment/v1/order/getbyreference/{}",
-            self.base_url(connectors),
-            req.connector_request_reference_id
+            endpoint, req.connector_request_reference_id
         ))
     }
 
@@ -422,7 +440,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -432,10 +451,12 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
     fn get_url(
         &self,
-        _req: &PaymentsCaptureRouterData,
+        req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}payment/v1/order", self.base_url(connectors)))
+        let endpoint =
+            build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
+        Ok(format!("{}payment/v1/order", endpoint))
     }
 
     fn get_request_body(
@@ -506,7 +527,8 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for No
         &self,
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -516,10 +538,12 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for No
 
     fn get_url(
         &self,
-        _req: &PaymentsCancelRouterData,
+        req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}payment/v1/order", self.base_url(connectors)))
+        let endpoint =
+            build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
+        Ok(format!("{}payment/v1/order", endpoint))
     }
     fn get_request_body(
         &self,
@@ -583,7 +607,8 @@ impl ConnectorIntegration<MandateRevoke, MandateRevokeRequestData, MandateRevoke
         &self,
         req: &MandateRevokeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
     fn get_content_type(&self) -> &'static str {
@@ -591,10 +616,12 @@ impl ConnectorIntegration<MandateRevoke, MandateRevokeRequestData, MandateRevoke
     }
     fn get_url(
         &self,
-        _req: &MandateRevokeRouterData,
+        req: &MandateRevokeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}payment/v1/order", self.base_url(connectors)))
+        let endpoint =
+            build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
+        Ok(format!("{}payment/v1/order", endpoint))
     }
     fn build_request(
         &self,
@@ -654,7 +681,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Noon {
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -664,10 +692,12 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Noon {
 
     fn get_url(
         &self,
-        _req: &RefundsRouterData<Execute>,
+        req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}payment/v1/order", self.base_url(connectors)))
+        let endpoint =
+            build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
+        Ok(format!("{}payment/v1/order", endpoint))
     }
 
     fn get_request_body(
@@ -735,7 +765,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Noon {
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -748,10 +779,11 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Noon {
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint =
+            build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
         Ok(format!(
             "{}payment/v1/order/getbyreference/{}",
-            self.base_url(connectors),
-            req.connector_request_reference_id
+            endpoint, req.connector_request_reference_id
         ))
     }
 
@@ -906,7 +938,8 @@ impl webhooks::IncomingWebhook for Noon {
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let resource: noon::NoonWebhookObject = request
             .body
             .parse_struct("NoonWebhookObject")
