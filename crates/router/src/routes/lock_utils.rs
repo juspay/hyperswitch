@@ -171,6 +171,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetExtendedCardInfo
             | Flow::PaymentsCompleteAuthorize
             | Flow::PaymentsManualUpdate
+            | Flow::PaymentsManualStatusUpdate
             | Flow::SessionUpdateTaxCalculation
             | Flow::PaymentsConfirmIntent
             | Flow::PaymentsCreateIntent

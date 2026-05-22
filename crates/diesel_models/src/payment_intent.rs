@@ -88,6 +88,7 @@ pub struct PaymentIntent {
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub state_metadata: Option<PaymentIntentStateMetadata>,
     pub installment_options: Option<common_types::payments::InstallmentOptions>,
+    pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -199,6 +200,7 @@ pub struct PaymentIntent {
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub state_metadata: Option<PaymentIntentStateMetadata>,
     pub installment_options: Option<common_types::payments::InstallmentOptions>,
+    pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
     pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
@@ -415,6 +417,7 @@ pub struct PaymentIntentNew {
     pub active_attempt_id_type: Option<common_enums::ActiveAttemptIDType>,
     pub state_metadata: Option<PaymentIntentStateMetadata>,
     pub installment_options: Option<common_types::payments::InstallmentOptions>,
+    pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
 }
 
 #[cfg(feature = "v1")]
@@ -506,6 +509,7 @@ pub struct PaymentIntentNew {
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub state_metadata: Option<PaymentIntentStateMetadata>,
     pub installment_options: Option<common_types::payments::InstallmentOptions>,
+    pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
     pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
@@ -517,6 +521,7 @@ pub enum PaymentIntentUpdate {
         status: storage_enums::IntentStatus,
         active_attempt_id: common_utils::id_type::GlobalAttemptId,
         updated_by: String,
+        profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
     },
     /// Update the payment intent details on payment intent confirmation, after calling the connector
     ConfirmIntentPostUpdate {
@@ -648,6 +653,7 @@ pub struct PaymentIntentUpdateFields {
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub payment_channel: Option<Option<common_enums::PaymentChannel>>,
+    pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
 }
 
 #[cfg(feature = "v1")]
@@ -693,6 +699,7 @@ pub struct PaymentIntentUpdateFields {
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub shipping_cost: Option<MinorUnit>,
     pub installment_options: Option<common_types::payments::InstallmentOptions>,
+    pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
     pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
@@ -742,6 +749,7 @@ pub struct PaymentIntentUpdateInternal {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
     pub state_metadata: Option<PaymentIntentStateMetadata>,
+    pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
 }
 
 #[cfg(feature = "v2")]
@@ -789,6 +797,7 @@ impl PaymentIntentUpdateInternal {
             is_iframe_redirection_enabled,
             enable_partial_authorization,
             state_metadata,
+            profile_acquirer_id,
         } = self;
 
         PaymentIntent {
@@ -835,6 +844,7 @@ impl PaymentIntentUpdateInternal {
             frm_metadata: frm_metadata.or(source.frm_metadata),
             request_external_three_ds_authentication: request_external_three_ds_authentication
                 .or(source.request_external_three_ds_authentication),
+            profile_acquirer_id: profile_acquirer_id.or(source.profile_acquirer_id),
             updated_by,
             force_3ds_challenge: force_3ds_challenge.or(source.force_3ds_challenge),
             is_iframe_redirection_enabled: is_iframe_redirection_enabled
@@ -937,6 +947,7 @@ pub struct PaymentIntentUpdateInternal {
     pub shipping_cost: Option<MinorUnit>,
     pub state_metadata: Option<PaymentIntentStateMetadata>,
     pub installment_options: Option<common_types::payments::InstallmentOptions>,
+    pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
     pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
@@ -993,6 +1004,9 @@ impl PaymentIntentUpdate {
             enable_partial_authorization,
             enable_overcapture,
             shipping_cost,
+            state_metadata: _,
+            installment_options: _,
+            profile_acquirer_id,
             surcharge_strategy,
             ..
         } = self.into();
@@ -1057,6 +1071,7 @@ impl PaymentIntentUpdate {
                 .or(source.enable_partial_authorization),
             enable_overcapture: enable_overcapture.or(source.enable_overcapture),
             shipping_cost: shipping_cost.or(source.shipping_cost),
+            profile_acquirer_id: profile_acquirer_id.or(source.profile_acquirer_id),
             surcharge_strategy: surcharge_strategy.or(source.surcharge_strategy),
             ..source
         }
@@ -1123,6 +1138,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
                 surcharge_strategy: None,
             },
             PaymentIntentUpdate::StateMetadataUpdate {
@@ -1179,6 +1195,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
                 installment_options: None,
                 surcharge_strategy: None,
             },
@@ -1235,6 +1252,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_cost: value.shipping_cost,
                 state_metadata: None,
                 installment_options: value.installment_options,
+                profile_acquirer_id: value.profile_acquirer_id,
                 surcharge_strategy: value.surcharge_strategy,
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1297,6 +1315,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
                 surcharge_strategy: None,
             },
             PaymentIntentUpdate::PGStatusUpdate {
@@ -1356,6 +1375,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
                 surcharge_strategy: None,
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
@@ -1415,6 +1435,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
                 surcharge_strategy: None,
             },
             PaymentIntentUpdate::ResponseUpdate {
@@ -1482,6 +1503,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
                 surcharge_strategy: None,
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
@@ -1540,6 +1562,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
                 surcharge_strategy: None,
             },
             PaymentIntentUpdate::StatusAndAttemptUpdate {
@@ -1599,6 +1622,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
                 surcharge_strategy: None,
             },
             PaymentIntentUpdate::ApproveUpdate {
@@ -1657,6 +1681,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
                 surcharge_strategy: None,
             },
             PaymentIntentUpdate::RejectUpdate {
@@ -1715,6 +1740,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
                 surcharge_strategy: None,
             },
             PaymentIntentUpdate::SurchargeApplicableUpdate {
@@ -1772,6 +1798,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
                 surcharge_strategy: None,
             },
             PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
@@ -1826,6 +1853,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
                 surcharge_strategy: None,
             },
             PaymentIntentUpdate::AuthorizationCountUpdate {
@@ -1882,6 +1910,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
                 surcharge_strategy: None,
             },
             PaymentIntentUpdate::CompleteAuthorizeUpdate {
@@ -1938,6 +1967,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
                 surcharge_strategy: None,
             },
             PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
@@ -1992,6 +2022,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
                 surcharge_strategy: None,
             },
             PaymentIntentUpdate::SessionResponseUpdate {
@@ -2051,6 +2082,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
                 surcharge_strategy: None,
             },
             PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => Self {
@@ -2105,6 +2137,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
                 surcharge_strategy: None,
             },
             PaymentIntentUpdate::SurchargeStrategyUpdate {

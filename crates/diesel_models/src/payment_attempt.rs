@@ -170,6 +170,7 @@ pub struct PaymentAttempt {
     pub installment_data: Option<common_types::payments::InstallmentData>,
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     pub network_transaction_link_id: Option<String>,
+    pub sender_payment_instrument_id: Option<String>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
@@ -305,6 +306,8 @@ pub struct PaymentAttempt {
     /// External surcharge details from InterPayments (stored as JSONB)
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     pub network_transaction_link_id: Option<String>,
+    /// A connector-specific identifier representing the stored payment instrument
+    pub sender_payment_instrument_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -556,6 +559,7 @@ pub struct PaymentAttemptNew {
     pub installment_data: Option<common_types::payments::InstallmentData>,
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     pub network_transaction_link_id: Option<String>,
+    pub sender_payment_instrument_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -702,6 +706,7 @@ pub enum PaymentAttemptUpdate {
         is_overcapture_enabled: Option<OvercaptureEnabledBool>,
         authorized_amount: Option<MinorUnit>,
         error_details: Box<Option<Option<ErrorDetails>>>,
+        sender_payment_instrument_id: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -1171,6 +1176,7 @@ impl PaymentAttemptUpdateInternal {
             error_details: source.error_details,
             retry_type: source.retry_type,
             installment_data: source.installment_data,
+            sender_payment_instrument_id: source.sender_payment_instrument_id,
         }
     }
 }
@@ -1249,6 +1255,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub authorized_amount: Option<MinorUnit>,
     pub error_details: Option<Option<ErrorDetails>>,
+    pub sender_payment_instrument_id: Option<String>,
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
 }
 
@@ -1459,6 +1466,7 @@ impl PaymentAttemptUpdate {
             authorized_amount,
             error_details,
             installment_data,
+            sender_payment_instrument_id,
             external_surcharge_details,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
@@ -1545,6 +1553,8 @@ impl PaymentAttemptUpdate {
             authorized_amount: authorized_amount.or(source.authorized_amount),
             tokenization: tokenization.or(source.tokenization),
             error_details: error_details.unwrap_or(source.error_details),
+            sender_payment_instrument_id: sender_payment_instrument_id
+                .or(source.sender_payment_instrument_id),
             external_surcharge_details: external_surcharge_details
                 .or(source.external_surcharge_details),
             ..source
@@ -2862,6 +2872,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 fingerprint_id,
                 payment_method_billing_address_id,
                 updated_by,
+                sender_payment_instrument_id: None,
                 net_amount: None,
                 connector_transaction_id: None,
                 connector: None,
@@ -2992,6 +3003,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                sender_payment_instrument_id: None,
                 external_surcharge_details: None,
             },
             PaymentAttemptUpdate::ConfirmUpdate {
@@ -3068,6 +3080,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 client_source,
                 client_version,
                 customer_acceptance,
+                sender_payment_instrument_id: None,
                 net_amount: None,
                 connector_transaction_id: None,
                 amount_to_capture: None,
@@ -3186,6 +3199,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 installment_data: None,
+                sender_payment_instrument_id: None,
                 external_surcharge_details: None,
             },
             PaymentAttemptUpdate::RejectUpdate {
@@ -3265,6 +3279,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 installment_data: None,
+                sender_payment_instrument_id: None,
                 external_surcharge_details: None,
             },
             PaymentAttemptUpdate::BlocklistUpdate {
@@ -3344,6 +3359,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 installment_data: None,
+                sender_payment_instrument_id: None,
                 external_surcharge_details: None,
             },
             PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
@@ -3422,6 +3438,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 installment_data: None,
+                sender_payment_instrument_id: None,
                 external_surcharge_details: None,
             },
             PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
@@ -3499,6 +3516,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 installment_data: None,
+                sender_payment_instrument_id: None,
                 external_surcharge_details: None,
             },
             PaymentAttemptUpdate::ResponseUpdate {
@@ -3534,6 +3552,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 is_overcapture_enabled,
                 authorized_amount,
                 error_details: boxed_error_details,
+                sender_payment_instrument_id,
             } => {
                 let error_details = *boxed_error_details;
                 let (connector_transaction_id, processor_transaction_data) =
@@ -3613,6 +3632,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     encrypted_payment_method_data,
                     error_details,
                     installment_data: None,
+                    sender_payment_instrument_id,
                     external_surcharge_details: None,
                 }
             }
@@ -3714,6 +3734,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     installment_data: None,
                     encrypted_payment_method_data,
                     error_details,
+                    sender_payment_instrument_id: None,
                     external_surcharge_details: None,
                 }
             }
@@ -3789,6 +3810,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                sender_payment_instrument_id: None,
                 external_surcharge_details: None,
             },
             PaymentAttemptUpdate::UpdateTrackers {
@@ -3811,6 +3833,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 surcharge_amount,
                 tax_amount,
                 updated_by,
+                sender_payment_instrument_id: None,
                 merchant_connector_id: merchant_connector_id.map(Some),
                 amount: None,
                 net_amount: None,
@@ -3966,6 +3989,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     installment_data: None,
                     encrypted_payment_method_data: None,
                     error_details,
+                    sender_payment_instrument_id: None,
                     external_surcharge_details: None,
                 }
             }
@@ -4055,6 +4079,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     installment_data: None,
                     encrypted_payment_method_data: None,
                     error_details: None,
+                    sender_payment_instrument_id: None,
                     external_surcharge_details: None,
                 }
             }
@@ -4134,6 +4159,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                sender_payment_instrument_id: None,
                 external_surcharge_details: None,
             },
             PaymentAttemptUpdate::AmountToCaptureUpdate {
@@ -4212,6 +4238,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                sender_payment_instrument_id: None,
                 external_surcharge_details: None,
             },
             PaymentAttemptUpdate::ConnectorResponse {
@@ -4299,6 +4326,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     installment_data: None,
                     encrypted_payment_method_data: None,
                     error_details: None,
+                    sender_payment_instrument_id: None,
                     external_surcharge_details: None,
                 }
             }
@@ -4377,6 +4405,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                sender_payment_instrument_id: None,
                 external_surcharge_details: None,
             },
             PaymentAttemptUpdate::AuthenticationUpdate {
@@ -4457,6 +4486,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                sender_payment_instrument_id: None,
                 external_surcharge_details: None,
             },
             PaymentAttemptUpdate::ManualUpdate {
@@ -4547,6 +4577,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     installment_data: None,
                     encrypted_payment_method_data: None,
                     error_details: None,
+                    sender_payment_instrument_id: None,
                     external_surcharge_details: None,
                 }
             }
@@ -4625,6 +4656,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                sender_payment_instrument_id: None,
                 external_surcharge_details: None,
             },
             PaymentAttemptUpdate::RecurrenceUpdate {
@@ -4706,6 +4738,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 authorized_amount: None,
                 installment_data: None,
                 encrypted_payment_method_data: None,
+                sender_payment_instrument_id: None,
                 external_surcharge_details: None,
             },
             PaymentAttemptUpdate::ExternalSurchargeUpdate {
