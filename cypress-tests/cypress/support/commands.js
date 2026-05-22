@@ -8950,41 +8950,47 @@ Cypress.Commands.add("getForexRates", (globalState) => {
   });
 });
 
+function requestForexConvert(baseUrl, apiKey, amount, fromCurrency, toCurrency) {
+  return cy.request({
+    method: "GET",
+    url: `${baseUrl}/forex/convert_from_minor?amount=${amount}&from_currency=${fromCurrency}&to_currency=${toCurrency}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    failOnStatusCode: false,
+  });
+}
+
 Cypress.Commands.add(
   "convertCurrency",
   (amount, fromCurrency, toCurrency, globalState) => {
     const apiKey = globalState.get("apiKey") || globalState.get("adminApiKey");
     const baseUrl = globalState.get("baseUrl");
 
-    cy.request({
-      method: "GET",
-      url: `${baseUrl}/forex/convert_from_minor?amount=${amount}&from_currency=${fromCurrency}&to_currency=${toCurrency}`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": apiKey,
-      },
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
+    requestForexConvert(baseUrl, apiKey, amount, fromCurrency, toCurrency).then(
+      (response) => {
+        logRequestId(response.headers["x-request-id"]);
 
-      cy.wrap(response).then(() => {
-        if (response.status === 200) {
-          expect(response.body).to.have.property("converted_amount");
-          expect(response.body).to.have.property("currency");
-          expect(response.body.currency).to.equal(toCurrency);
-          cy.task(
-            "cli_log",
-            `Converted ${amount} ${fromCurrency} → ${response.body.converted_amount} ${response.body.currency}`
-          );
-        } else if (response.status === 400) {
-          expect(response.body).to.exist;
-        } else {
-          throw new Error(
-            `Unexpected forex convert status: ${response.status} - ${JSON.stringify(response.body)}`
-          );
-        }
-      });
-    });
+        cy.wrap(response).then(() => {
+          if (response.status === 200) {
+            expect(response.body).to.have.property("converted_amount");
+            expect(response.body).to.have.property("currency");
+            expect(response.body.currency).to.equal(toCurrency);
+            cy.task(
+              "cli_log",
+              `Converted ${amount} ${fromCurrency} → ${response.body.converted_amount} ${response.body.currency}`
+            );
+          } else if (response.status === 400) {
+            expect(response.body).to.exist;
+          } else {
+            throw new Error(
+              `Unexpected forex convert status: ${response.status} - ${JSON.stringify(response.body)}`
+            );
+          }
+        });
+      }
+    );
   }
 );
 
@@ -9009,15 +9015,13 @@ Cypress.Commands.add(
   (amount, fromCurrency, toCurrency, globalState) => {
     const baseUrl = globalState.get("baseUrl");
 
-    cy.request({
-      method: "GET",
-      url: `${baseUrl}/forex/convert_from_minor?amount=${amount}&from_currency=${fromCurrency}&to_currency=${toCurrency}`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": "invalid-api-key",
-      },
-      failOnStatusCode: false,
-    }).then((response) => {
+    requestForexConvert(
+      baseUrl,
+      "invalid-api-key",
+      amount,
+      fromCurrency,
+      toCurrency
+    ).then((response) => {
       logRequestId(response.headers["x-request-id"]);
       expect(response.status).to.equal(401);
     });
