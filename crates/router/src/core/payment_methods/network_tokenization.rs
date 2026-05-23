@@ -3,7 +3,9 @@ use std::fmt::Debug;
 #[cfg(feature = "v2")]
 use std::str::FromStr;
 
-use ::payment_methods::{controller::PaymentMethodsController, types as ext_pm_types};
+use ::payment_methods::controller::PaymentMethodsController;
+#[cfg(feature = "v1")]
+use ::payment_methods::types as ext_pm_types;
 use api_models::payment_methods as api_payment_methods;
 #[cfg(feature = "v2")]
 use cards::{CardNumber, NetworkToken};
@@ -1142,6 +1144,7 @@ pub async fn delete_network_token_from_locker_and_token_service(
 
 /// Fetch Alt-ID and cryptogram for guest checkout transactions
 /// This is used when there's no saved card (card_reference) available
+#[cfg(feature = "v1")]
 pub async fn fetch_altid_and_cryptogram(
     state: &routes::SessionState,
     payload_bytes: &[u8],
@@ -1245,15 +1248,15 @@ pub async fn fetch_altid_and_cryptogram(
 #[cfg(feature = "v1")]
 pub async fn get_altid_for_card(
     state: &routes::SessionState,
-    card: &domain::CardDetail,
-    optional_cvc: Option<Secret<String>>,
+    card: &domain::Card,
     amount: common_utils::types::MinorUnit,
     currency: api_models::enums::Currency,
     auth_ref_number: Option<String>,
 ) -> CustomResult<
-    Option<hyperswitch_domain_models::payment_method_data::NetworkTokenData>,
+    hyperswitch_domain_models::payment_method_data::NetworkTokenData,
     errors::NetworkTokenizationError,
 > {
+    let card_detail: domain::CardDetail = card.into();
     match &state.conf.network_tokenization_service {
         Some(nt_service) => {
             let tokenization_service = nt_service.get_inner();
@@ -1263,7 +1266,8 @@ pub async fn get_altid_for_card(
                 .change_context(errors::NetworkTokenizationError::RequestEncodingFailed)
                 .attach_printable("Failed to convert amount to major unit")?;
 
-            let card_data = ext_pm_types::AltIdCardData::from((card, optional_cvc));
+            let card_data =
+                ext_pm_types::AltIdCardData::from((&card_detail, Some(card.card_cvc.clone())));
 
             // Double-encode card data for JWE encryption (matches expected format)
             let payload = card_data
@@ -1278,7 +1282,6 @@ pub async fn get_altid_for_card(
                 auth_ref_number,
             };
 
-            // Fetch Alt-ID
             let altid_response = record_operation_time(
                 async {
                     fetch_altid_and_cryptogram(
@@ -1295,8 +1298,7 @@ pub async fn get_altid_for_card(
             )
             .await?;
 
-            // Convert to NetworkTokenData using From impl
-            Ok(Some(altid_response.into()))
+            Ok(altid_response.into())
         }
         None => Err(report!(
             errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured
@@ -1304,39 +1306,32 @@ pub async fn get_altid_for_card(
     }
 }
 
-/// Attempt to get Alt-ID (network token) for guest checkout card payments.
 #[cfg(feature = "v1")]
-pub async fn try_get_altid_for_guest_checkout(
+pub async fn evaluate_and_fetch_altid(
     state: &routes::SessionState,
-    card: &domain::Card,
-    business_profile: &domain::Profile,
+    payment_method_data: Option<&domain::PaymentMethodData>,
+    currency: Option<api_models::enums::Currency>,
+    connector: &api_models::enums::Connector,
+    is_guest_checkout: bool,
     amount: common_utils::types::MinorUnit,
-    currency: &api_models::enums::Currency,
-    auth_ref_number: Option<String>,
-    connector: api_models::enums::Connector,
-) -> CustomResult<Option<domain::NetworkTokenData>, errors::NetworkTokenizationError> {
-    match AltIdDecision::evaluate(state, card, business_profile, connector) {
-        AltIdDecision::Proceed => {
-            let card_detail: domain::CardDetail = card.into();
-
-            get_altid_for_card(
-                state,
-                &card_detail,
-                Some(card.card_cvc.clone()),
-                amount,
-                *currency,
-                auth_ref_number,
-            )
-            .await
+    business_profile: &domain::Profile,
+) -> CustomResult<Option<domain::NetworkTokenData>, errors::ApiErrorResponse> {
+    if let (Some(domain::PaymentMethodData::Card(card)), Some(currency), true) =
+        (payment_method_data, currency, is_guest_checkout)
+    {
+        match AltIdDecision::evaluate(state, card, business_profile, *connector) {
+            AltIdDecision::Proceed => get_altid_for_card(state, card, amount, currency, None)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to fetch Alt-ID for guest checkout")
+                .map(Some),
+            AltIdDecision::Skip => Ok(None),
+            AltIdDecision::Error => Err(report!(errors::ApiErrorResponse::InternalServerError))
+                .attach_printable(
+                    "Network tokenization disabled but required per RBI for this transaction",
+                ),
         }
-
-        AltIdDecision::Skip => Ok(None),
-
-        AltIdDecision::Error => Err(report!(
-            errors::NetworkTokenizationError::NetworkTokenizationNotEnabledForProfile
-        ))
-        .attach_printable(
-            "Network tokenization is disabled but RBI requires Alt-ID for this transaction",
-        ),
+    } else {
+        Ok(None)
     }
 }
