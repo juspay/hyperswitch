@@ -646,4 +646,55 @@ export const connectorDetails = {
       },
     },
   },
+  bank_debit_pm: {
+    PaymentIntent: (paymentMethodType) => {
+      const currencyMap = { Sepa: "EUR", Ach: "USD", Becs: "AUD", Bacs: "GBP" };
+      return {
+        Request: {
+          currency: currencyMap[paymentMethodType] || "USD",
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+    Ach: {
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "ach",
+        payment_method_data: {
+          bank_debit: {
+            ach_bank_debit: {
+              account_number: "000123456789",
+              routing_number: "110000000",
+              bank_account_holder_name: "Test Account",
+              bank_type: "checking",
+            },
+          },
+        },
+        billing: {
+          address: {
+            first_name: "John",
+            last_name: "Doe",
+            line1: "123 Main St",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+          },
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+  },
 };
