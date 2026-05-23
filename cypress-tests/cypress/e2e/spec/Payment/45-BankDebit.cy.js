@@ -429,11 +429,10 @@ describe("Inespay SEPA Bank Debit tests", () => {
 
         // 2. Login Step — Enter user1 / 1234, click "access"
         cy.wait(2000);
-        cy.get('input[type="text"], input[name*="user"], input[id*="user"]', {
-          timeout: 15000,
-        })
-          .should("be.visible")
+        cy.get("input")
+          .not('[type="password"]')
           .first()
+          .should("be.visible")
           .clear()
           .type("user1");
 
@@ -446,28 +445,31 @@ describe("Inespay SEPA Bank Debit tests", () => {
           .should("be.visible")
           .click();
 
-        // 3. Contract & Account Selection — Select "Contract: 1" and "Account: ES*********679", click "confirm"
-        cy.wait(2000);
+        // 3. Contract & Account Selection — SPA fallback: try confirm first, else explicit select
+        cy.wait(5000);
 
-        // Select contract
-        cy.get('select[name*="contract"], select[id*="contract"], select', {
-          timeout: 15000,
-        })
-          .should("be.visible")
-          .first()
-          .select("Contract: 1");
+        cy.get("body").then(($body) => {
+          const confirmBtn = $body.find("button").filter(function () {
+            return /confirm/i.test(Cypress.$(this).text());
+          });
+          if (confirmBtn.length > 0 && confirmBtn.is(":visible")) {
+            cy.wrap(confirmBtn).click();
+          } else {
+            // Select contract
+            cy.contains(/Contract:\s*1/i, { timeout: 15000 })
+              .should("be.visible")
+              .click();
 
-        // Select account
-        cy.get('select[name*="account"], select[id*="account"], select', {
-          timeout: 15000,
-        })
-          .should("be.visible")
-          .first()
-          .select("Account: ES*********679");
+            // Select account
+            cy.contains(/Account:\s*ES\*+679/i, { timeout: 15000 })
+              .should("be.visible")
+              .click();
 
-        cy.contains("button", /confirm/i, { timeout: 10000 })
-          .should("be.visible")
-          .click();
+            cy.contains("button", /confirm/i, { timeout: 10000 })
+              .should("be.visible")
+              .click();
+          }
+        });
 
         // 4. OTP Verification — Enter 1111, click "continue"
         cy.wait(2000);
