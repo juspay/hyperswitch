@@ -330,6 +330,7 @@ export const connectorDetails = {
           email: "test@example.com",
         },
         currency: "EUR",
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
