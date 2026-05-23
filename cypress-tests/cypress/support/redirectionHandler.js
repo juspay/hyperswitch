@@ -1281,6 +1281,30 @@ function bankRedirectRedirection(
             }
             break;
 
+          case "paysafe":
+            switch (paymentMethodType) {
+              case "interac":
+                cy.log("Handling Paysafe Interac bank redirect flow");
+
+                verifyUrl = false;
+                break;
+              case "skrill":
+                cy.log("Handling Paysafe Skrill wallet redirect flow");
+
+                verifyUrl = false;
+                break;
+              case "pay_safe_card":
+                cy.log("Handling Paysafe PaySafeCard gift card redirect flow");
+
+                verifyUrl = false;
+                break;
+              default:
+                throw new Error(
+                  `Unsupported Paysafe payment method type in handleFlow: ${paymentMethodType}`
+                );
+            }
+            break;
+
           default:
             throw new Error(
               `Unsupported connector in handleFlow: ${connectorId}`

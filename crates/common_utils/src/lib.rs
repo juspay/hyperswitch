@@ -13,6 +13,7 @@ pub mod errors;
 #[allow(missing_docs)] // Todo: add docs
 pub mod events;
 pub mod ext_traits;
+pub mod external_service;
 pub mod fp_utils;
 /// Used for hashing
 pub mod hashing;
@@ -281,18 +282,6 @@ pub fn generate_profile_acquirer_id_of_default_length() -> id_type::ProfileAcqui
 pub fn generate_id_with_default_len(prefix: &str) -> String {
     let len: usize = consts::ID_LENGTH;
     format!("{}_{}", prefix, nanoid::nanoid!(len, &consts::ALPHABETS))
-}
-
-/// Generate a nanoid with the given prefix and a default length with profileId
-#[inline]
-pub fn generate_id_with_default_len_with_profile_id(prefix: &str, profile_id: &str) -> String {
-    let len: usize = consts::ID_LENGTH;
-    format!(
-        "{}_{},profile={}",
-        prefix,
-        nanoid::nanoid!(len, &consts::ALPHABETS),
-        profile_id
-    )
 }
 
 /// Generate a time-ordered (time-sortable) unique identifier using the current time
