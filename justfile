@@ -175,6 +175,14 @@ payment-link-wasm features='' version='v1' environment='development':
 # Run pre-commit checks
 precommit: fmt clippy
 
+# Run drainer with v1 features enabled
+drainer redis_interface_backend="redis-rs" *FLAGS:
+    DRAINER__SERVER__PORT=8084 cargo run --package drainer --no-default-features --features "{{ redis_interface_backend }},v1" {{ FLAGS }}
+
+# Run drainer with v2 features enabled
+drainer_v2 redis_interface_backend="redis-rs" *FLAGS:
+    DRAINER__SERVER__PORT=8084 cargo run --package drainer --no-default-features --features "{{ redis_interface_backend }},v2" {{ FLAGS }}
+
 # Use the env variables if present, or fallback to default values
 
 db_user := env_var_or_default('DB_USER', 'db_user')
