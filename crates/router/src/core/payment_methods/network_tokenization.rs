@@ -80,7 +80,6 @@ impl AltIdDecision {
     }
 }
 
-/// Builds and sends a request to the network tokenization service.
 async fn call_network_token_service(
     state: &routes::SessionState,
     tokenization_service: &settings::NetworkTokenizationService,
@@ -1143,7 +1142,6 @@ pub async fn delete_network_token_from_locker_and_token_service(
 // ==================== ALT-ID FUNCTIONS (Guest Checkout Tokenization) ====================
 
 /// Fetch Alt-ID and cryptogram for guest checkout transactions
-/// This is used when there's no saved card (card_reference) available
 #[cfg(feature = "v1")]
 pub async fn fetch_altid_and_cryptogram(
     state: &routes::SessionState,
@@ -1214,7 +1212,6 @@ pub async fn fetch_altid_and_cryptogram(
             Ok(res) => Ok(res),
         })?;
 
-    // Parse the raw response (altIdDetails is still JWE encrypted)
     let altid_response_raw: ext_pm_types::AltIdResponse = res
         .response
         .parse_struct("Alt-ID Response")
@@ -1222,7 +1219,6 @@ pub async fn fetch_altid_and_cryptogram(
 
     logger::info!("Alt-ID Response status: {:?}", altid_response_raw.status);
 
-    // Decrypt the altIdDetails field
     let dec_key = tokenization_service.private_key.peek().clone();
     let decrypted_altid_details_json = services::decrypt_jwe(
         altid_response_raw.payload.alt_id_details.peek(),
@@ -1239,12 +1235,9 @@ pub async fn fetch_altid_and_cryptogram(
             .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
             .attach_printable("Failed to parse decrypted altIdDetails")?;
 
-    // Construct the final response payload using From impl
     Ok((altid_response_raw.payload, alt_id_details).into())
 }
 
-/// High-level function to fetch Alt-ID for a card during payment processing
-/// Returns None if Alt-ID is not supported or not configured
 #[cfg(feature = "v1")]
 pub async fn get_altid_for_card(
     state: &routes::SessionState,
