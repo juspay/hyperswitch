@@ -445,49 +445,44 @@ describe("Inespay SEPA Bank Debit tests", () => {
           .should("be.visible")
           .click();
 
-        // 3. Contract & Account Selection — SPA fallback: try confirm first, else explicit select
+        // 3. Contract & Account Selection
         cy.wait(5000);
 
-        cy.get("body").then(($body) => {
-          const confirmBtn = $body.find("button").filter(function () {
-            return /confirm/i.test(Cypress.$(this).text());
-          });
-          if (
-            confirmBtn.length > 0 &&
-            confirmBtn.is(":visible") &&
-            !confirmBtn.is(":disabled")
-          ) {
-            cy.wrap(confirmBtn).should("not.be.disabled").click();
-          } else {
-            // Open Contract selection dropdown
-            cy.contains(/Contract selection/i, { timeout: 15000 })
-              .should("be.visible")
-              .click();
+        // Open Contract selection dropdown
+        cy.contains(/Contract selection/i, { timeout: 15000 })
+          .should("be.visible")
+          .click();
 
-            // Select Contract: 1 from the opened dropdown
-            cy.contains(/Contract:\s*1/i, { timeout: 15000 })
-              .should("be.visible")
-              .click();
-
-            // Optionally select account if it appears
-            cy.get("body").then(($body) => {
-              const accountEl = $body.find("*").filter(function () {
-                return /Account:\s*ES\*+679/i.test(Cypress.$(this).text());
-              });
-              if (accountEl.length > 0 && accountEl.is(":visible")) {
-                cy.wrap(accountEl).click();
-              }
-            });
-
-            cy.contains("button", /confirm/i, { timeout: 10000 })
-              .should("be.visible")
-              .and("not.be.disabled")
-              .click();
-          }
-        });
-
-        // 4. OTP Verification — Enter 1111, click "continue"
+        // Select Contract: 1
         cy.wait(2000);
+        cy.contains(/Contract:\s*1/i, { timeout: 15000 })
+          .should("be.visible")
+          .click();
+
+        // Wait for Account dropdown to appear
+        cy.wait(2000);
+
+        // Open Account selection dropdown
+        cy.contains(/Account selection/i, { timeout: 15000 })
+          .should("be.visible")
+          .click();
+
+        // Select Account: ES**********679
+        cy.wait(2000);
+        cy.contains(/Account:\s*ES\*+679/i, { timeout: 15000 })
+          .should("be.visible")
+          .click();
+
+        // Click confirm
+        cy.wait(1000);
+        cy.contains("button", /confirm/i, { timeout: 10000 })
+          .should("be.visible")
+          .and("not.be.disabled")
+          .click();
+
+        // 4. OTP Verification
+        cy.wait(2000);
+
         cy.get('input[type="text"], input[type="tel"], input[inputmode="numeric"]', {
           timeout: 15000,
         })
@@ -495,6 +490,7 @@ describe("Inespay SEPA Bank Debit tests", () => {
           .first()
           .clear()
           .type("1111");
+
         cy.contains("button", /continue/i, { timeout: 10000 })
           .should("be.visible")
           .click();
