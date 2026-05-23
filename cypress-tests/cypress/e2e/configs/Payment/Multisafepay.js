@@ -445,9 +445,11 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_payment_method",
-          setup_future_usage: "off_session",
+          status: "failed",
+          error_code: "1029",
+          error_message: "Invalid tax rate specified for item",
         },
+      },
       },
     },
     ZeroAuthConfirmPayment: {
@@ -1021,7 +1023,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "failed",
+          error_code: "1029",
+          error_message: "Invalid tax rate specified for item",
         },
       },
     }),
