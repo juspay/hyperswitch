@@ -728,7 +728,7 @@ jobs:
                 {
                   "name": "mock-payouts",
                   "payments_connectors": "",
-                  "payouts_connectors": "adyenplatform",
+                  "payouts_connectors": "adyenplatform wise",
                   "platform_connectors": "",
                   "parallel": 1,
                   "report_artifact_name": "cypress-mock-test-results-payouts",
@@ -736,7 +736,7 @@ jobs:
                 },
                 {
                   "name": "mock-payments",
-                  "payments_connectors": "redsys",
+                  "payments_connectors": "redsys zift",
                   "payouts_connectors": "",
                   "platform_connectors": "",
                   "parallel": 1,
