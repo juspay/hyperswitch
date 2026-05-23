@@ -1097,6 +1097,15 @@ jobs:
           kill "${{ env.PID }}"
           kill "${{ env.MITM_PID }}" 2>/dev/null || true
 
+      - name: Upload MITM replay logs on failure
+        if: env.RUN_TESTS == 'true' && failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.batch.server_logs_artifact }}-mitm-replay
+          path: ${{ github.workspace }}/mitm-replay.log
+          if-no-files-found: ignore
+          retention-days: 1
+
       - name: Upload server logs on failure
         if: env.RUN_TESTS == 'true' && failure()
         uses: actions/upload-artifact@v7
