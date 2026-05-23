@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-#[cfg(all(feature = "v1", feature = "olap"))]
+#[cfg(feature = "v1")]
 use api_models::enums::Connector;
 #[cfg(feature = "v2")]
 use api_models::payments::{additional_info::UpiAdditionalData, AdditionalPaymentData};
