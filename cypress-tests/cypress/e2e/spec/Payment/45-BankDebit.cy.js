@@ -88,9 +88,9 @@ describe("Bank Debit tests", () => {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
         }
-        const retrieveData = getConnectorDetails(globalState.get("connectorId"))[
-          "bank_debit_pm"
-        ]["SepaRetrieve"];
+        const retrieveData = getConnectorDetails(
+          globalState.get("connectorId")
+        )["bank_debit_pm"]["SepaRetrieve"];
         cy.retrievePaymentCallTest({ globalState, data: retrieveData });
         if (!utils.should_continue_further(retrieveData)) {
           shouldContinue = false;
@@ -217,6 +217,69 @@ describe("Bank Debit tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
         ]["Becs"];
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+    });
+  });
+
+  context("BACS Bank Debit Create and Confirm flow test", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm BACS Bank Debit -> Retrieve Payment", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent for BACS", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["PaymentIntent"]("Bacs");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm BACS Bank Debit", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["Bacs"];
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["Bacs"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
