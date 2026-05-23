@@ -1021,9 +1021,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_code: "1029",
-          error_message: "Invalid tax rate specified for item",
+          status: "requires_customer_action",
         },
       },
     }),

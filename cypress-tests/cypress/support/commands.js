@@ -3054,7 +3054,11 @@ Cypress.Commands.add(
                   response.body.capture_method === "automatic" ||
                   response.body.capture_method === "manual"
                 ) {
-                  if (response.body.status !== "failed") {
+                  if (validatedConfigs?.EXPECT_FAILED_REDIRECT) {
+                    expect(response.body.error_code).to.equal(
+                      resData.body.error_code
+                    );
+                  } else {
                     // we get many statuses here, hence this verification
                     if (
                       connectorId === "adyen" &&
@@ -3080,10 +3084,6 @@ Cypress.Commands.add(
                         response.body.next_action.redirect_to_url
                       );
                     }
-                  } else if (response.body.status === "failed") {
-                    expect(response.body.error_code).to.equal(
-                      resData.body.error_code
-                    );
                   }
                 } else {
                   throw new Error(
@@ -3096,17 +3096,17 @@ Cypress.Commands.add(
                   response.body.capture_method === "automatic" ||
                   response.body.capture_method === "manual"
                 ) {
-                  if (response.body.status !== "failed") {
+                  if (validatedConfigs?.EXPECT_FAILED_REDIRECT) {
+                    expect(response.body.error_code).to.equal(
+                      resData.body.error_code
+                    );
+                  } else {
                     expect(response.body)
                       .to.have.property("next_action")
                       .to.have.property("redirect_to_url");
                     globalState.set(
                       "nextActionUrl",
                       response.body.next_action.redirect_to_url
-                    );
-                  } else if (response.body.status === "failed") {
-                    expect(response.body.error_code).to.equal(
-                      resData.body.error_code
                     );
                   }
                 } else {
