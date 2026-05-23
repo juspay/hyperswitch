@@ -1661,8 +1661,10 @@ Cypress.Commands.add(
   (connectorType, createConnectorBody, globalState) => {
     const merchantId = globalState.get("merchantId");
     const connectorName = globalState.get("connectorId");
+    // Strip _payout suffix for API name (backend only recognizes base names like "wise", not "wise_payout")
+    const apiConnectorName = connectorName.replace(/_payout$/, "");
     createConnectorBody.connector_type = connectorType;
-    createConnectorBody.connector_name = connectorName;
+    createConnectorBody.connector_name = apiConnectorName;
     createConnectorBody.connector_type = "payout_processor";
     createConnectorBody.profile_id = globalState.get("profileId");
 
@@ -1670,9 +1672,13 @@ Cypress.Commands.add(
     // it is best to use then() to handle the response within the same block of code
     cy.readFile(globalState.get("connectorAuthFilePath")).then(
       (jsonContent) => {
+        // Normalize connector name: if it already ends with _payout, don't double-append
+        const normalizedConnectorName = connectorName.endsWith("_payout")
+          ? connectorName
+          : `${connectorName}_payout`;
         const { authDetails } = getValueByKey(
           JSON.stringify(jsonContent),
-          `${connectorName}_payout`
+          normalizedConnectorName
         );
 
         // If the connector does not have payout connector creds in creds file, set payoutsExecution to false
@@ -1708,7 +1714,8 @@ Cypress.Commands.add(
 
           cy.wrap(response).then(() => {
             if (response.status === 200) {
-              expect(globalState.get("connectorId")).to.equal(
+              // API returns base name (e.g. "wise"), but env may be "wise_payout" — compare normalized
+              expect(apiConnectorName).to.equal(
                 response.body.connector_name
               );
               globalState.set(
