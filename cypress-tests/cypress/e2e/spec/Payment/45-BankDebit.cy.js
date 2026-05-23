@@ -410,7 +410,7 @@ describe("Inespay SEPA Bank Debit tests", () => {
         cy.document().should("have.property", "readyState", "complete");
 
         // 1. Initial Page Handling — Click "CLOSE" button
-        cy.wait(2000);
+        cy.wait(30000);
         cy.contains("button", "CLOSE", { timeout: 15000 })
           .should("be.visible")
           .click();
@@ -433,9 +433,9 @@ describe("Inespay SEPA Bank Debit tests", () => {
           // Find username field by common selectors
           const userSelectors = [
             'input[type="text"]',
-            'input[name*="user" i]',
-            'input[id*="user" i]',
-            'input[placeholder*="user" i]',
+            'input[name*="user"]',
+            'input[id*="user"]',
+            'input[placeholder*="user"]',
             'input[autocomplete="username"]',
           ];
           let userInput = null;
@@ -467,8 +467,8 @@ describe("Inespay SEPA Bank Debit tests", () => {
         cy.wait(2000);
         cy.get("body", { timeout: 15000 }).then(($body) => {
           const contractSelectors = [
-            'select[name*="contract" i]',
-            'select[id*="contract" i]',
+            'select[name*="contract"]',
+            'select[id*="contract"]',
             'select',
           ];
           for (const sel of contractSelectors) {
@@ -484,8 +484,8 @@ describe("Inespay SEPA Bank Debit tests", () => {
         cy.wait(2000);
         cy.get("body", { timeout: 15000 }).then(($body) => {
           const accountSelectors = [
-            'select[name*="account" i]',
-            'select[id*="account" i]',
+            'select[name*="account"]',
+            'select[id*="account"]',
             'select',
           ];
           for (const sel of accountSelectors) {
