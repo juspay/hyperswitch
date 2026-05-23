@@ -99,7 +99,12 @@ function normalizeRequestArgs(args) {
 beforeEach(() => {
   const titlePath = Cypress.currentTest.titlePath;
   const title = titlePath.join(" > ");
-  testIdHash = djb2(title);
+  const connector = Cypress.env("CONNECTOR") || "";
+  // Mix CYPRESS_CONNECTOR into the hash so parallel workers running the
+  // same test under different connectors (CI matrix mode) get disjoint
+  // rid namespaces. Without this, two workers compute the same testIdHash
+  // → identical rids → cassette filenames collide on the shared proxy.
+  testIdHash = djb2(`${connector}:${title}`);
   stepCounter = 0;
   if (PROXY_ADMIN_URL) {
     cy.request({
@@ -111,7 +116,11 @@ beforeEach(() => {
         // Primary connector under test — used by capture to tag *every* flow
         // (including vault/auxiliary connector calls) under this connector
         // so they ship together in the same cassette tarball.
-        connector: Cypress.env("CONNECTOR") || "",
+        connector: connector,
+        // Sent so the proxy can resolve `rid prefix → test context` even
+        // for orphan late outbounds that arrive after /test/end (e.g.
+        // async vault writes in External Vault save-card flows).
+        testIdHash: testIdHash,
       },
       failOnStatusCode: false,
       timeout: 2000,
