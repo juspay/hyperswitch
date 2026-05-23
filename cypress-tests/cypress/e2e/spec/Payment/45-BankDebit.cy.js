@@ -426,12 +426,16 @@ describe("Inespay SEPA Bank Debit tests", () => {
           .click();
 
         // 3. Login Step — Enter user1 / 1234, click "ACCESS"
-        // Wait for the login form to render (Vue SPA transition)
-        cy.get('input[type="text"]:visible', { timeout: 15000 })
-          .should("be.visible")
+        // Wait for the login form to render (Vue SPA transition).
+        // The username field may not declare type="text" (plain <input> or
+        // type="email"/"username"), so select any visible input that is NOT
+        // a password field.
+        cy.get('input:not([type="password"]):visible', { timeout: 30000 })
+          .should("have.length.at.least", 1)
+          .first()
           .clear()
           .type("user1");
-        cy.get('input[type="password"]:visible', { timeout: 10000 })
+        cy.get('input[type="password"]:visible', { timeout: 15000 })
           .should("be.visible")
           .clear()
           .type("1234");
@@ -439,10 +443,11 @@ describe("Inespay SEPA Bank Debit tests", () => {
           .should("be.visible")
           .click();
 
-        // 4. Contract & Account Selection — Select "Contract: 1" and "Account: ES*********679", click "CONFIRM"
+        // 4. Contract & Account Selection — Select "Contract: 1" and
+        // "Account: ES*********679", click "CONFIRM"
         // The simulator renders these as Vue multiselects or native selects;
         // try the multiselect pattern first (same component family as step 2).
-        cy.get("body", { timeout: 15000 }).then(($body) => {
+        cy.get("body", { timeout: 30000 }).then(($body) => {
           const multiCount = $body.find(".multiselect:visible").length;
           if (multiCount >= 2) {
             // Vue multiselect path
@@ -474,10 +479,8 @@ describe("Inespay SEPA Bank Debit tests", () => {
           .click();
 
         // 5. OTP Verification — Enter 1111, click "continue"
-        cy.get('input[type="text"]:visible, input[type="tel"]:visible, input[inputmode="numeric"]:visible', {
-          timeout: 15000,
-        })
-          .should("be.visible")
+        cy.get('input:not([type="password"]):visible', { timeout: 30000 })
+          .should("have.length.at.least", 1)
           .first()
           .clear()
           .type("1111");
