@@ -326,7 +326,7 @@ export const connectorDetails = {
         billing: {
           address: {
             country: "DE",
-            first_name: "Test",
+            first_name: "venkatakarthik",
             last_name: "Account",
           },
           email: "test@example.com",
@@ -364,7 +364,7 @@ export const connectorDetails = {
         billing: {
           address: {
             country: "DE",
-            first_name: "Test",
+            first_name: "venkatakarthik",
             last_name: "Account",
           },
           email: "test@example.com",
@@ -396,7 +396,7 @@ export const connectorDetails = {
         billing: {
           address: {
             country: "DE",
-            first_name: "Test",
+            first_name: "venkatakarthik",
             last_name: "Account",
           },
           email: "test@example.com",
