@@ -350,6 +350,11 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSAutoCapture: {
+      Configs: {
+        // DeutscheBank sandbox returns mandate state as PendingApproval/Failed
+        // without mandate_id, causing framework-level assertion failure
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "sepa",
@@ -382,6 +387,11 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSAutoCapture: {
+      Configs: {
+        // DeutscheBank sandbox returns mandate state as PendingApproval/Failed
+        // without mandate_id, causing framework-level assertion failure
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "sepa",
@@ -414,6 +424,10 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: {
+      Configs: {
+        // Skipped because CIT mandate flow is skipped due to sandbox limitation
+        TRIGGER_SKIP: true,
+      },
       Request: {},
       Response: {
         status: 200,
