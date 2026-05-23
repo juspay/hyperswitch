@@ -1,26 +1,19 @@
 """
 mitmproxy replay addon.
 
-Intercepts connector requests from Hyperswitch and answers them with the
-recorded response identified by the propagated ``x-request-id`` header.
-Method and path act as tie-breakers when one request_id covers multiple
-outbound calls.
+Serves cassettes recorded by mitm_capture.py back to Hyperswitch when it
+makes outbound connector calls.
 
-  Matching key : (request_id, method, path)
-                 — connector-agnostic, so ancillary connector calls (vault,
-                 fraud, …) made during a primary-connector test resolve
-                 against cassettes filed under the primary connector's
-                 folder. The ``x-connector`` header is still used as the
-                 gate "is this a connector call I should try to replay?".
-  Duplicates   : last file wins (later recording = successful Cypress retry)
-  Reuse        : cassettes are peeked, not popped — repeated requests for
-                 the same key (Cypress retries, parallel same-connector
-                 shards) get the same recorded response.
+  Match key : ``x-request-id`` alone. Connector, host, path are ignored
+              (path can be dynamic — payment IDs, transaction IDs, etc.).
+  Fan-out   : when multiple cassettes share a rid, they're served in
+              capture order via a per-rid cursor.
+  Retries   : on /test/start, cursors are reset for every rid whose
+              testHash matches — so Cypress retries in MOCK_SERVER mode
+              replay correctly from offset 0 again.
 
-Modes:
-  permissive (default) : MISS / no-rid → request forwarded to live connector
-  strict (REPLAY_STRICT=1) : MISS / no-rid → synthetic 599 response,
-                             connector is never called.
+  Permissive (default) : MISS / unknown-rid → request goes to live connector.
+  Strict (REPLAY_STRICT=1) : MISS / unknown-rid → synthetic 599, never live.
 
 Run with:
     mitmdump -s mitm_replay.py --listen-port 8888
@@ -31,82 +24,103 @@ import glob
 import json
 import os
 import threading
-from collections import defaultdict, deque
+from collections import defaultdict
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from mitmproxy import http
 
+
+# ───── config ─────
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CAPTURE_DIR = os.environ.get("CAPTURE_DIR") or os.path.join(SCRIPT_DIR, "captures")
 ADMIN_PORT = int(os.environ.get("ADMIN_PORT", "8001"))
 STRICT_MODE = os.environ.get("REPLAY_STRICT", "").strip().lower() in (
-    "1",
-    "true",
-    "yes",
-    "on",
+    "1", "true", "yes", "on",
 )
 
 # Headers mitmproxy manages itself — don't replay them from the recording.
 _RESERVED_HEADERS = frozenset({"content-length", "transfer-encoding", "connection"})
 
-CassetteKey = tuple[str, str, str]  # (request_id, method, path)
+
+def hash_from_rid(rid: str) -> str:
+    return rid.split("-", 1)[0] if "-" in rid else rid
 
 
 # ───── cassette store ─────
 class CassetteStore:
-    """Loads cassettes from disk and dispenses them by request key."""
+    """Cassettes indexed by rid → ordered list of responses.
+
+    A per-rid cursor advances as cassettes are served. The cursor resets
+    on /test/start for that rid's testHash, so Cypress retries in
+    MOCK_SERVER mode replay deterministically from the beginning.
+    """
 
     def __init__(self, capture_dir: str):
         self._capture_dir = capture_dir
-        self._queues: dict[CassetteKey, deque] = defaultdict(deque)
-        self._connectors_seen: set[str] = set()
+        self._cassettes: dict[str, list[dict]] = defaultdict(list)
+        self._cursor: dict[str, int] = {}
         self._lock = threading.Lock()
 
     def load(self) -> None:
+        """Load all cassettes from disk into rid → [response, …]."""
         pattern = os.path.join(self._capture_dir, "**", "*.json")
+        # Two-pass: collect by rid, then sort each rid's list by sequence.
+        # File names like ``{rid}-{seq:02d}.json`` sort lexically into
+        # capture order, but we read ``sequence`` from the JSON to be
+        # robust against legacy filenames that lack the seq suffix.
+        by_rid: dict[str, list[tuple[int, dict]]] = defaultdict(list)
         skipped = 0
-
-        for fpath in sorted(glob.glob(pattern, recursive=True)):
-            with open(fpath) as f:
-                record = json.load(f)
-
-            request_id = (record.get("request_id") or "").strip()
-            if not request_id:
+        for fpath in glob.glob(pattern, recursive=True):
+            try:
+                with open(fpath) as f:
+                    record = json.load(f)
+            except (OSError, json.JSONDecodeError):
                 skipped += 1
                 continue
+            rid = (record.get("request_id") or "").strip()
+            if not rid or "response" not in record:
+                skipped += 1
+                continue
+            seq = record.get("sequence", 0)
+            by_rid[rid].append((seq, record["response"]))
 
-            key: CassetteKey = (
-                request_id,
-                record["request"]["method"],
-                record["request"]["path"],
-            )
-            # Files share a key when Cypress retried a step.  Sorted glob
-            # processes them lexically, so reassigning here keeps the last
-            # (successful) recording and discards the earlier failed one.
-            self._queues[key] = deque([record["response"]])
-            recorded_connector = record.get("connector")
-            if recorded_connector:
-                self._connectors_seen.add(recorded_connector)
+        for rid, entries in by_rid.items():
+            entries.sort(key=lambda e: e[0])
+            self._cassettes[rid] = [r for _, r in entries]
 
-        total = sum(len(q) for q in self._queues.values())
+        total = sum(len(v) for v in self._cassettes.values())
         print(f"[replay] loaded {total} cassettes from {self._capture_dir}/")
-        print(f"[replay] connectors (tag in cassette files): {sorted(self._connectors_seen)}")
+        print(f"[replay] indexed {len(self._cassettes)} unique rids")
         if skipped:
-            print(f"[replay] skipped {skipped} cassettes with no request_id")
+            print(f"[replay] skipped {skipped} cassettes (malformed or no rid)")
 
-    def get(self, key: CassetteKey) -> dict | None:
-        """Peek at the cassette for ``key`` without consuming it.
-
-        Repeated calls for the same key return the same recording, so
-        Cypress retries and same-connector parallel shards both work.
-        """
+    def serve(self, rid: str) -> dict | None:
+        """Pop the next cassette for ``rid`` (FIFO via per-rid cursor)."""
         with self._lock:
-            queue = self._queues.get(key)
-            return queue[0] if queue else None
+            cassettes = self._cassettes.get(rid)
+            if not cassettes:
+                return None
+            cursor = self._cursor.get(rid, 0)
+            if cursor >= len(cassettes):
+                return None
+            self._cursor[rid] = cursor + 1
+            return cassettes[cursor]
+
+    def reset_for_hash(self, test_hash: str) -> int:
+        """Rewind cursors for every rid whose prefix matches this hash."""
+        prefix = f"{test_hash}-"
+        with self._lock:
+            keys = [r for r in self._cursor if r.startswith(prefix)]
+            for k in keys:
+                del self._cursor[k]
+            return len(keys)
+
+
+_store = CassetteStore(CAPTURE_DIR)
 
 
 # ───── response materialisation ─────
-def _decode_body(body, encoding: str | None) -> bytes:
+def _decode_body(body, encoding):
     if encoding == "json":
         return json.dumps(body, separators=(",", ":")).encode("utf-8")
     if encoding == "base64":
@@ -116,8 +130,7 @@ def _decode_body(body, encoding: str | None) -> bytes:
 
 def _build_response(recorded: dict) -> http.Response:
     headers = {
-        k: v
-        for k, v in recorded.get("headers", {}).items()
+        k: v for k, v in recorded.get("headers", {}).items()
         if k.lower() not in _RESERVED_HEADERS
     }
     headers["X-Cassette"] = "HIT"
@@ -128,23 +141,26 @@ def _build_response(recorded: dict) -> http.Response:
     )
 
 
-def _strict_block_response(reason: str, tag: str) -> http.Response:
-    """Synthetic response returned in strict mode when no cassette matches."""
-    body = json.dumps(
-        {"error": "mitm replay strict mode: connector call blocked", "reason": reason}
-    ).encode("utf-8")
+def _strict_block(reason: str, tag: str) -> http.Response:
+    body = json.dumps({
+        "error": "mitm replay strict mode: connector call blocked",
+        "reason": reason,
+    }).encode("utf-8")
     return http.Response.make(
-        599,
-        body,
-        {"Content-Type": "application/json", "X-Cassette": tag},
+        599, body, {"Content-Type": "application/json", "X-Cassette": tag},
     )
 
 
-# ───── admin server (logging-only) ─────
+# ───── admin server ─────
 class AdminHandler(BaseHTTPRequestHandler):
-    """Acknowledges Cypress test-lifecycle pings so the same hook script
-    works in capture and replay mode.  Replay matches on request_id alone,
-    so this server is purely for log breadcrumbs."""
+    """Receives Cypress /test/start to reset cursors for that test's
+    rids (enables clean Cypress retry replay). /test/end is a no-op."""
+
+    def _send(self, code, payload):
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(payload).encode())
 
     def do_POST(self):
         length = int(self.headers.get("Content-Length", 0))
@@ -154,29 +170,27 @@ class AdminHandler(BaseHTTPRequestHandler):
             body = {}
 
         if self.path == "/test/start":
-            title = " > ".join(body.get("titlePath") or []) or body.get("test", "unknown")
-            print(f"[replay] ▶ {title}")
+            title = " > ".join(body.get("titlePath") or []) or "unknown"
+            test_id_hash = (body.get("testIdHash") or "").strip()
+            connector = (body.get("connector") or "").strip()
+            tag = f"[{connector}] " if connector else ""
+            reset = _store.reset_for_hash(test_id_hash) if test_id_hash else 0
+            suffix = f" (reset {reset} rid cursors)" if reset else ""
+            print(f"[replay] ▶ {tag}{title}{suffix}")
 
         self._send(200, {"ok": True})
 
-    def _send(self, code: int, payload: dict) -> None:
-        self.send_response(code)
-        self.send_header("Content-Type", "application/json")
-        self.end_headers()
-        self.wfile.write(json.dumps(payload).encode())
-
-    def log_message(self, *_args, **_kwargs):
-        return  # silence per-request access logs
+    def log_message(self, *_a, **_kw):
+        return
 
 
-def _start_admin_server() -> None:
+def _start_admin_server():
     server = HTTPServer(("127.0.0.1", ADMIN_PORT), AdminHandler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     print(f"[replay] admin server http://127.0.0.1:{ADMIN_PORT}")
 
 
 # ───── boot ─────
-_store = CassetteStore(CAPTURE_DIR)
 _store.load()
 _start_admin_server()
 print(f"[replay] mode {'STRICT (no live fallthrough)' if STRICT_MODE else 'permissive'}")
@@ -184,41 +198,37 @@ print(f"[replay] mode {'STRICT (no live fallthrough)' if STRICT_MODE else 'permi
 
 # ───── mitmproxy hook ─────
 def request(flow: http.HTTPFlow) -> None:
-    connector = flow.request.headers.get("x-connector", "").strip()
-    if not connector:
-        return  # not a Hyperswitch connector call — pass through
+    # x-connector is the only gate: "is this a Hyperswitch outbound
+    # to a connector?" If not, pass through untouched.
+    if not flow.request.headers.get("x-connector", "").strip():
+        return
 
-    request_id = flow.request.headers.get("x-request-id", "").strip()
+    rid = flow.request.headers.get("x-request-id", "").strip()
     method = flow.request.method
     path = flow.request.path.split("?", 1)[0]
 
-    if not request_id:
+    if not rid:
         if STRICT_MODE:
-            flow.response = _strict_block_response(
-                f"missing x-request-id for {method} {path}",
-                tag="STRICT-no-request-id",
+            flow.response = _strict_block(
+                f"missing x-request-id for {method} {path}", "STRICT-no-rid",
             )
-            print(f"[replay] BLOCK no-rid [{connector}] {method} {path}")
-            return
-        print(f"[replay] LIVE no-rid [{connector}] {method} {path}")
-        flow.request.headers["X-Cassette"] = "LIVE-no-request-id"
+            print(f"[replay] BLOCK no-rid  {method} {path}")
+        else:
+            flow.request.headers["X-Cassette"] = "LIVE-no-rid"
+            print(f"[replay] LIVE  no-rid  {method} {path}")
         return
 
-    recorded = _store.get((request_id, method, path))
+    recorded = _store.serve(rid)
     if recorded is None:
         if STRICT_MODE:
-            flow.response = _strict_block_response(
-                f"no cassette for [{connector}] {method} {path} (rid={request_id})",
-                tag="STRICT-no-cassette",
+            flow.response = _strict_block(
+                f"no cassette for {method} {path} (rid={rid})", "STRICT-miss",
             )
-            print(f"[replay] BLOCK miss  [{connector}] {method} {path} (rid={request_id})")
-            return
-        print(f"[replay] MISS       [{connector}] {method} {path} (rid={request_id})")
-        flow.request.headers["X-Cassette"] = "LIVE-no-cassette"
+            print(f"[replay] BLOCK miss    {method} {path} rid={rid}")
+        else:
+            flow.request.headers["X-Cassette"] = "LIVE-miss"
+            print(f"[replay] MISS          {method} {path} rid={rid}")
         return
 
     flow.response = _build_response(recorded)
-    print(
-        f"[replay] HIT        [{connector}] {method} {path} "
-        f"(rid={request_id}) → {recorded['status']}"
-    )
+    print(f"[replay] HIT           {method} {path} rid={rid} → {recorded['status']}")

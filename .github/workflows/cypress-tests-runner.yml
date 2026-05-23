@@ -949,14 +949,15 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         env:
-          # Use the runner's system TLS trust store; pypi.org fetches fail with
-          # `invalid peer certificate: UnknownIssuer` under uv's bundled webpki roots.
-          UV_NATIVE_TLS: "true"
+          # Use the runner's OS trust store instead of uv's bundled webpki roots.
+          # Required when the runner sits behind a TLS-intercepting proxy whose
+          # internal CA is installed system-wide but not in uv's static bundle.
+          UV_SYSTEM_CERTS: "true"
         run: |
           # Create an isolated venv for mitmproxy so we don't touch the
           # runner's system Python (PEP 668 / externally-managed-environment).
-          uv venv --native-tls "${{ github.workspace }}/.venv-mitm"
-          uv pip install --native-tls --python "${{ github.workspace }}/.venv-mitm/bin/python" \
+          uv venv --system-certs "${{ github.workspace }}/.venv-mitm"
+          uv pip install --system-certs --python "${{ github.workspace }}/.venv-mitm/bin/python" \
             -r mitm-proxy/requirements.txt
           # Expose the venv to subsequent steps (mitmdump cert gen, start_replay.sh).
           echo "${{ github.workspace }}/.venv-mitm/bin" >> "$GITHUB_PATH"
