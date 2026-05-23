@@ -410,14 +410,12 @@ describe("Inespay SEPA Bank Debit tests", () => {
         cy.document().should("have.property", "readyState", "complete");
 
         // 1. Initial Page Handling — Click "CLOSE" button
-        cy.wait(30000);
         cy.contains("button", "CLOSE", { timeout: 15000 })
           .should("be.visible")
           .click();
 
         // 2. Bank Selection — Click visible Vue multiselect wrapper, select "SIMULADOR", click "CONTINUE"
-        cy.wait(2000);
-        cy.get(".multiselect")
+        cy.get(".multiselect", { timeout: 10000 })
           .should("be.visible")
           .click();
         cy.contains(".multiselect__option", "SIMULADOR", { timeout: 10000 })
@@ -427,97 +425,56 @@ describe("Inespay SEPA Bank Debit tests", () => {
           .should("be.visible")
           .click();
 
-        // 3. Login Step — Enter User1 / 1234, click "ACCESS"
-        cy.wait(2000);
-        cy.get("body", { timeout: 15000 }).then(($body) => {
-          // Find username field by common selectors
-          const userSelectors = [
-            'input[type="text"]',
-            'input[name*="user"]',
-            'input[id*="user"]',
-            'input[placeholder*="user"]',
-            'input[autocomplete="username"]',
-          ];
-          let userInput = null;
-          for (const sel of userSelectors) {
-            const $el = $body.find(sel);
-            if ($el.length > 0 && $el.is(":visible")) {
-              userInput = $el.first();
-              break;
-            }
-          }
-          if (userInput) {
-            cy.wrap(userInput).clear().type("user1");
-          } else {
-            // Fallback: type into the first visible text input
-            cy.get('input[type="text"]:visible').first().clear().type("user1");
-          }
-        });
-
-        cy.get('input[type="password"]', { timeout: 10000 })
+        // 3. Login Step — Enter user1 / 1234, click "ACCESS"
+        // Wait for the login form to render (Vue SPA transition)
+        cy.get('input[type="text"]:visible', { timeout: 15000 })
           .should("be.visible")
-          .first()
+          .clear()
+          .type("user1");
+        cy.get('input[type="password"]:visible', { timeout: 10000 })
+          .should("be.visible")
           .clear()
           .type("1234");
         cy.contains("button", "ACCESS", { timeout: 10000 })
           .should("be.visible")
           .click();
 
-        // 4. Contract Selection — Select "Contract 1"
-        cy.wait(2000);
+        // 4. Contract & Account Selection — Select "Contract: 1" and "Account: ES*********679", click "CONFIRM"
+        // The simulator renders these as Vue multiselects or native selects;
+        // try the multiselect pattern first (same component family as step 2).
         cy.get("body", { timeout: 15000 }).then(($body) => {
-          const contractSelectors = [
-            'select[name*="contract"]',
-            'select[id*="contract"]',
-            'select',
-          ];
-          for (const sel of contractSelectors) {
-            const $el = $body.find(sel);
-            if ($el.length > 0 && $el.is(":visible")) {
-              cy.wrap($el.first()).select("Contract: 1");
-              break;
-            }
+          const multiCount = $body.find(".multiselect:visible").length;
+          if (multiCount >= 2) {
+            // Vue multiselect path
+            cy.get(".multiselect:visible").eq(0).click();
+            cy.contains(".multiselect__option", "Contract: 1", {
+              timeout: 10000,
+            })
+              .should("be.visible")
+              .click();
+
+            cy.get(".multiselect:visible").eq(1).click();
+            cy.contains(".multiselect__option", "679", { timeout: 10000 })
+              .should("be.visible")
+              .click();
+          } else {
+            // Native <select> fallback
+            cy.get("select:visible", { timeout: 10000 })
+              .eq(0)
+              .select("Contract: 1");
+            cy.get("select:visible", { timeout: 10000 })
+              .eq(1)
+              .select("Account: ES*********679");
           }
         });
 
-        // 5. Account Selection — Select "ES******************0674", click "CONFIRM"
-        cy.wait(2000);
-        cy.get("body", { timeout: 15000 }).then(($body) => {
-          const accountSelectors = [
-            'select[name*="account"]',
-            'select[id*="account"]',
-            'select',
-          ];
-          for (const sel of accountSelectors) {
-            const $el = $body.find(sel);
-            if ($el.length > 0 && $el.is(":visible")) {
-              // Try selecting by exact text or partial match
-              const options = $el.first().find("option");
-              let found = false;
-              options.each((_, opt) => {
-                if (
-                  !found &&
-                  (opt.text.includes("ES") || opt.text.includes("679"))
-                ) {
-                  cy.wrap($el.first()).select(opt.text);
-                  found = true;
-                  return false;
-                }
-              });
-              if (!found && options.length > 1) {
-                cy.wrap($el.first()).select(1);
-              }
-              break;
-            }
-          }
-        });
         cy.contains("button", "CONFIRM", { timeout: 10000 })
           .should("be.visible")
+          .and("not.be.disabled")
           .click();
 
-        // 6. OTP Confirmation — Enter 1111, click "CONFIRM"
-        cy.wait(2000);
-        cy.get('input[type="text"], input[type="tel"], input[inputmode="numeric"]', {
+        // 5. OTP Verification — Enter 1111, click "continue"
+        cy.get('input[type="text"]:visible, input[type="tel"]:visible, input[inputmode="numeric"]:visible', {
           timeout: 15000,
         })
           .should("be.visible")
@@ -528,7 +485,7 @@ describe("Inespay SEPA Bank Debit tests", () => {
           .should("be.visible")
           .click();
 
-        // 7. Final Payment Completion — Wait up to 30 seconds for success
+        // 6. Final Payment Completion — Wait up to 30 seconds for success
         cy.contains(/success|completed|confirmado|realizado|succeeded/i, {
           timeout: 30000,
         });
