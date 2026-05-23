@@ -209,7 +209,7 @@ describe("Wallet tests", () => {
   });
 
   context("Mifinity Create and Confirm flow test", () => {
-    const shouldContinue = true;
+    let shouldContinue = true;
 
     before("seed global state", function () {
       let skip = false;
@@ -243,8 +243,6 @@ describe("Wallet tests", () => {
     });
 
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Wallet Redirection -> Retrieve Payment", () => {
-      let shouldContinue = true;
-
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "wallet_pm"
