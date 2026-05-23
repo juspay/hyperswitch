@@ -7,6 +7,7 @@ import getConnectorDetails, {
 import * as utils from "../../configs/Payment/Utils";
 
 let globalState;
+let shouldContinue = true;
 
 describe("PayLater tests", () => {
   before("seed global state", function () {
@@ -36,10 +37,14 @@ describe("PayLater tests", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
+  beforeEach(function () {
+    if (!shouldContinue) {
+      this.skip();
+    }
+  });
+
   context("Klarna PayLater - Auto Capture flow test", () => {
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection", () => {
-      let shouldContinue = true;
-
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
@@ -102,8 +107,6 @@ describe("PayLater tests", () => {
 
   context("Klarna PayLater - Manual Capture flow test", () => {
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection", () => {
-      let shouldContinue = true;
-
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
@@ -166,8 +169,6 @@ describe("PayLater tests", () => {
 
   context("MultiSafepay Klarna PayLater flow test", () => {
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection -> Sync Payment", () => {
-      let shouldContinue = true;
-
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"

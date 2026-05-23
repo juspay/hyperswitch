@@ -1014,7 +1014,7 @@ export const connectorDetails = {
             product_name: "Test Product",
             quantity: 1,
             amount: 6000,
-            tax_rate: 0,
+            tax_rate: 2100,
           },
         ],
       },

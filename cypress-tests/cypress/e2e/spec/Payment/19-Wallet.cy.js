@@ -553,7 +553,7 @@ describe("MultiSafepay Wallet tests", () => {
   // Create PI -> List PMs -> Confirm -> Handle Redirection -> Retrieve.
   function walletFlowContext(methodLabel, configKey, paymentIntentArg) {
     context(`MultiSafepay ${methodLabel} Create and Confirm flow test`, () => {
-      const shouldContinue = true;
+      let shouldContinue = true;
 
       beforeEach(function () {
         if (!shouldContinue) {
@@ -562,8 +562,6 @@ describe("MultiSafepay Wallet tests", () => {
       });
 
       it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Wallet Redirection -> Retrieve Payment", () => {
-        let shouldContinue = true;
-
         cy.step("Create Payment Intent", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "wallet_pm"
