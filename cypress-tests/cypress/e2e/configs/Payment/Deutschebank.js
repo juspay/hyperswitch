@@ -1,4 +1,8 @@
-import { customerAcceptance, singleUseMandateData, multiUseMandateData } from "./Commons";
+import {
+  customerAcceptance,
+  singleUseMandateData,
+  multiUseMandateData,
+} from "./Commons";
 import { getIframeRedirectionConfig } from "./Modifiers";
 
 const successful3DSCardDetails = {
