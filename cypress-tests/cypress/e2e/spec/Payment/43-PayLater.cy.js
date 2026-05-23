@@ -64,7 +64,7 @@ describe("PayLater tests", () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.step("Confirm Payment", () => {
+      cy.step("Confirm PayLater Payment", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Confirm Payment");
           return;
@@ -128,7 +128,7 @@ describe("PayLater tests", () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.step("Confirm Payment", () => {
+      cy.step("Confirm PayLater Payment", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Confirm Payment");
           return;
@@ -192,7 +192,7 @@ describe("PayLater tests", () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.step("Confirm Payment", () => {
+      cy.step("Confirm PayLater Payment", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Confirm Payment");
           return;

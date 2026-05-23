@@ -93,7 +93,7 @@ describe("Card - Use Billing As Payment Method Billing", () => {
   context(
     "Disable use_billing_as_payment_method_billing and create payment",
     () => {
-      const shouldContinue = true;
+      let shouldContinue = true;
 
       beforeEach(function () {
         if (!shouldContinue) {

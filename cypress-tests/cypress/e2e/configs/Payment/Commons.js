@@ -638,7 +638,7 @@ export const payment_methods_enabled = [
       },
       {
         payment_method_type: "pay_safe_card",
-        payment_experience: null,
+        payment_experience: "redirect_to_url",
         card_networks: null,
         accepted_currencies: null,
         accepted_countries: null,

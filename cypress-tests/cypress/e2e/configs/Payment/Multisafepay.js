@@ -1009,13 +1009,19 @@ export const connectorDetails = {
             last_name: "Doe",
           },
         },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+            tax_rate: 0,
+          },
+        ],
       },
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_code: "1029",
-          error_message: "Invalid tax rate specified for item",
+          status: "requires_customer_action",
         },
       },
     }),
@@ -1068,7 +1074,7 @@ export const connectorDetails = {
       },
     }),
 
-    PaypalRedirect: getCustomExchange({
+    PayPal: getCustomExchange({
       Request: {
         payment_method: "wallet",
         payment_method_type: "paypal",

@@ -297,7 +297,7 @@ describe("Core flows", () => {
     });
 
     it("Payment method collect link create and render", () => {
-      const shouldContinue = true;
+      let shouldContinue = true;
 
       cy.step("Create merchant account", () => {
         cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
@@ -350,7 +350,7 @@ describe("Core flows", () => {
     });
 
     it("Payment method collect link render with invalid id", () => {
-      const shouldContinue = true;
+      let shouldContinue = true;
 
       cy.step("Create merchant account", () => {
         cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
