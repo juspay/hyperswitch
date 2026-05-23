@@ -88,7 +88,6 @@ build_v2 redis_interface_backend="redis-rs" *FLAGS:
     cargo build --package router --bin router --no-default-features --features "${FEATURES}" {{ FLAGS }}
     set +x
 
-
 # redis_interface_backend: "redis-rs" (default) or "fred"
 run_v2 redis_interface_backend="redis-rs":
     #! /usr/bin/env bash
@@ -202,16 +201,16 @@ resultant_dir := source_directory() / 'final-migrations'
 [private]
 prefix_and_copy_migrations dir_1 dir_2 prefix resultant_dir:
     #! /usr/bin/env bash
-    mkdir -p {{resultant_dir}}
-    cp -r {{dir_1}}/* {{resultant_dir}}/ > /dev/null 2>&1
+    mkdir -p {{ resultant_dir }}
+    cp -r {{ dir_1 }}/* {{ resultant_dir }}/ > /dev/null 2>&1
 
-    # Prefix v2 migrations with {{prefix}}
+    # Prefix v2 migrations with {{ prefix }}
     sh -c '
-    for dir in "{{dir_2}}"/*; do
+    for dir in "{{ dir_2 }}"/*; do
         if [ -d "${dir}" ]; then
             base_name=$(basename "${dir}")
-            new_name="{{prefix}}${base_name}"
-            cp -r "${dir}" "{{resultant_dir}}/${new_name}"
+            new_name="{{ prefix }}${base_name}"
+            cp -r "${dir}" "{{ resultant_dir }}/${new_name}"
         fi
     done
     '
