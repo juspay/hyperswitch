@@ -697,7 +697,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "ACH Verification Declined: Routing number formatted correctly, but not found during lookup., detailed_error_information: , avs_message: ",
+          error_message:
+            "ACH Verification Declined: Routing number formatted correctly, but not found during lookup., detailed_error_information: , avs_message: ",
         },
       },
     },
