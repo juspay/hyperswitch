@@ -326,6 +326,8 @@ export const connectorDetails = {
         billing: {
           address: {
             country: "DE",
+            first_name: "Test",
+            last_name: "Account",
           },
           email: "test@example.com",
         },
@@ -362,12 +364,15 @@ export const connectorDetails = {
         billing: {
           address: {
             country: "DE",
+            first_name: "Test",
+            last_name: "Account",
           },
           email: "test@example.com",
         },
         currency: "EUR",
         mandate_data: singleUseMandateData,
         setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -391,12 +396,15 @@ export const connectorDetails = {
         billing: {
           address: {
             country: "DE",
+            first_name: "Test",
+            last_name: "Account",
           },
           email: "test@example.com",
         },
         currency: "EUR",
         mandate_data: multiUseMandateData,
         setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
