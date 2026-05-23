@@ -347,9 +347,6 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "sepa",
@@ -379,9 +376,6 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "sepa",
@@ -411,9 +405,6 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {},
       Response: {
         status: 200,
