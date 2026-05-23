@@ -447,10 +447,10 @@ describe("Inespay SEPA Bank Debit tests", () => {
             }
           }
           if (userInput) {
-            cy.wrap(userInput).clear().type("User1");
+            cy.wrap(userInput).clear().type("user1");
           } else {
             // Fallback: type into the first visible text input
-            cy.get('input[type="text"]:visible').first().clear().type("User1");
+            cy.get('input[type="text"]:visible').first().clear().type("user1");
           }
         });
 
@@ -474,7 +474,7 @@ describe("Inespay SEPA Bank Debit tests", () => {
           for (const sel of contractSelectors) {
             const $el = $body.find(sel);
             if ($el.length > 0 && $el.is(":visible")) {
-              cy.wrap($el.first()).select("Contract 1");
+              cy.wrap($el.first()).select("Contract: 1");
               break;
             }
           }
@@ -497,7 +497,7 @@ describe("Inespay SEPA Bank Debit tests", () => {
               options.each((_, opt) => {
                 if (
                   !found &&
-                  (opt.text.includes("ES") || opt.text.includes("0674"))
+                  (opt.text.includes("ES") || opt.text.includes("679"))
                 ) {
                   cy.wrap($el.first()).select(opt.text);
                   found = true;
@@ -524,7 +524,7 @@ describe("Inespay SEPA Bank Debit tests", () => {
           .first()
           .clear()
           .type("1111");
-        cy.contains("button", "CONFIRM", { timeout: 10000 })
+        cy.contains("button", /continue/i, { timeout: 10000 })
           .should("be.visible")
           .click();
 
