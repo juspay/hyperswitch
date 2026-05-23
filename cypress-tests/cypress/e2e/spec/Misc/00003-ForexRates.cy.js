@@ -29,20 +29,13 @@ describe("Forex Rates and Currency Conversion", () => {
           "Skipping forex tests — localhost detected, forex endpoints not available locally"
         );
       }
-      // Check if merchant account and API key already exist
-      if (
-        !skip &&
-        (!globalState.get("merchantId") || !globalState.get("apiKey"))
-      ) {
-        // Create merchant account using admin API key
+      if (!skip) {
         return cy
           .merchantCreateCallTest(fixtures.merchantCreateBody, globalState)
           .then(() => {
-            // Create merchant API key for forex calls
             return cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
           })
           .then(() => {
-            // Create customer
             return cy.createCustomerCallTest(
               fixtures.customerCreateBody,
               globalState
