@@ -452,21 +452,36 @@ describe("Inespay SEPA Bank Debit tests", () => {
           const confirmBtn = $body.find("button").filter(function () {
             return /confirm/i.test(Cypress.$(this).text());
           });
-          if (confirmBtn.length > 0 && confirmBtn.is(":visible")) {
-            cy.wrap(confirmBtn).click();
+          if (
+            confirmBtn.length > 0 &&
+            confirmBtn.is(":visible") &&
+            !confirmBtn.is(":disabled")
+          ) {
+            cy.wrap(confirmBtn).should("not.be.disabled").click();
           } else {
-            // Select contract
+            // Open Contract selection dropdown
+            cy.contains(/Contract selection/i, { timeout: 15000 })
+              .should("be.visible")
+              .click();
+
+            // Select Contract: 1 from the opened dropdown
             cy.contains(/Contract:\s*1/i, { timeout: 15000 })
               .should("be.visible")
               .click();
 
-            // Select account
-            cy.contains(/Account:\s*ES\*+679/i, { timeout: 15000 })
-              .should("be.visible")
-              .click();
+            // Optionally select account if it appears
+            cy.get("body").then(($body) => {
+              const accountEl = $body.find("*").filter(function () {
+                return /Account:\s*ES\*+679/i.test(Cypress.$(this).text());
+              });
+              if (accountEl.length > 0 && accountEl.is(":visible")) {
+                cy.wrap(accountEl).click();
+              }
+            });
 
             cy.contains("button", /confirm/i, { timeout: 10000 })
               .should("be.visible")
+              .and("not.be.disabled")
               .click();
           }
         });
