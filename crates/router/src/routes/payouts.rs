@@ -77,6 +77,7 @@ pub async fn payouts_retrieve(
         payout_id: path.into_inner(),
         force_sync: query_params.force_sync.to_owned(),
         merchant_id: query_params.merchant_id.to_owned(),
+        expand_attempts: query_params.expand_attempts.to_owned(),
     };
     let flow = Flow::PayoutsRetrieve;
 
