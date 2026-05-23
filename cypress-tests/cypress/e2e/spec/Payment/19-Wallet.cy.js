@@ -209,7 +209,7 @@ describe("Wallet tests", () => {
   });
 
   context("Mifinity Create and Confirm flow test", () => {
-    let shouldContinue = true;
+    const shouldContinue = true;
 
     before("seed global state", function () {
       let skip = false;
@@ -553,7 +553,7 @@ describe("MultiSafepay Wallet tests", () => {
   // Create PI -> List PMs -> Confirm -> Handle Redirection -> Retrieve.
   function walletFlowContext(methodLabel, configKey, paymentIntentArg) {
     context(`MultiSafepay ${methodLabel} Create and Confirm flow test`, () => {
-      let shouldContinue = true;
+      const shouldContinue = true;
 
       beforeEach(function () {
         if (!shouldContinue) {
