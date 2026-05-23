@@ -76,7 +76,18 @@ if [[ -t 1 ]]; then
   echo ""
 fi
 
+# connection_strategy=lazy: never open an upstream connection on CONNECT.
+#   With the default (eager), mitmproxy dials the real connector host the
+#   instant the tunnel opens — to clone its TLS cert — before our replay
+#   hook runs. In CI that host resolves but egress is blocked, so the dial
+#   hangs until Hyperswitch's 30s client timeout fires → 502, cassette never
+#   served. lazy defers the dial so HIT/strict-MISS are served immediately;
+#   a permissive live-MISS still connects just-in-time.
+# upstream_cert=false: generate the client-facing cert from the SNI instead
+#   of fetching the real one, so replay never touches the network for certs.
 exec uv run --with-requirements "${SCRIPT_DIR}/requirements.txt" \
   mitmdump \
   -s "${SCRIPT_DIR}/mitm_replay.py" \
-  --listen-port "${PROXY_PORT}"
+  --listen-port "${PROXY_PORT}" \
+  --set connection_strategy=lazy \
+  --set upstream_cert=false
