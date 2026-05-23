@@ -15,7 +15,8 @@ const connectorDetails = {
 };
 
 export function getConnectorDetails(connectorId) {
-  const x = mergeDetails(connectorId);
+  const normalizedId = connectorId.replace(/_payout$/, "");
+  const x = mergeDetails(normalizedId);
   return x;
 }
 
