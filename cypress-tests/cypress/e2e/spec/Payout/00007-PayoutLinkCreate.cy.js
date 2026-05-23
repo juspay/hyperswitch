@@ -57,7 +57,7 @@ describe("Payout Link", () => {
     it("create-payout-with-link-test", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "payout_link_pm"
-      ]["PayoutLinkBasic"];
+      ]["PayoutLinkBase"];
       cy.createPayoutWithLinkTest(
         fixtures.createPayoutLinkBody,
         data,
@@ -157,10 +157,18 @@ describe("Payout Link", () => {
     it("create-payout-link-with-theme-test", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "payout_link_pm"
-      ]["PayoutLinkWithTheme"];
+      ]["PayoutLinkBase"];
+      const reqData = {
+        ...data.Request,
+        description: "Test with custom theme",
+        payout_link_config: {
+          ...data.Request.payout_link_config,
+          theme: "#FF6B35",
+        },
+      };
       cy.createPayoutWithLinkTest(
         fixtures.createPayoutLinkBody,
-        data,
+        { ...data, Request: reqData },
         globalState
       );
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
@@ -169,10 +177,20 @@ describe("Payout Link", () => {
     it("create-payout-link-with-logo-test", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "payout_link_pm"
-      ]["PayoutLinkWithLogo"];
+      ]["PayoutLinkBase"];
+      const reqData = {
+        ...data.Request,
+        currency: "EUR",
+        description: "Test with merchant logo",
+        payout_link_config: {
+          ...data.Request.payout_link_config,
+          logo: "https://example.com/logo.png",
+          merchant_name: "Test Merchant Inc",
+        },
+      };
       cy.createPayoutWithLinkTest(
         fixtures.createPayoutLinkBody,
-        data,
+        { ...data, Request: reqData },
         globalState
       );
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
@@ -181,10 +199,19 @@ describe("Payout Link", () => {
     it("create-payout-link-with-accordion-layout-test", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "payout_link_pm"
-      ]["PayoutLinkWithSdkLayout"];
+      ]["PayoutLinkBase"];
+      const reqData = {
+        ...data.Request,
+        currency: "GBP",
+        description: "Test with accordion layout",
+        payout_link_config: {
+          ...data.Request.payout_link_config,
+          sdk_layout: "accordion",
+        },
+      };
       cy.createPayoutWithLinkTest(
         fixtures.createPayoutLinkBody,
-        data,
+        { ...data, Request: reqData },
         globalState
       );
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
@@ -193,10 +220,19 @@ describe("Payout Link", () => {
     it("create-payout-link-with-tabs-layout-test", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "payout_link_pm"
-      ]["PayoutLinkTabsLayout"];
+      ]["PayoutLinkBase"];
+      const reqData = {
+        ...data.Request,
+        currency: "EUR",
+        description: "Test with tabs layout",
+        payout_link_config: {
+          ...data.Request.payout_link_config,
+          sdk_layout: "tabs",
+        },
+      };
       cy.createPayoutWithLinkTest(
         fixtures.createPayoutLinkBody,
-        data,
+        { ...data, Request: reqData },
         globalState
       );
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
@@ -205,10 +241,18 @@ describe("Payout Link", () => {
     it("create-payout-link-with-custom-id-test", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "payout_link_pm"
-      ]["PayoutLinkCustomId"];
+      ]["PayoutLinkBase"];
+      const reqData = {
+        ...data.Request,
+        description: "Test custom payout link id",
+        payout_link_config: {
+          ...data.Request.payout_link_config,
+          payout_link_id: "custom_payout_link_123",
+        },
+      };
       cy.createPayoutWithLinkTest(
         fixtures.createPayoutLinkBody,
-        data,
+        { ...data, Request: reqData },
         globalState
       );
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
@@ -227,7 +271,7 @@ describe("Payout Link", () => {
     it("create-payout-link-for-page-render-test", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "payout_link_pm"
-      ]["PayoutLinkBasic"];
+      ]["PayoutLinkBase"];
       cy.createPayoutWithLinkTest(
         fixtures.createPayoutLinkBody,
         data,
@@ -319,7 +363,7 @@ describe("Payout Link", () => {
     it("create-payout-link-using-profile-config-test", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "payout_link_pm"
-      ]["PayoutLinkProfileConfig"];
+      ]["PayoutLinkBase"];
       cy.createPayoutWithLinkTest(
         fixtures.createPayoutLinkBody,
         data,
@@ -357,20 +401,31 @@ describe("Payout Link", () => {
     it("create-payout-link-for-card-payment-test", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "payout_link_pm"
-      ]["PayoutLinkCardPayment"];
+      ]["PayoutLinkBase"];
+      const reqData = {
+        ...data.Request,
+        description: "Test Payout Link Card Payment",
+        payout_link_config: {
+          ...data.Request.payout_link_config,
+          enabled_payment_methods: ["card"],
+        },
+      };
       cy.createPayoutWithLinkTest(
         fixtures.createPayoutLinkBody,
-        data,
+        { ...data, Request: reqData },
         globalState
       );
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Visit payout page and submit card details", () => {
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "payout_link_pm"
-      ]["PayoutLinkCardPayment"];
-      cy.handlePayoutLinkCardRedirection(globalState, data.CardData, "success");
+      const cardData = {
+        card_number: "4242424242424242",
+        card_exp_month: "12",
+        card_exp_year: "35",
+        card_cvc: "123",
+      };
+      cy.handlePayoutLinkCardRedirection(globalState, cardData, "success");
     });
 
     it("retrieve-payout-after-card-submission-test", () => {
@@ -387,35 +442,45 @@ describe("Payout Link", () => {
       }
     });
 
-    beforeEach(function () {
-      if (
-        Cypress.browser.isHeadless &&
-        this.currentTest.title.startsWith("Visit payout page")
-      ) {
-        cy.log(
-          "Skipping payout link card UI test in headless mode - SDK requires headed browser"
-        );
-        this.skip();
-      }
-    });
-
     it("create-payout-link-for-invalid-card-test", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "payout_link_pm"
-      ]["PayoutLinkInvalidCard"];
+      ]["PayoutLinkBase"];
+      const reqData = {
+        ...data.Request,
+        description: "Test Payout Link Invalid Card",
+        payout_link_config: {
+          ...data.Request.payout_link_config,
+          enabled_payment_methods: ["card"],
+        },
+      };
       cy.createPayoutWithLinkTest(
         fixtures.createPayoutLinkBody,
-        data,
+        { ...data, Request: reqData },
         globalState
       );
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    it("Visit payout page with invalid card and verify error", () => {
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "payout_link_pm"
-      ]["PayoutLinkInvalidCard"];
-      cy.handlePayoutLinkCardRedirection(globalState, data.CardData, "error");
+    it("update-payout-with-invalid-card-test", () => {
+      const cardData = {
+        card_number: "4000000000000002",
+        card_exp_month: "12",
+        card_exp_year: "35",
+        card_cvc: "123",
+      };
+      const errorData = {
+        Response: {
+          status: 400,
+          body: {},
+        },
+      };
+      cy.updatePayoutCallTest(
+        { payout_method_data: { card: cardData } },
+        errorData,
+        false,
+        globalState
+      );
     });
 
     it("retrieve-payout-after-invalid-card-test", () => {
@@ -425,20 +490,42 @@ describe("Payout Link", () => {
     it("create-payout-link-for-expired-card-test", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "payout_link_pm"
-      ]["PayoutLinkExpiredCard"];
+      ]["PayoutLinkBase"];
+      const reqData = {
+        ...data.Request,
+        description: "Test Payout Link Expired Card",
+        payout_link_config: {
+          ...data.Request.payout_link_config,
+          enabled_payment_methods: ["card"],
+        },
+      };
       cy.createPayoutWithLinkTest(
         fixtures.createPayoutLinkBody,
-        data,
+        { ...data, Request: reqData },
         globalState
       );
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    it("Visit payout page with expired card and verify error", () => {
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "payout_link_pm"
-      ]["PayoutLinkExpiredCard"];
-      cy.handlePayoutLinkCardRedirection(globalState, data.CardData, "error");
+    it("update-payout-with-expired-card-test", () => {
+      const cardData = {
+        card_number: "4000000000000069",
+        card_exp_month: "12",
+        card_exp_year: "35",
+        card_cvc: "123",
+      };
+      const errorData = {
+        Response: {
+          status: 400,
+          body: {},
+        },
+      };
+      cy.updatePayoutCallTest(
+        { payout_method_data: { card: cardData } },
+        errorData,
+        false,
+        globalState
+      );
     });
 
     it("retrieve-payout-after-expired-card-test", () => {
