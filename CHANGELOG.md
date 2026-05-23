@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.02.0-hotfix7.10
+
+### Features
+
+- **connector:** [WorldpayWPG] introduce device data collection flow to worldpayWPG 3DS flow ([#12438](https://github.com/juspay/hyperswitch/pull/12438)) ([`3cb9feb`](https://github.com/juspay/hyperswitch/commit/3cb9feb493e1253c3dd5b56bf11acf4eac65c36b))
+- **redis_interface:** redis-rs and fred-rs merge ([#12162](https://github.com/juspay/hyperswitch/pull/12162)) ([`688ccd1`](https://github.com/juspay/hyperswitch/commit/688ccd1))
+
+**Full Changelog:** [`2026.04.02.0-hotfix7.9...2026.04.02.0-hotfix7.10`](https://github.com/juspay/hyperswitch/compare/2026.04.02.0-hotfix7.9...2026.04.02.0-hotfix7.10)
+
+- - -
+
 ## 2026.04.02.0-hotfix7.9
 
 ### Features
