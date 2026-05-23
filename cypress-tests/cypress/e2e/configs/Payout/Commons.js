@@ -251,6 +251,5 @@ export const connectorDetails = {
         },
       },
     }),
-
   },
 };
