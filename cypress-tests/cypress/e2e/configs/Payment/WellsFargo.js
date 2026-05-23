@@ -681,10 +681,14 @@ export const connectorDetails = {
             first_name: "John",
             last_name: "Doe",
             line1: "123 Main St",
-            city: "San Francisco",
-            state: "California",
+            city: "San Fransico",
+            state: "CA",
             zip: "94122",
             country: "US",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+1",
           },
           email: "test@example.com",
         },
@@ -692,7 +696,8 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "failed",
+          error_message: "ACH Verification Declined: Routing number formatted correctly, but not found during lookup., detailed_error_information: , avs_message: ",
         },
       },
     },
