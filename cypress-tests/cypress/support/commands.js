@@ -1715,9 +1715,7 @@ Cypress.Commands.add(
           cy.wrap(response).then(() => {
             if (response.status === 200) {
               // API returns base name (e.g. "wise"), but env may be "wise_payout" — compare normalized
-              expect(apiConnectorName).to.equal(
-                response.body.connector_name
-              );
+              expect(apiConnectorName).to.equal(response.body.connector_name);
               globalState.set(
                 "merchantConnectorId",
                 response.body.merchant_connector_id
