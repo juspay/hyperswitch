@@ -197,6 +197,16 @@ print(f"[replay] mode {'STRICT (no live fallthrough)' if STRICT_MODE else 'permi
 
 
 # ───── mitmproxy hook ─────
+def http_connect(flow: http.HTTPFlow) -> None:
+    """
+    In replay mode we serve recordings and never (or rarely) need to reach
+    the real connector.  Accept CONNECT tunnels locally so the addon can
+    intercept the inner HTTPS requests.  The downstream request() hook
+    decides HIT / MISS / LIVE based on cassette availability and mode.
+    """
+    flow.response = http.Response.make(200, b"", {})
+
+
 def request(flow: http.HTTPFlow) -> None:
     # x-connector is the only gate: "is this a Hyperswitch outbound
     # to a connector?" If not, pass through untouched.
