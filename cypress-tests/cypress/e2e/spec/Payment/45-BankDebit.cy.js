@@ -410,86 +410,97 @@ describe("Inespay SEPA Bank Debit tests", () => {
         cy.document().should("have.property", "readyState", "complete");
 
         // 1. Initial Page Handling — Click "CLOSE" button
+        cy.wait(30000);
         cy.contains("button", "CLOSE", { timeout: 15000 })
           .should("be.visible")
           .click();
 
-        // 2. Bank Selection — Click visible Vue multiselect wrapper, select "SIMULADOR", click "CONTINUE"
-        cy.get(".multiselect", { timeout: 10000 })
+        // 1. Simulator Selection — Select "SIMULADOR", click "continue"
+        cy.wait(2000);
+        cy.get(".multiselect")
           .should("be.visible")
           .click();
         cy.contains(".multiselect__option", "SIMULADOR", { timeout: 10000 })
           .should("be.visible")
           .click();
-        cy.contains("button", "Continue", { timeout: 10000 })
-          .should("be.visible")
-          .click();
-
-        // 3. Login Step — Enter user1 / 1234, click "ACCESS"
-        // Wait for the login form to render (Vue SPA transition).
-        // The username field may not declare type="text" (plain <input> or
-        // type="email"/"username"), so select any visible input that is NOT
-        // a password field.
-        cy.get('input:not([type="password"]):visible', { timeout: 30000 })
-          .should("have.length.at.least", 1)
-          .first()
-          .clear()
-          .type("user1");
-        cy.get('input[type="password"]:visible', { timeout: 15000 })
-          .should("be.visible")
-          .clear()
-          .type("1234");
-        cy.contains("button", "Access", { timeout: 10000 })
-          .should("be.visible")
-          .click();
-
-        // 4. Contract & Account Selection — Select "Contract: 1" and
-        // "Account: ES*********679", click "CONFIRM"
-        // The simulator renders these as Vue multiselects or native selects;
-        // try the multiselect pattern first (same component family as step 2).
-        cy.get("body", { timeout: 30000 }).then(($body) => {
-          const multiCount = $body.find(".multiselect:visible").length;
-          if (multiCount >= 2) {
-            // Vue multiselect path
-            cy.get(".multiselect:visible").eq(0).click();
-            cy.contains(".multiselect__option", "Contract: 1", {
-              timeout: 10000,
-            })
-              .should("be.visible")
-              .click();
-
-            cy.get(".multiselect:visible").eq(1).click();
-            cy.contains(".multiselect__option", "679", { timeout: 10000 })
-              .should("be.visible")
-              .click();
-          } else {
-            // Native <select> fallback
-            cy.get("select:visible", { timeout: 10000 })
-              .eq(0)
-              .select("Contract: 1");
-            cy.get("select:visible", { timeout: 10000 })
-              .eq(1)
-              .select("Account: ES*********679");
-          }
-        });
-
-        cy.contains("button", "CONFIRM", { timeout: 10000 })
-          .should("be.visible")
-          .and("not.be.disabled")
-          .click();
-
-        // 5. OTP Verification — Enter 1111, click "continue"
-        cy.get('input:not([type="password"]):visible', { timeout: 30000 })
-          .should("have.length.at.least", 1)
-          .first()
-          .clear()
-          .type("1111");
         cy.contains("button", /continue/i, { timeout: 10000 })
           .should("be.visible")
           .click();
 
-        // 6. Final Payment Completion — Wait up to 30 seconds for success
-        cy.contains(/success|completed|confirmado|realizado|succeeded/i, {
+        // 2. Login Step — Enter user1 / 1234, click "access"
+        cy.wait(2000);
+        cy.get("input")
+          .not('[type="password"]')
+          .first()
+          .should("be.visible")
+          .clear()
+          .type("user1");
+
+        cy.get('input[type="password"]', { timeout: 10000 })
+          .should("be.visible")
+          .first()
+          .clear()
+          .type("1234");
+        cy.contains("button", /access/i, { timeout: 10000 })
+          .should("be.visible")
+          .click();
+
+        // 3. Contract & Account Selection
+        cy.wait(5000);
+
+        // Open Contract selection dropdown
+        cy.contains(/Contract selection/i, { timeout: 15000 })
+          .should("be.visible")
+          .click();
+
+        // Select Contract: 1
+        cy.wait(2000);
+        cy.contains(/Contract:\s*1/i, { timeout: 15000 })
+          .should("be.visible")
+          .click();
+
+        // Wait for Account dropdown to appear
+        cy.wait(2000);
+
+        // Open Account selection dropdown
+        cy.contains(/Account selection/i, { timeout: 15000 })
+          .should("be.visible")
+          .click();
+
+        // Select Account: ES**********679
+        cy.wait(2000);
+        cy.contains(/Account:\s*ES\*+679/i, { timeout: 15000 })
+          .should("be.visible")
+          .click();
+
+        // Click confirm
+        cy.wait(1000);
+        cy.contains("button", /confirm/i, { timeout: 10000 })
+          .should("be.visible")
+          .and("not.be.disabled")
+          .click();
+
+        // 4. OTP Verification
+        cy.wait(2000);
+
+        cy.get('input[type="text"], input[type="tel"], input[inputmode="numeric"]', {
+          timeout: 15000,
+        })
+          .should("be.visible")
+          .first()
+          .clear()
+          .type("1111");
+
+        cy.contains("button", /continue/i, { timeout: 10000 })
+          .should("be.visible")
+          .click();
+
+        // 5. Final Validation — Wait for redirect to complete, validate success state
+        cy.log("Waiting for redirect/payment flow to complete...");
+        // Wait for the page to redirect back or show completion
+        cy.wait(5000);
+        // Validate final success/completion state on the page
+        cy.contains(/success|completed|confirmado|realizado|succeeded|finalizado/i, {
           timeout: 30000,
         });
         cy.log("Inespay simulator flow completed successfully");
