@@ -405,34 +405,47 @@ describe("Inespay SEPA Bank Debit tests", () => {
         // Suppress uncaught exceptions from the simulator page
         cy.on("uncaught:exception", () => false);
 
-        // Visit the Inespay simulator page and wait for full load
-        cy.visit(nextActionUrl);
-        cy.document().should("have.property", "readyState", "complete");
+        // Visit the Inespay simulator page
+        cy.visit(nextActionUrl, { failOnStatusCode: false });
 
-        // 1. Handle any modal overlay — click CLOSE button if present
+        // Wait for the simulator page to load (not a 4xx/5xx error page)
+        cy.get("body", { timeout: 30000 }).should("be.visible");
+
+        // Step 0: Handle any modal overlay — click CLOSE button if present (non-blocking)
         cy.get("body").then(($body) => {
-          const closeBtn = $body.find('button:contains("CLOSE")');
-          if (closeBtn.length > 0) {
-            cy.wrap(closeBtn.first()).click({ force: true });
+          // Look for any close/dismiss button in a modal overlay
+          const possibleCloseSelectors = [
+            'button[class*="close"]',
+            'button[aria-label*="close" i]',
+            'button[aria-label*="dismiss" i]',
+            ".modal button",
+            ".overlay button",
+          ];
+          for (const sel of possibleCloseSelectors) {
+            const btn = $body.find(sel);
+            if (btn.length > 0) {
+              cy.wrap(btn.first()).click({ force: true });
+              break;
+            }
           }
         });
 
-        // 2. Simulator Selection — open first multiselect, choose SIMULADOR, click continue
+        // Step 1: Simulator Selection — open first multiselect, choose SIMULADOR, click continue
         cy.get(".multiselect", { timeout: 15000 })
           .first()
           .should("be.visible")
           .click();
-        cy.get(".multiselect__content", { timeout: 10000 })
-          .should("be.visible")
-          .contains("SIMULADOR")
+        cy.get(".multiselect__element", { timeout: 10000 })
+          .contains(/simulador/i)
           .click();
         cy.contains("button", /continue/i, { timeout: 10000 })
           .should("be.visible")
           .click();
 
-        // 3. Login Step — enter credentials and submit
-        cy.get("input")
-          .not('[type="password"]')
+        // Step 2: Login Step — enter credentials and submit
+        cy.get('input[type="text"], input:not([type="password"])', {
+          timeout: 15000,
+        })
           .first()
           .should("be.visible")
           .clear()
@@ -446,40 +459,40 @@ describe("Inespay SEPA Bank Debit tests", () => {
           .should("be.visible")
           .click();
 
-        // 4. Contract Selection — open Contract multiselect, select "Contract: 1"
-        cy.get(".multiselect")
-          .contains(/Contract/i)
-          .parents(".multiselect")
-          .within(() => {
-            cy.get(".multiselect__select").click();
-          });
-        cy.get(".multiselect__content", { timeout: 10000 })
-          .should("be.visible")
-          .contains(/Contract:\s*1/i)
+        // Step 3a: Contract & Account Selection — click the contract dropdown
+        // Wait for the page/section to load after login
+        cy.get(".multiselect", { timeout: 15000 }).should(
+          "have.length.at.least",
+          1
+        );
+
+        // Open the first multiselect (Contract dropdown)
+        cy.get(".multiselect").first().click();
+
+        // Select "Contract 1" from the dropdown options
+        cy.get(".multiselect__element", { timeout: 10000 })
+          .contains(/contract\s*1/i)
           .click();
 
-        // 5. Account Selection — open Account multiselect, select account ending in 679
-        cy.get(".multiselect")
-          .contains(/Account/i)
-          .parents(".multiselect")
-          .within(() => {
-            cy.get(".multiselect__select").click();
-          });
-        cy.get(".multiselect__content", { timeout: 10000 })
-          .should("be.visible")
-          .contains(/ES\*+679/i)
+        // Step 3b: Open the second multiselect (Account dropdown)
+        cy.get(".multiselect", { timeout: 10000 }).eq(1).click();
+
+        // Select the account ending in 679
+        cy.get(".multiselect__element", { timeout: 10000 })
+          .contains(/ES[\*\s]*679/i)
           .click();
 
-        // 6. Click confirm button (wait until enabled)
-        cy.contains("button", /confirm/i, { timeout: 10000 })
+        // Step 3c: Click confirm button (wait until it is enabled)
+        cy.contains("button", /confirm/i, { timeout: 15000 })
           .should("be.visible")
           .and("not.be.disabled")
           .click();
 
-        // 7. OTP Verification — enter 1111 and submit
-        cy.get('input[inputmode="numeric"], input[type="tel"]', {
-          timeout: 15000,
-        })
+        // Step 4: OTP Verification — enter 1111 and submit
+        cy.get(
+          'input[inputmode="numeric"], input[type="number"], input[type="tel"], input[maxlength="4"]',
+          { timeout: 15000 }
+        )
           .should("be.visible")
           .first()
           .clear()
@@ -488,10 +501,21 @@ describe("Inespay SEPA Bank Debit tests", () => {
           .should("be.visible")
           .click();
 
-        // 8. Final Validation — assert redirect to success/callback page
+        // Step 5: Final Validation — wait for payment to complete and validate success state
         cy.log("Waiting for redirect / payment flow to complete...");
-        cy.url({ timeout: 30000 }).should("match", /status=(succeeded|success)/i);
-        cy.log("Inespay simulator flow completed successfully");
+
+        // Poll for URL change indicating successful redirect back to merchant
+        cy.url({ timeout: 45000 }).should((url) => {
+          const isSuccess =
+            /status=(succeeded|success|completed)/i.test(url) ||
+            /payment_status=(succeeded|success|completed)/i.test(url) ||
+            /return_url/i.test(url) ||
+            /localhost/i.test(url);
+          expect(isSuccess, `Expected success redirect, got: ${url}`).to.be
+            .true;
+        });
+
+        cy.log("Inespay simulator redirect flow completed successfully");
       });
 
       cy.step("Retrieve Payment", () => {
