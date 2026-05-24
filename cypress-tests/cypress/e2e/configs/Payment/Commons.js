@@ -2979,6 +2979,76 @@ export const connectorDetails = {
         },
       },
     }),
+    ClientSessionValidConfirm: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    ClientSessionInvalidConfirm: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 401,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Invalid Session ID",
+            code: "IR_01",
+          },
+        },
+      },
+    }),
+    ClientSessionReplayConfirm: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 401,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Invalid Session ID",
+            code: "IR_01",
+          },
+        },
+      },
+    }),
+    ClientSessionUpdatePayment: getCustomExchange({
+      Request: {
+        amount: 7000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({
@@ -3615,76 +3685,6 @@ export const connectorDetails = {
         },
       },
       Response: blockedPaymentErrorBodyForBinUnavailable,
-    }),
-    ClientSessionValidConfirm: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    }),
-    ClientSessionInvalidConfirm: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 401,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Invalid Session ID",
-            code: "IR_01",
-          },
-        },
-      },
-    }),
-    ClientSessionReplayConfirm: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 401,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Invalid Session ID",
-            code: "IR_01",
-          },
-        },
-      },
-    }),
-    ClientSessionUpdatePayment: getCustomExchange({
-      Request: {
-        amount: 7000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
     }),
   },
   gift_card_pm: {
