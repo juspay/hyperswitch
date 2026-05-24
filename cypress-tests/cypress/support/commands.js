@@ -2371,7 +2371,12 @@ Cypress.Commands.add(
           const clientSecret = response.body.client_secret;
           globalState.set("clientSecret", clientSecret);
           globalState.set("paymentID", response.body.payment_id);
-          // Store the actual setup_future_usage value from the response
+          if (response.body.sdk_authorization) {
+            globalState.set(
+              "sdkAuthorization",
+              response.body.sdk_authorization
+            );
+          }
           globalState.set(
             "actualSetupFutureUsage",
             response.body.setup_future_usage
@@ -8989,6 +8994,180 @@ Cypress.Commands.add(
           expect(response.body.id).to.equal(relayId);
           for (const key in resData.body) {
             expect(resData.body[key], key).to.deep.equal(response.body[key]);
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "confirmWithSdkAuthTest",
+  (confirmBody, data, confirm, globalState, overrideSdkAuth) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+
+    const configInfo = execConfig(validateConfig(configs));
+    const merchantConnectorId = globalState.get(
+      `${configInfo.merchantConnectorPrefix}Id`
+    );
+    const paymentIntentID = globalState.get("paymentID");
+    const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
+    const url = `${globalState.get("baseUrl")}/payments/${paymentIntentID}/confirm`;
+
+    if (confirmBody.split_payments) {
+      delete confirmBody.split_payments;
+    }
+
+    const sdkAuth =
+      overrideSdkAuth || globalState.get("sdkAuthorization") || "";
+    const authParts = {};
+    if (sdkAuth) {
+      sdkAuth.split(",").forEach((part) => {
+        const [key, ...valueParts] = part.split("=");
+        authParts[key.trim()] = valueParts.join("=").trim();
+      });
+    }
+
+    const publishableKey =
+      authParts["publishable-key"] || globalState.get("publishableKey");
+    const clientSecret =
+      authParts["client-secret"] || globalState.get("clientSecret");
+    const clientSessionId = authParts["client_session_id"] || "";
+
+    let authorizationHeader;
+    if (overrideSdkAuth === "missing_session") {
+      authorizationHeader = `publishable-key=${publishableKey},client-secret=${clientSecret}`;
+    } else if (overrideSdkAuth === "invalid_session") {
+      authorizationHeader = `publishable-key=${publishableKey},client-secret=${clientSecret},client_session_id=cs_invalid_tampered_session_id`;
+    } else {
+      authorizationHeader = `publishable-key=${publishableKey},client-secret=${clientSecret},client_session_id=${clientSessionId}`;
+    }
+
+    confirmBody.client_secret = clientSecret;
+    confirmBody.confirm = confirm;
+    confirmBody.profile_id = profileId;
+
+    for (const key in reqData) {
+      if (key !== "split_payments") {
+        confirmBody[key] = reqData[key];
+      }
+    }
+
+    if (!reqData?.setup_future_usage && confirmBody.setup_future_usage) {
+      delete confirmBody.setup_future_usage;
+    }
+
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: authorizationHeader,
+    };
+
+    cy.request({
+      method: "POST",
+      url: url,
+      headers: headers,
+      failOnStatusCode: false,
+      body: confirmBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          globalState.set("paymentID", paymentIntentID);
+          updateConnectorState(globalState, response.body.connector);
+          globalState.set(
+            "connectorTransactionID",
+            response.body.connector_transaction_id
+          );
+          globalState.set("paymentIntentStatus", response.body.status);
+
+          const expectedConnector = getOriginalConnectorName(
+            globalState.get("connectorId")
+          );
+          expect(response.body.connector, "connector").to.equal(
+            expectedConnector
+          );
+          expect(paymentIntentID, "payment_id").to.equal(
+            response.body.payment_id
+          );
+          expect(response.body.payment_method_data, "payment_method_data").to
+            .not.be.empty;
+          expect(merchantConnectorId, "connector_id").to.equal(
+            response.body.merchant_connector_id
+          );
+
+          for (const key in resData.body) {
+            expect(resData.body[key], [key]).to.deep.equal(
+              response.body[key]
+            );
+          }
+
+          validateErrorMessage(response, resData);
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "updatePaymentIntentTest",
+  (updateBody, data, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+
+    const configInfo = execConfig(validateConfig(configs));
+    const paymentIntentID = globalState.get("paymentID");
+    const url = `${globalState.get("baseUrl")}/payments/${paymentIntentID}`;
+
+    const body = { ...updateBody };
+    for (const key in reqData) {
+      body[key] = reqData[key];
+    }
+
+    cy.request({
+      method: "PATCH",
+      url: url,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      failOnStatusCode: false,
+      body: body,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          if (response.body.sdk_authorization) {
+            globalState.set(
+              "sdkAuthorization",
+              response.body.sdk_authorization
+            );
+          }
+          if (response.body.client_secret) {
+            globalState.set("clientSecret", response.body.client_secret);
+          }
+
+          for (const key in resData.body) {
+            expect(resData.body[key], [key]).to.deep.equal(
+              response.body[key]
+            );
           }
         } else {
           defaultErrorHandler(response, resData);
