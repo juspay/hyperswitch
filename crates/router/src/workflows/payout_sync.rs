@@ -172,6 +172,7 @@ impl PayoutSyncWorkFlow {
                     payout_id: payout_data.payouts.payout_id.to_owned(),
                     force_sync: Some(true),
                     merchant_id: Some(payout_data.payouts.merchant_id.to_owned()),
+                    expand_attempts: None,
                 };
                 let process_tracker_entry = storage::ProcessTrackerNew::new(
                     process_tracker_id,
