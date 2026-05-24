@@ -307,9 +307,7 @@ function payLaterRedirection(
                   cy.get("body").then(($b) => {
                     const submitBtn = $b.find('button[type="submit"]');
                     if (submitBtn.length > 0) {
-                      cy.wrap(submitBtn[0])
-                        .should("be.visible")
-                        .click();
+                      cy.wrap(submitBtn[0]).should("be.visible").click();
                     }
                   });
                 }
