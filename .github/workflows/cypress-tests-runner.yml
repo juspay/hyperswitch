@@ -736,7 +736,7 @@ jobs:
                 },
                 {
                   "name": "mock-payments",
-                  "payments_connectors": "redsys zift",
+                  "payments_connectors": "redsys gigadat",
                   "payouts_connectors": "",
                   "platform_connectors": "",
                   "parallel": 2,
