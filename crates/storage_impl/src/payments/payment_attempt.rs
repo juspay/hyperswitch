@@ -1069,8 +1069,14 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 .change_context(errors::StorageError::EncryptionError)
                 .attach_printable("Error while constructing domain model")?;
                 // Check for database presence as well Maybe use a read replica here ?
-                let redis_value = serde_json::to_string(&updated_attempt)
-                    .change_context(errors::StorageError::KVError)?;
+                let redis_value = serde_json::to_string(
+                    &updated_attempt
+                        .clone()
+                        .convert()
+                        .await
+                        .change_context(errors::StorageError::EncryptionError)?,
+                )
+                .change_context(errors::StorageError::KVError)?;
 
                 match (
                     old_connector_transaction_id,
