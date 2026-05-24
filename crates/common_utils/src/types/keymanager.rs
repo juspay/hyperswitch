@@ -1,13 +1,12 @@
 #![allow(missing_docs)]
 
 use core::fmt;
+use std::sync::Arc;
 
 use base64::Engine;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, Strategy, StrongSecret};
 #[cfg(feature = "encryption_service")]
 use router_env::logger;
-#[cfg(feature = "km_forward_x_request_id")]
-use router_env::RequestId;
 use rustc_hash::FxHashMap;
 use serde::{
     de::{self, Unexpected, Visitor},
@@ -19,6 +18,7 @@ use crate::{
     crypto::Encryptable,
     encryption::Encryption,
     errors::{self, CustomResult},
+    external_service::{ExternalServiceEventEmitter, NoOpEventEmitter},
     id_type,
     transformers::{ForeignFrom, ForeignTryFrom},
 };
@@ -43,8 +43,8 @@ pub struct KeyManagerState {
     pub enabled: bool,
     pub url: String,
     pub client_idle_timeout: Option<u64>,
-    #[cfg(feature = "km_forward_x_request_id")]
-    pub request_id: Option<RequestId>,
+    pub request_id: Option<String>,
+    pub event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     #[cfg(feature = "keymanager_mtls")]
     pub ca: Secret<String>,
     #[cfg(feature = "keymanager_mtls")]
@@ -62,8 +62,8 @@ impl KeyManagerState {
             enabled: Default::default(),
             url: String::default(),
             client_idle_timeout: Default::default(),
-            #[cfg(feature = "km_forward_x_request_id")]
-            request_id: Default::default(),
+            request_id: None,
+            event_emitter: Arc::new(NoOpEventEmitter),
             #[cfg(feature = "keymanager_mtls")]
             ca: Default::default(),
             #[cfg(feature = "keymanager_mtls")]

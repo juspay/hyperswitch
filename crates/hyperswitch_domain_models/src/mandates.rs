@@ -147,6 +147,66 @@ impl From<ApiMandateData> for MandateData {
     }
 }
 
+impl MandateDataType {
+    /// Convert to the API `MandateData` wrapper (used in `intent_data.mandate_payment`).
+    pub fn to_api_mandate_data(&self) -> ApiMandateData {
+        match self {
+            Self::SingleUse(single_use_mandate_data) => ApiMandateData {
+                mandate_type: Some(MandateType::SingleUse(ApiMandateAmountData {
+                    amount: single_use_mandate_data.amount,
+                    currency: single_use_mandate_data.currency,
+                    start_date: single_use_mandate_data.start_date,
+                    end_date: single_use_mandate_data.end_date,
+                    metadata: single_use_mandate_data.metadata.clone(),
+                })),
+                customer_acceptance: None,
+                update_mandate_id: None,
+            },
+            Self::MultiUse(Some(multi_use_mandate_data)) => ApiMandateData {
+                mandate_type: Some(MandateType::MultiUse(Some(ApiMandateAmountData {
+                    amount: multi_use_mandate_data.amount,
+                    currency: multi_use_mandate_data.currency,
+                    start_date: multi_use_mandate_data.start_date,
+                    end_date: multi_use_mandate_data.end_date,
+                    metadata: multi_use_mandate_data.metadata.clone(),
+                }))),
+                customer_acceptance: None,
+                update_mandate_id: None,
+            },
+            Self::MultiUse(None) => ApiMandateData {
+                mandate_type: Some(MandateType::MultiUse(None)),
+                customer_acceptance: None,
+                update_mandate_id: None,
+            },
+        }
+    }
+
+    /// Convert to the bare API `MandateType` (used in top-level response `mandate_payment` field).
+    pub fn to_api_mandate_type(&self) -> MandateType {
+        match self {
+            Self::SingleUse(single_use_mandate_data) => {
+                MandateType::SingleUse(ApiMandateAmountData {
+                    amount: single_use_mandate_data.amount,
+                    currency: single_use_mandate_data.currency,
+                    start_date: single_use_mandate_data.start_date,
+                    end_date: single_use_mandate_data.end_date,
+                    metadata: single_use_mandate_data.metadata.clone(),
+                })
+            }
+            Self::MultiUse(Some(multi_use_mandate_data)) => {
+                MandateType::MultiUse(Some(ApiMandateAmountData {
+                    amount: multi_use_mandate_data.amount,
+                    currency: multi_use_mandate_data.currency,
+                    start_date: multi_use_mandate_data.start_date,
+                    end_date: multi_use_mandate_data.end_date,
+                    metadata: multi_use_mandate_data.metadata.clone(),
+                }))
+            }
+            Self::MultiUse(None) => MandateType::MultiUse(None),
+        }
+    }
+}
+
 impl MandateAmountData {
     pub fn get_end_date(
         &self,

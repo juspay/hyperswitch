@@ -4,6 +4,71 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.22.0
+
+### Features
+
+- **Payouts:** [Envoy] add account holder name in bank transers ACH,BACS,SEPA ([#12404](https://github.com/juspay/hyperswitch/pull/12404)) ([`5a63780`](https://github.com/juspay/hyperswitch/commit/5a6378059e0f764e8794bf7aeb4b841eacd56581))
+- **authentication:** Add modular authentication as service ([#12277](https://github.com/juspay/hyperswitch/pull/12277)) ([`3ec9b0b`](https://github.com/juspay/hyperswitch/commit/3ec9b0b11782d9724c9f741e125220c130aaa111))
+- **connector:** [SANTANDER] Accept Receiver Account Details from Merchant ([#12185](https://github.com/juspay/hyperswitch/pull/12185)) ([`e8a299a`](https://github.com/juspay/hyperswitch/commit/e8a299a7335a49014aa3783bb9ba0b8ff9782fc4))
+- **payment-methods:**
+  - Invoke inline backward compat job ([#12366](https://github.com/juspay/hyperswitch/pull/12366)) ([`2e6ca7e`](https://github.com/juspay/hyperswitch/commit/2e6ca7e8cb6223d13d71a5bc5b21b9b29fda821c))
+  - Implement v2 default payment method set functionality ([#12371](https://github.com/juspay/hyperswitch/pull/12371)) ([`c657289`](https://github.com/juspay/hyperswitch/commit/c657289862bf418c6dba16ea1f29c998b87ad21c))
+- **payments:** Add connector_type field in payments filter response ([#12137](https://github.com/juspay/hyperswitch/pull/12137)) ([`b1dd7d2`](https://github.com/juspay/hyperswitch/commit/b1dd7d2c4bad56e579631c4e4bfcdd83866b3bf7))
+- **payouts:** Add expanded attempts to payout retrieve ([#12363](https://github.com/juspay/hyperswitch/pull/12363)) ([`11c6cea`](https://github.com/juspay/hyperswitch/commit/11c6cea6fed95f33b021c40acc6bfd2c5a18693e))
+
+### Bug Fixes
+
+- **connector:** [Truelayer] Pass reference id in payout request ([#12402](https://github.com/juspay/hyperswitch/pull/12402)) ([`0dcb5f3`](https://github.com/juspay/hyperswitch/commit/0dcb5f3636af96f9a83e7727ae034efb9e1efeb0))
+- **core:** [proxy] remove validation for card_with_limited_data ([#12365](https://github.com/juspay/hyperswitch/pull/12365)) ([`c735d42`](https://github.com/juspay/hyperswitch/commit/c735d42601fdb5f5d93c1e9dfc86d794e1abad3a))
+- **router:** Fixed backward compatibility issue with profile acquirer config while fetching business profile ([#12418](https://github.com/juspay/hyperswitch/pull/12418)) ([`f537ad4`](https://github.com/juspay/hyperswitch/commit/f537ad4654bbd9eb8b73bdcc71aad718dd6bcfe3))
+
+### Refactors
+
+- **worldpayvantiv:** Extend PSP mandate to include NTID ([#12275](https://github.com/juspay/hyperswitch/pull/12275)) ([`f87c970`](https://github.com/juspay/hyperswitch/commit/f87c970f005d9fb53bfc68302807aeaa7d8990db))
+
+### Testing
+
+- **cypress:**
+  - Add adyen bank redirect mandate CIT coverage ([#12352](https://github.com/juspay/hyperswitch/pull/12352)) ([`1c41579`](https://github.com/juspay/hyperswitch/commit/1c41579b6905bf8c17ee7ffc98f4e4f7ec006e7e))
+  - Add Payment Method Collect Link coverage ([#12041](https://github.com/juspay/hyperswitch/pull/12041)) ([`d89dc1e`](https://github.com/juspay/hyperswitch/commit/d89dc1eaa60f7f7cc75f1347516e0c3eff7cc451))
+  - Add paysafe bank redirect, wallet, and gift card coverage ([#12357](https://github.com/juspay/hyperswitch/pull/12357)) ([`a27c43e`](https://github.com/juspay/hyperswitch/commit/a27c43e60c1b53ba6afa8d5889303536c34387ec))
+
+### Documentation
+
+- **README:** Added Connector Service Section ([#12319](https://github.com/juspay/hyperswitch/pull/12319)) ([`6e5382d`](https://github.com/juspay/hyperswitch/commit/6e5382d24653b857318babbf6ca5f5250fbc3cea))
+
+**Full Changelog:** [`2026.05.21.0...2026.05.22.0`](https://github.com/juspay/hyperswitch/compare/2026.05.21.0...2026.05.22.0)
+
+- - -
+
+## 2026.05.21.0
+
+### Features
+
+- **connector:** Senders instrument id - paypal id for paypal ([#12381](https://github.com/juspay/hyperswitch/pull/12381)) ([`28a23ef`](https://github.com/juspay/hyperswitch/commit/28a23efd2a624707651a34d7e73aeccb9da12739))
+- **core:**
+  - Bump UCS client dependency to bring wallet renaming changes ([#12355](https://github.com/juspay/hyperswitch/pull/12355)) ([`5a20182`](https://github.com/juspay/hyperswitch/commit/5a201828b16e36308a69f82c0d708c799f660611))
+  - Add TLID through Adyen payment flows and API response ([#12278](https://github.com/juspay/hyperswitch/pull/12278)) ([`7fedb35`](https://github.com/juspay/hyperswitch/commit/7fedb35ea758938865cd42d9fafe629fa935f2d8))
+- **payment_methods:** Add GET `/payments/{payment_id}/client` endpoint (v1) ([#12271](https://github.com/juspay/hyperswitch/pull/12271)) ([`91f2777`](https://github.com/juspay/hyperswitch/commit/91f2777fa2857e088f1375ceb8666e004feefec8))
+- **router:** Add manual payment status update API ([#12293](https://github.com/juspay/hyperswitch/pull/12293)) ([`853dac2`](https://github.com/juspay/hyperswitch/commit/853dac2df85644ed094e5e3db135acaa60c2204e))
+- Enable envoy payouts bacs in wasm ([#12393](https://github.com/juspay/hyperswitch/pull/12393)) ([`a9668e8`](https://github.com/juspay/hyperswitch/commit/a9668e8dfb926c2e6d133a931a0903394ebb3d4c))
+
+### Bug Fixes
+
+- **Connector:** [WorldpayXML] XML format logs & card name in applepay ([#12233](https://github.com/juspay/hyperswitch/pull/12233)) ([`5944062`](https://github.com/juspay/hyperswitch/commit/5944062d6558a9dd280f0c36d7e0aeec282426cb))
+
+### Testing
+
+- **cypress:**
+  - Add Poll config coverage for stripe ([#12335](https://github.com/juspay/hyperswitch/pull/12335)) ([`8dece87`](https://github.com/juspay/hyperswitch/commit/8dece87d24c36ebf0759aa0722dab6d50092e33e))
+  - Add giftcard payment coverage for adyen ([#12342](https://github.com/juspay/hyperswitch/pull/12342)) ([`009168f`](https://github.com/juspay/hyperswitch/commit/009168ff27078488a5a567850196bcfb60626f0b))
+  - IFRAME_REDIRECTION test coverage ([#12174](https://github.com/juspay/hyperswitch/pull/12174)) ([`a262008`](https://github.com/juspay/hyperswitch/commit/a2620086a188e688a5e1e59f0a2738ab1657e658))
+
+**Full Changelog:** [`2026.05.20.0...2026.05.21.0`](https://github.com/juspay/hyperswitch/compare/2026.05.20.0...2026.05.21.0)
+
+- - -
+
 ## 2026.05.20.0
 
 ### Features
