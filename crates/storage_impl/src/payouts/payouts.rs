@@ -573,11 +573,8 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                 .collect::<Vec<Payouts>>()
         })
         .map_err(|er| {
-            StorageError::DatabaseError(
-                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
-                    .attach_printable("Error filtering payout records"),
-            )
-            .into()
+            error_stack::report!(StorageError::from(er))
+                .attach_printable("Error filtering payout records")
         })
     }
 
@@ -741,11 +738,8 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                     .collect()
             })
             .map_err(|er| {
-                StorageError::DatabaseError(
-                    error_stack::report!(diesel_models::errors::DatabaseError::from(er))
-                        .attach_printable("Error filtering payout records"),
-                )
-                .into()
+                error_stack::report!(StorageError::from(er))
+                    .attach_printable("Error filtering payout records")
             })
     }
 
@@ -892,10 +886,8 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         )
         .await
         .map_err(|er| {
-            StorageError::DatabaseError(
-                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
-                    .attach_printable("Error filtering payout records"),
-            )
+            error_stack::report!(StorageError::from(er))
+                .attach_printable("Error filtering payout records")
         })?
         .into_iter()
         .map(|s| {
@@ -952,11 +944,8 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         )
         .await
         .map_err(|er| {
-            StorageError::DatabaseError(
-                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
-                    .attach_printable("Error filtering payout records"),
-            )
-            .into()
+            error_stack::report!(StorageError::from(er))
+                .attach_printable("Error filtering payout records")
         })
     }
 }

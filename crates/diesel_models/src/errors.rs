@@ -14,20 +14,6 @@ pub enum DatabaseError {
     Others,
 }
 
-impl From<diesel::result::Error> for DatabaseError {
-    fn from(error: diesel::result::Error) -> Self {
-        match error {
-            diesel::result::Error::DatabaseError(
-                diesel::result::DatabaseErrorKind::UniqueViolation,
-                _,
-            ) => Self::UniqueViolation,
-            diesel::result::Error::NotFound => Self::NotFound,
-            diesel::result::Error::QueryBuilderError(_) => Self::QueryGenerationFailed,
-            _ => Self::Others,
-        }
-    }
-}
-
 impl common_utils::errors::ErrorSwitchFrom<diesel::result::Error> for DatabaseError {
     fn switch_from(error: &diesel::result::Error) -> Self {
         match *error {

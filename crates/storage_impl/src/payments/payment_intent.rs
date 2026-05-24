@@ -1027,10 +1027,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .map(|join_result| join_result.change_context(StorageError::DecryptionError))
         })
         .map_err(|er| {
-            StorageError::DatabaseError(
-                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
-                    .attach_printable("Error filtering payment records"),
-            )
+            error_stack::report!(StorageError::from(er))
+                .attach_printable("Error filtering payment records")
         })?
         .await
     }
@@ -1091,11 +1089,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         )
         .await
         .map_err(|er| {
-            StorageError::DatabaseError(
-                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
-                    .attach_printable("Error filtering payment records"),
-            )
-            .into()
+            error_stack::report!(StorageError::from(er))
+                .attach_printable("Error filtering payment records")
         })
     }
 
@@ -1324,10 +1319,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             })
             .await
             .map_err(|er| {
-                StorageError::DatabaseError(
-                    error_stack::report!(diesel_models::errors::DatabaseError::from(er))
-                        .attach_printable("Error filtering payment records"),
-                )
+                error_stack::report!(StorageError::from(er))
+                    .attach_printable("Error filtering payment records")
             })?
     }
 
@@ -1637,11 +1630,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         )
         .await
         .map_err(|er| {
-            StorageError::DatabaseError(
-                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
-                    .attach_printable("Error filtering payment records"),
-            )
-            .into()
+            error_stack::report!(StorageError::from(er))
+                .attach_printable("Error filtering payment records")
         })
     }
 
@@ -1724,11 +1714,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         )
         .await
         .map_err(|er| {
-            StorageError::DatabaseError(
-                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
-                    .attach_printable("Error filtering payment records"),
-            )
-            .into()
+            error_stack::report!(StorageError::from(er))
+                .attach_printable("Error filtering payment records")
         })
     }
 }
