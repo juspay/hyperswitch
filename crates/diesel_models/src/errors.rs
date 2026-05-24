@@ -8,9 +8,8 @@ pub enum DatabaseError {
     UniqueViolation,
     #[error("No fields were provided to be updated")]
     NoFieldsToUpdate,
-    #[error("An error occurred when generating typed SQL query")]
+    #[error("An error occurred when generating SQL query")]
     QueryGenerationFailed,
-    // InsertFailed,
     #[error("An unknown error occurred")]
     Others,
 }
@@ -18,6 +17,20 @@ pub enum DatabaseError {
 impl From<diesel::result::Error> for DatabaseError {
     fn from(error: diesel::result::Error) -> Self {
         match error {
+            diesel::result::Error::DatabaseError(
+                diesel::result::DatabaseErrorKind::UniqueViolation,
+                _,
+            ) => Self::UniqueViolation,
+            diesel::result::Error::NotFound => Self::NotFound,
+            diesel::result::Error::QueryBuilderError(_) => Self::QueryGenerationFailed,
+            _ => Self::Others,
+        }
+    }
+}
+
+impl common_utils::errors::ErrorSwitchFrom<diesel::result::Error> for DatabaseError {
+    fn switch_from(error: &diesel::result::Error) -> Self {
+        match *error {
             diesel::result::Error::DatabaseError(
                 diesel::result::DatabaseErrorKind::UniqueViolation,
                 _,

@@ -14,7 +14,6 @@ use diesel_models::{
 };
 use diesel_models::{
     enums::MerchantStorageScheme,
-    kv,
     payouts::{
         Payouts as DieselPayouts, PayoutsNew as DieselPayoutsNew,
         PayoutsUpdate as DieselPayoutsUpdate,
@@ -111,18 +110,20 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     created_by: new.created_by.clone(),
                 };
 
-                let redis_entry = kv::TypedSql {
-                    op: kv::DBOperation::Insert {
-                        insertable: Box::new(kv::Insertable::Payouts(new.to_storage_model())),
-                    },
-                };
+                let mut query_gen_conn = pg_connection_read(self).await?;
+                let drainer_query = new
+                    .to_storage_model()
+                    .generate_drainer_insert_query(&mut query_gen_conn)
+                    .await
+                    .change_context(StorageError::KVError)
+                    .attach_printable("Failed to generate payouts insert query")?;
 
                 match Box::pin(kv_wrapper::<DieselPayouts, _, _>(
                     self,
                     KvOperation::<DieselPayouts>::HSetNx(
                         &field,
                         &created_payout.clone().to_storage_model(),
-                        redis_entry,
+                        drainer_query,
                     ),
                     key,
                 ))
@@ -182,18 +183,21 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     .encode_to_string_of_json()
                     .change_context(StorageError::SerializationFailed)?;
 
-                let redis_entry = kv::TypedSql {
-                    op: kv::DBOperation::Update {
-                        updatable: Box::new(kv::Updateable::PayoutsUpdate(kv::PayoutsUpdateMems {
-                            orig: origin_diesel_payout,
-                            update_data: diesel_payout_update,
-                        })),
-                    },
-                };
+                let mut query_gen_conn = pg_connection_read(self).await?;
+                let drainer_query = diesel_payout_update
+                    .clone()
+                    .generate_drainer_update_query(
+                        &mut query_gen_conn,
+                        this.payout_id.clone(),
+                        this.merchant_id.clone(),
+                    )
+                    .await
+                    .change_context(StorageError::KVError)
+                    .attach_printable("Failed to generate payouts update query")?;
 
                 Box::pin(kv_wrapper::<(), _, _>(
                     self,
-                    KvOperation::<DieselPayouts>::Hset((&field, redis_value), redis_entry),
+                    KvOperation::<DieselPayouts>::Hset((&field, redis_value), drainer_query),
                     key,
                 ))
                 .await
