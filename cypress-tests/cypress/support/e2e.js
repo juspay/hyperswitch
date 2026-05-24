@@ -100,11 +100,15 @@ beforeEach(() => {
   const titlePath = Cypress.currentTest.titlePath;
   const title = titlePath.join(" > ");
   const connector = Cypress.env("CONNECTOR") || "";
-  // Mix CYPRESS_CONNECTOR into the hash so parallel workers running the
-  // same test under different connectors (CI matrix mode) get disjoint
-  // rid namespaces. Without this, two workers compute the same testIdHash
-  // → identical rids → cassette filenames collide on the shared proxy.
-  testIdHash = djb2(`${connector}:${title}`);
+  const spec = Cypress.spec.relative;
+  // Mix the connector AND the spec file into the hash so:
+  //  (a) parallel workers running the same test under different connectors
+  //      (CI matrix mode) get disjoint rid namespaces, and
+  //  (b) two spec files that reuse an identical describe/it titlePath don't
+  //      collide on the same rid. The capture folder is already spec-keyed;
+  //      without the spec here the rid wasn't, so colliding rids merged into
+  //      a bogus fan-out on replay.
+  testIdHash = djb2(`${connector}:${spec}:${title}`);
   stepCounter = 0;
   if (PROXY_ADMIN_URL) {
     cy.request({
@@ -112,7 +116,7 @@ beforeEach(() => {
       url: `${PROXY_ADMIN_URL}/test/start`,
       body: {
         titlePath: titlePath,
-        spec: Cypress.spec.relative,
+        spec: spec,
         // Primary connector under test — used by capture to tag *every* flow
         // (including vault/auxiliary connector calls) under this connector
         // so they ship together in the same cassette tarball.

@@ -194,6 +194,19 @@ class AdminHandler(BaseHTTPRequestHandler):
             wiped = wipe_test_cassettes(folder, test_id_hash)
 
             with _lock:
+                prior = _tests_by_hash.get(test_id_hash)
+                if prior is not None and prior.folder != folder:
+                    # Same testIdHash, different folder → two spec files share
+                    # an identical titlePath. Their rids collide, and replay
+                    # (which indexes by rid alone) merges both folders' cassettes
+                    # into a bogus fan-out. Root fix: include the spec in the
+                    # Cypress-side hash (cypress/support/e2e.js).
+                    print(
+                        f"[capture] ⚠ COLLISION: testIdHash {test_id_hash} reused across specs\n"
+                        f"            was: {prior.folder}\n"
+                        f"            now: {folder}\n"
+                        f"            identical titlePath in different specs — rids will collide on replay"
+                    )
                 _tests_by_hash[test_id_hash] = TestContext(
                     test=test, spec=spec, connector=connector, folder=folder,
                 )
