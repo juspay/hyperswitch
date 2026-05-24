@@ -5,13 +5,15 @@ pub mod types;
 
 use std::collections::HashMap;
 
-use aws_smithy_types::Document;
+use aws_smithy_types::{Document, Number};
 use common_utils::{errors::CustomResult, id_type::TargetingKey};
 use error_stack::{report, ResultExt};
 use hyperswitch_masking::ExposeInterface;
 use serde_json::Map;
 use superposition_provider::traits::AllFeatureProvider;
-pub use superposition_sdk::types::{AuditAction, ContextFilterSortOn, DimensionMatchStrategy, SortBy};
+pub use superposition_sdk::types::{
+    AuditAction, ContextFilterSortOn, DimensionMatchStrategy, SortBy,
+};
 pub use superposition_types::api::context::PutRequest as ContextPutRequest;
 
 pub use self::types::{ConfigContext, SuperpositionClientConfig, SuperpositionError, ToDocument};
@@ -19,7 +21,6 @@ use crate::config_metrics;
 
 /// Convert an `aws_smithy_types::Document` to a `serde_json::Value`.
 pub fn document_to_value(doc: Document) -> serde_json::Value {
-    use aws_smithy_types::Number;
     match doc {
         Document::Object(obj) => serde_json::Value::Object(
             obj.into_iter()
@@ -44,7 +45,6 @@ pub fn document_to_value(doc: Document) -> serde_json::Value {
 
 /// Convert a `serde_json::Value` to an `aws_smithy_types::Document`.
 pub fn value_to_document(val: serde_json::Value) -> Document {
-    use aws_smithy_types::Number;
     match val {
         serde_json::Value::Null => Document::Null,
         serde_json::Value::Bool(b) => Document::Bool(b),
@@ -188,9 +188,7 @@ pub fn dimension_response_to_value(
 }
 
 /// Serialize an `AuditLogFull` to a JSON value.
-pub fn audit_log_full_to_value(
-    log: &superposition_sdk::types::AuditLogFull,
-) -> serde_json::Value {
+pub fn audit_log_full_to_value(log: &superposition_sdk::types::AuditLogFull) -> serde_json::Value {
     serde_json::json!({
         "id": log.id(),
         "table_name": log.table_name(),
@@ -441,8 +439,10 @@ impl SuperpositionClient {
                 match superposition_provider::data_source::file::FileDataSource::new(
                     backup_path.clone(),
                 ) {
-                    Ok(source) => Some(Box::new(source)
-                        as Box<dyn superposition_provider::data_source::SuperpositionDataSource>),
+                    Ok(source) => {
+                        let boxed: Box<dyn superposition_provider::data_source::SuperpositionDataSource> = Box::new(source);
+                        Some(boxed)
+                    }
                     Err(e) => {
                         router_env::logger::warn!(
                             "Failed to create Superposition file fallback source: {e}"

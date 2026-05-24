@@ -163,7 +163,7 @@ fn parse_list_audit_logs_request(
     let mut all = None;
     let mut from_date = None;
     let mut to_date = None;
-    let mut tables: Vec<String> = Vec::new();
+    let mut table: Vec<String> = Vec::new();
     let mut action: Vec<String> = Vec::new();
     let mut username = None;
     let mut sort_by = None;
@@ -179,7 +179,7 @@ fn parse_list_audit_logs_request(
             "all" => all = value.parse().ok(),
             "from_date" => from_date = Some(value),
             "to_date" => to_date = Some(value),
-            "tables" => tables.extend(value.split(',').map(|s| s.trim().to_owned())),
+            "table" => table.extend(value.split(',').map(|s| s.trim().to_owned())),
             "action" => action.extend(value.split(',').map(|s| s.trim().to_owned())),
             "username" => username = Some(value),
             "sort_by" => sort_by = Some(value),
@@ -195,7 +195,7 @@ fn parse_list_audit_logs_request(
         all,
         from_date,
         to_date,
-        tables: (!tables.is_empty()).then_some(tables),
+        table: (!table.is_empty()).then_some(table),
         action: (!action.is_empty()).then_some(action),
         username,
         sort_by,

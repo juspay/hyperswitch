@@ -54,8 +54,6 @@ fn get_group_description(group: PermissionGroup) -> Option<&'static str> {
         PermissionGroup::ReconTransactionsManage => Some("View and edit recon staging entries and transactions"),
         PermissionGroup::ReconRulesView => Some("View reconciliation rules"),
         PermissionGroup::ReconRulesManage => Some("Create and edit reconciliation rules"),
-        PermissionGroup::SuperpositionView => Some("View Superposition configuration contexts and defaults"),
-        PermissionGroup::SuperpositionManage => Some("Create and modify Superposition configuration contexts"),
     }
 }
 
@@ -73,6 +71,5 @@ pub fn get_parent_group_description(group: ParentGroup) -> Option<&'static str> 
         ParentGroup::ReconExceptions => Some("Recon exception investigation and resolution"),
         ParentGroup::ReconTransactions => Some("Recon staging entries and transactions"),
         ParentGroup::ReconRules => Some("Reconciliation rules"),
-        ParentGroup::Superposition => Some("Superposition configuration management"),
     }
 }

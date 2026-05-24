@@ -79,7 +79,7 @@ pub struct ListAuditLogsRequest {
     pub all: Option<bool>,
     pub from_date: Option<String>,
     pub to_date: Option<String>,
-    pub tables: Option<Vec<String>>,
+    pub table: Option<Vec<String>>,
     pub action: Option<Vec<String>>,
     pub username: Option<String>,
     pub sort_by: Option<String>,
