@@ -405,37 +405,38 @@ describe("Inespay SEPA Bank Debit tests", () => {
         // Suppress uncaught exceptions from the simulator page
         cy.on("uncaught:exception", () => false);
 
-        // Visit the Inespay simulator page
+        // Visit the Inespay simulator page and wait for full load
         cy.visit(nextActionUrl);
         cy.document().should("have.property", "readyState", "complete");
 
-        // 1. Initial Page Handling — Click "CLOSE" button
-        cy.wait(30000);
-        cy.contains("button", "CLOSE", { timeout: 15000 })
-          .should("be.visible")
-          .click();
+        // 1. Handle any modal overlay — click CLOSE button if present
+        cy.get("body").then(($body) => {
+          const closeBtn = $body.find('button:contains("CLOSE")');
+          if (closeBtn.length > 0) {
+            cy.wrap(closeBtn.first()).click({ force: true });
+          }
+        });
 
-        // 1. Simulator Selection — Select "SIMULADOR", click "continue"
-        cy.wait(2000);
-        cy.get(".multiselect")
+        // 2. Simulator Selection — open first multiselect, choose SIMULADOR, click continue
+        cy.get(".multiselect", { timeout: 15000 })
+          .first()
           .should("be.visible")
           .click();
-        cy.contains(".multiselect__option", "SIMULADOR", { timeout: 10000 })
+        cy.get(".multiselect__content", { timeout: 10000 })
           .should("be.visible")
+          .contains("SIMULADOR")
           .click();
         cy.contains("button", /continue/i, { timeout: 10000 })
           .should("be.visible")
           .click();
 
-        // 2. Login Step — Enter user1 / 1234, click "access"
-        cy.wait(2000);
+        // 3. Login Step — enter credentials and submit
         cy.get("input")
           .not('[type="password"]')
           .first()
           .should("be.visible")
           .clear()
           .type("user1");
-
         cy.get('input[type="password"]', { timeout: 10000 })
           .should("be.visible")
           .first()
@@ -445,64 +446,51 @@ describe("Inespay SEPA Bank Debit tests", () => {
           .should("be.visible")
           .click();
 
-        // 3. Contract & Account Selection
-        cy.wait(5000);
-
-        // Open Contract selection dropdown
-        cy.contains(/Contract selection/i, { timeout: 15000 })
+        // 4. Contract Selection — open Contract multiselect, select "Contract: 1"
+        cy.get(".multiselect")
+          .contains(/Contract/i)
+          .parents(".multiselect")
+          .within(() => {
+            cy.get(".multiselect__select").click();
+          });
+        cy.get(".multiselect__content", { timeout: 10000 })
           .should("be.visible")
+          .contains(/Contract:\s*1/i)
           .click();
 
-        // Select Contract: 1
-        cy.wait(2000);
-        cy.contains(/Contract:\s*1/i, { timeout: 15000 })
+        // 5. Account Selection — open Account multiselect, select account ending in 679
+        cy.get(".multiselect")
+          .contains(/Account/i)
+          .parents(".multiselect")
+          .within(() => {
+            cy.get(".multiselect__select").click();
+          });
+        cy.get(".multiselect__content", { timeout: 10000 })
           .should("be.visible")
+          .contains(/ES\*+679/i)
           .click();
 
-        // Wait for Account dropdown to appear
-        cy.wait(2000);
-
-        // Open Account selection dropdown
-        cy.contains(/Account selection/i, { timeout: 15000 })
-          .should("be.visible")
-          .click();
-
-        // Select Account: ES**********679
-        cy.wait(2000);
-        cy.contains(/Account:\s*ES\*+679/i, { timeout: 15000 })
-          .should("be.visible")
-          .click();
-
-        // Click confirm
-        cy.wait(1000);
+        // 6. Click confirm button (wait until enabled)
         cy.contains("button", /confirm/i, { timeout: 10000 })
           .should("be.visible")
           .and("not.be.disabled")
           .click();
 
-        // 4. OTP Verification
-        cy.wait(2000);
-
-        cy.get('input[type="text"], input[type="tel"], input[inputmode="numeric"]', {
+        // 7. OTP Verification — enter 1111 and submit
+        cy.get('input[inputmode="numeric"], input[type="tel"]', {
           timeout: 15000,
         })
           .should("be.visible")
           .first()
           .clear()
           .type("1111");
-
         cy.contains("button", /continue/i, { timeout: 10000 })
           .should("be.visible")
           .click();
 
-        // 5. Final Validation — Wait for redirect to complete, validate success state
-        cy.log("Waiting for redirect/payment flow to complete...");
-        // Wait for the page to redirect back or show completion
-        cy.wait(5000);
-        // Validate final success/completion state on the page
-        cy.contains(/success|completed|confirmado|realizado|succeeded|finalizado/i, {
-          timeout: 30000,
-        });
+        // 8. Final Validation — assert redirect to success/callback page
+        cy.log("Waiting for redirect / payment flow to complete...");
+        cy.url({ timeout: 30000 }).should("match", /status=(succeeded|success)/i);
         cy.log("Inespay simulator flow completed successfully");
       });
 
