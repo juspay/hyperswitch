@@ -3387,5 +3387,9 @@ impl SuperpositionProxy {
                 web::resource("/config/resolve")
                     .route(web::post().to(super::superposition_proxy::resolve_config)),
             )
+            .service(
+                web::resource("/audit")
+                    .route(web::get().to(super::superposition_proxy::list_audit_logs)),
+            )
     }
 }

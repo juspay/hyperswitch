@@ -11,7 +11,7 @@ use error_stack::{report, ResultExt};
 use hyperswitch_masking::ExposeInterface;
 use serde_json::Map;
 use superposition_provider::traits::AllFeatureProvider;
-pub use superposition_sdk::types::DimensionMatchStrategy;
+pub use superposition_sdk::types::{AuditAction, ContextFilterSortOn, DimensionMatchStrategy, SortBy};
 pub use superposition_types::api::context::PutRequest as ContextPutRequest;
 
 pub use self::types::{ConfigContext, SuperpositionClientConfig, SuperpositionError, ToDocument};
@@ -73,6 +73,12 @@ pub fn value_to_document(val: serde_json::Value) -> Document {
 pub fn datetime_to_string(dt: &aws_smithy_types::DateTime) -> String {
     dt.fmt(aws_smithy_types::date_time::Format::DateTime)
         .unwrap_or_default()
+}
+
+/// Parse an ISO 8601 datetime string into an `aws_smithy_types::DateTime`.
+pub fn parse_datetime(s: &str) -> Result<aws_smithy_types::DateTime, String> {
+    aws_smithy_types::DateTime::from_str(s, aws_smithy_types::date_time::Format::DateTime)
+        .map_err(|e| e.to_string())
 }
 
 /// Convert a `HashMap<String, Document>` to a JSON object value.
@@ -178,6 +184,22 @@ pub fn dimension_response_to_value(
         "dimension_type": dimension_type_to_value(dim.dimension_type()),
         "value_compute_function_name": dim.value_compute_function_name(),
         "mandatory": dim.mandatory(),
+    })
+}
+
+/// Serialize an `AuditLogFull` to a JSON value.
+pub fn audit_log_full_to_value(
+    log: &superposition_sdk::types::AuditLogFull,
+) -> serde_json::Value {
+    serde_json::json!({
+        "id": log.id(),
+        "table_name": log.table_name(),
+        "user_name": log.user_name(),
+        "timestamp": datetime_to_string(log.timestamp()),
+        "action": log.action().as_str(),
+        "original_data": log.original_data().map(|d| document_to_value(d.clone())),
+        "new_data": log.new_data().map(|d| document_to_value(d.clone())),
+        "query": log.query(),
     })
 }
 

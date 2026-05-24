@@ -749,6 +749,8 @@ pub enum Flow {
     SuperpositionCreateContext,
     /// Superposition Proxy Resolve Config flow
     SuperpositionResolveConfig,
+    /// Superposition Proxy List Audit Logs flow
+    SuperpositionListAuditLogs,
     // Get user details internal
     GetUserDetailsInternal,
     // List users internal
