@@ -346,7 +346,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                                 api_models::payments::MandateReferenceId::NetworkMandateId(
                                     api_models::payments::NetworkMandateIdRef {
                                         network_transaction_id: network_tx_id,
-                                        transaction_link_id: None,
+                                        transaction_link_id: mandate_obj.network_transaction_link_id,
                                     },
                                 ),
                             ),
@@ -910,6 +910,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .as_ref()
             .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
         let network_transaction_id = payment_data.payment_attempt.network_transaction_id.clone();
+        let network_transaction_link_id = payment_data
+            .payment_attempt
+            .network_transaction_link_id
+            .clone();
         payment_data.payment_attempt = state
             .store
             .update_payment_attempt_with_attempt_id(
@@ -930,7 +934,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     payment_method_billing_address_id,
                     updated_by: storage_scheme.to_string(),
                     network_transaction_id,
-                    network_transaction_link_id: None,
+                    network_transaction_link_id,
                     net_amount:
                         hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
                             payment_data.amount.into(),
@@ -1098,7 +1102,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         .enable_partial_authorization,
                     enable_overcapture: payment_data.payment_intent.enable_overcapture,
                     shipping_cost,
-                    installment_options: payment_data.payment_intent.installment_options,
+                    installment_options: payment_data.payment_intent.installment_options.clone(),
+                    profile_acquirer_id: payment_data.payment_intent.profile_acquirer_id.clone(),
                 })),
                 key_store,
                 storage_scheme,

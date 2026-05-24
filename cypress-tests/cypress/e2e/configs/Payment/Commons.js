@@ -612,6 +612,17 @@ export const payment_methods_enabled = [
         recurring_enabled: false,
         installment_payment_enabled: false,
       },
+      {
+        payment_method_type: "pay_safe_card",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
     ],
   },
   {
@@ -788,48 +799,100 @@ export const connectorDetails = {
           },
         },
       }),
-    Ideal: getCustomExchange({
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "ideal",
-        payment_method_data: {
-          bank_redirect: {
-            ideal: {
-              bank_name: "ing",
+    Ideal: {
+      ...getCustomExchange({
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "ideal",
+          payment_method_data: {
+            bank_redirect: {
+              ideal: {
+                bank_name: "ing",
+                country: "NL",
+              },
+            },
+          },
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
               country: "NL",
+              first_name: "john",
+              last_name: "doe",
             },
           },
         },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "NL",
-            first_name: "john",
-            last_name: "doe",
+      }),
+      MandateSingleUseAutoCapture: getCustomExchange({
+        Request: {},
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
           },
         },
-      },
-    }),
-    OpenBankingUk: getCustomExchange({
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "open_banking_uk",
-        payment_method_data: {
-          bank_redirect: {
-            open_banking_uk: {
-              issuer: "citi",
-              country: "GB",
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+      }),
+    },
+    BancontactCard: {
+      ...getCustomExchange({
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "bancontact_card",
+          payment_method_data: {
+            bank_redirect: {
+              bancontact_card: {
+                card_number: "6703444444444449",
+                card_exp_month: "03",
+                card_exp_year: "2030",
+              },
             },
           },
+          billing: standardBillingAddress,
         },
-        billing: standardBillingAddress,
-      },
-    }),
+      }),
+      MandateSingleUseAutoCapture: getCustomExchange({
+        Request: {},
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+      }),
+    },
+    OpenBankingUk: {
+      ...getCustomExchange({
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "open_banking_uk",
+          payment_method_data: {
+            bank_redirect: {
+              open_banking_uk: {
+                issuer: "citi",
+                country: "GB",
+              },
+            },
+          },
+          billing: standardBillingAddress,
+        },
+      }),
+      MandateSingleUseAutoCapture: getCustomExchange({
+        Request: {},
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+      }),
+    },
     OnlineBankingFpx: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
@@ -989,37 +1052,22 @@ export const connectorDetails = {
         },
       },
     }),
-    Trustly: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "trustly",
-        payment_method_data: {
-          bank_redirect: {
-            trustly: {
-              country: "NL",
-            },
-          },
-        },
-        billing: standardBillingAddress,
-      },
-    }),
-    BancontactCard: {
-      MandateSingleUse: getCustomExchange({
+    Trustly: {
+      ...getCustomExchange({
         Configs: {
           TRIGGER_SKIP: true,
         },
         Request: {
           payment_method: "bank_redirect",
-          payment_method_type: "bancontact_card",
-        },
-        Response: {
-          status: 200,
-          body: {
-            status: "requires_customer_action",
+          payment_method_type: "trustly",
+          payment_method_data: {
+            bank_redirect: {
+              trustly: {
+                country: "NL",
+              },
+            },
           },
+          billing: standardBillingAddress,
         },
       }),
     },
@@ -1218,6 +1266,17 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    }),
+    Skrill: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "skrill",
+        payment_method_data: {
+          wallet: {
+            skrill: {},
+          },
         },
       },
     }),
@@ -3665,6 +3724,170 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: { status: "failed" },
+      },
+    }),
+    PaySafeCard: getCustomExchange({
+      Request: {
+        payment_method: "gift_card",
+        payment_method_type: "pay_safe_card",
+        payment_method_data: {
+          gift_card: {
+            pay_safe_card: {},
+          },
+        },
+      },
+    }),
+  },
+  pm_collect_link: {
+    pmCollectLinkCreate: {
+      Request: {
+        return_url: "https://example.com/return",
+      },
+      Response: {
+        status: 200,
+      },
+    },
+    pmCollectLinkRender: {
+      Response: {
+        status: 200,
+      },
+    },
+    pmCollectLinkRenderNotFound: {
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_37",
+            message: "payment method collect link not found",
+          },
+        },
+      },
+    },
+  },
+  payment_link_pm: {
+    PaymentLinkBasic: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        description: "Test Payment Link",
+        email: "test@example.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+
+    PaymentLinkWithTheme: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 7000,
+        description: "Test with custom theme",
+        email: "test@example.com",
+        payment_link_config: {
+          theme: "#FF6B35",
+        },
+      },
+      Response: {
+        status: 200,
+      },
+    }),
+    PaymentLinkWithLogo: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        amount: 8000,
+        description: "Test with merchant logo",
+        email: "test@example.com",
+        payment_link_config: {
+          logo: "https://example.com/logo.png",
+          seller_name: "Test Merchant Inc",
+        },
+      },
+      Response: {
+        status: 200,
+      },
+    }),
+    PaymentLinkWithSdkLayout: getCustomExchange({
+      Request: {
+        currency: "GBP",
+        amount: 5500,
+        description: "Test with accordion layout",
+        email: "test@example.com",
+        payment_link_config: {
+          sdk_layout: "accordion",
+          display_sdk_only: false,
+        },
+      },
+      Response: {
+        status: 200,
+      },
+    }),
+    PaymentLinkCardPayment: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        description: "Test Payment Link Card Payment",
+        email: "test@example.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+      CardData: {
+        card_number: "4242424242424242",
+        card_exp_month: "12",
+        card_exp_year: "35",
+        card_cvc: "123",
+      },
+    }),
+    PaymentLink3DSCard: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        description: "Test Payment Link 3DS Card",
+        email: "test@example.com",
+        authentication_type: "three_ds",
+      },
+      CardData: {
+        card_number: "4000002500003155",
+        card_exp_month: "12",
+        card_exp_year: "35",
+        card_cvc: "123",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    }),
+    PaymentLinkTabsLayout: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        amount: 6500,
+        description: "Test with tabs layout",
+        email: "test@example.com",
+        payment_link_config: {
+          sdk_layout: "tabs",
+          display_sdk_only: false,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+      CardData: {
+        card_number: "4242424242424242",
+        card_exp_month: "12",
+        card_exp_year: "35",
+        card_cvc: "123",
       },
     }),
   },

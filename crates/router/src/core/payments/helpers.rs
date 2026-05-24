@@ -1396,7 +1396,8 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
         RecurringDetails::ProcessorPaymentToken(_)
         | RecurringDetails::NetworkTransactionIdAndCardDetails(_)
         | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
-        | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => Ok(()),
+        | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
+        | RecurringDetails::CardWithLimitedData(_) => Ok(()),
         _ => {
             req.customer_id.check_value_present("customer_id")?;
 
@@ -4306,6 +4307,7 @@ pub fn generate_mandate(
     payment_method_id: String,
     connector_mandate_id: Option<pii::SecretSerdeValue>,
     network_txn_id: Option<String>,
+    network_txn_link_id: Option<String>,
     payment_method_data_option: Option<domain::payments::PaymentMethodData>,
     mandate_reference: Option<MandateReference>,
     merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
@@ -4330,6 +4332,7 @@ pub fn generate_mandate(
                 .set_mandate_status(storage_enums::MandateStatus::Active)
                 .set_connector_mandate_ids(connector_mandate_id)
                 .set_network_transaction_id(network_txn_id)
+                .set_network_transaction_link_id(network_txn_link_id)
                 .set_customer_ip_address(
                     customer_acceptance
                         .get_ip_address()
@@ -4669,6 +4672,7 @@ mod tests {
             partner_merchant_identifier_details: None,
             state_metadata: None,
             installment_options: None,
+            profile_acquirer_id: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -4760,6 +4764,7 @@ mod tests {
             partner_merchant_identifier_details: None,
             state_metadata: None,
             installment_options: None,
+            profile_acquirer_id: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4849,6 +4854,7 @@ mod tests {
             partner_merchant_identifier_details: None,
             state_metadata: None,
             installment_options: None,
+            profile_acquirer_id: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -5107,6 +5113,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         authorized_amount: router_data.authorized_amount,
         customer_document_details: router_data.customer_document_details,
         feature_data: router_data.feature_data,
+        sender_payment_instrument_id: router_data.sender_payment_instrument_id,
     }
 }
 
@@ -5386,6 +5393,7 @@ impl AttemptType {
             retry_type: Some(enums::RetryType::ManualRetry),
             installment_data: None,
             external_surcharge_details: None,
+            sender_payment_instrument_id: None,
         }
     }
 
@@ -8449,9 +8457,11 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                 connector_data.merchant_connector_id.as_ref(),
             )
             .await?;
-            let acquirer_details = payment_connector_mca
+
+            let profile_acquirer_id = payment_data.payment_intent.profile_acquirer_id.as_ref();
+            let acquirer_details = match payment_connector_mca
                 .get_metadata()
-                .clone()
+                .as_ref()
                 .and_then(|metadata| {
                     metadata
                     .peek()
@@ -8469,7 +8479,38 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                         );
                     })
                     .ok()
-                });
+                }) {
+                Some(details) => Some(details),
+                None => {
+                    let network = card
+                        .card_network
+                        .as_ref()
+                        .cloned()
+                        .ok_or(errors::ApiErrorResponse::PreconditionFailed {
+                            message: "Card network not found".to_string(),
+                        })?;
+
+                    let resolved = match profile_acquirer_id {
+                        Some(id) => business_profile
+                            .get_acquirer_details_for_profile_acquirer(id, network.clone())
+                            .ok_or(errors::ApiErrorResponse::PreconditionFailed {
+                                message: format!("Acquirer configuration not found for network {:?} in bucket {:?}", network, id),
+                            })?,
+                        None => business_profile
+                            .get_default_acquirer_details_from_network(network.clone())
+                            .ok_or(errors::ApiErrorResponse::PreconditionFailed {
+                                message: format!("Acquirer configuration not found for network {:?} in default bucket", network),
+                            })?,
+                    };
+
+                    Some(authentication::types::AcquirerDetails {
+                        acquirer_bin: resolved.acquirer_bin.unwrap_or_default(),
+                        acquirer_merchant_id: resolved.acquirer_assigned_merchant_id.unwrap_or_default(),
+                        acquirer_country_code: resolved.acquirer_country_code,
+                    })
+                }
+            };
+
             Some(PaymentExternalAuthenticationFlow::PreAuthenticationFlow {
                 card: Box::new(card),
                 token,
