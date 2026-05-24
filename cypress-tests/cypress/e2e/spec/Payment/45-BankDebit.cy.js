@@ -414,10 +414,14 @@ describe("Inespay SEPA Bank Debit tests", () => {
         // Step 0: Handle any modal overlay — click CLOSE button if present (non-blocking)
         cy.get("body").then(($body) => {
           // Look for any close/dismiss button in a modal overlay
+          // Note: CSS attribute selectors with case-insensitive flag (e.g. [attr*="val" i]) are NOT
+          // supported by jQuery/Cypress. Use explicit casing or filter manually.
           const possibleCloseSelectors = [
             'button[class*="close"]',
-            'button[aria-label*="close" i]',
-            'button[aria-label*="dismiss" i]',
+            'button[aria-label*="close"]',
+            'button[aria-label*="Close"]',
+            'button[aria-label*="dismiss"]',
+            'button[aria-label*="Dismiss"]',
             ".modal button",
             ".overlay button",
           ];
