@@ -440,7 +440,9 @@ impl SuperpositionClient {
                     backup_path.clone(),
                 ) {
                     Ok(source) => {
-                        let boxed: Box<dyn superposition_provider::data_source::SuperpositionDataSource> = Box::new(source);
+                        let boxed: Box<
+                            dyn superposition_provider::data_source::SuperpositionDataSource,
+                        > = Box::new(source);
                         Some(boxed)
                     }
                     Err(e) => {
