@@ -9127,7 +9127,6 @@ Cypress.Commands.add(
       Response: resData,
     } = data || {};
 
-    const configInfo = execConfig(validateConfig(configs));
     const paymentIntentID = globalState.get("paymentID");
     const url = `${globalState.get("baseUrl")}/payments/${paymentIntentID}`;
 
