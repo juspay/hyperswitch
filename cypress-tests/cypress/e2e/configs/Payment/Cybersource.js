@@ -59,10 +59,10 @@ const multiUseMandateData = {
 const payment_method_data_no3ds = {
   card: {
     last4: "4242",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "STRIPE PAYMENTS UK LIMITED",
-    card_issuing_country: "UNITEDKINGDOM",
+    card_type: null,
+    card_network: null,
+    card_issuer: null,
+    card_issuing_country: null,
     card_isin: "424242",
     card_extended_bin: null,
     card_exp_month: "01",
@@ -84,10 +84,10 @@ const payment_method_data_no3ds = {
 const payment_method_data_3ds = {
   card: {
     last4: "2701",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "INTL HDQTRS CENTER OWNED",
-    card_issuing_country: "UNITED STATES OF AMERICA",
+    card_type: null,
+    card_network: null,
+    card_issuer: null,
+    card_issuing_country: null,
     card_isin: "400000",
     card_extended_bin: null,
     card_exp_month: "01",

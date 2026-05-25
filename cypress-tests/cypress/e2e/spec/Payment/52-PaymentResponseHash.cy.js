@@ -6,11 +6,26 @@ import * as utils from "../../configs/Payment/Utils";
 let globalState;
 
 describe("Card - Payment Response Hash flow test", () => {
+  let shouldContinue = true;
+
   before("seed global state and check account config", function () {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
+      if (
+        !utils.CONNECTOR_LISTS.INCLUDE.PAYMENT_RESPONSE_HASH.includes(
+          globalState.get("connectorId")
+        )
+      ) {
+        shouldContinue = false;
+      }
       cy.fetchPaymentResponseHashConfig(globalState, this.skip.bind(this));
     });
+  });
+
+  beforeEach(function () {
+    if (!shouldContinue) {
+      this.skip();
+    }
   });
 
   after("flush global state", () => {
