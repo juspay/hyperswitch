@@ -417,9 +417,8 @@ function affirmPayLaterRedirection(
       cy.log("Affirm pay later flow - handling on origin: " + affirmOrigin);
 
       const waitTime = CONSTANTS.WAIT_TIME;
-      const returnOrigin = expectedUrl.origin;
 
-      const determineAffirmStep = (doc, bodyText, currentUrl, returnOrigin) => {
+      const determineAffirmStep = (doc, bodyText, currentUrl) => {
         if (currentUrl.includes("/payments/completion")) return "done";
 
         const hasPinInput = doc.querySelector(
@@ -493,8 +492,7 @@ function affirmPayLaterRedirection(
           const step = determineAffirmStep(
             doc,
             bodyText,
-            currentUrl,
-            returnOrigin
+            currentUrl
           );
           cy.log(`Determined Affirm step: ${step}`);
 
@@ -762,7 +760,7 @@ function affirmPayLaterRedirection(
         });
       };
 
-      function runUntilComplete(maxSteps, delay, returnOrigin) {
+      function runUntilComplete(maxSteps, delay) {
         if (maxSteps <= 0) {
           cy.log("Max steps reached, stopping");
           return;
@@ -774,12 +772,12 @@ function affirmPayLaterRedirection(
           handleAffirmStep();
 
           cy.wait(delay).then(() => {
-            runUntilComplete(maxSteps - 1, delay, returnOrigin);
+            runUntilComplete(maxSteps - 1, delay);
           });
         });
       }
 
-      runUntilComplete(3, 6000, returnOrigin);
+      runUntilComplete(3, 6000);
     });
   } else {
     cy.log("Skipping Affirm redirection - no valid redirect URL provided");
