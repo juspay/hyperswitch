@@ -893,7 +893,6 @@ mod storage {
 
                     let mut query_gen_conn = connection::pg_connection_read(self).await?;
                     let drainer_query = refund
-                        .clone()
                         .generate_drainer_update_query(
                             &mut query_gen_conn,
                             this.refund_id.clone(),
