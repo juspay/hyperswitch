@@ -3078,8 +3078,8 @@ export const connectorDetails = {
         status: 401,
         body: {
           error: {
-            type: "invalid_request",
-            message: "Invalid Session ID",
+            type: "invalid_request_error",
+            message: "API key not provided or invalid API key used",
             code: "IR_01",
           },
         },
@@ -3099,8 +3099,8 @@ export const connectorDetails = {
         status: 401,
         body: {
           error: {
-            type: "invalid_request",
-            message: "Invalid Session ID",
+            type: "invalid_request_error",
+            message: "API key not provided or invalid API key used",
             code: "IR_01",
           },
         },
