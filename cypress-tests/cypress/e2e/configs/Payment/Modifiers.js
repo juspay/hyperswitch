@@ -197,7 +197,7 @@ const CURRENCY_MAP = {
   OnlineBankingFpx: "MYR", // Malaysian payment methods
   Interac: "CAD", // Canadian payment method
   AliPayHk: "HKD", // Hong Kong payment method
-  AliPay: "CNY",    // Default ISO-4217 currency; MultiSafepay sandbox overrides to EUR (see Multisafepay.js::wallet_pm.PaymentIntent)
+  AliPay: "CNY", // Default ISO-4217 currency; MultiSafepay sandbox overrides to EUR (see Multisafepay.js::wallet_pm.PaymentIntent)
   WeChatPay: "CNY", // Default ISO-4217 currency; MultiSafepay sandbox overrides to EUR (see Multisafepay.js::wallet_pm.PaymentIntent)
   Paypal: "EUR",
   MbWay: "EUR",
