@@ -925,12 +925,12 @@ jobs:
         run: |
           # S3 layout: {bucket}/{connector}/{type}.tar.gz.gpg
           # Each tarball must extract its files under {connector}/... so the
-          # replay store finds them at mitm-proxy/captures/{connector}/.
+          # replay store finds them at cypress-tests/mitm-proxy/captures/{connector}/.
           # We accept tarballs created either way (with or without a leading
           # {connector}/ component) and normalise the on-disk layout here so
           # a misformed tarball doesn't silently produce zero cassettes.
           set -euo pipefail
-          mkdir -p "mitm-proxy/captures"
+          mkdir -p "cypress-tests/mitm-proxy/captures"
 
           fetch_cassettes() {
             local connector="$1"
@@ -938,7 +938,7 @@ jobs:
             local src="${CONNECTOR_MOCK_DATA_S3_BUCKET_URI}/${connector}/${type}.tar.gz.gpg"
             local gpg_path="/tmp/${connector}-${type}-cassettes.tar.gz.gpg"
             local tar_path="/tmp/${connector}-${type}-cassettes.tar.gz"
-            local dest="mitm-proxy/captures/${connector}"
+            local dest="cypress-tests/mitm-proxy/captures/${connector}"
 
             echo "→ ${connector}/${type}: ${src}"
             aws s3 cp "${src}" "${gpg_path}"
@@ -1008,7 +1008,7 @@ jobs:
           # runner's system Python (PEP 668 / externally-managed-environment).
           uv venv --system-certs "${{ github.workspace }}/.venv-mitm"
           uv pip install --system-certs --python "${{ github.workspace }}/.venv-mitm/bin/python" \
-            -r mitm-proxy/requirements.txt
+            -r cypress-tests/mitm-proxy/requirements.txt
           # Expose the venv to subsequent steps (mitmdump cert gen, start_replay.sh).
           echo "${{ github.workspace }}/.venv-mitm/bin" >> "$GITHUB_PATH"
           "${{ github.workspace }}/.venv-mitm/bin/mitmdump" --version
@@ -1057,11 +1057,11 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         env:
-          CAPTURE_DIR: ${{ github.workspace }}/mitm-proxy/captures
+          CAPTURE_DIR: ${{ github.workspace }}/cypress-tests/mitm-proxy/captures
           ADMIN_PORT: "8001"
           PROXY_PORT: "8888"
         run: |
-          nohup bash mitm-proxy/start_replay.sh \
+          nohup bash cypress-tests/mitm-proxy/start_replay.sh \
             > "${{ github.workspace }}/mitm-replay.log" 2>&1 &
           MITM_PID=$!
           echo "MITM_PID=${MITM_PID}" >> $GITHUB_ENV
