@@ -9225,7 +9225,9 @@ Cypress.Commands.add(
         } else {
           const errorDetail = `status=${response.status} body=${JSON.stringify(response.body)}`;
           if (resData.status === 200) {
-            throw new Error(`Expecting valid response but got an error response: ${errorDetail}`);
+            throw new Error(
+              `Expecting valid response but got an error response: ${errorDetail}`
+            );
           }
           defaultErrorHandler(response, resData);
         }
