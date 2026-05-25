@@ -562,8 +562,12 @@ impl AppState {
             enabled: km_conf.enabled,
             url: km_conf.url.clone(),
             client_idle_timeout: conf.proxy.idle_pool_connection_timeout,
-            #[cfg(feature = "km_forward_x_request_id")]
             request_id: None,
+            event_emitter: if conf.events.emit_external_service_call_events {
+                Arc::new(event_handler.clone())
+            } else {
+                Arc::new(common_utils::external_service::NoOpEventEmitter)
+            },
             #[cfg(feature = "keymanager_mtls")]
             cert: km_conf.cert.clone(),
             #[cfg(feature = "keymanager_mtls")]
@@ -1410,6 +1414,10 @@ impl Customers {
                         .route(web::put().to(customers::customers_update))
                         .route(web::get().to(customers::customers_retrieve))
                         .route(web::delete().to(customers::customers_delete)),
+                )
+                .service(
+                    web::resource("/{customer_id}/payment-methods/{payment_method_id}/default")
+                        .route(web::post().to(payment_methods::default_payment_method_set_api)),
                 )
         }
         route

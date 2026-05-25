@@ -1,3 +1,4 @@
+use hyperswitch_domain_models::mandates;
 pub mod access_token;
 pub mod conditional_configs;
 pub mod customers;
@@ -170,7 +171,7 @@ use crate::{core::revenue_recovery::get_workflow_entries, db::storage::payment_m
 #[cfg(feature = "v1")]
 use crate::{
     core::{
-        authentication as authentication_core, unified_authentication_service::utils as uas_utils,
+        authentication as authentication_core,
         unified_connector_service::update_gateway_system_in_feature_metadata,
     },
     types::{api::authentication, BrowserInformation},
@@ -8380,10 +8381,10 @@ where
         .as_ref()
         .and_then(|inner| inner.mandate_reference_id.as_ref())
         .map(|mandate_reference| match mandate_reference {
-            api_models::payments::MandateReferenceId::ConnectorMandateId(_) => true,
-            api_models::payments::MandateReferenceId::NetworkMandateId(_)
-            | api_models::payments::MandateReferenceId::CardWithLimitedData
-            | api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_) => false,
+            mandates::MandateReferenceId::ConnectorMandateId(_) => true,
+            mandates::MandateReferenceId::NetworkMandateId(_)
+            | mandates::MandateReferenceId::CardWithLimitedData
+            | mandates::MandateReferenceId::NetworkTokenWithNTI(_) => false,
         })
         .unwrap_or(false);
 
@@ -8681,7 +8682,7 @@ where
     pub payment_attempt: storage::PaymentAttempt,
     pub multiple_capture_data: Option<types::MultipleCaptureData>,
     pub amount: api::Amount,
-    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub mandate_id: Option<mandates::MandateIds>,
     pub mandate_connector: Option<MandateConnectorDetails>,
     pub currency: storage_enums::Currency,
     pub setup_mandate: Option<MandateData>,
@@ -10694,7 +10695,7 @@ where
                     .merchant_connector_id,
             );
 
-            payment_data.set_mandate_id(payments_api::MandateIds {
+            payment_data.set_mandate_id(mandates::MandateIds {
                 mandate_id: None,
                 mandate_reference_id,
             });
@@ -10755,7 +10756,7 @@ pub fn get_mandate_reference_id<F: Clone, D>(
     connector_routing_data: api::ConnectorRoutingData,
     payment_data: &mut D,
     payment_method_info: &domain::PaymentMethod,
-) -> RouterResult<Option<api_models::payments::MandateReferenceId>>
+) -> RouterResult<Option<mandates::MandateReferenceId>>
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
@@ -10763,14 +10764,14 @@ where
         Some(ActionType::NetworkTokenWithNetworkTransactionId(network_token_data)) => {
             logger::info!("using network token with network_transaction_id for MIT flow");
 
-            Some(payments_api::MandateReferenceId::NetworkTokenWithNTI(
+            Some(mandates::MandateReferenceId::NetworkTokenWithNTI(
                 network_token_data.into(),
             ))
         }
         Some(ActionType::CardWithNetworkTransactionId(card_with_nti_ref)) => {
             logger::info!("using card with network_transaction_id for MIT flow");
 
-            Some(payments_api::MandateReferenceId::NetworkMandateId(
+            Some(mandates::MandateReferenceId::NetworkMandateId(
                 card_with_nti_ref.into(),
             ))
         }
@@ -10804,8 +10805,8 @@ where
 
             payment_data.set_recurring_mandate_payment_data(mandate_reference_record.into());
 
-            Some(payments_api::MandateReferenceId::ConnectorMandateId(
-                api_models::payments::ConnectorMandateReferenceId::new(
+            Some(mandates::MandateReferenceId::ConnectorMandateId(
+                mandates::ConnectorMandateReferenceId::new(
                     Some(mandate_reference_record.connector_mandate_id.clone()),
                     Some(payment_method_info.get_id().clone()),
                     None,
@@ -10877,8 +10878,8 @@ where
                                     }))
                                 },
                             )?;
-                            let mandate_reference_id = Some(payments_api::MandateReferenceId::ConnectorMandateId(
-                                api_models::payments::ConnectorMandateReferenceId::new(
+                            let mandate_reference_id = Some(mandates::MandateReferenceId::ConnectorMandateId(
+                                mandates::ConnectorMandateReferenceId::new(
                                     Some(mandate_reference_record.connector_mandate_id.clone()),
                                     Some(payment_method_info.get_id().clone()),
                                     // update_history
@@ -10909,7 +10910,7 @@ where
                 .attach_printable("Failed to fetch the network transaction id")?;
             let transaction_link_id = payment_method_info.network_transaction_link_id.clone();
 
-            let mandate_reference_id = Some(payments_api::MandateReferenceId::NetworkMandateId(
+            let mandate_reference_id = Some(mandates::MandateReferenceId::NetworkMandateId(
                 CardWithNTIRef {
                     network_transaction_id: network_transaction_id.to_string(),
                     transaction_link_id,
@@ -10935,7 +10936,7 @@ where
         .merchant_connector_id
         .clone_from(&chosen_connector_data.merchant_connector_id);
 
-    payment_data.set_mandate_id(payments_api::MandateIds {
+    payment_data.set_mandate_id(mandates::MandateIds {
         mandate_id: None,
         mandate_reference_id,
     });
@@ -10969,7 +10970,7 @@ pub struct NTWithNTIRef {
     pub token_exp_year: Option<Secret<String>>,
 }
 
-impl From<NTWithNTIRef> for payments_api::NetworkTokenWithNTIRef {
+impl From<NTWithNTIRef> for mandates::NetworkTokenWithNTIRef {
     fn from(network_token_data: NTWithNTIRef) -> Self {
         Self {
             network_transaction_id: network_token_data.network_transaction_id,
@@ -10986,7 +10987,7 @@ pub struct CardWithNTIRef {
     pub transaction_link_id: Option<String>,
 }
 
-impl From<CardWithNTIRef> for payments_api::NetworkMandateIdRef {
+impl From<CardWithNTIRef> for mandates::NetworkMandateIdRef {
     fn from(card_data: CardWithNTIRef) -> Self {
         Self {
             network_transaction_id: card_data.network_transaction_id,
@@ -11001,7 +11002,7 @@ pub enum ActionType {
     NetworkTokenWithNetworkTransactionId(NTWithNTIRef),
     CardWithNetworkTransactionId(CardWithNTIRef),
     #[cfg(feature = "v1")]
-    ConnectorMandate(hyperswitch_domain_models::mandates::PaymentsMandateReference),
+    ConnectorMandate(mandates::PaymentsMandateReference),
 }
 
 pub fn filter_network_tokenization_supported_connectors(
@@ -11033,9 +11034,7 @@ impl ActionTypesBuilder {
     pub fn with_mandate_flow(
         mut self,
         is_mandate_flow: bool,
-        connector_mandate_details: Option<
-            hyperswitch_domain_models::mandates::PaymentsMandateReference,
-        >,
+        connector_mandate_details: Option<mandates::PaymentsMandateReference>,
     ) -> Self {
         if is_mandate_flow {
             self.action_types.extend(
@@ -11629,25 +11628,8 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     platform: domain::Platform,
     req: api_models::payments::PaymentsExternalAuthenticationRequest,
 ) -> RouterResponse<api_models::payments::PaymentsExternalAuthenticationResponse> {
-    use super::unified_authentication_service::types::ExternalAuthentication;
-    use crate::core::unified_authentication_service::{
-        types::UnifiedAuthenticationService, utils::external_authentication_update_trackers,
-    };
-
     let db = &*state.store;
     let key_manager_state = &(&(state)).into();
-
-    let dimensions = Dimensions::new()
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_organization_id(
-            platform
-                .get_processor()
-                .get_account()
-                .organization_id
-                .clone(),
-        );
-
     let processor_merchant_id = platform.get_processor().get_account().get_id();
     let storage_scheme = platform.get_processor().get_account().storage_scheme;
     let payment_id = req.payment_id;
@@ -11750,21 +11732,6 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     )
     .await?;
 
-    let authentication = db
-        .find_authentication_by_merchant_id_authentication_id(
-            processor_merchant_id,
-            &payment_attempt
-                .authentication_id
-                .clone()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("missing authentication_id in payment_attempt")?,
-            platform.get_processor().get_key_store(),
-            key_manager_state,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error while fetching authentication record")?;
-
     let business_profile = state
         .store
         .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), profile_id)
@@ -11822,49 +11789,68 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), &state)
             .await?
         {
-            let routing_region = uas_utils::fetch_routing_region_for_uas(&state, &dimensions).await;
-            let auth_response =
-                <ExternalAuthentication as UnifiedAuthenticationService>::authentication(
+            let authentication_id = payment_attempt
+                .authentication_id
+                .clone()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("missing authentication_id in payment_attempt")?;
+
+            let auth_config = &state.conf.micro_services.authentication_service;
+
+            let req_identifier = router_env::RequestIdentifier::new("x-request-id");
+            let client = crate::core::authentication_client::AuthenticationServiceClient::new(
+                auth_config,
+                &req_identifier,
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to create auth client")?;
+
+            let authenticate_req = api_models::authentication::AuthenticationAuthenticateRequest {
+                authentication_id,
+                client_secret: None,
+                sdk_information: req.sdk_information.clone(),
+                device_channel: req.device_channel,
+                threeds_method_comp_ind: req.threeds_method_comp_ind,
+            };
+
+            let response =
+                crate::core::authentication_client::AuthenticationAuthenticateFlow::call(
                     &state,
-                    &business_profile,
-                    &payment_method_details.1,
-                    browser_info,
-                    Some(amount),
-                    Some(currency),
-                    authentication::MessageCategory::Payment,
-                    req.device_channel,
-                    authentication.clone(),
-                    return_url,
-                    req.sdk_information.clone(),
-                    req.threeds_method_comp_ind,
-                    optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
-                    webhook_url,
-                    &merchant_connector_account,
-                    &authentication_connector,
-                    Some(payment_intent.payment_id),
-                    authentication.force_3ds_challenge,
-                    authentication.psd2_sca_exemption_type,
-                    Some(routing_region),
+                    &client,
+                    authenticate_req,
                 )
-                .await?;
-            let authentication = Box::pin(external_authentication_update_trackers(
-                &state,
-                auth_response,
-                authentication.clone(),
-                None,
-                platform.get_processor().get_key_store(),
-                None,
-                None,
-                None,
-                None,
-                req.sdk_information
-                    .and_then(|sdk_information| sdk_information.device_details),
-                None,
-                None,
-            ))
-            .await?;
-            authentication::AuthenticationResponse::try_from(authentication)?
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to call authentication authenticate flow")?;
+
+            authentication::AuthenticationResponse {
+                trans_status: response
+                    .transaction_status
+                    .unwrap_or(common_enums::TransactionStatus::VerificationNotPerformed),
+                acs_url: response.acs_url,
+                challenge_request: response.challenge_request,
+                acs_reference_number: response.acs_reference_number,
+                acs_trans_id: response.acs_trans_id,
+                three_dsserver_trans_id: response.three_ds_server_transaction_id,
+                acs_signed_content: response.acs_signed_content,
+                challenge_request_key: None,
+                error_message: response.error_message,
+            }
         } else {
+            let authentication = db
+                .find_authentication_by_merchant_id_authentication_id(
+                    processor_merchant_id,
+                    &payment_attempt
+                        .authentication_id
+                        .clone()
+                        .ok_or(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("missing authentication_id in payment_attempt")?,
+                    platform.get_processor().get_key_store(),
+                    key_manager_state,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error while fetching authentication record")?;
             Box::pin(authentication_core::perform_authentication(
                 &state,
                 business_profile.merchant_id,
@@ -12595,7 +12581,7 @@ pub trait OperationSessionGetters<F> {
     fn get_client_secret(&self) -> &Option<Secret<String>>;
     fn get_payment_method_info(&self) -> Option<&domain::PaymentMethod>;
     fn get_payment_method_token(&self) -> Option<&PaymentMethodToken>;
-    fn get_mandate_id(&self) -> Option<&payments_api::MandateIds>;
+    fn get_mandate_id(&self) -> Option<&mandates::MandateIds>;
     fn get_address(&self) -> &PaymentAddress;
     fn get_creds_identifier(&self) -> Option<&str>;
     fn get_token(&self) -> Option<&str>;
@@ -12703,7 +12689,7 @@ pub trait OperationSessionSetters<F> {
         recurring_mandate_payment_data:
             hyperswitch_domain_models::router_data::RecurringMandatePaymentData,
     );
-    fn set_mandate_id(&mut self, mandate_id: api_models::payments::MandateIds);
+    fn set_mandate_id(&mut self, mandate_id: mandates::MandateIds);
     fn set_setup_future_usage_in_payment_intent(
         &mut self,
         setup_future_usage: storage_enums::FutureUsage,
@@ -12763,7 +12749,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.payment_method_token.as_ref()
     }
 
-    fn get_mandate_id(&self) -> Option<&payments_api::MandateIds> {
+    fn get_mandate_id(&self) -> Option<&mandates::MandateIds> {
         self.mandate_id.as_ref()
     }
 
@@ -13058,7 +13044,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         self.recurring_mandate_payment_data = Some(recurring_mandate_payment_data);
     }
 
-    fn set_mandate_id(&mut self, mandate_id: api_models::payments::MandateIds) {
+    fn set_mandate_id(&mut self, mandate_id: mandates::MandateIds) {
         self.mandate_id = Some(mandate_id);
     }
 
@@ -13146,7 +13132,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn get_mandate_id(&self) -> Option<&payments_api::MandateIds> {
+    fn get_mandate_id(&self) -> Option<&mandates::MandateIds> {
         todo!()
     }
 
@@ -13386,7 +13372,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn set_mandate_id(&mut self, _mandate_id: api_models::payments::MandateIds) {
+    fn set_mandate_id(&mut self, _mandate_id: mandates::MandateIds) {
         todo!()
     }
 
@@ -13466,7 +13452,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
         todo!()
     }
 
-    fn get_mandate_id(&self) -> Option<&payments_api::MandateIds> {
+    fn get_mandate_id(&self) -> Option<&mandates::MandateIds> {
         todo!()
     }
 
@@ -13704,7 +13690,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
         todo!()
     }
 
-    fn set_mandate_id(&mut self, _mandate_id: api_models::payments::MandateIds) {
+    fn set_mandate_id(&mut self, _mandate_id: mandates::MandateIds) {
         todo!()
     }
 
@@ -13784,7 +13770,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
-    fn get_mandate_id(&self) -> Option<&payments_api::MandateIds> {
+    fn get_mandate_id(&self) -> Option<&mandates::MandateIds> {
         todo!()
     }
 
@@ -14018,7 +14004,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
-    fn set_mandate_id(&mut self, _mandate_id: api_models::payments::MandateIds) {
+    fn set_mandate_id(&mut self, _mandate_id: mandates::MandateIds) {
         todo!()
     }
 
@@ -14097,7 +14083,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
         todo!()
     }
 
-    fn get_mandate_id(&self) -> Option<&payments_api::MandateIds> {
+    fn get_mandate_id(&self) -> Option<&mandates::MandateIds> {
         todo!()
     }
 
@@ -14333,7 +14319,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
         todo!()
     }
 
-    fn set_mandate_id(&mut self, _mandate_id: api_models::payments::MandateIds) {
+    fn set_mandate_id(&mut self, _mandate_id: mandates::MandateIds) {
         todo!()
     }
 
@@ -14407,7 +14393,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentAttemptListData<F> {
         todo!()
     }
 
-    fn get_mandate_id(&self) -> Option<&payments_api::MandateIds> {
+    fn get_mandate_id(&self) -> Option<&mandates::MandateIds> {
         todo!()
     }
 
@@ -14574,7 +14560,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCancelData<F> {
         todo!()
     }
 
-    fn get_mandate_id(&self) -> Option<&payments_api::MandateIds> {
+    fn get_mandate_id(&self) -> Option<&mandates::MandateIds> {
         todo!()
     }
 
@@ -14803,7 +14789,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCancelData<F> {
         todo!()
     }
 
-    fn set_mandate_id(&mut self, _mandate_id: api_models::payments::MandateIds) {
+    fn set_mandate_id(&mut self, _mandate_id: mandates::MandateIds) {
         todo!()
     }
 

@@ -7,8 +7,8 @@ use api_models::payments as api_payments;
 #[cfg(feature = "v2")]
 use api_models::payments::RevenueRecoveryGetIntentResponse;
 use api_models::payments::{
-    Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
-    MandateIds, NetworkDetails, RequestSurchargeDetails,
+    Address, CustomerDetails, CustomerDetailsResponse, FrmMessage, NetworkDetails,
+    RequestSurchargeDetails,
 };
 use common_enums::{Currency, MerchantAccountType, RequestIncrementalAuthorization};
 #[cfg(feature = "v1")]
@@ -38,7 +38,11 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payments::payment_intent::CustomerData, router_request_types, sdk_auth::SdkAuthorization,
+    mandates,
+    mandates::{ConnectorMandateReferenceId, MandateIds},
+    payments::payment_intent::CustomerData,
+    router_request_types,
+    sdk_auth::SdkAuthorization,
 };
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
@@ -3928,7 +3932,7 @@ where
             customer_acceptance: d.customer_acceptance.clone(),
 
             mandate_type: d.mandate_type.clone().map(|d| match d {
-                hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(i)) => {
+                mandates::MandateDataType::MultiUse(Some(i)) => {
                     api::MandateType::MultiUse(Some(api::MandateAmountData {
                         amount: i.amount,
                         currency: i.currency,
@@ -3937,7 +3941,7 @@ where
                         metadata: i.metadata,
                     }))
                 }
-                hyperswitch_domain_models::mandates::MandateDataType::SingleUse(i) => {
+                mandates::MandateDataType::SingleUse(i) => {
                     api::MandateType::SingleUse(api::payments::MandateAmountData {
                         amount: i.amount,
                         currency: i.currency,
@@ -3946,9 +3950,7 @@ where
                         metadata: i.metadata,
                     })
                 }
-                hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None) => {
-                    api::MandateType::MultiUse(None)
-                }
+                mandates::MandateDataType::MultiUse(None) => api::MandateType::MultiUse(None),
             }),
             update_mandate_id: d.update_mandate_id.clone(),
         });
@@ -3973,7 +3975,7 @@ where
                 .mandate_reference_id
                 .as_ref()
                 .and_then(|mandate_ref| match mandate_ref {
-                    api_models::payments::MandateReferenceId::ConnectorMandateId(
+                    mandates::MandateReferenceId::ConnectorMandateId(
                         connector_mandate_reference_id,
                     ) => connector_mandate_reference_id.get_connector_mandate_id(),
                     _ => None,
@@ -4723,7 +4725,7 @@ impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::paymen
                 raw_qr_data,
             } => Self::QrCodeInformation {
                 image_data_url: Some(image_data_url),
-                qr_code_url: Some(qr_code_url),
+                qr_code_url,
                 display_to_timestamp,
                 border_color: None,
                 display_text: None,

@@ -4,6 +4,83 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.25.1
+
+### Features
+
+- **analytics:** Add ClickHouse-backed payment intents aggregate endpoints ([#12387](https://github.com/juspay/hyperswitch/pull/12387)) ([`f31231f`](https://github.com/juspay/hyperswitch/commit/f31231fc262eac6810a5a13a1d91b649e859a249))
+
+### Refactors
+
+- **mandate:** Move mandate types from api_models to hyperswitch_domain_models ([#12337](https://github.com/juspay/hyperswitch/pull/12337)) ([`860b978`](https://github.com/juspay/hyperswitch/commit/860b9782f71b012c75ad1e3cbf26596b961f285d))
+
+### Testing
+
+- **cypress:**
+  - Add Affirm PayLater payment test for Stripe connector ([#12308](https://github.com/juspay/hyperswitch/pull/12308)) ([`6222a25`](https://github.com/juspay/hyperswitch/commit/6222a25e813d0c3ff4c471b5a1d6a3cd309c460a))
+  - Add manual payment update coverage for stripe ([#12126](https://github.com/juspay/hyperswitch/pull/12126)) ([`52302ff`](https://github.com/juspay/hyperswitch/commit/52302ffa944c3456f4a3045f495204fd4700855d))
+  - Add clear pan retry coverage for bankofamerica ([#12422](https://github.com/juspay/hyperswitch/pull/12422)) ([`e940938`](https://github.com/juspay/hyperswitch/commit/e940938b8d1c6dc37aea94c0dc37cdea6e76b662))
+
+**Full Changelog:** [`2026.05.25.0...2026.05.25.1`](https://github.com/juspay/hyperswitch/compare/2026.05.25.0...2026.05.25.1)
+
+- - -
+
+## 2026.05.25.0
+
+### Features
+
+- **core:** Revert Added profileId to payments client secret ([#12424](https://github.com/juspay/hyperswitch/pull/12424)) ([`d9eb608`](https://github.com/juspay/hyperswitch/commit/d9eb6089f55e9364efa6e9044bb238894f1cb55f))
+- **mandate:** Add network_transaction_link_id support to mandate table ([#12323](https://github.com/juspay/hyperswitch/pull/12323)) ([`d2804f2`](https://github.com/juspay/hyperswitch/commit/d2804f2d368ce6c51406133ecba8833ec51f3570))
+- **observability:** Instrument key manager with external service call event emission ([#11834](https://github.com/juspay/hyperswitch/pull/11834)) ([`97558fa`](https://github.com/juspay/hyperswitch/commit/97558fa48efef374ceb1f72dd3a235c6d8ea72d6))
+- **reports:** Add payment_response_hash_key to report generation Lambda payload ([#12218](https://github.com/juspay/hyperswitch/pull/12218)) ([`d36844b`](https://github.com/juspay/hyperswitch/commit/d36844bcceae2f53def49ee0f1b6d40ff51ce66a))
+
+### Bug Fixes
+
+- **connector:** [Checkout] pad NetworkToken expiry_year to 4 digits ([#12386](https://github.com/juspay/hyperswitch/pull/12386)) ([`289685f`](https://github.com/juspay/hyperswitch/commit/289685fa12210ac49e86bcc7fe9e021d5aa52213))
+- **split_payments:** Remove deny_unknown_fields from StripeSplitPayments ([#12411](https://github.com/juspay/hyperswitch/pull/12411)) ([`9683189`](https://github.com/juspay/hyperswitch/commit/9683189a5cbab681392b3ac4a331b6cd22a1aea4))
+
+**Full Changelog:** [`2026.05.22.0...2026.05.25.0`](https://github.com/juspay/hyperswitch/compare/2026.05.22.0...2026.05.25.0)
+
+- - -
+
+## 2026.05.22.0
+
+### Features
+
+- **Payouts:** [Envoy] add account holder name in bank transers ACH,BACS,SEPA ([#12404](https://github.com/juspay/hyperswitch/pull/12404)) ([`5a63780`](https://github.com/juspay/hyperswitch/commit/5a6378059e0f764e8794bf7aeb4b841eacd56581))
+- **authentication:** Add modular authentication as service ([#12277](https://github.com/juspay/hyperswitch/pull/12277)) ([`3ec9b0b`](https://github.com/juspay/hyperswitch/commit/3ec9b0b11782d9724c9f741e125220c130aaa111))
+- **connector:** [SANTANDER] Accept Receiver Account Details from Merchant ([#12185](https://github.com/juspay/hyperswitch/pull/12185)) ([`e8a299a`](https://github.com/juspay/hyperswitch/commit/e8a299a7335a49014aa3783bb9ba0b8ff9782fc4))
+- **payment-methods:**
+  - Invoke inline backward compat job ([#12366](https://github.com/juspay/hyperswitch/pull/12366)) ([`2e6ca7e`](https://github.com/juspay/hyperswitch/commit/2e6ca7e8cb6223d13d71a5bc5b21b9b29fda821c))
+  - Implement v2 default payment method set functionality ([#12371](https://github.com/juspay/hyperswitch/pull/12371)) ([`c657289`](https://github.com/juspay/hyperswitch/commit/c657289862bf418c6dba16ea1f29c998b87ad21c))
+- **payments:** Add connector_type field in payments filter response ([#12137](https://github.com/juspay/hyperswitch/pull/12137)) ([`b1dd7d2`](https://github.com/juspay/hyperswitch/commit/b1dd7d2c4bad56e579631c4e4bfcdd83866b3bf7))
+- **payouts:** Add expanded attempts to payout retrieve ([#12363](https://github.com/juspay/hyperswitch/pull/12363)) ([`11c6cea`](https://github.com/juspay/hyperswitch/commit/11c6cea6fed95f33b021c40acc6bfd2c5a18693e))
+
+### Bug Fixes
+
+- **connector:** [Truelayer] Pass reference id in payout request ([#12402](https://github.com/juspay/hyperswitch/pull/12402)) ([`0dcb5f3`](https://github.com/juspay/hyperswitch/commit/0dcb5f3636af96f9a83e7727ae034efb9e1efeb0))
+- **core:** [proxy] remove validation for card_with_limited_data ([#12365](https://github.com/juspay/hyperswitch/pull/12365)) ([`c735d42`](https://github.com/juspay/hyperswitch/commit/c735d42601fdb5f5d93c1e9dfc86d794e1abad3a))
+- **router:** Fixed backward compatibility issue with profile acquirer config while fetching business profile ([#12418](https://github.com/juspay/hyperswitch/pull/12418)) ([`f537ad4`](https://github.com/juspay/hyperswitch/commit/f537ad4654bbd9eb8b73bdcc71aad718dd6bcfe3))
+
+### Refactors
+
+- **worldpayvantiv:** Extend PSP mandate to include NTID ([#12275](https://github.com/juspay/hyperswitch/pull/12275)) ([`f87c970`](https://github.com/juspay/hyperswitch/commit/f87c970f005d9fb53bfc68302807aeaa7d8990db))
+
+### Testing
+
+- **cypress:**
+  - Add adyen bank redirect mandate CIT coverage ([#12352](https://github.com/juspay/hyperswitch/pull/12352)) ([`1c41579`](https://github.com/juspay/hyperswitch/commit/1c41579b6905bf8c17ee7ffc98f4e4f7ec006e7e))
+  - Add Payment Method Collect Link coverage ([#12041](https://github.com/juspay/hyperswitch/pull/12041)) ([`d89dc1e`](https://github.com/juspay/hyperswitch/commit/d89dc1eaa60f7f7cc75f1347516e0c3eff7cc451))
+  - Add paysafe bank redirect, wallet, and gift card coverage ([#12357](https://github.com/juspay/hyperswitch/pull/12357)) ([`a27c43e`](https://github.com/juspay/hyperswitch/commit/a27c43e60c1b53ba6afa8d5889303536c34387ec))
+
+### Documentation
+
+- **README:** Added Connector Service Section ([#12319](https://github.com/juspay/hyperswitch/pull/12319)) ([`6e5382d`](https://github.com/juspay/hyperswitch/commit/6e5382d24653b857318babbf6ca5f5250fbc3cea))
+
+**Full Changelog:** [`2026.05.21.0...2026.05.22.0`](https://github.com/juspay/hyperswitch/compare/2026.05.21.0...2026.05.22.0)
+
+- - -
+
 ## 2026.05.21.0
 
 ### Features
