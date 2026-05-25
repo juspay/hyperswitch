@@ -343,6 +343,7 @@ jobs:
           CYPRESS_BASEURL: "http://localhost:8080"
           PAYMENTS_CONNECTORS: "${{ matrix.batch.payments_connectors }}"
           CYPRESS_MOCK_SERVER: "true"
+          CYPRESS_IS_PROXY_ENABLED: "true"
           CYPRESS_PROXY_ADMIN_URL: "http://127.0.0.1:8001"
         shell: bash -leuo pipefail {0}
         run: scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
