@@ -3819,6 +3819,9 @@ Cypress.Commands.add(
             globalState.get("paymentAmount")
           );
           expect(response.body.profile_id, "profile_id").to.not.be.null;
+          if (response.body.mandate_id) {
+            globalState.set("mandateId", response.body.mandate_id);
+          }
           if (!configs.skipBillingAssertion) {
             expect(response.body.billing, "billing_address").to.not.be.null;
           }
@@ -4459,23 +4462,8 @@ Cypress.Commands.add(
             );
           }
         } else if (response.status === 400) {
-          if (response.body.error.message === "Mandate Validation Failed") {
-            expect(response.body.error.code).to.equal("HE_03");
-            expect(response.body.error.message).to.equal(
-              "Mandate Validation Failed"
-            );
-            if (
-              response.body.error.reason ===
-              "Cross currency mandates are not supported"
-            ) {
-              expect(response.body.error.reason).to.equal(
-                "Cross currency mandates are not supported"
-              );
-            } else {
-              expect(response.body.error.reason).to.equal(
-                "request amount is greater than mandate amount"
-              );
-            }
+          for (const key in resData.body) {
+            expect(response.body[key], [key]).to.deep.equal(resData.body[key]);
           }
         } else {
           defaultErrorHandler(response, resData);
