@@ -5644,6 +5644,7 @@ impl RawPaymentMethodFetchAccess {
                         card_holder_name: network_token_details.card_holder_name,
                         nick_name: network_token_details.nick_name,
                         card_issuing_country: network_token_details.card_issuing_country,
+                        card_issuing_country_code: None,
                         card_network: network_token_details.card_network,
                         card_issuer: network_token_details.card_issuer,
                         card_type: network_token_details.card_type,

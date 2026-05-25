@@ -1790,6 +1790,7 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
                 card_network,
                 card_type,
                 card_issuing_country,
+                card_issuing_country_code,
                 nick_name,
                 card_holder_name,
             }) => Ok(Self::Card(Card {
@@ -1801,7 +1802,7 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
                 card_network,
                 card_type: card_type.map(|card_type| card_type.to_string()),
                 card_issuing_country: card_issuing_country.map(|country| country.to_string()),
-                card_issuing_country_code: None,
+                card_issuing_country_code,
                 bank_code: None,
                 nick_name,
                 card_holder_name,
@@ -2231,6 +2232,7 @@ impl From<Card> for payment_methods::CardDetail {
             card_holder_name: card.card_holder_name,
             nick_name: card.nick_name,
             card_issuing_country: None,
+            card_issuing_country_code: card.card_issuing_country_code,
             card_network: card.card_network,
             card_issuer: card.card_issuer,
             card_type: None,
@@ -3786,6 +3788,7 @@ impl TryFrom<CardNumberWithStoredDetails> for payment_methods::CardDetail {
                 .transpose()
                 .ok()
                 .flatten(),
+            card_issuing_country_code: None,
             card_network: item.card_network,
             card_issuer: item.card_issuer,
             card_type: item

@@ -645,13 +645,13 @@ pub async fn run_payment_method_modular_backward_compat_backfill(
                 key_store,
                 None,
             );
-            backfill_legacy_locker_card(
+            Box::pin(backfill_legacy_locker_card(
                 state,
                 &platform,
                 &payment_method,
                 &tracking_data,
                 process_id,
-            )
+            ))
             .await?;
         }
     }

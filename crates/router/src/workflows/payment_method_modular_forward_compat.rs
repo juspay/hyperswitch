@@ -20,6 +20,22 @@ use crate::{
 pub struct PaymentMethodModularForwardCompatWorkflow;
 
 #[cfg(feature = "v1")]
+#[derive(Debug, serde::Serialize)]
+struct ForwardCompatVaultFingerprintRequest {
+    data: String,
+    key: String,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Serialize)]
+struct ForwardCompatAddVaultRequest<'a, D> {
+    entity_id: String,
+    vault_id: crate::types::domain::VaultId,
+    data: &'a D,
+    ttl: i64,
+}
+
+#[cfg(feature = "v1")]
 fn is_forward_compat_complete(payment_method: &crate::types::domain::PaymentMethod) -> bool {
     payment_method.version == common_enums::ApiVersion::V2
         && payment_method.compatibility_updated_at == Some(payment_method.last_modified)
@@ -28,21 +44,18 @@ fn is_forward_compat_complete(payment_method: &crate::types::domain::PaymentMeth
 #[cfg(feature = "v1")]
 async fn get_vault_fingerprint_id(
     state: &SessionState,
-    entity_id: hyperswitch_domain_models::vault::V1VaultEntityId,
-    data: serde_json::Value,
+    key: String,
+    data: impl serde::Serialize,
 ) -> Result<String, errors::ProcessTrackerError> {
     let data = serde_json::to_string(&data)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to serialize vault fingerprint data")?;
 
-    let payload = pm_types::VaultFingerprintRequest {
-        data,
-        key: entity_id,
-    }
-    .encode_to_vec()
-    .change_context(errors::VaultError::RequestEncodingFailed)
-    .attach_printable("Failed to encode VaultFingerprintRequest")
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let payload = ForwardCompatVaultFingerprintRequest { data, key }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode VaultFingerprintRequest")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let resp = vault::call_to_vault::<pm_types::GetVaultFingerprint>(state, payload, None)
         .await
@@ -57,6 +70,44 @@ async fn get_vault_fingerprint_id(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     Ok(fingerprint_resp.fingerprint_id)
+}
+
+#[cfg(feature = "v1")]
+async fn upsert_payment_method_to_generic_vault(
+    state: &SessionState,
+    customer_id: &common_utils::id_type::CustomerId,
+    vault_id: crate::types::domain::VaultId,
+    data: &hyperswitch_domain_models::vault::PaymentMethodVaultingData,
+) -> Result<(), errors::ProcessTrackerError> {
+    let payload = ForwardCompatAddVaultRequest {
+        entity_id: customer_id.get_string_repr().to_owned(),
+        vault_id,
+        data,
+        ttl: state.conf.locker.ttl_for_storage_in_secs,
+    }
+    .encode_to_vec()
+    .change_context(errors::VaultError::RequestEncodingFailed)
+    .attach_printable("Failed to encode AddVaultRequest")
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to add payment method in generic locker in compatibility PT")?;
+
+    let query_params = Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Upsert));
+
+    let resp = vault::call_to_vault::<pm_types::AddVault>(state, payload, query_params)
+        .await
+        .change_context(errors::VaultError::VaultAPIError)
+        .attach_printable("Call to vault failed")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to add payment method in generic locker in compatibility PT")?;
+
+    let _stored_pm_resp: serde_json::Value = resp
+        .parse_struct("ForwardCompatAddVaultResponse")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed to parse data into ForwardCompatAddVaultResponse")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to add payment method in generic locker in compatibility PT")?;
+
+    Ok(())
 }
 
 #[async_trait::async_trait]
@@ -113,6 +164,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
                 diesel_models::payment_method::CommonMandateReference::add_v2_connector_mandate_fields(
                     payment_method.connector_mandate_details.clone(),
                 );
+            let mut locker_fingerprint_id = None;
             let mut auxiliary_fingerprint_id = None;
 
             let business_status = if payment_method.payment_method
@@ -162,23 +214,25 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
                         card_detail.clone(),
                     );
 
-                    let auxiliary_fingerprint_data = serde_json::to_value(
-                        hyperswitch_domain_models::vault::AuxiliaryFingerprintData::CardNumber(
-                            card_detail.card_number.clone(),
-                        ),
-                    )
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to serialize auxiliary fingerprint data")?;
-                    let entity_id = hyperswitch_domain_models::vault::V1VaultEntityId::new(
-                        key_store.merchant_id.clone(),
-                        customer_id.clone(),
-                    );
-                    auxiliary_fingerprint_id = Some(
-                        get_vault_fingerprint_id(state, entity_id, auxiliary_fingerprint_data)
-                            .await?,
+                    let customer_id_key = customer_id.get_string_repr().to_owned();
+                    locker_fingerprint_id = Some(
+                        get_vault_fingerprint_id(
+                            state,
+                            customer_id_key.clone(),
+                            pmd.to_fingerprint_data(),
+                        )
+                        .await?,
                     );
 
-                    // Step 5: Upsert the card into generic locker via direct AddVault call.
+                    auxiliary_fingerprint_id = Some(
+                        get_vault_fingerprint_id(
+                            state,
+                            customer_id_key,
+                            pmd.to_auxiliary_fingerprint_data(),
+                        )
+                        .await?,
+                    );
+
                     // Step 5: Upsert the card into generic locker via direct AddVault call.
                     let payload = pm_types::AddCompatVaultRequest {
                         entity_id: customer_id.clone(),
@@ -197,27 +251,13 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
                     let query_params =
                         Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Upsert));
 
-                    let resp = vault::call_to_vault::<pm_types::AddVault>(
+                    let resp = upsert_payment_method_to_generic_vault(
                         state,
-                        payload,
-                        query_params,
+                        &customer_id,
+                        crate::types::domain::VaultId::generate(card_reference),
+                        &pmd,
                     )
-                    .await
-                    .change_context(errors::VaultError::VaultAPIError)
-                    .attach_printable("Call to vault failed")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Failed to add payment method in generic locker in compatibility PT",
-                    )?;
-
-                    let _stored_pm_resp: pm_types::InternalAddVaultResponse = resp
-                        .parse_struct("InternalAddVaultResponse")
-                        .change_context(errors::VaultError::ResponseDeserializationFailed)
-                        .attach_printable("Failed to parse data into InternalAddVaultResponse")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "Failed to add payment method in generic locker in compatibility PT",
-                        )?;
+                    .await?;
                     logger::info!(
                         process_id=%process.id,
                         payment_method_id=%payment_method.payment_method_id,
@@ -268,55 +308,13 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
                             network_token_details.clone(),
                         );
 
-                    let network_token_entity_id =
-                        hyperswitch_domain_models::vault::V1VaultEntityId::new(
-                            key_store.merchant_id.clone(),
-                            customer_id,
-                        );
-
-                    let network_token_payload = pm_types::AddVaultRequest {
-                        entity_id: network_token_entity_id,
-                        vault_id: crate::types::domain::VaultId::generate(
-                            network_token_locker_id.clone(),
-                        ),
-                        data: &network_token_pmd,
-                        ttl: state.conf.locker.ttl_for_storage_in_secs,
-                    }
-                    .encode_to_vec()
-                    .change_context(errors::VaultError::RequestEncodingFailed)
-                    .attach_printable("Failed to encode AddVaultRequest for network token")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Failed to add network token in generic locker in compatibility PT",
-                    )?;
-
-                    let network_token_query_params =
-                        Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Upsert));
-
-                    let network_token_resp = vault::call_to_vault::<pm_types::AddVault>(
+                    upsert_payment_method_to_generic_vault(
                         state,
-                        network_token_payload,
-                        network_token_query_params,
+                        &customer_id,
+                        crate::types::domain::VaultId::generate(network_token_locker_id.clone()),
+                        &network_token_pmd,
                     )
-                    .await
-                    .change_context(errors::VaultError::VaultAPIError)
-                    .attach_printable("Call to vault failed for network token")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Failed to add network token in generic locker in compatibility PT",
-                    )?;
-
-                    let _stored_network_token_resp: pm_types::InternalAddVaultResponse =
-                        network_token_resp
-                            .parse_struct("InternalAddVaultResponse")
-                            .change_context(errors::VaultError::ResponseDeserializationFailed)
-                            .attach_printable(
-                                "Failed to parse network token response into InternalAddVaultResponse",
-                            )
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable(
-                                "Failed to add network token in generic locker in compatibility PT",
-                            )?;
+                    .await?;
 
                     crate::logger::info!(
                         process_id=%process.id,
@@ -339,6 +337,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
                 payment_method_type_v2: payment_method.payment_method,
                 payment_method_subtype: payment_method.payment_method_type,
                 connector_mandate_details,
+                locker_fingerprint_id,
                 auxiliary_fingerprint_id,
                 last_modified_by: tracking_data.last_modified_by.clone(),
             };

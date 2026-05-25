@@ -905,6 +905,9 @@ pub struct CardDetail {
     #[schema(value_type = CountryAlpha2)]
     pub card_issuing_country: Option<api_enums::CountryAlpha2>,
 
+    /// Card Issuing Country Code
+    pub card_issuing_country_code: Option<String>,
+
     /// Card's Network
     #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<api_enums::CardNetwork>,
@@ -1165,6 +1168,7 @@ impl CardDetailUpdate {
                 .nick_name
                 .map(hyperswitch_masking::Secret::new)),
             card_issuing_country: None,
+            card_issuing_country_code: None,
             card_network: None,
             card_issuer: None,
             card_type: None,

@@ -236,7 +236,7 @@ impl PaymentMethodVaultingData {
         }
     }
 
-    #[cfg(feature = "v2")]
+    #[cfg(any(feature = "v1", feature = "v2"))]
     pub fn to_fingerprint_data(&self) -> FingerprintData {
         match self {
             Self::Card(card) => FingerprintData::Card(FingerprintCardData {
@@ -274,7 +274,7 @@ impl PaymentMethodVaultingData {
         }
     }
 
-    #[cfg(feature = "v2")]
+    #[cfg(any(feature = "v1", feature = "v2"))]
     pub fn to_auxiliary_fingerprint_data(&self) -> AuxiliaryFingerprintData {
         match self {
             Self::Card(card) => AuxiliaryFingerprintData::CardNumber(card.card_number.clone()),
@@ -299,7 +299,7 @@ impl PaymentMethodVaultingData {
         }
     }
 
-    #[cfg(feature = "v2")]
+    #[cfg(any(feature = "v1", feature = "v2"))]
     pub fn get_bank_debit_fingerprint_data(
         bank_debit: &payment_method_data::BankDebitDetail,
     ) -> FingerprintBankDebitData {
@@ -539,6 +539,7 @@ impl From<payment_methods::Card> for PaymentMethodVaultingData {
             card_network,
             nick_name: card.nick_name.map(hyperswitch_masking::Secret::new),
             card_issuing_country: None,
+            card_issuing_country_code: None,
             card_issuer: None,
             card_type: None,
         })
