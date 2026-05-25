@@ -1325,6 +1325,7 @@ enabled = true
 
 [events]
 source = "logs"
+emit_external_service_call_events = false
 
 [events.kafka]
 brokers = ["localhost:9092"]
@@ -1342,6 +1343,7 @@ consolidated_events_topic = "hyperswitch-consolidated-events"
 authentication_analytics_topic = "hyperswitch-authentication-events"
 routing_logs_topic = "hyperswitch-routing-api-events"
 revenue_recovery_topic = "hyperswitch-revenue-recovery-events"
+external_service_call_topic = "hyperswitch-external-service-call-events"
 
 [debit_routing_config]
 supported_currencies = "USD"
@@ -1567,3 +1569,7 @@ backup_file_path = "./config/superposition_seed.toml" # Path to a local file for
 payment_methods_base_url = "http://localhost:8082"
 payment_methods_prefix = "v2"
 use_legacy_locker = false
+
+[micro_services.authentication_service]
+base_url = "http://localhost:8080"
+api_key = "api-key"

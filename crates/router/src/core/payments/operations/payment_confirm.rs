@@ -6,10 +6,7 @@ use api_models::{
     admin::ExtendedCardInfoConfig,
     enums::FrmSuggestion,
     mandates::RecurringDetails,
-    payments::{
-        ConnectorMandateReferenceId, ExtendedCardInfo, GetAddressFromPaymentMethodData,
-        MandateTransactionType,
-    },
+    payments::{ExtendedCardInfo, GetAddressFromPaymentMethodData},
 };
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
@@ -17,6 +14,8 @@ use diesel_models::payment_attempt::ConnectorMandateReferenceId as DieselConnect
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
 use hyperswitch_domain_models::{
+    mandates,
+    mandates::{ConnectorMandateReferenceId, MandateTransactionType},
     payment_method_data::RecurringDetails as domain_recurring_details,
     payment_methods::PaymentMethodWithRawData,
     payments::{self as domain_payments, payment_intent::PaymentIntentUpdateFields},
@@ -45,10 +44,9 @@ use crate::{
         metrics,
         payment_methods::transformers as pm_transformers,
         payments::{
-            self, helpers, operations,
-            operations::payment_confirm::unified_authentication_service::ThreeDsMetaData,
-            populate_installment_details, populate_surcharge_details, CustomerDetails,
-            OperationSessionGetters, OperationSessionSetters, PaymentAddress, PaymentData,
+            self, helpers, operations, populate_installment_details, populate_surcharge_details,
+            CustomerDetails, OperationSessionGetters, OperationSessionSetters, PaymentAddress,
+            PaymentData,
         },
         three_ds_decision_rule,
         unified_authentication_service::{
@@ -818,10 +816,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .and_then(|recurring_details| match recurring_details {
                 RecurringDetails::ProcessorPaymentToken(token) => {
                     payment_intent.is_payment_processor_token_flow = Some(true);
-                    Some(api_models::payments::MandateIds {
+                    Some(mandates::MandateIds {
                         mandate_id: None,
                         mandate_reference_id: Some(
-                            api_models::payments::MandateReferenceId::ConnectorMandateId(
+                            mandates::MandateReferenceId::ConnectorMandateId(
                                 ConnectorMandateReferenceId::new(
                                     Some(token.processor_payment_token.clone()), // connector_mandate_id
                                     None, // payment_method_id
@@ -838,7 +836,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
                 | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
                 | RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
-                    Some(api_models::payments::MandateIds {
+                    Some(mandates::MandateIds {
                         mandate_id: None,
                         mandate_reference_id: mandate_reference_id_from_recurring_details,
                     })
@@ -1751,11 +1749,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 mandate_type,
             )
             .await?;
-        let key_manager_state = &(state).into();
-        let dimensions = dimension_state::Dimensions::new()
-            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-            .with_organization_id(payment_data.payment_attempt.organization_id.clone());
 
         if let Some(unified_authentication_service_flow) = unified_authentication_service_flow {
             match unified_authentication_service_flow {
@@ -1918,123 +1911,19 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     acquirer_details,
                     ..
                 } => {
-                    let (authentication_connector, three_ds_connector_account) =
+                    let (authentication_connector, _three_ds_connector_account) =
                     authentication::utils::get_authentication_connector_data(state, platform.get_processor(), business_profile, None).await?;
-                let authentication_connector_name = authentication_connector.to_string();
-                let authentication_id =
-                common_utils::id_type::AuthenticationId::generate_authentication_id(consts::AUTHENTICATION_ID_PREFIX);
-                let (acquirer_bin, acquirer_merchant_id, acquirer_country_code) = if let Some(details) = &acquirer_details {
-                    (
-                        Some(details.acquirer_bin.clone()),
-                        Some(details.acquirer_merchant_id.clone()),
-                        details.acquirer_country_code.clone(),
-                    )
-                } else {
-                    (None, None, None)
-                };
-                let authentication = uas_utils::create_new_authentication(
-                    state,
-                    business_profile.merchant_id.clone(),
-                    Some(authentication_connector_name.clone()),
-                    business_profile.get_id().to_owned(),
-                    Some(payment_data.payment_intent.payment_id.clone()),
-                    Some(three_ds_connector_account
-                        .get_mca_id()
-                        .ok_or(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error while finding mca_id from merchant_connector_account")?),
-                    &authentication_id,
-                    payment_data.service_details.clone(),
-                    common_enums::AuthenticationStatus::Started,
-                    None,
-                    payment_data.payment_attempt.organization_id.clone(),
-                    payment_data.payment_intent.force_3ds_challenge,
-                    payment_data.payment_intent.psd2_sca_exemption_type,
-                    acquirer_bin,
-                    acquirer_merchant_id,
-                    acquirer_country_code,
-                    Some(payment_data.payment_intent.amount),
-                    payment_data.payment_intent.currency,
-                    None,
-                    None,
-                    None,
-                    platform.get_processor(),
-                    platform.get_initiator(),
-                )
-                .await?;
-            // Resolve acquirer details from the bucket using the card network from payment_method_data.
-            // The bucket is keyed by profile_acquirer_id; within it we match the card's network.
-            let resolved_card_network = payment_data
-                .payment_method_data
-                .as_ref()
-                .and_then(|pmd| match pmd {
-                    domain::PaymentMethodData::Card(card) => card.card_network.clone(),
-                    domain::PaymentMethodData::CardWithOptionalCVC(card) => card.card_network.clone(),
-                    _ => None,
-                });
-            let acquirer_configs = authentication
-                .profile_acquirer_id
-                .clone()
-                .zip(resolved_card_network)
-                .and_then(|(acquirer_id, network)| {
-                    business_profile
-                        .acquirer_config_map.as_ref()
-                        .and_then(|acquirer_config_map| acquirer_config_map.configs.get(&acquirer_id))
-                        .and_then(|bucket| bucket.iter().find(|cfg| cfg.network == network).cloned())
-                });
-            let metadata: Option<ThreeDsMetaData> = three_ds_connector_account
-                .get_metadata()
-                .map(|metadata| {
-                    metadata
-                        .expose()
-                        .parse_value("ThreeDsMetaData")
-                        .attach_printable("Error while parsing ThreeDsMetaData")
-                })
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
-            let merchant_country_code = authentication.acquirer_country_code.clone();
+
+
             let return_url = helpers::create_authorize_url(
                 &state.base_url,
                 &payment_data.payment_attempt.clone(),
                 payment_data.payment_attempt.connector.as_ref().get_required_value("connector")?,
             );
-            let three_ds_mca_id = three_ds_connector_account.get_mca_id();
 
-            let merchant_connector_account_id_or_connector_name = three_ds_mca_id
-                .as_ref()
-                .map(|mca_id| mca_id.get_string_repr())
-                .unwrap_or(&authentication_connector_name);
-
-            let webhook_url = Some(url::Url::parse(&helpers::create_webhook_url(
-                &state.base_url,
-                &authentication.merchant_id,
-                merchant_connector_account_id_or_connector_name,
-            )))
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse webhook notification url")?;
-
-            let notification_url = Some(url::Url::parse(&return_url))
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to parse authorise notification url")?;
-
-            let merchant_category_code = business_profile.merchant_category_code.clone().or(metadata.clone().and_then(|metadata| metadata.merchant_category_code.clone()));
-
-            let merchant_details = Some(unified_authentication_service::MerchantDetails {
-                merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
-                merchant_name: acquirer_configs.clone().and_then(|detail| detail.merchant_name.clone()).or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
-                merchant_category_code: merchant_category_code.clone(),
-                endpoint_prefix: metadata.clone().and_then(|metadata| metadata.endpoint_prefix),
-                three_ds_requestor_url: business_profile.authentication_connector_details.clone().map(|details| details.three_ds_requestor_url),
-                three_ds_requestor_id: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_id),
-                three_ds_requestor_name: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_name),
-                merchant_country_code: merchant_country_code.clone().map(common_types::payments::MerchantCountryCode::new),
-                notification_url,
-                webhook_url
-            });
-            let domain_address  = payment_data.address.get_payment_method_billing();
-            let shipping = payment_data.address.get_shipping();
-            let browser_info = payment_data.payment_attempt.browser_info
+            let domain_address  = payment_data.address.get_payment_method_billing().map(|address| address.clone().foreign_into());
+            let shipping = payment_data.address.get_shipping().map(|address| address.clone().foreign_into());
+            let browser_info: Option<api_models::payments::BrowserInformation> = payment_data.payment_attempt.browser_info
                 .clone()
                 .parse_value("BrowserInfo")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2052,53 +1941,114 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 .change_context(errors::StorageError::DeserializationFailed)
                 .attach_printable("Failed to parse customer data from payment intent")
                 .change_context(errors::ApiErrorResponse::InternalServerError)?.and_then(|cust| cust.email);
-            let routing_region =
-                uas_utils::utils::fetch_routing_region_for_uas(state, &dimensions).await;
 
-            let pre_auth_response = uas_utils::types::ExternalAuthentication::pre_authentication(
-                        state,
-                        &payment_data.payment_attempt.merchant_id,
-                        Some(&payment_data.payment_intent.payment_id),
-                        payment_data.payment_method_data.as_ref(),
-                        payment_data.payment_attempt.payment_method_type,
-                        &three_ds_connector_account,
-                        &authentication_connector_name,
-                        &authentication.authentication_id,
-                        payment_data.payment_attempt.payment_method.ok_or(
-                            errors::ApiErrorResponse::InternalServerError
-                        ).attach_printable("payment_method not found in payment_attempt")?,
-                        payment_data.payment_intent.amount,
-                        payment_data.payment_intent.currency,
-                        payment_data.service_details.clone(),
-                        merchant_details.as_ref(),
-                        domain_address,
-                        authentication.acquirer_bin.clone(),
-                        authentication.acquirer_merchant_id.clone(),
-                        Some(routing_region),
-                    )
-                    .await?;
-                let updated_authentication = Box::pin(uas_utils::utils::external_authentication_update_trackers(
-                    state,
-                    pre_auth_response,
-                    authentication.clone(),
-                    acquirer_details,
-                    platform.get_processor().get_key_store(),
-                    domain_address.cloned(),
-                    shipping.cloned(),
-                    email,
-                    browser_info,
-                    None,
-                    merchant_category_code,
-                    merchant_country_code.map(common_types::payments::MerchantCountryCode::new),
-                )).await?;
-                let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-                    cavv: None, // since in case of pre_authentication cavv is not present
-                    authentication: updated_authentication.clone(),
+            let authentication_acquirer_details = api_models::authentication::AcquirerDetails {
+                merchant_country_code: acquirer_details.as_ref().and_then(|details| details.acquirer_country_code.clone()),
+                acquirer_bin: acquirer_details.as_ref().map(|details| details.acquirer_bin.clone()),
+                acquirer_merchant_id: acquirer_details.as_ref().map(|details| details.acquirer_merchant_id.clone())
+            };
+
+            let (authentication_create_response, eligibility_response) = {
+                let auth_config = &state.conf.micro_services.authentication_service;
+                let currency = payment_data.payment_intent.currency.ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "currency",
+                }).attach_printable("Currency missing")?;
+
+                let req_identifier = router_env::RequestIdentifier::new("x-request-id");
+                let client = crate::core::authentication_client::AuthenticationServiceClient::new(
+                    auth_config,
+                    &req_identifier,
+                ).change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to create auth client")?;
+
+                let auth_req = api_models::authentication::AuthenticationCreateRequest {
+                    authentication_id: None,
+                    profile_id: None,
+                    amount: payment_data.payment_intent.amount,
+                    authentication_connector: Some(authentication_connector),
+                    currency,
+                    return_url: Some(return_url),
+                    force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
+                    psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
+                    profile_acquirer_id: None,
+                    acquirer_details: Some(authentication_acquirer_details),
+                    customer_details: None,
                 };
-                payment_data.authentication = Some(authentication_store.clone());
 
-                if updated_authentication.is_separate_authn_required()
-                    || updated_authentication.authentication_status.is_failed()
+                let auth_create_resp = crate::core::authentication_client::AuthenticationCreateFlow::call(
+                    state,
+                    &client,
+                    auth_req,
+                ).await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to call authentication create flow")?;
+                payment_data.payment_attempt.authentication_id = Some(auth_create_resp.authentication_id.clone());
+
+                let pm_data: api_models::payments::PaymentMethodData = match payment_data.payment_method_data.clone() {
+                    Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card)) => {
+                        api_models::payments::PaymentMethodData::Card(
+                            api_models::payments::Card {
+                                card_number: card.card_number,
+                                card_exp_month: card.card_exp_month,
+                                card_exp_year: card.card_exp_year,
+                                card_holder_name: card.card_holder_name,
+                                card_cvc: card.card_cvc,
+                                card_issuer: card.card_issuer,
+                                card_network: card.card_network,
+                                card_type: card.card_type,
+                                card_issuing_country: card.card_issuing_country,
+                                card_issuing_country_code: card.card_issuing_country_code,
+                                bank_code: card.bank_code,
+                                nick_name: card.nick_name,
+                            }
+                        )
+                    },
+                    Some(_) => {
+                        Err(errors::ApiErrorResponse::NotSupported {
+                            message: "Payment method not supported for modular authentication".to_string(),
+                        })
+                        .attach_printable("Unsupported payment method for modular authentication")?
+                    }
+                    None => {
+                        Err(errors::ApiErrorResponse::MissingRequiredField {
+                            field_name: "payment_method_data",
+                        })
+                        .attach_printable("payment_method_data missing in payment_data")?
+                    }
+                };
+
+                let eligibility_req = api_models::authentication::AuthenticationEligibilityRequest {
+                    payment_method_data: pm_data,
+                    payment_method: payment_data
+                        .payment_attempt
+                        .payment_method
+                        .ok_or(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("payment_method not found in payment_attempt")?,
+                    payment_method_type: payment_data.payment_attempt.payment_method_type,
+                    client_secret: None,
+                    profile_id: payment_data.payment_intent.profile_id.clone(),
+                    billing: domain_address,
+                    shipping,
+                    browser_information: browser_info.clone(),
+                    email: email.clone(),
+                };
+
+                let elig_resp = crate::core::authentication_client::AuthenticationEligibilityFlow::call(
+                    state,
+                    &client,
+                    (
+                        eligibility_req,
+                        auth_create_resp.authentication_id.get_string_repr().to_owned(),
+                    ),
+                ).await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to call authentication eligibility flow")?;
+
+                (auth_create_resp, elig_resp)
+            };
+
+                if eligibility_response.is_separate_authn_required()
+                    || eligibility_response.status.is_failed()
                 {
                     *should_continue_confirm_transaction = false;
                     let default_poll_config = types::PollConfig::default();
@@ -2108,15 +2058,15 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .attach_printable("Error while stringifying default poll config")?;
 
                     // raise error if authentication_connector is not present since it should we be present in the current flow
-                    let authentication_connector = updated_authentication.authentication_connector
+                    let authentication_connector = eligibility_response.authentication_connector
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("authentication_connector not found in updated_authentication")?;
+                    .attach_printable("authentication_connector not found in eligibility_response")?;
 
                     let poll_config = state
                         .store
                         .find_config_by_key_unwrap_or(
                             &types::PollConfig::get_poll_config_key(
-                                authentication_connector.clone(),
+                                authentication_connector.to_string()
                             ),
                             Some(default_config_str),
                         )
@@ -2130,9 +2080,33 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .attach_printable("Error while parsing PollConfig")?;
                     payment_data.poll_config = Some(poll_config)
                 }
+
+                 let three_ds_data = eligibility_response.eligibility_response_params.as_ref().map(|param| {
+                    match param {
+                        api_models::authentication::EligibilityResponseParams::ThreeDsData(data) => data.clone(),
+                    }
+                });
+
+                 let authentication_domain_model = authentication::transformers::construct_authentication_domain_model(
+                    (
+                        authentication_create_response.clone(),
+                        eligibility_response.clone(),
+                        three_ds_data.clone(),
+                        payment_data.payment_attempt.profile_id.clone(),
+                        payment_data.payment_attempt.organization_id.clone(),
+                    )
+                 );
+
+                let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
+                        cavv: None,
+                    authentication:authentication_domain_model
+                    };
+
+                    payment_data.authentication = Some(authentication_store.clone());
+
                 },
                 helpers::UnifiedAuthenticationServiceFlow::ExternalAuthenticationPostAuthenticate {authentication_id} => {
-                    let (authentication_connector, three_ds_connector_account) =
+                    let (_authentication_connector, three_ds_connector_account) =
                     authentication::utils::get_authentication_connector_data(state, platform.get_processor(), business_profile, None).await?;
                 let is_pull_mechanism_enabled =
                     utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
@@ -2140,69 +2114,61 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             .get_metadata()
                             .map(|metadata| metadata.expose()),
                     );
-                let authentication = state
-                    .store
-                    .find_authentication_by_merchant_id_authentication_id(
-                        &business_profile.merchant_id,
-                        &authentication_id,
-                        platform.get_processor().get_key_store(),
-                        key_manager_state,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable_lazy(|| format!("Error while fetching authentication record with authentication_id {}", authentication_id.get_string_repr()))?;
 
-                let routing_region =
-                    uas_utils::utils::fetch_routing_region_for_uas(state, &dimensions).await;
+                let sync_response = if !payment_data.payment_attempt.status.is_terminal_status() && is_pull_mechanism_enabled {
+                    {
+                        let auth_config = &state.conf.micro_services.authentication_service;
+                        let req_identifier = router_env::RequestIdentifier::new("x-request-id");
+                        let client = crate::core::authentication_client::AuthenticationServiceClient::new(
+                            auth_config,
+                            &req_identifier,
+                        )
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to create auth client")?;
 
-                let updated_authentication = if !authentication.authentication_status.is_terminal_status() && is_pull_mechanism_enabled {
-                    let post_auth_response = uas_utils::types::ExternalAuthentication::post_authentication(
-                        state,
-                        business_profile,
-                        Some(&payment_data.payment_intent.payment_id),
-                        &three_ds_connector_account,
-                        &authentication_connector.to_string(),
-                        &authentication.authentication_id,
-                        payment_data.payment_attempt.payment_method.ok_or(
-                            errors::ApiErrorResponse::InternalServerError
-                        ).attach_printable("payment_method not found in payment_attempt")?,
-                        &payment_data.payment_intent.merchant_id,
-                        Some(&authentication),
-                        Some(routing_region)
-                    ).await?;
-                    uas_utils::utils::external_authentication_update_trackers(
-                        state,
-                        post_auth_response,
-                        authentication,
-                        None,
-                        platform.get_processor().get_key_store(),
-                        None,
-                        None,
-                        None,
-                        None,
-                        None,
-                        None,
-                        None,
-                    ).await?
+                        let sync_req = api_models::authentication::AuthenticationSyncRequest {
+                            client_secret: None,
+                            payment_method_details: None,
+                            authentication_id: authentication_id.clone(),
+                        };
+
+                        let response = crate::core::authentication_client::AuthenticationSyncFlow::call(
+                            state,
+                            &client,
+                            (sync_req, business_profile.merchant_id.get_string_repr().to_owned()),
+                        ).await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to call authentication sync flow")?;
+
+                        response
+                    }
                 } else {
-                    authentication
+                    return Err(errors::ApiErrorResponse::InternalServerError).attach_printable("Pull mechanism disabled or terminal status during post-authentication sync")?;
                 };
 
-                let tokenized_data = if updated_authentication.authentication_status.is_success() {
+                let updated_authentication_status = sync_response.status;
+
+                 let authentication_domain_model = authentication::transformers::construct_authentication_domain_model(
+                    (
+                        sync_response.clone(),
+                        payment_data.payment_attempt.organization_id.clone(),
+                    )
+                 );
+
+                let tokenized_data = if updated_authentication_status.is_success() {
                     Some(crate::core::payment_methods::vault::get_tokenized_data(state, authentication_id.get_string_repr(), false, platform.get_provider().get_key_store().key.get_inner()).await?)
                 } else {
                     None
                 };
 
-                let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-                    cavv: tokenized_data.map(|tokenized_data| hyperswitch_masking::Secret::new(tokenized_data.value1)),
-                    authentication: updated_authentication
-                };
+                    let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
+                        cavv: tokenized_data.map(|tokenized_data| hyperswitch_masking::Secret::new(tokenized_data.value1)),
+                    authentication:authentication_domain_model
+                    };
 
-                payment_data.authentication = Some(authentication_store.clone());
+                    payment_data.authentication = Some(authentication_store.clone());
                 //If authentication is not successful, skip the payment connector flows and mark the payment as failure
-                if authentication_store.authentication.authentication_status
-                    != api_models::enums::AuthenticationStatus::Success
+                if updated_authentication_status != api_models::enums::AuthenticationStatus::Success
                 {
                     *should_continue_confirm_transaction = false;
                 }
@@ -2384,7 +2350,9 @@ impl PaymentConfirm {
         logger::info!("Payment method fetched from PM Modular Service.");
 
         utils::when(
-            pm_info.payment_method.customer_id.as_ref() != req.get_customer_id(),
+            req.get_customer_id().is_some_and(|customer_id| {
+                pm_info.payment_method.customer_id.as_ref() != Some(customer_id)
+            }),
             || {
                 logger::info!(
                     "Payment method id does not belong to the customer id provided in the request."

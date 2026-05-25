@@ -1,4 +1,4 @@
-import { getCustomExchange } from "./Modifiers";
+import { getCustomExchange, getIframeRedirectionConfig } from "./Modifiers";
 import { standardBillingAddress } from "./Commons";
 
 const successfulNo3DSCardDetails = {
@@ -69,6 +69,10 @@ export const connectorDetails = {
         },
       },
     },
+    ...getIframeRedirectionConfig({
+      cardDetails: successfulThreeDSTestCardDetails,
+      amount: 6000,
+    }),
     PaymentIntentWithShippingCost: {
       Request: {
         currency: "USD",
@@ -142,6 +146,9 @@ export const connectorDetails = {
         },
       },
     },
+    ...getIframeRedirectionConfig({
+      cardDetails: successfulThreeDSTestCardDetails,
+    }),
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
