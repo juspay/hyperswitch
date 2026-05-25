@@ -81,11 +81,11 @@ impl FeatureConfig {
         record_modified_at: Option<time::PrimitiveDateTime>,
     ) -> bool {
         self.is_payment_method_modular_allowed
-            || payment_method_version == Some(common_enums::ApiVersion::V2)
-            || matches!(
-                (compat_fields_synced_at , record_modified_at ),
-                (Some(compat_updated), Some(last_mod)) if compat_updated == last_mod
-            )
+            || (payment_method_version == Some(common_enums::ApiVersion::V2)
+                && matches!(
+                    (compat_fields_synced_at, record_modified_at),
+                    (Some(compat_updated), Some(last_mod)) if compat_updated >= last_mod
+                ))
     }
 }
 
