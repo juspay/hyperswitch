@@ -216,5 +216,66 @@ export const connectorDetails = {
         },
       },
     },
+    PayoutPriority: {
+      Request: {
+        payout_type: "bank",
+        priority: "instant",
+        payout_method_data: {
+          bank: {
+            iban: "NL57INGB4654188101",
+          },
+        },
+        billing: billing,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "initiated",
+          priority: "instant",
+          payout_type: "bank",
+        },
+      },
+    },
+    PayoutPriorityMissing: {
+      Request: {
+        payout_type: "bank",
+        payout_method_data: {
+          bank: {
+            iban: "NL57INGB4654188101",
+          },
+        },
+        billing: billing,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Missing required param: priority",
+            code: "IR_04",
+          },
+        },
+      },
+    },
+    PayoutPriorityRegular: {
+      Request: {
+        payout_type: "bank",
+        priority: "regular",
+        payout_method_data: {
+          bank: {
+            iban: "NL57INGB4654188101",
+          },
+        },
+        billing: billing,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "initiated",
+          priority: "regular",
+          payout_type: "bank",
+        },
+      },
+    },
   },
 };

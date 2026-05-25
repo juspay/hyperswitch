@@ -153,5 +153,40 @@ export const connectorDetails = {
         payout_type: "card",
       },
     }),
+    PayoutPriority: getCustomExchange({
+      Request: {
+        payout_type: "bank",
+        priority: "instant",
+        payout_method_data: {
+          bank: {
+            iban: "NL57INGB4654188101",
+          },
+        },
+        billing: billing,
+      },
+    }),
+    PayoutPriorityMissing: getCustomExchange({
+      Request: {
+        payout_type: "bank",
+        payout_method_data: {
+          bank: {
+            iban: "NL57INGB4654188101",
+          },
+        },
+        billing: billing,
+      },
+    }),
+    PayoutPriorityRegular: getCustomExchange({
+      Request: {
+        payout_type: "bank",
+        priority: "regular",
+        payout_method_data: {
+          bank: {
+            iban: "NL57INGB4654188101",
+          },
+        },
+        billing: billing,
+      },
+    }),
   },
 };
