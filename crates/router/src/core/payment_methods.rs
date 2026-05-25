@@ -2170,34 +2170,19 @@ impl LockerOperations for LegacyLocker {
                 Ok((None, None))
             }
             Some(pm_transforms::DataDuplicationCheck::MetaDataChanged) => {
-                // delete existing record and add newone with updated metadata but same vault_id
-
-                self.delete_payment_method_from_locker(
-                    state,
-                    platform,
-                    domain::VaultId::generate(legacy_locker_res.card_reference.clone()),
-                    &customer_id,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to delete payment method from legacy locker")?;
-
-                let legacy_locker_res = add_payment_method_to_legacy_locker(
+                let add_vault_response = update_metadata_changed_payment_method_in_legacy_locker(
                     state,
                     platform,
                     vault_request_data,
                     existing_locker_id,
                     &customer_id,
+                    legacy_locker_res.card_reference,
                 )
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to add payment method to legacy locker")?;
+                .attach_printable(
+                    "Failed to update metadata-changed payment method in legacy locker",
+                )?;
 
-                let add_vault_response = pm_types::AddVaultResponse {
-                    entity_id: Some(customer_id.clone()),
-                    vault_id: domain::VaultId::generate(legacy_locker_res.card_reference),
-                    fingerprint_id: None,
-                };
                 logger::info!("Updating only payment method metadata in legacy locker");
                 Ok((Some(vault_request_data.clone()), Some(add_vault_response)))
             }
@@ -2205,6 +2190,45 @@ impl LockerOperations for LegacyLocker {
         }
     }
 }
+
+#[cfg(feature = "v2")]
+pub async fn update_metadata_changed_payment_method_in_legacy_locker(
+    state: &SessionState,
+    platform: &domain::Platform,
+    vault_request_data: &domain::PaymentMethodVaultingData,
+    existing_vault_id: Option<domain::VaultId>,
+    customer_id: &id_type::GlobalCustomerId,
+    metadata_changed_card_reference: String,
+) -> RouterResult<pm_types::AddVaultResponse> {
+    LegacyLocker
+        .delete_payment_method_from_locker(
+            state,
+            platform,
+            domain::VaultId::generate(metadata_changed_card_reference),
+            customer_id,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to delete payment method from legacy locker")?;
+
+    let legacy_locker_res = add_payment_method_to_legacy_locker(
+        state,
+        platform,
+        vault_request_data,
+        existing_vault_id,
+        customer_id,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to add payment method to legacy locker")?;
+
+    Ok(pm_types::AddVaultResponse {
+        entity_id: Some(customer_id.clone()),
+        vault_id: domain::VaultId::generate(legacy_locker_res.card_reference),
+        fingerprint_id: None,
+    })
+}
+
 #[cfg(feature = "v2")]
 impl LockerType {
     pub fn from_micro_services_config(
@@ -2295,10 +2319,10 @@ pub async fn create_payment_method_bank_redirect_core(
             .find(|pm| pm.get_payment_method_subtype() == req.payment_method_subtype)
     });
 
-    let (payment_method, should_trigger_backward_compat) = match existing_wallet_pm {
+    let payment_method = match existing_wallet_pm {
         Some(existing_pm) => {
             logger::debug!("Payment method is duplicate, returning existing payment method record");
-            (existing_pm, false)
+            existing_pm
         }
         None => {
             logger::debug!("Payment method is new, creating a new payment method record");
@@ -2320,20 +2344,19 @@ pub async fn create_payment_method_bank_redirect_core(
                 enums::PaymentMethodStatus::New,
             )
             .await?;
-            (payment_method, true)
+
+            Box::pin(
+                backward_compat::trigger_payment_method_modular_backward_compat_best_effort(
+                    state,
+                    &payment_method,
+                    platform,
+                ),
+            )
+            .await;
+
+            payment_method
         }
     };
-
-    if should_trigger_backward_compat {
-        Box::pin(
-            backward_compat::trigger_payment_method_modular_backward_compat_best_effort(
-                state,
-                &payment_method,
-                platform,
-            ),
-        )
-        .await;
-    }
 
     let payment_method_response = pm_transforms::generate_payment_method_response(
         &payment_method,
@@ -3524,22 +3547,6 @@ pub async fn payment_method_intent_create(
     )
     .await
     .attach_printable("Failed to add Payment method to DB")?;
-
-    let platform = domain::Platform::new(
-        provider.get_account().clone(),
-        provider.get_key_store().clone(),
-        provider.get_account().clone(),
-        provider.get_key_store().clone(),
-        initiator.cloned(),
-    );
-    Box::pin(
-        backward_compat::trigger_payment_method_modular_backward_compat_best_effort(
-            state,
-            &payment_method,
-            &platform,
-        ),
-    )
-    .await;
 
     let resp = pm_transforms::generate_payment_method_response(
         &payment_method,

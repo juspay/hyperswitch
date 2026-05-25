@@ -3178,6 +3178,18 @@ pub async fn delete_card_from_vault<'a>(
     }
 }
 
+#[cfg(feature = "v1")]
+pub async fn update_metadata_changed_card_in_vault(
+    state: &routes::SessionState,
+    customer_id: &id_type::CustomerId,
+    merchant_id: &id_type::MerchantId,
+    old_card_reference: &str,
+    locker_req: &payment_methods::StoreLockerReq,
+) -> errors::CustomResult<payment_methods::StoreCardRespPayload, errors::VaultError> {
+    delete_card_from_vault(state, customer_id, merchant_id, old_card_reference).await?;
+    add_card_to_vault(state, locker_req, customer_id).await
+}
+
 ///Mock api for local testing
 pub async fn mock_call_to_locker_hs(
     db: &dyn db::StorageInterface,

@@ -9,10 +9,12 @@ use scheduler::{
     consumer::types::process_data, utils as pt_utils, workflows::ProcessTrackerWorkflow,
 };
 
-#[cfg(feature = "v2")]
-use crate::core::payment_methods::add_payment_method_to_legacy_locker;
 #[cfg(feature = "v1")]
 use crate::core::payment_methods::transformers;
+#[cfg(feature = "v2")]
+use crate::core::payment_methods::{
+    add_payment_method_to_legacy_locker, update_metadata_changed_payment_method_in_legacy_locker,
+};
 use crate::{
     core::payment_methods::{cards, vault},
     errors,
@@ -29,7 +31,6 @@ fn should_skip_backward_compat(payment_method: &domain::PaymentMethod) -> bool {
         && payment_method.compatibility_updated_at != Some(payment_method.last_modified)
 }
 
-#[cfg(feature = "v1")]
 #[cfg(feature = "v1")]
 pub async fn backfill_legacy_db_fields(
     db: &dyn StorageInterface,
@@ -119,8 +120,11 @@ pub async fn backfill_legacy_db_fields(
 #[cfg(feature = "v1")]
 pub async fn backfill_legacy_locker_card(
     state: &SessionState,
+    db: &dyn StorageInterface,
+    key_store: &domain::MerchantKeyStore,
     merchant_id: &common_utils::id_type::MerchantId,
     payment_method: &domain::PaymentMethod,
+    storage_scheme: common_enums::MerchantStorageScheme,
     tracking_data: &PaymentMethodModularCompatTrackingData,
     process_id: &str,
 ) -> Result<(), errors::ProcessTrackerError> {
@@ -258,10 +262,70 @@ pub async fn backfill_legacy_locker_card(
                 add_card_resp.duplication_check,
                 Some(transformers::DataDuplicationCheck::MetaDataChanged)
             ) {
-                logger::warn!(
+                let older_payment_method = db
+                    .find_payment_method_by_locker_id(
+                        key_store,
+                        &add_card_resp.card_reference,
+                        storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to fetch legacy PM referencing metadata-changed locker id",
+                    )?;
+
+                let updated_card_resp = cards::update_metadata_changed_card_in_vault(
+                    state,
+                    &customer_id,
+                    merchant_id,
+                    &add_card_resp.card_reference,
+                    &locker_req,
+                )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to update metadata-changed card in legacy locker during backward compatibility PT",
+                    )?;
+
+                if older_payment_method.locker_id.as_deref()
+                    != Some(updated_card_resp.card_reference.as_str())
+                {
+                    let pm_update = storage::PaymentMethodUpdate::AdditionalDataUpdate {
+                        payment_method_data: None,
+                        status: None,
+                        locker_id: Some(updated_card_resp.card_reference.clone()),
+                        payment_method: None,
+                        payment_method_type: None,
+                        payment_method_issuer: None,
+                        network_token_requestor_reference_id: None,
+                        network_token_locker_id: None,
+                        network_token_payment_method_data: None,
+                        last_modified_by: tracking_data.last_modified_by.clone(),
+                        metadata: None,
+                        last_used_at: None,
+                        connector_mandate_details: None,
+                        network_tokenization_data: None,
+                    };
+
+                    db.update_payment_method(
+                        key_store,
+                        older_payment_method,
+                        pm_update,
+                        storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to update legacy PM locker id after metadata-changed backward compatibility PT",
+                    )?;
+                }
+
+                logger::info!(
                     process_id=%process_id,
                     payment_method_id=%tracking_data.payment_method_id,
-                    "Legacy locker reported metadata changed during backward compatibility PT"
+                    old_card_reference=%add_card_resp.card_reference,
+                    new_card_reference=%updated_card_resp.card_reference,
+                    "Reinserted metadata-changed card and updated referencing PM in backward compatibility PT"
                 );
             }
 
@@ -392,7 +456,7 @@ pub async fn backfill_legacy_locker_card(
                 )?
             }
 
-            let _ = add_payment_method_to_legacy_locker(
+            let add_card_resp = add_payment_method_to_legacy_locker(
                 state,
                 platform,
                 &stored_pm_resp.data,
@@ -407,6 +471,86 @@ pub async fn backfill_legacy_locker_card(
             .attach_printable(
                 "Failed to add card to legacy locker in backward compatibility inline flow",
             )?;
+
+            if matches!(
+                add_card_resp.duplication_check,
+                Some(crate::core::payment_methods::transformers::DataDuplicationCheck::MetaDataChanged)
+            ) {
+                let db = &*state.store;
+                let old_card_reference = add_card_resp.card_reference;
+                let older_payment_method = db
+                    .find_payment_method_by_locker_id(
+                        platform.get_provider().get_key_store(),
+                        &old_card_reference,
+                        platform.get_provider().get_account().storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to fetch legacy PM referencing metadata-changed locker id",
+                    )?;
+
+                let updated_card_resp = update_metadata_changed_payment_method_in_legacy_locker(
+                    state,
+                    platform,
+                    &stored_pm_resp.data,
+                    Some(domain::VaultId::generate(card_reference.clone())),
+                    payment_method
+                        .customer_id
+                        .as_ref()
+                        .get_required_value("customer_id")?,
+                    old_card_reference.clone(),
+                )
+                .await
+                .attach_printable(
+                    "Failed to update metadata-changed card in legacy locker during backward compatibility inline flow",
+                )?;
+
+                let updated_card_reference = updated_card_resp.vault_id.get_string_repr().to_owned();
+                let older_locker_id = older_payment_method
+                    .locker_id
+                    .as_ref()
+                    .map(|locker_id| locker_id.get_string_repr().to_owned());
+
+                if older_locker_id.as_deref() != Some(updated_card_reference.as_str()) {
+                    let pm_update = storage::PaymentMethodUpdate::GenericUpdate {
+                        payment_method_data: None,
+                        status: None,
+                        locker_id: Some(updated_card_reference.clone()),
+                        payment_method_type_v2: None,
+                        payment_method_subtype: None,
+                        network_token_requestor_reference_id: None,
+                        network_token_locker_id: None,
+                        network_token_payment_method_data: None,
+                        locker_fingerprint_id: None,
+                        connector_mandate_details: Box::new(None),
+                        external_vault_source: None,
+                        network_transaction_id: None,
+                        network_transaction_link_id: None,
+                        last_modified_by: tracking_data.last_modified_by.clone(),
+                    };
+
+                    db.update_payment_method(
+                        platform.get_provider().get_key_store(),
+                        older_payment_method,
+                        pm_update,
+                        platform.get_provider().get_account().storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to update legacy PM locker id after metadata-changed backward compatibility inline flow",
+                    )?;
+                }
+
+                logger::info!(
+                    process_id=%process_id,
+                    payment_method_id=%tracking_data.payment_method_id,
+                    old_card_reference=%old_card_reference,
+                    new_card_reference=%updated_card_reference,
+                    "Reinserted metadata-changed card and updated referencing PM in backward compatibility inline flow"
+                );
+            }
 
             logger::info!(
                 process_id=%process_id,
@@ -481,8 +625,11 @@ pub async fn run_payment_method_modular_backward_compat_backfill(
         {
             backfill_legacy_locker_card(
                 state,
+                db,
+                &key_store,
                 &merchant_id,
                 &payment_method,
+                merchant_account.storage_scheme,
                 &tracking_data,
                 process_id,
             )

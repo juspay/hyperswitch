@@ -1967,7 +1967,6 @@ fn add_if_missing_key(
     }
 }
 
-#[cfg(feature = "v1")]
 impl diesel::serialize::ToSql<diesel::sql_types::Jsonb, diesel::pg::Pg> for CommonMandateReference {
     fn to_sql<'b>(
         &'b self,
