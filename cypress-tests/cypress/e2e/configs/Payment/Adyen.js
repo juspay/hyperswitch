@@ -1575,9 +1575,6 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
-      Configs: {
-        skipBillingAssertion: true,
-      },
     }),
     WalletMITAutoCapture: getCustomExchange({
       Request: {},
@@ -1586,9 +1583,6 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
         },
-      },
-      Configs: {
-        skipBillingAssertion: true,
       },
     }),
     PaypalWalletMITAutoCapture: getCustomExchange({
@@ -1602,9 +1596,6 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
-      Configs: {
-        skipBillingAssertion: true,
-      },
     }),
     GcashWalletMITAutoCapture: getCustomExchange({
       Request: {
@@ -1616,9 +1607,6 @@ export const connectorDetails = {
         body: {
           status: "requires_customer_action",
         },
-      },
-      Configs: {
-        skipBillingAssertion: true,
       },
     }),
     MomoWalletMITAutoCapture: getCustomExchange({
@@ -1632,9 +1620,6 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
-      Configs: {
-        skipBillingAssertion: true,
-      },
     }),
     TwintWalletMITAutoCapture: getCustomExchange({
       Request: {
@@ -1646,9 +1631,6 @@ export const connectorDetails = {
         body: {
           status: "requires_customer_action",
         },
-      },
-      Configs: {
-        skipBillingAssertion: true,
       },
     }),
     DanaWalletMITAutoCapture: getCustomExchange({
@@ -1662,9 +1644,6 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
-      Configs: {
-        skipBillingAssertion: true,
-      },
     }),
     GoPayWalletMITAutoCapture: getCustomExchange({
       Request: {
@@ -1676,9 +1655,6 @@ export const connectorDetails = {
         body: {
           status: "requires_customer_action",
         },
-      },
-      Configs: {
-        skipBillingAssertion: true,
       },
     }),
     VippsWalletMITAutoCapture: getCustomExchange({
@@ -1692,18 +1668,10 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            code: "HE_03",
-            message: "Mandate Validation Failed",
-            reason: "Cross currency mandates are not supported",
-          },
+          status: "requires_customer_action",
         },
-      },
-      Configs: {
-        skipBillingAssertion: true,
       },
     }),
     PaypalWalletMandateCIT: getCustomExchange({
@@ -1778,9 +1746,6 @@ export const connectorDetails = {
         body: {
           status: "requires_customer_action",
         },
-      },
-      Configs: {
-        TRIGGER_SKIP: true,
       },
     }),
     GcashWalletMandateCIT: getCustomExchange({
@@ -1929,9 +1894,6 @@ export const connectorDetails = {
         body: {
           status: "requires_customer_action",
         },
-      },
-      Configs: {
-        TRIGGER_SKIP: true,
       },
     }),
     DanaWalletMandateCIT: getCustomExchange({
