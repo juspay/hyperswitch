@@ -39,7 +39,10 @@ describe("Client Session Validation", () => {
 
       cy.step("Confirm with valid SDK Authorization", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm with valid SDK Authorization");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm with valid SDK Authorization"
+          );
           return;
         }
 
@@ -125,68 +128,71 @@ describe("Client Session Validation", () => {
     });
   });
 
-  context("Missing Client Session - Confirm without CSI (legacy fallback)", () => {
-    it("create payment intent and confirm without client_session_id", () => {
-      let shouldContinue = true;
+  context(
+    "Missing Client Session - Confirm without CSI (legacy fallback)",
+    () => {
+      it("create payment intent and confirm without client_session_id", () => {
+        let shouldContinue = true;
 
-      cy.step("Create Payment Intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
+        cy.step("Create Payment Intent", () => {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentIntent"];
 
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "no_three_ds",
-          "automatic",
-          globalState
-        );
-
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("Confirm without client_session_id - legacy fallback", () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Confirm without client_session_id"
+          cy.createPaymentIntentTest(
+            fixtures.createPaymentBody,
+            data,
+            "no_three_ds",
+            "automatic",
+            globalState
           );
-          return;
-        }
 
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["ClientSessionValidConfirm"];
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
 
-        cy.confirmWithSdkAuthTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState,
-          "missing_session"
-        );
+        cy.step("Confirm without client_session_id - legacy fallback", () => {
+          if (!shouldContinue) {
+            cy.task(
+              "cli_log",
+              "Skipping step: Confirm without client_session_id"
+            );
+            return;
+          }
 
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
+          const confirmData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["ClientSessionValidConfirm"];
+
+          cy.confirmWithSdkAuthTest(
+            fixtures.confirmBody,
+            confirmData,
+            true,
+            globalState,
+            "missing_session"
+          );
+
+          if (!utils.should_continue_further(confirmData)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("Retrieve Payment", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Retrieve Payment");
+            return;
+          }
+
+          const confirmData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["ClientSessionValidConfirm"];
+
+          cy.retrievePaymentCallTest({ globalState, data: confirmData });
+        });
       });
-
-      cy.step("Retrieve Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Payment");
-          return;
-        }
-
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["ClientSessionValidConfirm"];
-
-        cy.retrievePaymentCallTest({ globalState, data: confirmData });
-      });
-    });
-  });
+    }
+  );
 
   context("Replay Client Session - Confirm with old CSI after update", () => {
     it("create, update, confirm with old CSI expect 401, confirm with new CSI expect 200", () => {
@@ -225,10 +231,7 @@ describe("Client Session Validation", () => {
 
       cy.step("Update Payment Intent - triggers session recreation", () => {
         if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Update Payment Intent"
-          );
+          cy.task("cli_log", "Skipping step: Update Payment Intent");
           return;
         }
 
@@ -304,124 +307,131 @@ describe("Client Session Validation", () => {
     });
   });
 
-  context("Toggle client_session_validation_enabled - disabled allows invalid CSI", () => {
-    it("disable validation, confirm with invalid CSI succeeds, re-enable validation, confirm with invalid CSI fails", () => {
-      let shouldContinue = true;
+  context(
+    "Toggle client_session_validation_enabled - disabled allows invalid CSI",
+    () => {
+      it("disable validation, confirm with invalid CSI succeeds, re-enable validation, confirm with invalid CSI fails", () => {
+        let shouldContinue = true;
 
-      cy.step("Disable client_session_validation_enabled", () => {
-        cy.setConfigs(
-          globalState,
-          "client_session_validation_enabled",
-          "false",
-          "UPDATE"
-        );
-      });
-
-      cy.step("Create Payment Intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
-
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "no_three_ds",
-          "automatic",
-          globalState
-        );
-
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("Confirm with invalid CSI - should succeed when validation disabled", () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Confirm with invalid CSI (validation disabled)"
+        cy.step("Disable client_session_validation_enabled", () => {
+          cy.setConfigs(
+            globalState,
+            "client_session_validation_enabled",
+            "false",
+            "UPDATE"
           );
-          return;
-        }
+        });
 
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["ClientSessionValidConfirm"];
+        cy.step("Create Payment Intent", () => {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentIntent"];
 
-        cy.confirmWithSdkAuthTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState,
-          "invalid_session"
-        );
-
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("Re-enable client_session_validation_enabled", () => {
-        cy.setConfigs(
-          globalState,
-          "client_session_validation_enabled",
-          "true",
-          "UPDATE"
-        );
-      });
-
-      cy.step("Create another Payment Intent", () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Create another Payment Intent"
+          cy.createPaymentIntentTest(
+            fixtures.createPaymentBody,
+            data,
+            "no_three_ds",
+            "automatic",
+            globalState
           );
-          return;
-        }
 
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
 
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "no_three_ds",
-          "automatic",
-          globalState
+        cy.step(
+          "Confirm with invalid CSI - should succeed when validation disabled",
+          () => {
+            if (!shouldContinue) {
+              cy.task(
+                "cli_log",
+                "Skipping step: Confirm with invalid CSI (validation disabled)"
+              );
+              return;
+            }
+
+            const confirmData = getConnectorDetails(
+              globalState.get("connectorId")
+            )["card_pm"]["ClientSessionValidConfirm"];
+
+            cy.confirmWithSdkAuthTest(
+              fixtures.confirmBody,
+              confirmData,
+              true,
+              globalState,
+              "invalid_session"
+            );
+
+            if (!utils.should_continue_further(confirmData)) {
+              shouldContinue = false;
+            }
+          }
         );
 
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("Confirm with invalid CSI - should fail when validation enabled", () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Confirm with invalid CSI (validation enabled)"
+        cy.step("Re-enable client_session_validation_enabled", () => {
+          cy.setConfigs(
+            globalState,
+            "client_session_validation_enabled",
+            "true",
+            "UPDATE"
           );
-          return;
-        }
+        });
 
-        const invalidData = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["ClientSessionInvalidConfirm"];
+        cy.step("Create another Payment Intent", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Create another Payment Intent");
+            return;
+          }
 
-        const invalidConfirmData = {
-          ...invalidData,
-          ResponseCustom: invalidData.ResponseCustom || invalidData.Response,
-        };
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentIntent"];
 
-        cy.confirmWithSdkAuthTest(
-          fixtures.confirmBody,
-          invalidConfirmData,
-          true,
-          globalState,
-          "invalid_session"
+          cy.createPaymentIntentTest(
+            fixtures.createPaymentBody,
+            data,
+            "no_three_ds",
+            "automatic",
+            globalState
+          );
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step(
+          "Confirm with invalid CSI - should fail when validation enabled",
+          () => {
+            if (!shouldContinue) {
+              cy.task(
+                "cli_log",
+                "Skipping step: Confirm with invalid CSI (validation enabled)"
+              );
+              return;
+            }
+
+            const invalidData = getConnectorDetails(
+              globalState.get("connectorId")
+            )["card_pm"]["ClientSessionInvalidConfirm"];
+
+            const invalidConfirmData = {
+              ...invalidData,
+              ResponseCustom:
+                invalidData.ResponseCustom || invalidData.Response,
+            };
+
+            cy.confirmWithSdkAuthTest(
+              fixtures.confirmBody,
+              invalidConfirmData,
+              true,
+              globalState,
+              "invalid_session"
+            );
+          }
         );
       });
-    });
-  });
+    }
+  );
 });

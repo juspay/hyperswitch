@@ -9106,9 +9106,7 @@ Cypress.Commands.add(
           );
 
           for (const key in resData.body) {
-            expect(resData.body[key], [key]).to.deep.equal(
-              response.body[key]
-            );
+            expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
           }
 
           validateErrorMessage(response, resData);
@@ -9165,9 +9163,7 @@ Cypress.Commands.add(
           }
 
           for (const key in resData.body) {
-            expect(resData.body[key], [key]).to.deep.equal(
-              response.body[key]
-            );
+            expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
           }
         } else {
           defaultErrorHandler(response, resData);

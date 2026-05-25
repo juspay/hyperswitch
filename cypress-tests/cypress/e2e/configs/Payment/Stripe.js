@@ -997,10 +997,14 @@ export const connectorDetails = {
         },
       },
     },
-    ClientSessionValidConfirm: commonConnectorDetails.card_pm.ClientSessionValidConfirm,
-    ClientSessionInvalidConfirm: commonConnectorDetails.card_pm.ClientSessionInvalidConfirm,
-    ClientSessionReplayConfirm: commonConnectorDetails.card_pm.ClientSessionReplayConfirm,
-    ClientSessionUpdatePayment: commonConnectorDetails.card_pm.ClientSessionUpdatePayment,
+    ClientSessionValidConfirm:
+      commonConnectorDetails.card_pm.ClientSessionValidConfirm,
+    ClientSessionInvalidConfirm:
+      commonConnectorDetails.card_pm.ClientSessionInvalidConfirm,
+    ClientSessionReplayConfirm:
+      commonConnectorDetails.card_pm.ClientSessionReplayConfirm,
+    ClientSessionUpdatePayment:
+      commonConnectorDetails.card_pm.ClientSessionUpdatePayment,
   },
   bank_transfer_pm: {
     Ach: {
