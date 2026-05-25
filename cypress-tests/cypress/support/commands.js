@@ -9121,27 +9121,35 @@ Cypress.Commands.add(
     }
 
     const sdkAuth = globalState.get("sdkAuthorization") || "";
-    const authParts = {};
+    let sdkAuthObj = {};
     if (sdkAuth) {
-      const decodedSdkAuth = atob(sdkAuth);
-      decodedSdkAuth.split(",").forEach((part) => {
-        const [key, ...valueParts] = part.split("=");
-        authParts[key.trim()] = valueParts.join("=").trim();
-      });
+      try {
+        sdkAuthObj = JSON.parse(atob(sdkAuth));
+      } catch (e) {
+        sdkAuthObj = {};
+      }
     }
 
     const publishableKey =
-      authParts["publishable-key"] || globalState.get("publishableKey");
+      sdkAuthObj.publishable_key || globalState.get("publishableKey");
     const clientSecret =
-      authParts["client-secret"] || globalState.get("clientSecret");
+      sdkAuthObj.client_secret || globalState.get("clientSecret");
+    const clientSessionId = sdkAuthObj.client_session_id || "";
     let authorizationHeader;
     if (overrideSdkAuth === "missing_session") {
       authorizationHeader = btoa(
-        `publishable-key=${publishableKey},client-secret=${clientSecret}`
+        JSON.stringify({
+          publishable_key: publishableKey,
+          client_secret: clientSecret,
+        })
       );
     } else if (overrideSdkAuth === "invalid_session") {
       authorizationHeader = btoa(
-        `publishable-key=${publishableKey},client-secret=${clientSecret},client_session_id=cs_invalid_tampered_session_id`
+        JSON.stringify({
+          publishable_key: publishableKey,
+          client_secret: clientSecret,
+          client_session_id: "cs_invalid_tampered_session_id",
+        })
       );
     } else if (
       overrideSdkAuth &&
