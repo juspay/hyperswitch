@@ -198,6 +198,8 @@ const CURRENCY_MAP = {
   Interac: "CAD", // Canadian payment method
   AliPayHk: "HKD", // Hong Kong payment method
   Mifinity: "EUR", // Mifinity wallet payment method
+  AfterpayClearpay: "USD", // Afterpay/Clearpay pay_later
+  Paypal: "USD", // PayPal wallet
   Skrill: "USD", // Skrill wallet payment method
   PaySafeCard: "USD", // PaySafeCard gift card payment method
 };
