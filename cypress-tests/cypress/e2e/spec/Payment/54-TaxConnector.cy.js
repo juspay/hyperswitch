@@ -327,7 +327,12 @@ describe("Tax Connector Business Profile Flag", () => {
     });
 
     it("retrieve-profile-tax-disabled-fields-test", () => {
-      cy.retrieveBusinessProfileTest(globalState, "taxProfile", false, globalState.get("taxConnectorId"));
+      cy.retrieveBusinessProfileTest(
+        globalState,
+        "taxProfile",
+        false,
+        globalState.get("taxConnectorId")
+      );
     });
   });
 
