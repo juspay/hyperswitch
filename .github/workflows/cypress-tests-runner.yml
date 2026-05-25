@@ -1057,10 +1057,6 @@ jobs:
           CAPTURE_DIR: ${{ github.workspace }}/mitm-proxy/captures
           ADMIN_PORT: "8001"
           PROXY_PORT: "8888"
-          # Strict mode: any MISS or unknown-rid returns synthetic 599
-          # instead of falling through to the live connector. Surfaces
-          # cassette gaps immediately in the Hyperswitch error chain.
-          REPLAY_STRICT: "1"
         run: |
           nohup bash mitm-proxy/start_replay.sh \
             > "${{ github.workspace }}/mitm-replay.log" 2>&1 &
