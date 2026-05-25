@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use ::payment_methods::controller::PaymentMethodsController;
-use api_models::payments::ConnectorMandateReferenceId;
 use common_enums::{ConnectorMandateStatus, PaymentMethod};
 use common_types::{self, callback_mapper::CallbackMapperData};
 use common_utils::{
@@ -13,14 +12,15 @@ use common_utils::{
 };
 use diesel_models::business_profile::ExternalVaultConnectorDetails;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payment_method_data::{
-    get_applepay_wallet_info, get_googlepay_wallet_info,
-};
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
     callback_mapper::CallbackMapper,
     mandates::{CommonMandateReference, PaymentsMandateReference, PaymentsMandateReferenceRecord},
     payment_method_data,
+};
+use hyperswitch_domain_models::{
+    mandates::ConnectorMandateReferenceId,
+    payment_method_data::{get_applepay_wallet_info, get_googlepay_wallet_info},
 };
 use hyperswitch_interfaces::api::gateway;
 use hyperswitch_masking::{ExposeInterface, Secret};

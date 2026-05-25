@@ -1,3 +1,4 @@
+use hyperswitch_domain_models::mandates;
 pub mod access_token;
 #[cfg(feature = "v2")]
 mod backward_compat;
@@ -657,7 +658,7 @@ pub async fn retrieve_payment_method_with_token(
     _card_token_data: Option<&domain::CardToken>,
     _customer: &Option<domain::Customer>,
     _storage_scheme: common_enums::enums::MerchantStorageScheme,
-    _mandate_id: Option<api_models::payments::MandateIds>,
+    _mandate_id: Option<mandates::MandateIds>,
     _payment_method_info: Option<domain::PaymentMethod>,
     _business_profile: &domain::Profile,
 ) -> RouterResult<storage::PaymentMethodDataWithId> {
@@ -675,7 +676,7 @@ pub async fn retrieve_payment_method_with_token(
     payment_attempt: &PaymentAttempt,
     card_token_data: Option<&domain::CardToken>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
-    mandate_id: Option<api_models::payments::MandateIds>,
+    mandate_id: Option<mandates::MandateIds>,
     payment_method_info: Option<domain::PaymentMethod>,
     business_profile: &domain::Profile,
     should_retry_with_pan: bool,
@@ -4206,13 +4207,10 @@ fn convert_from_saved_payment_method_data(
 fn create_connector_token_details_update(
     token_details: payment_methods::ConnectorTokenDetails,
     payment_method: &domain::PaymentMethod,
-) -> hyperswitch_domain_models::mandates::CommonMandateReference {
+) -> mandates::CommonMandateReference {
     let connector_id = token_details.connector_id.clone();
 
-    let reference_record =
-        hyperswitch_domain_models::mandates::ConnectorTokenReferenceRecord::foreign_from(
-            token_details,
-        );
+    let reference_record = mandates::ConnectorTokenReferenceRecord::foreign_from(token_details);
 
     let connector_token_details = payment_method.connector_mandate_details.clone();
 
@@ -4227,10 +4225,8 @@ fn create_connector_token_details_update(
             let reference_record_hash_map =
                 std::collections::HashMap::from([(connector_id, reference_record)]);
             let payments_mandate_reference =
-                hyperswitch_domain_models::mandates::PaymentsTokenReference(
-                    reference_record_hash_map,
-                );
-            hyperswitch_domain_models::mandates::CommonMandateReference {
+                mandates::PaymentsTokenReference(reference_record_hash_map);
+            mandates::CommonMandateReference {
                 payments: Some(payments_mandate_reference),
                 payouts: None,
             }
