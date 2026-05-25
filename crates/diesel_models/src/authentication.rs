@@ -84,6 +84,8 @@ pub struct Authentication {
     pub merchant_country_code: Option<String>,
     pub billing_country: Option<String>,
     pub shipping_country: Option<String>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Insertable)]
@@ -162,6 +164,8 @@ pub struct AuthenticationNew {
     pub modified_at: time::PrimitiveDateTime,
     pub billing_country: Option<String>,
     pub shipping_country: Option<String>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[derive(Debug)]
@@ -520,6 +524,8 @@ impl AuthenticationUpdateInternal {
             currency: source.currency,
             billing_country: billing_country.or(source.billing_country),
             shipping_country: shipping_country.or(source.shipping_country),
+            processor_merchant_id: source.processor_merchant_id,
+            created_by: source.created_by,
         }
     }
 }

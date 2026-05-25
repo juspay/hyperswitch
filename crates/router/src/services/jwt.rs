@@ -1,7 +1,7 @@
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
+use hyperswitch_masking::PeekInterface;
 use jsonwebtoken::{encode, EncodingKey, Header};
-use masking::PeekInterface;
 
 use crate::{configs::Settings, core::errors::UserErrors};
 

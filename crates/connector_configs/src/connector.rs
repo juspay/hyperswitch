@@ -4,7 +4,8 @@ use std::collections::HashMap;
 use api_models::enums::PayoutConnectors;
 use api_models::{
     enums::{
-        AuthenticationConnectors, BillingConnectors, Connector, PmAuthConnectors, TaxConnectors,
+        AuthenticationConnectors, BillingConnectors, Connector, PmAuthConnectors,
+        SurchargeConnectors, TaxConnectors,
     },
     payments,
 };
@@ -152,6 +153,8 @@ pub struct ConfigMetadata {
     pub apple_pay: Option<Vec<InputData>>,
     pub paypal_sdk: Option<Vec<InputData>>,
     pub pix: Option<Vec<InputData>>,
+    pub pix_automatico_push: Option<Vec<InputData>>,
+    pub pix_automatico_qr: Option<Vec<InputData>>,
     pub boleto: Option<Vec<InputData>>,
     pub merchant_id: Option<InputData>,
     pub endpoint_prefix: Option<InputData>,
@@ -165,6 +168,7 @@ pub struct ConfigMetadata {
     pub three_ds_requestor_id: Option<InputData>,
     pub pull_mechanism_for_external_3ds_enabled: Option<InputData>,
     pub klarna_region: Option<InputData>,
+    pub region: Option<InputData>,
     pub pricing_type: Option<InputData>,
     pub source_balance_account: Option<InputData>,
     pub brand_id: Option<InputData>,
@@ -278,7 +282,10 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub cybersource_payout: Option<ConnectorTomlConfig>,
     pub iatapay: Option<ConnectorTomlConfig>,
+    pub imerchantsolutions: Option<ConnectorTomlConfig>,
     pub itaubank: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub itaubank_payout: Option<ConnectorTomlConfig>,
     pub opennode: Option<ConnectorTomlConfig>,
     pub bambora: Option<ConnectorTomlConfig>,
     pub cybersourcedecisionmanager: Option<ConnectorTomlConfig>,
@@ -290,9 +297,12 @@ pub struct ConnectorConfig {
     pub ebanx_payout: Option<ConnectorTomlConfig>,
     pub elavon: Option<ConnectorTomlConfig>,
     pub envoy: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub envoy_payout: Option<ConnectorTomlConfig>,
     pub facilitapay: Option<ConnectorTomlConfig>,
     pub finix: Option<ConnectorTomlConfig>,
     pub fiserv: Option<ConnectorTomlConfig>,
+    pub fiservcommercehub: Option<ConnectorTomlConfig>,
     pub fiservemea: Option<ConnectorTomlConfig>,
     pub fiuu: Option<ConnectorTomlConfig>,
     pub flexiti: Option<ConnectorTomlConfig>,
@@ -311,6 +321,7 @@ pub struct ConnectorConfig {
     pub hyperswitch_vault: Option<ConnectorTomlConfig>,
     pub hyperwallet: Option<ConnectorTomlConfig>,
     pub inespay: Option<ConnectorTomlConfig>,
+    pub interpayments: Option<ConnectorTomlConfig>,
     pub jpmorgan: Option<ConnectorTomlConfig>,
     pub klarna: Option<ConnectorTomlConfig>,
     pub loonio: Option<ConnectorTomlConfig>,
@@ -356,6 +367,7 @@ pub struct ConnectorConfig {
     pub rapyd: Option<ConnectorTomlConfig>,
     pub redsys: Option<ConnectorTomlConfig>,
     pub revolv3: Option<ConnectorTomlConfig>,
+    pub sanlam: Option<ConnectorTomlConfig>,
     pub santander: Option<ConnectorTomlConfig>,
     pub shift4: Option<ConnectorTomlConfig>,
     pub sift: Option<ConnectorTomlConfig>,
@@ -372,6 +384,8 @@ pub struct ConnectorConfig {
     pub trustly: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub truelayer_payout: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub trustly_payout: Option<ConnectorTomlConfig>,
     pub trustpay: Option<ConnectorTomlConfig>,
     pub trustpayments: Option<ConnectorTomlConfig>,
     pub threedsecureio: Option<ConnectorTomlConfig>,
@@ -440,10 +454,12 @@ impl ConnectorConfig {
             PayoutConnectors::Paypal => Ok(connector_data.paypal_payout),
             PayoutConnectors::Stripe => Ok(connector_data.stripe_payout),
             PayoutConnectors::Truelayer => Ok(connector_data.truelayer_payout),
+            PayoutConnectors::Trustly => Ok(connector_data.trustly_payout),
             PayoutConnectors::Wise => Ok(connector_data.wise_payout),
             PayoutConnectors::Worldpay => Ok(connector_data.worldpay_payout),
             PayoutConnectors::Worldpayxml => Ok(connector_data.worldpayxml_payout),
-            PayoutConnectors::Envoy => Ok(connector_data.envoy),
+            PayoutConnectors::Envoy => Ok(connector_data.envoy_payout),
+            PayoutConnectors::Itaubank => Ok(connector_data.itaubank_payout),
         }
     }
 
@@ -485,6 +501,15 @@ impl ConnectorConfig {
         let connector_data = Self::new()?;
         match connector {
             TaxConnectors::Taxjar => Ok(connector_data.taxjar),
+        }
+    }
+
+    pub fn get_surcharge_processor_config(
+        connector: SurchargeConnectors,
+    ) -> Result<Option<ConnectorTomlConfig>, String> {
+        let connector_data = Self::new()?;
+        match connector {
+            SurchargeConnectors::Interpayments => Ok(connector_data.interpayments),
         }
     }
 
@@ -553,6 +578,7 @@ impl ConnectorConfig {
             Connector::Finix => Ok(connector_data.finix),
             Connector::Fiserv => Ok(connector_data.fiserv),
             Connector::Fiservemea => Ok(connector_data.fiservemea),
+            Connector::Fiservcommercehub => Ok(connector_data.fiservcommercehub),
             Connector::Fiuu => Ok(connector_data.fiuu),
             Connector::Flexiti => Ok(connector_data.flexiti),
             Connector::Forte => Ok(connector_data.forte),
@@ -614,10 +640,13 @@ impl ConnectorConfig {
             Connector::Tokenex => Ok(connector_data.tokenex),
             Connector::Tokenio => Ok(connector_data.tokenio),
             Connector::Truelayer => Ok(connector_data.truelayer),
+            Connector::Sanlam => Ok(connector_data.sanlam),
+            Connector::Trustly => Ok(connector_data.trustly),
             Connector::Trustpay => Ok(connector_data.trustpay),
             Connector::Trustpayments => Ok(connector_data.trustpayments),
             Connector::Threedsecureio => Ok(connector_data.threedsecureio),
             Connector::Taxjar => Ok(connector_data.taxjar),
+            Connector::Interpayments => Ok(connector_data.interpayments),
             Connector::Tsys => Ok(connector_data.tsys),
             Connector::Vgs => Ok(connector_data.vgs),
             Connector::Volt => Ok(connector_data.volt),
@@ -652,6 +681,7 @@ impl ConnectorConfig {
             Connector::Phonepe => Ok(connector_data.phonepe),
             Connector::Payjustnow => Ok(connector_data.payjustnow),
             Connector::Payjustnowinstore => Ok(connector_data.payjustnowinstore),
+            Connector::Imerchantsolutions => Ok(connector_data.imerchantsolutions),
         }
     }
 }

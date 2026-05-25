@@ -2,7 +2,7 @@
 //! & inbuilt datatypes.
 
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface, Secret, Strategy};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, Strategy};
 use quick_xml::de;
 #[cfg(all(feature = "logs", feature = "async_ext"))]
 use router_env::logger;
@@ -180,7 +180,7 @@ impl BytesExt for bytes::Bytes {
 
                 format!(
                     "Unable to parse {variable_type} from bytes {:?}",
-                    Secret::<_, masking::JsonMaskStrategy>::new(value)
+                    Secret::<_, hyperswitch_masking::JsonMaskStrategy>::new(value)
                 )
             })
     }
@@ -214,7 +214,7 @@ impl ByteSliceExt for [u8] {
 
                 format!(
                     "Unable to parse {type_name} from &[u8] {:?}",
-                    Secret::<_, masking::JsonMaskStrategy>::new(value)
+                    Secret::<_, hyperswitch_masking::JsonMaskStrategy>::new(value)
                 )
             })
     }
@@ -239,7 +239,7 @@ impl ValueExt for serde_json::Value {
                 format!(
                     "Unable to parse {type_name} from serde_json::Value: {:?}",
                     // Required to prevent logging sensitive data in case of deserialization failure
-                    Secret::<_, masking::JsonMaskStrategy>::new(self)
+                    Secret::<_, hyperswitch_masking::JsonMaskStrategy>::new(self)
                 )
             })
     }
@@ -307,9 +307,9 @@ impl<T> StringExt<T> for String {
             .attach_printable_lazy(|| {
                 format!(
                     "Unable to parse {type_name} from string {:?}",
-                    Secret::<_, masking::JsonMaskStrategy>::new(serde_json::Value::String(
-                        self.clone()
-                    ))
+                    Secret::<_, hyperswitch_masking::JsonMaskStrategy>::new(
+                        serde_json::Value::String(self.clone())
+                    )
                 )
             })
     }

@@ -37,6 +37,9 @@ impl ConnectorMandateReferenceId {
     pub fn is_connector_mandate_id_present(&self) -> bool {
         self.connector_mandate_id.is_some()
     }
+    pub fn get_connector_mandate_id(&self) -> Option<String> {
+        self.connector_mandate_id.clone()
+    }
 }
 common_utils::impl_to_sql_from_sql_json!(NetworkDetails);
 #[derive(
@@ -126,7 +129,7 @@ pub struct PaymentAttempt {
     pub amount_capturable: MinorUnit,
     pub updated_by: String,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    pub encoded_data: Option<masking::Secret<String>>,
+    pub encoded_data: Option<hyperswitch_masking::Secret<String>>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     #[diesel(deserialize_as = RequiredFromNullable<MinorUnit>)]
@@ -137,7 +140,8 @@ pub struct PaymentAttempt {
     pub fingerprint_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
-    pub customer_acceptance: Option<masking::Secret<common_payments_types::CustomerAcceptance>>,
+    pub customer_acceptance:
+        Option<hyperswitch_masking::Secret<common_payments_types::CustomerAcceptance>>,
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub card_network: Option<String>,
@@ -164,10 +168,11 @@ pub struct PaymentAttempt {
     pub error_details: Option<ErrorDetails>,
     pub retry_type: Option<storage_enums::RetryType>,
     pub installment_data: Option<common_types::payments::InstallmentData>,
+    pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
-    pub payment_method_subtype: storage_enums::PaymentMethodType,
+    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub routing_result: Option<serde_json::Value>,
     pub authentication_applied: Option<common_enums::AuthenticationType>,
     pub external_reference_id: Option<String>,
@@ -296,6 +301,8 @@ pub struct PaymentAttempt {
     /// Indicates the type of retry for this payment attempt (None for initial attempt)
     pub retry_type: Option<storage_enums::RetryType>,
     pub installment_data: Option<common_types::payments::InstallmentData>,
+    /// External surcharge details from InterPayments (stored as JSONB)
+    pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -404,7 +411,7 @@ pub struct PaymentAttemptNew {
     pub updated_by: String,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub redirection_data: Option<RedirectForm>,
-    pub encoded_data: Option<masking::Secret<String>>,
+    pub encoded_data: Option<hyperswitch_masking::Secret<String>>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub net_amount: MinorUnit,
@@ -415,7 +422,8 @@ pub struct PaymentAttemptNew {
     pub payment_method_billing_address: Option<common_utils::encryption::Encryption>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
-    pub customer_acceptance: Option<masking::Secret<common_payments_types::CustomerAcceptance>>,
+    pub customer_acceptance:
+        Option<hyperswitch_masking::Secret<common_payments_types::CustomerAcceptance>>,
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub card_network: Option<String>,
@@ -425,7 +433,7 @@ pub struct PaymentAttemptNew {
     pub feature_metadata: Option<PaymentAttemptFeatureMetadata>,
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
-    pub payment_method_subtype: storage_enums::PaymentMethodType,
+    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub id: id_type::GlobalAttemptId,
     pub connector_token_details: Option<ConnectorTokenDetails>,
     pub card_discovery: Option<storage_enums::CardDiscovery>,
@@ -448,6 +456,7 @@ pub struct PaymentAttemptNew {
     pub encrypted_payment_method_data: Option<common_utils::encryption::Encryption>,
     pub error_details: Option<ErrorDetails>,
     pub retry_type: Option<storage_enums::RetryType>,
+    pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -542,6 +551,7 @@ pub struct PaymentAttemptNew {
     /// Indicates the type of retry for this payment attempt (None for initial attempt)
     pub retry_type: Option<storage_enums::RetryType>,
     pub installment_data: Option<common_types::payments::InstallmentData>,
+    pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -774,6 +784,14 @@ pub enum PaymentAttemptUpdate {
     PostSessionTokensUpdate {
         updated_by: String,
         connector_metadata: Option<serde_json::Value>,
+    },
+    RecurrenceUpdate {
+        status: storage_enums::AttemptStatus,
+        error_code: Option<String>,
+        error_message: Option<String>,
+        error_reason: Option<String>,
+        updated_by: String,
+        connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     },
 }
 
@@ -1118,6 +1136,7 @@ impl PaymentAttemptUpdateInternal {
             routing_result: source.routing_result,
             authentication_applied: source.authentication_applied,
             external_reference_id: source.external_reference_id,
+            external_surcharge_details: source.external_surcharge_details,
             tax_on_surcharge: source.tax_on_surcharge,
             payment_method_billing_address: source.payment_method_billing_address,
             redirection_data: redirection_data.or(source.redirection_data),
@@ -4543,6 +4562,85 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
             },
+            PaymentAttemptUpdate::RecurrenceUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                connector_mandate_detail,
+            } => Self {
+                status: Some(status),
+                error_details: None,
+                error_code: Some(error_code),
+                error_message: Some(error_message),
+                error_reason: Some(error_reason),
+                updated_by,
+                connector_mandate_detail,
+                modified_at: common_utils::date_time::now(),
+                amount: None,
+                net_amount: None,
+                currency: None,
+                connector_transaction_id: None,
+                amount_to_capture: None,
+                connector: None,
+                authentication_type: None,
+                payment_method: None,
+                payment_method_id: None,
+                cancellation_reason: None,
+                mandate_id: None,
+                browser_info: None,
+                payment_token: None,
+                connector_metadata: None,
+                payment_method_data: None,
+                payment_method_type: None,
+                payment_experience: None,
+                business_sub_label: None,
+                straight_through_algorithm: None,
+                preprocessing_step_id: None,
+                capture_method: None,
+                connector_response_reference_id: None,
+                multiple_capture_count: None,
+                surcharge_amount: None,
+                tax_amount: None,
+                amount_capturable: None,
+                merchant_connector_id: None,
+                authentication_data: None,
+                encoded_data: None,
+                unified_code: None,
+                unified_message: None,
+                external_three_ds_authentication_attempted: None,
+                authentication_connector: None,
+                authentication_id: None,
+                fingerprint_id: None,
+                payment_method_billing_address_id: None,
+                client_source: None,
+                client_version: None,
+                customer_acceptance: None,
+                card_network: None,
+                shipping_cost: None,
+                order_tax_amount: None,
+                capture_before: None,
+                extended_authorization_applied: None,
+                extended_authorization_last_applied_at: None,
+                tokenization: None,
+                processor_transaction_data: None,
+                card_discovery: None,
+                charges: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
+                setup_future_usage_applied: None,
+                routing_approach: None,
+                connector_request_reference_id: None,
+                network_transaction_id: None,
+                is_overcapture_enabled: None,
+                network_details: None,
+                is_stored_credential: None,
+                request_extended_authorization: None,
+                authorized_amount: None,
+                installment_data: None,
+                encrypted_payment_method_data: None,
+            },
         }
     }
 }
@@ -4593,7 +4691,7 @@ pub enum RedirectForm {
     Nmi {
         amount: String,
         currency: common_enums::Currency,
-        public_key: masking::Secret<String>,
+        public_key: hyperswitch_masking::Secret<String>,
         customer_vault_id: String,
         order_id: String,
     },
@@ -4605,6 +4703,10 @@ pub enum RedirectForm {
         method: common_utils::request::Method,
         form_fields: std::collections::HashMap<String, String>,
         collection_id: Option<String>,
+    },
+    WorldpayxmlDDCForm {
+        bin: String,
+        jwt: String,
     },
     WorldpayxmlRedirectForm {
         jwt: String,

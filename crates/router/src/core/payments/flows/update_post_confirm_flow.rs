@@ -110,6 +110,8 @@ impl Feature<api::UpdatePostConfirm, types::PaymentsUpdatePostConfirmData>
             self,
             creds_identifier,
             gateway_context,
+            // TODO: Pass Flow Context for UpdatePostConfirm Flow once it is added in CurrentFlowInfo enum
+            None,
         ))
         .await
     }

@@ -16,7 +16,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -26,6 +26,49 @@ use crate::{
         RevokeMandateRequestData, RouterData as OtherRouterData, WalletData as OtherWalletData,
     },
 };
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NoonConnectorMetadataObject {
+    #[serde(default)]
+    pub region: NoonRegion,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub enum NoonRegion {
+    #[default]
+    Global,
+    Ksa,
+    Egypt,
+}
+
+impl From<NoonRegion> for String {
+    fn from(region: NoonRegion) -> Self {
+        Self::from(match region {
+            NoonRegion::Global => "",
+            NoonRegion::Ksa => ".sa",
+            NoonRegion::Egypt => ".eg",
+        })
+    }
+}
+
+impl TryFrom<&Option<pii::SecretSerdeValue>> for NoonConnectorMetadataObject {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        match meta_data {
+            None => Ok(Self {
+                region: NoonRegion::Global,
+            }),
+            Some(_) => {
+                let metadata: Self =
+                    utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+                        .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                            config: "metadata",
+                        })?;
+                Ok(metadata)
+            }
+        }
+    }
+}
 
 // These needs to be accepted from SDK, need to be done after 1.0.0 stability as API contract will change
 const GOOGLEPAY_API_VERSION_MINOR: u8 = 0;
@@ -371,6 +414,8 @@ impl TryFrom<&NoonRouterData<&PaymentsAuthorizeRouterData>> for NoonPaymentsRequ
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::CardWithOptionalCVC(_)
+                    | PaymentMethodData::CardWithNetworkTokenDetails(_)
                     | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {

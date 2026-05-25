@@ -1,6 +1,6 @@
 pub use hyperswitch_domain_models::customer::update_connector_customer_in_customers;
 use hyperswitch_interfaces::api::{gateway, ConnectorSpecifications};
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "v2")]
@@ -109,15 +109,12 @@ pub fn should_call_connector_create_customer<'a>(
 pub fn should_call_connector_create_customer<'a>(
     connector: &api::ConnectorData,
     customer: &'a Option<domain::Customer>,
-    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
 ) -> (bool, Option<&'a str>) {
     // Check if create customer is required for the connector
     match merchant_connector_account {
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(_) => {
-            let connector_needs_customer = connector
-                .connector
-                .should_call_connector_customer(payment_attempt);
+            let connector_needs_customer = connector.connector.should_call_connector_customer();
 
             if connector_needs_customer {
                 let connector_customer_details = customer

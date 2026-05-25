@@ -1198,11 +1198,10 @@ pub async fn resume_revenue_recovery_process_tracker(
         | IntentStatus::PartiallyCapturedAndProcessing
         | IntentStatus::Conflicted
         | IntentStatus::Expired
-        | IntentStatus::PartiallyCapturedAndProcessing => {
-            Err(report!(errors::ApiErrorResponse::NotSupported {
-                message: "Invalid Payment Status ".to_owned(),
-            }))
-        }
+        | IntentStatus::PartiallyCapturedAndProcessing
+        | IntentStatus::Review => Err(report!(errors::ApiErrorResponse::NotSupported {
+            message: "Invalid Payment Status ".to_owned(),
+        })),
     }
 }
 pub async fn get_payment_response_using_payment_get_operation(
@@ -1454,7 +1453,8 @@ pub fn map_recovery_status(
         IntentStatus::Cancelled
         | IntentStatus::CancelledPostCapture
         | IntentStatus::Conflicted
-        | IntentStatus::Expired => RecoveryStatus::Terminated,
+        | IntentStatus::Expired
+        | IntentStatus::Review => RecoveryStatus::Terminated,
 
         // For statuses that don't need recovery
         IntentStatus::RequiresCustomerAction
@@ -1498,7 +1498,7 @@ pub fn map_to_recovery_payment_item(
             .and_then(|p| p.payment_method_type.into()),
         payment_method_subtype: payment_attempt
             .as_ref()
-            .and_then(|p| p.payment_method_subtype.into()),
+            .and_then(|p| p.payment_method_subtype),
         connector: payment_attempt.as_ref().and_then(|p| p.connector.clone()),
         merchant_connector_id: payment_attempt
             .as_ref()

@@ -2,7 +2,7 @@ use api_models::{admin, payment_methods::PaymentMethodCollectLinkRequest};
 use common_utils::link_utils;
 use diesel_models::generic_link::PaymentMethodCollectLinkData;
 use error_stack::ResultExt;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 
 use crate::{
     consts,

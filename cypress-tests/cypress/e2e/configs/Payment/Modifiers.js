@@ -23,6 +23,7 @@ function normalize(input) {
     stax: "Stax",
     wellsfargo: "Wellsfargo",
     nmi: "Nmi",
+    stripeconnect: "stripe",
     // Add more known exceptions here
   };
 
@@ -127,9 +128,11 @@ const CURRENCY_MAP = {
   Klarna: "EUR",
   Przelewy24: "EUR",
   Sofort: "EUR",
+  Trustly: "EUR",
   OpenBankingUk: "GBP", // Great British Pound payment method
   OnlineBankingFpx: "MYR", // Malaysian payment methods
   Interac: "CAD", // Canadian payment method
+  AliPayHk: "HKD", // Hong Kong payment method
 };
 
 export const getCurrency = (paymentMethodType) => {

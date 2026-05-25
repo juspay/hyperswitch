@@ -1,4 +1,5 @@
 import { getCustomExchange } from "./Modifiers";
+import { standardBillingAddress } from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "4012000033330026",
@@ -293,6 +294,37 @@ export const connectorDetails = {
               error_message: "REAUTHORIZATION_TOO_SOON",
             },
           ],
+        },
+      },
+    },
+    ExtendAuthorizationNo3DSManual: {
+      Request: {
+        extended_authorization_days: 7,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          amount: 6000,
+          amount_capturable: 6000,
+          amount_received: null,
+          request_extended_authorization: true,
+        },
+      },
+    },
+    ExtendAuthorizationInvalidStatus: {
+      Request: {
+        extended_authorization_days: 7,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "You cannot extend authorization this payment because it has status succeeded",
+            code: "IR_16",
+          },
         },
       },
     },
@@ -901,6 +933,59 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
+    },
+  },
+  wallet_pm: {
+    PaypalRedirect: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        billing: standardBillingAddress,
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    PaypalRedirectMandateCIT: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        billing: standardBillingAddress,
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+        setup_future_usage: "off_session",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+  },
+  webhook: {
+    TransactionIdConfig: {
+      path: "resource.supplementary_data.related_ids.order_id",
+      type: "string",
+    },
+    RefundIdConfig: {
+      // PayPal refund webhooks use resource.id as the connector refund reference
+      path: "resource.id",
+      type: "string",
     },
   },
 };

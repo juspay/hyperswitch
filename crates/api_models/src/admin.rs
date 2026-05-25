@@ -11,8 +11,8 @@ use common_utils::{
 #[cfg(feature = "v1")]
 use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
 #[cfg(feature = "v2")]
-use masking::ExposeInterface;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
 use utoipa::ToSchema;
@@ -117,6 +117,10 @@ pub struct MerchantAccountCreate {
     /// Merchant Account Type of this merchant account
     #[schema(value_type = Option<MerchantAccountType>, example = "standard")]
     pub merchant_account_type: Option<api_enums::MerchantAccountType>,
+
+    /// Network tokenization credentials for this merchant account
+    #[schema(value_type = Option<NetworkTokeizationProviderCredentials>)]
+    pub network_tokenization_credentials: Option<NetworkTokeizationProviderCredentials>,
 }
 
 #[cfg(feature = "v1")]
@@ -269,6 +273,42 @@ pub struct CardTestingGuardConfig {
     pub card_testing_guard_expiry: i32,
 }
 
+/// Configuration for payment method blocking based on card attributes
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct PaymentMethodBlockingConfig {
+    /// Card-specific blocking configuration
+    pub card: Option<CardBlockingConfig>,
+    /// Wallet-specific blocking configuration (applies to Apple Pay, Google Pay)
+    pub wallet: Option<WalletBlockingConfig>,
+}
+
+/// Card-specific blocking configuration
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct CardBlockingConfig {
+    /// Set of issuing countries to block using ISO 3166-1 alpha-2 codes (e.g., ["IN", "US"])
+    #[schema(value_type = Option<Vec<CountryAlpha2>>)]
+    pub issuing_country: Option<HashSet<common_enums::CountryAlpha2>>,
+    /// Set of card types to block (e.g., ["Credit", "Debit"])
+    #[schema(value_type = Option<Vec<CardType>>)]
+    pub card_types: Option<HashSet<common_enums::CardType>>,
+    /// Set of card subtypes to block
+    #[schema(value_type = Option<Vec<CardSubtype>>)]
+    pub card_subtypes: Option<HashSet<common_enums::CardSubtype>>,
+    /// Set of card issuer IDs to block
+    pub issuers: Option<HashSet<String>>,
+    /// Whether to block if BIN is provided but no matching record found in cards_info table.
+    /// Defaults to false (allow payment if BIN not found in database).
+    pub block_if_bin_info_unavailable: Option<bool>,
+}
+
+/// Wallet-specific blocking configuration for Apple Pay and Google Pay
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct WalletBlockingConfig {
+    /// Set of card types to block for wallet payments (e.g., ["Credit", "Debit"])
+    #[schema(value_type = Option<Vec<CardType>>)]
+    pub card_types: Option<HashSet<common_enums::CardType>>,
+}
+
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CardTestingGuardStatus {
@@ -299,6 +339,13 @@ pub struct ExternalVaultConnectorDetails {
 
     /// Fields to tokenization in vault
     pub vault_token_selector: Option<Vec<VaultTokenField>>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct SurchargeConnectorDetails {
+    /// The surcharge connector ID for calculating external surcharge
+    #[schema(value_type = Option<String>)]
+    pub surcharge_connector_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -393,6 +440,10 @@ pub struct MerchantAccountUpdate {
     /// Default payment method collect link config
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
+
+    /// Network tokenization credentials for this merchant account
+    #[schema(value_type = Option<NetworkTokeizationProviderCredentials>)]
+    pub network_tokenization_credentials: Option<NetworkTokeizationProviderCredentials>,
 }
 
 #[cfg(feature = "v1")]
@@ -595,6 +646,10 @@ pub struct MerchantAccountResponse {
     /// Merchant Account Type of this merchant account
     #[schema(value_type = MerchantAccountType, example = "standard")]
     pub merchant_account_type: api_enums::MerchantAccountType,
+
+    /// Network tokenization credentials for this merchant account
+    #[schema(value_type = Option<NetworkTokeizationProviderCredentials>)]
+    pub network_tokenization_credentials: Option<NetworkTokeizationProviderCredentials>,
 }
 
 #[cfg(feature = "v2")]
@@ -676,6 +731,35 @@ pub struct MerchantDetails {
 
     #[schema(value_type = Option<String>, example = "123456789")]
     pub merchant_tax_registration_id: Option<Secret<String>>,
+}
+
+/// The credentials required for calling the network tokenization provider APIs
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub enum NetworkTokeizationProviderCredentials {
+    InternalNetworkTokenService(InternalNetworkTokenizationCredentials),
+}
+
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub struct InternalNetworkTokenizationCredentials {
+    /// The API key to contact the network tokenization provider
+    #[schema(value_type = String, max_length = 255, example = "MDRFRDU3Mzc1Q0Q0N2893727712QzQjJEQzlENTBCOg==")]
+    pub token_service_api_key: Secret<String>,
+
+    /// The public key to encrypt the card details before sending to the network tokenization provider
+    #[schema(value_type = String, max_length = 255, example = "-----BEGIN PUBLIC KEY-----\nsom8723hj1bajhgd123==\n-----END PUBLIC KEY-----")]
+    pub public_key: Secret<String>,
+
+    /// The private key to decrypt the tokenized card details received from the network tokenization provider
+    #[schema(value_type = String, max_length = 255, example = "-----BEGIN RSA PRIVATE KEY-----\n897238huhbsdbjh12==\n-----END RSA PRIVATE KEY-----")]
+    pub private_key: Secret<String>,
+
+    /// The key_id used in encryption
+    #[schema(value_type = String, max_length = 255, example = "key_1ac9895a6d85414897213gahdac838a8")]
+    pub key_id: Secret<String>,
 }
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -2273,9 +2357,19 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
+
+    /// Network tokenization credentials for this merchant account
+    #[schema(value_type = Option<NetworkTokeizationProviderCredentials>)]
+    pub network_tokenization_credentials: Option<NetworkTokeizationProviderCredentials>,
+    /// Payment method blocking configuration for the profile
+    #[schema(value_type = Option<PaymentMethodBlockingConfig>)]
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[nutype::nutype(
@@ -2437,6 +2531,9 @@ pub struct ProfileCreate {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
@@ -2646,9 +2743,19 @@ pub struct ProfileResponse {
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
+
+    /// Network tokenization credentials for this merchant account
+    #[schema(value_type = Option<NetworkTokeizationProviderCredentials>)]
+    pub network_tokenization_credentials: Option<NetworkTokeizationProviderCredentials>,
+    /// Payment method blocking configuration for the profile
+    #[schema(value_type = Option<PaymentMethodBlockingConfig>)]
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[cfg(feature = "v2")]
@@ -2823,6 +2930,9 @@ pub struct ProfileResponse {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
@@ -3022,11 +3132,20 @@ pub struct ProfileUpdate {
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
-}
 
+    /// Network tokenization credentials for this merchant account
+    #[schema(value_type = Option<NetworkTokeizationProviderCredentials>)]
+    pub network_tokenization_credentials: Option<NetworkTokeizationProviderCredentials>,
+    /// Payment method blocking configuration for the profile
+    #[schema(value_type = Option<PaymentMethodBlockingConfig>)]
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
+}
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -3181,6 +3300,9 @@ pub struct ProfileUpdate {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
