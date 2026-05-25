@@ -244,13 +244,16 @@ async fn build_list_routing_result(
             |rec: &&routing_types::RoutingDictionaryRecord| &rec.profile_id == profile_id;
         let de_result_for_profile = de_results.iter().filter(by_profile).cloned().collect();
         let hs_result_for_profile = hs_results.iter().filter(by_profile).cloned().collect();
-        let business_profile =
-            core_utils::validate_and_get_business_profile(db, platform.get_processor(), Some(profile_id))
-                .await?
-                .get_required_value("Profile")
-                .change_context(errors::ApiErrorResponse::ProfileNotFound {
-                    id: profile_id.get_string_repr().to_owned(),
-                })?;
+        let business_profile = core_utils::validate_and_get_business_profile(
+            db,
+            platform.get_processor(),
+            Some(profile_id),
+        )
+        .await?
+        .get_required_value("Profile")
+        .change_context(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
 
         let dimensions = dimension_state::Dimensions::new()
             .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
@@ -1360,13 +1363,17 @@ pub async fn retrieve_linked_routing_config(
 
     // Get business profiles
     let business_profiles = if let Some(profile_id) = query_params.profile_id {
-        core_utils::validate_and_get_business_profile(db, platform.get_processor(), Some(&profile_id))
-            .await?
-            .map(|profile| vec![profile])
-            .get_required_value("Profile")
-            .change_context(errors::ApiErrorResponse::ProfileNotFound {
-                id: profile_id.get_string_repr().to_owned(),
-            })?
+        core_utils::validate_and_get_business_profile(
+            db,
+            platform.get_processor(),
+            Some(&profile_id),
+        )
+        .await?
+        .map(|profile| vec![profile])
+        .get_required_value("Profile")
+        .change_context(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?
     } else {
         let business_profile = db
             .list_profile_by_merchant_id(merchant_key_store, merchant_id)
