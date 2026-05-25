@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.25.0
+
+### Features
+
+- **core:** Revert Added profileId to payments client secret ([#12424](https://github.com/juspay/hyperswitch/pull/12424)) ([`d9eb608`](https://github.com/juspay/hyperswitch/commit/d9eb6089f55e9364efa6e9044bb238894f1cb55f))
+- **mandate:** Add network_transaction_link_id support to mandate table ([#12323](https://github.com/juspay/hyperswitch/pull/12323)) ([`d2804f2`](https://github.com/juspay/hyperswitch/commit/d2804f2d368ce6c51406133ecba8833ec51f3570))
+- **observability:** Instrument key manager with external service call event emission ([#11834](https://github.com/juspay/hyperswitch/pull/11834)) ([`97558fa`](https://github.com/juspay/hyperswitch/commit/97558fa48efef374ceb1f72dd3a235c6d8ea72d6))
+- **reports:** Add payment_response_hash_key to report generation Lambda payload ([#12218](https://github.com/juspay/hyperswitch/pull/12218)) ([`d36844b`](https://github.com/juspay/hyperswitch/commit/d36844bcceae2f53def49ee0f1b6d40ff51ce66a))
+
+### Bug Fixes
+
+- **connector:** [Checkout] pad NetworkToken expiry_year to 4 digits ([#12386](https://github.com/juspay/hyperswitch/pull/12386)) ([`289685f`](https://github.com/juspay/hyperswitch/commit/289685fa12210ac49e86bcc7fe9e021d5aa52213))
+- **split_payments:** Remove deny_unknown_fields from StripeSplitPayments ([#12411](https://github.com/juspay/hyperswitch/pull/12411)) ([`9683189`](https://github.com/juspay/hyperswitch/commit/9683189a5cbab681392b3ac4a331b6cd22a1aea4))
+
+**Full Changelog:** [`2026.05.22.0...2026.05.25.0`](https://github.com/juspay/hyperswitch/compare/2026.05.22.0...2026.05.25.0)
+
+- - -
+
 ## 2026.05.22.0
 
 ### Features
