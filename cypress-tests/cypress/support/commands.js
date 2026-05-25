@@ -36,6 +36,22 @@ import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
 import { handleRedirection } from "./redirectionHandler";
 
+// In MITM replay mode (MOCK_SERVER=true) there is no live browser redirection
+// to drive. Cypress.env may return a boolean or a string, hence String().
+function isMockServer() {
+  return String(Cypress.env("MOCK_SERVER")) === "true";
+}
+
+// Returns true (after logging a consistent skip line) when a redirection
+// command should bail out early because we're in replay mode.
+function skipRedirectionInMockServer(commandName) {
+  if (!isMockServer()) {
+    return false;
+  }
+  cy.task("cli_log", `Skipping ${commandName}: MOCK_SERVER=true`);
+  return true;
+}
+
 function getOriginalConnectorId(globalState) {
   return (
     globalState.get("originalConnectorId") || globalState.get("connectorId")
@@ -4823,7 +4839,7 @@ Cypress.Commands.add(
       nextActionUrl = "https://example.com";
     }
 
-    if (String(Cypress.env("MOCK_SERVER")) === "true") {
+    if (isMockServer()) {
       // In MITM replay mode the ThreeDS browser flow is skipped.  Consume one
       // cy.request slot so the Cypress step counter stays aligned with how the
       // cassettes were recorded (threeDsRedirection() always issues one request
@@ -4886,7 +4902,7 @@ Cypress.Commands.add(
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
 
-    if (String(Cypress.env("MOCK_SERVER")) === "true") {
+    if (skipRedirectionInMockServer("handleBankRedirectRedirection")) {
       return;
     }
 
@@ -4913,11 +4929,7 @@ Cypress.Commands.add(
     const nextActionUrl = globalState.get("nextActionUrl");
     const nextActionType = globalState.get("nextActionType");
 
-    if (String(Cypress.env("MOCK_SERVER")) === "true") {
-      cy.task(
-        "cli_log",
-        "Skipping handleBankTransferRedirection: MOCK_SERVER=true"
-      );
+    if (skipRedirectionInMockServer("handleBankTransferRedirection")) {
       return;
     }
 
@@ -4947,8 +4959,7 @@ Cypress.Commands.add(
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
 
-    if (String(Cypress.env("MOCK_SERVER")) === "true") {
-      cy.task("cli_log", "Skipping handleRewardRedirection: MOCK_SERVER=true");
+    if (skipRedirectionInMockServer("handleRewardRedirection")) {
       return;
     }
 
@@ -4970,8 +4981,7 @@ Cypress.Commands.add(
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
 
-    if (String(Cypress.env("MOCK_SERVER")) === "true") {
-      cy.task("cli_log", "Skipping handleCryptoRedirection: MOCK_SERVER=true");
+    if (skipRedirectionInMockServer("handleCryptoRedirection")) {
       return;
     }
 
@@ -4993,7 +5003,7 @@ Cypress.Commands.add(
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
 
-    if (String(Cypress.env("MOCK_SERVER")) === "true") {
+    if (skipRedirectionInMockServer("handleWalletRedirection")) {
       return;
     }
 
@@ -5205,8 +5215,7 @@ Cypress.Commands.add(
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
 
-    if (String(Cypress.env("MOCK_SERVER")) === "true") {
-      cy.task("cli_log", "Skipping handleUpiRedirection: MOCK_SERVER=true");
+    if (skipRedirectionInMockServer("handleUpiRedirection")) {
       return;
     }
 
@@ -5228,11 +5237,7 @@ Cypress.Commands.add(
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
 
-    if (String(Cypress.env("MOCK_SERVER")) === "true") {
-      cy.task(
-        "cli_log",
-        "Skipping handlePayLaterRedirection: MOCK_SERVER=true"
-      );
+    if (skipRedirectionInMockServer("handlePayLaterRedirection")) {
       return;
     }
 
