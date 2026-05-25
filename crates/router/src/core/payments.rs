@@ -100,12 +100,13 @@ use self::{
     gateway::context as gateway_context,
     operations::{BoxedOperation, Operation, PaymentResponse},
 };
+#[cfg(all(feature = "oltp", feature = "v1"))]
+use super::unified_connector_service::call_unified_connector_service_for_surcharge_calculate;
 use super::{
     errors::StorageErrorExt,
     payment_methods::surcharge_decision_configs,
     routing::{transaction_type_from_payments_dsl, TransactionData},
     unified_connector_service::{
-        call_unified_connector_service_for_surcharge_calculate,
         extract_gateway_system_from_payment_intent, should_call_unified_connector_service,
     },
 };

@@ -4817,6 +4817,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 connector_mandate_detail: None,
                 error_details: None,
+                sender_payment_instrument_id: None,
             },
         }
     }

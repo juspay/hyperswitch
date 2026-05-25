@@ -2196,6 +2196,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
             },
         }
     }

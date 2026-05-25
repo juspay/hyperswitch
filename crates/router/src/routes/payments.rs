@@ -2896,13 +2896,14 @@ pub async fn payments_submit_pre_confirm(
             Err(err) => return api::log_and_return_error_response(report!(err)),
         };
 
+    let mut payload = payload.clone();
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &http_req,
         payment_id,
         |state, auth: auth::AuthenticationData, payment_id, _| {
-            let mut payload = payload.clone();
             if let Some(client_secret) = auth.client_secret {
                 payload.client_secret = Some(Secret::new(client_secret));
             }
