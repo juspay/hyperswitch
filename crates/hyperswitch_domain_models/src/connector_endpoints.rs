@@ -124,7 +124,7 @@ pub struct Connectors {
     pub recurly: ConnectorParams,
     pub redsys: ConnectorParams,
     pub revolv3: ConnectorParams,
-    pub sanlam: ConnectorParams,
+    pub absa_sanlam: ConnectorParams,
     pub riskified: ConnectorParams,
     pub santander: ConnectorParams,
     pub shift4: ConnectorParams,

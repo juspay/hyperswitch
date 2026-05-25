@@ -110,7 +110,7 @@ pub mod recurly;
 pub mod redsys;
 pub mod revolv3;
 pub mod riskified;
-pub mod sanlam;
+pub mod absa_sanlam;
 pub mod santander;
 pub mod shift4;
 pub mod sift;
@@ -176,7 +176,7 @@ pub use self::{
     paystack::Paystack, paytm::Paytm, payu::Payu, peachpayments::Peachpayments, phonepe::Phonepe,
     placetopay::Placetopay, plaid::Plaid, powertranz::Powertranz, prophetpay::Prophetpay,
     rapyd::Rapyd, razorpay::Razorpay, recurly::Recurly, redsys::Redsys, revolv3::Revolv3,
-    riskified::Riskified, sanlam::Sanlam, santander::Santander, shift4::Shift4, sift::Sift,
+    riskified::Riskified, absa_sanlam::AbsaSanlam, santander::Santander, shift4::Shift4, sift::Sift,
     signifyd::Signifyd, silverflow::Silverflow, square::Square, stax::Stax, stripe::Stripe,
     stripebilling::Stripebilling, taxjar::Taxjar, tesouro::Tesouro, threedsecureio::Threedsecureio,
     thunes::Thunes, tokenex::Tokenex, tokenio::Tokenio, truelayer::Truelayer, trustly::Trustly,
