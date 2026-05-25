@@ -1,79 +1,16 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import getConnectorDetails, {
-  shouldExcludeConnector,
-  CONNECTOR_LISTS,
-} from "../../configs/Payment/Utils";
+import getConnectorDetails from "../../configs/Payment/Utils";
 import * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
 describe("Card - Payment Response Hash flow test", () => {
   before("seed global state and check account config", function () {
-    let skip = false;
-
-    cy.task("getGlobalState")
-      .then((state) => {
-        globalState = new State(state);
-        const connectorId = globalState.get("connectorId");
-
-        if (
-          shouldExcludeConnector(
-            connectorId,
-            CONNECTOR_LISTS.EXCLUDE.PAYMENT_RESPONSE_HASH
-          )
-        ) {
-          skip = true;
-          return;
-        }
-
-        const merchantId = globalState.get("merchantId");
-        const apiKey = globalState.get("adminApiKey");
-        const baseUrl = globalState.get("baseUrl");
-
-        return cy.request({
-          method: "GET",
-          url: `${baseUrl}/accounts/${merchantId}`,
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": apiKey,
-          },
-          failOnStatusCode: false,
-        });
-      })
-      .then((response) => {
-        if (skip) {
-          this.skip();
-          return;
-        }
-
-        if (!response || response.status !== 200) {
-          cy.task("cli_log", "Failed to fetch account config - skipping spec");
-          this.skip();
-          return;
-        }
-
-        const enablePaymentResponseHash =
-          response.body.enable_payment_response_hash;
-        const paymentResponseHashKey = response.body.payment_response_hash_key;
-
-        if (!enablePaymentResponseHash) {
-          cy.task(
-            "cli_log",
-            "enable_payment_response_hash is false/absent - skipping spec"
-          );
-          this.skip();
-          return;
-        }
-
-        globalState.set("paymentResponseHashKey", paymentResponseHashKey);
-        globalState.set("enablePaymentResponseHash", enablePaymentResponseHash);
-
-        cy.task(
-          "cli_log",
-          `Account config verified - enable_payment_response_hash: true, key length: ${paymentResponseHashKey.length}`
-        );
-      });
+    cy.task("getGlobalState").then((state) => {
+      globalState = new State(state);
+      cy.fetchPaymentResponseHashConfig(globalState, this.skip.bind(this));
+    });
   });
 
   after("flush global state", () => {
@@ -194,17 +131,7 @@ describe("Card - Payment Response Hash flow test", () => {
           return;
         }
 
-        cy.then(() => {
-          const computedSignature = globalState.get("computedSignature");
-          if (!computedSignature) {
-            cy.task(
-              "cli_log",
-              "No computed signature (no redirect URL) - skipping tampered signature verification"
-            );
-            return;
-          }
-          cy.verifyTamperedSignatureFails(globalState);
-        });
+        cy.verifyTamperedSignatureFails(globalState);
       });
     });
   });

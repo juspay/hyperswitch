@@ -3841,8 +3841,6 @@ Cypress.Commands.add(
             }
           }
 
-          // Store the full payment response for payment response hash verification
-          globalState.set("lastPaymentResponse", response.body);
         } else {
           throw new Error(
             `Retrieve Payment Call Failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
@@ -8278,6 +8276,63 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
 });
 
 /**
+ * Fetches merchant account config and stores payment response hash settings in globalState.
+ * Also skips the suite if enable_payment_response_hash is false/absent.
+ *
+ * @param {Object} globalState - The global state object
+ * @param {Function} skipFn - The this.skip function from the calling before hook
+ */
+Cypress.Commands.add(
+  "fetchPaymentResponseHashConfig",
+  (globalState, skipFn) => {
+    const merchantId = globalState.get("merchantId");
+    const apiKey = globalState.get("adminApiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const url = `${baseUrl}/accounts/${merchantId}`;
+
+    cy.request({
+      method: "GET",
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      if (!response || response.status !== 200) {
+        cy.task(
+          "cli_log",
+          "Failed to fetch account config - skipping spec"
+        );
+        skipFn();
+        return;
+      }
+
+      const enablePaymentResponseHash =
+        response.body.enable_payment_response_hash;
+      const paymentResponseHashKey = response.body.payment_response_hash_key;
+
+      if (!enablePaymentResponseHash) {
+        cy.task(
+          "cli_log",
+          "enable_payment_response_hash is false/absent - skipping spec"
+        );
+        skipFn();
+        return;
+      }
+
+      globalState.set("paymentResponseHashKey", paymentResponseHashKey);
+      globalState.set("enablePaymentResponseHash", enablePaymentResponseHash);
+
+      cy.task(
+        "cli_log",
+        `Account config verified - enable_payment_response_hash: true, key length: ${paymentResponseHashKey.length}`
+      );
+    });
+  }
+);
+
+/**
  * Verifies that the payment response hash feature is properly configured on the merchant account.
  *
  * The payment_response_hash feature adds HMAC signatures to redirect URLs (as
@@ -8315,10 +8370,11 @@ Cypress.Commands.add("verifyRedirectSignature", (globalState) => {
   const paymentId = globalState.get("paymentID");
   const baseUrl = globalState.get("baseUrl");
   const publishableKey = globalState.get("publishableKey");
+  const url = `${baseUrl}/payments/${paymentId}`;
 
   cy.request({
     method: "GET",
-    url: `${baseUrl}/payments/${paymentId}`,
+    url,
     headers: {
       "Content-Type": "application/json",
       "api-key": publishableKey,
@@ -8375,10 +8431,11 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
   const paymentId = globalState.get("paymentID");
   const publishableKey = globalState.get("publishableKey");
   const baseUrl = globalState.get("baseUrl");
+  const url = `${baseUrl}/payments/${paymentId}`;
 
   cy.request({
     method: "GET",
-    url: `${baseUrl}/payments/${paymentId}`,
+    url,
     headers: {
       "Content-Type": "application/json",
       "api-key": publishableKey,
@@ -8450,8 +8507,16 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
 
 Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
   cy.then(() => {
-    const hashKey = globalState.get("paymentResponseHashKey");
     const computedSignature = globalState.get("computedSignature");
+    if (!computedSignature) {
+      cy.task(
+        "cli_log",
+        "No computed signature (no redirect URL) - skipping tampered signature verification"
+      );
+      return;
+    }
+
+    const hashKey = globalState.get("paymentResponseHashKey");
     const signingPayload = globalState.get("computedSigningPayload");
     const signatureAlgorithm =
       globalState.get("signatureAlgorithm") || "HMAC-SHA512";

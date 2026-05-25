@@ -35,19 +35,15 @@ export default defineConfig({
         },
         computeHmac: ({ key, message, algorithm = "sha512" }) => {
           if (!key || !message) {
-            return null;
+            throw new Error(
+              `computeHmac: 'key' and 'message' are required (got key=${!!key}, message=${!!message})`
+            );
           }
-          try {
-            const signature = crypto
-              .createHmac(algorithm, key)
-              .update(message)
-              .digest("hex");
-            return signature;
-          } catch (error) {
-            // eslint-disable-next-line no-console
-            console.error("computeHmac failed:", error.message);
-            return null;
-          }
+          const signature = crypto
+            .createHmac(algorithm, key)
+            .update(message)
+            .digest("hex");
+          return signature;
         },
       });
       on("after:spec", (spec, results) => {
