@@ -9121,11 +9121,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "updatePaymentIntentTest",
   (updateBody, data, globalState) => {
-    const {
-      Configs: configs = {},
-      Request: reqData,
-      Response: resData,
-    } = data || {};
+    const { Request: reqData, Response: resData } = data || {};
 
     const paymentIntentID = globalState.get("paymentID");
     const url = `${globalState.get("baseUrl")}/payments/${paymentIntentID}`;
