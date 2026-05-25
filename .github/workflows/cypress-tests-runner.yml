@@ -26,64 +26,12 @@ env:
   RUN_TESTS: ${{ (github.event_name == 'merge_group') || (github.event_name == 'push') || (github.event_name == 'workflow_dispatch') || ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) }}
   DEBUG: cypress:cli
   RUST_MIN_STACK: 11534336
+  # Reuse the server artifact from the previous run while iterating on CI-only workflow changes.
+  HYPERSWITCH_SERVER_ARTIFACT_RUN_ID: "26393537507"
 
 jobs:
-  build-hyperswitch:
-    name: Build hyperswitch server
-    runs-on: hyperswitch-runners-merge
-    env:
-      RUSTC_WRAPPER: sccache
-    steps:
-      - name: Skip tests for PRs from forks
-        shell: bash
-        if: ${{ env.RUN_TESTS == 'false' }}
-        run: echo 'Skipping tests for PRs from forks'
-
-      - name: Checkout repository
-        if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v5
-
-      - name: Install mold linker
-        if: ${{ env.RUN_TESTS == 'true' }}
-        uses: rui314/setup-mold@v1
-        with:
-          make-default: true
-
-      - name: Install Rust
-        if: ${{ env.RUN_TESTS == 'true' }}
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable 2 weeks ago
-
-      - name: Install Protoc
-        if: ${{ env.RUN_TESTS == 'true' }}
-        uses: arduino/setup-protoc@v3
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install sccache
-        if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
-        with:
-          tool: sccache
-          checksum: true
-
-      - name: Build project
-        if: ${{ env.RUN_TESTS == 'true' }}
-        run: cargo build --package router --bin router --jobs 2
-
-      - name: Upload binary artifact
-        if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: hyperswitch-server
-          overwrite: true
-          path: target/debug/router
-          retention-days: 1
-
   mitm-cassette-replay-cypress-tests:
     name: Run MITM payment Cypress tests (${{ matrix.batch.name }})
-    needs: [build-hyperswitch]
     runs-on: hyperswitch-runners-merge
     strategy:
       fail-fast: false
@@ -157,12 +105,14 @@ jobs:
           tool: sccache
           checksum: true
 
-      - name: Download hyperswitch server artifact
+      - name: Download hyperswitch server artifact from previous run
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/download-artifact@v8
         with:
           name: hyperswitch-server
           path: target/debug
+          run-id: ${{ env.HYPERSWITCH_SERVER_ARTIFACT_RUN_ID }}
+          github-token: ${{ github.token }}
 
       - name: Make server executable
         if: ${{ env.RUN_TESTS == 'true' }}
