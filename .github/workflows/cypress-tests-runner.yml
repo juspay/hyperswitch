@@ -27,8 +27,8 @@ env:
   EXTENDED_PAYMENTS_CONNECTORS_BATCH_1: "bluesnap gigadat loonio nmi"
   EXTENDED_PAYMENTS_CONNECTORS_BATCH_2: "paypal redsys zift"
   EXTENDED_PAYOUTS_CONNECTORS: "adyenplatform wise"
-  MOCK_PAYMENTS_CONNECTORS_BATCH_1: "bluesnap gigadat loonio nmi"
-  MOCK_PAYMENTS_CONNECTORS_BATCH_2: "redsys zift"
+  MOCK_PAYMENTS_CONNECTORS_BATCH_1: "bluesnap gigadat loonio zift"
+  MOCK_PAYMENTS_CONNECTORS_BATCH_2: "redsys nmi"
   MOCK_PAYOUTS_CONNECTORS: "adyenplatform wise"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
@@ -728,7 +728,7 @@ jobs:
                 {
                   "name": "mock-payouts",
                   "payments_connectors": "",
-                  "payouts_connectors": "adyenplatform wise",
+                  "payouts_connectors": "'"${MOCK_PAYOUTS_CONNECTORS}"'",
                   "platform_connectors": "",
                   "parallel": 2,
                   "report_artifact_name": "cypress-mock-test-results-payouts",
@@ -736,7 +736,7 @@ jobs:
                 },
                 {
                   "name": "mock-payments",
-                  "payments_connectors": "bluesnap gigadat paypal zift",
+                  "payments_connectors": "'"${MOCK_PAYMENTS_CONNECTORS}"'",
                   "payouts_connectors": "",
                   "platform_connectors": "",
                   "parallel": 4,
