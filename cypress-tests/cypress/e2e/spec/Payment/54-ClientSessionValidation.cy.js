@@ -54,8 +54,7 @@ describe("Client Session Validation", () => {
         globalState
       );
 
-      if (shouldContinue)
-        shouldContinue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Confirm with valid SDK Authorization", () => {
@@ -105,8 +104,7 @@ describe("Client Session Validation", () => {
         globalState
       );
 
-      if (shouldContinue)
-        shouldContinue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Confirm with invalid client_session_id - expect 401", () => {
@@ -158,9 +156,9 @@ describe("Client Session Validation", () => {
       });
 
       it("Confirm without client_session_id - legacy fallback", () => {
-        const confirmData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["card_pm"]["ClientSessionValidConfirm"];
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ClientSessionValidConfirm"];
 
         cy.confirmWithSdkAuthTest(
           fixtures.confirmBody,
@@ -175,9 +173,9 @@ describe("Client Session Validation", () => {
       });
 
       it("Retrieve Payment", () => {
-        const confirmData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["card_pm"]["ClientSessionValidConfirm"];
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ClientSessionValidConfirm"];
 
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
       });
@@ -206,8 +204,7 @@ describe("Client Session Validation", () => {
         globalState
       );
 
-      if (shouldContinue)
-        shouldContinue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Save old SDK Authorization", () => {
@@ -309,9 +306,9 @@ describe("Client Session Validation", () => {
       });
 
       it("Confirm with invalid CSI - should succeed when validation disabled", () => {
-        const confirmData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["card_pm"]["ClientSessionValidConfirm"];
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ClientSessionValidConfirm"];
 
         cy.confirmWithSdkAuthTest(
           fixtures.confirmBody,
@@ -351,9 +348,9 @@ describe("Client Session Validation", () => {
       });
 
       it("Confirm with invalid CSI - should fail when validation enabled", () => {
-        const invalidData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["card_pm"]["ClientSessionInvalidConfirm"];
+        const invalidData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ClientSessionInvalidConfirm"];
 
         const invalidConfirmData = {
           ...invalidData,
