@@ -463,8 +463,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                                 mandates::MandateReferenceId::NetworkMandateId(
                                     mandates::NetworkMandateIdRef {
                                         network_transaction_id: network_tx_id,
-                                        transaction_link_id: mandate_obj
-                                            .network_transaction_link_id,
+                                        transaction_link_id: mandate_obj.network_transaction_link_id,
                                     },
                                 ),
                             ),
@@ -1348,7 +1347,9 @@ impl PaymentCreate {
         logger::info!("Payment method fetched from PM Modular Service.");
 
         utils::when(
-            pm_info.payment_method.customer_id.as_ref() != req.get_customer_id(),
+            req.get_customer_id().is_some_and(|customer_id| {
+                pm_info.payment_method.customer_id.as_ref() != Some(customer_id)
+            }),
             || {
                 logger::info!(
                     "Payment method id does not belong to the customer id provided in the request."
@@ -1715,6 +1716,7 @@ impl PaymentCreate {
                 retry_type: None,
                 installment_data: None,
                 external_surcharge_details: None,
+                sender_payment_instrument_id: None,
             },
             additional_pm_data,
 
@@ -1750,7 +1752,7 @@ impl PaymentCreate {
                 }),
             request.confirm,
         );
-        let client_secret = payment_id.generate_client_secret(profile_id.get_string_repr());
+        let client_secret = payment_id.generate_client_secret();
         let (amount, currency) = (money.0, Some(money.1));
 
         let order_details = request
@@ -1972,6 +1974,7 @@ impl PaymentCreate {
                 .clone(),
             state_metadata: None,
             installment_options: request.installment_options.clone(),
+            profile_acquirer_id: request.profile_acquirer_id.clone(),
         })
     }
 }

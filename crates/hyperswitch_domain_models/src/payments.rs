@@ -40,7 +40,10 @@ pub mod split_payments;
 
 #[cfg(feature = "v1")]
 use api_models::{
-    payment_methods::{PaymentMethodListInstallmentOption, PaymentMethodListIntentData},
+    payment_methods::{
+        PaymentMethodListInstallmentOption, PaymentMethodListIntentData,
+        PaymentMethodListIntentDataInput,
+    },
     payments::Address,
 };
 use common_enums as storage_enums;
@@ -150,6 +153,7 @@ pub struct PaymentIntent {
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
+    pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
 }
 
 impl PaymentIntent {
@@ -476,9 +480,14 @@ impl PaymentIntent {
         self,
         net_amount: MinorUnit,
         show_installments: bool,
-        capture_method: Option<common_enums::CaptureMethod>,
+        extra: PaymentMethodListIntentDataInput,
+        business_profile: &crate::business_profile::Profile,
     ) -> CustomResult<PaymentMethodListIntentData, errors::api_error_response::ApiErrorResponse>
     {
+        let request_ext_3ds = self.get_request_external_three_ds_authentication();
+        let is_guest = self.is_guest_customer();
+        let is_tax = business_profile.get_is_tax_calculation_enabled(&self);
+
         let billing: Option<Address> = self
             .billing_details
             .map(|b| b.deserialize_inner_value(|value| value.parse_value("Address")))
@@ -541,7 +550,13 @@ impl PaymentIntent {
             merchant_order_reference_id: self.merchant_order_reference_id,
             attempt_count: self.attempt_count,
             installment_options,
-            capture_method,
+            merchant_name: extra.merchant_name,
+            mandate_payment: extra.mandate_payment,
+            payment_type: extra.payment_type,
+            request_external_three_ds_authentication: Some(request_ext_3ds),
+            is_tax_calculation_enabled: Some(is_tax),
+            is_guest_customer: Some(is_guest),
+            capture_method: extra.capture_method,
         })
     }
 
@@ -549,6 +564,20 @@ impl PaymentIntent {
     pub fn is_setup_mandate(&self) -> bool {
         self.amount == MinorUnit::zero()
             && self.setup_future_usage == Some(common_enums::FutureUsage::OffSession)
+    }
+
+    #[cfg(feature = "v1")]
+    /// Returns whether external 3DS authentication was requested, defaulting to `false`.
+    pub fn get_request_external_three_ds_authentication(&self) -> bool {
+        self.request_external_three_ds_authentication
+            .unwrap_or(false)
+    }
+
+    #[cfg(feature = "v1")]
+    /// Returns `true` when there is no saved customer on this payment (guest checkout).
+    /// Default is `true` — no customer means guest.
+    pub fn is_guest_customer(&self) -> bool {
+        self.customer_id.is_none()
     }
 }
 
@@ -804,6 +833,7 @@ pub struct PaymentIntent {
     pub attempt_count: i16,
     /// The profile id for the payment.
     pub profile_id: id_type::ProfileId,
+    pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
     /// The payment link id for the payment. This is generated only if `enable_payment_link` is set to true.
     pub payment_link_id: Option<String>,
     /// This Denotes the action(approve or reject) taken by merchant in case of manual review.
@@ -1078,6 +1108,7 @@ impl PaymentIntent {
             enable_partial_authorization: request
                 .enable_partial_authorization
                 .unwrap_or(false.into()),
+            profile_acquirer_id: None,
         })
     }
 

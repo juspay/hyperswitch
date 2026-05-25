@@ -1440,6 +1440,8 @@ pub struct PaymentAttempt {
     pub installment_data: Option<common_types::payments::InstallmentData>,
     /// External surcharge details from InterPayments (stored as JSONB)
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
+    /// Sender payment instrument ID
+    pub sender_payment_instrument_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -1717,6 +1719,33 @@ impl PaymentAttempt {
 impl PaymentAttempt {
     pub fn get_total_amount(&self) -> MinorUnit {
         self.net_amount.get_total_amount()
+    }
+
+    /// Infer the payment type (Normal / NewMandate / SetupMandate / RecurringMandate)
+    /// from the attempt's mandate state and whether this is a CIT transaction.
+    pub fn infer_payment_type(&self, is_cit_transaction: bool) -> api_models::enums::PaymentType {
+        use api_models::payments::{Amount, MandateTransactionType};
+        let amount = Amount::from(self.net_amount.get_order_amount());
+        let mandate_type = if self.mandate_id.is_some() {
+            Some(MandateTransactionType::RecurringMandateTransaction)
+        } else if is_cit_transaction {
+            Some(MandateTransactionType::NewMandateTransaction)
+        } else {
+            None
+        };
+        match mandate_type {
+            Some(MandateTransactionType::NewMandateTransaction) => {
+                if let Amount::Value(_) = amount {
+                    api_models::enums::PaymentType::NewMandate
+                } else {
+                    api_models::enums::PaymentType::SetupMandate
+                }
+            }
+            Some(MandateTransactionType::RecurringMandateTransaction) => {
+                api_models::enums::PaymentType::RecurringMandate
+            }
+            None => api_models::enums::PaymentType::Normal,
+        }
     }
 
     pub fn get_total_surcharge_amount(&self) -> Option<MinorUnit> {
@@ -2049,6 +2078,7 @@ pub enum PaymentAttemptUpdate {
         advice_message: Option<Option<String>>,
         recommended_action: Option<Option<storage_enums::RecommendedAction>>,
         card_network: Option<storage_enums::CardNetwork>,
+        sender_payment_instrument_id: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -2405,6 +2435,7 @@ impl PaymentAttemptUpdate {
                 advice_message,
                 recommended_action,
                 card_network,
+                sender_payment_instrument_id,
             } => {
                 let connector_details = ConnectorErrorDetails::new(
                     error_code.clone(),
@@ -2470,6 +2501,7 @@ impl PaymentAttemptUpdate {
                     encrypted_payment_method_data: encrypted_payment_method_data
                         .map(Encryption::from),
                     error_details,
+                    sender_payment_instrument_id,
                 }
             }
             Self::UnresolvedResponseUpdate {
@@ -2964,6 +2996,7 @@ impl behaviour::Conversion for PaymentAttempt {
             encrypted_payment_method_data: self.encrypted_payment_method_data.map(Encryption::from),
             retry_type: self.retry_type,
             external_surcharge_details: self.external_surcharge_details,
+            sender_payment_instrument_id: self.sender_payment_instrument_id,
         })
     }
 
@@ -3099,6 +3132,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 retry_type: storage_model.retry_type,
                 installment_data: storage_model.installment_data,
                 external_surcharge_details: storage_model.external_surcharge_details,
+                sender_payment_instrument_id: storage_model.sender_payment_instrument_id,
             })
         }
         .await
@@ -3201,6 +3235,7 @@ impl behaviour::Conversion for PaymentAttempt {
             retry_type: self.retry_type,
             installment_data: self.installment_data,
             external_surcharge_details: self.external_surcharge_details,
+            sender_payment_instrument_id: self.sender_payment_instrument_id,
         })
     }
 }
@@ -3389,6 +3424,7 @@ impl behaviour::Conversion for PaymentAttempt {
             retry_type: None,
             installment_data: None,
             external_surcharge_details: None,
+            sender_payment_instrument_id: None,
         })
     }
 

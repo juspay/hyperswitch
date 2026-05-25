@@ -355,6 +355,7 @@ impl
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
             l2_l3_data: None,
+            merchant_request_id: None,
         })
     }
 }
@@ -546,6 +547,7 @@ impl
                 .map(Into::into),
             l2_l3_data: None,
             connector_order_id: None,
+            merchant_request_id: None,
         })
     }
 }
@@ -721,6 +723,7 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
                 .payment_experience
                 .map(payments_grpc::PaymentExperience::foreign_from)
                 .map(Into::into),
+            merchant_request_id: None,
         })
     }
 }
@@ -1127,6 +1130,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 .map(|s| s.into()),
             test_mode: router_data.test_mode,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
+            merchant_request_id: None,
         })
     }
 }
@@ -1269,6 +1273,7 @@ impl
             continue_redirection_url: None,
             connector_order_id: None,
             l2_l3_data: None,
+            merchant_request_id: None,
         })
     }
 }
@@ -1448,6 +1453,7 @@ impl
             continue_redirection_url: None,
             connector_order_id: None,
             l2_l3_data: None,
+            merchant_request_id: None,
         })
     }
 }
@@ -1607,6 +1613,7 @@ impl
             continue_redirection_url: None,
             connector_order_id: None,
             l2_l3_data: None,
+            merchant_request_id: None,
         })
     }
 }
@@ -5774,6 +5781,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 .customer_id
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
+            merchant_request_id: None,
         })
     }
 }
@@ -5841,6 +5849,7 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             test_mode: router_data.test_mode,
             payment_method_type,
             connector_feature_data: None,
+            merchant_request_id: None,
         })
     }
 }
@@ -5966,6 +5975,7 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 .map(|s| s.into()),
             test_mode: router_data.test_mode,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
+            merchant_request_id: None,
         })
     }
 }

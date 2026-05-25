@@ -13,11 +13,13 @@ pub struct ModularListCustomerPaymentMethodsRequest;
 #[derive(Debug, Deserialize)]
 // TODO: replace dummy response types with real v1/modular models.
 pub struct ModularListCustomerPaymentMethodsResponse {
-    pub customer_payment_methods: Vec<PaymentMethodResponseItem>,
+    pub customer_payment_methods: Vec<PaymentMethodResponseItemV1>,
 }
 
+/// V1 bridge shape — deserialized from the modular service response when called from v1 router.
+/// Uses v1 ID types (String, CustomerId).
 #[derive(Debug, Deserialize)]
-pub struct PaymentMethodResponseItem {
+pub struct PaymentMethodResponseItemV1 {
     pub id: String,
     pub customer_id: id_type::CustomerId,
     pub payment_method_type: PaymentMethod,
@@ -93,7 +95,7 @@ pub struct ModularPMRetrieveResponse {
     pub merchant_id: id_type::MerchantId,
     pub customer_id: Option<id_type::CustomerId>,
     pub payment_method_type: PaymentMethod,
-    pub payment_method_subtype: PaymentMethodType,
+    pub payment_method_subtype: Option<PaymentMethodType>,
     pub recurring_enabled: Option<bool>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
@@ -144,4 +146,64 @@ pub struct CardCVCTokenStorageDetails {
 
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub expires_at: Option<PrimitiveDateTime>,
+}
+
+// ---------------------------------------------------------------------------
+// From conversions → api_models client-facing types
+// ---------------------------------------------------------------------------
+
+impl From<WalletPaymentMethodData>
+    for api_models::payment_methods::WalletPaymentMethodDataForClient
+{
+    fn from(wallet_info: WalletPaymentMethodData) -> Self {
+        match wallet_info {
+            WalletPaymentMethodData::ApplePay(apple_pay_info) => Self::ApplePay(apple_pay_info),
+            WalletPaymentMethodData::GooglePay(google_pay_info) => Self::GooglePay(google_pay_info),
+            WalletPaymentMethodData::PayPal(paypal_info) => Self::PayPal(paypal_info),
+        }
+    }
+}
+
+impl From<BankDebitDetailsPaymentMethod> for api_models::payment_methods::BankDebitDataForClient {
+    fn from(bank_debit_info: BankDebitDetailsPaymentMethod) -> Self {
+        match bank_debit_info {
+            BankDebitDetailsPaymentMethod::AchBankDebit {
+                account_number_last4_digits,
+                routing_number_last4_digits,
+                bank_account_holder_name,
+                bank_name,
+                bank_type,
+                bank_holder_type,
+            } => Self::AchBankDebit {
+                account_number_last4_digits,
+                routing_number_last4_digits,
+                bank_account_holder_name,
+                bank_name,
+                bank_type,
+                bank_holder_type,
+            },
+        }
+    }
+}
+
+impl From<PaymentMethodResponseData>
+    for Option<api_models::payment_methods::CustomerPaymentMethodDataForClient>
+{
+    fn from(payment_method_response_data: PaymentMethodResponseData) -> Self {
+        match payment_method_response_data {
+            PaymentMethodResponseData::Card(card_info) => Some(
+                api_models::payment_methods::CustomerPaymentMethodDataForClient::Card(card_info),
+            ),
+            PaymentMethodResponseData::Wallet(wallet_info) => Some(
+                api_models::payment_methods::CustomerPaymentMethodDataForClient::Wallet(
+                    wallet_info.into(),
+                ),
+            ),
+            PaymentMethodResponseData::BankDebit(bank_debit_info) => Some(
+                api_models::payment_methods::CustomerPaymentMethodDataForClient::BankDebit(
+                    bank_debit_info.into(),
+                ),
+            ),
+        }
+    }
 }

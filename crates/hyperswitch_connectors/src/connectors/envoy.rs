@@ -137,7 +137,7 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Envoy
         let connector_router_data = envoy::EnvoyRouterData::from((amount, req));
         let payout_request = envoy::PayToBankAccountV3::try_from(&connector_router_data)?;
         let soap_envelope = envoy::SoapEnvelope::new(payout_request);
-        Ok(RequestContent::Xml(Box::new(soap_envelope)))
+        Ok(RequestContent::Xml(Box::new(soap_envelope), None))
     }
 
     fn build_request(

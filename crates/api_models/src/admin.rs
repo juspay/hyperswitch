@@ -18,12 +18,12 @@ use smithy::SmithyModel;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
+#[cfg(feature = "v1")]
+use crate::routing;
 use crate::{
     consts::{MAX_ORDER_FULFILLMENT_EXPIRY, MIN_ORDER_FULFILLMENT_EXPIRY},
-    enums as api_enums, payment_methods,
+    enums as api_enums, payment_methods, profile_acquirer,
 };
-#[cfg(feature = "v1")]
-use crate::{profile_acquirer::ProfileAcquirerResponse, routing};
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantAccountListRequest {
@@ -1357,16 +1357,20 @@ pub struct MerchantConnectorInfo {
     pub connector_label: String,
     #[schema(value_type = String)]
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
+    #[schema(value_type = ConnectorType, example = "payment_processor")]
+    pub connector_type: api_enums::ConnectorType,
 }
 
 impl MerchantConnectorInfo {
     pub fn new(
         connector_label: String,
         merchant_connector_id: id_type::MerchantConnectorAccountId,
+        connector_type: api_enums::ConnectorType,
     ) -> Self {
         Self {
             connector_label,
             merchant_connector_id,
+            connector_type,
         }
     }
 }
@@ -1452,6 +1456,7 @@ impl MerchantConnectorResponse {
         MerchantConnectorInfo {
             connector_label: connector_label.to_string(),
             merchant_connector_id: self.id.clone(),
+            connector_type: self.connector_type,
         }
     }
 }
@@ -1580,6 +1585,7 @@ impl MerchantConnectorResponse {
         MerchantConnectorInfo {
             connector_label: connector_label.to_string(),
             merchant_connector_id: self.merchant_connector_id.clone(),
+            connector_type: self.connector_type,
         }
     }
 }
@@ -1679,6 +1685,7 @@ impl MerchantConnectorListResponse {
         MerchantConnectorInfo {
             connector_label: connector_label.to_string(),
             merchant_connector_id: self.merchant_connector_id.clone(),
+            connector_type: self.connector_type,
         }
     }
     pub fn get_connector_name(&self) -> String {
@@ -1738,6 +1745,7 @@ impl MerchantConnectorListResponse {
         MerchantConnectorInfo {
             connector_label: connector_label.to_string(),
             merchant_connector_id: self.id.clone(),
+            connector_type: self.connector_type,
         }
     }
     pub fn get_connector_name(&self) -> common_enums::connector_enums::Connector {
@@ -2144,7 +2152,7 @@ pub struct MerchantConnectorDetailsWrap {
     pub creds_identifier: String,
     /// Merchant connector details type type. Base64 Encode the credentials and send it in  this type and send as a string.
     #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
-        "connector_account_details": {
+       "connector_account_details": {
             "auth_type": "HeaderKey",
             "api_key":"sk_test_xxxxxexamplexxxxxx12345"
         },
@@ -2702,9 +2710,13 @@ pub struct ProfileResponse {
     #[schema(default = false, example = false)]
     pub is_pre_network_tokenization_enabled: bool,
 
-    /// Acquirer configs
-    #[schema(value_type = Option<Vec<ProfileAcquirerResponse>>)]
-    pub acquirer_configs: Option<Vec<ProfileAcquirerResponse>>,
+    /// Acquirer configs (Deprecated - use `acquirer_config_bucket` instead)
+    #[schema(value_type = Option<Vec<ProfileAcquirerResponse>>, deprecated)]
+    pub acquirer_configs: Option<Vec<profile_acquirer::ProfileAcquirerResponse>>,
+
+    /// Acquirer config buckets: map of acquirer profile configurations
+    #[schema(value_type = Option<ProfileAcquirerConfigsResponse>)]
+    pub acquirer_config_bucket: Option<profile_acquirer::ProfileAcquirerConfigsResponse>,
 
     /// Indicates if the redirection has to open in the iframe
     #[schema(example = false)]

@@ -227,6 +227,7 @@ where
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -588,6 +589,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -936,6 +938,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -1074,6 +1077,7 @@ pub async fn construct_router_data_for_psync<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -1442,6 +1446,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -1674,6 +1679,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -2006,6 +2012,7 @@ where
         authorized_amount: None,
         customer_document_details,
         feature_data,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -2227,6 +2234,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -4040,6 +4048,7 @@ where
             payment_id: payment_intent.payment_id,
             merchant_id: payment_intent.merchant_id,
             status: payment_intent.status,
+            connector_customer_id: payment_data.get_connector_customer_id(),
             amount: payment_attempt.net_amount.get_order_amount(),
             net_amount: payment_attempt.get_total_amount(),
             amount_capturable: payment_attempt.amount_capturable,
@@ -4181,6 +4190,7 @@ where
             installment_options: payment_intent.installment_options,
             installment_data: payment_data.get_installment_details().cloned(),
             connector_response_metadata,
+            sender_payment_instrument_id: payment_attempt.sender_payment_instrument_id.clone(),
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -4452,6 +4462,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             processor_merchant_id: pi.processor_merchant_id,
             initiator: None,
             sdk_authorization: None,
+            connector_customer_id: None,
             refunds: None,
             disputes: None,
             attempts: None,
@@ -4527,6 +4538,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             payment_method_tokenization_details: None,
             installment_options: pi.installment_options,
             installment_data: pa.installment_data,
+            sender_payment_instrument_id: pa.sender_payment_instrument_id.clone(),
         }
     }
 }
@@ -4713,7 +4725,7 @@ impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::paymen
                 raw_qr_data,
             } => Self::QrCodeInformation {
                 image_data_url: Some(image_data_url),
-                qr_code_url: Some(qr_code_url),
+                qr_code_url,
                 display_to_timestamp,
                 border_color: None,
                 display_text: None,
