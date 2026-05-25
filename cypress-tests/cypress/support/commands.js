@@ -9075,7 +9075,12 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "retrieveBusinessProfileTest",
-  (globalState, profilePrefix = "profile", expectedTaxEnabled = undefined, expectedTaxConnectorId = undefined) => {
+  (
+    globalState,
+    profilePrefix = "profile",
+    expectedTaxEnabled = undefined,
+    expectedTaxConnectorId = undefined
+  ) => {
     const apiKey = globalState.get("apiKey");
     const merchantId = globalState.get("merchantId");
     const profileId = globalState.get(`${profilePrefix}Id`);
@@ -9103,7 +9108,9 @@ Cypress.Commands.add(
         if (expectedTaxEnabled === true) {
           expect(response.body.tax_connector_id).to.not.be.null;
         } else if (typeof expectedTaxConnectorId !== "undefined") {
-          expect(response.body.tax_connector_id).to.equal(expectedTaxConnectorId);
+          expect(response.body.tax_connector_id).to.equal(
+            expectedTaxConnectorId
+          );
         } else {
           expect(response.body.tax_connector_id).to.not.be.null;
         }
