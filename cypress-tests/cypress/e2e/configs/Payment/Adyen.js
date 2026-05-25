@@ -64,7 +64,7 @@ const getMandateData = (currency) => ({
     },
   },
   mandate_type: {
-    single_use: {
+    multi_use: {
       amount: 6540,
       currency,
     },
@@ -1555,6 +1555,450 @@ export const connectorDetails = {
             number: "9123456789",
             country_code: "+852",
           },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    WalletMandateSingleUseNo3DSAutoCapture: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+      },
+    }),
+    WalletMITAutoCapture: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+      },
+    }),
+    PaypalWalletMITAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+      },
+    }),
+    GcashWalletMITAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "gcash",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+      },
+    }),
+    MomoWalletMITAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "momo",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+      },
+    }),
+    TwintWalletMITAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "twint",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+      },
+    }),
+    DanaWalletMITAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "dana",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+      },
+    }),
+    GoPayWalletMITAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "go_pay",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+      },
+    }),
+    VippsWalletMITAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "vipps",
+        payment_method_data: {
+          wallet: {
+            vipps_redirect: {},
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "HE_03",
+            message: "Mandate Validation Failed",
+            reason: "Cross currency mandates are not supported",
+          },
+        },
+      },
+      Configs: {
+        skipBillingAssertion: true,
+      },
+    }),
+    PaypalWalletMandateCIT: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+        mandate_data: getMandateData("EUR"),
+        payment_type: "new_mandate",
+        setup_future_usage: "off_session",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            city: "San Fransico",
+            state: "CA",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+91",
+          },
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    KakaoPayWalletMandateCIT: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "kakao_pay",
+        payment_method_data: {
+          wallet: {
+            kakao_pay_redirect: {},
+          },
+        },
+        mandate_data: getMandateData("KRW"),
+        payment_type: "new_mandate",
+        setup_future_usage: "off_session",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            city: "Seoul",
+            state: "Seoul",
+            zip: "04500",
+            country: "KR",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+82",
+          },
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    GcashWalletMandateCIT: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "gcash",
+        payment_method_data: {
+          wallet: {
+            gcash_redirect: {},
+          },
+        },
+        mandate_data: getMandateData("PHP"),
+        payment_type: "new_mandate",
+        setup_future_usage: "off_session",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            city: "Manila",
+            state: "Metro Manila",
+            zip: "1000",
+            country: "PH",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+63",
+          },
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    MomoWalletMandateCIT: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "momo",
+        payment_method_data: {
+          wallet: {
+            momo_redirect: {},
+          },
+        },
+        mandate_data: getMandateData("VND"),
+        payment_type: "new_mandate",
+        setup_future_usage: "off_session",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            city: "Ho Chi Minh City",
+            state: "Ho Chi Minh",
+            zip: "700000",
+            country: "VN",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+84",
+          },
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    TwintWalletMandateCIT: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "twint",
+        payment_method_data: {
+          wallet: {
+            twint_redirect: {},
+          },
+        },
+        mandate_data: getMandateData("CHF"),
+        payment_type: "new_mandate",
+        setup_future_usage: "off_session",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            city: "Zurich",
+            state: "Zurich",
+            zip: "8001",
+            country: "CH",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+41",
+          },
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    VippsWalletMandateCIT: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "vipps",
+        payment_method_data: {
+          wallet: {
+            vipps_redirect: {},
+          },
+        },
+        mandate_data: getMandateData("NOK"),
+        payment_type: "new_mandate",
+        setup_future_usage: "off_session",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            city: "Oslo",
+            state: "Oslo",
+            zip: "0150",
+            country: "NO",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+47",
+          },
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    }),
+    DanaWalletMandateCIT: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "dana",
+        payment_method_data: {
+          wallet: {
+            dana_redirect: {},
+          },
+        },
+        mandate_data: getMandateData("IDR"),
+        payment_type: "new_mandate",
+        setup_future_usage: "off_session",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            city: "Jakarta",
+            state: "DKI Jakarta",
+            zip: "10110",
+            country: "ID",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+62",
+          },
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    GoPayWalletMandateCIT: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "go_pay",
+        payment_method_data: {
+          wallet: {
+            go_pay_redirect: {},
+          },
+        },
+        mandate_data: getMandateData("IDR"),
+        payment_type: "new_mandate",
+        setup_future_usage: "off_session",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            city: "Jakarta",
+            state: "DKI Jakarta",
+            zip: "10110",
+            country: "ID",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+62",
+          },
+          email: "test@example.com",
         },
       },
       Response: {

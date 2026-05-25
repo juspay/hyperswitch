@@ -198,6 +198,14 @@ const CURRENCY_MAP = {
   Interac: "CAD", // Canadian payment method
   AliPayHk: "HKD", // Hong Kong payment method
   Mifinity: "EUR", // Mifinity wallet payment method
+  PaypalRedirect: "EUR",
+  KakaoPay: "KRW",
+  Gcash: "PHP",
+  Momo: "VND",
+  Twint: "CHF",
+  Vipps: "NOK",
+  Dana: "IDR",
+  GoPay: "IDR",
 };
 
 export const getCurrency = (paymentMethodType) => {

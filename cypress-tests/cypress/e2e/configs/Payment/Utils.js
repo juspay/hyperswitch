@@ -531,6 +531,7 @@ export const CONNECTOR_LISTS = {
     PAYPAL_WALLET: ["novalnet", "paypal"],
     MIFINITY_WALLET: ["mifinity"],
     PAYPAL_MANDATE: ["paypal"],
+    ADYEN_WALLET_MANDATE: ["adyen"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [
       "adyen",
