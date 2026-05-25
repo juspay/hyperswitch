@@ -12,6 +12,7 @@ interface EntityRowProps {
   to?: string;
   onClick?: () => void;
   className?: string;
+  reserveSubtitleSpace?: boolean;
 }
 
 export function EntityRow({
@@ -24,6 +25,7 @@ export function EntityRow({
   to,
   onClick,
   className,
+  reserveSubtitleSpace,
 }: EntityRowProps) {
   const isClickable = !!(to || onClick);
   const classes = cn(
@@ -45,8 +47,13 @@ export function EntityRow({
           )}
           <span className="truncate">{title}</span>
         </div>
-        {subtitle && (
-          <p className="text-xs text-muted-foreground truncate mt-0.5">{subtitle}</p>
+        {(subtitle || reserveSubtitleSpace) && (
+          <p
+            className={cn("text-xs text-muted-foreground truncate mt-0.5 min-h-4", !subtitle && "invisible")}
+            aria-hidden={!subtitle}
+          >
+            {subtitle}
+          </p>
         )}
       </div>
       {trailing && <div className="flex items-center gap-2 shrink-0">{trailing}</div>}
