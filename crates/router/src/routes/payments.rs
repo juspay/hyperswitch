@@ -1759,7 +1759,7 @@ pub async fn payments_cancel(
                 if payment_intent_status == api_enums::IntentStatus::RequiresCustomerAction
                     && supports_pre_authorize_cancel
                 {
-                    payments::payments_core::<
+                    Box::pin(payments::payments_core::<
                         api_types::PreAuthorizeVoid,
                         payment_types::PaymentsResponse,
                         _,
@@ -1779,10 +1779,10 @@ pub async fn payments_cancel(
                         None,
                         header_payload.clone(),
                         Some(pre_get_trackers_info),
-                    )
+                    ))
                     .await
                 } else {
-                    payments::payments_core::<
+                    Box::pin(payments::payments_core::<
                         api_types::Void,
                         payment_types::PaymentsResponse,
                         _,
@@ -1802,7 +1802,7 @@ pub async fn payments_cancel(
                         None,
                         header_payload.clone(),
                         Some(pre_get_trackers_info),
-                    )
+                    ))
                     .await
                 }
             }
