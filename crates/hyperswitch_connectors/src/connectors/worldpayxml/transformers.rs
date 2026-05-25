@@ -50,7 +50,7 @@ use crate::{
     utils::{
         self as connector_utils, AddressDetailsData, BrowserInformationData, CardData,
         ForeignTryFrom, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsSetupMandateRequestData, PaymentsSyncRequestData, RouterData as _,
+        PaymentsSyncRequestData, RouterData as _,
     },
 };
 
@@ -861,6 +861,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<bytes::Bytes>>
             mandate_reference: Box::new(None),
             connector_metadata,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             authentication_data: None,
@@ -1030,7 +1031,7 @@ impl
                             year: expiry_year,
                         },
                     },
-                    card_holder_name: item.customer_name.clone(),
+                    card_holder_name: None,
                     cryptogram: apple_pay_decrypt_data
                         .payment_data
                         .online_payment_cryptogram,
@@ -1675,6 +1676,7 @@ impl<F>
                                 mandate_reference: Box::new(None),
                                 connector_metadata: None,
                                 network_txn_id: None,
+                                network_txn_link_id: None,
                                 connector_response_reference_id: Some(
                                     order_status.order_code.clone(),
                                 ),
@@ -1695,6 +1697,7 @@ impl<F>
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             authentication_data: None,
@@ -1721,6 +1724,7 @@ impl<F>
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(data.order_code.clone()),
                         incremental_authorization_allowed: None,
                         charges: None,
@@ -2044,6 +2048,7 @@ impl<F>
                     mandate_reference: Box::new(None),
                     connector_metadata: metadata,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(order_status.order_code.clone()),
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -2294,7 +2299,6 @@ impl<F>
     fn try_from(
         item: ResponseRouterData<F, PaymentService, SetupMandateRequestData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let is_auto_capture = item.data.request.is_auto_capture()?;
         let reply = item
             .response
             .reply
@@ -2308,13 +2312,13 @@ impl<F>
             validate_order_status(&order_status)?;
 
             if let Some(payment_data) = order_status.payment {
-                let status = get_attempt_status(is_auto_capture, payment_data.last_event, None)?;
+                let status = get_attempt_status_for_setup_mandate(payment_data.last_event)?;
                 let response = process_payment_response(
                     status,
                     &payment_data,
                     item.http_code,
                     order_status.order_code.clone(),
-                    None,
+                    order_status.token,
                 )
                 .map_err(|err| *err);
                 Ok(Self {
@@ -2387,6 +2391,7 @@ impl<F>
             Option<HeaderMap>,
         ),
     ) -> Result<Self, Self::Error> {
+        let is_auto_capture = item.data.request.is_auto_capture()?;
         let reply = item
             .response
             .reply
@@ -2400,7 +2405,7 @@ impl<F>
             validate_order_status(&order_status)?;
 
             if let Some(payment_data) = order_status.payment {
-                let status = get_attempt_status_for_setup_mandate(payment_data.last_event)?;
+                let status = get_attempt_status(is_auto_capture, payment_data.last_event, None)?;
 
                 let response = process_payment_response(
                     status,
@@ -2479,6 +2484,7 @@ impl<F>
                     mandate_reference: Box::new(None),
                     connector_metadata: metadata,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(order_status.order_code.clone()),
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -2566,6 +2572,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentService>> for PaymentsCapt
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(capture_received.order_code.clone()),
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -2628,6 +2635,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymentService>> for PaymentsCance
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(cancel_received.order_code.clone()),
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -3339,6 +3347,7 @@ fn process_payment_response(
             mandate_reference: Box::new(mandate_reference),
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(order_code.clone()),
             incremental_authorization_allowed: None,
             authentication_data: None,

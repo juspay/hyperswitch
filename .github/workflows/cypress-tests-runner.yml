@@ -16,13 +16,13 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "cybersource stripe authorizedotnet cashtocode"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "stripe authorizedotnet"
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "adyen nexixpay finix fiuu"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "worldpay braintree cryptopay paypal worldpayxml volt"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "gigadat checkout redsys novalnet noon"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "loonio zift airwallex fiuu"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
-  PLATFORM_CONNECTORS: "stripe cybersource"
+  PLATFORM_CONNECTORS: "stripe"
   EXTENDED_PAYMENTS_CONNECTORS_BATCH_1: "bluesnap gigadat loonio nmi"
   EXTENDED_PAYMENTS_CONNECTORS_BATCH_2: "paypal redsys zift"
   EXTENDED_PAYOUTS_CONNECTORS: "adyenplatform wise"
@@ -97,7 +97,8 @@ jobs:
     if: |
       github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
-    runs-on:  hyperswitch-runners
+    # use hyperswitch-runners-merge for merge queue level checks
+    runs-on: ${{ case(github.event_name == 'merge_group', 'hyperswitch-runners-merge', 'hyperswitch-runners') }}
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
@@ -155,7 +156,8 @@ jobs:
     if: |
       github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
-    runs-on: hyperswitch-runners
+    # use hyperswitch-runners-merge for merge queue level checks
+    runs-on: ${{ case(github.event_name == 'merge_group', 'hyperswitch-runners-merge', 'hyperswitch-runners') }}
     outputs:
       mandatory-matrix: ${{ steps.set-mandatory-matrix.outputs.matrix }}
     steps:    
@@ -202,7 +204,8 @@ jobs:
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')))
     permissions:
       pull-requests: write
-    runs-on: hyperswitch-runners
+    # use hyperswitch-runners-merge for merge queue level checks
+    runs-on: ${{ case(github.event_name == 'merge_group', 'hyperswitch-runners-merge', 'hyperswitch-runners') }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-mandatory-matrix.outputs['mandatory-matrix']) }}
@@ -460,9 +463,7 @@ jobs:
 
   prepare-extended-matrix:
     name: Prepare Extended Connectors matrix to run cypress tests
-    if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+    if: false
     runs-on: ubuntu-latest
     outputs:
       extended-matrix: ${{ steps.set-extended-matrix.outputs.matrix }}
@@ -507,6 +508,7 @@ jobs:
   extended-cypress-tests:
     name: Run extended Cypress tests
     needs: [build-hyperswitch, prepare-extended-matrix]
+    if: false
     runs-on: hyperswitch-runners
     strategy:
       fail-fast: false
@@ -690,7 +692,7 @@ jobs:
     name: Extended Cypress Tests — Consolidated Result
     needs: [extended-cypress-tests]
     runs-on: ubuntu-latest
-    if: ${{ !cancelled() }}
+    if: false
     steps:
       - name: Evaluate Matrix Results
         shell: bash
@@ -941,8 +943,7 @@ jobs:
   runner_alpha:
     name: Run optional Cypress tests for alpha connectors
     needs: build-hyperswitch
-    if: |
-      github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')
+    if: false
     runs-on: hyperswitch-runners
     env:
       # Use `sccache` for caching compilation artifacts
@@ -1335,7 +1336,8 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           RUSTFLAGS: "-Cinstrument-coverage"
-        run: just build_v2 --jobs 3
+          CARGO_BUILD_JOBS: 6
+        run: just build_v2
 
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}

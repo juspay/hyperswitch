@@ -691,6 +691,7 @@ impl MandateInterface for MockDb {
             merchant_connector_id: mandate_new.merchant_connector_id,
             updated_by: mandate_new.updated_by,
             customer_user_agent_extended,
+            network_transaction_link_id: mandate_new.network_transaction_link_id,
         };
         mandates.push(mandate.clone());
         Ok(mandate)

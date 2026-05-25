@@ -829,14 +829,108 @@ export const connectorDetails = {
       },
     },
   },
+  pay_later_pm: {
+    AutoCapture: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        capture_method: "automatic",
+        description: "Test Order",
+        return_url: "https://example.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    ManualCapture: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        capture_method: "manual",
+        description: "Test Order",
+        return_url: "https://example.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    Klarna: {
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "klarna",
+        payment_experience: "redirect_to_url",
+        description: "Test Order",
+        payment_method_data: {
+          pay_later: {
+            klarna_redirect: {
+              billing_email: "test@example.com",
+              billing_country: "NL",
+            },
+          },
+        },
+        billing: {
+          email: "test@example.com",
+          address: {
+            line1: "123 Test St",
+            line2: "Apt 4B",
+            city: "Amsterdam",
+            zip: "1012 WX",
+            country: "NL",
+            first_name: "Test",
+            last_name: "User",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "123 Test St",
+            line2: "Apt 4B",
+            city: "Amsterdam",
+            zip: "1012 WX",
+            country: "NL",
+            first_name: "Test",
+            last_name: "User",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+            total_amount: 6000,
+            description: "Test Product Description",
+            product_img_link: "https://example.com/product.jpg",
+          },
+        ],
+        browser_info: {
+          java_enabled: false,
+          java_script_enabled: true,
+          language: "en-US",
+          color_depth: 24,
+          screen_width: 1920,
+          screen_height: 1080,
+          time_zone: 3600,
+          user_agent: "Mozilla/5.0",
+          accept_header: "text/html",
+        },
+        return_url: "https://example.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+  },
   webhook: {
     TransactionIdConfig: {
-      // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
       path: "id",
-      // Type of payment reference ID
       type: "string",
     },
-    // Mollie webhook handler uses serde_qs (form-encoded), not JSON
     contentType: "application/x-www-form-urlencoded",
   },
 };

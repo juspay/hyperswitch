@@ -522,6 +522,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             | Connector::Juspaythreedsserver
             | Connector::Netcetera
             | Connector::Taxjar
+            | Connector::Interpayments
             | Connector::Threedsecureio
             | Connector::Vgs
             | Connector::CtpVisa
