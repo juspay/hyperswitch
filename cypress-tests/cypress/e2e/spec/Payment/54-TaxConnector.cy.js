@@ -79,16 +79,17 @@ describe("Tax Connector Business Profile Flag", () => {
         fixtures.createConnectorBody,
         payment_methods_enabled,
         globalState,
-        "taxProfile"
+        "taxProfile",
+        "taxConnector"
       );
     });
 
     it("enable-tax-connector-on-profile-test", () => {
-      const merchantConnectorId = globalState.get("merchantConnectorId");
+      const taxConnectorId = globalState.get("taxConnectorId");
       cy.updateBusinessProfileWithTaxConnector(
         fixtures.businessProfile.bpUpdate,
         true,
-        merchantConnectorId,
+        taxConnectorId,
         globalState,
         "taxProfile"
       );
@@ -234,11 +235,11 @@ describe("Tax Connector Business Profile Flag", () => {
     "Skip external tax calculation - tax bypassed even when enabled",
     () => {
       it("re-enable-tax-connector-on-profile-test", () => {
-        const merchantConnectorId = globalState.get("merchantConnectorId");
+        const taxConnectorId = globalState.get("taxConnectorId");
         cy.updateBusinessProfileWithTaxConnector(
           fixtures.businessProfile.bpUpdate,
           true,
-          merchantConnectorId,
+          taxConnectorId,
           globalState,
           "taxProfile"
         );
@@ -332,11 +333,11 @@ describe("Tax Connector Business Profile Flag", () => {
 
   context("Toggle tax flag - re-enable after disable", () => {
     it("re-enable-tax-after-disable-test", () => {
-      const merchantConnectorId = globalState.get("merchantConnectorId");
+      const taxConnectorId = globalState.get("taxConnectorId");
       cy.updateBusinessProfileWithTaxConnector(
         fixtures.businessProfile.bpUpdate,
         true,
-        merchantConnectorId,
+        taxConnectorId,
         globalState,
         "taxProfile"
       );

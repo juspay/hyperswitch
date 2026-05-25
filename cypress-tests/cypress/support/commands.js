@@ -9053,24 +9053,22 @@ Cypress.Commands.add(
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
-      cy.wrap(response).then(() => {
-        if (response.status === 200) {
+      if (response.status === 200) {
+        expect(response.body).to.have.property(
+          "is_tax_connector_enabled",
+          is_tax_connector_enabled
+        );
+        if (tax_connector_id) {
           expect(response.body).to.have.property(
-            "is_tax_connector_enabled",
-            is_tax_connector_enabled
-          );
-          if (tax_connector_id) {
-            expect(response.body).to.have.property(
-              "tax_connector_id",
-              tax_connector_id
-            );
-          }
-        } else {
-          throw new Error(
-            `Update Business Profile with Tax Connector failed with status ${response.status}: ${JSON.stringify(response.body)}`
+            "tax_connector_id",
+            tax_connector_id
           );
         }
-      });
+      } else {
+        throw new Error(
+          `Update Business Profile with Tax Connector failed with status ${response.status}: ${JSON.stringify(response.body)}`
+        );
+      }
     });
   }
 );
@@ -9094,17 +9092,20 @@ Cypress.Commands.add(
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
-      cy.wrap(response).then(() => {
-        expect(response.status).to.equal(200);
-        expect(response.body).to.have.property("profile_id", profileId);
-        expect(response.body).to.have.property("is_tax_connector_enabled");
-        expect(response.body).to.have.property("tax_connector_id");
-        if (typeof expectedTaxEnabled !== "undefined") {
-          expect(response.body.is_tax_connector_enabled).to.equal(
-            expectedTaxEnabled
-          );
+      expect(response.status).to.equal(200);
+      expect(response.body).to.have.property("profile_id", profileId);
+      expect(response.body).to.have.property("is_tax_connector_enabled");
+      expect(response.body).to.have.property("tax_connector_id");
+      if (typeof expectedTaxEnabled !== "undefined") {
+        expect(response.body.is_tax_connector_enabled).to.equal(
+          expectedTaxEnabled
+        );
+        if (expectedTaxEnabled === true) {
+          expect(response.body.tax_connector_id).to.not.be.null;
+        } else {
+          expect(response.body.tax_connector_id).to.be.null;
         }
-      });
+      }
     });
   }
 );
