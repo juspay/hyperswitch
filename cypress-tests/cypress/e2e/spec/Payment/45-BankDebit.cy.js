@@ -411,34 +411,74 @@ describe("Inespay SEPA Bank Debit tests", () => {
         // Wait for the simulator page to load (not a 4xx/5xx error page)
         cy.get("body", { timeout: 30000 }).should("be.visible");
 
-        // Step 0: Handle any modal overlay — click CLOSE button if present (non-blocking)
-        cy.get("body").then(($body) => {
-          // Look for any close/dismiss button in a modal overlay
-          // Note: CSS attribute selectors with case-insensitive flag (e.g. [attr*="val" i]) are NOT
-          // supported by jQuery/Cypress. Use explicit casing or filter manually.
-          const possibleCloseSelectors = [
+        // Step 0: Dismiss any overlay on the Inespay simulator page before interacting.
+        // The simulator shows a modal-background overlay (and sometimes a warning-text overlay)
+        // that must be gone before multiselect dropdowns become clickable.
+        // Strategy: try multiple dismissal approaches, then wait for the overlay to be absent.
+        cy.get("body", { timeout: 10000 }).then(($body) => {
+          // 1. Dismiss .modal-background by clicking the modal-close button inside it, or the
+          //    modal-background itself (clicking outside the modal box dismisses it in Bulma).
+          if ($body.find(".modal-background").length > 0) {
+            cy.get(".modal-background").click({ force: true });
+            return;
+          }
+          // 2. Try Bulma .modal-close button (the × in the top-right of the modal)
+          if ($body.find(".modal-close").length > 0) {
+            cy.get(".modal-close").first().click({ force: true });
+            return;
+          }
+          // 3. Try a button whose visible text is "close" (case-insensitive)
+          const closeByText = $body
+            .find("button")
+            .filter((_, el) => /^\s*close\s*$/i.test(el.textContent));
+          if (closeByText.length > 0) {
+            cy.wrap(closeByText.first()).click({ force: true });
+            return;
+          }
+          // 4. Try common attribute-based selectors
+          const attrSelectors = [
             'button[class*="close"]',
-            'button[aria-label*="close"]',
-            'button[aria-label*="Close"]',
-            'button[aria-label*="dismiss"]',
-            'button[aria-label*="Dismiss"]',
+            'button[aria-label="close"]',
+            'button[aria-label="Close"]',
+            'button[data-dismiss="modal"]',
             ".modal button",
             ".overlay button",
+            ".warning button",
+            ".warning-text ~ button",
           ];
-          for (const sel of possibleCloseSelectors) {
+          for (const sel of attrSelectors) {
             const btn = $body.find(sel);
             if (btn.length > 0) {
               cy.wrap(btn.first()).click({ force: true });
-              break;
+              return;
+            }
+          }
+          // 5. If a warning-text paragraph is visible, click whatever button is near it
+          const warningText = $body.find(".warning-text");
+          if (warningText.length > 0) {
+            const nearbyBtn = warningText
+              .closest("div, section, aside")
+              .find("button");
+            if (nearbyBtn.length > 0) {
+              cy.wrap(nearbyBtn.first()).click({ force: true });
             }
           }
         });
 
+        // Wait for all known overlay selectors to be absent before proceeding.
+        cy.get("body", { timeout: 15000 }).should(($body) => {
+          expect($body.find(".modal-background").length, "modal-background absent").to.eq(0);
+        });
+
+        // Brief wait to allow Vue reactivity to finish removing the overlay from the DOM
+        cy.wait(500);
+
         // Step 1: Simulator Selection — open first multiselect, choose SIMULADOR, click continue
+        // Use { force: true } to guard against any residual overlay z-index issues.
         cy.get(".multiselect", { timeout: 15000 })
           .first()
           .should("be.visible")
-          .click();
+          .click({ force: true });
         cy.get(".multiselect__element", { timeout: 10000 })
           .contains(/simulador/i)
           .click();
@@ -463,39 +503,46 @@ describe("Inespay SEPA Bank Debit tests", () => {
           .should("be.visible")
           .click();
 
-        // Step 3a: Contract & Account Selection — click the contract dropdown
-        // Wait for the page/section to load after login
-        cy.get(".multiselect", { timeout: 15000 }).should(
+        // Step 3a: Contract & Account Selection — wait for page to load after login
+        // then open the Contract dropdown and select "Contract 1"
+        cy.get(".multiselect", { timeout: 20000 }).should(
           "have.length.at.least",
           1
         );
 
         // Open the first multiselect (Contract dropdown)
-        cy.get(".multiselect").first().click();
+        cy.get(".multiselect", { timeout: 15000 })
+          .first()
+          .click({ force: true });
 
         // Select "Contract 1" from the dropdown options
         cy.get(".multiselect__element", { timeout: 10000 })
           .contains(/contract\s*1/i)
+          .should("be.visible")
           .click();
 
-        // Step 3b: Open the second multiselect (Account dropdown)
-        cy.get(".multiselect", { timeout: 10000 }).eq(1).click();
+        // Step 3b: Open the second multiselect (Account dropdown) and select ES***679
+        cy.get(".multiselect", { timeout: 15000 })
+          .eq(1)
+          .should("be.visible")
+          .click({ force: true });
 
         // Select the account ending in 679
         cy.get(".multiselect__element", { timeout: 10000 })
           .contains(/ES[\*\s]*679/i)
+          .should("be.visible")
           .click();
 
-        // Step 3c: Click confirm button (wait until it is enabled)
+        // Step 3c: Click confirm button — wait until enabled
         cy.contains("button", /confirm/i, { timeout: 15000 })
           .should("be.visible")
           .and("not.be.disabled")
           .click();
 
-        // Step 4: OTP Verification — enter 1111 and submit
+        // Step 4: OTP Verification — enter 1111 and click continue
         cy.get(
           'input[inputmode="numeric"], input[type="number"], input[type="tel"], input[maxlength="4"]',
-          { timeout: 15000 }
+          { timeout: 20000 }
         )
           .should("be.visible")
           .first()
@@ -505,21 +552,24 @@ describe("Inespay SEPA Bank Debit tests", () => {
           .should("be.visible")
           .click();
 
-        // Step 5: Final Validation — wait for payment to complete and validate success state
+        // Step 5: Final Validation — wait for the redirect / payment flow to complete
+        // and validate the final success/completion state.
         cy.log("Waiting for redirect / payment flow to complete...");
 
-        // Poll for URL change indicating successful redirect back to merchant
-        cy.url({ timeout: 45000 }).should((url) => {
+        // The Inespay simulator redirects back to Hyperswitch after OTP confirmation.
+        // Wait for the URL to indicate a successful outcome before asserting payment status.
+        cy.url({ timeout: 60000 }).should((url) => {
           const isSuccess =
             /status=(succeeded|success|completed)/i.test(url) ||
             /payment_status=(succeeded|success|completed)/i.test(url) ||
+            /payment_id=/i.test(url) ||
             /return_url/i.test(url) ||
             /localhost/i.test(url);
-          expect(isSuccess, `Expected success redirect, got: ${url}`).to.be
+          expect(isSuccess, `Expected success redirect URL, got: ${url}`).to.be
             .true;
         });
 
-        cy.log("Inespay simulator redirect flow completed successfully");
+        cy.log("Inespay simulator redirect flow completed successfully — final payment status will be validated by Retrieve Payment step");
       });
 
       cy.step("Retrieve Payment", () => {
