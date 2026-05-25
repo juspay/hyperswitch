@@ -5,9 +5,6 @@ on:
     types:
       - checks_requested
   pull_request:
-  push:
-    branches:
-      - ci/mitm-enhancer-reliable-cypress
   workflow_dispatch:
 
 permissions:
@@ -37,16 +34,11 @@ jobs:
       fail-fast: false
       matrix:
         batch:
-          - name: bluesnap-zift-gigadat-paypal-parallel
-            payments_connectors: "bluesnap zift gigadat paypal"
-            parallel: 4
+          - name: bluesnap-zift-gigadat-loonio-cashtocode-parallel
+            payments_connectors: "bluesnap zift gigadat loonio cashtocode"
+            parallel: 5
             report_artifact_name: cypress-mitm-payment-results-parallel
             server_logs_artifact: mitm-payment-server-logs-parallel
-          - name: bluesnap-zift-gigadat-paypal-sequential
-            payments_connectors: "bluesnap zift gigadat paypal"
-            parallel: 1
-            report_artifact_name: cypress-mitm-payment-results-sequential
-            server_logs_artifact: mitm-payment-server-logs-sequential
     env:
       RUSTC_WRAPPER: sccache
 
