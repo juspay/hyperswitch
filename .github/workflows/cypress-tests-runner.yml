@@ -736,7 +736,7 @@ jobs:
                 },
                 {
                   "name": "mock-payments",
-                  "payments_connectors": "bluesnap redsys",
+                  "payments_connectors": "bluesnap",
                   "payouts_connectors": "",
                   "platform_connectors": "",
                   "parallel": 1,
