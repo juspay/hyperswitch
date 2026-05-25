@@ -1745,7 +1745,7 @@ impl PaymentCreate {
                 }),
             request.confirm,
         );
-        let client_secret = payment_id.generate_client_secret(profile_id.get_string_repr());
+        let client_secret = payment_id.generate_client_secret();
         let (amount, currency) = (money.0, Some(money.1));
 
         let order_details = request
