@@ -221,6 +221,7 @@ pub struct PaymentIntentUpdateFields {
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
     pub active_attempt_id_type: Option<common_enums::ActiveAttemptIDType>,
     pub active_attempts_group_id: Option<id_type::GlobalAttemptGroupId>,
+    pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
 }
 
 #[cfg(feature = "v1")]
@@ -267,6 +268,7 @@ pub struct PaymentIntentUpdateFields {
     pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
     pub shipping_cost: Option<MinorUnit>,
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
+    pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
 }
 
 #[cfg(feature = "v1")]
@@ -490,6 +492,7 @@ pub struct PaymentIntentUpdateInternal {
     pub shipping_cost: Option<MinorUnit>,
     pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
+    pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -544,6 +547,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
                 state_metadata: None,
+                profile_acquirer_id: None,
             }),
 
             PaymentIntentUpdate::ConfirmIntentPostUpdate {
@@ -593,6 +597,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
                 state_metadata: None,
+                profile_acquirer_id: None,
             }),
             PaymentIntentUpdate::SyncUpdate {
                 status,
@@ -640,6 +645,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
                 state_metadata: None,
+                profile_acquirer_id: None,
             }),
             PaymentIntentUpdate::CaptureUpdate {
                 status,
@@ -687,6 +693,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
                 state_metadata: None,
+                profile_acquirer_id: None,
             }),
             PaymentIntentUpdate::SessionIntentUpdate {
                 prerouting_algorithm,
@@ -737,6 +744,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
                 state_metadata: None,
+                profile_acquirer_id: None,
             }),
             PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
                 let PaymentIntentUpdateFields {
@@ -777,6 +785,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     enable_partial_authorization,
                     active_attempt_id_type,
                     active_attempts_group_id,
+                    profile_acquirer_id,
                 } = *boxed_intent;
                 Ok(Self {
                     status: None,
@@ -826,6 +835,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     is_iframe_redirection_enabled,
                     enable_partial_authorization,
                     state_metadata: None,
+                    profile_acquirer_id,
                 })
             }
             PaymentIntentUpdate::RecordUpdate {
@@ -876,6 +886,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
                 state_metadata: None,
+                profile_acquirer_id: None,
             }),
             PaymentIntentUpdate::VoidUpdate { status, updated_by } => Ok(Self {
                 status: Some(status),
@@ -920,6 +931,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
                 state_metadata: None,
+                profile_acquirer_id: None,
             }),
             PaymentIntentUpdate::AttemptGroupUpdate {
                 updated_by,
@@ -967,6 +979,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
                 state_metadata: None,
+                profile_acquirer_id: None,
             }),
             PaymentIntentUpdate::SplitPaymentStatusUpdate { status, updated_by } => Ok(Self {
                 status: Some(status),
@@ -1010,6 +1023,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
                 state_metadata: None,
+                profile_acquirer_id: None,
             }),
         }
     }
@@ -1271,6 +1285,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: None,
                 shipping_cost: None,
                 installment_options: None,
+                profile_acquirer_id: None,
             },
             PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => Self {
                 status: Some(status),
@@ -1323,6 +1338,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: None,
                 shipping_cost: None,
                 installment_options: None,
+                profile_acquirer_id: None,
             },
         }
     }
@@ -1427,6 +1443,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     installment_options: value
                         .installment_options
                         .map(common_types::payments::InstallmentOptions),
+                    profile_acquirer_id: value.profile_acquirer_id,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1602,6 +1619,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             shipping_cost,
             state_metadata,
             installment_options,
+            profile_acquirer_id,
         } = value;
         Self {
             amount,
@@ -1656,6 +1674,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             state_metadata,
             installment_options: installment_options
                 .map(common_types::payments::InstallmentOptions),
+            profile_acquirer_id,
         }
     }
 }
@@ -2040,6 +2059,7 @@ impl behaviour::Conversion for PaymentIntent {
             is_iframe_redirection_enabled,
             is_payment_id_from_merchant,
             enable_partial_authorization,
+            profile_acquirer_id,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -2151,6 +2171,7 @@ impl behaviour::Conversion for PaymentIntent {
             partner_merchant_identifier_details: None,
             state_metadata: None,
             installment_options: None,
+            profile_acquirer_id,
         })
     }
     async fn convert_back(
@@ -2304,6 +2325,7 @@ impl behaviour::Conversion for PaymentIntent {
                 enable_partial_authorization: storage_model
                     .enable_partial_authorization
                     .unwrap_or(false.into()),
+                profile_acquirer_id: storage_model.profile_acquirer_id,
             })
         }
         .await
@@ -2415,6 +2437,7 @@ impl behaviour::Conversion for PaymentIntent {
             active_attempts_group_id: self.active_attempts_group_id,
             state_metadata: None,
             installment_options: None,
+            profile_acquirer_id: self.profile_acquirer_id,
         })
     }
 }
@@ -2506,6 +2529,7 @@ impl behaviour::Conversion for PaymentIntent {
             installment_options: self
                 .installment_options
                 .map(common_types::payments::InstallmentOptions),
+            profile_acquirer_id: self.profile_acquirer_id,
         })
     }
 
@@ -2622,6 +2646,7 @@ impl behaviour::Conversion for PaymentIntent {
                     .partner_merchant_identifier_details,
                 state_metadata: storage_model.state_metadata,
                 installment_options: storage_model.installment_options.map(|o| o.0),
+                profile_acquirer_id: storage_model.profile_acquirer_id,
             })
         }
         .await
@@ -2711,6 +2736,7 @@ impl behaviour::Conversion for PaymentIntent {
             installment_options: self
                 .installment_options
                 .map(common_types::payments::InstallmentOptions),
+            profile_acquirer_id: self.profile_acquirer_id,
         })
     }
 }

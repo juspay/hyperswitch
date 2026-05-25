@@ -301,6 +301,34 @@ where
     ) {
         let payment_intent = payment_data.get_payment_intent();
 
+        //store TLID from the connector response on the payment method when not already set.
+        let connector_network_transaction_link_id = router_data
+            .response
+            .as_ref()
+            .ok()
+            .and_then(types::PaymentsResponseData::get_network_transaction_link_id);
+
+        if payment_method.network_transaction_link_id.is_none()
+            && connector_network_transaction_link_id.is_some()
+        {
+            payment_methods::cards::update_payment_method_network_transaction_link_id(
+                provider.get_key_store(),
+                &*state.store,
+                payment_method.clone(),
+                connector_network_transaction_link_id,
+                provider.get_account().storage_scheme,
+                initiator,
+            )
+            .await
+            .map_err(|err| {
+                logger::error!(
+                    error=?err,
+                    "Failed to persist network_transaction_link_id on payment method"
+                );
+            })
+            .ok();
+        }
+
         let mandate_details = payment_method
             .get_common_mandate_reference()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2361,6 +2389,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 .ok()
                                 .and_then(|resp| resp.get_network_transaction_id());
 
+                            let resp_network_transaction_link_id = router_data
+                                .response
+                                .as_ref()
+                                .ok()
+                                .and_then(|resp| resp.get_network_transaction_link_id());
+
                             let encoded_data = payment_data.payment_attempt.encoded_data.clone();
 
                             let authentication_data = (*redirection_data)
@@ -2533,6 +2567,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                             .setup_future_usage_applied,
                                         debit_routing_savings,
                                         network_transaction_id: resp_network_transaction_id,
+                                        network_transaction_link_id:
+                                            resp_network_transaction_link_id,
                                         is_overcapture_enabled,
                                         authorized_amount: router_data.authorized_amount,
                                         tokenization: payment_data
@@ -2548,6 +2584,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         card_network: payment_data
                                             .payment_attempt
                                             .extract_card_network(),
+                                        sender_payment_instrument_id: router_data
+                                            .sender_payment_instrument_id
+                                            .clone(),
                                     }),
                                 ),
                             };
@@ -3031,15 +3070,26 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
             }
         };
 
-        let pm_resp_network_transaction_id = payment_response
-            .map(|resp| if let types::PaymentsResponseData::TransactionResponse { network_txn_id: network_transaction_id, .. } = resp {
-                network_transaction_id
-    } else {None})
-    .map_err(|err| {
-        logger::error!(error=?err, "Failed to obtain the network_transaction_id from payment response");
-    })
-    .ok()
-    .flatten();
+        let (pm_resp_network_transaction_id, pm_resp_network_transaction_link_id) =
+            payment_response
+                .map(|resp| {
+                    if let types::PaymentsResponseData::TransactionResponse {
+                        network_txn_id,
+                        network_txn_link_id,
+                        ..
+                    } = resp
+                    {
+                        (network_txn_id, network_txn_link_id)
+                    } else {
+                        (None, None)
+                    }
+                })
+                .map_err(|err| {
+                    logger::error!(error=?err, "Failed to obtain the network_transaction_id from payment response");
+                })
+                .ok()
+                .unwrap_or((None, None));
+
         let network_transaction_id = if payment_data.payment_intent.setup_future_usage
             == Some(diesel_models::enums::FutureUsage::OffSession)
         {
@@ -3053,6 +3103,13 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
             None
         };
 
+        let network_transaction_link_id = if payment_method.network_transaction_link_id.is_none() {
+            pm_resp_network_transaction_link_id
+        } else {
+            logger::info!("Skip storing network transaction link id");
+            None
+        };
+
         let pm_update = if payment_method.status != common_enums::PaymentMethodStatus::Active
             && payment_method.status != attempt_status.into()
         {
@@ -3063,6 +3120,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
                 .map(|info| info.status = updated_pm_status);
             storage::PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                 network_transaction_id,
+                network_transaction_link_id,
                 status: Some(updated_pm_status),
                 last_modified_by: initiator
                     .and_then(|initiator| initiator.to_created_by())
@@ -3071,6 +3129,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
         } else {
             storage::PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                 network_transaction_id,
+                network_transaction_link_id,
                 status: None,
                 last_modified_by: initiator
                     .and_then(|initiator| initiator.to_created_by())

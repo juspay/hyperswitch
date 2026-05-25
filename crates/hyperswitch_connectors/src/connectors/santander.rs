@@ -805,37 +805,39 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let feature_metadata = req.request.feature_metadata.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "feature_metadata",
+            },
+        )?;
+        let fixed_rec_amount_in_minor = feature_metadata
+            .get_optional_fixed_recurring_mit_amount_for_pix_automatico()
+            .change_context(errors::ConnectorError::InvalidDataFormat {
+                field_name: "feature_metadata.pix_automatico_additional_details",
+            })?;
+        let min_rec_amount_in_minor = feature_metadata
+            .get_optional_min_recurring_amount_for_pix_automatico()
+            .change_context(errors::ConnectorError::InvalidDataFormat {
+                field_name: "feature_metadata.pix_automatico_additional_details",
+            })?;
+        let fixed_rec_amount = fixed_rec_amount_in_minor
+            .map(|amount| convert_amount(self.amount_converter, amount, req.request.currency))
+            .transpose()?;
+        let min_rec_amount = min_rec_amount_in_minor
+            .map(|amount| convert_amount(self.amount_converter, amount, req.request.currency))
+            .transpose()?;
         let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.currency,
         )?;
-        let rec_amount_in_minor = req
-            .request
-            .connector_intent_metadata
-            .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_intent_metadata",
-            })?
-            .get_mandatory_pix_automatico_maximum_permissible_mandate_amount()
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name:
-                    "connector_metadata.santander.pix_automatico.cit.mandate_details.amount",
-            })?;
-        let rec_amount = convert_amount(
-            self.amount_converter,
-            rec_amount_in_minor,
-            req.request.currency,
-        )?;
-        let final_amount = if req.request.minor_amount.get_amount_as_i64()
-            < rec_amount_in_minor.get_amount_as_i64()
-        {
-            rec_amount
-        } else {
-            amount
-        };
-        let connector_router_data = SantanderRouterData::from((final_amount, req));
-        let connector_req = SantanderSetupMandateRequest::try_from(&connector_router_data)?;
+
+        let connector_router_data = SantanderRouterData::from((amount, req));
+        let connector_req = SantanderSetupMandateRequest::try_from((
+            &connector_router_data,
+            fixed_rec_amount,
+            min_rec_amount,
+        ))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

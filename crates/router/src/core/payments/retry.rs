@@ -624,6 +624,10 @@ where
                     .get_payment_attempt()
                     .network_transaction_id
                     .clone(),
+                network_transaction_link_id: payment_data
+                    .get_payment_attempt()
+                    .network_transaction_link_id
+                    .clone(),
                 is_overcapture_enabled: None,
                 authorized_amount: router_data.authorized_amount,
                 tokenization: None,
@@ -634,6 +638,10 @@ where
                 advice_message: None,
                 recommended_action: None,
                 card_network: payment_data.get_payment_attempt().extract_card_network(),
+                sender_payment_instrument_id: payment_data
+                    .get_payment_attempt()
+                    .sender_payment_instrument_id
+                    .clone(),
             };
 
             #[cfg(feature = "v1")]
@@ -850,6 +858,7 @@ pub fn make_new_auto_retry_payment_attempt(
         routing_approach: old_payment_attempt.routing_approach,
         connector_request_reference_id: Default::default(),
         network_transaction_id: old_payment_attempt.network_transaction_id,
+        network_transaction_link_id: old_payment_attempt.network_transaction_link_id,
         network_details: Default::default(),
         is_stored_credential: old_payment_attempt.is_stored_credential,
         authorized_amount: old_payment_attempt.authorized_amount,
@@ -866,6 +875,7 @@ pub fn make_new_auto_retry_payment_attempt(
         retry_type: Some(storage_enums::RetryType::AutoRetry),
         installment_data: Default::default(),
         external_surcharge_details: Default::default(),
+        sender_payment_instrument_id: Default::default(),
     }
 }
 

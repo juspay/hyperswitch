@@ -639,6 +639,12 @@ impl ForeignFrom<domain::Address> for api_types::Address {
     }
 }
 
+impl ForeignFrom<hyperswitch_domain_models::address::Address> for payments::Address {
+    fn foreign_from(address: hyperswitch_domain_models::address::Address) -> Self {
+        address.into()
+    }
+}
+
 impl
     ForeignFrom<(
         diesel_models::api_keys::ApiKey,
@@ -1354,6 +1360,7 @@ impl ForeignFrom<&api_models::payouts::Bank> for api_enums::PaymentMethodType {
             api_models::payouts::Bank::Sepa(_) => Self::SepaBankTransfer,
             api_models::payouts::Bank::Pix(_) => Self::Pix,
             api_models::payouts::Bank::Trustly(_) => Self::Trustly,
+            api_models::payouts::Bank::OpenBanking(_) => Self::OpenBanking,
         }
     }
 }
@@ -1369,6 +1376,7 @@ impl ForeignFrom<&api_models::payouts::BankTransfer> for api_enums::PaymentMetho
             api_models::payouts::BankTransfer::PixKey(_) => Self::PixKey,
             api_models::payouts::BankTransfer::PixEmv(_) => Self::PixEmv,
             api_models::payouts::BankTransfer::Trustly(_) => Self::Trustly,
+            api_models::payouts::BankTransfer::OpenBanking(_) => Self::OpenBanking,
         }
     }
 }
@@ -2080,6 +2088,7 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemRespons
             event_class: item.event_class,
             is_delivery_successful: item.is_overall_delivery_successful,
             initial_attempt_id,
+            processor_merchant_id: item.processor_merchant_id,
             created: item.created_at,
         })
     }

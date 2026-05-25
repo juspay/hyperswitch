@@ -714,7 +714,7 @@ debit = { currency = "INR,USD,GBP,EUR" }
 open_banking = { currency = "GBP,EUR" }
 
 [payout_method_filters.truelayer]
-open_banking_uk = { currency = "GBP,EUR,PLN" }
+open_banking = { currency = "GBP,EUR,PLN" }
 
 [payout_method_filters.trustly]
 trustly = { currency = "BGN,GBP,EUR,PLN,CZK,DKK,HRK,HUF,NOK,PLN,RON,SEK" }
@@ -1051,3 +1051,7 @@ ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list 
 "28" = { description = "Retry after 6 days", recommended_action = "retry_after_6_days" }
 "29" = { description = "Retry after 8 days", recommended_action = "retry_after_8_days" }
 "30" = { description = "Retry after 10 days", recommended_action = "retry_after_10_days" }
+
+[micro_services.authentication_service]
+base_url = "https://api.hyperswitch.io"
+api_key = "api-key"
