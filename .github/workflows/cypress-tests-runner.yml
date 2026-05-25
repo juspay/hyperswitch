@@ -202,7 +202,9 @@ jobs:
   mandatory-cypress-tests:
     name: Run mandatory Cypress tests
     needs: [build-hyperswitch, prepare-mandatory-matrix]
-    if: false
+    if: |
+      github.event_name == 'merge_group' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
     permissions:
       pull-requests: write
     # use hyperswitch-runners-merge for merge queue level checks
@@ -1576,7 +1578,7 @@ jobs:
 
   runner_v2:
     name: Run Cypress tests on v2 and generate coverage report
-    if: false
+    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')
     runs-on: hyperswitch-runners
     permissions:
       pull-requests: write
