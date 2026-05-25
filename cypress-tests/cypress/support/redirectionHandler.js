@@ -558,11 +558,7 @@ function affirmPayLaterRedirection(
           cy.log(`URL: ${currentUrl}`);
           cy.log(`Page content preview: ${bodyText.substring(0, 200)}...`);
 
-          const step = determineAffirmStep(
-            doc,
-            bodyText,
-            currentUrl
-          );
+          const step = determineAffirmStep(doc, bodyText, currentUrl);
           cy.log(`Determined Affirm step: ${step}`);
 
           switch (step) {
