@@ -37,13 +37,13 @@ jobs:
       fail-fast: false
       matrix:
         batch:
-          - name: bluesnap-zift-parallel
-            payments_connectors: "bluesnap zift"
-            parallel: 2
+          - name: bluesnap-zift-gigadat-paypal-parallel
+            payments_connectors: "bluesnap zift gigadat paypal"
+            parallel: 4
             report_artifact_name: cypress-mitm-payment-results-parallel
             server_logs_artifact: mitm-payment-server-logs-parallel
-          - name: bluesnap-zift-sequential
-            payments_connectors: "bluesnap zift"
+          - name: bluesnap-zift-gigadat-paypal-sequential
+            payments_connectors: "bluesnap zift gigadat paypal"
             parallel: 1
             report_artifact_name: cypress-mitm-payment-results-sequential
             server_logs_artifact: mitm-payment-server-logs-sequential
