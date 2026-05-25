@@ -185,16 +185,76 @@ pub struct ScheduledExpirationTime {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Json)]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum PixAutomaticoAdditionalDetails {
-    /// Pix Automatico Push notification flow
-    PixAutomaticoPush(PixAutomaticoPushDetails),
+    PixAutomaticoPush(PixAutomaticoPushData),
+    PixAutomaticoQr(PixAutomaticoQrData),
+    PixAutomaticoMit(PixAutomaticoMitData),
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Json)]
-pub struct PixAutomaticoPushDetails {
-    /// Time in seconds until which the push notification is valid
+pub struct PixAutomaticoPushData {
     pub time: u32,
+    pub retry_policy: Option<bool>,
+    pub mandate_details: Option<SantanderMandateDetails>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct PixAutomaticoQrData {
+    pub retry_policy: Option<bool>,
+    pub mandate_details: Option<SantanderMandateDetails>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct PixAutomaticoMitData {
+    pub receiver_details: Option<SantanderPixAutomaticoReceiverDetails>,
+    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
+    pub mandate_execution_date: Option<time::PrimitiveDateTime>,
+    pub auto_adjust_date: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct SantanderMandateDetails {
+    pub fixed_recurring_amount: Option<MinorUnit>,
+    pub min_recurring_amount: Option<MinorUnit>,
+    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
+    pub start_date: Option<time::PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
+    pub end_date: Option<time::PrimitiveDateTime>,
+    pub periodicity: Option<SantanderMandatePeriodicity>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+#[serde(rename_all = "snake_case")]
+pub enum SantanderMandatePeriodicity {
+    Weekly,
+    #[default]
+    Monthly,
+    Quarterly,
+    Semiannually,
+    Annually,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+#[serde(rename_all = "snake_case")]
+pub enum AccountType {
+    Current,
+    Savings,
+    Payment,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct SantanderPixAutomaticoReceiverDetails {
+    pub branch_code: Option<Secret<String>>,
+    pub account_number: Option<Secret<String>>,
+    pub account_type: Option<AccountType>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
