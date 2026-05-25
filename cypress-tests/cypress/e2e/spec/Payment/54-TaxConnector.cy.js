@@ -327,7 +327,7 @@ describe("Tax Connector Business Profile Flag", () => {
     });
 
     it("retrieve-profile-tax-disabled-fields-test", () => {
-      cy.retrieveBusinessProfileTest(globalState, "taxProfile", false);
+      cy.retrieveBusinessProfileTest(globalState, "taxProfile", false, globalState.get("taxConnectorId"));
     });
   });
 
