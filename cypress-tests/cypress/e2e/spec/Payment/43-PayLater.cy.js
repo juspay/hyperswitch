@@ -91,7 +91,7 @@ describe("PayLater tests", () => {
         const expected_redirection =
           globalState.get("baseUrl") + "/payments/completion";
         const payment_method_type = globalState.get("paymentMethodType");
-        cy.handleAffirmRedirection(
+        cy.handlePayLaterRedirection(
           globalState,
           payment_method_type,
           expected_redirection
@@ -155,7 +155,7 @@ describe("PayLater tests", () => {
         const expected_redirection =
           globalState.get("baseUrl") + "/payments/completion";
         const payment_method_type = globalState.get("paymentMethodType");
-        cy.handleAffirmRedirection(
+        cy.handlePayLaterRedirection(
           globalState,
           payment_method_type,
           expected_redirection
