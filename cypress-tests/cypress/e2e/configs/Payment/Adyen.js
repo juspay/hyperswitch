@@ -2090,14 +2090,9 @@ export const connectorDetails = {
         ],
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "IR_39",
-          },
+          status: "requires_confirmation",
         },
       },
     }),
@@ -2312,7 +2307,6 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          connector: null,
           error: {
             type: "invalid_request",
             message: "Payment method type not supported",

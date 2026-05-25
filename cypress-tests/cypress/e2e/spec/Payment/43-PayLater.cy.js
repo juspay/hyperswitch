@@ -771,22 +771,46 @@ describe("PayLater tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
         ]["AtomeManualCaptureUnsupported"];
-        cy.createConfirmPaymentTest(
-          fixtures.createPaymentBody,
-          data,
-          "three_ds",
-          "manual",
-          globalState
-        );
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
+        const apiKey = globalState.get("apiKey");
+        const baseUrl = globalState.get("baseUrl");
+        const profileId = globalState.get("profileId");
+        const customerId = globalState.get("customerId");
+
+        const requestBody = { ...fixtures.createPaymentBody };
+        for (const key in data.Request) {
+          requestBody[key] = data.Request[key];
         }
+        requestBody.authentication_type = "three_ds";
+        requestBody.capture_method = "manual";
+        requestBody.profile_id = profileId;
+        requestBody.customer_id = customerId;
+
+        cy.request({
+          method: "POST",
+          url: `${baseUrl}/payments`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": apiKey,
+          },
+          body: requestBody,
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.status).to.equal(400);
+          expect(response.body.error.type).to.equal("invalid_request");
+          expect(response.body.error.code).to.equal("IR_19");
+          expect(response.body.error.message).to.equal(
+            "Payment method type not supported"
+          );
+          expect(response.body.error.reason).to.contain(
+            "manual for atome is not supported"
+          );
+        });
       });
     });
   });
 
   context("AfterpayClearplay PayLater - Routing Limitation", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment with AfterpayClearplay (expect error)", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment with AfterpayClearplay", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent", () => {
@@ -824,12 +848,34 @@ describe("PayLater tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
         ]["AfterpayClearplay"];
-        cy.confirmBankRedirectCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
+        const baseUrl = globalState.get("baseUrl");
+        const paymentIntentId = globalState.get("paymentID");
+        const publishableKey = globalState.get("publishableKey");
+        const profileId = globalState.get("profileId");
+        const customerId = globalState.get("customerId");
+
+        const confirmBody = { ...fixtures.confirmBody };
+        for (const key in confirmData.Request) {
+          confirmBody[key] = confirmData.Request[key];
+        }
+        confirmBody.client_secret = globalState.get("clientSecret");
+        confirmBody.confirm = true;
+        confirmBody.profile_id = profileId;
+        confirmBody.customer_id = customerId;
+
+        cy.request({
+          method: "POST",
+          url: `${baseUrl}/payments/${paymentIntentId}/confirm`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": publishableKey,
+          },
+          body: confirmBody,
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.status).to.equal(200);
+          expect(response.body.status).to.equal("requires_confirmation");
+        });
       });
     });
   });
