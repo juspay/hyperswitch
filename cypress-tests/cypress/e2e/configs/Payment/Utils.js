@@ -591,6 +591,7 @@ export const CONNECTOR_LISTS = {
     CARD_TESTING_GUARD: ["bankofamerica"],
     L2L3DATA: ["checkout", "nuvei", "worldpayvantiv"],
     REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
+    MANUAL_PAYMENT_UPDATE: ["stripe"],
     STEP_UP_RETRY: [
       "cybersource",
       "checkout",
