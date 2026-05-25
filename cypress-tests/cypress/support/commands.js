@@ -4868,34 +4868,6 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("simulateRedirectCallback", (globalState) => {
-  const connectorId = globalState.get("connectorId");
-  const merchantId = globalState.get("merchantId");
-  const paymentId = globalState.get("paymentID");
-  const baseUrl = globalState.get("baseUrl");
-  const apiKey = globalState.get("apiKey");
-
-  if (!paymentId || !merchantId) {
-    throw new Error(
-      `simulateRedirectCallback: paymentID or merchantId missing in globalState`
-    );
-  }
-  const url = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/response/${connectorId}`;
-  cy.task("cli_log", `[redirect-callback] firing POST ${url}`);
-  cy.request({
-    method: "POST",
-    url,
-    headers: { "api-key": apiKey },
-    failOnStatusCode: false,
-    followRedirect: false,
-  }).then((resp) => {
-    cy.task(
-      "cli_log",
-      `[redirect-callback] HS responded status=${resp.status}`
-    );
-  });
-});
-
 Cypress.Commands.add(
   "handleBankRedirectRedirection",
   (globalState, paymentMethodType, expectedRedirection) => {
