@@ -12,10 +12,7 @@ const baseUrl = Cypress.env("CYPRESS_BASEURL") || Cypress.env("BASEURL");
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
         if (!globalState.get("baseUrl")) {
-          globalState.set(
-            "baseUrl",
-            baseUrl
-          );
+          globalState.set("baseUrl", baseUrl);
         }
         if (!globalState.get("adminApiKey")) {
           globalState.set(
