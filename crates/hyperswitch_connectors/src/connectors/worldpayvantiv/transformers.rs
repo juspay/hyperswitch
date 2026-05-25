@@ -1113,13 +1113,15 @@ fn get_processing_info(
             .as_ref()
             .and_then(|mandate| mandate.mandate_reference_id.clone())
         {
-            Some(mandates::MandateReferenceId::NetworkMandateId(
-                network_transaction_id,
-            )) => Ok(VantivMandateDetail {
-                processing_type: Some(VantivProcessingType::MerchantInitiatedCOF),
-                network_transaction_id: Some(network_transaction_id.network_transaction_id.into()),
-                token: None,
-            }),
+            Some(mandates::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
+                Ok(VantivMandateDetail {
+                    processing_type: Some(VantivProcessingType::MerchantInitiatedCOF),
+                    network_transaction_id: Some(
+                        network_transaction_id.network_transaction_id.into(),
+                    ),
+                    token: None,
+                })
+            }
             Some(mandates::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
                 let network_transaction_id =
                     mandate_data

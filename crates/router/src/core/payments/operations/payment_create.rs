@@ -463,7 +463,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                                 mandates::MandateReferenceId::NetworkMandateId(
                                     mandates::NetworkMandateIdRef {
                                         network_transaction_id: network_tx_id,
-                                        transaction_link_id: mandate_obj.network_transaction_link_id,
+                                        transaction_link_id: mandate_obj
+                                            .network_transaction_link_id,
                                     },
                                 ),
                             ),
