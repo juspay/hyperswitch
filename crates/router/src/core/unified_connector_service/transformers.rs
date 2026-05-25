@@ -18,6 +18,7 @@ use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
 use hyperswitch_domain_models::{
+    mandates,
     mandates::{MandateData, MandateDataType},
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
@@ -1792,51 +1793,51 @@ impl
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
         let connector_recurring_payment_id = match &router_data.request.mandate_id {
             Some(mandate) => match &mandate.mandate_reference_id {
-                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                    connector_mandate_id,
-                )) => Some(payments_grpc::MandateReference {
-                    mandate_id_type: Some(
-                        payments_grpc::mandate_reference::MandateIdType::ConnectorMandateId(
-                            payments_grpc::ConnectorMandateReferenceId {
-                                connector_mandate_id: connector_mandate_id
-                                    .get_connector_mandate_id(),
-                                payment_method_id: connector_mandate_id.get_payment_method_id(),
-                                connector_mandate_request_reference_id: connector_mandate_id
-                                    .get_connector_mandate_request_reference_id(),
-                            },
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_id)) => {
+                    Some(payments_grpc::MandateReference {
+                        mandate_id_type: Some(
+                            payments_grpc::mandate_reference::MandateIdType::ConnectorMandateId(
+                                payments_grpc::ConnectorMandateReferenceId {
+                                    connector_mandate_id: connector_mandate_id
+                                        .get_connector_mandate_id(),
+                                    payment_method_id: connector_mandate_id.get_payment_method_id(),
+                                    connector_mandate_request_reference_id: connector_mandate_id
+                                        .get_connector_mandate_request_reference_id(),
+                                },
+                            ),
                         ),
-                    ),
-                }),
-                Some(api_models::payments::MandateReferenceId::NetworkMandateId(
-                    network_mandate_id,
-                )) => Some(payments_grpc::MandateReference {
-                    mandate_id_type: Some(
-                        payments_grpc::mandate_reference::MandateIdType::NetworkMandateId(
-                            network_mandate_id.network_transaction_id.clone(),
+                    })
+                }
+                Some(mandates::MandateReferenceId::NetworkMandateId(network_mandate_id)) => {
+                    Some(payments_grpc::MandateReference {
+                        mandate_id_type: Some(
+                            payments_grpc::mandate_reference::MandateIdType::NetworkMandateId(
+                                network_mandate_id.network_transaction_id.clone(),
+                            ),
                         ),
-                    ),
-                }),
-                Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(
-                    network_token_with_nti,
-                )) => Some(payments_grpc::MandateReference {
-                    mandate_id_type: Some(
-                        payments_grpc::mandate_reference::MandateIdType::NetworkTokenWithNti(
-                            payments_grpc::NetworkTokenWithNti {
-                                network_transaction_id: network_token_with_nti
-                                    .network_transaction_id
-                                    .clone(),
-                                token_exp_month: network_token_with_nti
-                                    .token_exp_month
-                                    .clone()
-                                    .map(|exp| exp.expose().into()),
-                                token_exp_year: network_token_with_nti
-                                    .token_exp_year
-                                    .clone()
-                                    .map(|exp| exp.expose().into()),
-                            },
+                    })
+                }
+                Some(mandates::MandateReferenceId::NetworkTokenWithNTI(network_token_with_nti)) => {
+                    Some(payments_grpc::MandateReference {
+                        mandate_id_type: Some(
+                            payments_grpc::mandate_reference::MandateIdType::NetworkTokenWithNti(
+                                payments_grpc::NetworkTokenWithNti {
+                                    network_transaction_id: network_token_with_nti
+                                        .network_transaction_id
+                                        .clone(),
+                                    token_exp_month: network_token_with_nti
+                                        .token_exp_month
+                                        .clone()
+                                        .map(|exp| exp.expose().into()),
+                                    token_exp_year: network_token_with_nti
+                                        .token_exp_year
+                                        .clone()
+                                        .map(|exp| exp.expose().into()),
+                                },
+                            ),
                         ),
-                    ),
-                }),
+                    })
+                }
                 _ => {
                     return Err(UnifiedConnectorServiceError::MissingRequiredField {
                         field_name: "connector_mandate_id",

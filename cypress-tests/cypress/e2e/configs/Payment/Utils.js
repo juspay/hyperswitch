@@ -571,6 +571,7 @@ export const CONNECTOR_LISTS = {
     GIFT_CARD: ["adyen"],
     RELAY_OPERATIONS: ["bankofamerica"],
     PAY_LATER: ["klarna", "adyen", "aci", "stripe", "airwallex", "mollie"],
+    AFFIRM: ["stripe"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     STEP_UP_AUTH: ["cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
@@ -590,6 +591,7 @@ export const CONNECTOR_LISTS = {
     CARD_TESTING_GUARD: ["bankofamerica"],
     L2L3DATA: ["checkout", "nuvei", "worldpayvantiv"],
     REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
+    MANUAL_PAYMENT_UPDATE: ["stripe"],
     STEP_UP_RETRY: [
       "cybersource",
       "checkout",

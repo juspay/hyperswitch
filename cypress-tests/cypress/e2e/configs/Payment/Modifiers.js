@@ -197,6 +197,7 @@ const CURRENCY_MAP = {
   OnlineBankingFpx: "MYR", // Malaysian payment methods
   Interac: "CAD", // Canadian payment method
   AliPayHk: "HKD", // Hong Kong payment method
+  Affirm: "USD", // US BNPL payment method
   Mifinity: "EUR", // Mifinity wallet payment method
   Alma: "EUR", // French pay_later
   Atome: "SGD", // Singapore pay_later
