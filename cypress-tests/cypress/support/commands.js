@@ -9223,9 +9223,10 @@ Cypress.Commands.add(
 
           validateErrorMessage(response, resData);
         } else {
-          cy.log(
-            `confirmWithSdkAuthTest error: status=${response.status} body=${JSON.stringify(response.body)}`
-          );
+          const errorDetail = `status=${response.status} body=${JSON.stringify(response.body)}`;
+          if (response_data.status === 200) {
+            throw new Error(`Expecting valid response but got an error response: ${errorDetail}`);
+          }
           defaultErrorHandler(response, resData);
         }
       });
