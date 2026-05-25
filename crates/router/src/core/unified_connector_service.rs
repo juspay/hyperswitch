@@ -339,7 +339,8 @@ where
         determine_connector_integration_type(state, connector_enum).await?;
 
     // Try keys highest → lowest precedence, use first match found
-    let rollout_result = should_execute_based_on_rollout_with_precedence(state, &rollout_keys).await?;
+    let rollout_result =
+        should_execute_based_on_rollout_with_precedence(state, &rollout_keys).await?;
 
     // Single decision point using pattern matching
     let (gateway_system, mut execution_path) = if ucs_availability == UcsAvailability::Disabled {
