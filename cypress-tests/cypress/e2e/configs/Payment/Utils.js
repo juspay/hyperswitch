@@ -578,7 +578,6 @@ export const CONNECTOR_LISTS = {
       "stripe",
       "airwallex",
       "mollie",
-      "multisafepay",
     ],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     STEP_UP_AUTH: ["cybersource"],
