@@ -11,11 +11,18 @@ const baseUrl = Cypress.env("CYPRESS_BASEURL") || Cypress.env("BASEURL");
     before("seed global state and create merchant account", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
-        globalState.set("baseUrl", baseUrl);
-        globalState.set(
-          "adminApiKey",
-          Cypress.env("ADMIN_API_KEY") || Cypress.env("CYPRESS_ADMIN_API_KEY")
-        );
+        if (!globalState.get("baseUrl")) {
+          globalState.set(
+            "baseUrl",
+            baseUrl
+          );
+        }
+        if (!globalState.get("adminApiKey")) {
+          globalState.set(
+            "adminApiKey",
+            Cypress.env("ADMIN_API_KEY") || Cypress.env("CYPRESS_ADMIN_API_KEY")
+          );
+        }
         return cy
           .merchantCreateCallTest(fixtures.merchantCreateBody, globalState)
           .then(() => {
