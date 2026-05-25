@@ -123,6 +123,33 @@ describe("Better Auth cookie scoping", () => {
     } as Parameters<typeof shouldDisableSecureAuthCookies>[0])).toBe(true);
   });
 
+  it("disables secure cookies for private authenticated auto mode without a public URL", () => {
+    expect(shouldDisableSecureAuthCookies({
+      deploymentMode: "authenticated",
+      deploymentExposure: "private",
+      authBaseUrlMode: "auto",
+      authPublicBaseUrl: undefined,
+    })).toBe(true);
+  });
+
+  it("disables secure cookies for explicit HTTP public URLs", () => {
+    expect(shouldDisableSecureAuthCookies({
+      deploymentMode: "authenticated",
+      deploymentExposure: "private",
+      authBaseUrlMode: "explicit",
+      authPublicBaseUrl: "http://board.example.test:3101",
+    })).toBe(true);
+  });
+
+  it("keeps secure cookies for explicit HTTPS public URLs", () => {
+    expect(shouldDisableSecureAuthCookies({
+      deploymentMode: "authenticated",
+      deploymentExposure: "public",
+      authBaseUrlMode: "explicit",
+      authPublicBaseUrl: "https://board.example.test",
+    })).toBe(false);
+  });
+
   it("adds hostname port variants for authenticated mode on non-default ports", () => {
     const trustedOrigins = deriveAuthTrustedOrigins({
       deploymentMode: "authenticated",
