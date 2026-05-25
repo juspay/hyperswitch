@@ -542,6 +542,7 @@ export const CONNECTOR_LISTS = {
     SKRILL_WALLET: ["paysafe"],
     PAYSAFECARD_GIFT_CARD: ["paysafe"],
     PAYPAL_MANDATE: ["paypal"],
+    ADYEN_WALLET_MANDATE: ["adyen"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [
       "adyen",

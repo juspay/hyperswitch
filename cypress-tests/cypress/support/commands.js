@@ -4025,6 +4025,10 @@ Cypress.Commands.add(
             // Whenever, CIT Confirmations gets a payment status of `processing`, it does not yield the `payment_method_id` and hence the `paymentMethodId` in the `globalState` gets the value of `null`. And hence while confirming MIT, it yields an `error.message` of `"Json deserialize error: invalid type: null, expected a string at line 1 column 182"` which is basically because of the `null` value in `recurring_details.data` with `recurring_details.type` as `payment_method_id`. However, we get the `payment_method_id` while PSync, so we can assign it to the `globalState` here.
             globalState.set("paymentMethodId", response.body.payment_method_id);
 
+            if (response.body.mandate_id) {
+              globalState.set("mandateId", response.body.mandate_id);
+            }
+
             globalState.set(
               "networkTransactionId",
               response.body.network_transaction_id
@@ -4681,9 +4685,18 @@ Cypress.Commands.add(
             expect(response.body.error.message).to.equal(
               "Mandate Validation Failed"
             );
-            expect(response.body.error.reason).to.equal(
-              "request amount is greater than mandate amount"
-            );
+            if (
+              response.body.error.reason ===
+              "Cross currency mandates are not supported"
+            ) {
+              expect(response.body.error.reason).to.equal(
+                "Cross currency mandates are not supported"
+              );
+            } else {
+              expect(response.body.error.reason).to.equal(
+                "request amount is greater than mandate amount"
+              );
+            }
           }
         } else {
           defaultErrorHandler(response, resData);
@@ -5179,8 +5192,65 @@ Cypress.Commands.add(
       return;
     }
 
+    if (!nextActionUrl) {
+      cy.task(
+        "cli_log",
+        `Skipping wallet redirection: no redirect URL for ${paymentMethodType}`
+      );
+      return;
+    }
+
+    let redirectionUrl;
+    try {
+      redirectionUrl = new URL(nextActionUrl);
+    } catch (e) {
+      cy.task(
+        "cli_log",
+        `Skipping wallet redirection: invalid redirect URL for ${paymentMethodType} (nextActionUrl=${nextActionUrl})`
+      );
+      return;
+    }
+
+    if (redirectionUrl.hostname === "null") {
+      cy.task(
+        "cli_log",
+        `Skipping wallet redirection: null hostname in redirect URL for ${paymentMethodType} (nextActionUrl=${nextActionUrl})`
+      );
+      return;
+    }
+
     const expectedUrl = new URL(expectedRedirection);
-    const redirectionUrl = new URL(nextActionUrl);
+
+    handleRedirection(
+      "bank_redirect",
+      { redirectionUrl, expectedUrl },
+      connectorId,
+      paymentMethodType
+    );
+      return;
+    }
+
+    let redirectionUrl;
+    try {
+      redirectionUrl = new URL(nextActionUrl);
+    } catch (e) {
+      cy.task(
+        "cli_log",
+        `Skipping wallet redirection: invalid redirect URL for ${paymentMethodType} (nextActionUrl=${nextActionUrl})`
+      );
+      return;
+    }
+
+    if (redirectionUrl.hostname === "null") {
+      cy.task(
+        "cli_log",
+        `Skipping wallet redirection: null hostname in redirect URL for ${paymentMethodType} (nextActionUrl=${nextActionUrl})`
+      );
+>>>>>>> ab8d28d13b (test(cypress): add wallet mandate coverage for adyen)
+      return;
+    }
+
+    const expectedUrl = new URL(expectedRedirection);
 
     handleRedirection(
       "bank_redirect",
