@@ -229,4 +229,99 @@ export const connectorDetails = {
       },
     },
   },
+  payout_link_pm: {
+    PayoutLinkBase: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payout_link: true,
+        currency: "EUR",
+        payout_type: "bank",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_00",
+            message: "Payout Eligibility for Wise is not implemented",
+          },
+        },
+      },
+    },
+    PayoutLinkBankTransfer: {
+      Request: {
+        payout_link: true,
+        currency: "EUR",
+        amount: 100,
+        description: "Test Payout Link Bank Transfer",
+        payout_link_config: {
+          test_mode: true,
+          enabled_payment_methods: ["bank_transfer"],
+        },
+      },
+      Response: {
+        status: 200,
+      },
+      BankData: {
+        iban: "NL46TEST0136169112",
+        bic: "ABNANL2A",
+        bank_name: "Test Bank",
+        bank_country_code: "NL",
+        bank_city: "Amsterdam",
+      },
+    },
+    PayoutLinkValidationError: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payout_link: true,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_04",
+            message:
+              "Provide either customer or customer_id when payout_link is true",
+          },
+        },
+      },
+    },
+    PayoutLinkConfirmConflict: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payout_link: true,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_04",
+            message: "Cannot confirm a payout while creating a payout link",
+          },
+        },
+      },
+    },
+    PayoutLinkWithoutLink: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payout_link: false,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payout_method_data",
+        },
+      },
+    },
+  },
 };
