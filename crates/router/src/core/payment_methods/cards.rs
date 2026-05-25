@@ -117,6 +117,54 @@ pub struct PmCards<'a> {
     pub provider: &'a domain::Provider,
 }
 
+#[cfg(feature = "v1")]
+async fn trigger_payment_method_modular_forward_compat_best_effort_if_needed(
+    state: &routes::SessionState,
+    provider: &domain::Provider,
+    payment_method: &domain::PaymentMethod,
+    customer_id: Option<&id_type::CustomerId>,
+    initiator: Option<&domain::Initiator>,
+) {
+    let should_schedule_modular_forward_compat =
+        payment_method_utils::get_should_schedule_modular_forward_compat(
+            state,
+            &dimension_state::Dimensions::new()
+                .with_provider_merchant_id(provider.get_provider_merchant_id()),
+            customer_id,
+        )
+        .await;
+
+    if should_schedule_modular_forward_compat {
+        let res = super::add_payment_method_modular_forward_compat_task(
+            &*state.store,
+            payment_method,
+            provider.get_account().get_id(),
+            state.conf.application_source,
+            initiator,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Failed to add payment method modular compatibility task in process tracker",
+        );
+
+        if let Err(err) = res {
+            logger::error!(
+                ?err,
+                payment_method_id=%payment_method.payment_method_id,
+                merchant_id=%provider.get_account().get_id().get_string_repr(),
+                "Failed to schedule modular forward compatibility PT; continuing payment method write flow"
+            );
+        }
+    } else {
+        logger::debug!(
+            payment_method_id=%payment_method.payment_method_id,
+            merchant_id=%provider.get_account().get_id().get_string_repr(),
+            "Skipping modular forward compatibility PT scheduling by config"
+        );
+    }
+}
+
 #[async_trait::async_trait]
 impl PaymentMethodsController for PmCards<'_> {
     #[cfg(feature = "v1")]
@@ -219,44 +267,14 @@ impl PaymentMethodsController for PmCards<'_> {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to add payment method in db")?;
 
-        let should_schedule_modular_forward_compat =
-            payment_method_utils::get_should_schedule_modular_forward_compat(
-                self.state,
-                &dimension_state::Dimensions::new()
-                    .with_provider_merchant_id(self.provider.get_provider_merchant_id()),
-                Some(customer_id),
-            )
-            .await;
-
-        if should_schedule_modular_forward_compat {
-            let res = super::add_payment_method_modular_forward_compat_task(
-                &*self.state.store,
-                &response,
-                merchant_id,
-                self.state.conf.application_source,
-                initiator,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "Failed to add payment method modular compatibility task in process tracker",
-            );
-
-            if let Err(err) = res {
-                logger::error!(
-                    ?err,
-                    payment_method_id=%response.payment_method_id,
-                    merchant_id=%merchant_id.get_string_repr(),
-                    "Failed to schedule modular forward compatibility PT; continuing payment method create flow"
-                );
-            }
-        } else {
-            logger::debug!(
-                payment_method_id=%response.payment_method_id,
-                merchant_id=%merchant_id.get_string_repr(),
-                "Skipping modular forward compatibility PT scheduling by config"
-            );
-        }
+        trigger_payment_method_modular_forward_compat_best_effort_if_needed(
+            self.state,
+            self.provider,
+            &response,
+            Some(customer_id),
+            initiator,
+        )
+        .await;
 
         if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
             let _ = self
@@ -1543,6 +1561,7 @@ impl PaymentMethodsController for PmCards<'_> {
             let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
                 default_payment_method_id: Some(None),
                 last_modified_by: initiator
+                    .as_ref()
                     .and_then(|initiator| initiator.to_created_by())
                     .map(|last_modified_by| last_modified_by.to_string()),
             };
@@ -1800,15 +1819,25 @@ impl PaymentMethodsController for PmCards<'_> {
                                 .map(|last_modified_by| last_modified_by.to_string()),
                         };
 
-                        db.update_payment_method(
-                            self.provider.get_key_store(),
-                            existing_pm,
-                            pm_update,
-                            self.provider.get_account().storage_scheme,
+                        let updated_payment_method = db
+                            .update_payment_method(
+                                self.provider.get_key_store(),
+                                existing_pm,
+                                pm_update,
+                                self.provider.get_account().storage_scheme,
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to add payment method in db")?;
+
+                        trigger_payment_method_modular_forward_compat_best_effort_if_needed(
+                            self.state,
+                            self.provider,
+                            &updated_payment_method,
+                            updated_payment_method.customer_id.as_ref(),
+                            initiator,
                         )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to add payment method in db")?;
+                        .await;
 
                         resp.client_secret = client_secret;
                     }
@@ -2057,15 +2086,16 @@ pub async fn add_payment_method_data(
                                 .map(|last_modified_by| last_modified_by.to_string()),
                         };
 
-                        db.update_payment_method(
-                            provider.get_key_store(),
-                            payment_method,
-                            pm_update,
-                            provider.get_account().storage_scheme,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to add payment method in db")?;
+                        let updated_payment_method = db
+                            .update_payment_method(
+                                provider.get_key_store(),
+                                payment_method,
+                                pm_update,
+                                provider.get_account().storage_scheme,
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to add payment method in db")?;
 
                         cards
                             .get_or_insert_payment_method(
@@ -2076,6 +2106,15 @@ pub async fn add_payment_method_data(
                                 initiator.as_ref(),
                             )
                             .await?;
+
+                        trigger_payment_method_modular_forward_compat_best_effort_if_needed(
+                            &state,
+                            &provider,
+                            &updated_payment_method,
+                            updated_payment_method.customer_id.as_ref(),
+                            initiator.as_ref(),
+                        )
+                        .await;
 
                         let pm_resp = api::PaymentMethodResponse::foreign_from(domain_pm_resp);
 
@@ -2143,15 +2182,25 @@ pub async fn add_payment_method_data(
                             network_tokenization_data: None, // setting it to None as write path will be introduced in a later PR
                         };
 
-                        db.update_payment_method(
-                            provider.get_key_store(),
-                            payment_method,
-                            pm_update,
-                            provider.get_account().storage_scheme,
+                        let updated_payment_method = db
+                            .update_payment_method(
+                                provider.get_key_store(),
+                                payment_method,
+                                pm_update,
+                                provider.get_account().storage_scheme,
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to add payment method in db")?;
+
+                        trigger_payment_method_modular_forward_compat_best_effort_if_needed(
+                            &state,
+                            &provider,
+                            &updated_payment_method,
+                            updated_payment_method.customer_id.as_ref(),
+                            initiator.as_ref(),
                         )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to add payment method in db")?;
+                        .await;
 
                         if customer.default_payment_method_id.is_none() {
                             let _ = cards
@@ -2409,6 +2458,7 @@ pub async fn update_customer_payment_method(
             let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data: pm_data_encrypted.map(Into::into),
                 last_modified_by: initiator
+                    .as_ref()
                     .and_then(|initiator| initiator.to_created_by())
                     .map(|last_modified_by| last_modified_by.to_string()),
             };
@@ -2417,15 +2467,25 @@ pub async fn update_customer_payment_method(
                 .payment_method_id
                 .clone_from(&pm.payment_method_id);
 
-            db.update_payment_method(
-                provider.get_key_store(),
-                pm.clone(),
-                pm_update,
-                provider.get_account().storage_scheme,
+            let updated_payment_method = db
+                .update_payment_method(
+                    provider.get_key_store(),
+                    pm.clone(),
+                    pm_update,
+                    provider.get_account().storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update payment method in db")?;
+
+            trigger_payment_method_modular_forward_compat_best_effort_if_needed(
+                &state,
+                &provider,
+                &updated_payment_method,
+                updated_payment_method.customer_id.as_ref(),
+                initiator.as_ref(),
             )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to update payment method in db")?;
+            .await;
 
             api::CustomerPaymentMethodUpdateResponse {
                 merchant_id: add_card_resp.merchant_id,
@@ -2492,6 +2552,7 @@ pub async fn update_customer_payment_method(
         let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
             payment_method_data: Some(pm_data_encrypted.into()),
             last_modified_by: initiator
+                .as_ref()
                 .and_then(|initiator| initiator.to_created_by())
                 .map(|last_modified_by| last_modified_by.to_string()),
         };
@@ -2506,6 +2567,15 @@ pub async fn update_customer_payment_method(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update payment method in db")?;
+
+        trigger_payment_method_modular_forward_compat_best_effort_if_needed(
+            &state,
+            &provider,
+            &pm,
+            pm.customer_id.as_ref(),
+            initiator.as_ref(),
+        )
+        .await;
 
         Ok(services::ApplicationResponse::Json(
             api::CustomerPaymentMethodUpdateResponse {

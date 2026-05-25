@@ -24,6 +24,12 @@ use crate::{
     },
 };
 
+fn should_skip_backward_compat(payment_method: &domain::PaymentMethod) -> bool {
+    payment_method.version == common_enums::ApiVersion::V1
+        && payment_method.compatibility_updated_at != Some(payment_method.last_modified)
+}
+
+#[cfg(feature = "v1")]
 #[cfg(feature = "v1")]
 pub async fn backfill_legacy_db_fields(
     db: &dyn StorageInterface,
@@ -35,13 +41,19 @@ pub async fn backfill_legacy_db_fields(
 ) -> Result<domain::PaymentMethod, errors::ProcessTrackerError> {
     let legacy_payment_method = payment_method.get_payment_method_type();
     let legacy_payment_method_type = payment_method.get_payment_method_subtype();
-    let should_update_legacy_db_fields =
-        legacy_payment_method.is_some() || legacy_payment_method_type.is_some();
+    let connector_mandate_details =
+        diesel_models::payment_method::CommonMandateReference::add_v1_connector_mandate_fields(
+            payment_method.connector_mandate_details.clone(),
+        );
+    let should_update_legacy_db_fields = legacy_payment_method.is_some()
+        || legacy_payment_method_type.is_some()
+        || connector_mandate_details.is_some();
 
     if should_update_legacy_db_fields {
         let pm_update = storage::PaymentMethodUpdate::PopulateLegacyCompatFields {
             payment_method: legacy_payment_method,
             payment_method_type: legacy_payment_method_type,
+            connector_mandate_details,
             last_modified_by: tracking_data.last_modified_by.clone(),
         };
 
@@ -235,12 +247,23 @@ pub async fn backfill_legacy_locker_card(
                 ttl: state.conf.locker.ttl_for_storage_in_secs,
             });
 
-            let _ = cards::add_card_to_vault(state, &locker_req, &customer_id)
+            let add_card_resp = cards::add_card_to_vault(state, &locker_req, &customer_id)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
                     "Failed to add card to legacy locker in backward compatibility PT",
                 )?;
+
+            if matches!(
+                add_card_resp.duplication_check,
+                Some(transformers::DataDuplicationCheck::MetaDataChanged)
+            ) {
+                logger::warn!(
+                    process_id=%process_id,
+                    payment_method_id=%tracking_data.payment_method_id,
+                    "Legacy locker reported metadata changed during backward compatibility PT"
+                );
+            }
 
             logger::info!(
                 process_id=%process_id,
@@ -437,46 +460,56 @@ pub async fn run_payment_method_modular_backward_compat_backfill(
             "Failed to fetch payment method for modular backward compatibility backfill",
         )?;
 
-    let payment_method = backfill_legacy_db_fields(
-        db,
-        &key_store,
-        payment_method,
-        merchant_account.storage_scheme,
-        &tracking_data,
-        process_id,
-    )
-    .await?;
-
-    #[cfg(feature = "v1")]
-    {
-        backfill_legacy_locker_card(
-            state,
-            &merchant_id,
-            &payment_method,
-            &tracking_data,
-            process_id,
-        )
-        .await
-    }
-
-    #[cfg(feature = "v2")]
-    {
-        let platform = domain::Platform::new(
-            merchant_account.clone(),
-            key_store.clone(),
-            merchant_account,
-            key_store,
-            None,
+    if should_skip_backward_compat(&payment_method) {
+        logger::info!(
+            process_id=%process_id,
+            payment_method_id=%tracking_data.payment_method_id,
+            "Skipping modular backward compatibility backfill because legacy PM is not forward compatible"
         );
-        backfill_legacy_locker_card(
-            state,
-            &platform,
-            &payment_method,
+    } else {
+        let payment_method = backfill_legacy_db_fields(
+            db,
+            &key_store,
+            payment_method,
+            merchant_account.storage_scheme,
             &tracking_data,
             process_id,
         )
-        .await
+        .await?;
+
+        #[cfg(feature = "v1")]
+        {
+            backfill_legacy_locker_card(
+                state,
+                &merchant_id,
+                &payment_method,
+                &tracking_data,
+                process_id,
+            )
+            .await?;
+        }
+
+        #[cfg(feature = "v2")]
+        {
+            let platform = domain::Platform::new(
+                merchant_account.clone(),
+                key_store.clone(),
+                merchant_account,
+                key_store,
+                None,
+            );
+            backfill_legacy_locker_card(
+                state,
+                &platform,
+                &payment_method,
+                &tracking_data,
+                process_id,
+            )
+            .await?;
+        }
     }
+
+    Ok(())
 }
 
 pub struct PaymentMethodModularBackwardCompatWorkflow;

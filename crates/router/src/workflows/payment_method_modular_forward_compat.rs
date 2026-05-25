@@ -19,6 +19,46 @@ use crate::{
 
 pub struct PaymentMethodModularForwardCompatWorkflow;
 
+#[cfg(feature = "v1")]
+fn is_forward_compat_complete(payment_method: &crate::types::domain::PaymentMethod) -> bool {
+    payment_method.version == common_enums::ApiVersion::V2
+        && payment_method.compatibility_updated_at == Some(payment_method.last_modified)
+}
+
+#[cfg(feature = "v1")]
+async fn get_vault_fingerprint_id(
+    state: &SessionState,
+    entity_id: hyperswitch_domain_models::vault::V1VaultEntityId,
+    data: serde_json::Value,
+) -> Result<String, errors::ProcessTrackerError> {
+    let data = serde_json::to_string(&data)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize vault fingerprint data")?;
+
+    let payload = pm_types::VaultFingerprintRequest {
+        data,
+        key: entity_id,
+    }
+    .encode_to_vec()
+    .change_context(errors::VaultError::RequestEncodingFailed)
+    .attach_printable("Failed to encode VaultFingerprintRequest")
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let resp = vault::call_to_vault::<pm_types::GetVaultFingerprint>(state, payload, None)
+        .await
+        .change_context(errors::VaultError::VaultAPIError)
+        .attach_printable("Call to vault failed")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let fingerprint_resp: pm_types::VaultFingerprintResponse = resp
+        .parse_struct("VaultFingerprintResponse")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed to parse data into VaultFingerprintResponse")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    Ok(fingerprint_resp.fingerprint_id)
+}
+
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatWorkflow {
     #[cfg(feature = "v1")]
@@ -60,88 +100,108 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch payment method for modular compatibility PT")?;
 
-        // Step 2: Populate v1 compat fields used by PM modular service.
-        let pm_id_update = storage::PaymentMethodUpdate::PopulateModularCompatFields {
-            id: tracking_data.payment_method_id.clone(),
-            payment_method_type_v2: payment_method.payment_method,
-            payment_method_subtype: payment_method.payment_method_type,
-            last_modified_by: tracking_data.last_modified_by.clone(),
-        };
-
-        let payment_method = db
-            .update_payment_method(
-                &key_store,
-                payment_method,
-                pm_id_update,
-                merchant_account.storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "Failed to populate id for payment method in modular compatibility PT",
-            )?;
-
-        let business_status = if payment_method.payment_method
-            != Some(common_enums::PaymentMethod::Card)
-        {
-            // Step 3: Non-card payment methods do not require locker migration.
+        if is_forward_compat_complete(&payment_method) {
+            db.as_scheduler()
+                .finish_process_with_business_status(process, "COMPLETED_BY_PT")
+                .await?;
             crate::logger::info!(
-                process_id=%process.id,
-                payment_method_id=%payment_method.payment_method_id,
-                "Payment method is non-card; skipping locker migration in modular compatibility PT"
+                business_status = "COMPLETED_BY_PT",
+                "Finished payment method modular compatibility PT; already forward compatible"
             );
-            "COMPLETED_BY_PT"
         } else {
-            let customer_id = payment_method
-                .customer_id
-                .clone()
-                .get_required_value("customer_id")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "customer_id not found for card payment method in compatibility PT",
-                )?;
+            let connector_mandate_details =
+                diesel_models::payment_method::CommonMandateReference::add_v2_connector_mandate_fields(
+                    payment_method.connector_mandate_details.clone(),
+                );
+            let mut auxiliary_fingerprint_id = None;
 
-            let card_network = payment_method
-                .scheme
-                .as_ref()
-                .and_then(|scheme| common_enums::CardNetwork::from_str(scheme).ok());
+            let business_status = if payment_method.payment_method
+                != Some(common_enums::PaymentMethod::Card)
+            {
+                // Step 3: Non-card payment methods do not require locker migration.
+                crate::logger::info!(
+                    process_id=%process.id,
+                    payment_method_id=%payment_method.payment_method_id,
+                    "Payment method is non-card; skipping locker migration in modular compatibility PT"
+                );
+                "COMPLETED_BY_PT"
+            } else {
+                let customer_id = payment_method
+                    .customer_id
+                    .clone()
+                    .get_required_value("customer_id")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "customer_id not found for card payment method in compatibility PT",
+                    )?;
 
-            // Step 4: Fetch card payload from legacy locker only when locker_id is present.
-            if let Some(card_reference) = payment_method.locker_id.clone() {
-                let locker_card =
-                    cards::get_card_from_vault(state, &customer_id, &merchant_id, &card_reference)
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "Failed to retrieve card from legacy locker in compatibility PT",
-                        )?;
+                let card_network = payment_method
+                    .scheme
+                    .as_ref()
+                    .and_then(|scheme| common_enums::CardNetwork::from_str(scheme).ok());
 
-                let card_detail = api_models::payment_methods::CardDetail::from((
-                    locker_card.get_card(),
-                    card_network.clone(),
-                ));
-                let pmd =
-                    hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card_detail);
+                // Step 4: Fetch card payload from legacy locker only when locker_id is present.
+                if let Some(card_reference) = payment_method.locker_id.clone() {
+                    let locker_card = cards::get_card_from_vault(
+                        state,
+                        &customer_id,
+                        &merchant_id,
+                        &card_reference,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to retrieve card from legacy locker in compatibility PT",
+                    )?;
 
-                // Step 5: Upsert the card into generic locker via direct AddVault call.
-                let payload = pm_types::AddCompatVaultRequest {
-                    entity_id: customer_id.clone(),
-                    vault_id: crate::types::domain::VaultId::generate(card_reference),
-                    data: &pmd,
-                    ttl: state.conf.locker.ttl_for_storage_in_secs,
-                }
-                .encode_to_vec()
-                .change_context(errors::VaultError::RequestEncodingFailed)
-                .attach_printable("Failed to encode AddVaultRequest")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Failed to add payment method in generic locker in compatibility PT",
-                )?;
+                    let card_detail = api_models::payment_methods::CardDetail::from((
+                        locker_card.get_card(),
+                        card_network.clone(),
+                    ));
+                    let pmd = hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(
+                        card_detail.clone(),
+                    );
 
-                let query_params =
-                    Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Upsert));
+                    let auxiliary_fingerprint_data = serde_json::to_value(
+                        hyperswitch_domain_models::vault::AuxiliaryFingerprintData::CardNumber(
+                            card_detail.card_number.clone(),
+                        ),
+                    )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize auxiliary fingerprint data")?;
+                    let entity_id = hyperswitch_domain_models::vault::V1VaultEntityId::new(
+                        key_store.merchant_id.clone(),
+                        customer_id.clone(),
+                    );
+                    auxiliary_fingerprint_id = Some(
+                        get_vault_fingerprint_id(state, entity_id, auxiliary_fingerprint_data)
+                            .await?,
+                    );
 
-                let resp = vault::call_to_vault::<pm_types::AddVault>(state, payload, query_params)
+                    // Step 5: Upsert the card into generic locker via direct AddVault call.
+                    // Step 5: Upsert the card into generic locker via direct AddVault call.
+                    let payload = pm_types::AddCompatVaultRequest {
+                        entity_id: customer_id.clone(),
+                        vault_id: crate::types::domain::VaultId::generate(card_reference),
+                        data: &pmd,
+                        ttl: state.conf.locker.ttl_for_storage_in_secs,
+                    }
+                    .encode_to_vec()
+                    .change_context(errors::VaultError::RequestEncodingFailed)
+                    .attach_printable("Failed to encode AddVaultRequest")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to add payment method in generic locker in compatibility PT",
+                    )?;
+
+                    let query_params =
+                        Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Upsert));
+
+                    let resp = vault::call_to_vault::<pm_types::AddVault>(
+                        state,
+                        payload,
+                        query_params,
+                    )
                     .await
                     .change_context(errors::VaultError::VaultAPIError)
                     .attach_printable("Call to vault failed")
@@ -150,136 +210,160 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
                         "Failed to add payment method in generic locker in compatibility PT",
                     )?;
 
-                let _stored_pm_resp: pm_types::InternalAddVaultResponse = resp
-                    .parse_struct("InternalAddVaultResponse")
-                    .change_context(errors::VaultError::ResponseDeserializationFailed)
-                    .attach_printable("Failed to parse data into InternalAddVaultResponse")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Failed to add payment method in generic locker in compatibility PT",
-                    )?;
-                logger::info!(
-                    process_id=%process.id,
-                    payment_method_id=%payment_method.payment_method_id,
-                    "Upserted card into generic locker in modular compatibility PT"
-                );
-            } else {
-                logger::info!(
-                    process_id=%process.id,
-                    payment_method_id=%payment_method.payment_method_id,
-                    "Skipping card migration in modular compatibility PT as locker_id is absent"
-                );
-            }
-
-            // Step 6: Migrate network token to generic locker when an NT locker id is present.
-            if let Some(network_token_locker_id) = payment_method.network_token_locker_id.clone() {
-                let locker_network_token = cards::get_card_from_vault(
-                    state,
-                    &customer_id,
-                    &merchant_id,
-                    &network_token_locker_id,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Failed to retrieve network token from legacy locker in compatibility PT",
-                )?;
-
-                let locker_network_token_card = locker_network_token.get_card();
-                let network_token_details =
-                    hyperswitch_domain_models::payment_method_data::NetworkTokenDetails {
-                        network_token: locker_network_token_card.card_number.into(),
-                        network_token_exp_month: locker_network_token_card.card_exp_month,
-                        network_token_exp_year: locker_network_token_card.card_exp_year,
-                        cryptogram: None,
-                        card_issuer: payment_method.issuer_name.clone(),
-                        card_network,
-                        card_type: None,
-                        card_issuing_country: None,
-                        card_holder_name: locker_network_token_card.name_on_card,
-                        nick_name: locker_network_token_card.nick_name.map(Secret::new),
-                        par: None,
-                    };
-
-                let network_token_pmd =
-                    hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(
-                        network_token_details.clone(),
-                    );
-
-                let network_token_entity_id =
-                    hyperswitch_domain_models::vault::V1VaultEntityId::new(
-                        key_store.merchant_id.clone(),
-                        customer_id,
-                    );
-
-                let network_token_payload = pm_types::AddVaultRequest {
-                    entity_id: network_token_entity_id,
-                    vault_id: crate::types::domain::VaultId::generate(
-                        network_token_locker_id.clone(),
-                    ),
-                    data: &network_token_pmd,
-                    ttl: state.conf.locker.ttl_for_storage_in_secs,
-                }
-                .encode_to_vec()
-                .change_context(errors::VaultError::RequestEncodingFailed)
-                .attach_printable("Failed to encode AddVaultRequest for network token")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Failed to add network token in generic locker in compatibility PT",
-                )?;
-
-                let network_token_query_params =
-                    Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Upsert));
-
-                let network_token_resp = vault::call_to_vault::<pm_types::AddVault>(
-                    state,
-                    network_token_payload,
-                    network_token_query_params,
-                )
-                .await
-                .change_context(errors::VaultError::VaultAPIError)
-                .attach_printable("Call to vault failed for network token")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Failed to add network token in generic locker in compatibility PT",
-                )?;
-
-                let _stored_network_token_resp: pm_types::InternalAddVaultResponse =
-                    network_token_resp
+                    let _stored_pm_resp: pm_types::InternalAddVaultResponse = resp
                         .parse_struct("InternalAddVaultResponse")
                         .change_context(errors::VaultError::ResponseDeserializationFailed)
-                        .attach_printable(
-                            "Failed to parse network token response into InternalAddVaultResponse",
-                        )
+                        .attach_printable("Failed to parse data into InternalAddVaultResponse")
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable(
-                            "Failed to add network token in generic locker in compatibility PT",
+                            "Failed to add payment method in generic locker in compatibility PT",
                         )?;
+                    logger::info!(
+                        process_id=%process.id,
+                        payment_method_id=%payment_method.payment_method_id,
+                        "Upserted card into generic locker in modular compatibility PT"
+                    );
+                } else {
+                    logger::info!(
+                        process_id=%process.id,
+                        payment_method_id=%payment_method.payment_method_id,
+                        "Skipping card migration in modular compatibility PT as locker_id is absent"
+                    );
+                }
 
-                crate::logger::info!(
-                    process_id=%process.id,
-                    payment_method_id=%payment_method.payment_method_id,
-                    "Upserted network token into generic locker in modular compatibility PT"
-                );
-            } else {
-                crate::logger::info!(
-                    process_id=%process.id,
-                    payment_method_id=%payment_method.payment_method_id,
-                    "Skipping network token migration in modular compatibility PT as network_token_locker_id is absent"
-                );
-            }
+                // Step 6: Migrate network token to generic locker when an NT locker id is present.
+                if let Some(network_token_locker_id) =
+                    payment_method.network_token_locker_id.clone()
+                {
+                    let locker_network_token = cards::get_card_from_vault(
+                        state,
+                        &customer_id,
+                        &merchant_id,
+                        &network_token_locker_id,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to retrieve network token from legacy locker in compatibility PT",
+                    )?;
 
-            "COMPLETED_BY_PT"
-        };
+                    let locker_network_token_card = locker_network_token.get_card();
+                    let network_token_details =
+                        hyperswitch_domain_models::payment_method_data::NetworkTokenDetails {
+                            network_token: locker_network_token_card.card_number.into(),
+                            network_token_exp_month: locker_network_token_card.card_exp_month,
+                            network_token_exp_year: locker_network_token_card.card_exp_year,
+                            cryptogram: None,
+                            card_issuer: payment_method.issuer_name.clone(),
+                            card_network,
+                            card_type: None,
+                            card_issuing_country: None,
+                            card_holder_name: locker_network_token_card.name_on_card,
+                            nick_name: locker_network_token_card.nick_name.map(Secret::new),
+                            par: None,
+                        };
 
-        // Step 7: Mark process as completed once the required branch is done.
-        db.as_scheduler()
-            .finish_process_with_business_status(process, business_status)
-            .await?;
-        crate::logger::info!(
-            business_status,
-            "Finished payment method modular compatibility PT"
-        );
+                    let network_token_pmd =
+                        hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(
+                            network_token_details.clone(),
+                        );
+
+                    let network_token_entity_id =
+                        hyperswitch_domain_models::vault::V1VaultEntityId::new(
+                            key_store.merchant_id.clone(),
+                            customer_id,
+                        );
+
+                    let network_token_payload = pm_types::AddVaultRequest {
+                        entity_id: network_token_entity_id,
+                        vault_id: crate::types::domain::VaultId::generate(
+                            network_token_locker_id.clone(),
+                        ),
+                        data: &network_token_pmd,
+                        ttl: state.conf.locker.ttl_for_storage_in_secs,
+                    }
+                    .encode_to_vec()
+                    .change_context(errors::VaultError::RequestEncodingFailed)
+                    .attach_printable("Failed to encode AddVaultRequest for network token")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to add network token in generic locker in compatibility PT",
+                    )?;
+
+                    let network_token_query_params =
+                        Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Upsert));
+
+                    let network_token_resp = vault::call_to_vault::<pm_types::AddVault>(
+                        state,
+                        network_token_payload,
+                        network_token_query_params,
+                    )
+                    .await
+                    .change_context(errors::VaultError::VaultAPIError)
+                    .attach_printable("Call to vault failed for network token")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to add network token in generic locker in compatibility PT",
+                    )?;
+
+                    let _stored_network_token_resp: pm_types::InternalAddVaultResponse =
+                        network_token_resp
+                            .parse_struct("InternalAddVaultResponse")
+                            .change_context(errors::VaultError::ResponseDeserializationFailed)
+                            .attach_printable(
+                                "Failed to parse network token response into InternalAddVaultResponse",
+                            )
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "Failed to add network token in generic locker in compatibility PT",
+                            )?;
+
+                    crate::logger::info!(
+                        process_id=%process.id,
+                        payment_method_id=%payment_method.payment_method_id,
+                        "Upserted network token into generic locker in modular compatibility PT"
+                    );
+                } else {
+                    crate::logger::info!(
+                        process_id=%process.id,
+                        payment_method_id=%payment_method.payment_method_id,
+                        "Skipping network token migration in modular compatibility PT as network_token_locker_id is absent"
+                    );
+                }
+
+                "COMPLETED_BY_PT"
+            };
+
+            let pm_id_update = storage::PaymentMethodUpdate::PopulateModularCompatFields {
+                id: tracking_data.payment_method_id.clone(),
+                payment_method_type_v2: payment_method.payment_method,
+                payment_method_subtype: payment_method.payment_method_type,
+                connector_mandate_details,
+                auxiliary_fingerprint_id,
+                last_modified_by: tracking_data.last_modified_by.clone(),
+            };
+
+            db.update_payment_method(
+                &key_store,
+                payment_method,
+                pm_id_update,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to populate modular fields for payment method in compatibility PT",
+            )?;
+
+            // Step 7: Mark process as completed once the required branch is done.
+            db.as_scheduler()
+                .finish_process_with_business_status(process, business_status)
+                .await?;
+            crate::logger::info!(
+                business_status,
+                "Finished payment method modular compatibility PT"
+            );
+        }
 
         Ok(())
     }

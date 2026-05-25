@@ -506,6 +506,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             payment_method_subtype: None,
             id: None,
             compatibility_updated_at: self.compatibility_updated_at,
+            auxiliary_fingerprint_id: None,
         })
     }
 
@@ -744,6 +745,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             network_tokenization_data: self.network_tokenization_data.map(|val| val.into()),
             id: None,
             compatibility_updated_at: self.compatibility_updated_at,
+            auxiliary_fingerprint_id: None,
         })
     }
 }

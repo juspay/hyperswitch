@@ -2295,14 +2295,14 @@ pub async fn create_payment_method_bank_redirect_core(
             .find(|pm| pm.get_payment_method_subtype() == req.payment_method_subtype)
     });
 
-    let payment_method = match existing_wallet_pm {
+    let (payment_method, should_trigger_backward_compat) = match existing_wallet_pm {
         Some(existing_pm) => {
             logger::debug!("Payment method is duplicate, returning existing payment method record");
-            existing_pm
+            (existing_pm, false)
         }
         None => {
             logger::debug!("Payment method is new, creating a new payment method record");
-            create_payment_method_for_confirm(
+            let payment_method = create_payment_method_for_confirm(
                 state,
                 customer_id,
                 payment_method_id,
@@ -2319,9 +2319,21 @@ pub async fn create_payment_method_bank_redirect_core(
                 platform.get_initiator(),
                 enums::PaymentMethodStatus::New,
             )
-            .await?
+            .await?;
+            (payment_method, true)
         }
     };
+
+    if should_trigger_backward_compat {
+        Box::pin(
+            backward_compat::trigger_payment_method_modular_backward_compat_best_effort(
+                state,
+                &payment_method,
+                platform,
+            ),
+        )
+        .await;
+    }
 
     let payment_method_response = pm_transforms::generate_payment_method_response(
         &payment_method,
@@ -2921,6 +2933,15 @@ pub async fn create_payment_method_wallet_core(
         }
     };
 
+    Box::pin(
+        backward_compat::trigger_payment_method_modular_backward_compat_best_effort(
+            state,
+            &payment_method,
+            platform,
+        ),
+    )
+    .await;
+
     let payment_method_response = pm_transforms::generate_payment_method_response(
         &payment_method,
         &None,
@@ -3038,6 +3059,15 @@ pub async fn create_payment_method_proxy_card_core(
         enums::PaymentMethodStatus::Inactive,
     )
     .await?;
+
+    Box::pin(
+        backward_compat::trigger_payment_method_modular_backward_compat_best_effort(
+            state,
+            &payment_method,
+            platform,
+        ),
+    )
+    .await;
 
     let payment_method_response = pm_transforms::generate_payment_method_response(
         &payment_method,
@@ -3494,6 +3524,22 @@ pub async fn payment_method_intent_create(
     )
     .await
     .attach_printable("Failed to add Payment method to DB")?;
+
+    let platform = domain::Platform::new(
+        provider.get_account().clone(),
+        provider.get_key_store().clone(),
+        provider.get_account().clone(),
+        provider.get_key_store().clone(),
+        initiator.cloned(),
+    );
+    Box::pin(
+        backward_compat::trigger_payment_method_modular_backward_compat_best_effort(
+            state,
+            &payment_method,
+            &platform,
+        ),
+    )
+    .await;
 
     let resp = pm_transforms::generate_payment_method_response(
         &payment_method,
@@ -7285,6 +7331,14 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
             .attach_printable("Failed to update payment method in db")?;
 
         self.payment_method = updated_payment_method;
+        Box::pin(
+            backward_compat::trigger_payment_method_modular_backward_compat_best_effort(
+                self.state,
+                &self.payment_method,
+                self.platform,
+            ),
+        )
+        .await;
         Ok(())
     }
 
