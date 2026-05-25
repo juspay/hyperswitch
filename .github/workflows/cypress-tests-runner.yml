@@ -39,6 +39,7 @@ env:
 jobs:
   formatter:
     name: Run formatter on Cypress tests and address lints
+    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       - name: Generate a token
@@ -429,8 +430,9 @@ jobs:
     name: Mandatory Cypress Tests — Consolidated Result
     needs: [mandatory-cypress-tests]
     if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+      (github.event_name == 'merge_group' ||
+      (github.event_name == 'pull_request' &&
+        contains(github.event.pull_request.labels.*.name, 'S-test-ready'))) && !cancelled()
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -755,8 +757,9 @@ jobs:
     name: Run MITM mock Cypress tests (${{ matrix.batch.name }})
     needs: [build-hyperswitch, prepare-mock-matrix]
     if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+      (github.event_name == 'merge_group' ||
+      (github.event_name == 'pull_request' &&
+        contains(github.event.pull_request.labels.*.name, 'S-test-ready'))) && !cancelled()
     runs-on: hyperswitch-runners
     strategy:
       fail-fast: false
