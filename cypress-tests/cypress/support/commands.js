@@ -4046,6 +4046,61 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "retrievePaymentCallClearPanRetryTest",
+  ({ globalState, isClearPanRetryEnabled, skipRetryAssertion = false }) => {
+    const paymentId = globalState.get("paymentID");
+    const baseUrl = globalState.get("baseUrl");
+    const apiKey = globalState.get("apiKey");
+
+    const url = `${baseUrl}/payments/${paymentId}?force_sync=true&expand_attempts=true`;
+
+    cy.request({
+      method: "GET",
+      url: url,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
+
+      expect(response.status).to.equal(200);
+      expect(response.headers["content-type"]).to.include("application/json");
+      expect(response.body.payment_id).to.equal(paymentId);
+      expect(response.body.profile_id).to.not.be.null;
+
+      if (response.body.attempts && response.body.attempts.length > 0) {
+        response.body.attempts.forEach((attemptObj) => {
+          expect(attemptObj.attempt_id).to.include(paymentId);
+          expect(attemptObj.connector).to.not.be.null;
+        });
+
+        if (isClearPanRetryEnabled) {
+          if (skipRetryAssertion) {
+            cy.task(
+              "cli_log",
+              "Sandbox limitation: attempts.length > 1 assertion skipped — no sandbox connector supports PaymentMethodData::NetworkToken required for clear PAN retry"
+            );
+          } else {
+            expect(
+              response.body.attempts.length,
+              "Clear PAN retry enabled should have more than 1 attempt"
+            ).to.be.greaterThan(1);
+          }
+        } else {
+          expect(
+            response.body.attempts.length,
+            "Clear PAN retry disabled should have exactly 1 attempt"
+          ).to.equal(1);
+        }
+      }
+    });
+  }
+);
+
+Cypress.Commands.add(
   "refundCallTest",
   (requestBody, data, globalState, connectedMerchantId) => {
     const {
