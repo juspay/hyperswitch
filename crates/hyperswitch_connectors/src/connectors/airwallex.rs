@@ -1446,8 +1446,8 @@ impl ConnectorSpecifications for Airwallex {
     fn should_call_connector_customer(
         &self,
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> bool {
-        matches!(
+    ) -> api::ConnectorCustomerAction {
+        if matches!(
             payment_attempt.setup_future_usage_applied,
             Some(enums::FutureUsage::OffSession)
         ) && payment_attempt.customer_acceptance.is_some()
@@ -1455,5 +1455,10 @@ impl ConnectorSpecifications for Airwallex {
                 payment_attempt.payment_method,
                 Some(enums::PaymentMethod::Card)
             )
+        {
+            api::ConnectorCustomerAction::CallConnectorCustomer
+        } else {
+            api::ConnectorCustomerAction::NoAction
+        }
     }
 }

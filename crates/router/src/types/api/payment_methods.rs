@@ -2,7 +2,7 @@
 pub use api_models::payment_methods::{
     BankDebitDetailUpdate, CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod,
     CardNetworkTokenizeRequest, CardNetworkTokenizeResponse, CardType,
-    CustomerPaymentMethodResponseItem, DeleteTokenizeByTokenRequest,
+    CustomerPaymentMethodResponseItem, DefaultPaymentMethod, DeleteTokenizeByTokenRequest,
     GetNetworkTokenEiligibilityResponse, GetTokenizePayloadRequest, GetTokenizePayloadResponse,
     ListCountriesCurrenciesRequest, MigrateCardDetail, NetworkTokenDetailsPaymentMethod,
     NetworkTokenDetailsResponse, NetworkTokenEligibilityRequest, NetworkTokenResponse,
