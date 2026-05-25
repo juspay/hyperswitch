@@ -96,12 +96,7 @@ describe("Clear PAN Retry Tests", function () {
           "card_pm"
         ]["No3DSAutoCapture"];
 
-        cy.confirmCallTest(
-          fixtures.confirmBody,
-          data,
-          true,
-          globalState
-        );
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
@@ -190,12 +185,7 @@ describe("Clear PAN Retry Tests", function () {
           "card_pm"
         ]["No3DSAutoCapture"];
 
-        cy.confirmCallTest(
-          fixtures.confirmBody,
-          data,
-          true,
-          globalState
-        );
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
