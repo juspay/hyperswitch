@@ -128,7 +128,7 @@ export function getProfileAndConnectorId(connectorType) {
     },
     connector_3: {
       profileId: "taxProfile",
-      connectorId: "merchantConnector",
+      connectorId: "taxConnector",
     },
   };
 
