@@ -323,7 +323,7 @@ pub async fn list_routing_configs(
         |state, auth: auth::AuthenticationData, query_params, _| {
             routing::retrieve_merchant_routing_dictionary(
                 state,
-                auth.platform.get_processor().clone(),
+                auth.platform.clone(),
                 None,
                 query_params.clone(),
                 transaction_type
@@ -365,7 +365,7 @@ pub async fn list_routing_configs_for_profile(
         |state, auth: auth::AuthenticationData, query_params, _| {
             routing::retrieve_merchant_routing_dictionary(
                 state,
-                auth.platform.get_processor().clone(),
+                auth.platform.clone(),
                 auth.profile.map(|profile| vec![profile.get_id().clone()]),
                 query_params.clone(),
                 transaction_type
@@ -1027,7 +1027,7 @@ pub async fn routing_retrieve_linked_config(
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
                 routing::retrieve_linked_routing_config(
                     state,
-                    auth.platform.get_processor().clone(),
+                    auth.platform.clone(),
                     profile_id,
                     query_params,
                     transaction_type
@@ -1061,7 +1061,7 @@ pub async fn routing_retrieve_linked_config(
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
                 routing::retrieve_linked_routing_config(
                     state,
-                    auth.platform.get_processor().clone(),
+                    auth.platform.clone(),
                     profile_id,
                     query_params,
                     transaction_type

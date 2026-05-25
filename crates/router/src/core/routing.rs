@@ -160,7 +160,7 @@ impl RoutingAlgorithmUpdate {
 
 pub async fn retrieve_merchant_routing_dictionary(
     state: SessionState,
-    processor: domain::Processor,
+    platform: domain::Platform,
     profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     query_params: RoutingRetrieveQuery,
     transaction_type: enums::TransactionType,
@@ -170,7 +170,7 @@ pub async fn retrieve_merchant_routing_dictionary(
     let routing_metadata: Vec<diesel_models::routing_algorithm::RoutingProfileMetadata> = state
         .store
         .list_routing_algorithm_metadata_by_merchant_id_transaction_type(
-            processor.get_account().get_id(),
+            platform.get_processor().get_account().get_id(),
             &transaction_type,
             i64::from(query_params.limit.unwrap_or_default()),
             i64::from(query_params.offset.unwrap_or_default()),
@@ -220,7 +220,7 @@ pub async fn retrieve_merchant_routing_dictionary(
             "list_routing".to_string(),
         );
         result =
-            build_list_routing_result(&state, processor, &result, &de_result, profile_ids.clone())
+            build_list_routing_result(&state, platform, &result, &de_result, profile_ids.clone())
                 .await?;
     }
 
@@ -232,7 +232,7 @@ pub async fn retrieve_merchant_routing_dictionary(
 
 async fn build_list_routing_result(
     state: &SessionState,
-    processor: domain::Processor,
+    platform: domain::Platform,
     hs_results: &[routing_types::RoutingDictionaryRecord],
     de_results: &[routing_types::RoutingDictionaryRecord],
     profile_ids: Vec<common_utils::id_type::ProfileId>,
@@ -245,7 +245,7 @@ async fn build_list_routing_result(
         let de_result_for_profile = de_results.iter().filter(by_profile).cloned().collect();
         let hs_result_for_profile = hs_results.iter().filter(by_profile).cloned().collect();
         let business_profile =
-            core_utils::validate_and_get_business_profile(db, &processor, Some(profile_id))
+            core_utils::validate_and_get_business_profile(db, platform.get_processor(), Some(profile_id))
                 .await?
                 .get_required_value("Profile")
                 .change_context(errors::ApiErrorResponse::ProfileNotFound {
@@ -1347,7 +1347,7 @@ pub async fn retrieve_routing_config_under_profile(
 #[cfg(feature = "v1")]
 pub async fn retrieve_linked_routing_config(
     state: SessionState,
-    processor: domain::Processor,
+    platform: domain::Platform,
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     query_params: routing_types::RoutingRetrieveLinkQuery,
     transaction_type: enums::TransactionType,
@@ -1355,12 +1355,12 @@ pub async fn retrieve_linked_routing_config(
     metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(1, &[]);
 
     let db = state.store.as_ref();
-    let merchant_key_store = processor.get_key_store();
-    let merchant_id = processor.get_account().get_id();
+    let merchant_key_store = platform.get_processor().get_key_store();
+    let merchant_id = platform.get_processor().get_account().get_id();
 
     // Get business profiles
     let business_profiles = if let Some(profile_id) = query_params.profile_id {
-        core_utils::validate_and_get_business_profile(db, &processor, Some(&profile_id))
+        core_utils::validate_and_get_business_profile(db, platform.get_processor(), Some(&profile_id))
             .await?
             .map(|profile| vec![profile])
             .get_required_value("Profile")
