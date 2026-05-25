@@ -5,6 +5,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    mandates,
     payment_method_data::PaymentMethodData,
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
@@ -1112,14 +1113,16 @@ fn get_processing_info(
             .as_ref()
             .and_then(|mandate| mandate.mandate_reference_id.clone())
         {
-            Some(api_models::payments::MandateReferenceId::NetworkMandateId(
-                network_transaction_id,
-            )) => Ok(VantivMandateDetail {
-                processing_type: Some(VantivProcessingType::MerchantInitiatedCOF),
-                network_transaction_id: Some(network_transaction_id.network_transaction_id.into()),
-                token: None,
-            }),
-            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
+            Some(mandates::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
+                Ok(VantivMandateDetail {
+                    processing_type: Some(VantivProcessingType::MerchantInitiatedCOF),
+                    network_transaction_id: Some(
+                        network_transaction_id.network_transaction_id.into(),
+                    ),
+                    token: None,
+                })
+            }
+            Some(mandates::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
                 let network_transaction_id =
                     mandate_data
                         .get_mandate_metadata()
@@ -2370,7 +2373,7 @@ impl From<TokenResponse> for MandateReference {
     }
 }
 
-impl From<&AccountUpdaterCardTokenInfo> for api_models::payments::UpdatedMandateDetails {
+impl From<&AccountUpdaterCardTokenInfo> for mandates::UpdatedMandateDetails {
     fn from(token_data: &AccountUpdaterCardTokenInfo) -> Self {
         let card_exp_month = token_data
             .exp_date
@@ -2412,7 +2415,7 @@ impl From<WorldpayvativCardType> for common_enums::CardNetwork {
 
 impl From<AccountUpdaterCardTokenInfo> for MandateReference {
     fn from(token_data: AccountUpdaterCardTokenInfo) -> Self {
-        let mandate_metadata = api_models::payments::UpdatedMandateDetails::from(&token_data);
+        let mandate_metadata = mandates::UpdatedMandateDetails::from(&token_data);
 
         let mandate_metadata_json = serde_json::to_value(&mandate_metadata)
             .inspect_err(|_| {
