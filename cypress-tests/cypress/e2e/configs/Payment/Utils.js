@@ -572,6 +572,7 @@ export const CONNECTOR_LISTS = {
     VOUCHER: ["adyen"],
     RELAY_OPERATIONS: ["bankofamerica"],
     PAY_LATER: ["klarna", "adyen", "aci", "stripe", "airwallex", "mollie"],
+    AFFIRM: ["stripe"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     STEP_UP_AUTH: ["cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
