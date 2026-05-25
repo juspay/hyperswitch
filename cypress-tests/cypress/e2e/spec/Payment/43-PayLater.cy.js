@@ -166,6 +166,4 @@ describe("PayLater tests", () => {
       });
     });
   });
-
-
 });
