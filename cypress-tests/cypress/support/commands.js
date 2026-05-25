@@ -9125,7 +9125,7 @@ Cypress.Commands.add(
     if (sdkAuth) {
       try {
         sdkAuthObj = JSON.parse(atob(sdkAuth));
-      } catch (e) {
+      } catch {
         sdkAuthObj = {};
       }
     }
@@ -9134,7 +9134,7 @@ Cypress.Commands.add(
       sdkAuthObj.publishable_key || globalState.get("publishableKey");
     const clientSecret =
       sdkAuthObj.client_secret || globalState.get("clientSecret");
-    const clientSessionId = sdkAuthObj.client_session_id || "";
+
     let authorizationHeader;
     if (overrideSdkAuth === "missing_session") {
       authorizationHeader = btoa(
