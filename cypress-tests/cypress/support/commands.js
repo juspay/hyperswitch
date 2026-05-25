@@ -9121,36 +9121,36 @@ Cypress.Commands.add(
     }
 
     const sdkAuth = globalState.get("sdkAuthorization") || "";
-    let sdkAuthObj = {};
+    const authParts = {};
     if (sdkAuth) {
-      try {
-        sdkAuthObj = JSON.parse(atob(sdkAuth));
-      } catch {
-        sdkAuthObj = {};
-      }
+      const decodedSdkAuth = atob(sdkAuth);
+      decodedSdkAuth.split(",").forEach((part) => {
+        const [key, ...valueParts] = part.split("=");
+        authParts[key.trim()] = valueParts.join("=").trim();
+      });
     }
 
     const publishableKey =
-      sdkAuthObj.publishable_key || globalState.get("publishableKey");
+      authParts["publishable_key"] || globalState.get("publishableKey");
     const clientSecret =
-      sdkAuthObj.client_secret || globalState.get("clientSecret");
+      authParts["client_secret"] || globalState.get("clientSecret");
+    const profileIdFromAuth = authParts["profile_id"];
+    const customerIdFromAuth = authParts["customer_id"];
+    const paymentIdFromAuth = authParts["payment_id"];
 
     let authorizationHeader;
     if (overrideSdkAuth === "missing_session") {
-      authorizationHeader = btoa(
-        JSON.stringify({
-          publishable_key: publishableKey,
-          client_secret: clientSecret,
-        })
-      );
+      let header = `publishable_key=${publishableKey},client_secret=${clientSecret}`;
+      if (profileIdFromAuth) header += `,profile_id=${profileIdFromAuth}`;
+      if (customerIdFromAuth) header += `,customer_id=${customerIdFromAuth}`;
+      if (paymentIdFromAuth) header += `,payment_id=${paymentIdFromAuth}`;
+      authorizationHeader = btoa(header);
     } else if (overrideSdkAuth === "invalid_session") {
-      authorizationHeader = btoa(
-        JSON.stringify({
-          publishable_key: publishableKey,
-          client_secret: clientSecret,
-          client_session_id: "cs_invalid_tampered_session_id",
-        })
-      );
+      let header = `publishable_key=${publishableKey},client_secret=${clientSecret},client_session_id=cs_invalid_tampered_session_id`;
+      if (profileIdFromAuth) header += `,profile_id=${profileIdFromAuth}`;
+      if (customerIdFromAuth) header += `,customer_id=${customerIdFromAuth}`;
+      if (paymentIdFromAuth) header += `,payment_id=${paymentIdFromAuth}`;
+      authorizationHeader = btoa(header);
     } else if (
       overrideSdkAuth &&
       overrideSdkAuth !== "missing_session" &&
