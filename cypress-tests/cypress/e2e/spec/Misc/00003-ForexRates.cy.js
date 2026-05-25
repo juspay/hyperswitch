@@ -26,10 +26,7 @@ const baseUrl = Cypress.env("CYPRESS_BASEURL") || Cypress.env("BASEURL");
         return cy
           .merchantCreateCallTest(fixtures.merchantCreateBody, globalState)
           .then(() => {
-            return cy.apiKeyCreateTest(
-              fixtures.apiKeyCreateBody,
-              globalState
-            );
+            return cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
           })
           .then(() => {
             return cy.createCustomerCallTest(
@@ -111,7 +108,13 @@ const baseUrl = Cypress.env("CYPRESS_BASEURL") || Cypress.env("BASEURL");
 
     context("Missing Required Params Tests", () => {
       it("should fail to convert without amount", () => {
-        cy.convertCurrencyMissingParam("amount", 100, "USD", "EUR", globalState);
+        cy.convertCurrencyMissingParam(
+          "amount",
+          100,
+          "USD",
+          "EUR",
+          globalState
+        );
       });
 
       it("should fail to convert without from_currency", () => {
