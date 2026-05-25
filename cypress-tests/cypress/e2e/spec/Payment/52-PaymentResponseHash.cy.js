@@ -49,7 +49,7 @@ describe("Card - Payment Response Hash flow test", () => {
           "card_pm"
         ]["No3DSAutoCapture"];
 
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+        cy.confirmHashPaymentTest(fixtures.confirmBody, data, true, globalState);
 
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;

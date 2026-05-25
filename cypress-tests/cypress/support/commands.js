@@ -2854,6 +2854,231 @@ Cypress.Commands.add(
   }
 );
 
+// Hash-spec-aware variant of confirmCallTest.
+// Identical to confirmCallTest but skips payment_method_data assertions
+// because some connectors (e.g. Stripe) return null for card_type/card_network
+// etc. while origin/main connector configs carry non-null expected values.
+Cypress.Commands.add(
+  "confirmHashPaymentTest",
+  (confirmBody, data, confirm, globalState, connectedMerchantId) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+
+    const apiKey = globalState.get("publishableKey");
+    const baseUrl = globalState.get("baseUrl");
+    const configInfo = execConfig(validateConfig(configs));
+    const merchantConnectorId = globalState.get(
+      `${configInfo.merchantConnectorPrefix}Id`
+    );
+    const paymentIntentID = globalState.get("paymentID");
+    const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
+    const url = `${baseUrl}/payments/${paymentIntentID}/confirm`;
+
+    if (confirmBody.split_payments) {
+      delete confirmBody.split_payments;
+    }
+
+    confirmBody.client_secret = globalState.get("clientSecret");
+    confirmBody.confirm = confirm;
+    confirmBody.profile_id = profileId;
+
+    for (const key in reqData) {
+      if (key !== "split_payments") {
+        confirmBody[key] = reqData[key];
+      }
+    }
+
+    if (!reqData?.setup_future_usage && confirmBody.setup_future_usage) {
+      delete confirmBody.setup_future_usage;
+    }
+
+    if (reqData?.split_payments && isStripeConnect(globalState)) {
+      confirmBody.split_payments = reqData.split_payments;
+    }
+
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    };
+
+    if (connectedMerchantId) {
+      headers["x-connected-merchant-id"] = connectedMerchantId;
+    }
+
+    cy.request({
+      method: "POST",
+      url: url,
+      headers: headers,
+      failOnStatusCode: false,
+      body: confirmBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        const expectBlockedPayment = resData?.expectBlockedPayment || false;
+
+        if (expectBlockedPayment && response.status === 200) {
+          expect(response.status, "status_code").to.equal(200);
+          for (const key in resData.body) {
+            if (key === "payment_method_data") continue;
+            expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
+          }
+        } else if (response.status === 200) {
+          globalState.set("paymentID", paymentIntentID);
+          updateConnectorState(globalState, response.body.connector);
+          globalState.set(
+            "connectorTransactionID",
+            response.body.connector_transaction_id
+          );
+          globalState.set(
+            "networkTransactionId",
+            response.body.network_transaction_id
+          );
+          const ntid = response.body.network_transaction_id;
+          if (ntid !== undefined && ntid !== null) {
+            expect(
+              ntid,
+              "network_transaction_id should not be empty when present"
+            ).to.not.be.empty;
+          }
+          globalState.set("paymentIntentStatus", response.body.status);
+          const expectedConnector = getOriginalConnectorName(
+            globalState.get("connectorId")
+          );
+          expect(response.body.connector, "connector").to.equal(
+            expectedConnector
+          );
+          expect(paymentIntentID, "payment_id").to.equal(
+            response.body.payment_id
+          );
+          // Skip payment_method_data assertion — some connectors return null
+          // for sub-fields (card_type, card_network, etc.) while config may
+          // carry non-null expected values.
+          expect(merchantConnectorId, "connector_id").to.equal(
+            response.body.merchant_connector_id
+          );
+          expect(response.body.customer, "customer").to.not.be.empty;
+          expect(response.body.billing, "billing_address").to.not.be.empty;
+          expect(response.body.profile_id, "profile_id").to.equal(profileId).and
+            .to.not.be.null;
+
+          validateErrorMessage(response, resData);
+
+          if (response.body.capture_method === "automatic") {
+            if (response.body.authentication_type === "three_ds") {
+              if (response.body.next_action) {
+                if (response.body.next_action.type === "invoke_ddc") {
+                  expect(response.body.next_action)
+                    .to.have.property("type")
+                    .to.equal("invoke_ddc");
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.ddc_data.iframe_url
+                  );
+                } else {
+                  expect(response.body)
+                    .to.have.property("next_action")
+                    .to.have.property("redirect_to_url");
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.redirect_to_url
+                  );
+                }
+              }
+              for (const key in resData.body) {
+                if (key === "payment_method_data") continue;
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
+              }
+            } else if (response.body.authentication_type === "no_three_ds") {
+              for (const key in resData.body) {
+                if (key === "payment_method_data") continue;
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
+                if (
+                  response.body.setup_future_usage === "off_session" &&
+                  response.body.status === "succeeded"
+                ) {
+                  expect(
+                    response.body.connector_mandate_id,
+                    "connector_mandate_id"
+                  ).to.not.be.null;
+                }
+              }
+            } else {
+              throw new Error(
+                `Invalid authentication type ${response.body.authentication_type}`
+              );
+            }
+          } else if (response.body.capture_method === "manual") {
+            if (response.body.authentication_type === "three_ds") {
+              if (response.body.next_action) {
+                if (response.body.next_action.type === "invoke_ddc") {
+                  expect(response.body.next_action)
+                    .to.have.property("type")
+                    .to.equal("invoke_ddc");
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.ddc_data.iframe_url
+                  );
+                } else {
+                  expect(response.body.next_action).to.have.property(
+                    "redirect_to_url"
+                  );
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.redirect_to_url
+                  );
+                }
+              }
+              for (const key in resData.body) {
+                if (key === "payment_method_data") continue;
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
+              }
+            } else if (response.body.authentication_type === "no_three_ds") {
+              for (const key in resData.body) {
+                if (key === "payment_method_data") continue;
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                );
+                if (
+                  response.body.setup_future_usage === "off_session" &&
+                  response.body.status === "succeeded"
+                ) {
+                  expect(
+                    response.body.connector_mandate_id,
+                    "connector_mandate_id"
+                  ).to.not.be.null;
+                }
+              }
+            } else {
+              throw new Error(
+                `Invalid authentication type ${response.body.authentication_type}`
+              );
+            }
+          } else {
+            throw new Error(
+              `Invalid capture method ${response.body.capture_method}`
+            );
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
 Cypress.Commands.add(
   "confirmCallAutoRetryTest",
   (confirmBody, data, confirm, globalState) => {

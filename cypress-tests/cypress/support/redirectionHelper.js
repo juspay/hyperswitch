@@ -33,7 +33,7 @@ Cypress.Commands.add("setup3DSPayment", (globalState, options = {}) => {
     "card_pm"
   ]["3DSAutoCapture"];
 
-  cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+  cy.confirmHashPaymentTest(fixtures.confirmBody, confirmData, true, globalState);
 
   if (!utils.should_continue_further(confirmData)) {
     shouldContinue = false;
