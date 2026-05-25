@@ -27,7 +27,7 @@ env:
   EXTENDED_PAYMENTS_CONNECTORS_BATCH_1: "bluesnap gigadat loonio nmi"
   EXTENDED_PAYMENTS_CONNECTORS_BATCH_2: "paypal redsys zift"
   EXTENDED_PAYOUTS_CONNECTORS: "adyenplatform wise"
-  MOCK_PAYMENTS_CONNECTORS: "bluesnap gigadat zift loonio"
+  MOCK_PAYMENTS_CONNECTORS: "bluesnap gigadat zift loonio cashtocode"
   MOCK_PAYMENTS_CONNECTORS_BATCH_2: "redsys nmi paypal"
   MOCK_PAYOUTS_CONNECTORS: "adyenplatform wise"
   RUST_BACKTRACE: short
@@ -742,7 +742,7 @@ jobs:
                   "payments_connectors": "'"${MOCK_PAYMENTS_CONNECTORS}"'",
                   "payouts_connectors": "",
                   "platform_connectors": "",
-                  "parallel": 4,
+                  "parallel": 5,
                   "report_artifact_name": "cypress-mock-test-results-payments",
                   "server_logs_artifact": "mock-server-logs-payments"
                 }
@@ -1123,6 +1123,44 @@ jobs:
           path: |
             cypress-tests/cypress/reports/
           retention-days: 1
+
+  mitm-cassette-replay-cypress-tests-consolidated-result:
+    name: MITM Mock Cypress Tests — Consolidated Result
+    needs: [mitm-cassette-replay-cypress-tests]
+    if: |
+      github.event_name == 'merge_group' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Evaluate Matrix Results
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RESULT="${{ needs.mitm-cassette-replay-cypress-tests.result }}"
+          RUN_TESTS_VAL="${{ env.RUN_TESTS }}"
+
+          echo "mitm-cassette-replay-cypress-tests result: $RESULT"
+          echo "Run tests env: $RUN_TESTS_VAL"
+
+          if [ "$RUN_TESTS_VAL" == "false" ]; then
+            echo "Tests were skipped (Fork PR). Marking as success."
+            exit 0
+          fi
+
+          if [ "$RESULT" == "success" ]; then
+            echo "All MITM mock tests passed."
+            exit 0
+          else
+            echo "MITM mock tests failed."
+            if [ "${{ github.event_name }}" != "merge_group" ]; then
+              echo "Removing 'S-test-ready' label from the PR."
+              gh pr edit ${{ github.event.pull_request.number }} --remove-label "S-test-ready" --repo ${{ github.repository }}
+            fi
+            exit 1
+          fi
 
   prepare-optional-matrix:
     name: Prepare Optional Connectors matrix to run cypress tests
