@@ -431,6 +431,7 @@ export const CONNECTOR_LISTS = {
       "billwerk",
       "bluesnap",
       "braintree",
+      "cashtocode",
       "facilitapay",
       "fiserv",
       "fiuu",
