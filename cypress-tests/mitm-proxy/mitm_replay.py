@@ -1,22 +1,15 @@
 """
 mitmproxy replay addon.
 
-Serves cassettes recorded by mitm_capture.py back to Hyperswitch when it
-makes outbound connector calls.
+Serves cassettes recorded by mitm_capture.py back to Hyperswitch on its
+outbound connector calls. Match key is x-request-id alone; cassettes sharing a
+rid are served in capture order via a per-rid cursor, reset on /test/start so
+Cypress retries replay from the start.
 
-  Match key : ``x-request-id`` alone. Connector, host, path are ignored
-              (path can be dynamic — payment IDs, transaction IDs, etc.).
-  Fan-out   : when multiple cassettes share a rid, they're served in
-              capture order via a per-rid cursor.
-  Retries   : on /test/start, cursors are reset for every rid whose
-              testHash matches — so Cypress retries in MOCK_SERVER mode
-              replay correctly from offset 0 again.
+Permissive (default): MISS / unknown-rid → live connector.
+Strict (REPLAY_STRICT=1): MISS / unknown-rid → synthetic 599, never live.
 
-  Permissive (default) : MISS / unknown-rid → request goes to live connector.
-  Strict (REPLAY_STRICT=1) : MISS / unknown-rid → synthetic 599, never live.
-
-Run with:
-    mitmdump -s mitm_replay.py --listen-port 8888
+Run: mitmdump -s mitm_replay.py --listen-port 8888
 """
 
 import base64
@@ -38,7 +31,7 @@ STRICT_MODE = os.environ.get("REPLAY_STRICT", "").strip().lower() in (
     "1", "true", "yes", "on",
 )
 
-# Headers mitmproxy manages itself — don't replay them from the recording.
+# Headers mitmproxy manages itself — don't replay them.
 _RESERVED_HEADERS = frozenset({"content-length", "transfer-encoding", "connection"})
 
 
@@ -48,12 +41,8 @@ def hash_from_rid(rid: str) -> str:
 
 # ───── cassette store ─────
 class CassetteStore:
-    """Cassettes indexed by rid → ordered list of responses.
-
-    A per-rid cursor advances as cassettes are served. The cursor resets
-    on /test/start for that rid's testHash, so Cypress retries in
-    MOCK_SERVER mode replay deterministically from the beginning.
-    """
+    """Cassettes indexed by rid → ordered responses, served via a per-rid
+    cursor that resets on /test/start (clean Cypress retry replay)."""
 
     def __init__(self, capture_dir: str):
         self._capture_dir = capture_dir
@@ -64,10 +53,8 @@ class CassetteStore:
     def load(self) -> None:
         """Load all cassettes from disk into rid → [response, …]."""
         pattern = os.path.join(self._capture_dir, "**", "*.json")
-        # Two-pass: collect by rid, then sort each rid's list by sequence.
-        # File names like ``{rid}-{seq:02d}.json`` sort lexically into
-        # capture order, but we read ``sequence`` from the JSON to be
-        # robust against legacy filenames that lack the seq suffix.
+        # Collect by rid, then sort each rid's list by the "sequence" field
+        # (robust against legacy filenames without the seq suffix).
         by_rid: dict[str, list[tuple[int, dict]]] = defaultdict(list)
         skipped = 0
         for fpath in glob.glob(pattern, recursive=True):
@@ -153,8 +140,7 @@ def _strict_block(reason: str, tag: str) -> http.Response:
 
 # ───── admin server ─────
 class AdminHandler(BaseHTTPRequestHandler):
-    """Receives Cypress /test/start to reset cursors for that test's
-    rids (enables clean Cypress retry replay). /test/end is a no-op."""
+    """Cypress /test/start resets cursors for that test's rids; /test/end is a no-op."""
 
     def _send(self, code, payload):
         self.send_response(code)
@@ -198,18 +184,13 @@ print(f"[replay] mode {'STRICT (no live fallthrough)' if STRICT_MODE else 'permi
 
 # ───── mitmproxy hook ─────
 def http_connect(flow: http.HTTPFlow) -> None:
-    """
-    In replay mode we serve recordings and never (or rarely) need to reach
-    the real connector.  Accept CONNECT tunnels locally so the addon can
-    intercept the inner HTTPS requests.  The downstream request() hook
-    decides HIT / MISS / LIVE based on cassette availability and mode.
-    """
+    """Accept CONNECT tunnels locally so we can intercept the inner HTTPS;
+    request() then decides HIT / MISS / LIVE."""
     flow.response = http.Response.make(200, b"", {})
 
 
 def request(flow: http.HTTPFlow) -> None:
-    # x-connector is the only gate: "is this a Hyperswitch outbound
-    # to a connector?" If not, pass through untouched.
+    # Gate: only handle Hyperswitch → connector outbounds (tagged x-connector).
     if not flow.request.headers.get("x-connector", "").strip():
         return
 

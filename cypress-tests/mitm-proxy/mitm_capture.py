@@ -1,31 +1,13 @@
 """
 mitmproxy capture addon.
 
-Records all Hyperswitch outbound HTTP into JSON cassettes grouped by the
-Cypress test that issued the call.
+Records Hyperswitch outbound HTTP into JSON cassettes grouped by the Cypress
+test that issued the call. Grouping key is testIdHash (hash of connector +
+titlePath, sent on /test/start); every outbound carries
+X-Request-ID: {testIdHash}-{NNN}, so calls are attributed to their test even
+when they land after /test/end (e.g. async vault writes).
 
-Grouping is by ``testIdHash`` — a stable hash of
-``(CYPRESS_CONNECTOR, titlePath)`` sent by Cypress on /test/start. Every
-outbound during the test carries ``X-Request-ID: {testIdHash}-{NNN}``
-(Hyperswitch propagates the incoming id to its outbound calls with
-``id_reuse_strategy = use_incoming``), so we can attribute calls back to
-the test that issued them — even when they land asynchronously long
-after /test/end (e.g. External Vault save-card vault writes that defer).
-
-  Filename : {OUT_DIR}/{cypress_connector}/{rel_path}/{rid}-{seq:02d}.json
-  Match key on replay : rid alone (handled by mitm_replay.py)
-  Fan-out  : multiple outbounds sharing one rid → seq=00, 01, 02 in
-             capture order; replay serves in the same order.
-  Retries  : on /test/start, prior cassettes for that testHash in the
-             same folder are wiped so a Cypress retry produces a clean
-             set rather than appending alongside the failed run.
-
-Skipped:
-  - No X-Request-ID (cannot match anything on replay).
-  - Rid not in {testHash}-{NNN} format (Hyperswitch background activity:
-    PSync schedulers, webhook handlers — not Cypress-driven, not
-    replayable since the UUID changes every run).
-  - testHash never registered via /test/start (orphan).
+Skipped: no/foreign X-Request-ID, or a testHash never registered via /test/start.
 """
 
 import base64
@@ -51,7 +33,7 @@ BASE_URLS = [
 ADMIN_PORT = int(os.environ.get("ADMIN_PORT", "8001"))
 
 _SPEC_EXTENSIONS = (".cy.js", ".cy.ts", ".spec.js", ".spec.ts")
-# Cypress rid format: 8 hex chars (djb2 hash) + "-" + 3 digits (stepCounter).
+# rid format: 8 hex chars (hash) + "-" + 3 digits (step counter).
 _CYPRESS_RID = re.compile(r"^[0-9a-fA-F]{8}-\d{3}$")
 
 
@@ -68,8 +50,7 @@ class TestContext:
 
 _lock = threading.Lock()
 _tests_by_hash: dict[str, TestContext] = {}
-# Per-rid sequence counter for the *current* run of a test. Cleared on
-# /test/start (so a retry starts at seq=00 again, overwriting cleanly).
+# Per-rid seq counter; cleared on /test/start so retries restart at 00.
 _seq_by_rid: dict[str, int] = {}
 
 
@@ -137,13 +118,7 @@ def encode_body(content: bytes, content_type: str = ""):
 
 
 def wipe_test_cassettes(folder: str, test_hash: str) -> int:
-    """Delete prior cassettes for this testHash so a re-run starts clean.
-
-    Matches both the new ``{hash}-NNN-SS.json`` layout and any legacy
-    ``{hash}-NNN.json`` files lingering from earlier capture formats.
-    Sibling tests (different it()s in the same context folder) keep
-    their files — only this testHash's prefix is wiped.
-    """
+    """Delete prior cassettes for this testHash so a re-run starts clean."""
     if not os.path.isdir(folder):
         return 0
     removed = 0
@@ -196,10 +171,8 @@ class AdminHandler(BaseHTTPRequestHandler):
             with _lock:
                 prior = _tests_by_hash.get(test_id_hash)
                 if prior is not None and prior.folder != folder:
-                    # Same testIdHash, different folder → two spec files share
-                    # an identical titlePath. Their rids collide, and replay
-                    # (which indexes by rid alone) merges both folders' cassettes
-                    # into a bogus fan-out. Root fix: include the spec in the
+                    # Same hash, different folder: two specs share a titlePath,
+                    # so their rids collide on replay. Fix: include spec in the
                     # Cypress-side hash (cypress/support/e2e.js).
                     print(
                         f"[capture] ⚠ COLLISION: testIdHash {test_id_hash} reused across specs\n"
@@ -210,8 +183,7 @@ class AdminHandler(BaseHTTPRequestHandler):
                 _tests_by_hash[test_id_hash] = TestContext(
                     test=test, spec=spec, connector=connector, folder=folder,
                 )
-                # Drop seq counters for this test's rids so the next run
-                # starts at seq=00 and the wipe + write produce a tidy set.
+                # Reset this test's seq counters so the next run starts at 00.
                 for rid in [r for r in _seq_by_rid if hash_from_rid(r) == test_id_hash]:
                     del _seq_by_rid[rid]
 
@@ -220,9 +192,7 @@ class AdminHandler(BaseHTTPRequestHandler):
             self._send(200, {"ok": True})
 
         elif self.path == "/test/end":
-            # No-op. Map deliberately persists past /test/end — async
-            # outbounds (e.g. VGS vault writes) land long after the test
-            # ended and must still resolve to their issuing test.
+            # No-op: map persists past /test/end for async outbounds.
             self._send(200, {"ok": True})
 
         elif self.path == "/status":
@@ -249,15 +219,7 @@ def start_admin_server():
 
 # ───── mitmproxy hooks ─────
 def request(flow: http.HTTPFlow):
-    """Claim a per-rid ``sequence`` slot in request-send order.
-
-    Responses can complete out of order when Hyperswitch fans out (e.g.
-    a fast VGS call beats a slow bluesnap call). If we numbered seq in
-    response order, replay (which fires in request order and pops by
-    cursor) would hand the wrong cassette body to the wrong outbound.
-    Numbering in request order — which is what request() observes —
-    keeps capture-order and replay-order aligned.
-    """
+    """Claim a per-rid seq slot in request order so capture and replay stay aligned."""
     if not url_matches(flow.request.url):
         return
     rid = flow.request.headers.get("x-request-id", "").strip()
@@ -266,16 +228,14 @@ def request(flow: http.HTTPFlow):
     test_hash = hash_from_rid(rid)
     with _lock:
         if test_hash not in _tests_by_hash:
-            return  # orphan rid — response() will log and drop
+            return  # orphan rid
         seq = _seq_by_rid.get(rid, 0)
         _seq_by_rid[rid] = seq + 1
     flow.metadata["capture_seq"] = seq
 
 
 def response(flow: http.HTTPFlow):
-    # request() is the single gate: it decided whether to capture this
-    # flow and claimed its sequence slot. If capture_seq wasn't set, the
-    # flow isn't ours to record (filtered, orphan, or non-Cypress rid).
+    # request() is the gate: if it didn't set capture_seq, this flow isn't ours.
     seq = flow.metadata.get("capture_seq")
     if seq is None:
         return
@@ -283,8 +243,6 @@ def response(flow: http.HTTPFlow):
     rid = flow.request.headers["x-request-id"].strip()
     test_hash = hash_from_rid(rid)
     with _lock:
-        # Always present: request() verified the entry, and entries are
-        # only ever added to _tests_by_hash, never removed.
         ctx = _tests_by_hash[test_hash]
 
     req = flow.request
