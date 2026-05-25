@@ -10,6 +10,16 @@ set -euo pipefail
 PROXY_PORT="${PROXY_PORT:-8888}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# ── Verify required tooling is installed ──────────────────────────────────
+for _tool in uv mitmdump; do
+  if ! command -v "${_tool}" >/dev/null 2>&1; then
+    echo "ERROR: required tool '${_tool}' not found on PATH." >&2
+    echo "       Install uv (https://docs.astral.sh/uv/getting-started/installation/) and" >&2
+    echo "       mitmproxy (https://docs.mitmproxy.org/stable/overview-installation/)." >&2
+    exit 1
+  fi
+done
+
 # ── Generate mitmproxy CA cert on first run ────────────────────────────────
 MITM_CERT_PATH="${HOME}/.mitmproxy/mitmproxy-ca-cert.pem"
 if [[ ! -f "${MITM_CERT_PATH}" ]]; then

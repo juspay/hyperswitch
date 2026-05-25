@@ -6,7 +6,6 @@ let globalState;
 
 describe("Card - SingleUse Mandates flow test", () => {
   before("seed global state", function () {
-    // Changed to regular function instead of arrow function
     let skip = false;
 
     cy.task("getGlobalState")

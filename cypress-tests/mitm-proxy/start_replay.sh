@@ -31,6 +31,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CAPTURE_DIR="${CAPTURE_DIR:-${SCRIPT_DIR}/captures}"
 export CAPTURE_DIR
 
+# ── Verify required tooling is installed ──────────────────────────────────
+for _tool in uv mitmdump; do
+  if ! command -v "${_tool}" >/dev/null 2>&1; then
+    echo "ERROR: required tool '${_tool}' not found on PATH." >&2
+    echo "       Install uv (https://docs.astral.sh/uv/getting-started/installation/) and" >&2
+    echo "       mitmproxy (https://docs.mitmproxy.org/stable/overview-installation/)." >&2
+    exit 1
+  fi
+done
+
 if [[ -z "$(find "${CAPTURE_DIR}" -name '*.json' 2>/dev/null)" ]]; then
   echo "ERROR: No cassettes found in ${CAPTURE_DIR}/. Record first (./start.sh) or set CAPTURE_DIR."
   exit 1
