@@ -94,6 +94,10 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                     payout_connector_metadata: new_payout_attempt.payout_connector_metadata.clone(),
                     processor_merchant_id: new_payout_attempt.processor_merchant_id.clone(),
                     created_by: new_payout_attempt.created_by.clone(),
+                    source_bank_data_token: new_payout_attempt.source_bank_data_token.clone(),
+                    additional_source_bank_data: new_payout_attempt
+                        .additional_source_bank_data
+                        .clone(),
                 };
 
                 let redis_entry = kv::TypedSql {
@@ -400,6 +404,17 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
             )
             .await
     }
+
+    async fn find_payout_attempts_by_merchant_id_payout_id(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payout_id: &common_utils::id_type::PayoutId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<PayoutAttempt>, Self::Error> {
+        self.router_store
+            .find_payout_attempts_by_merchant_id_payout_id(merchant_id, payout_id, storage_scheme)
+            .await
+    }
 }
 
 #[async_trait::async_trait]
@@ -547,6 +562,27 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
             er.change_context(new_err)
         })
     }
+
+    async fn find_payout_attempts_by_merchant_id_payout_id(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payout_id: &common_utils::id_type::PayoutId,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<PayoutAttempt>, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        DieselPayoutAttempt::find_by_merchant_id_payout_id(&conn, merchant_id, payout_id)
+            .await
+            .map(|attempts| {
+                attempts
+                    .into_iter()
+                    .map(PayoutAttempt::from_storage_model)
+                    .collect()
+            })
+            .map_err(|er| {
+                let new_err = diesel_error_to_data_error(*er.current_context());
+                er.change_context(new_err)
+            })
+    }
 }
 
 impl DataModelExt for PayoutAttempt {
@@ -580,6 +616,8 @@ impl DataModelExt for PayoutAttempt {
             payout_connector_metadata: self.payout_connector_metadata,
             processor_merchant_id: self.processor_merchant_id,
             created_by: self.created_by.map(|created_by| created_by.to_string()),
+            source_bank_data_token: self.source_bank_data_token,
+            additional_source_bank_data: self.additional_source_bank_data,
         }
     }
 
@@ -613,6 +651,8 @@ impl DataModelExt for PayoutAttempt {
             created_by: storage_model
                 .created_by
                 .and_then(|created_by| created_by.parse::<common_utils::types::CreatedBy>().ok()),
+            source_bank_data_token: storage_model.source_bank_data_token,
+            additional_source_bank_data: storage_model.additional_source_bank_data,
         }
     }
 }
@@ -647,6 +687,8 @@ impl DataModelExt for PayoutAttemptNew {
             payout_connector_metadata: self.payout_connector_metadata,
             processor_merchant_id: self.processor_merchant_id,
             created_by: self.created_by.map(|created_by| created_by.to_string()),
+            source_bank_data_token: self.source_bank_data_token,
+            additional_source_bank_data: self.additional_source_bank_data,
         }
     }
 
@@ -680,6 +722,8 @@ impl DataModelExt for PayoutAttemptNew {
             created_by: storage_model
                 .created_by
                 .and_then(|created_by| created_by.parse::<common_utils::types::CreatedBy>().ok()),
+            source_bank_data_token: storage_model.source_bank_data_token,
+            additional_source_bank_data: storage_model.additional_source_bank_data,
         }
     }
 }
@@ -729,10 +773,14 @@ impl DataModelExt for PayoutAttemptUpdate {
                 routing_info,
                 merchant_connector_id,
             },
-            Self::AdditionalPayoutMethodDataUpdate {
+            Self::AdditionalPayoutDataUpdate {
                 additional_payout_method_data,
-            } => DieselPayoutAttemptUpdate::AdditionalPayoutMethodDataUpdate {
+                additional_source_bank_data,
+                source_bank_data_token,
+            } => DieselPayoutAttemptUpdate::AdditionalPayoutDataUpdate {
                 additional_payout_method_data,
+                additional_source_bank_data,
+                source_bank_data_token,
             },
             Self::ManualUpdate {
                 status,

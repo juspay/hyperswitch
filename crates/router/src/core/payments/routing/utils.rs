@@ -14,10 +14,7 @@ use api_models::{
 };
 use async_trait::async_trait;
 use common_enums::TransactionType;
-use common_utils::{
-    ext_traits::{BytesExt, StringExt},
-    id_type,
-};
+use common_utils::{ext_traits::BytesExt, id_type};
 use diesel_models::{enums, routing_algorithm};
 use error_stack::ResultExt;
 use euclid::{
@@ -37,7 +34,7 @@ use serde::{Deserialize, Serialize};
 
 use super::RoutingResult;
 use crate::{
-    core::errors,
+    core::{configs::dimension_state, errors},
     db::domain,
     routes::{app::SessionStateInfo, SessionState},
     services::{self, logger},
@@ -1731,21 +1728,20 @@ fn stringify_choice(c: RoutableConnectorChoice) -> ConnectorInfo {
 
 pub async fn get_routing_result_source(
     state: &SessionState,
-    business_profile: &business_profile::Profile,
-) -> Option<api_routing::RoutingResultSource> {
-    state
-        .store
-        .find_config_by_key(&format!(
-            "routing_result_source_{0}",
-            business_profile.get_id().get_string_repr()
-        ))
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+) -> api_routing::RoutingResultSource {
+    // No customer_id and payment_id in call sites so passing Targeting key as None
+    dimensions
+        .get_routing_result_source(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
         .await
-        .map(|c| c.config.parse_enum("RoutingResultSource").ok())
-        .unwrap_or(None)
 }
-
 pub async fn select_routing_result<T>(
     state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     business_profile: &business_profile::Profile,
     hyperswitch_result: T,
     de_result: T,
@@ -1753,30 +1749,33 @@ pub async fn select_routing_result<T>(
 where
     T: Clone + IntoIterator,
 {
-    let routing_result_source = get_routing_result_source(state, business_profile).await;
+    let routing_result_source = get_routing_result_source(state, dimensions).await;
 
-    if let Some(api_routing::RoutingResultSource::DecisionEngine) = routing_result_source {
-        logger::debug!(
-            business_profile_id=?business_profile.get_id(),
-            "decision_engine_euclid: Using Decision Engine routing result"
-        );
-
-        let is_de_result_empty = de_result.clone().into_iter().next().is_none();
-        if is_de_result_empty {
+    match routing_result_source {
+        api_routing::RoutingResultSource::DecisionEngine => {
             logger::debug!(
                 business_profile_id=?business_profile.get_id(),
-                "decision_engine_euclid: DE result empty, falling back to Hyperswitch result"
+                "decision_engine_euclid: Using Decision Engine routing result"
+            );
+
+            let is_de_result_empty = de_result.clone().into_iter().next().is_none();
+            if is_de_result_empty {
+                logger::debug!(
+                    business_profile_id=?business_profile.get_id(),
+                    "decision_engine_euclid: DE result empty, falling back to Hyperswitch result"
+                );
+                hyperswitch_result
+            } else {
+                de_result
+            }
+        }
+        api_routing::RoutingResultSource::HyperswitchRouting => {
+            logger::debug!(
+                business_profile_id=?business_profile.get_id(),
+                "decision_engine_euclid: Using Hyperswitch routing result"
             );
             hyperswitch_result
-        } else {
-            de_result
         }
-    } else {
-        logger::debug!(
-            business_profile_id=?business_profile.get_id(),
-            "decision_engine_euclid: Using Hyperswitch routing result"
-        );
-        hyperswitch_result
     }
 }
 

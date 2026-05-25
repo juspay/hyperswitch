@@ -4,7 +4,8 @@ use std::collections::HashMap;
 use api_models::enums::PayoutConnectors;
 use api_models::{
     enums::{
-        AuthenticationConnectors, BillingConnectors, Connector, PmAuthConnectors, TaxConnectors,
+        AuthenticationConnectors, BillingConnectors, Connector, PmAuthConnectors,
+        SurchargeConnectors, TaxConnectors,
     },
     payments,
 };
@@ -281,7 +282,10 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub cybersource_payout: Option<ConnectorTomlConfig>,
     pub iatapay: Option<ConnectorTomlConfig>,
+    pub imerchantsolutions: Option<ConnectorTomlConfig>,
     pub itaubank: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub itaubank_payout: Option<ConnectorTomlConfig>,
     pub opennode: Option<ConnectorTomlConfig>,
     pub bambora: Option<ConnectorTomlConfig>,
     pub cybersourcedecisionmanager: Option<ConnectorTomlConfig>,
@@ -317,6 +321,7 @@ pub struct ConnectorConfig {
     pub hyperswitch_vault: Option<ConnectorTomlConfig>,
     pub hyperwallet: Option<ConnectorTomlConfig>,
     pub inespay: Option<ConnectorTomlConfig>,
+    pub interpayments: Option<ConnectorTomlConfig>,
     pub jpmorgan: Option<ConnectorTomlConfig>,
     pub klarna: Option<ConnectorTomlConfig>,
     pub loonio: Option<ConnectorTomlConfig>,
@@ -362,6 +367,7 @@ pub struct ConnectorConfig {
     pub rapyd: Option<ConnectorTomlConfig>,
     pub redsys: Option<ConnectorTomlConfig>,
     pub revolv3: Option<ConnectorTomlConfig>,
+    pub sanlam: Option<ConnectorTomlConfig>,
     pub santander: Option<ConnectorTomlConfig>,
     pub shift4: Option<ConnectorTomlConfig>,
     pub sift: Option<ConnectorTomlConfig>,
@@ -453,7 +459,7 @@ impl ConnectorConfig {
             PayoutConnectors::Worldpay => Ok(connector_data.worldpay_payout),
             PayoutConnectors::Worldpayxml => Ok(connector_data.worldpayxml_payout),
             PayoutConnectors::Envoy => Ok(connector_data.envoy_payout),
-            PayoutConnectors::Itaubank => Ok(connector_data.itaubank),
+            PayoutConnectors::Itaubank => Ok(connector_data.itaubank_payout),
         }
     }
 
@@ -495,6 +501,15 @@ impl ConnectorConfig {
         let connector_data = Self::new()?;
         match connector {
             TaxConnectors::Taxjar => Ok(connector_data.taxjar),
+        }
+    }
+
+    pub fn get_surcharge_processor_config(
+        connector: SurchargeConnectors,
+    ) -> Result<Option<ConnectorTomlConfig>, String> {
+        let connector_data = Self::new()?;
+        match connector {
+            SurchargeConnectors::Interpayments => Ok(connector_data.interpayments),
         }
     }
 
@@ -625,11 +640,13 @@ impl ConnectorConfig {
             Connector::Tokenex => Ok(connector_data.tokenex),
             Connector::Tokenio => Ok(connector_data.tokenio),
             Connector::Truelayer => Ok(connector_data.truelayer),
+            Connector::Sanlam => Ok(connector_data.sanlam),
             Connector::Trustly => Ok(connector_data.trustly),
             Connector::Trustpay => Ok(connector_data.trustpay),
             Connector::Trustpayments => Ok(connector_data.trustpayments),
             Connector::Threedsecureio => Ok(connector_data.threedsecureio),
             Connector::Taxjar => Ok(connector_data.taxjar),
+            Connector::Interpayments => Ok(connector_data.interpayments),
             Connector::Tsys => Ok(connector_data.tsys),
             Connector::Vgs => Ok(connector_data.vgs),
             Connector::Volt => Ok(connector_data.volt),
@@ -664,6 +681,7 @@ impl ConnectorConfig {
             Connector::Phonepe => Ok(connector_data.phonepe),
             Connector::Payjustnow => Ok(connector_data.payjustnow),
             Connector::Payjustnowinstore => Ok(connector_data.payjustnowinstore),
+            Connector::Imerchantsolutions => Ok(connector_data.imerchantsolutions),
         }
     }
 }

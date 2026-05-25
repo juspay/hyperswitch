@@ -48,9 +48,7 @@ impl ProxyRequestWrapper {
                     payment_method_id: token.clone(),
                 };
                 let pm_id =
-                    id_type::GlobalPaymentMethodId::generate_from_string(pm_id.payment_method_id)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+                    id_type::GlobalPaymentMethodId::generate_from_string(pm_id.payment_method_id);
 
                 let payment_method_record = state
                     .store
@@ -236,6 +234,7 @@ impl ProxyRecord {
                     &platform,
                     &self.get_vault_id()?,
                     &customer_id,
+                    payment_method.payment_method_type,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)

@@ -13,7 +13,8 @@ use common_utils::{
     ext_traits::{OptionExt, StringExt},
     id_type,
     new_type::{
-        MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
+        MaskedBankAccount, MaskedBranchCode, MaskedIban, MaskedRoutingNumber, MaskedSortCode,
+        MaskedUpiVpaId,
     },
     payout_method_utils,
     pii::{self, Email},
@@ -126,6 +127,10 @@ pub struct NetworkTransactionIdAndCardDetails {
     /// The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),
     /// when `setup_future_usage` is set to `off_session`.
     pub network_transaction_id: Secret<String>,
+
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
+    pub transaction_link_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -166,6 +171,10 @@ pub struct NetworkTransactionIdAndNetworkTokenDetails {
     /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
     /// when `setup_future_usage` is set to `off_session`.
     pub network_transaction_id: Secret<String>,
+
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
+    pub transaction_link_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -656,10 +665,15 @@ impl CardDetailsForNetworkTransactionId {
         network_transaction_id_and_card_details: NetworkTransactionIdAndCardDetails,
     ) -> (api_models::payments::MandateReferenceId, PaymentMethodData) {
         let mandate_reference_id = api_models::payments::MandateReferenceId::NetworkMandateId(
-            network_transaction_id_and_card_details
-                .network_transaction_id
-                .peek()
-                .to_string(),
+            api_models::payments::NetworkMandateIdRef {
+                network_transaction_id: network_transaction_id_and_card_details
+                    .network_transaction_id
+                    .peek()
+                    .to_string(),
+                transaction_link_id: network_transaction_id_and_card_details
+                    .transaction_link_id
+                    .clone(),
+            },
         );
 
         (
@@ -676,10 +690,15 @@ impl NetworkTokenDetailsForNetworkTransactionId {
         network_transaction_id_and_network_token_details: NetworkTransactionIdAndNetworkTokenDetails,
     ) -> (api_models::payments::MandateReferenceId, PaymentMethodData) {
         let mandate_reference_id = api_models::payments::MandateReferenceId::NetworkMandateId(
-            network_transaction_id_and_network_token_details
-                .network_transaction_id
-                .peek()
-                .to_string(),
+            api_models::payments::NetworkMandateIdRef {
+                network_transaction_id: network_transaction_id_and_network_token_details
+                    .network_transaction_id
+                    .peek()
+                    .to_string(),
+                transaction_link_id: network_transaction_id_and_network_token_details
+                    .transaction_link_id
+                    .clone(),
+            },
         );
 
         (
@@ -696,10 +715,15 @@ impl DecryptedWalletTokenDetailsForNetworkTransactionId {
         network_transaction_id_and_decrypted_wallet_token_details: common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDetails,
     ) -> (api_models::payments::MandateReferenceId, PaymentMethodData) {
         let mandate_reference_id = api_models::payments::MandateReferenceId::NetworkMandateId(
-            network_transaction_id_and_decrypted_wallet_token_details
-                .network_transaction_id
-                .peek()
-                .to_string(),
+            api_models::payments::NetworkMandateIdRef {
+                network_transaction_id: network_transaction_id_and_decrypted_wallet_token_details
+                    .network_transaction_id
+                    .peek()
+                    .to_string(),
+                transaction_link_id: network_transaction_id_and_decrypted_wallet_token_details
+                    .transaction_link_id
+                    .clone(),
+            },
         );
 
         (
@@ -1412,6 +1436,13 @@ pub enum BankDebitData {
         sort_code: Secret<String>,
         bank_account_holder_name: Option<Secret<String>>,
     },
+    EftDebitOrder {
+        account_number: Secret<String>,
+        branch_code: Option<Secret<String>>,
+        bank_account_holder_name: Option<Secret<String>>,
+        bank_name: Option<common_enums::BankNames>,
+        bank_type: Option<common_enums::BankType>,
+    },
 }
 
 impl BankDebitData {
@@ -1451,6 +1482,7 @@ impl BankDebitData {
             Self::SepaBankDebit { .. }
             | Self::SepaGuarenteedBankDebit { .. }
             | Self::BecsBankDebit { .. }
+            | Self::EftDebitOrder { .. }
             | Self::BacsBankDebit { .. } => None,
         }
     }
@@ -1599,6 +1631,33 @@ impl From<BankDebitDetail> for payment_methods::BankDebitDetail {
                 bank_type,
                 bank_holder_type,
                 bank_name,
+            },
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum WalletDetail {
+    ApplePayDecryptedData {
+        application_primary_account_number: cards::CardNumber,
+        expiry_month: Secret<String>,
+        expiry_year: Secret<String>,
+    },
+}
+
+#[cfg(feature = "v1")]
+impl From<payment_methods::WalletDetail> for WalletDetail {
+    fn from(wallet: payment_methods::WalletDetail) -> Self {
+        match wallet {
+            payment_methods::WalletDetail::ApplePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            } => Self::ApplePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
             },
         }
     }
@@ -1767,6 +1826,14 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
                 bank_name,
                 bank_type,
                 bank_holder_type,
+            })),
+            payment_methods::PaymentMethodCreateData::BankRedirect(
+                payment_methods::BankRedirectDetail::BancontactCard {},
+            ) => Ok(Self::BankRedirect(BankRedirectData::BancontactCard {
+                card_number: None,
+                card_exp_month: None,
+                card_exp_year: None,
+                card_holder_name: None,
             })),
             payment_methods::PaymentMethodCreateData::ProxyCard(_) => Err(
                 common_utils::errors::ValidationError::IncorrectValueProvided {
@@ -2495,9 +2562,9 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
                 country,
                 preferred_language,
             },
-            api_models::payments::BankRedirectData::Trustly { country } => Self::Trustly {
-                country: Some(country),
-            },
+            api_models::payments::BankRedirectData::Trustly { country } => {
+                Self::Trustly { country }
+            }
             api_models::payments::BankRedirectData::OnlineBankingFpx { issuer } => {
                 Self::OnlineBankingFpx { issuer }
             }
@@ -2807,6 +2874,20 @@ impl From<api_models::payments::BankDebitData> for BankDebitData {
                 sort_code,
                 bank_account_holder_name,
             },
+            api_models::payments::BankDebitData::EftDebitOrder {
+                account_number,
+                branch_code,
+                bank_account_holder_name,
+                bank_name,
+                bank_type,
+                ..
+            } => Self::EftDebitOrder {
+                account_number,
+                branch_code,
+                bank_account_holder_name,
+                bank_name,
+                bank_type,
+            },
         }
     }
 }
@@ -2828,6 +2909,21 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
                     bank_name,
                     bank_type,
                     bank_holder_type,
+                    bank_account_holder_name,
+                },
+            )),
+            BankDebitData::EftDebitOrder {
+                account_number,
+                branch_code,
+                bank_name,
+                bank_type,
+                bank_account_holder_name,
+            } => Self::EftDebitOrder(Box::new(
+                payment_additional_types::EftDebitOrderAdditionalData {
+                    account_number: MaskedBankAccount::from(account_number),
+                    branch_code: branch_code.map(MaskedBranchCode::from),
+                    bank_name,
+                    bank_type,
                     bank_account_holder_name,
                 },
             )),
@@ -3301,6 +3397,7 @@ impl GetPaymentMethodType for BankDebitData {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
             Self::AchBankDebit { .. } => api_enums::PaymentMethodType::Ach,
+            Self::EftDebitOrder { .. } => api_enums::PaymentMethodType::EftDebitOrder,
             Self::SepaBankDebit { .. } => api_enums::PaymentMethodType::Sepa,
             Self::SepaGuarenteedBankDebit { .. } => {
                 api_enums::PaymentMethodType::SepaGuarenteedDebit
@@ -4215,6 +4312,7 @@ impl From<mandates::NetworkTransactionIdAndCardDetails> for NetworkTransactionId
             card_exp_month: value.card_exp_month,
             card_exp_year: value.card_exp_year,
             network_transaction_id: value.network_transaction_id,
+            transaction_link_id: value.transaction_link_id,
             card_holder_name: value.card_holder_name,
             card_issuer: value.card_issuer,
             card_network: value.card_network,
@@ -4236,6 +4334,7 @@ impl From<mandates::NetworkTransactionIdAndNetworkTokenDetails>
             token_exp_month: value.token_exp_month,
             token_exp_year: value.token_exp_year,
             network_transaction_id: value.network_transaction_id,
+            transaction_link_id: value.transaction_link_id,
             card_holder_name: value.card_holder_name,
             card_issuer: value.card_issuer,
             card_network: value.card_network,

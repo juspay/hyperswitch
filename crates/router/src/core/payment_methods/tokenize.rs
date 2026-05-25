@@ -105,7 +105,7 @@ pub async fn tokenize_cards(
     use futures::stream::StreamExt;
 
     // Process all records in parallel
-    let responses = futures::stream::iter(records.into_iter())
+    let responses = futures::stream::iter(records)
         .map(|record| async move {
             let tokenize_request = record.data.clone();
             let customer = record.customer.clone();

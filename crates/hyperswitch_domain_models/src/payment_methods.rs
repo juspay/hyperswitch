@@ -83,6 +83,7 @@ pub struct PaymentMethod {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
+    pub network_transaction_link_id: Option<String>,
     pub client_secret: Option<String>,
     pub payment_method_billing_address: OptionalEncryptableValue,
     pub updated_by: Option<String>,
@@ -125,11 +126,13 @@ pub struct PaymentMethod {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
+    pub network_transaction_link_id: Option<String>,
     pub client_secret: Option<String>,
     #[encrypt(ty = Value)]
     pub payment_method_billing_address: Option<Encryptable<Address>>,
     pub updated_by: Option<String>,
     pub locker_fingerprint_id: Option<String>,
+    pub auxiliary_fingerprint_id: Option<String>,
     pub version: common_enums::ApiVersion,
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
@@ -424,7 +427,8 @@ impl
                 },
             )),
             payment_methods::PaymentMethodCreateData::ProxyCard(_)
-            | payment_methods::PaymentMethodCreateData::Wallet(_) => None,
+            | payment_methods::PaymentMethodCreateData::Wallet(_)
+            | payment_methods::PaymentMethodCreateData::BankRedirect(_) => None,
         };
 
         Self {
@@ -475,6 +479,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_acceptance: self.customer_acceptance,
             status: self.status,
             network_transaction_id: self.network_transaction_id,
+            network_transaction_link_id: self.network_transaction_link_id,
             client_secret: self.client_secret,
             payment_method_billing_address: self
                 .payment_method_billing_address
@@ -495,6 +500,9 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_details: self.customer_details.map(|val| val.into()),
             locker_fingerprint_id: self.locker_fingerprint_id,
             network_tokenization_data: self.network_tokenization_data.map(|val| val.into()),
+            payment_method_type_v2: None,
+            payment_method_subtype: None,
+            id: None,
         })
     }
 
@@ -607,6 +615,24 @@ impl super::behaviour::Conversion for PaymentMethod {
             item.vault_type,
             item.external_vault_source,
         ))?;
+        let payment_method_subtype =
+            item.payment_method_subtype
+                .and_then(|payment_method_subtype| {
+                    if payment_method_subtype.eq_ignore_ascii_case("card") {
+                        None
+                    } else {
+                        payment_method_subtype
+                            .parse::<storage_enums::PaymentMethodType>()
+                            .map_err(|error| {
+                                logger::warn!(
+                                    ?error,
+                                    payment_method_subtype,
+                                    "Failed to parse payment_method_subtype compatibility field"
+                                );
+                            })
+                            .ok()
+                    }
+                });
 
         // Construct the domain type
         // Storage always has customer_id, wrap in Some for domain
@@ -626,8 +652,8 @@ impl super::behaviour::Conversion for PaymentMethod {
             direct_debit_token: item.direct_debit_token,
             created_at: item.created_at,
             last_modified: item.last_modified,
-            payment_method: item.payment_method,
-            payment_method_type: item.payment_method_type,
+            payment_method: item.payment_method.or(item.payment_method_type_v2),
+            payment_method_type: item.payment_method_type.or(payment_method_subtype),
             payment_method_issuer: item.payment_method_issuer,
             payment_method_issuer_code: item.payment_method_issuer_code,
             metadata: item.metadata,
@@ -638,6 +664,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_acceptance: item.customer_acceptance,
             status: item.status,
             network_transaction_id: item.network_transaction_id,
+            network_transaction_link_id: item.network_transaction_link_id,
             client_secret: item.client_secret,
             payment_method_billing_address,
             updated_by: item.updated_by,
@@ -690,6 +717,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_acceptance: self.customer_acceptance,
             status: self.status,
             network_transaction_id: self.network_transaction_id,
+            network_transaction_link_id: self.network_transaction_link_id,
             client_secret: self.client_secret,
             payment_method_billing_address: self
                 .payment_method_billing_address
@@ -710,6 +738,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_details: self.customer_details.map(|val| val.into()),
             locker_fingerprint_id: self.locker_fingerprint_id,
             network_tokenization_data: self.network_tokenization_data.map(|val| val.into()),
+            id: None,
         })
     }
 }
@@ -720,12 +749,16 @@ impl super::behaviour::Conversion for PaymentMethod {
     type DstType = diesel_models::payment_method::PaymentMethod;
     type NewDstType = diesel_models::payment_method::PaymentMethodNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        let payment_method_id = self.id.get_string_repr().to_owned();
         Ok(Self::DstType {
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
             id: self.id,
+            payment_method_id: Some(payment_method_id),
             created_at: self.created_at,
             last_modified: self.last_modified,
+            payment_method: None,
+            payment_method_type: None,
             payment_method_type_v2: self.payment_method_type,
             payment_method_subtype: self.payment_method_subtype,
             payment_method_data: self.payment_method_data.map(|val| val.into()),
@@ -735,6 +768,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_acceptance: self.customer_acceptance,
             status: self.status,
             network_transaction_id: self.network_transaction_id.map(Secret::new),
+            network_transaction_link_id: self.network_transaction_link_id.map(Secret::new),
             client_secret: self.client_secret,
             payment_method_billing_address: self
                 .payment_method_billing_address
@@ -756,6 +790,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .map(|last_modified_by| last_modified_by.to_string()),
             customer_details: self.customer_details.map(|val| val.into()),
             network_tokenization_data: self.network_tokenization_data.map(|val| val.into()),
+            auxiliary_fingerprint_id: self.auxiliary_fingerprint_id,
         })
     }
 
@@ -876,6 +911,9 @@ impl super::behaviour::Conversion for PaymentMethod {
                 network_transaction_id: storage_model
                     .network_transaction_id
                     .map(ExposeInterface::expose),
+                network_transaction_link_id: storage_model
+                    .network_transaction_link_id
+                    .map(ExposeInterface::expose),
                 client_secret: storage_model.client_secret,
                 payment_method_billing_address,
                 updated_by: storage_model.updated_by,
@@ -896,6 +934,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                     .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
                 customer_details,
                 network_tokenization_data,
+                auxiliary_fingerprint_id: storage_model.auxiliary_fingerprint_id,
             })
         }
         .await
@@ -905,12 +944,16 @@ impl super::behaviour::Conversion for PaymentMethod {
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        let payment_method_id = self.id.get_string_repr().to_owned();
         Ok(Self::NewDstType {
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
             id: self.id,
+            payment_method_id: Some(payment_method_id),
             created_at: self.created_at,
             last_modified: self.last_modified,
+            payment_method: None,
+            payment_method_type: None,
             payment_method_type_v2: self.payment_method_type,
             payment_method_subtype: self.payment_method_subtype,
             payment_method_data: self.payment_method_data.map(|val| val.into()),
@@ -920,6 +963,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_acceptance: self.customer_acceptance,
             status: self.status,
             network_transaction_id: self.network_transaction_id,
+            network_transaction_link_id: self.network_transaction_link_id,
             client_secret: self.client_secret,
             payment_method_billing_address: self
                 .payment_method_billing_address
@@ -939,6 +983,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
             customer_details: self.customer_details.map(|val| val.into()),
+            auxiliary_fingerprint_id: self.auxiliary_fingerprint_id,
         })
     }
 }
@@ -1066,6 +1111,13 @@ impl super::behaviour::Conversion for PaymentMethodSession {
     }
 }
 
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug)]
+pub struct PaymentMethodWithRawData {
+    pub payment_method: PaymentMethod,
+    pub raw_payment_method_data: Option<domain_payment_method_data::PaymentMethodData>,
+}
+
 #[async_trait::async_trait]
 pub trait PaymentMethodInterface {
     type Error;
@@ -1085,7 +1137,6 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
-    #[cfg(feature = "v1")]
     async fn find_payment_method_by_locker_id(
         &self,
         key_store: &MerchantKeyStore,
@@ -1325,16 +1376,26 @@ pub struct PaymentMethodCustomerMigrate {
 }
 
 #[cfg(feature = "v1")]
-impl TryFrom<(payment_methods::PaymentMethodRecord, id_type::MerchantId)>
-    for PaymentMethodCustomerMigrate
+impl
+    TryFrom<(
+        payment_methods::PaymentMethodRecord,
+        id_type::MerchantId,
+        Option<&Vec<id_type::MerchantConnectorAccountId>>,
+    )> for PaymentMethodCustomerMigrate
 {
     type Error = error_stack::Report<ValidationError>;
     fn try_from(
-        value: (payment_methods::PaymentMethodRecord, id_type::MerchantId),
+        value: (
+            payment_methods::PaymentMethodRecord,
+            id_type::MerchantId,
+            // merchant_connector_id(s) supplied at the form level (not as CSV columns)
+            Option<&Vec<id_type::MerchantConnectorAccountId>>,
+        ),
     ) -> Result<Self, Self::Error> {
-        let (record, merchant_id) = value;
+        let (record, merchant_id, fallback_merchant_connector_ids) = value;
         let connector_customer_details = record
             .connector_customer_id
+            .as_ref()
             .and_then(|connector_customer_id| {
                 // Handle single merchant_connector_id
                 record
@@ -1378,6 +1439,19 @@ impl TryFrom<(payment_methods::PaymentMethodRecord, id_type::MerchantId)>
                                     .collect::<Result<Vec<_>, _>>()
                             })
                     })
+                    // Fall back to the form-level merchant_connector_id(s) when the CSV row
+                    // has no merchant_connector_id(s) column
+                    .or_else(|| {
+                        fallback_merchant_connector_ids.map(|merchant_connector_ids| {
+                            Ok(merchant_connector_ids
+                                .iter()
+                                .map(|merchant_connector_id| ConnectorCustomerDetails {
+                                    connector_customer_id: connector_customer_id.clone(),
+                                    merchant_connector_id: merchant_connector_id.clone(),
+                                })
+                                .collect::<Vec<_>>())
+                        })
+                    })
             })
             .transpose()?;
 
@@ -1412,18 +1486,31 @@ impl TryFrom<(payment_methods::PaymentMethodRecord, id_type::MerchantId)>
 }
 
 #[cfg(feature = "v1")]
-impl ForeignTryFrom<(&[payment_methods::PaymentMethodRecord], id_type::MerchantId)>
-    for Vec<PaymentMethodCustomerMigrate>
+impl
+    ForeignTryFrom<(
+        &[payment_methods::PaymentMethodRecord],
+        id_type::MerchantId,
+        Option<&Vec<id_type::MerchantConnectorAccountId>>,
+    )> for Vec<PaymentMethodCustomerMigrate>
 {
     type Error = error_stack::Report<ValidationError>;
 
     fn foreign_try_from(
-        (records, merchant_id): (&[payment_methods::PaymentMethodRecord], id_type::MerchantId),
+        // merchant_connector_ids: form-level connector account id(s), forwarded to each row
+        (records, merchant_id, merchant_connector_ids): (
+            &[payment_methods::PaymentMethodRecord],
+            id_type::MerchantId,
+            Option<&Vec<id_type::MerchantConnectorAccountId>>,
+        ),
     ) -> Result<Self, Self::Error> {
         let (customers_migration, migration_errors): (Self, Vec<_>) = records
             .iter()
             .map(|record| {
-                PaymentMethodCustomerMigrate::try_from((record.clone(), merchant_id.clone()))
+                PaymentMethodCustomerMigrate::try_from((
+                    record.clone(),
+                    merchant_id.clone(),
+                    merchant_connector_ids,
+                ))
             })
             .fold((Self::new(), Vec::new()), |mut acc, result| {
                 match result {
@@ -1675,6 +1762,7 @@ mod tests {
             customer_acceptance: None,
             status: storage_enums::PaymentMethodStatus::Active,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             client_secret: None,
             payment_method_billing_address: None,
             updated_by: None,
