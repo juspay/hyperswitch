@@ -401,7 +401,6 @@ jobs:
           ROUTER__SERVER__WORKERS: 4
           PAYMENTS_CONNECTORS: "${{ matrix.batch.connectors }}"
           PLATFORM_CONNECTORS: "${{ matrix.batch.platform_connectors }}"
-          CYPRESS_MOCK_SERVER: ${{ matrix.batch.mock_server || 'true' }}
         shell: bash -leuo pipefail {0}
         run: |
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
@@ -429,7 +428,9 @@ jobs:
   mandatory-cypress-tests-consolidated-result:
     name: Mandatory Cypress Tests — Consolidated Result
     needs: [mandatory-cypress-tests]
-    if: false
+    if: |
+      github.event_name == 'merge_group' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
