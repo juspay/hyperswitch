@@ -1018,6 +1018,9 @@ export const connectorDetails = {
     }),
 
     PayPal: getCustomExchange({
+      // NOTE: MultiSafepay PayPal sandbox enforces CSRF protection, so the
+      // redirection handler skips the click-through (returns verifyUrl=false).
+      // See redirectionHandler.js::bankRedirectRedirection > multisafepay.
       Request: {
         payment_method: "wallet",
         payment_method_type: "paypal",
