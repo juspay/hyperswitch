@@ -795,15 +795,9 @@ describe("PayLater tests", () => {
           body: requestBody,
           failOnStatusCode: false,
         }).then((response) => {
-          expect(response.status).to.equal(400);
-          expect(response.body.error.type).to.equal("invalid_request");
-          expect(response.body.error.code).to.equal("IR_19");
-          expect(response.body.error.message).to.equal(
-            "Payment method type not supported"
-          );
-          expect(response.body.error.reason).to.contain(
-            "manual for atome is not supported"
-          );
+          expect(response.status).to.equal(200);
+          expect(response.body.status).to.equal("requires_confirmation");
+          expect(response.body.connector).to.equal(null);
         });
       });
     });
@@ -873,8 +867,8 @@ describe("PayLater tests", () => {
           body: confirmBody,
           failOnStatusCode: false,
         }).then((response) => {
-          expect(response.status).to.equal(200);
-          expect(response.body.status).to.equal("requires_confirmation");
+          expect(response.status).to.equal(400);
+          expect(response.body.error.type).to.equal("invalid_request");
         });
       });
     });

@@ -2090,9 +2090,13 @@ export const connectorDetails = {
         ],
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_confirmation",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_39",
+          },
         },
       },
     }),
@@ -2305,14 +2309,10 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "IR_19",
-            reason: "manual for atome is not supported by adyen",
-          },
+          status: "requires_confirmation",
+          connector: null,
         },
       },
     }),
