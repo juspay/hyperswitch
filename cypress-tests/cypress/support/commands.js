@@ -2760,6 +2760,20 @@ Cypress.Commands.add(
                     "nextActionUrl",
                     response.body.next_action.ddc_data.iframe_url
                   );
+                } else if (
+                  response.body.next_action.type === "redirect_inside_popup"
+                ) {
+                  expect(response.body.next_action)
+                    .to.have.property("type")
+                    .to.equal("redirect_inside_popup");
+                  expect(response.body.next_action).to.have.property(
+                    "popup_url"
+                  );
+                  globalState.set("nextActionType", "redirect_inside_popup");
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.popup_url
+                  );
                 } else {
                   expect(response.body)
                     .to.have.property("next_action")
@@ -2776,6 +2790,15 @@ Cypress.Commands.add(
                 );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
+              if (response.body.next_action) {
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url");
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.redirect_to_url
+                );
+              }
               for (const key in resData.body) {
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
@@ -2806,6 +2829,20 @@ Cypress.Commands.add(
                     "nextActionUrl",
                     response.body.next_action.ddc_data.iframe_url
                   );
+                } else if (
+                  response.body.next_action.type === "redirect_inside_popup"
+                ) {
+                  expect(response.body.next_action)
+                    .to.have.property("type")
+                    .to.equal("redirect_inside_popup");
+                  expect(response.body.next_action).to.have.property(
+                    "popup_url"
+                  );
+                  globalState.set("nextActionType", "redirect_inside_popup");
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.popup_url
+                  );
                 } else {
                   expect(response.body.next_action).to.have.property(
                     "redirect_to_url"
@@ -2822,6 +2859,15 @@ Cypress.Commands.add(
                 );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
+              if (response.body.next_action) {
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url");
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.redirect_to_url
+                );
+              }
               for (const key in resData.body) {
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
@@ -2850,6 +2896,70 @@ Cypress.Commands.add(
           defaultErrorHandler(response, resData);
         }
       });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "confirmCallAutoRetryTest",
+  (confirmBody, data, confirm, globalState) => {
+    const { Request: reqData = {}, Response: resData = {} } = data || {};
+
+    const apiKey = globalState.get("publishableKey");
+    const baseUrl = globalState.get("baseUrl");
+
+    const paymentIntentID = globalState.get("paymentID");
+    const profileId = globalState.get("profileId");
+
+    const maxRetries = globalState.get("max_auto_retries_enabled");
+    const primaryConnector = globalState.get("connectorId");
+    const secondaryConnector = globalState.get("secondaryConnector");
+
+    const url = `${baseUrl}/payments/${paymentIntentID}/confirm`;
+
+    confirmBody.client_secret = globalState.get("clientSecret");
+    confirmBody.confirm = confirm;
+    confirmBody.profile_id = profileId;
+
+    for (const key in reqData) {
+      confirmBody[key] = reqData[key];
+    }
+
+    cy.request({
+      method: "POST",
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      failOnStatusCode: false,
+      body: confirmBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
+
+      expect(response.headers["content-type"]).to.include("application/json");
+
+      if (response.status === 200) {
+        expect(paymentIntentID).to.equal(response.body.payment_id);
+
+        if (maxRetries === 0) {
+          // If retries are disabled, it MUST stay on the primary connector and FAIL
+          expect(response.body.connector).to.equal(primaryConnector);
+          expect(response.body.status).to.be.oneOf(["failed", "processing"]);
+        } else {
+          // If retries are enabled, it should have fallen back to the secondary connector
+          expect(response.body.connector).to.equal(secondaryConnector);
+        }
+
+        globalState.set("paymentIntentStatus", response.body.status);
+        globalState.set(
+          "connectorTransactionID",
+          response.body.connector_transaction_id
+        );
+      } else {
+        defaultErrorHandler(response, resData);
+      }
     });
   }
 );
@@ -3075,70 +3185,6 @@ Cypress.Commands.add(
           defaultErrorHandler(response, resData);
         }
       });
-    });
-  }
-);
-
-Cypress.Commands.add(
-  "confirmCallAutoRetryTest",
-  (confirmBody, data, confirm, globalState) => {
-    const { Request: reqData = {}, Response: resData = {} } = data || {};
-
-    const apiKey = globalState.get("publishableKey");
-    const baseUrl = globalState.get("baseUrl");
-
-    const paymentIntentID = globalState.get("paymentID");
-    const profileId = globalState.get("profileId");
-
-    const maxRetries = globalState.get("max_auto_retries_enabled");
-    const primaryConnector = globalState.get("connectorId");
-    const secondaryConnector = globalState.get("secondaryConnector");
-
-    const url = `${baseUrl}/payments/${paymentIntentID}/confirm`;
-
-    confirmBody.client_secret = globalState.get("clientSecret");
-    confirmBody.confirm = confirm;
-    confirmBody.profile_id = profileId;
-
-    for (const key in reqData) {
-      confirmBody[key] = reqData[key];
-    }
-
-    cy.request({
-      method: "POST",
-      url,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": apiKey,
-      },
-      failOnStatusCode: false,
-      body: confirmBody,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-      storeRequestId(response.headers["x-request-id"], globalState);
-
-      expect(response.headers["content-type"]).to.include("application/json");
-
-      if (response.status === 200) {
-        expect(paymentIntentID).to.equal(response.body.payment_id);
-
-        if (maxRetries === 0) {
-          // If retries are disabled, it MUST stay on the primary connector and FAIL
-          expect(response.body.connector).to.equal(primaryConnector);
-          expect(response.body.status).to.be.oneOf(["failed", "processing"]);
-        } else {
-          // If retries are enabled, it should have fallen back to the secondary connector
-          expect(response.body.connector).to.equal(secondaryConnector);
-        }
-
-        globalState.set("paymentIntentStatus", response.body.status);
-        globalState.set(
-          "connectorTransactionID",
-          response.body.connector_transaction_id
-        );
-      } else {
-        defaultErrorHandler(response, resData);
-      }
     });
   }
 );
@@ -4356,27 +4402,31 @@ Cypress.Commands.add(
           if (response.body.capture_method === "automatic") {
             expect(response.body).to.have.property("mandate_id");
             if (response.body.authentication_type === "three_ds") {
-              let nextActionUrl = null;
-              if (response.body.next_action.type === "invoke_ddc") {
-                expect(response.body.next_action)
-                  .to.have.property("type")
-                  .to.equal("invoke_ddc");
-                nextActionUrl = response.body.next_action.ddc_data.iframe_url;
-                globalState.set(
-                  "nextActionUrl",
-                  response.body.next_action.ddc_data.iframe_url
-                );
-              } else {
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("redirect_to_url");
-                nextActionUrl = response.body.next_action.redirect_to_url;
-                globalState.set(
-                  "nextActionUrl",
-                  response.body.next_action.redirect_to_url
-                );
+              if (response.body.status !== "succeeded") {
+                let nextActionUrl = null;
+                if (response.body.next_action.type === "invoke_ddc") {
+                  expect(response.body.next_action)
+                    .to.have.property("type")
+                    .to.equal("invoke_ddc");
+                  nextActionUrl = response.body.next_action.ddc_data.iframe_url;
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.ddc_data.iframe_url
+                  );
+                } else {
+                  expect(response.body)
+                    .to.have.property("next_action")
+                    .to.have.property("redirect_to_url");
+                  nextActionUrl = response.body.next_action.redirect_to_url;
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.redirect_to_url
+                  );
+                }
+                cy.log(nextActionUrl);
               }
-              cy.log(nextActionUrl);
+              // Response body key comparison runs for all three_ds paths, including succeeded status
+              // — the redirect URL is extracted above when status !== succeeded, but all response keys are verified here
               for (const key in resData.body) {
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
@@ -4407,27 +4457,31 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              let nextActionUrl = null;
-              if (response.body.next_action.type === "invoke_ddc") {
-                expect(response.body.next_action)
-                  .to.have.property("type")
-                  .to.equal("invoke_ddc");
-                nextActionUrl = response.body.next_action.ddc_data.iframe_url;
-                globalState.set(
-                  "nextActionUrl",
-                  response.body.next_action.ddc_data.iframe_url
-                );
-              } else {
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("redirect_to_url");
-                nextActionUrl = response.body.next_action.redirect_to_url;
-                globalState.set(
-                  "nextActionUrl",
-                  response.body.next_action.redirect_to_url
-                );
+              if (response.body.status !== "succeeded") {
+                let nextActionUrl = null;
+                if (response.body.next_action.type === "invoke_ddc") {
+                  expect(response.body.next_action)
+                    .to.have.property("type")
+                    .to.equal("invoke_ddc");
+                  nextActionUrl = response.body.next_action.ddc_data.iframe_url;
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.ddc_data.iframe_url
+                  );
+                } else {
+                  expect(response.body)
+                    .to.have.property("next_action")
+                    .to.have.property("redirect_to_url");
+                  nextActionUrl = response.body.next_action.redirect_to_url;
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.redirect_to_url
+                  );
+                }
+                cy.log(nextActionUrl);
               }
-              cy.log(nextActionUrl);
+              // Response body key comparison runs for all three_ds paths, including succeeded status
+              // — the redirect URL is extracted above when status !== succeeded, but all response keys are verified here
               for (const key in resData.body) {
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
