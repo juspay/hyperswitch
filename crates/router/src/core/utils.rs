@@ -76,14 +76,16 @@ pub struct FeatureConfig {
 impl FeatureConfig {
     pub fn should_use_modular_pm_path(
         &self,
-        api_version: Option<common_enums::ApiVersion>,
-        compatibility_updated_at: Option<time::PrimitiveDateTime>,
-        last_modified: Option<time::PrimitiveDateTime>,
+        payment_method_version: Option<common_enums::ApiVersion>,
+        compat_fields_synced_at: Option<time::PrimitiveDateTime>,
+        record_modified_at: Option<time::PrimitiveDateTime>,
     ) -> bool {
-        let is_compatibility_in_sync = matches!((compatibility_updated_at, last_modified), (Some(comp_at), Some(lm)) if comp_at == lm);
-        is_compatibility_in_sync
-            || self.is_payment_method_modular_allowed
-            || api_version == Some(common_enums::ApiVersion::V2)
+        self.is_payment_method_modular_allowed
+            || payment_method_version == Some(common_enums::ApiVersion::V2)
+            || matches!(
+                (compat_fields_synced_at , record_modified_at ),
+                (Some(compat_updated), Some(last_mod)) if compat_updated == last_mod
+            )
     }
 }
 
