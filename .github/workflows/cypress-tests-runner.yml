@@ -730,16 +730,16 @@ jobs:
                   "payments_connectors": "",
                   "payouts_connectors": "adyenplatform wise",
                   "platform_connectors": "",
-                  "parallel": 1,
+                  "parallel": 2,
                   "report_artifact_name": "cypress-mock-test-results-payouts",
                   "server_logs_artifact": "mock-server-logs-payouts"
                 },
                 {
                   "name": "mock-payments",
-                  "payments_connectors": "bluesnap",
+                  "payments_connectors": "bluesnap gigadat paypal zift",
                   "payouts_connectors": "",
                   "platform_connectors": "",
-                  "parallel": 1,
+                  "parallel": 4,
                   "report_artifact_name": "cypress-mock-test-results-payments",
                   "server_logs_artifact": "mock-server-logs-payments"
                 }
