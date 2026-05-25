@@ -27,8 +27,8 @@ env:
   EXTENDED_PAYMENTS_CONNECTORS_BATCH_1: "bluesnap gigadat loonio nmi"
   EXTENDED_PAYMENTS_CONNECTORS_BATCH_2: "paypal redsys zift"
   EXTENDED_PAYOUTS_CONNECTORS: "adyenplatform wise"
-  MOCK_PAYMENTS_CONNECTORS: "bluesnap gigadat zift"
-  MOCK_PAYMENTS_CONNECTORS_BATCH_2: "redsys nmi paypal loonio"
+  MOCK_PAYMENTS_CONNECTORS: "bluesnap gigadat zift loonio"
+  MOCK_PAYMENTS_CONNECTORS_BATCH_2: "redsys nmi paypal"
   MOCK_PAYOUTS_CONNECTORS: "adyenplatform wise"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
@@ -741,7 +741,7 @@ jobs:
                   "payments_connectors": "'"${MOCK_PAYMENTS_CONNECTORS}"'",
                   "payouts_connectors": "",
                   "platform_connectors": "",
-                  "parallel": 3,
+                  "parallel": 4,
                   "report_artifact_name": "cypress-mock-test-results-payments",
                   "server_logs_artifact": "mock-server-logs-payments"
                 }
@@ -1085,6 +1085,7 @@ jobs:
           PAYOUTS_CONNECTORS: "${{ matrix.batch.payouts_connectors }}"
           PLATFORM_CONNECTORS: "${{ matrix.batch.platform_connectors }}"
           CYPRESS_MOCK_SERVER: "true"
+          CYPRESS_IS_PROXY_ENABLED: "true"
           # Notifies the MITM proxy of each test start/end so test names appear
           # in the replay log alongside cassette hits/misses (logging only).
           CYPRESS_PROXY_ADMIN_URL: "http://127.0.0.1:8001"
