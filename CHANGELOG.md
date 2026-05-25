@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.20.0-hotfix2
+
+### Features
+
+- **core:** Revert Added profileId to payments client secret ([#12433](https://github.com/juspay/hyperswitch/pull/12433)) ([`62eefbd`](https://github.com/juspay/hyperswitch/commit/62eefbd3c1290e086ce23334bb77e0baabb78de7))
+
+**Full Changelog:** [`2026.05.20.0-hotfix1...2026.05.20.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.05.20.0-hotfix1...2026.05.20.0-hotfix2)
+
+- - -
+
 ## 2026.05.20.0-hotfix1
 
 ### Features
