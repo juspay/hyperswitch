@@ -771,6 +771,14 @@ function bankRedirectRedirection(
                 cy.url().should("include", "paysafecard");
                 verifyUrl = false;
                 break;
+              case "open_banking_uk":
+                cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+                cy.url().should("include", "adyen");
+                cy.log(
+                  "Adyen OpenBankingUk redirect page loaded - sandbox error page, skipping interaction"
+                );
+                verifyUrl = false;
+                break;
               // The 'ideal' case is handled outside handleFlow
               default:
                 throw new Error(
@@ -1193,6 +1201,30 @@ function bankRedirectRedirection(
               default:
                 throw new Error(
                   `Unsupported Calida payment method type: ${paymentMethodType}`
+                );
+            }
+            break;
+
+          case "paysafe":
+            switch (paymentMethodType) {
+              case "interac":
+                cy.log("Handling Paysafe Interac bank redirect flow");
+
+                verifyUrl = false;
+                break;
+              case "skrill":
+                cy.log("Handling Paysafe Skrill wallet redirect flow");
+
+                verifyUrl = false;
+                break;
+              case "pay_safe_card":
+                cy.log("Handling Paysafe PaySafeCard gift card redirect flow");
+
+                verifyUrl = false;
+                break;
+              default:
+                throw new Error(
+                  `Unsupported Paysafe payment method type in handleFlow: ${paymentMethodType}`
                 );
             }
             break;
