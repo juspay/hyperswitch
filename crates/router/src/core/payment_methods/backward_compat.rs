@@ -1,0 +1,146 @@
+use common_utils::{ext_traits::StringExt, id_type};
+use error_stack::ResultExt;
+
+use super::{add_payment_method_modular_backward_compat_task, utils};
+use crate::{
+    core::{configs::dimension_state, errors::ProcessTrackerError},
+    errors as router_errors, logger,
+    routes::SessionState,
+    types::{domain, storage},
+};
+
+async fn trigger_payment_method_modular_backward_compat_inline(
+    state: &SessionState,
+    payment_method: &domain::PaymentMethod,
+    merchant_id: &id_type::MerchantId,
+    initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
+) -> Result<(), ProcessTrackerError> {
+    let tracking_data = storage::PaymentMethodModularCompatTrackingData {
+        payment_method_id: payment_method.get_id().get_string_repr().to_owned(),
+        merchant_id: merchant_id.to_owned(),
+        last_modified_by: initiator
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|last_modified_by| last_modified_by.to_string()),
+    };
+
+    Box::pin(
+        crate::workflows::payment_method_modular_backward_compat::run_payment_method_modular_backward_compat_backfill(
+            state,
+            tracking_data,
+            "INLINE_PM_MOD_BACK_COMPAT",
+        ),
+    )
+    .await
+}
+
+async fn schedule_payment_method_modular_backward_compat_task_best_effort(
+    state: &SessionState,
+    payment_method: &domain::PaymentMethod,
+    merchant_id: &id_type::MerchantId,
+    initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
+) {
+    let res = add_payment_method_modular_backward_compat_task(
+        &*state.store,
+        payment_method,
+        merchant_id,
+        state.conf.application_source,
+        initiator,
+    )
+    .await
+    .change_context(router_errors::ApiErrorResponse::InternalServerError)
+    .attach_printable(
+        "Failed to add payment method modular backward compatibility task in process tracker",
+    );
+
+    if let Err(err) = res {
+        logger::error!(
+            ?err,
+            payment_method_id = %payment_method.get_id().get_string_repr(),
+            merchant_id=%merchant_id.get_string_repr(),
+            "Failed to schedule modular backward compatibility PT; continuing payment method create flow"
+        );
+    } else {
+        logger::info!(
+            payment_method_id = %payment_method.get_id().get_string_repr(),
+            merchant_id=%merchant_id.get_string_repr(),
+            "Scheduled payment method modular backward compatibility PT"
+        );
+    }
+}
+
+pub(super) async fn trigger_payment_method_modular_backward_compat_best_effort(
+    state: &SessionState,
+    payment_method: &domain::PaymentMethod,
+    platform: &domain::Platform,
+) {
+    let merchant_id = platform.get_provider().get_account().get_id().to_owned();
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+    let should_trigger_backwards_compatibility_inline =
+        utils::get_should_trigger_backwards_compatibility_inline(state, &dimensions, None).await;
+
+    if should_trigger_backwards_compatibility_inline {
+        let inline_result = tokio::time::timeout(
+            std::time::Duration::from_secs(3),
+            Box::pin(trigger_payment_method_modular_backward_compat_inline(
+                state,
+                payment_method,
+                &merchant_id,
+                platform.get_initiator(),
+            )),
+        )
+        .await;
+
+        match inline_result {
+            Ok(Ok(())) => {
+                logger::info!(
+                    payment_method_id = %payment_method.get_id().get_string_repr(),
+                    merchant_id=%merchant_id.get_string_repr(),
+                    "Completed modular backward compatibility inline"
+                );
+            }
+            Ok(Err(err)) => {
+                logger::error!(
+                    ?err,
+                    payment_method_id = %payment_method.get_id().get_string_repr(),
+                    merchant_id=%merchant_id.get_string_repr(),
+                    "Failed modular backward compatibility inline; continuing payment method create flow"
+                );
+            }
+            Err(err) => {
+                logger::error!(
+                    ?err,
+                    payment_method_id = %payment_method.get_id().get_string_repr(),
+                    merchant_id=%merchant_id.get_string_repr(),
+                    "Timed out modular backward compatibility inline; scheduling PT fallback"
+                );
+                schedule_payment_method_modular_backward_compat_task_best_effort(
+                    state,
+                    payment_method,
+                    &merchant_id,
+                    platform.get_initiator(),
+                )
+                .await;
+            }
+        }
+    } else {
+        let should_schedule_modular_backward_compat =
+            utils::get_should_schedule_modular_backward_compat(state, &dimensions, None).await;
+
+        if should_schedule_modular_backward_compat {
+            schedule_payment_method_modular_backward_compat_task_best_effort(
+                state,
+                payment_method,
+                &merchant_id,
+                platform.get_initiator(),
+            )
+            .await;
+        } else {
+            logger::debug!(
+                payment_method_id = %payment_method.get_id().get_string_repr(),
+                merchant_id=%merchant_id.get_string_repr(),
+                "Skipping modular backward compatibility PT scheduling by config"
+            );
+        }
+    }
+}

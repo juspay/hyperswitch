@@ -424,7 +424,7 @@ impl FeatureMatrixConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Plaid::new())))
                 }
                 enums::Connector::Signifyd => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Signifyd)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Signifyd::new())))
                 }
                 enums::Connector::Silverflow => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Silverflow::new())))
