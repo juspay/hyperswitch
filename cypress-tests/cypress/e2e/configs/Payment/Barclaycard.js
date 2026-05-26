@@ -1,8 +1,5 @@
 import { customerAcceptance } from "./Commons";
-import {
-  getCustomExchange,
-  getIframeRedirectionConfig,
-} from "./Modifiers";
+import { getCustomExchange, getIframeRedirectionConfig } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4000000000001091",
