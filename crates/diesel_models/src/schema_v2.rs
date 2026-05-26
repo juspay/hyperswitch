@@ -1148,6 +1148,8 @@ diesel::table! {
         external_surcharge_details -> Nullable<Jsonb>,
         #[max_length = 255]
         network_transaction_link_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        sender_payment_instrument_id -> Nullable<Varchar>,
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
@@ -1253,6 +1255,8 @@ diesel::table! {
         partner_merchant_identifier_details -> Nullable<Jsonb>,
         state_metadata -> Nullable<Jsonb>,
         installment_options -> Nullable<Jsonb>,
+        #[max_length = 64]
+        profile_acquirer_id -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,
