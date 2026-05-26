@@ -3,6 +3,7 @@ import State from "../../../utils/State";
 import * as utils from "../../configs/Payout/Utils";
 
 let globalState;
+let payoutBody;
 
 describe("[Payout] Entity Type", () => {
   let shouldContinue = true;
@@ -12,6 +13,14 @@ describe("[Payout] Entity Type", () => {
       globalState = new State(state);
 
       if (!globalState.get("payoutsExecution")) {
+        shouldContinue = false;
+      }
+
+      if (
+        !utils.CONNECTOR_LISTS.INCLUDE.ENTITY_TYPE.includes(
+          globalState.get("connectorId")
+        )
+      ) {
         shouldContinue = false;
       }
     });
@@ -25,6 +34,7 @@ describe("[Payout] Entity Type", () => {
     if (!shouldContinue) {
       this.skip();
     }
+    payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
   });
 
   context("[Payout] Entity Type - Individual", () => {
@@ -41,13 +51,7 @@ describe("[Payout] Entity Type", () => {
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["EntityTypeIndividual"];
 
-      cy.createConfirmPayoutTest(
-        fixtures.createPayoutBody,
-        data,
-        true,
-        true,
-        globalState
-      );
+      cy.createConfirmPayoutTest(payoutBody, data, true, true, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
@@ -70,13 +74,7 @@ describe("[Payout] Entity Type", () => {
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["EntityTypeCompany"];
 
-      cy.createConfirmPayoutTest(
-        fixtures.createPayoutBody,
-        data,
-        true,
-        true,
-        globalState
-      );
+      cy.createConfirmPayoutTest(payoutBody, data, true, true, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
@@ -99,13 +97,7 @@ describe("[Payout] Entity Type", () => {
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["EntityTypeNonProfit"];
 
-      cy.createConfirmPayoutTest(
-        fixtures.createPayoutBody,
-        data,
-        true,
-        true,
-        globalState
-      );
+      cy.createConfirmPayoutTest(payoutBody, data, true, true, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
@@ -128,13 +120,7 @@ describe("[Payout] Entity Type", () => {
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["EntityTypePublicSector"];
 
-      cy.createConfirmPayoutTest(
-        fixtures.createPayoutBody,
-        data,
-        true,
-        true,
-        globalState
-      );
+      cy.createConfirmPayoutTest(payoutBody, data, true, true, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
@@ -157,13 +143,7 @@ describe("[Payout] Entity Type", () => {
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["EntityTypeNaturalPerson"];
 
-      cy.createConfirmPayoutTest(
-        fixtures.createPayoutBody,
-        data,
-        true,
-        true,
-        globalState
-      );
+      cy.createConfirmPayoutTest(payoutBody, data, true, true, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
@@ -186,13 +166,7 @@ describe("[Payout] Entity Type", () => {
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["EntityTypePersonal"];
 
-      cy.createConfirmPayoutTest(
-        fixtures.createPayoutBody,
-        data,
-        true,
-        true,
-        globalState
-      );
+      cy.createConfirmPayoutTest(payoutBody, data, true, true, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
@@ -215,15 +189,9 @@ describe("[Payout] Entity Type", () => {
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["EntityTypeDefault"];
 
-      delete fixtures.createPayoutBody.entity_type;
+      delete payoutBody.entity_type;
 
-      cy.createConfirmPayoutTest(
-        fixtures.createPayoutBody,
-        data,
-        true,
-        true,
-        globalState
-      );
+      cy.createConfirmPayoutTest(payoutBody, data, true, true, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
@@ -246,13 +214,7 @@ describe("[Payout] Entity Type", () => {
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["EntityTypeInvalid"];
 
-      cy.createConfirmPayoutTest(
-        fixtures.createPayoutBody,
-        data,
-        true,
-        true,
-        globalState
-      );
+      cy.createConfirmPayoutTest(payoutBody, data, true, true, globalState);
     });
   });
 });

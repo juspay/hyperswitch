@@ -88,6 +88,12 @@ export function getValueByKey(jsonObject, key) {
   }
 }
 
+export const CONNECTOR_LISTS = {
+  INCLUDE: {
+    ENTITY_TYPE: ["wise"],
+  },
+};
+
 export const should_continue_further = (data) => {
   const resData = data.Response || {};
   const configData = validateConfig(data.Configs) || {};
