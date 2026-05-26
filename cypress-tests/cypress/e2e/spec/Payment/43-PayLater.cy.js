@@ -910,10 +910,6 @@ describe("PayLater tests", () => {
     });
   });
 
-
-
-
-
   context("Alma PayLater - Auto Capture flow test", () => {
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection", () => {
       let shouldContinue = true;
