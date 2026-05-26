@@ -23373,7 +23373,8 @@
         "properties": {
           "mandate_id": {
             "type": "string",
-            "description": "The identifier for mandate"
+            "description": "The identifier for mandate",
+            "deprecated": true
           },
           "status": {
             "$ref": "#/components/schemas/MandateStatus"
@@ -23418,7 +23419,8 @@
         "properties": {
           "mandate_id": {
             "type": "string",
-            "description": "The identifier for mandate"
+            "description": "The identifier for mandate",
+            "deprecated": true
           },
           "status": {
             "$ref": "#/components/schemas/MandateStatus"
@@ -27424,7 +27426,8 @@
           "mandate_id": {
             "type": "string",
             "description": "If this payment attempt is associated with a mandate (e.g., for a recurring or subsequent payment), this field will contain the ID of that mandate.",
-            "nullable": true
+            "nullable": true,
+            "deprecated": true
           },
           "error_code": {
             "type": "string",
@@ -30438,7 +30441,8 @@
             "description": "A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data",
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
-            "maxLength": 64
+            "maxLength": 64,
+            "deprecated": true
           },
           "browser_info": {
             "allOf": [
@@ -30957,7 +30961,8 @@
             "description": "A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data",
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
-            "maxLength": 64
+            "maxLength": 64,
+            "deprecated": true
           },
           "browser_info": {
             "allOf": [
@@ -31463,7 +31468,8 @@
             "description": "A unique identifier to link the payment to a mandate, can be used instead of payment_method_data, in case of setting up recurring payments",
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
-            "maxLength": 255
+            "maxLength": 255,
+            "deprecated": true
           },
           "mandate_data": {
             "allOf": [
@@ -32587,7 +32593,8 @@
             "description": "A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data",
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
-            "maxLength": 64
+            "maxLength": 64,
+            "deprecated": true
           },
           "browser_info": {
             "allOf": [
@@ -33123,7 +33130,8 @@
             "description": "A unique identifier to link the payment to a mandate, can be used instead of payment_method_data, in case of setting up recurring payments",
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
-            "maxLength": 255
+            "maxLength": 255,
+            "deprecated": true
           },
           "mandate_data": {
             "allOf": [

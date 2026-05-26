@@ -16844,7 +16844,8 @@
         "properties": {
           "mandate_id": {
             "type": "string",
-            "description": "The identifier for mandate"
+            "description": "The identifier for mandate",
+            "deprecated": true
           },
           "status": {
             "$ref": "#/components/schemas/MandateStatus"
@@ -16889,7 +16890,8 @@
         "properties": {
           "mandate_id": {
             "type": "string",
-            "description": "The identifier for mandate"
+            "description": "The identifier for mandate",
+            "deprecated": true
           },
           "status": {
             "$ref": "#/components/schemas/MandateStatus"
