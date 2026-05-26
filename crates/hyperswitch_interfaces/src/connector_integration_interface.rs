@@ -1,5 +1,5 @@
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
-use common_enums::PaymentAction;
+use common_enums::{PaymentAction, PaymentMethodType};
 use common_utils::{crypto, errors::CustomResult, request::Request};
 use hyperswitch_domain_models::{
     api::ApplicationResponse,
@@ -492,7 +492,7 @@ impl ConnectorValidation for ConnectorEnum {
         &self,
         capture_method: Option<common_enums::CaptureMethod>,
         payment_method: common_enums::PaymentMethod,
-        pmt: Option<common_enums::PaymentMethodType>,
+        pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         match self {
             Self::Old(connector) => connector.validate_connector_against_payment_request(
@@ -510,7 +510,7 @@ impl ConnectorValidation for ConnectorEnum {
 
     fn validate_mandate_payment(
         &self,
-        pm_type: Option<common_enums::PaymentMethodType>,
+        pm_type: Option<PaymentMethodType>,
         pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
         match self {
@@ -554,7 +554,7 @@ impl ConnectorValidation for ConnectorEnum {
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id_or_connector_name: String,
         current_flow: Option<CurrentFlowInfo>,
-        payment_method_type: Option<common_enums::enums::PaymentMethodType>,
+        payment_method_type: Option<PaymentMethodType>,
         is_mit_payment: Option<bool>,
     ) -> CustomResult<String, errors::ConnectorError> {
         match self {
@@ -667,10 +667,17 @@ impl ConnectorSpecifications for ConnectorEnum {
     }
 
     /// Check if connector supports pre-authorize cancel
-    fn is_pre_authorize_cancel_supported(&self) -> bool {
+    fn is_pre_authorize_cancel_supported(
+        &self,
+        payment_method_type: Option<PaymentMethodType>,
+    ) -> bool {
         match self {
-            Self::Old(connector) => connector.is_pre_authorize_cancel_supported(),
-            Self::New(connector) => connector.is_pre_authorize_cancel_supported(),
+            Self::Old(connector) => {
+                connector.is_pre_authorize_cancel_supported(payment_method_type)
+            }
+            Self::New(connector) => {
+                connector.is_pre_authorize_cancel_supported(payment_method_type)
+            }
         }
     }
 
@@ -693,7 +700,7 @@ impl ConnectorSpecifications for ConnectorEnum {
     /// Supported payment methods for session token generation
     fn supported_payment_method_types_for_sdk_client_token_generation(
         &self,
-    ) -> Vec<common_enums::PaymentMethodType> {
+    ) -> Vec<PaymentMethodType> {
         match self {
             Self::Old(connector) => {
                 connector.supported_payment_method_types_for_sdk_client_token_generation()
@@ -707,7 +714,7 @@ impl ConnectorSpecifications for ConnectorEnum {
     /// Validate whether session token is generated for payment payment type
     fn validate_sdk_session_token_for_payment_method(
         &self,
-        current_core_payment_method_type: &common_enums::PaymentMethodType,
+        current_core_payment_method_type: &PaymentMethodType,
     ) -> bool {
         match self {
             Self::Old(connector) => connector

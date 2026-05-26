@@ -2103,8 +2103,15 @@ impl ConnectorSpecifications for Santander {
         Some(&SANTANDER_CONNECTOR_INFO)
     }
 
-    fn is_pre_authorize_cancel_supported(&self) -> bool {
-        true
+    fn is_pre_authorize_cancel_supported(
+        &self,
+        payment_method_type: Option<enums::PaymentMethodType>,
+    ) -> bool {
+        // TODO: Add support for pre-authorize cancel for PixAutomaticoQr and PixAutomaticoPush PMT
+        matches!(
+            payment_method_type,
+            Some(enums::PaymentMethodType::Pix) | Some(enums::PaymentMethodType::Boleto)
+        )
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {

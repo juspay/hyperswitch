@@ -1697,7 +1697,7 @@ pub async fn payments_cancel(
                     payment_types::PaymentIdType::PaymentIntentId(req.payment_id.clone());
 
                 // Getting the intent status to determine which flow to use
-                let (payment_intent_status, connector_name, payment_pre_fetched_info) = {
+                let (payment_intent_status, connector_name, payment_pre_fetched_info, payment_method_type) = {
                     let preliminary_dimensions = dimension_state::Dimensions::new()
                         .with_processor_merchant_id(
                             auth.platform.get_processor().get_processor_merchant_id(),
@@ -1724,6 +1724,7 @@ pub async fn payments_cancel(
                         tracker_response.payment_data;
                     let payment_intent_status = get_tracker_payment_data.payment_intent.status;
                     let connector_name = get_tracker_payment_data.payment_attempt.connector.clone();
+                    let payment_method_type = get_tracker_payment_data.payment_attempt.payment_method_type;
 
                     // Create PaymentPreFetchedInformation to pass to payments_core
                     let payment_pre_fetched_info =
@@ -1732,7 +1733,7 @@ pub async fn payments_cancel(
                             payment_attempt: get_tracker_payment_data.payment_attempt.clone(),
                         };
 
-                    (payment_intent_status, connector_name, payment_pre_fetched_info)
+                    (payment_intent_status, connector_name, payment_pre_fetched_info, payment_method_type)
                 };
 
                 // Check if the payment status is RequiresCustomerAction and connector supports pre-authorize cancel
@@ -1745,7 +1746,7 @@ pub async fn payments_cancel(
                             None,
                         )
                         .map(|connector_data| {
-                            connector_data.connector.is_pre_authorize_cancel_supported()
+                            connector_data.connector.is_pre_authorize_cancel_supported(payment_method_type)
                         })
                         .unwrap_or(false)
                     } else {
