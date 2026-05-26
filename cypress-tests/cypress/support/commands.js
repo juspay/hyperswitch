@@ -5159,9 +5159,7 @@ Cypress.Commands.add(
             response.body.capture_method === "manual"
           ) {
             if (response.body.next_action) {
-              if (
-                response.body.next_action.display_voucher_information
-              ) {
+              if (response.body.next_action.display_voucher_information) {
                 globalState.set(
                   "nextActionType",
                   "display_voucher_information"
