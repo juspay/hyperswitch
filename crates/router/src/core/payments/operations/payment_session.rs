@@ -48,7 +48,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         _payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-        _pre_get_trackers_info: Option<operations::PreGetTrackersPaymentInformation>,
+        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsSessionRequest, PaymentData<F>>,
     > {

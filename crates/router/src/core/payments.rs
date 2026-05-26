@@ -642,7 +642,7 @@ pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     header_payload: HeaderPayload,
     dimensions: &DimensionsWithProcessorAndProviderMerchantId,
-    pre_get_trackers_info: Option<operations::PreGetTrackersPaymentInformation>,
+    payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync + Debug + 'static,
@@ -701,7 +701,7 @@ where
             &header_payload,
             payment_method_fetch_data,
             dimensions,
-            pre_get_trackers_info,
+            payment_pre_fetched_info,
         )
         .await?;
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
@@ -2572,7 +2572,7 @@ pub async fn payments_core<F, Res, Req, Op, FData, D>(
     shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     eligible_connectors: Option<Vec<enums::Connector>>,
     header_payload: HeaderPayload,
-    pre_get_trackers_info: Option<operations::PreGetTrackersPaymentInformation>,
+    payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync + Debug + 'static,
@@ -2614,7 +2614,7 @@ where
             eligible_routable_connectors,
             header_payload.clone(),
             &dimensions,
-            pre_get_trackers_info,
+            payment_pre_fetched_info,
         )
         .await?;
 

@@ -83,7 +83,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_fetch_data: operations::PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-        _pre_get_trackers_info: Option<operations::PreGetTrackersPaymentInformation>,
+        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let operations::PaymentMethodFetchData {

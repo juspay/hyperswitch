@@ -1697,7 +1697,7 @@ pub async fn payments_cancel(
                     payment_types::PaymentIdType::PaymentIntentId(req.payment_id.clone());
 
                 // Getting the intent status to determine which flow to use
-                let (payment_intent_status, connector_name, pre_get_trackers_info) = {
+                let (payment_intent_status, connector_name, payment_pre_fetched_info) = {
                     let preliminary_dimensions = dimension_state::Dimensions::new()
                         .with_processor_merchant_id(
                             auth.platform.get_processor().get_processor_merchant_id(),
@@ -1725,33 +1725,29 @@ pub async fn payments_cancel(
                     let payment_intent_status = get_tracker_payment_data.payment_intent.status;
                     let connector_name = get_tracker_payment_data.payment_attempt.connector.clone();
 
-                    // Create PreGetTrackersPaymentInformation to pass to payments_core
-                    let pre_get_trackers_info =
-                        payments::operations::PreGetTrackersPaymentInformation {
+                    // Create PaymentPreFetchedInformation to pass to payments_core
+                    let payment_pre_fetched_info =
+                        payments::operations::PaymentPreFetchedInformation {
                             payment_intent: get_tracker_payment_data.payment_intent.clone(),
                             payment_attempt: get_tracker_payment_data.payment_attempt.clone(),
                         };
 
-                    (payment_intent_status, connector_name, pre_get_trackers_info)
+                    (payment_intent_status, connector_name, payment_pre_fetched_info)
                 };
 
                 // Check if the payment status is RequiresCustomerAction and connector supports pre-authorize cancel
                 let supports_pre_authorize_cancel =
                     if let Some(ref connector_name_str) = connector_name {
-                        let connector = ConnectorData::get_connector_by_name(
+                        ConnectorData::get_connector_by_name(
                             &state.conf.connectors,
                             connector_name_str,
                             GetToken::Connector,
                             None,
                         )
-                        .ok();
-
-                        connector
-                            .as_ref()
-                            .map(|connector_data| {
-                                connector_data.connector.is_pre_authorize_cancel_supported()
-                            })
-                            .unwrap_or(false)
+                        .map(|connector_data| {
+                            connector_data.connector.is_pre_authorize_cancel_supported()
+                        })
+                        .unwrap_or(false)
                     } else {
                         false
                     };
@@ -1778,7 +1774,7 @@ pub async fn payments_cancel(
                         None,
                         None,
                         header_payload.clone(),
-                        Some(pre_get_trackers_info),
+                        Some(payment_pre_fetched_info),
                     ))
                     .await
                 } else {
@@ -1801,7 +1797,7 @@ pub async fn payments_cancel(
                         None,
                         None,
                         header_payload.clone(),
-                        Some(pre_get_trackers_info),
+                        Some(payment_pre_fetched_info),
                     ))
                     .await
                 }
