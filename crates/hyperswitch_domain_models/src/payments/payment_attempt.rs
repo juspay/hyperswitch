@@ -2,6 +2,8 @@ use std::str::FromStr;
 
 #[cfg(all(feature = "v1", feature = "olap"))]
 use api_models::enums::Connector;
+#[cfg(feature = "v1")]
+use api_models::payments::Amount;
 #[cfg(feature = "v2")]
 use api_models::payments::{additional_info::UpiAdditionalData, AdditionalPaymentData};
 use common_enums as storage_enums;
@@ -66,7 +68,7 @@ use crate::{
 };
 #[cfg(feature = "v1")]
 use crate::{
-    mandates::{MandateDataType, MandateDetails},
+    mandates::{MandateDataType, MandateDetails, MandateTransactionType},
     router_request_types,
 };
 
@@ -1719,6 +1721,32 @@ impl PaymentAttempt {
 impl PaymentAttempt {
     pub fn get_total_amount(&self) -> MinorUnit {
         self.net_amount.get_total_amount()
+    }
+
+    /// Infer the payment type (Normal / NewMandate / SetupMandate / RecurringMandate)
+    /// from the attempt's mandate state and whether this is a CIT transaction.
+    pub fn infer_payment_type(&self, is_cit_transaction: bool) -> api_models::enums::PaymentType {
+        let amount = Amount::from(self.net_amount.get_order_amount());
+        let mandate_type = if self.mandate_id.is_some() {
+            Some(MandateTransactionType::RecurringMandateTransaction)
+        } else if is_cit_transaction {
+            Some(MandateTransactionType::NewMandateTransaction)
+        } else {
+            None
+        };
+        match mandate_type {
+            Some(MandateTransactionType::NewMandateTransaction) => {
+                if let Amount::Value(_) = amount {
+                    api_models::enums::PaymentType::NewMandate
+                } else {
+                    api_models::enums::PaymentType::SetupMandate
+                }
+            }
+            Some(MandateTransactionType::RecurringMandateTransaction) => {
+                api_models::enums::PaymentType::RecurringMandate
+            }
+            None => api_models::enums::PaymentType::Normal,
+        }
     }
 
     pub fn get_total_surcharge_amount(&self) -> Option<MinorUnit> {

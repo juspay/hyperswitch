@@ -571,6 +571,8 @@ pub enum Flow {
     ListOrgForUser,
     /// List Merchants for user in org
     ListMerchantsForUserInOrg,
+    /// Get merchant account details for the user (product_type, merchant_account_type)
+    GetUserMerchantDetails,
     /// List Profile for user in org and merchant
     ListProfileForUserInOrgAndMerchant,
     /// List Users in Org
@@ -623,6 +625,8 @@ pub enum Flow {
     RefundsManualUpdate,
     /// Manually update the payment details like status, error code, error message etc.
     PaymentsManualUpdate,
+    /// Manually update payment status from dashboard (Review → Succeeded/Failed)
+    PaymentsManualStatusUpdate,
     #[cfg(feature = "payouts")]
     /// Manually update the payout details like status, error code, error message etc.
     PayoutsManualUpdate,
