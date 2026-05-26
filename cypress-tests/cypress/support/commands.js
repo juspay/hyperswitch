@@ -5194,34 +5194,14 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "handleVoucherRedirection",
-  (globalState, paymentMethodType, expectedRedirection) => {
-    const connectorId = globalState.get("connectorId");
-    const nextActionUrl = globalState.get("nextActionUrl");
+  (globalState, paymentMethodType) => {
     const nextActionType = globalState.get("nextActionType");
 
-    if (nextActionType === "display_voucher_information") {
-      cy.log(
-        `Skipping browser redirect for display_voucher_information voucher (${paymentMethodType})`
-      );
-      return;
-    }
-
-    if (!nextActionUrl) {
-      cy.log(
-        `Skipping voucher redirection — no redirect URL for ${paymentMethodType}`
-      );
-      return;
-    }
-
-    const expectedUrl = new URL(expectedRedirection);
-    const redirectionUrl = new URL(nextActionUrl);
-
-    handleRedirection(
-      "voucher",
-      { redirectionUrl, expectedUrl },
-      connectorId,
-      paymentMethodType
+    cy.log(
+      `Skipping voucher redirect for ${paymentMethodType} (nextActionType: ${nextActionType}). ` +
+        `Voucher payments are confirmed server-side via confirm/retrieve API.`
     );
+    return;
   }
 );
 
