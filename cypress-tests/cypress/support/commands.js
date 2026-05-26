@@ -1,4 +1,5 @@
 // ***********************************************
+
 // This example commands.js shows you how to
 // create various custom commands and overwrite
 // existing commands.
@@ -2818,6 +2819,19 @@ Cypress.Commands.add(
                 );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
+              // Handle pay later methods that require redirect (Affirm, Klarna, etc.)
+              const nextAction = response.body.next_action;
+              if (nextAction) {
+                // Try multiple possible field names
+                const redirectUrl =
+                  nextAction.redirect_to_url ||
+                  nextAction.url ||
+                  nextAction.redirect_url;
+                if (redirectUrl) {
+                  globalState.set("nextActionUrl", redirectUrl);
+                  globalState.set("nextActionType", "redirect_to_url");
+                }
+              }
               if (response.body.next_action) {
                 expect(response.body)
                   .to.have.property("next_action")
@@ -2887,6 +2901,7 @@ Cypress.Commands.add(
                 );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
+              // Handle pay later methods that require redirect (Affirm, Klarna, etc.)
               if (response.body.next_action) {
                 expect(response.body)
                   .to.have.property("next_action")
@@ -2895,6 +2910,7 @@ Cypress.Commands.add(
                   "nextActionUrl",
                   response.body.next_action.redirect_to_url
                 );
+                globalState.set("nextActionType", "redirect_to_url");
               }
               for (const key in resData.body) {
                 expect(resData.body[key], [key]).to.deep.equal(
@@ -3124,6 +3140,83 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "confirmPayLaterCallTest",
+  (confirmBody, data, confirm, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+
+    const configInfo = execConfig(validateConfig(configs));
+    const paymentIntentId = globalState.get("paymentID");
+    const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
+    const customer_id = globalState.get("customerId");
+
+    for (const key in reqData) {
+      confirmBody[key] = reqData[key];
+    }
+    confirmBody.client_secret = globalState.get("clientSecret");
+    confirmBody.confirm = confirm;
+    confirmBody.profile_id = profile_id;
+    confirmBody.customer_id = customer_id;
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/${paymentIntentId}/confirm`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("publishableKey"),
+      },
+      failOnStatusCode: false,
+      body: confirmBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        if (response.status === 200) {
+          globalState.set("paymentID", paymentIntentId);
+          updateConnectorState(globalState, response.body.connector);
+          globalState.set("paymentMethodType", confirmBody.payment_method_type);
+
+          validateErrorMessage(response, resData);
+
+          if (
+            response.body.capture_method === "automatic" ||
+            response.body.capture_method === "manual"
+          ) {
+            // Pay later methods typically have redirect_to_url in next_action
+            if (response.body.next_action?.redirect_to_url) {
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action.redirect_to_url
+              );
+              globalState.set("nextActionType", "redirect_to_url");
+            } else if (response.body.next_action?.url) {
+              globalState.set("nextActionUrl", response.body.next_action.url);
+              globalState.set("nextActionType", "redirect_to_url");
+            }
+
+            for (const key in resData.body) {
+              expect(resData.body[key], [key]).to.deep.equal(
+                response.body[key]
+              );
+            }
+          } else {
+            throw new Error(
+              `Invalid capture method ${response.body.capture_method}`
+            );
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
   "confirmBankTransferCallTest",
   (confirmBody, data, confirm, globalState) => {
     const {
@@ -3203,6 +3296,25 @@ Cypress.Commands.add(
                   );
                 }
 
+                break;
+              case "affirm":
+              case "klarna":
+              case "afterpay":
+              case "pay_later":
+                // Pay later methods typically have redirect_to_url in next_action
+                if (response.body.next_action?.redirect_to_url) {
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.redirect_to_url
+                  );
+                  globalState.set("nextActionType", "redirect_to_url");
+                } else if (response.body.next_action?.url) {
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.url
+                  );
+                  globalState.set("nextActionType", "redirect_to_url");
+                }
                 break;
               default:
                 expect(response.body)
@@ -4985,6 +5097,50 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "handlePayLaterRedirection",
+  (globalState, paymentMethodType, expectedRedirection) => {
+    const connectorId = globalState.get("connectorId");
+    const nextActionUrl = globalState.get("nextActionUrl");
+
+    // Support calling with just globalState (defaults used when spec omits extra args)
+    const resolvedPaymentMethodType =
+      paymentMethodType || globalState.get("paymentMethodType");
+    const resolvedExpectedRedirection =
+      expectedRedirection || "https://example.com";
+
+    const expectedUrl = new URL(resolvedExpectedRedirection);
+    const redirectionUrl = new URL(nextActionUrl);
+
+    handleRedirection(
+      "pay_later",
+      { redirectionUrl, expectedUrl },
+      connectorId,
+      resolvedPaymentMethodType,
+      { globalState }
+    );
+  }
+);
+
+Cypress.Commands.add(
+  "handleAffirmRedirection",
+  (globalState, paymentMethodType, expectedRedirection) => {
+    const connectorId = globalState.get("connectorId");
+    const nextActionUrl = globalState.get("nextActionUrl");
+
+    const expectedUrl = new URL(expectedRedirection);
+    const redirectionUrl = new URL(nextActionUrl);
+
+    handleRedirection(
+      "affirm_pay_later",
+      { redirectionUrl, expectedUrl },
+      connectorId,
+      paymentMethodType,
+      { globalState }
+    );
+  }
+);
+
+Cypress.Commands.add(
   "handlePaymentLinkCardRedirection",
   (globalState, cardData, expectedOutcome = "success") => {
     const paymentLinkUrl = globalState.get("paymentLinkUrl");
@@ -5185,24 +5341,6 @@ Cypress.Commands.add(
 
     handleRedirection(
       "upi",
-      { redirectionUrl, expectedUrl },
-      connectorId,
-      paymentMethodType
-    );
-  }
-);
-
-Cypress.Commands.add(
-  "handlePayLaterRedirection",
-  (globalState, paymentMethodType, expected_redirection) => {
-    const connectorId = globalState.get("connectorId");
-    const nextActionUrl = globalState.get("nextActionUrl");
-
-    const expectedUrl = new URL(expected_redirection);
-    const redirectionUrl = new URL(nextActionUrl);
-
-    handleRedirection(
-      "pay_later",
       { redirectionUrl, expectedUrl },
       connectorId,
       paymentMethodType
