@@ -21,7 +21,6 @@ use uuid::Uuid;
 
 use crate::connectors::fiservcommercehub::Fiservcommercehub;
 
-
 struct FiservcommercehubAuthType {
     api_key: Secret<String>,
     api_secret: Secret<String>,
@@ -64,7 +63,10 @@ impl FiservcommercehubAuthType {
             timestamp_str,
             payload
         );
-        let key = hmac::Key::new(hmac::HMAC_SHA256, self.api_secret.clone().expose().as_bytes());
+        let key = hmac::Key::new(
+            hmac::HMAC_SHA256,
+            self.api_secret.clone().expose().as_bytes(),
+        );
         BASE64_ENGINE.encode(hmac::sign(&key, raw.as_bytes()).as_ref())
     }
 }
@@ -219,8 +221,7 @@ impl Fiservcommercehub {
         let timestamp_ms = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
         let timestamp_str = timestamp_ms.to_string();
         let client_request_id = Uuid::new_v4().to_string();
-        let signature =
-            auth.generate_hmac_signature(&client_request_id, &timestamp_str, body_str);
+        let signature = auth.generate_hmac_signature(&client_request_id, &timestamp_str, body_str);
 
         vec![
             (
@@ -231,18 +232,9 @@ impl Fiservcommercehub {
                 "Api-Key".to_string(),
                 auth.api_key.peek().to_string().into_masked(),
             ),
-            (
-                "Timestamp".to_string(),
-                timestamp_str.into(),
-            ),
-            (
-                "Client-Request-Id".to_string(),
-                client_request_id.into(),
-            ),
-            (
-                "Authorization".to_string(),
-                signature.into_masked(),
-            ),
+            ("Timestamp".to_string(), timestamp_str.into()),
+            ("Client-Request-Id".to_string(), client_request_id.into()),
+            ("Authorization".to_string(), signature.into_masked()),
             ("Auth-Token-Type".to_string(), "HMAC".to_string().into()),
             ("Accept-Language".to_string(), "en".to_string().into()),
         ]
@@ -298,8 +290,7 @@ impl Fiservcommercehub {
             expiration_year.len(),
         );
         if let Some(ref name) = name_on_card {
-            encryption_block_fields
-                .push_str(&format!(",card.nameOnCard:{}", name.len()));
+            encryption_block_fields.push_str(&format!(",card.nameOnCard:{}", name.len()));
         }
 
         Ok(EncryptionData {
@@ -344,7 +335,9 @@ impl ConnectorRelayIntegration for Fiservcommercehub {
             .ok_or(ConnectorError::MissingRequiredField {
                 field_name: "access_token",
             })
-            .attach_printable("FiservCommerceHub requires an RSA public key via access_token for card encryption")?;
+            .attach_printable(
+                "FiservCommerceHub requires an RSA public key via access_token for card encryption",
+            )?;
 
         let RecipientPaymentMethodData::Card(ref card) = request.recipient_payment_method_data;
 

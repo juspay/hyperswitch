@@ -22,7 +22,6 @@ use crate::{
     },
     utils::OptionExt,
 };
-use hyperswitch_interfaces::relay::{ConnectorRelayIntegration, UnreferencedRefundRouterData};
 
 pub mod utils;
 
@@ -944,7 +943,6 @@ pub async fn sync_relay_refund_with_gateway(
     Ok(relay_response)
 }
 
-
 pub async fn relay_unreferenced_refund(
     state: SessionState,
     platform: domain::Platform,
@@ -1120,8 +1118,7 @@ pub async fn relay_unreferenced_refund(
         .zip(updated_relay.error_message)
         .map(|(code, message)| api_models::relay::RelayError { code, message });
 
-    let raw_connector_response =
-        serde_json::from_slice::<serde_json::Value>(&response_bytes).ok();
+    let raw_connector_response = serde_json::from_slice::<serde_json::Value>(&response_bytes).ok();
 
     let response = api_models::unreferenced_refund::UnreferencedRefundResponse {
         id: updated_relay.id,

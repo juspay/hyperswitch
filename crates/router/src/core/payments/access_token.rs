@@ -343,7 +343,9 @@ pub async fn add_access_token_for_relay(
         .unified_connector_service_client
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("UCS gRPC client not configured; cannot generate access token for relay")?;
+        .attach_printable(
+            "UCS gRPC client not configured; cannot generate access token for relay",
+        )?;
 
     #[cfg(feature = "v1")]
     let mca_type = payments::helpers::MerchantConnectorAccountType::DbVal(Box::new(

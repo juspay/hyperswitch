@@ -7,7 +7,7 @@ use hyperswitch_domain_models::router_data::{AccessToken, ConnectorAuthType};
 
 use crate::errors::ConnectorError;
 
-/// All data required to build a relay request 
+/// All data required to build a relay request
 #[derive(Debug)]
 pub struct UnreferencedRefundRouterData<'a> {
     /// Merchant-supplied request fields (amount, currency, card data, etc.)
