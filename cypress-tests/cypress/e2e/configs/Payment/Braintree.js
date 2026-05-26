@@ -1,4 +1,5 @@
 import { customerAcceptance } from "./Commons";
+import { getIframeRedirectionConfig } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4009348888881881",
@@ -44,10 +45,10 @@ const multiUseMandateData = {
 const paymentMethodDataNo3DSResponse = {
   card: {
     last4: "1881",
-    card_type: null,
-    card_network: null,
-    card_issuer: null,
-    card_issuing_country: null,
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "PT BANK HSBC INDONESIA",
+    card_issuing_country: "INDONESIA",
     card_isin: "400934",
     card_extended_bin: null,
     card_exp_month: "10",
@@ -63,10 +64,10 @@ const paymentMethodDataNo3DSResponse = {
 const paymentMethodData3DSResponse = {
   card: {
     last4: "7777",
-    card_type: null,
-    card_network: null,
-    card_issuer: null,
-    card_issuing_country: null,
+    card_type: "DEBIT",
+    card_network: "Visa",
+    card_issuer: "VISA PRODUCTION SUPPORT CLIENT BID 1",
+    card_issuing_country: "UNITEDSTATES",
     card_isin: "401200",
     card_extended_bin: null,
     card_exp_month: "10",
@@ -103,6 +104,9 @@ export const connectorDetails = {
         },
       },
     },
+    ...getIframeRedirectionConfig({
+      cardDetails: successful3DSCardDetails,
+    }),
     PaymentIntentOffSession: {
       Request: {
         amount: 6000,
@@ -185,6 +189,7 @@ export const connectorDetails = {
         },
       },
     },
+
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
