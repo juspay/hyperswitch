@@ -6694,6 +6694,7 @@ pub async fn payment_methods_session_confirm(
         payment_method_response.card_cvc_token_storage,
         None,
         payment_method_response.network_token,
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(
