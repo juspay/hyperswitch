@@ -19,6 +19,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     address::Address,
+    mandates,
     payment_method_data::{
         self, ApplePayWalletData, BankRedirectData, CardDetailsForNetworkTransactionId,
         GooglePayWalletData, PayLaterData, PaymentMethodData, WalletData,
@@ -2347,6 +2348,7 @@ fn create_transaction_response(
         network_txn_id: external_scheme_transaction_id
             .as_ref()
             .map(|ntid| ntid.clone().expose()),
+        network_txn_link_id: None,
         connector_response_reference_id: order_id.clone(),
         incremental_authorization_allowed: None,
         authentication_data: None,
@@ -3894,7 +3896,7 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
         self.mandate_id.as_ref().and_then(|mandate_ids| {
             mandate_ids.mandate_reference_id.as_ref().and_then(
                 |mandate_ref_id| match mandate_ref_id {
-                    api_models::payments::MandateReferenceId::ConnectorMandateId(id) => {
+                    mandates::MandateReferenceId::ConnectorMandateId(id) => {
                         id.get_connector_mandate_id()
                     }
                     _ => None,
