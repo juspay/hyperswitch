@@ -12557,8 +12557,6 @@ pub async fn payments_submit_pre_confirm(
         .and_then(|billing| billing.address.as_ref());
     let postal_code = billing_address.and_then(|addr| addr.zip.clone());
     let billing_country = billing_address.and_then(|addr| addr.country);
-    // Capture surcharge_strategy from request before building eligibility_req
-    let req_surcharge_strategy = req.surcharge_strategy;
     let eligibility_req = api_models::payments::PaymentsEligibilityRequest {
         payment_id: req.payment_id.clone(),
         client_secret: req.client_secret.clone(),
@@ -12585,7 +12583,6 @@ pub async fn payments_submit_pre_confirm(
     let pi_amount = payment_eligibility_data.payment_intent.amount;
     let pi_currency = payment_eligibility_data.payment_intent.currency;
     let pi_surcharge_strategy = payment_eligibility_data.payment_intent.surcharge_strategy;
-    let pi_for_update = payment_eligibility_data.payment_intent.clone();
     let active_attempt_id = payment_eligibility_data
         .payment_intent
         .active_attempt
@@ -12698,10 +12695,8 @@ pub async fn payments_submit_pre_confirm(
                         }
                     };
 
-                // Resolve surcharge strategy: request > payment_intent > default (Apply)
-                let surcharge_strategy = req_surcharge_strategy
-                    .or(pi_surcharge_strategy)
-                    .unwrap_or_default();
+                // Resolve surcharge strategy: payment_intent > default (Apply)
+                let surcharge_strategy = pi_surcharge_strategy.unwrap_or_default();
 
                 let surcharge_data = hyperswitch_domain_models::router_request_types::PaymentsSurchargeCalculationData {
                     amount,
@@ -12775,26 +12770,7 @@ pub async fn payments_submit_pre_confirm(
                         }
 
                         // persist connector_surcharge_id to payment_attempt
-                        // and update payment_intent.surcharge_strategy if request provided one.
                         let persist_result = async {
-                            // If merchant sent surcharge_strategy in this request, persist it on the PI
-                            if let Some(strategy) = req_surcharge_strategy {
-                                state_for_surcharge
-                                    .store
-                                    .update_payment_intent(
-                                        pi_for_update,
-                                        payments::payment_intent::PaymentIntentUpdate::SurchargeStrategyUpdate {
-                                            surcharge_strategy: Some(strategy),
-                                            updated_by: merchant_id.get_string_repr().to_owned(),
-                                        },
-                                        &key_store,
-                                        storage_scheme,
-                                    )
-                                    .await
-                                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                                    .attach_printable("Failed to update surcharge_strategy on payment_intent")?;
-                            }
-
                             let external_surcharge_details =
                                 common_types::payments::ExternalSurchargeDetails {
                                     external_surcharge_id: connector_surcharge_id,
