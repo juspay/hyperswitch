@@ -5,6 +5,9 @@ pub mod types;
 
 use std::collections::HashMap;
 
+use api_models::superposition_proxy::{
+    AuditLogResponse, ContextResponse, DefaultConfigResponse, DimensionResponse,
+};
 use aws_smithy_types::{Document, Number};
 use common_utils::{errors::CustomResult, id_type::TargetingKey};
 use error_stack::{report, ResultExt};
@@ -113,48 +116,48 @@ pub fn map_sdk_error<E: std::fmt::Debug>(
     }
 }
 
-/// Serialize a `ContextResponse` to a JSON value.
-pub fn context_response_to_value(
+/// Convert a Superposition SDK `ContextResponse` into the typed response struct.
+pub fn context_response_to_struct(
     ctx: &superposition_sdk::types::ContextResponse,
-) -> serde_json::Value {
-    serde_json::json!({
-        "id": ctx.id(),
-        "value": doc_map_to_json(ctx.value()),
-        "override": doc_map_to_json(ctx.r#override()),
-        "override_id": ctx.override_id(),
-        "weight": ctx.weight(),
-        "description": ctx.description(),
-        "change_reason": ctx.change_reason(),
-        "created_at": datetime_to_string(ctx.created_at()),
-        "created_by": ctx.created_by(),
-        "last_modified_at": datetime_to_string(ctx.last_modified_at()),
-        "last_modified_by": ctx.last_modified_by(),
-    })
+) -> ContextResponse {
+    ContextResponse {
+        id: ctx.id().to_owned(),
+        value: doc_map_to_json(ctx.value()),
+        r#override: doc_map_to_json(ctx.r#override()),
+        override_id: ctx.override_id().to_owned(),
+        weight: ctx.weight().to_owned(),
+        description: ctx.description().to_owned(),
+        change_reason: ctx.change_reason().to_owned(),
+        created_at: datetime_to_string(ctx.created_at()),
+        created_by: ctx.created_by().to_owned(),
+        last_modified_at: datetime_to_string(ctx.last_modified_at()),
+        last_modified_by: ctx.last_modified_by().to_owned(),
+    }
 }
 
-/// Serialize a `DefaultConfigResponse` to a JSON value.
-pub fn default_config_response_to_value(
+/// Convert a Superposition SDK `DefaultConfigResponse` into the typed response struct.
+pub fn default_config_response_to_struct(
     cfg: &superposition_sdk::types::DefaultConfigResponse,
-) -> serde_json::Value {
-    serde_json::json!({
-        "key": cfg.key(),
-        "value": document_to_value(cfg.value().clone()),
-        "schema": doc_map_to_json(cfg.schema()),
-        "description": cfg.description(),
-        "change_reason": cfg.change_reason(),
-        "value_validation_function_name": cfg.value_validation_function_name(),
-        "value_compute_function_name": cfg.value_compute_function_name(),
-        "created_at": datetime_to_string(cfg.created_at()),
-        "created_by": cfg.created_by(),
-        "last_modified_at": datetime_to_string(cfg.last_modified_at()),
-        "last_modified_by": cfg.last_modified_by(),
-    })
+) -> DefaultConfigResponse {
+    DefaultConfigResponse {
+        key: cfg.key().to_owned(),
+        value: document_to_value(cfg.value().clone()),
+        schema: doc_map_to_json(cfg.schema()),
+        description: cfg.description().to_owned(),
+        change_reason: cfg.change_reason().to_owned(),
+        value_validation_function_name: cfg.value_validation_function_name().map(str::to_owned),
+        value_compute_function_name: cfg.value_compute_function_name().map(str::to_owned),
+        created_at: datetime_to_string(cfg.created_at()),
+        created_by: cfg.created_by().to_owned(),
+        last_modified_at: datetime_to_string(cfg.last_modified_at()),
+        last_modified_by: cfg.last_modified_by().to_owned(),
+    }
 }
 
-/// Serialize a `DimensionResponse` to a JSON value.
-pub fn dimension_response_to_value(
+/// Convert a Superposition SDK `DimensionResponse` into the typed response struct.
+pub fn dimension_response_to_struct(
     dim: &superposition_sdk::types::DimensionResponse,
-) -> serde_json::Value {
+) -> DimensionResponse {
     let dep_graph: Map<String, serde_json::Value> = dim
         .dependency_graph()
         .iter()
@@ -169,36 +172,36 @@ pub fn dimension_response_to_value(
             )
         })
         .collect();
-    serde_json::json!({
-        "dimension": dim.dimension(),
-        "position": dim.position(),
-        "schema": doc_map_to_json(dim.schema()),
-        "value_validation_function_name": dim.value_validation_function_name(),
-        "description": dim.description(),
-        "change_reason": dim.change_reason(),
-        "last_modified_at": datetime_to_string(dim.last_modified_at()),
-        "last_modified_by": dim.last_modified_by(),
-        "created_at": datetime_to_string(dim.created_at()),
-        "created_by": dim.created_by(),
-        "dependency_graph": serde_json::Value::Object(dep_graph),
-        "dimension_type": dimension_type_to_value(dim.dimension_type()),
-        "value_compute_function_name": dim.value_compute_function_name(),
-        "mandatory": dim.mandatory(),
-    })
+    DimensionResponse {
+        dimension: dim.dimension().to_owned(),
+        position: dim.position(),
+        schema: doc_map_to_json(dim.schema()),
+        value_validation_function_name: dim.value_validation_function_name().map(str::to_owned),
+        description: dim.description().to_owned(),
+        change_reason: dim.change_reason().to_owned(),
+        last_modified_at: datetime_to_string(dim.last_modified_at()),
+        last_modified_by: dim.last_modified_by().to_owned(),
+        created_at: datetime_to_string(dim.created_at()),
+        created_by: dim.created_by().to_owned(),
+        dependency_graph: serde_json::Value::Object(dep_graph),
+        dimension_type: dimension_type_to_value(dim.dimension_type()),
+        value_compute_function_name: dim.value_compute_function_name().map(str::to_owned),
+        mandatory: dim.mandatory(),
+    }
 }
 
-/// Serialize an `AuditLogFull` to a JSON value.
-pub fn audit_log_full_to_value(log: &superposition_sdk::types::AuditLogFull) -> serde_json::Value {
-    serde_json::json!({
-        "id": log.id(),
-        "table_name": log.table_name(),
-        "user_name": log.user_name(),
-        "timestamp": datetime_to_string(log.timestamp()),
-        "action": log.action().as_str(),
-        "original_data": log.original_data().map(|d| document_to_value(d.clone())),
-        "new_data": log.new_data().map(|d| document_to_value(d.clone())),
-        "query": log.query(),
-    })
+/// Convert a Superposition SDK `AuditLogFull` into the typed response struct.
+pub fn audit_log_full_to_struct(log: &superposition_sdk::types::AuditLogFull) -> AuditLogResponse {
+    AuditLogResponse {
+        id: log.id().to_owned(),
+        table_name: log.table_name().to_owned(),
+        user_name: log.user_name().to_owned(),
+        timestamp: datetime_to_string(log.timestamp()),
+        action: log.action().as_str().to_owned(),
+        original_data: log.original_data().map(|d| document_to_value(d.clone())),
+        new_data: log.new_data().map(|d| document_to_value(d.clone())),
+        query: log.query().to_owned(),
+    }
 }
 
 /// Append a pre-encoded query string to an SDK HTTP request URI.
@@ -263,23 +266,23 @@ pub fn context_put_from_request(
     })
 }
 
-/// Serialize a `CreateContextOutput` to JSON.
-pub fn create_context_output_to_value(
+/// Convert a Superposition SDK `CreateContextOutput` into the shared `ContextResponse` struct.
+pub fn create_context_output_to_struct(
     out: &superposition_sdk::operation::create_context::CreateContextOutput,
-) -> serde_json::Value {
-    serde_json::json!({
-        "id": out.id(),
-        "value": doc_map_to_json(out.value()),
-        "override": doc_map_to_json(out.r#override()),
-        "override_id": out.override_id(),
-        "weight": out.weight(),
-        "description": out.description(),
-        "change_reason": out.change_reason(),
-        "created_at": datetime_to_string(out.created_at()),
-        "created_by": out.created_by(),
-        "last_modified_at": datetime_to_string(out.last_modified_at()),
-        "last_modified_by": out.last_modified_by(),
-    })
+) -> ContextResponse {
+    ContextResponse {
+        id: out.id().to_owned(),
+        value: doc_map_to_json(out.value()),
+        r#override: doc_map_to_json(out.r#override()),
+        override_id: out.override_id().to_owned(),
+        weight: out.weight().to_owned(),
+        description: out.description().to_owned(),
+        change_reason: out.change_reason().to_owned(),
+        created_at: datetime_to_string(out.created_at()),
+        created_by: out.created_by().to_owned(),
+        last_modified_at: datetime_to_string(out.last_modified_at()),
+        last_modified_by: out.last_modified_by().to_owned(),
+    }
 }
 
 /// Generate a default change reason from the config key

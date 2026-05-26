@@ -11,7 +11,7 @@ use api_models::payouts;
 use async_trait::async_trait;
 use base64::Engine;
 use common_enums::{MerchantAccountType, TokenPurpose};
-use common_utils::{self, date_time, fp_utils, id_type};
+use common_utils::{date_time, fp_utils, id_type};
 #[cfg(feature = "v2")]
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};

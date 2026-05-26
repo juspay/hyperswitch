@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use actix_web::{web, HttpRequest, HttpResponse};
 use external_services::superposition::ContextPutRequest;
+use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -78,8 +79,8 @@ fn parse_list_contexts_request(
     }
 
     ListContextsRequest {
-        org_id,
-        workspace_id,
+        org_id: Secret::new(org_id),
+        workspace_id: Secret::new(workspace_id),
         count,
         page,
         all,
@@ -108,17 +109,14 @@ fn parse_list_default_configs_request(
             "count" => count = value.parse().ok(),
             "page" => page = value.parse().ok(),
             "all" => all = value.parse().ok(),
-            "name" => {
-                let entries = name.get_or_insert_with(Vec::new);
-                entries.extend(value.split(',').map(|s| s.trim().to_owned()));
-            }
+            "name" => name = Some(value),
             _ => {}
         }
     }
 
     ListDefaultConfigsRequest {
-        org_id,
-        workspace_id,
+        org_id: Secret::new(org_id),
+        workspace_id: Secret::new(workspace_id),
         count,
         page,
         all,
@@ -145,8 +143,8 @@ fn parse_list_dimensions_request(
     }
 
     ListDimensionsRequest {
-        org_id,
-        workspace_id,
+        org_id: Secret::new(org_id),
+        workspace_id: Secret::new(workspace_id),
         count,
         page,
         all,
@@ -188,8 +186,8 @@ fn parse_list_audit_logs_request(
     }
 
     ListAuditLogsRequest {
-        org_id,
-        workspace_id,
+        org_id: Secret::new(org_id),
+        workspace_id: Secret::new(workspace_id),
         count,
         page,
         all,
@@ -310,8 +308,8 @@ pub async fn create_context(
 
     let payload = ProxyCreateContextRequest {
         body: body.into_inner(),
-        org_id,
-        workspace_id,
+        org_id: Secret::new(org_id),
+        workspace_id: Secret::new(workspace_id),
     };
 
     Box::pin(api::server_wrap(
@@ -346,8 +344,8 @@ pub async fn resolve_config(
 
     let payload = ProxyResolveConfigRequest {
         body: body.into_inner(),
-        org_id,
-        workspace_id,
+        org_id: Secret::new(org_id),
+        workspace_id: Secret::new(workspace_id),
     };
 
     Box::pin(api::server_wrap(

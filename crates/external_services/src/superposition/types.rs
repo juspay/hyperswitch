@@ -85,6 +85,18 @@ pub struct SuperpositionClientConfig {
     /// Path to a TOML backup config file on PVC/EFS.
     /// Used as fallback if the primary HTTP init fails at startup.
     pub backup_file_path: Option<std::path::PathBuf>,
+    /// Configuration for the Superposition proxy endpoints exposed by this service.
+    #[serde(default)]
+    pub proxy: SuperpositionProxyConfig,
+}
+
+/// Configuration for the Superposition proxy endpoints.
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[serde(default)]
+pub struct SuperpositionProxyConfig {
+    /// Allowlist of default config key prefixes returned by the list_default_configs proxy.
+    /// Empty list disables filtering and returns every key.
+    pub default_configs_allowlist: Vec<String>,
 }
 
 impl Default for SuperpositionClientConfig {
@@ -97,6 +109,7 @@ impl Default for SuperpositionClientConfig {
             polling_interval: 15,
             request_timeout: None,
             backup_file_path: None,
+            proxy: SuperpositionProxyConfig::default(),
         }
     }
 }

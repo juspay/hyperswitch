@@ -1,21 +1,63 @@
 pub use api_models::superposition_proxy::{
+    AuditLogResponse, ContextResponse, DefaultConfigResponse, DimensionResponse,
     ListAuditLogsRequest, ListContextsRequest, ListDefaultConfigsRequest, ListDimensionsRequest,
     PaginatedListResponse, ProxyCreateContextRequest, ProxyResolveConfigRequest, ResolveConfigBody,
 };
 use external_services::superposition::{
-    audit_log_full_to_value, context_put_from_request, context_response_to_value,
-    create_context_output_to_value, datetime_to_string, default_config_response_to_value,
-    dimension_response_to_value, document_to_value, map_sdk_error, parse_datetime,
+    audit_log_full_to_struct, context_put_from_request, context_response_to_struct,
+    create_context_output_to_struct, datetime_to_string, default_config_response_to_struct,
+    dimension_response_to_struct, document_to_value, map_sdk_error, parse_datetime,
     value_to_document, AuditAction, ContextFilterSortOn, DimensionMatchStrategy, SortBy,
     SuperpositionError,
 };
+use hyperswitch_masking::ExposeInterface;
 use router_env::logger;
 
 use crate::{
+    consts::user_role::ROLE_ID_MERCHANT_ADMIN,
     core::errors::{self, RouterResponse},
     services::{authentication::UserFromToken, ApplicationResponse},
     SessionState,
 };
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[allow(clippy::enum_variant_names)]
+enum ScopingDimension {
+    OrganizationId,
+    MerchantId,
+    ProfileId,
+    ProviderMerchantId,
+    ProcessorMerchantId,
+}
+
+impl ScopingDimension {
+    fn from_context_key(key: &str) -> Option<Self> {
+        match key {
+            "organization_id" => Some(Self::OrganizationId),
+            "merchant_id" => Some(Self::MerchantId),
+            "profile_id" => Some(Self::ProfileId),
+            "provider_merchant_id" => Some(Self::ProviderMerchantId),
+            "processor_merchant_id" => Some(Self::ProcessorMerchantId),
+            _ => None,
+        }
+    }
+
+    fn from_dimension_param(key: &str) -> Option<Self> {
+        key.strip_prefix("dimension[")
+            .and_then(|s| s.strip_suffix(']'))
+            .and_then(Self::from_context_key)
+    }
+
+    fn expected_value(self, auth: &UserFromToken) -> &str {
+        match self {
+            Self::OrganizationId => auth.org_id.get_string_repr(),
+            Self::MerchantId | Self::ProviderMerchantId | Self::ProcessorMerchantId => {
+                auth.merchant_id.get_string_repr()
+            }
+            Self::ProfileId => auth.profile_id.get_string_repr(),
+        }
+    }
+}
 
 fn validate_superposition_params(
     params: &[(String, String)],
@@ -27,23 +69,10 @@ fn validate_superposition_params(
         })
     };
     for (key, value) in params {
-        match key.as_str() {
-            "dimension[organization_id]" if value != auth.org_id.get_string_repr() => {
+        if let Some(dimension) = ScopingDimension::from_dimension_param(key) {
+            if value != dimension.expected_value(auth) {
                 return Err(unauthorized());
             }
-            "dimension[merchant_id]" if value != auth.merchant_id.get_string_repr() => {
-                return Err(unauthorized());
-            }
-            "dimension[profile_id]" if value != auth.profile_id.get_string_repr() => {
-                return Err(unauthorized());
-            }
-            "dimension[provider_merchant_id]" if value != auth.merchant_id.get_string_repr() => {
-                return Err(unauthorized());
-            }
-            "dimension[processor_merchant_id]" if value != auth.merchant_id.get_string_repr() => {
-                return Err(unauthorized());
-            }
-            _ => {}
         }
     }
     Ok(())
@@ -52,16 +81,9 @@ fn validate_superposition_params(
 fn require_superposition_context(
     params: &[(String, String)],
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
-    let scoping_dimensions = [
-        "dimension[organization_id]",
-        "dimension[provider_merchant_id]",
-        "dimension[processor_merchant_id]",
-        "dimension[merchant_id]",
-        "dimension[profile_id]",
-    ];
     let has_scoping_dimension = params
         .iter()
-        .any(|(k, _)| scoping_dimensions.contains(&k.as_str()));
+        .any(|(k, _)| ScopingDimension::from_dimension_param(k).is_some());
     if !has_scoping_dimension {
         return Err(error_stack::report!(
             errors::ApiErrorResponse::InvalidRequestData {
@@ -79,24 +101,17 @@ fn validate_superposition_context_body(
     let Some(context_obj) = context.as_object() else {
         return Ok(());
     };
-    let has_scoping_dim = context_obj.keys().any(|k| {
-        matches!(
-            k.as_str(),
-            "organization_id"
-                | "merchant_id"
-                | "profile_id"
-                | "provider_merchant_id"
-                | "processor_merchant_id"
-        )
-    });
+    let has_scoping_dim = context_obj
+        .keys()
+        .any(|k| ScopingDimension::from_context_key(k).is_some());
     if !has_scoping_dim {
         return Err(error_stack::report!(
             errors::ApiErrorResponse::InvalidRequestData {
-                message: "context must contain at least one of: organization_id, merchant_id, profile_id, provider_merchant_id, processor_merchant_id".to_string(),
+                message: "context must contain at least one of: organization_id, profile_id, provider_merchant_id, processor_merchant_id".to_string(),
             }
         ));
     }
-    let is_merchant_admin_role = auth.role_id == crate::consts::user_role::ROLE_ID_MERCHANT_ADMIN;
+    let is_merchant_admin_role = auth.role_id == ROLE_ID_MERCHANT_ADMIN;
     let has_merchant_level_dim = context_obj.contains_key("merchant_id")
         || context_obj.contains_key("profile_id")
         || context_obj.contains_key("processor_merchant_id")
@@ -121,12 +136,11 @@ fn validate_superposition_context_body(
     validate_superposition_params(&params, auth)
 }
 
-fn filter_by_names(items: &mut Vec<serde_json::Value>, names: Vec<String>) {
+fn filter_by_allowlist(items: &mut Vec<DefaultConfigResponse>, allowlist: &[String]) {
     items.retain(|item| {
-        let Some(key) = item.get("key").and_then(|v| v.as_str()) else {
-            return false;
-        };
-        names.iter().any(|name| key.starts_with(name.as_str()))
+        allowlist
+            .iter()
+            .any(|allowed| item.key.starts_with(allowed.as_str()))
     });
 }
 
@@ -156,7 +170,7 @@ pub async fn list_contexts(
     state: SessionState,
     auth: UserFromToken,
     req: ListContextsRequest,
-) -> RouterResponse<PaginatedListResponse> {
+) -> RouterResponse<PaginatedListResponse<ContextResponse>> {
     logger::info!(
         user_id = %auth.user_id,
         merchant_id = %auth.merchant_id.get_string_repr(),
@@ -194,8 +208,8 @@ pub async fn list_contexts(
         .superposition_service
         .superposition_sdk_client()
         .list_contexts()
-        .workspace_id(req.workspace_id)
-        .org_id(req.org_id)
+        .workspace_id(req.workspace_id.expose())
+        .org_id(req.org_id.expose())
         .dimension_match_strategy(DimensionMatchStrategy::AnyMatch)
         .set_dimension_params(
             (!req.dimension_params.is_empty()).then_some(req.dimension_params),
@@ -219,39 +233,33 @@ pub async fn list_contexts(
             )
         })?;
 
-    let mut all_contexts: Vec<serde_json::Value> = list_contexts_output
+    let mut all_contexts: Vec<ContextResponse> = list_contexts_output
         .data()
         .iter()
-        .map(context_response_to_value)
+        .map(context_response_to_struct)
         .collect();
 
-    if auth.role_id == crate::consts::user_role::ROLE_ID_MERCHANT_ADMIN {
+    if auth.role_id == ROLE_ID_MERCHANT_ADMIN {
         let scoped_merchant_id = auth.merchant_id.get_string_repr().to_string();
         let scoped_profile_id = auth.profile_id.get_string_repr().to_string();
 
+        let scoped_dimensions: [(&str, &str); 4] = [
+            ("merchant_id", &scoped_merchant_id),
+            ("processor_merchant_id", &scoped_merchant_id),
+            ("provider_merchant_id", &scoped_merchant_id),
+            ("profile_id", &scoped_profile_id),
+        ];
+
         all_contexts.retain(|context| {
-            let Some(context_dimensions) = context.get("value").and_then(|v| v.as_object()) else {
+            let Some(context_dimensions) = context.value.as_object() else {
                 return true;
             };
-
-            let get_dimension_value =
-                |key: &str| context_dimensions.get(key).and_then(|v| v.as_str());
-
-            if get_dimension_value("merchant_id").is_some_and(|v| v != scoped_merchant_id) {
-                return false;
-            }
-            if get_dimension_value("processor_merchant_id").is_some_and(|v| v != scoped_merchant_id)
-            {
-                return false;
-            }
-            if get_dimension_value("provider_merchant_id").is_some_and(|v| v != scoped_merchant_id)
-            {
-                return false;
-            }
-            if get_dimension_value("profile_id").is_some_and(|v| v != scoped_profile_id) {
-                return false;
-            }
-            true
+            scoped_dimensions.iter().all(|(key, expected)| {
+                context_dimensions
+                    .get(*key)
+                    .and_then(|v| v.as_str())
+                    .is_none_or(|v| v == *expected)
+            })
         });
     }
 
@@ -269,7 +277,7 @@ pub async fn list_default_configs(
     state: SessionState,
     auth: UserFromToken,
     req: ListDefaultConfigsRequest,
-) -> RouterResponse<PaginatedListResponse> {
+) -> RouterResponse<PaginatedListResponse<DefaultConfigResponse>> {
     logger::info!(
         user_id = %auth.user_id,
         merchant_id = %auth.merchant_id.get_string_repr(),
@@ -278,18 +286,26 @@ pub async fn list_default_configs(
         "superposition list_default_configs request"
     );
 
-    let name_filter = req.name;
-    let fetch_all = name_filter.is_some() || req.all.unwrap_or(false);
+    let allowlist = state
+        .conf
+        .superposition
+        .get_inner()
+        .proxy
+        .default_configs_allowlist
+        .clone();
+    let allowlist_active = !allowlist.is_empty();
+    let fetch_all = allowlist_active || req.all.unwrap_or(false);
 
     let list_default_configs_output = state
         .superposition_service
         .superposition_sdk_client()
         .list_default_configs()
-        .workspace_id(req.workspace_id)
-        .org_id(req.org_id)
+        .workspace_id(req.workspace_id.expose())
+        .org_id(req.org_id.expose())
         .set_count(if fetch_all { None } else { req.count })
         .set_page(if fetch_all { None } else { req.page })
         .set_all(Some(fetch_all))
+        .set_name(req.name)
         .send()
         .await
         .map_err(|sdk_error| {
@@ -303,14 +319,14 @@ pub async fn list_default_configs(
             )
         })?;
 
-    let mut default_configs: Vec<serde_json::Value> = list_default_configs_output
+    let mut default_configs: Vec<DefaultConfigResponse> = list_default_configs_output
         .data()
         .iter()
-        .map(default_config_response_to_value)
+        .map(default_config_response_to_struct)
         .collect();
 
-    if let Some(names) = name_filter {
-        filter_by_names(&mut default_configs, names);
+    if allowlist_active {
+        filter_by_allowlist(&mut default_configs, &allowlist);
     }
 
     let response = PaginatedListResponse {
@@ -327,7 +343,7 @@ pub async fn list_dimensions(
     state: SessionState,
     auth: UserFromToken,
     req: ListDimensionsRequest,
-) -> RouterResponse<PaginatedListResponse> {
+) -> RouterResponse<PaginatedListResponse<DimensionResponse>> {
     logger::info!(
         user_id = %auth.user_id,
         merchant_id = %auth.merchant_id.get_string_repr(),
@@ -340,8 +356,8 @@ pub async fn list_dimensions(
         .superposition_service
         .superposition_sdk_client()
         .list_dimensions()
-        .workspace_id(req.workspace_id)
-        .org_id(req.org_id)
+        .workspace_id(req.workspace_id.expose())
+        .org_id(req.org_id.expose())
         .set_count(req.count)
         .set_page(req.page)
         .set_all(req.all)
@@ -358,10 +374,10 @@ pub async fn list_dimensions(
             )
         })?;
 
-    let dimensions: Vec<serde_json::Value> = list_dimensions_output
+    let dimensions: Vec<DimensionResponse> = list_dimensions_output
         .data()
         .iter()
-        .map(dimension_response_to_value)
+        .map(dimension_response_to_struct)
         .collect();
 
     let response = PaginatedListResponse {
@@ -378,7 +394,7 @@ pub async fn create_context(
     state: SessionState,
     auth: UserFromToken,
     req: ProxyCreateContextRequest,
-) -> RouterResponse<serde_json::Value> {
+) -> RouterResponse<ContextResponse> {
     logger::info!(
         user_id = %auth.user_id,
         merchant_id = %auth.merchant_id.get_string_repr(),
@@ -412,8 +428,8 @@ pub async fn create_context(
         .superposition_service
         .superposition_sdk_client()
         .create_context()
-        .workspace_id(req.workspace_id)
-        .org_id(req.org_id)
+        .workspace_id(req.workspace_id.expose())
+        .org_id(req.org_id.expose())
         .request(context_put)
         .send()
         .await
@@ -425,7 +441,7 @@ pub async fn create_context(
             )
         })?;
 
-    let response = create_context_output_to_value(&created_context);
+    let response = create_context_output_to_struct(&created_context);
 
     logger::info!(user_id = %auth.user_id, "superposition create_context success");
     Ok(ApplicationResponse::Json(response))
@@ -460,8 +476,8 @@ pub async fn resolve_config(
         .superposition_service
         .superposition_sdk_client()
         .get_resolved_config()
-        .workspace_id(req.workspace_id)
-        .org_id(req.org_id);
+        .workspace_id(req.workspace_id.expose())
+        .org_id(req.org_id.expose());
 
     for (dimension_key, dimension_value) in &req.body.context {
         resolved_config_builder = resolved_config_builder.context(
@@ -478,8 +494,25 @@ pub async fn resolve_config(
         )
     })?;
 
+    let mut config_value = document_to_value(resolved_config.config().clone());
+    let allowlist = &state
+        .conf
+        .superposition
+        .get_inner()
+        .proxy
+        .default_configs_allowlist;
+    if !allowlist.is_empty() {
+        if let Some(config_obj) = config_value.as_object_mut() {
+            config_obj.retain(|key, _| {
+                allowlist
+                    .iter()
+                    .any(|allowed| key.starts_with(allowed.as_str()))
+            });
+        }
+    }
+
     let response = serde_json::json!({
-        "config": document_to_value(resolved_config.config().clone()),
+        "config": config_value,
         "version": resolved_config.version(),
         "last_modified": datetime_to_string(resolved_config.last_modified()),
         "audit_id": resolved_config.audit_id(),
@@ -493,7 +526,7 @@ pub async fn list_audit_logs(
     state: SessionState,
     auth: UserFromToken,
     req: ListAuditLogsRequest,
-) -> RouterResponse<PaginatedListResponse> {
+) -> RouterResponse<PaginatedListResponse<AuditLogResponse>> {
     logger::info!(
         user_id = %auth.user_id,
         merchant_id = %auth.merchant_id.get_string_repr(),
@@ -530,8 +563,8 @@ pub async fn list_audit_logs(
         .superposition_service
         .superposition_sdk_client()
         .list_audit_logs()
-        .workspace_id(req.workspace_id)
-        .org_id(req.org_id)
+        .workspace_id(req.workspace_id.expose())
+        .org_id(req.org_id.expose())
         .set_count(req.count)
         .set_page(req.page)
         .set_all(req.all)
@@ -552,10 +585,10 @@ pub async fn list_audit_logs(
             )
         })?;
 
-    let audit_logs: Vec<serde_json::Value> = audit_logs_output
+    let audit_logs: Vec<AuditLogResponse> = audit_logs_output
         .data()
         .iter()
-        .map(audit_log_full_to_value)
+        .map(audit_log_full_to_struct)
         .collect();
 
     let response = PaginatedListResponse {
