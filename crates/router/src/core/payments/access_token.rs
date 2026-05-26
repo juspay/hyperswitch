@@ -8,12 +8,13 @@ use hyperswitch_interfaces::{
     consts as interfaces_consts,
 };
 use unified_connector_service_client::payments as payments_grpc;
+
 use crate::{
     consts,
     core::{
-        unified_connector_service,
         errors::{self, RouterResult},
         payments::{self, gateway::context as gateway_context},
+        unified_connector_service,
     },
     routes::{metrics, SessionState},
     services::{self, logger},
@@ -298,7 +299,6 @@ pub async fn add_access_token_for_relay(
     processor: &domain::Processor,
     creds_identifier: Option<&str>,
 ) -> RouterResult<Option<types::AccessToken>> {
-
     if !connector
         .connector_name
         .supports_access_token(common_enums::PaymentMethod::Card)

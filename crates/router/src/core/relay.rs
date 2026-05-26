@@ -9,7 +9,8 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::relay;
-use hyperswitch_interfaces::{ api::ConnectorCommon, api_client::call_connector_api};
+use hyperswitch_interfaces::{api::ConnectorCommon, api_client::call_connector_api};
+
 use super::errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt};
 use crate::{
     connector::utils::RouterData,
@@ -949,7 +950,6 @@ pub async fn relay_unreferenced_refund(
     profile_id_optional: Option<id_type::ProfileId>,
     request: api_models::unreferenced_refund::UnreferencedRefundRequest,
 ) -> RouterResponse<api_models::unreferenced_refund::UnreferencedRefundResponse> {
-
     fp_utils::when(request.amount.get_amount_as_i64() <= 0, || {
         Err(errors::ApiErrorResponse::PreconditionFailed {
             message: "Amount must be greater than 0".to_string(),
