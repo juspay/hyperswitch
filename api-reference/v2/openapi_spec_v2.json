@@ -11148,6 +11148,7 @@
       "Connector": {
         "type": "string",
         "enum": [
+          "absa_sanlam",
           "authipay",
           "adyenplatform",
           "stripe_billing_test",
@@ -11261,7 +11262,6 @@
           "recurly",
           "redsys",
           "revolv3",
-          "absa_sanlam",
           "santander",
           "shift4",
           "silverflow",
@@ -29167,6 +29167,7 @@
         "type": "string",
         "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
+          "absa_sanlam",
           "authipay",
           "adyenplatform",
           "stripe_billing_test",
@@ -29273,7 +29274,6 @@
           "redsys",
           "revolv3",
           "riskified",
-          "absa_sanlam",
           "santander",
           "shift4",
           "signifyd",
