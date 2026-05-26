@@ -93,7 +93,17 @@ export function handleRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
         resolvedConnectorId,
-        paymentMethodType
+        paymentMethodType,
+        handlerMetadata?.globalState
+      );
+      break;
+    case "affirm_pay_later":
+      affirmPayLaterRedirection(
+        urls.redirectionUrl,
+        urls.expectedUrl,
+        resolvedConnectorId,
+        paymentMethodType,
+        handlerMetadata?.globalState
       );
       break;
     case "voucher":
@@ -453,6 +463,422 @@ function payLaterRedirection(
 
   cy.then(() => {
     verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+  });
+}
+
+function affirmPayLaterRedirection(
+  redirectionUrl,
+  expectedUrl,
+  connectorId,
+  paymentMethodType,
+  globalState
+) {
+  const verifyUrl = false;
+
+  if (redirectionUrl && redirectionUrl.href) {
+    cy.visit(redirectionUrl.href);
+    cy.log("Affirm flow - starting checkout automation");
+
+    cy.on("uncaught:exception", (err) => {
+      if (
+        err.message.includes("Cannot read properties of null") ||
+        err.message.includes("postMessage")
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    cy.url().then((initialUrl) => {
+      const affirmOrigin = new URL(initialUrl).origin;
+      cy.log("Affirm pay later flow - handling on origin: " + affirmOrigin);
+
+      const waitTime = CONSTANTS.WAIT_TIME;
+
+      const determineAffirmStep = (doc, bodyText, currentUrl) => {
+        if (currentUrl.includes("/payments/completion")) return "done";
+
+        const hasPinInput = doc.querySelector(
+          '[data-testid="phone-pin-field"]:not([aria-hidden="true"])'
+        );
+        if (hasPinInput) return "pin";
+
+        if (
+          bodyText.includes("phone") ||
+          bodyText.includes("mobile") ||
+          bodyText.includes("cell")
+        )
+          return "phone";
+        if (bodyText.includes("continue to plans")) return "continue_to_plans";
+        if (
+          bodyText.includes("social") ||
+          bodyText.includes("ssn") ||
+          bodyText.includes("last 4")
+        )
+          return "ssn";
+        if (bodyText.includes("first name") || bodyText.includes("legal name"))
+          return "first_name";
+        if (bodyText.includes("last name") || bodyText.includes("surname"))
+          return "last_name";
+        if (
+          bodyText.includes("date of birth") ||
+          bodyText.includes("birthday") ||
+          bodyText.includes("dob") ||
+          bodyText.includes("birth date")
+        )
+          return "dob";
+        if (bodyText.includes("email") || bodyText.includes("e-mail"))
+          return "email";
+        if (
+          bodyText.includes("continue to plans") ||
+          (bodyText.includes("creating an account") &&
+            bodyText.includes("agree"))
+        )
+          return "consent";
+        if (
+          bodyText.includes("pick a plan") ||
+          bodyText.includes("choose a payment plan") ||
+          bodyText.includes("payment plan") ||
+          bodyText.includes("choose this plan") ||
+          bodyText.includes("every month") ||
+          bodyText.includes("total of payments")
+        )
+          return "plan";
+        if (
+          bodyText.includes("review") ||
+          bodyText.includes("confirm") ||
+          bodyText.includes("autopay") ||
+          bodyText.includes("terms")
+        )
+          return "review";
+        return "fallback";
+      };
+
+      const handleAffirmStep = () => {
+        cy.wait(waitTime / 5);
+
+        cy.document().then((doc) => {
+          const bodyText = doc.body.innerText.toLowerCase();
+          const pageTitle = doc.title || "No title";
+          const currentUrl = doc.location?.href || "Unknown URL";
+
+          cy.log(`Affirm Page: ${pageTitle}`);
+          cy.log(`URL: ${currentUrl}`);
+          cy.log(`Page content preview: ${bodyText.substring(0, 200)}...`);
+
+          const step = determineAffirmStep(doc, bodyText, currentUrl);
+          cy.log(`Determined Affirm step: ${step}`);
+
+          switch (step) {
+            case "done":
+              cy.log("Reached return URL, done");
+              break;
+
+            case "phone":
+              cy.get("body").then(($body) => {
+                const phoneInputs = $body.find(
+                  'input[type="tel"]:visible, input[autocomplete="tel"]:visible, input[name*="phone"]:visible'
+                );
+                if (phoneInputs.length > 0) {
+                  cy.wrap(phoneInputs.first()).clear().type("4155551234");
+                  cy.log("Entered phone number");
+
+                  const sendBtn = $body
+                    .find("button:visible")
+                    .filter((i, btn) =>
+                      /send|submit|continue|next/i.test(
+                        btn.innerText.toLowerCase()
+                      )
+                    );
+                  if (sendBtn.length > 0) {
+                    cy.wrap(sendBtn.first()).click({ force: true });
+                    cy.log("Clicked send/submit after phone");
+                  }
+                }
+              });
+              break;
+
+            case "pin":
+              cy.get("body").then(($body) => {
+                const pinInput = $body
+                  .find(
+                    'input[data-testid="phone-pin-field"]:visible, input[placeholder="000000"]:visible, input[autocomplete="one-time-code"]:visible, input[inputmode="numeric"]:visible'
+                  )
+                  .first();
+
+                if (pinInput.length > 0) {
+                  cy.wrap(pinInput).clear().type("123456", { delay: 100 });
+                  cy.log("Entered PIN 123456 into phone-pin-field");
+
+                  cy.wait(1000);
+
+                  const verifyBtn = $body
+                    .find("button:visible")
+                    .filter((i, btn) =>
+                      /verify|confirm|continue/i.test(
+                        btn.innerText.toLowerCase()
+                      )
+                    );
+                  if (verifyBtn.length > 0) {
+                    cy.wrap(verifyBtn.first()).click({ force: true });
+                    cy.log("Clicked verify/continue after PIN");
+                  }
+                } else {
+                  cy.log(
+                    "PIN input not found - looking for phone-pin-field or placeholder 000000"
+                  );
+                }
+              });
+              break;
+
+            case "continue_to_plans":
+              cy.get("body").then(($body) => {
+                const continueBtn = $body
+                  .find("button:visible")
+                  .filter((i, btn) =>
+                    /continue to plans/i.test(btn.innerText.toLowerCase())
+                  );
+                if (continueBtn.length > 0) {
+                  cy.wrap(continueBtn.first()).click({ force: true });
+                  cy.log("Clicked Continue to plans");
+                }
+              });
+              break;
+
+            case "ssn":
+              cy.get("body").then(($body) => {
+                const ssnInputs = $body.find(
+                  'input[type="password"][maxlength="4"]:visible, input[name*="ssn"]:visible, input[placeholder*="last 4"]:visible'
+                );
+                if (ssnInputs.length > 0) {
+                  cy.wrap(ssnInputs.first()).clear().type("5678");
+                  cy.log("Entered SSN last 4");
+
+                  const continueBtn = $body
+                    .find("button:visible")
+                    .filter((i, btn) =>
+                      /continue|next|submit/i.test(btn.innerText.toLowerCase())
+                    );
+                  if (continueBtn.length > 0) {
+                    cy.wrap(continueBtn.first()).click({ force: true });
+                    cy.log("Clicked continue after SSN");
+                  }
+                }
+              });
+              break;
+
+            case "first_name":
+              cy.get("body").then(($body) => {
+                const firstNameInputs = $body.find(
+                  'input[name*="first"]:visible, input[id*="first"]:visible, input[autocomplete*="given-name"]:visible'
+                );
+                if (firstNameInputs.length > 0) {
+                  cy.wrap(firstNameInputs.first())
+                    .clear()
+                    .invoke("val", "Joseph")
+                    .trigger("input");
+                  cy.log("Entered first name Joseph");
+                }
+              });
+              break;
+
+            case "last_name":
+              cy.get("body").then(($body) => {
+                const lastNameInputs = $body.find(
+                  'input[name*="last"]:visible, input[id*="last"]:visible, input[autocomplete*="family-name"]:visible'
+                );
+                if (lastNameInputs.length > 0) {
+                  cy.wrap(lastNameInputs.first())
+                    .clear()
+                    .invoke("val", "Doe")
+                    .trigger("input");
+                  cy.log("Entered last name Doe");
+                }
+              });
+              break;
+
+            case "dob":
+              cy.get("body").then(($body) => {
+                const dobInputs = $body.find(
+                  'input[data-testid*="dob"]:visible, input[aria-label*="Birth"]:visible, input[placeholder*="mm"]:visible, input[name*="dob"]:visible, input[name*="birth"]:visible'
+                );
+                if (dobInputs.length > 0) {
+                  cy.wrap(dobInputs.first())
+                    .click()
+                    .clear()
+                    .type("01/01/1990", { delay: 50 });
+                  cy.log("Entered DOB 01/01/1990");
+                }
+              });
+              break;
+
+            case "email":
+              cy.get("body").then(($body) => {
+                const emailInputs = $body.find(
+                  'input[data-testid*="email"]:visible, input[type="email"]:visible, input[autocomplete="email"]:visible'
+                );
+                if (emailInputs.length > 0) {
+                  cy.wrap(emailInputs.first())
+                    .click()
+                    .clear()
+                    .type("venkat@gmail.com", { delay: 50 });
+                  cy.log("Entered email venkat@gmail.com");
+                }
+              });
+              break;
+
+            case "consent":
+              cy.get("body").then(($body) => {
+                const consentCheckbox = $body
+                  .find('input[type="checkbox"]:not(:checked):visible')
+                  .first();
+                if (consentCheckbox.length > 0) {
+                  cy.wrap(consentCheckbox).click({ force: true });
+                  cy.log("Checked consent checkbox");
+                }
+
+                const continueBtn = $body
+                  .find("button:visible")
+                  .filter((i, btn) =>
+                    /continue to plans/i.test(btn.innerText.toLowerCase())
+                  );
+                if (continueBtn.length > 0) {
+                  cy.wrap(continueBtn.first()).click({ force: true });
+                  cy.log("Clicked Continue to plans");
+                }
+              });
+              break;
+
+            case "plan":
+              {
+                const planRadio = doc.querySelector(
+                  'input[type="radio"][name="selectedTermIndex"]'
+                );
+                if (planRadio) {
+                  planRadio.checked = true;
+                  planRadio.dispatchEvent(
+                    new Event("change", { bubbles: true })
+                  );
+                  cy.log("Selected payment plan via DOM");
+                }
+
+                const planBtn = doc.querySelector(
+                  'button[data-testid="continue-with-selected-term-button"]'
+                );
+                if (planBtn) {
+                  planBtn.dispatchEvent(
+                    new MouseEvent("click", { bubbles: true })
+                  );
+                  cy.log("Clicked Choose this plan via DOM");
+                }
+
+                cy.wait(2000).then(() => {
+                  const indicator = doc.querySelector(
+                    '[data-testid="disclosure-checkbox-indicator"]'
+                  );
+                  if (indicator) {
+                    const label = indicator.closest("label");
+                    (label || indicator).dispatchEvent(
+                      new MouseEvent("click", { bubbles: true })
+                    );
+                    cy.log("Clicked disclosure checkbox");
+                  }
+
+                  const submitBtn = doc.querySelector(
+                    'button[data-testid="submit-button"]'
+                  );
+                  if (submitBtn) {
+                    submitBtn.dispatchEvent(
+                      new MouseEvent("click", { bubbles: true })
+                    );
+                    cy.log("Clicked Confirm button");
+                  }
+                });
+              }
+              break;
+
+            case "review":
+              cy.get('[data-testid="disclosure-checkbox-indicator"]')
+                .closest("label")
+                .click({ force: true });
+              cy.log("Clicked disclosure checkbox label");
+
+              cy.wait(1000);
+
+              cy.get('button[data-testid="submit-button"]').click({
+                force: true,
+              });
+              cy.log("Clicked Confirm button");
+              break;
+
+            case "fallback":
+            default:
+              cy.get("body").then(($body) => {
+                const buttons = $body.find("button:visible");
+                for (let i = 0; i < buttons.length; i++) {
+                  const btnText = buttons[i].innerText.toLowerCase();
+                  if (
+                    /continue|submit|verify|next|pay|confirm|agree/i.test(
+                      btnText
+                    )
+                  ) {
+                    cy.wrap(buttons[i]).click({ force: true });
+                    cy.log("Clicked button: " + btnText);
+                    break;
+                  }
+                }
+              });
+              break;
+          }
+        });
+      };
+
+      function runUntilComplete(maxSteps, delay) {
+        if (maxSteps <= 0) {
+          cy.log("Max steps reached, stopping");
+          return;
+        }
+
+        cy.url().then((currentUrl) => {
+          cy.log(`Step remaining: ${maxSteps} | Current URL: ${currentUrl}`);
+
+          handleAffirmStep();
+
+          cy.wait(delay).then(() => {
+            runUntilComplete(maxSteps - 1, delay);
+          });
+        });
+      }
+
+      runUntilComplete(3, 6000);
+    });
+  } else {
+    cy.log("Skipping Affirm redirection - no valid redirect URL provided");
+  }
+
+  cy.then(() => {
+    verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+
+    if (globalState) {
+      cy.url().then((currentUrl) => {
+        try {
+          const urlObj = new URL(currentUrl);
+          const urlParams = new URLSearchParams(urlObj.search);
+          const paymentId = urlParams.get("payment_id");
+
+          if (paymentId) {
+            cy.log(`Extracted payment_id from return URL: ${paymentId}`);
+            globalState.set("paymentID", paymentId);
+          } else {
+            cy.log(
+              "No payment_id found in return URL - using existing paymentID from globalState"
+            );
+          }
+        } catch (error) {
+          cy.log(`Error extracting payment_id from URL: ${error.message}`);
+        }
+      });
+    }
   });
 }
 

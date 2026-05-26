@@ -1502,6 +1502,46 @@ export const connectorDetails = {
         },
       },
     }),
+    AffirmManualCapture: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "affirm",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            affirm_redirect: {
+              billing_email: "guest@juspay.in",
+              billing_country: "US",
+            },
+          },
+        },
+        billing: {
+          email: "guest@juspay.in",
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056599999",
+            country_code: "+1",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+    }),
     Capture: getCustomExchange({
       Request: {
         amount_to_capture: 6000,
@@ -1752,6 +1792,27 @@ export const connectorDetails = {
     PartialCapture: getCustomExchange({
       Request: {
         amount_to_capture: 2000,
+      },
+    }),
+    MultipleCapture: getCustomExchange({
+      Request: {
+        amount_to_capture: 3000,
+      },
+    }),
+    MultipleCapturePartial: getCustomExchange({
+      Request: {
+        amount_to_capture: 2000,
+      },
+    }),
+    MultipleCaptureFinal: getCustomExchange({
+      Request: {
+        amount_to_capture: 2000,
+      },
+    }),
+    MultipleCaptureRetrieve: getCustomExchange({}),
+    MultipleCaptureOvercapture: getCustomExchange({
+      Request: {
+        amount_to_capture: 7000,
       },
     }),
     Void: getCustomExchange({
@@ -3063,6 +3124,30 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
+      },
+    }),
+    ManualPaymentUpdate: getCustomExchange({
+      Request: {
+        attempt_status: "pending",
+        error_code: "TEST_ERROR",
+        error_message: "Manual test error message",
+      },
+      Response: {
+        status: 200,
+        body: {
+          attempt_status: "pending",
+        },
+      },
+    }),
+    ManualPaymentUpdateStatusOnly: getCustomExchange({
+      Request: {
+        attempt_status: "pending",
+      },
+      Response: {
+        status: 200,
+        body: {
+          attempt_status: "pending",
+        },
       },
     }),
     OrderDetails: getCustomExchange({
