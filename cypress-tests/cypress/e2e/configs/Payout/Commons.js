@@ -188,5 +188,41 @@ export const connectorDetails = {
         billing: billing,
       },
     }),
+    PayoutPriorityWire: getCustomExchange({
+      Request: {
+        payout_type: "bank",
+        priority: "wire",
+        payout_method_data: {
+          bank: {
+            iban: "NL57INGB4654188101",
+          },
+        },
+        billing: billing,
+      },
+    }),
+    RetrievePriorityInstant: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          priority: "instant",
+        },
+      },
+    }),
+    RetrievePriorityRegular: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          priority: "regular",
+        },
+      },
+    }),
+    RetrievePriorityWire: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          priority: "wire",
+        },
+      },
+    }),
   },
 };

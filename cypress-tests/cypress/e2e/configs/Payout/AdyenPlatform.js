@@ -277,5 +277,49 @@ export const connectorDetails = {
         },
       },
     },
+    PayoutPriorityWire: {
+      Request: {
+        payout_type: "bank",
+        priority: "wire",
+        payout_method_data: {
+          bank: {
+            iban: "NL57INGB4654188101",
+          },
+        },
+        billing: billing,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "initiated",
+          priority: "wire",
+          payout_type: "bank",
+        },
+      },
+    },
+    RetrievePriorityInstant: {
+      Response: {
+        status: 200,
+        body: {
+          priority: "instant",
+        },
+      },
+    },
+    RetrievePriorityRegular: {
+      Response: {
+        status: 200,
+        body: {
+          priority: "regular",
+        },
+      },
+    },
+    RetrievePriorityWire: {
+      Response: {
+        status: 200,
+        body: {
+          priority: "wire",
+        },
+      },
+    },
   },
 };

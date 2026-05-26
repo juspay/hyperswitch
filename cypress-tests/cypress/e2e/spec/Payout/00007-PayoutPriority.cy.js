@@ -1,22 +1,44 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import * as utils from "../../configs/Payout/Utils";
+import {
+  CONNECTOR_LISTS,
+  shouldIncludeConnector,
+} from "../../configs/Payment/Utils";
 
 let globalState;
 
 describe("[Payout] Priority", () => {
   let shouldContinue = true;
+  let connector;
 
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-      if (!globalState.get("payoutsExecution")) {
-        shouldContinue = false;
-      }
-    });
+  before("seed global state", function () {
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+        connector = globalState.get("connectorId");
+        if (!globalState.get("payoutsExecution")) {
+          shouldContinue = false;
+        }
+        if (
+          shouldIncludeConnector(
+            connector,
+            CONNECTOR_LISTS.INCLUDE.PAYOUT_PRIORITY
+          )
+        ) {
+          skip = true;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
   });
 
-  after("flush global state", () => {
+  afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
@@ -51,39 +73,22 @@ describe("[Payout] Priority", () => {
     });
 
     it("retrieve-payout-verify-priority-instant-test", () => {
-      const data = {
-        Response: {
-          body: {
-            priority: "instant",
-          },
-        },
-      };
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["RetrievePriorityInstant"];
       cy.retrievePayoutCallTest(globalState, data);
     });
   });
 
   context("Payout without priority - required field error", () => {
-    const shouldContinue = true;
-
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
-
     it("create-payout-without-priority-error-test", () => {
-      delete fixtures.createPayoutBody.priority;
+      const payoutBody = { ...fixtures.createPayoutBody };
+      delete payoutBody.priority;
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["PayoutPriorityMissing"];
 
-      cy.createConfirmPayoutTest(
-        fixtures.createPayoutBody,
-        data,
-        true,
-        true,
-        globalState
-      );
+      cy.createConfirmPayoutTest(payoutBody, data, true, true, globalState);
     });
   });
 
@@ -112,13 +117,41 @@ describe("[Payout] Priority", () => {
     });
 
     it("retrieve-payout-verify-priority-regular-test", () => {
-      const data = {
-        Response: {
-          body: {
-            priority: "regular",
-          },
-        },
-      };
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["RetrievePriorityRegular"];
+      cy.retrievePayoutCallTest(globalState, data);
+    });
+  });
+
+  context("Payout with priority=wire", () => {
+    let shouldContinue = true;
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("create-payout-with-priority-wire-test", () => {
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["PayoutPriorityWire"];
+
+      cy.createConfirmPayoutTest(
+        fixtures.createPayoutBody,
+        data,
+        true,
+        true,
+        globalState
+      );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("retrieve-payout-verify-priority-wire-test", () => {
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["RetrievePriorityWire"];
       cy.retrievePayoutCallTest(globalState, data);
     });
   });
