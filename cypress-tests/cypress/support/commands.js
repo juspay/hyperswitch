@@ -281,15 +281,13 @@ Cypress.Commands.add(
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
-      cy.wrap(response).then(() => {
-        if (response.status === 200) {
-          cy.log(`Business profile ${profileId} deleted successfully`);
-        } else {
-          cy.log(
-            `Failed to delete business profile: ${response.body.error?.message || response.statusText}`
-          );
-        }
-      });
+      if (response.status === 200) {
+        cy.log(`Business profile ${profileId} deleted successfully`);
+      } else {
+        cy.log(
+          `Failed to delete business profile: ${response.body.error?.message || response.statusText}`
+        );
+      }
     });
   }
 );
@@ -9208,7 +9206,7 @@ Cypress.Commands.add(
             expectedTaxConnectorId
           );
         } else {
-          expect(response.body.tax_connector_id).to.not.be.null;
+          expect(response.body.tax_connector_id).to.be.null;
         }
       }
     });
