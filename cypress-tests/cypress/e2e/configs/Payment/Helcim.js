@@ -44,15 +44,13 @@ export const connectorDetails = {
       },
     },
     No3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true, // Helcim sandbox has duplicate transaction detection causing No3DS captures to fail
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
+        amount: 6500,
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -66,15 +64,13 @@ export const connectorDetails = {
       },
     },
     No3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true, // Helcim sandbox has duplicate transaction detection causing No3DS captures to fail
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
+        amount: 7500,
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -88,11 +84,8 @@ export const connectorDetails = {
       },
     },
     Refund: {
-      Configs: {
-        TRIGGER_SKIP: true, // Helcim sandbox does not support refund — duplicate transaction detection blocks refunds
-      },
       Request: {
-        amount: 6000,
+        amount: 6500,
       },
       Response: {
         status: 200,
@@ -102,9 +95,6 @@ export const connectorDetails = {
       },
     },
     SyncRefund: {
-      Configs: {
-        TRIGGER_SKIP: true, // Helcim sandbox does not support refund — duplicate transaction detection blocks refunds
-      },
       Response: {
         status: 200,
         body: {
@@ -113,11 +103,8 @@ export const connectorDetails = {
       },
     },
     PartialRefund: {
-      Configs: {
-        TRIGGER_SKIP: true, // Helcim sandbox does not support refund — duplicate transaction detection blocks refunds
-      },
       Request: {
-        amount: 2000,
+        amount: 2500,
       },
       Response: {
         status: 200,
@@ -127,11 +114,8 @@ export const connectorDetails = {
       },
     },
     manualPaymentRefund: {
-      Configs: {
-        TRIGGER_SKIP: true, // Helcim sandbox does not support refund — duplicate transaction detection blocks refunds
-      },
       Request: {
-        amount: 6000,
+        amount: 7500,
       },
       Response: {
         status: 200,
@@ -141,11 +125,8 @@ export const connectorDetails = {
       },
     },
     manualPaymentPartialRefund: {
-      Configs: {
-        TRIGGER_SKIP: true, // Helcim sandbox does not support refund — duplicate transaction detection blocks refunds
-      },
       Request: {
-        amount: 2000,
+        amount: 3500,
       },
       Response: {
         status: 200,
