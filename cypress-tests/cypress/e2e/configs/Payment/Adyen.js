@@ -1939,7 +1939,7 @@ export const connectorDetails = {
     }),
     Affirm: getCustomExchange({
       Configs: {
-        TRIGGER_SKIP: true,
+        TRIGGER_SKIP: false,
       },
       Request: {
         payment_method: "pay_later",
