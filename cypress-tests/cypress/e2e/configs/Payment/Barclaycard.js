@@ -17,6 +17,22 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "123",
 };
 
+const visaFrictionlessCardDetails = {
+  card_number: "4929251897047956",
+  card_exp_month: "01",
+  card_exp_year: "50",
+  card_holder_name: "joseph Doe",
+  card_cvc: "123",
+};
+
+const mastercardChallengeCardDetails = {
+  card_number: "5306889942833340",
+  card_exp_month: "01",
+  card_exp_year: "50",
+  card_holder_name: "joseph Doe",
+  card_cvc: "123",
+};
+
 // Mandate data for test cases (skipped for Barclaycard)
 const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
@@ -766,7 +782,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: visaFrictionlessCardDetails,
         },
         currency: "USD",
         authentication_type: "three_ds",
@@ -782,13 +798,10 @@ export const connectorDetails = {
       },
     }),
     ConfirmPaymentMastercardChallenge: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: mastercardChallengeCardDetails,
         },
         currency: "USD",
         authentication_type: "three_ds",
