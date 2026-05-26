@@ -10306,8 +10306,7 @@
             "description": "The CVC number for the card\nThis is optional in case the card needs to be vaulted",
             "example": "242"
           }
-        },
-        "additionalProperties": false
+        }
       },
       "CardDetailFromLocker": {
         "type": "object",
