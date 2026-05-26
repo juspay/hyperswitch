@@ -9147,20 +9147,19 @@ Cypress.Commands.add(
       authParts["publishable_key"] || globalState.get("publishableKey");
     const clientSecret =
       authParts["client_secret"] || globalState.get("clientSecret");
-    const profileIdFromAuth = authParts["profile_id"];
+    const profileIdForHeader =
+      authParts["profile_id"] || profileId;
     const customerIdFromAuth = authParts["customer_id"];
     const paymentIdFromAuth = authParts["payment_id"];
 
     let authorizationHeader;
     if (overrideSdkAuth === "missing_session") {
-      let header = `publishable_key=${publishableKey},client_secret=${clientSecret}`;
-      if (profileIdFromAuth) header += `,profile_id=${profileIdFromAuth}`;
+      let header = `profile_id=${profileIdForHeader},publishable_key=${publishableKey},client_secret=${clientSecret}`;
       if (customerIdFromAuth) header += `,customer_id=${customerIdFromAuth}`;
       if (paymentIdFromAuth) header += `,payment_id=${paymentIdFromAuth}`;
       authorizationHeader = btoa(header);
     } else if (overrideSdkAuth === "invalid_session") {
-      let header = `publishable_key=${publishableKey},client_secret=${clientSecret},client_session_id=cs_invalid_tampered_session_id`;
-      if (profileIdFromAuth) header += `,profile_id=${profileIdFromAuth}`;
+      let header = `profile_id=${profileIdForHeader},publishable_key=${publishableKey},client_secret=${clientSecret},client_session_id=cs_invalid_tampered_session_id`;
       if (customerIdFromAuth) header += `,customer_id=${customerIdFromAuth}`;
       if (paymentIdFromAuth) header += `,payment_id=${paymentIdFromAuth}`;
       authorizationHeader = btoa(header);
@@ -9265,13 +9264,21 @@ Cypress.Commands.add(
       body[key] = reqData[key];
     }
 
+    const sdkAuth = globalState.get("sdkAuthorization") || "";
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+    if (sdkAuth) {
+      headers["Authorization"] = sdkAuth;
+      headers["api-key"] = globalState.get("publishableKey");
+      body.client_secret = globalState.get("clientSecret");
+    }
+
     cy.request({
       method: "PATCH",
       url: url,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
-      },
+      headers,
       failOnStatusCode: false,
       body: body,
     }).then((response) => {
