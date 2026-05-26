@@ -9,8 +9,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::relay;
-use hyperswitch_interfaces::api::ConnectorCommon;
-
+use hyperswitch_interfaces::{ api::ConnectorCommon, api_client::call_connector_api};
 use super::errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt};
 use crate::{
     connector::utils::RouterData,
@@ -228,8 +227,10 @@ impl RelayInterface for RelayRefund {
                 },
             );
 
-        let data =
-            api_models::relay::RelayData::from(value.request_data.get_required_value("RelayData")?);
+        let data = api_models::relay::RelayData::try_from(
+            value.request_data.get_required_value("RelayData")?,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         Ok(api_models::relay::RelayResponse {
             id: value.id,
@@ -358,8 +359,10 @@ impl RelayInterface for RelayCapture {
                 },
             );
 
-        let data =
-            api_models::relay::RelayData::from(value.request_data.get_required_value("RelayData")?);
+        let data = api_models::relay::RelayData::try_from(
+            value.request_data.get_required_value("RelayData")?,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         Ok(api_models::relay::RelayResponse {
             id: value.id,
@@ -489,8 +492,10 @@ impl RelayInterface for RelayIncrementalAuthorization {
                 },
             );
 
-        let data =
-            api_models::relay::RelayData::from(value.request_data.get_required_value("RelayData")?);
+        let data = api_models::relay::RelayData::try_from(
+            value.request_data.get_required_value("RelayData")?,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         Ok(api_models::relay::RelayResponse {
             id: value.id,
@@ -618,8 +623,10 @@ impl RelayInterface for RelayVoid {
                 },
             );
 
-        let data =
-            api_models::relay::RelayData::from(value.request_data.get_required_value("RelayData")?);
+        let data = api_models::relay::RelayData::try_from(
+            value.request_data.get_required_value("RelayData")?,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         Ok(api_models::relay::RelayResponse {
             id: value.id,
@@ -944,7 +951,6 @@ pub async fn relay_unreferenced_refund(
     profile_id_optional: Option<id_type::ProfileId>,
     request: api_models::unreferenced_refund::UnreferencedRefundRequest,
 ) -> RouterResponse<api_models::unreferenced_refund::UnreferencedRefundResponse> {
-    use hyperswitch_interfaces::api_client::call_connector_api;
 
     fp_utils::when(request.amount.get_amount_as_i64() <= 0, || {
         Err(errors::ApiErrorResponse::PreconditionFailed {

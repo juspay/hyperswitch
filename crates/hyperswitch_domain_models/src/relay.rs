@@ -286,44 +286,44 @@ impl RelayUpdate {
     }
 }
 
-impl From<RelayData> for api_models::relay::RelayData {
-    fn from(relay: RelayData) -> Self {
+impl TryFrom<RelayData> for api_models::relay::RelayData {
+    type Error = ApiErrorResponse;
+
+    fn try_from(relay: RelayData) -> Result<Self, Self::Error> {
         match relay {
             RelayData::Refund(relay_refund_request) => {
-                Self::Refund(api_models::relay::RelayRefundRequestData {
+                Ok(Self::Refund(api_models::relay::RelayRefundRequestData {
                     amount: relay_refund_request.amount,
                     currency: relay_refund_request.currency,
                     reason: relay_refund_request.reason,
-                })
+                }))
             }
             RelayData::Capture(relay_capture_request) => {
-                Self::Capture(api_models::relay::RelayCaptureRequestData {
+                Ok(Self::Capture(api_models::relay::RelayCaptureRequestData {
                     authorized_amount: relay_capture_request.authorized_amount,
                     amount_to_capture: relay_capture_request.amount_to_capture,
                     currency: relay_capture_request.currency,
                     capture_method: relay_capture_request.capture_method,
-                })
+                }))
             }
             RelayData::IncrementalAuthorization(relay_incremental_authorization_request) => {
-                Self::IncrementalAuthorization(
+                Ok(Self::IncrementalAuthorization(
                     api_models::relay::RelayIncrementalAuthorizationRequestData {
                         total_amount: relay_incremental_authorization_request.total_amount,
                         additional_amount: relay_incremental_authorization_request
                             .additional_amount,
                         currency: relay_incremental_authorization_request.currency,
                     },
-                )
+                ))
             }
             RelayData::Void(relay_void_request) => {
-                Self::Void(api_models::relay::RelayVoidRequestData {
+                Ok(Self::Void(api_models::relay::RelayVoidRequestData {
                     amount: relay_void_request.amount,
                     currency: relay_void_request.currency,
                     cancellation_reason: relay_void_request.cancellation_reason,
-                })
+                }))
             }
-            RelayData::UnreferencedRefund(_) => {
-                unreachable!("UnreferencedRefund uses its own response type, not RelayData API model")
-            }
+            RelayData::UnreferencedRefund(_) => Err(ApiErrorResponse::InternalServerError),
         }
     }
 }

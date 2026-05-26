@@ -5,6 +5,7 @@ use common_utils::{
     consts::BASE64_ENGINE,
     crypto::encrypt_rsa_oaep_sha256,
     request::{Method, Request, RequestContent},
+    types::FloatMajorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
@@ -105,7 +106,7 @@ impl From<FiservcommercehubRefundState> for common_enums::RefundStatus {
 #[derive(Debug, Serialize)]
 struct Amount {
     currency: String,
-    total: f64,
+    total: FloatMajorUnit,
 }
 
 #[derive(Debug, Serialize)]
@@ -320,9 +321,15 @@ impl ConnectorRelayIntegration for Fiservcommercehub {
 
         let request = router_data.request;
 
+        let total = request
+            .amount
+            .to_major_unit_as_f64(request.currency)
+            .change_context(ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to convert minor unit amount to major unit float")?;
+
         let amount = Amount {
             currency: request.currency.to_string(),
-            total: request.amount.get_amount_as_i64() as f64 / 100.0,
+            total,
         };
         let merchant_details = MerchantDetails {
             merchant_id: auth.merchant_id.clone(),

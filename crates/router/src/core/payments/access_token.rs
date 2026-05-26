@@ -7,10 +7,11 @@ use hyperswitch_interfaces::{
     api::{gateway, ConnectorSpecifications, ConnectorValidation},
     consts as interfaces_consts,
 };
-
+use unified_connector_service_client::payments as payments_grpc;
 use crate::{
     consts,
     core::{
+        unified_connector_service,
         errors::{self, RouterResult},
         payments::{self, gateway::context as gateway_context},
     },
@@ -297,9 +298,6 @@ pub async fn add_access_token_for_relay(
     processor: &domain::Processor,
     creds_identifier: Option<&str>,
 ) -> RouterResult<Option<types::AccessToken>> {
-    use unified_connector_service_client::payments as payments_grpc;
-
-    use crate::core::unified_connector_service;
 
     if !connector
         .connector_name
@@ -347,9 +345,15 @@ pub async fn add_access_token_for_relay(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("UCS gRPC client not configured; cannot generate access token for relay")?;
 
+    #[cfg(feature = "v1")]
     let mca_type = payments::helpers::MerchantConnectorAccountType::DbVal(Box::new(
         merchant_connector_account.clone(),
     ));
+    #[cfg(feature = "v2")]
+    let mca_type =
+        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+            merchant_connector_account.clone(),
+        ));
 
     let connector_auth_metadata =
         unified_connector_service::build_unified_connector_service_auth_metadata(
@@ -371,6 +375,11 @@ pub async fn add_access_token_for_relay(
         .lineage_ids(lineage_ids)
         .build();
 
+    #[cfg(feature = "v1")]
+    let test_mode = merchant_connector_account.test_mode;
+    #[cfg(feature = "v2")]
+    let test_mode = merchant_connector_account.get_connector_test_mode();
+
     let relay_reference_id = uuid::Uuid::new_v4().to_string();
     let create_request =
         payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
@@ -378,7 +387,7 @@ pub async fn add_access_token_for_relay(
             connector: 0_i32,
             metadata: None,
             connector_feature_data: None,
-            test_mode: merchant_connector_account.test_mode,
+            test_mode,
         };
 
     let response = client
