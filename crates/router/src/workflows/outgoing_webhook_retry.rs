@@ -125,6 +125,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             initiator_merchant_id: initial_event
                 .initiator_merchant_id
                 .or(Some(webhook_key_store.merchant_id.clone())),
+                recipient: initial_event.recipient,
         };
 
         let event = db

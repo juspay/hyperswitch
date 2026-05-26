@@ -605,6 +605,8 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 64]
         initiator_merchant_id -> Nullable<Varchar>,
+        #[max_length = 16]
+        recipient -> Varchar,
     }
 }
 

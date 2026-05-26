@@ -373,6 +373,7 @@ pub async fn retry_delivery_attempt(
         is_overall_delivery_successful: Some(false),
         processor_merchant_id: Some(processor_merchant_id.clone()),
         initiator_merchant_id: Some(merchant_id.clone()),
+        recipient: event_to_retry.recipient,
     };
 
     let event = store
