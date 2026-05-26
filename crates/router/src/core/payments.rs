@@ -986,10 +986,22 @@ where
                     .map_err(|e| logger::error!(routable_connector_error=?e))
                     .unwrap_or_default();
                     let schedule_time = if should_add_task_to_process_tracker {
+                        let connector_enum = connector
+                            .connector_data
+                            .connector
+                            .id()
+                            .parse::<common_enums::connector_enums::Connector>()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Invalid connector name")?;
+                        let dimensions = Dimensions::new()
+                            .with_processor_merchant_id(
+                                platform.get_processor().get_processor_merchant_id(),
+                            )
+                            .with_connector(connector_enum);
                         payment_sync::get_sync_process_schedule_time(
                             &*state.store,
-                            connector.connector_data.connector.id(),
-                            platform.get_processor().get_account().get_id(),
+                            state.superposition_service.as_ref(),
+                            &dimensions,
                             0,
                         )
                         .await
@@ -1160,10 +1172,21 @@ where
                         )?;
 
                     let schedule_time = if should_add_task_to_process_tracker {
+                        let connector_enum = connector_data
+                            .connector
+                            .id()
+                            .parse::<common_enums::connector_enums::Connector>()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Invalid connector name")?;
+                        let dimensions = Dimensions::new()
+                            .with_processor_merchant_id(
+                                platform.get_processor().get_processor_merchant_id(),
+                            )
+                            .with_connector(connector_enum);
                         payment_sync::get_sync_process_schedule_time(
                             &*state.store,
-                            connector_data.connector.id(),
-                            platform.get_processor().get_account().get_id(),
+                            state.superposition_service.as_ref(),
+                            &dimensions,
                             0,
                         )
                         .await
@@ -1623,10 +1646,19 @@ where
     let locale = header_payload.locale.clone();
 
     let schedule_time = if should_add_task_to_process_tracker {
+        let connector_enum = connector
+            .connector
+            .id()
+            .parse::<common_enums::connector_enums::Connector>()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid connector name")?;
+        let dimensions = Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_connector(connector_enum);
         payment_sync::get_sync_process_schedule_time(
             &*state.store,
-            connector.connector.id(),
-            platform.get_processor().get_account().get_id(),
+            state.superposition_service.as_ref(),
+            &dimensions,
             0,
         )
         .await
@@ -4414,25 +4446,20 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to add poll_id in redis")?;
         };
-        let default_poll_config = router_types::PollConfig::default();
-        let default_config_str = default_poll_config
-            .encode_to_string_of_json()
+        let connector_enum = common_enums::connector_enums::Connector::from_str(&connector)
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error while stringifying default poll config")?;
-        let poll_config = state
-            .store
-            .find_config_by_key_unwrap_or(
-                &router_types::PollConfig::get_poll_config_key(connector),
-                Some(default_config_str),
+            .attach_printable("Invalid connector name")?;
+        let merchant_id = platform.get_processor().get_account().get_id();
+        let dimensions = Dimensions::new()
+            .with_processor_merchant_id(merchant_id.clone().into())
+            .with_connector(connector_enum);
+        let poll_config = dimensions
+            .get_poll_config_external_three_ds(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                Some(&payment_id),
             )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("The poll config was not found in the DB")?;
-        let poll_config: router_types::PollConfig = poll_config
-            .config
-            .parse_struct("PollConfig")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error while parsing PollConfig")?;
+            .await;
         let profile_id = payments_response
             .profile_id
             .as_ref()
