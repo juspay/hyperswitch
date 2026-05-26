@@ -104,7 +104,9 @@ describe("Tax Connector Business Profile Flag", () => {
         let shouldProceed = true;
 
         cy.step("Create Payment Intent", () => {
-          const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
+          const baseData = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentIntent"];
           const data = {
             ...baseData,
             Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
@@ -128,7 +130,9 @@ describe("Tax Connector Business Profile Flag", () => {
             cy.task("cli_log", "Skipping step: Confirm Payment");
             return;
           }
-          const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
+          const baseData = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["No3DSAutoCapture"];
           const data = withNullCardMetadata({
             ...baseData,
             Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
@@ -146,7 +150,9 @@ describe("Tax Connector Business Profile Flag", () => {
             cy.task("cli_log", "Skipping step: Retrieve Payment");
             return;
           }
-          const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
+          const baseData = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["No3DSAutoCapture"];
           const data = withNullCardMetadata({
             ...baseData,
             Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
@@ -173,7 +179,9 @@ describe("Tax Connector Business Profile Flag", () => {
       let shouldProceed = true;
 
       cy.step("Create Payment Intent", () => {
-        const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
+        const baseData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
         const data = {
           ...baseData,
           Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
@@ -197,7 +205,9 @@ describe("Tax Connector Business Profile Flag", () => {
           cy.task("cli_log", "Skipping step: Confirm Payment");
           return;
         }
-        const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
+        const baseData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSAutoCapture"];
         const data = withNullCardMetadata({
           ...baseData,
           Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
@@ -215,7 +225,9 @@ describe("Tax Connector Business Profile Flag", () => {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
         }
-        const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
+        const baseData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSAutoCapture"];
         const data = withNullCardMetadata({
           ...baseData,
           Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
@@ -244,7 +256,9 @@ describe("Tax Connector Business Profile Flag", () => {
         let shouldProceed = true;
 
         cy.step("Create Payment Intent with skip flag", () => {
-          const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
+          const baseData = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentIntent"];
           const data = {
             ...baseData,
             Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
@@ -271,7 +285,9 @@ describe("Tax Connector Business Profile Flag", () => {
             cy.task("cli_log", "Skipping step: Confirm Payment");
             return;
           }
-          const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
+          const baseData = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["No3DSAutoCapture"];
           const data = withNullCardMetadata({
             ...baseData,
             Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
@@ -289,7 +305,9 @@ describe("Tax Connector Business Profile Flag", () => {
             cy.task("cli_log", "Skipping step: Retrieve Payment");
             return;
           }
-          const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
+          const baseData = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["No3DSAutoCapture"];
           const data = withNullCardMetadata({
             ...baseData,
             Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
@@ -344,7 +362,9 @@ describe("Tax Connector Business Profile Flag", () => {
       let shouldProceed = true;
 
       cy.step("Create Payment Intent", () => {
-        const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
+        const baseData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
         const data = {
           ...baseData,
           Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
@@ -368,7 +388,9 @@ describe("Tax Connector Business Profile Flag", () => {
           cy.task("cli_log", "Skipping step: Confirm Payment");
           return;
         }
-        const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
+        const baseData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSAutoCapture"];
         const data = withNullCardMetadata({
           ...baseData,
           Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
@@ -386,7 +408,9 @@ describe("Tax Connector Business Profile Flag", () => {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
         }
-        const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
+        const baseData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSAutoCapture"];
         const data = withNullCardMetadata({
           ...baseData,
           Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
