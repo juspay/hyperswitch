@@ -194,7 +194,9 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
     }
 }
 
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for AbsaSanlam {
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
+    for AbsaSanlam
+{
     fn build_request(
         &self,
         _req: &SetupMandateRouterData,
@@ -345,11 +347,10 @@ impl webhooks::IncomingWebhook for AbsaSanlam {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let details: absa_sanlam::AbsaSanlamWebhookEvent =
-            request
-                .body
-                .parse_struct("AbsaSanlamWebhookEvent")
-                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let details: absa_sanlam::AbsaSanlamWebhookEvent = request
+            .body
+            .parse_struct("AbsaSanlamWebhookEvent")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         let id = match details {
             absa_sanlam::AbsaSanlamWebhookEvent::Payment(ref event) => {
@@ -369,11 +370,10 @@ impl webhooks::IncomingWebhook for AbsaSanlam {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        let details: absa_sanlam::AbsaSanlamWebhookEvent =
-            request
-                .body
-                .parse_struct("AbsaSanlamWebhookEvent")
-                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let details: absa_sanlam::AbsaSanlamWebhookEvent = request
+            .body
+            .parse_struct("AbsaSanlamWebhookEvent")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         let event_type = match details {
             absa_sanlam::AbsaSanlamWebhookEvent::Payment(ref event) => match event.event_type {
@@ -397,33 +397,33 @@ impl webhooks::IncomingWebhook for AbsaSanlam {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
     {
-        let details: absa_sanlam::AbsaSanlamWebhookEvent =
-            request
-                .body
-                .parse_struct("AbsaSanlamWebhookEvent")
-                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        let details: absa_sanlam::AbsaSanlamWebhookEvent = request
+            .body
+            .parse_struct("AbsaSanlamWebhookEvent")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         Ok(Box::new(details))
     }
 }
 
-static ABSA_SANLAM_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
-    let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+static ABSA_SANLAM_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
 
-    let mut absa_sanlam_supported_payment_methods = SupportedPaymentMethods::new();
-    absa_sanlam_supported_payment_methods.add(
-        enums::PaymentMethod::BankDebit,
-        enums::PaymentMethodType::EftDebitOrder,
-        PaymentMethodDetails {
-            mandates: common_enums::FeatureStatus::NotSupported,
-            refunds: common_enums::FeatureStatus::NotSupported,
-            supported_capture_methods: supported_capture_methods.clone(),
-            specific_features: None,
-        },
-    );
+        let mut absa_sanlam_supported_payment_methods = SupportedPaymentMethods::new();
+        absa_sanlam_supported_payment_methods.add(
+            enums::PaymentMethod::BankDebit,
+            enums::PaymentMethodType::EftDebitOrder,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::NotSupported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
 
-    absa_sanlam_supported_payment_methods
-});
+        absa_sanlam_supported_payment_methods
+    });
 
 static ABSA_SANLAM_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "AbsaSanlam",

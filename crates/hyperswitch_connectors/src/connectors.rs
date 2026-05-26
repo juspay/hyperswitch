@@ -1,3 +1,4 @@
+pub mod absa_sanlam;
 pub mod aci;
 pub mod adyen;
 pub mod adyenplatform;
@@ -110,7 +111,6 @@ pub mod recurly;
 pub mod redsys;
 pub mod revolv3;
 pub mod riskified;
-pub mod absa_sanlam;
 pub mod santander;
 pub mod shift4;
 pub mod sift;
@@ -149,10 +149,10 @@ pub mod zsl;
 #[cfg(feature = "dummy_connector")]
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
-    aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, affirm::Affirm, airwallex::Airwallex,
-    amazonpay::Amazonpay, archipel::Archipel, authipay::Authipay, authorizedotnet::Authorizedotnet,
-    bambora::Bambora, bamboraapac::Bamboraapac, bankofamerica::Bankofamerica,
-    barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay,
+    absa_sanlam::AbsaSanlam, aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, affirm::Affirm,
+    airwallex::Airwallex, amazonpay::Amazonpay, archipel::Archipel, authipay::Authipay,
+    authorizedotnet::Authorizedotnet, bambora::Bambora, bamboraapac::Bamboraapac,
+    bankofamerica::Bankofamerica, barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay,
     blackhawknetwork::Blackhawknetwork, bluesnap::Bluesnap, boku::Boku, braintree::Braintree,
     breadpay::Breadpay, calida::Calida, cashtocode::Cashtocode, celero::Celero,
     chargebee::Chargebee, checkbook::Checkbook, checkout::Checkout, coinbase::Coinbase,
@@ -176,8 +176,8 @@ pub use self::{
     paystack::Paystack, paytm::Paytm, payu::Payu, peachpayments::Peachpayments, phonepe::Phonepe,
     placetopay::Placetopay, plaid::Plaid, powertranz::Powertranz, prophetpay::Prophetpay,
     rapyd::Rapyd, razorpay::Razorpay, recurly::Recurly, redsys::Redsys, revolv3::Revolv3,
-    riskified::Riskified, absa_sanlam::AbsaSanlam, santander::Santander, shift4::Shift4, sift::Sift,
-    signifyd::Signifyd, silverflow::Silverflow, square::Square, stax::Stax, stripe::Stripe,
+    riskified::Riskified, santander::Santander, shift4::Shift4, sift::Sift, signifyd::Signifyd,
+    silverflow::Silverflow, square::Square, stax::Stax, stripe::Stripe,
     stripebilling::Stripebilling, taxjar::Taxjar, tesouro::Tesouro, threedsecureio::Threedsecureio,
     thunes::Thunes, tokenex::Tokenex, tokenio::Tokenio, truelayer::Truelayer, trustly::Trustly,
     trustpay::Trustpay, trustpayments::Trustpayments, tsys::Tsys,
