@@ -29,6 +29,8 @@ import {
   activityLog,
   approvals,
   companySkills as companySkillsTable,
+  documentAnnotationComments,
+  documentAnnotationThreads,
   documentRevisions,
   issueDocuments,
   heartbeatRunEvents,
@@ -1981,6 +1983,7 @@ async function buildPaperclipWakePayload(input: {
 }) {
   const executionStage = parseObject(input.contextSnapshot.executionStage);
   const commentIds = extractWakeCommentIds(input.contextSnapshot);
+  const annotationCommentId = readNonEmptyString(input.contextSnapshot.annotationCommentId);
   const issueId = readNonEmptyString(input.contextSnapshot.issueId);
   const continuationSummary = input.continuationSummary ?? null;
   const issueSummary =
@@ -2071,6 +2074,57 @@ async function buildPaperclipWakePayload(input: {
     });
   }
 
+  const annotationDeltas = annotationCommentId
+    ? await input.db
+      .select({
+        id: documentAnnotationComments.id,
+        issueId: documentAnnotationComments.issueId,
+        threadId: documentAnnotationComments.threadId,
+        body: documentAnnotationComments.body,
+        authorType: documentAnnotationComments.authorType,
+        authorAgentId: documentAnnotationComments.authorAgentId,
+        authorUserId: documentAnnotationComments.authorUserId,
+        createdAt: documentAnnotationComments.createdAt,
+        documentKey: documentAnnotationThreads.documentKey,
+        status: documentAnnotationThreads.status,
+        anchorState: documentAnnotationThreads.anchorState,
+        anchorConfidence: documentAnnotationThreads.anchorConfidence,
+        currentRevisionNumber: documentAnnotationThreads.currentRevisionNumber,
+        selectedText: documentAnnotationThreads.selectedText,
+        prefixText: documentAnnotationThreads.prefixText,
+        suffixText: documentAnnotationThreads.suffixText,
+      })
+      .from(documentAnnotationComments)
+      .innerJoin(documentAnnotationThreads, eq(documentAnnotationComments.threadId, documentAnnotationThreads.id))
+      .where(and(
+        eq(documentAnnotationComments.companyId, input.companyId),
+        eq(documentAnnotationComments.id, annotationCommentId),
+      ))
+      .then((rows) => rows.map((row) => ({
+        id: row.id,
+        issueId: row.issueId,
+        threadId: row.threadId,
+        documentKey: row.documentKey,
+        revisionNumber: row.currentRevisionNumber,
+        quote: row.selectedText,
+        prefix: row.prefixText,
+        suffix: row.suffixText,
+        threadStatus: row.status,
+        anchorState: row.anchorState,
+        anchorConfidence: row.anchorConfidence,
+        body: row.body.length > MAX_INLINE_WAKE_COMMENT_BODY_CHARS
+          ? row.body.slice(0, MAX_INLINE_WAKE_COMMENT_BODY_CHARS)
+          : row.body,
+        bodyTruncated: row.body.length > MAX_INLINE_WAKE_COMMENT_BODY_CHARS,
+        createdAt: row.createdAt.toISOString(),
+        author: row.authorAgentId
+          ? { type: "agent", id: row.authorAgentId }
+          : row.authorUserId
+            ? { type: "user", id: row.authorUserId }
+            : { type: row.authorType, id: null },
+      })))
+    : [];
+
   return {
     reason: readNonEmptyString(input.contextSnapshot.wakeReason),
     issue: issueSummary
@@ -2128,6 +2182,7 @@ async function buildPaperclipWakePayload(input: {
     commentIds,
     latestCommentId: commentIds[commentIds.length - 1] ?? null,
     comments,
+    annotationDeltas,
     commentWindow: {
       requestedCount: commentIds.length,
       includedCount: comments.length,
@@ -4080,7 +4135,7 @@ export function heartbeatService(db: Db, options: HeartbeatServiceOptions = {}) 
           continuationAttempt: decision.nextAttempt,
           updatedAt: new Date(),
         })
-        .where(eq(heartbeatRuns.id, continuationRun.id));
+        .where(eq(heartbeatRuns.id, run.id));
     }
   }
 
