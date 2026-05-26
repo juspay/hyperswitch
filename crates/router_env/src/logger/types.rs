@@ -321,6 +321,12 @@ pub enum Flow {
     ListBlocklist,
     /// Toggle blocklist for merchant
     ToggleBlocklistGuard,
+    /// Bulk upload blocklist entries via CSV
+    BatchBlocklistUpload,
+    /// Get status of a batch blocklist upload job
+    GetBatchBlocklistJobStatus,
+    /// List batch blocklist upload jobs for a merchant
+    ListBatchBlocklistJobs,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
     /// Recovery incoming webhook receive
@@ -619,6 +625,8 @@ pub enum Flow {
     RefundsManualUpdate,
     /// Manually update the payment details like status, error code, error message etc.
     PaymentsManualUpdate,
+    /// Manually update payment status from dashboard (Review → Succeeded/Failed)
+    PaymentsManualStatusUpdate,
     #[cfg(feature = "payouts")]
     /// Manually update the payout details like status, error code, error message etc.
     PayoutsManualUpdate,

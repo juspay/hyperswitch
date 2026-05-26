@@ -3,6 +3,7 @@ pub mod api_key_expiry;
 #[cfg(feature = "payouts")]
 pub mod attach_payout_account_workflow;
 pub mod outgoing_webhook_retry;
+pub mod payment_method_modular_backward_compat;
 pub mod payment_method_modular_forward_compat;
 pub mod payment_method_status_update;
 pub mod payment_sync;
@@ -21,3 +22,6 @@ pub mod invoice_sync;
 
 #[cfg(feature = "payouts")]
 pub mod payout_sync;
+
+#[cfg(feature = "v1")]
+pub mod batch_blocklist_upload;

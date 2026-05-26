@@ -1,10 +1,8 @@
 use std::marker::PhantomData;
 
 use api_models::{
-    customers::CustomerDocumentDetails,
-    enums::FrmSuggestion,
-    mandates::RecurringDetails,
-    payments::{MandateTransactionType, RequestSurchargeDetails},
+    customers::CustomerDocumentDetails, enums::FrmSuggestion, mandates::RecurringDetails,
+    payments::RequestSurchargeDetails,
 };
 use async_trait::async_trait;
 use common_utils::{
@@ -12,8 +10,9 @@ use common_utils::{
     pii::Email,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payments::payment_intent::{
-    CustomerData, PaymentIntentUpdateFields,
+use hyperswitch_domain_models::{
+    mandates::{self, MandateTransactionType},
+    payments::payment_intent::{CustomerData, PaymentIntentUpdateFields},
 };
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -323,16 +322,21 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .mandate_id
             .as_ref()
             .or_else(|| {
-            request.recurring_details
-                .as_ref()
-                .and_then(|recurring_details| match recurring_details {
-                    RecurringDetails::MandateId(id) => Some(id),
-                    _ => None,
-                })
-        })
+                request
+                    .recurring_details
+                    .as_ref()
+                    .and_then(|recurring_details| match recurring_details {
+                        RecurringDetails::MandateId(id) => Some(id),
+                        _ => None,
+                    })
+            })
             .async_and_then(|mandate_id| async {
                 let mandate = db
-                    .find_mandate_by_merchant_id_mandate_id(processor_merchant_id, mandate_id, platform.get_processor().get_account().storage_scheme)
+                    .find_mandate_by_merchant_id_mandate_id(
+                        processor_merchant_id,
+                        mandate_id,
+                        platform.get_processor().get_account().storage_scheme,
+                    )
                     .await
                     .change_context(errors::ApiErrorResponse::MandateNotFound);
                 Some(mandate.and_then(|mandate_obj| {
@@ -340,33 +344,40 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         mandate_obj.network_transaction_id,
                         mandate_obj.connector_mandate_ids,
                     ) {
-                        (Some(network_tx_id), _) => Ok(api_models::payments::MandateIds {
+                        (Some(network_tx_id), _) => Ok(mandates::MandateIds {
                             mandate_id: Some(mandate_obj.mandate_id),
                             mandate_reference_id: Some(
-                                api_models::payments::MandateReferenceId::NetworkMandateId(
-                                    network_tx_id,
+                                mandates::MandateReferenceId::NetworkMandateId(
+                                    mandates::NetworkMandateIdRef {
+                                        network_transaction_id: network_tx_id,
+                                        transaction_link_id: mandate_obj
+                                            .network_transaction_link_id,
+                                    },
                                 ),
                             ),
                         }),
                         (_, Some(connector_mandate_id)) => connector_mandate_id
-                        .parse_value("ConnectorMandateId")
-                        .change_context(errors::ApiErrorResponse::MandateNotFound)
-                        .map(|connector_id: api_models::payments::ConnectorMandateReferenceId| {
-                            api_models::payments::MandateIds {
-                                mandate_id: Some(mandate_obj.mandate_id),
-                                mandate_reference_id: Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                                    api_models::payments::ConnectorMandateReferenceId::new(
-                                        connector_id.get_connector_mandate_id(),        // connector_mandate_id
-                                        connector_id.get_payment_method_id(),           // payment_method_id
-                                        None,                                     // update_history
-                                        connector_id.get_mandate_metadata(),            // mandate_metadata
-                                        connector_id.get_connector_mandate_request_reference_id(),
-                                        None // connector_mandate_request_reference_id
-                                    )
-                                ))
-                            }
-                         }),
-                        (_, _) => Ok(api_models::payments::MandateIds {
+                            .parse_value("ConnectorMandateId")
+                            .change_context(errors::ApiErrorResponse::MandateNotFound)
+                            .map(|connector_id: mandates::ConnectorMandateReferenceId| {
+                                mandates::MandateIds {
+                                    mandate_id: Some(mandate_obj.mandate_id),
+                                    mandate_reference_id: Some(
+                                        mandates::MandateReferenceId::ConnectorMandateId(
+                                            mandates::ConnectorMandateReferenceId::new(
+                                                connector_id.get_connector_mandate_id(), // connector_mandate_id
+                                                connector_id.get_payment_method_id(), // payment_method_id
+                                                None, // update_history
+                                                connector_id.get_mandate_metadata(), // mandate_metadata
+                                                connector_id
+                                                    .get_connector_mandate_request_reference_id(),
+                                                None, // connector_mandate_request_reference_id
+                                            ),
+                                        ),
+                                    ),
+                                }
+                            }),
+                        (_, _) => Ok(mandates::MandateIds {
                             mandate_id: Some(mandate_obj.mandate_id),
                             mandate_reference_id: None,
                         }),
@@ -793,6 +804,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
@@ -906,6 +918,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .as_ref()
             .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
         let network_transaction_id = payment_data.payment_attempt.network_transaction_id.clone();
+        let network_transaction_link_id = payment_data
+            .payment_attempt
+            .network_transaction_link_id
+            .clone();
         payment_data.payment_attempt = state
             .store
             .update_payment_attempt_with_attempt_id(
@@ -926,6 +942,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     payment_method_billing_address_id,
                     updated_by: storage_scheme.to_string(),
                     network_transaction_id,
+                    network_transaction_link_id,
                     net_amount:
                         hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
                             payment_data.amount.into(),
@@ -1093,7 +1110,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         .enable_partial_authorization,
                     enable_overcapture: payment_data.payment_intent.enable_overcapture,
                     shipping_cost,
-                    installment_options: payment_data.payment_intent.installment_options,
+                    installment_options: payment_data.payment_intent.installment_options.clone(),
+                    profile_acquirer_id: payment_data.payment_intent.profile_acquirer_id.clone(),
                 })),
                 key_store,
                 storage_scheme,

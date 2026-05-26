@@ -93,10 +93,12 @@ impl Payouts {
         .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn get_total_count_of_payouts(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         active_payout_ids: &[common_utils::id_type::PayoutId],
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         connector: Option<Vec<String>>,
         currency: Option<Vec<enums::Currency>>,
         status: Option<Vec<enums::PayoutStatus>>,
@@ -120,6 +122,9 @@ impl Payouts {
         }
         if let Some(payout_type) = payout_type {
             filter = filter.filter(dsl::payout_type.eq_any(payout_type));
+        }
+        if let Some(profile_id_list) = profile_id_list {
+            filter = filter.filter(dsl::profile_id.eq_any(profile_id_list));
         }
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
 

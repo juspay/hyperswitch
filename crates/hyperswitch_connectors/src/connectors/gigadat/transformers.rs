@@ -111,7 +111,7 @@ impl TryFrom<&GigadatRouterData<&PaymentsAuthorizeRouterData>> for GigadatCpiReq
                 let router_data = item.router_data;
                 let name = router_data.get_billing_full_name()?;
                 let email = router_data.get_billing_email()?;
-                let mobile = router_data.get_billing_phone_number()?;
+                let mobile = router_data.get_billing_phone_number_without_plus()?;
                 let currency = item.router_data.request.currency;
                 let sandbox = match item.router_data.test_mode {
                     Some(true) => true,
@@ -325,6 +325,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GigadatPaymentResponse, T, PaymentsResp
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -362,6 +363,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GigadatTransactionStatusResponse, T, Pa
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -474,7 +476,7 @@ impl TryFrom<&GigadatRouterData<&PayoutsRouterData<PoQuote>>> for GigadatPayoutQ
                 let router_data = item.router_data;
                 let name = router_data.get_billing_full_name()?;
                 let email = interac_data.email;
-                let mobile = router_data.get_billing_phone_number()?;
+                let mobile = router_data.get_billing_phone_number_without_plus()?;
                 let currency = item.router_data.request.destination_currency;
 
                 let user_ip = router_data.request.get_browser_info()?.get_ip_address()?;
