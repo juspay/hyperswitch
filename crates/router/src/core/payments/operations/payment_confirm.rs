@@ -868,7 +868,54 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         // If the SDK passed surcharge details from a prior /pre_confirm call (external surcharge
         // via InterPayments), apply them to net_amount now so that populate_surcharge_details
         // picks them up in the non-DSS path and persists them with the attempt.
-        if let Some(ref req_surcharge) = request.surcharge_details {
+        let resolved_surcharge = if request.surcharge_details.is_some() {
+            request.surcharge_details.clone()
+        } else {
+            // Try to load the latest surcharge calculated during pre_confirm from Redis
+            let redis_key = helpers::get_pre_confirm_surcharge_redis_key(
+                &payment_attempt.payment_id,
+            );
+            match state.store.get_redis_conn() {
+                Ok(redis_conn) => {
+                    match redis_conn
+                        .get_and_deserialize_key::<api_models::payments::RequestSurchargeDetails>(
+                            &redis_key.as_str().into(),
+                            "RequestSurchargeDetails",
+                        )
+                        .await
+                    {
+                        Ok(surcharge) => {
+                            logger::info!(
+                                payment_id = %payment_attempt.payment_id.get_string_repr(),
+                                surcharge_amount = %surcharge.surcharge_amount.get_amount_as_i64(),
+                                "Loaded pre_confirm surcharge from Redis for confirm"
+                            );
+                            Some(surcharge)
+                        }
+                        Err(err) => {
+                            if matches!(
+                                err.current_context(),
+                                redis_interface::errors::RedisError::NotFound
+                            ) {
+                                logger::info!(
+                                    payment_id = %payment_attempt.payment_id.get_string_repr(),
+                                    "confirm: no pre_confirm surcharge found in Redis; proceeding without surcharge"
+                                );
+                            } else {
+                                logger::warn!(error=?err, "Failed to fetch pre_confirm surcharge from Redis");
+                            }
+                            None
+                        }
+                    }
+                }
+                Err(err) => {
+                    logger::warn!(error=?err, "Could not get redis conn to fetch pre_confirm surcharge");
+                    None
+                }
+            }
+        };
+
+        if let Some(ref req_surcharge) = resolved_surcharge {
             let surcharge_details =
                 hyperswitch_domain_models::router_request_types::SurchargeDetails::from((
                     req_surcharge,

@@ -12734,7 +12734,43 @@ pub async fn payments_submit_pre_confirm(
                             .to_currency_base_unit_asf64(surcharge_amount.get_amount_as_i64())
                             .unwrap_or_default();
 
-                        // Best-effort: persist connector_surcharge_id to payment_attempt
+                        //store the calculated surcharge in Redis for retrieval in confirm step and log any failures
+                        let redis_write_result = async {
+                            let redis_conn = state_for_surcharge
+                                .store
+                                .get_redis_conn()
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Failed to get redis connection for surcharge")?;
+                            let redis_key = helpers::get_pre_confirm_surcharge_redis_key(&payment_id);
+                            let surcharge_to_store = api_models::payments::RequestSurchargeDetails {
+                                surcharge_amount,
+                                tax_amount: None,
+                            };
+                            redis_conn
+                                .serialize_and_set_key_with_expiry(
+                                    &redis_key.as_str().into(),
+                                    &surcharge_to_store,
+                                    consts::PRE_CONFIRM_SURCHARGE_TTL,
+                                )
+                                .await
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Failed to store pre_confirm surcharge in redis")?;
+                            logger::info!(
+                                redis_key = %redis_key,
+                                surcharge_amount = %surcharge_amount.get_amount_as_i64(),
+                                "pre_confirm: stored surcharge in Redis"
+                            );
+                            Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(())
+                        }
+                        .await;
+                        if let Err(err) = redis_write_result {
+                            logger::warn!(
+                                error=?err,
+                                "pre_confirm: failed to write surcharge to Redis; confirm will not auto-apply surcharge"
+                            );
+                        }
+
+                        // persist connector_surcharge_id to payment_attempt
                         // and update payment_intent.surcharge_strategy if request provided one.
                         let persist_result = async {
                             // If merchant sent surcharge_strategy in this request, persist it on the PI
@@ -12777,13 +12813,14 @@ pub async fn payments_submit_pre_confirm(
                                     .await
                                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
                             }
+
                             Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(())
                         }
                         .await;
                         if let Err(err) = persist_result {
                             logger::warn!(
                                 error=?err,
-                                "Failed to persist surcharge data; proceeding"
+                                "Failed to persist surcharge data to DB; proceeding"
                             );
                         }
 
