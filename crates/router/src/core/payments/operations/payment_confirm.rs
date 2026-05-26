@@ -6,10 +6,7 @@ use api_models::{
     admin::ExtendedCardInfoConfig,
     enums::FrmSuggestion,
     mandates::RecurringDetails,
-    payments::{
-        ConnectorMandateReferenceId, ExtendedCardInfo, GetAddressFromPaymentMethodData,
-        MandateTransactionType,
-    },
+    payments::{ExtendedCardInfo, GetAddressFromPaymentMethodData},
 };
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
@@ -17,6 +14,8 @@ use diesel_models::payment_attempt::ConnectorMandateReferenceId as DieselConnect
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
 use hyperswitch_domain_models::{
+    mandates,
+    mandates::{ConnectorMandateReferenceId, MandateTransactionType},
     payment_method_data::RecurringDetails as domain_recurring_details,
     payment_methods::PaymentMethodWithRawData,
     payments::{self as domain_payments, payment_intent::PaymentIntentUpdateFields},
@@ -817,10 +816,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .and_then(|recurring_details| match recurring_details {
                 RecurringDetails::ProcessorPaymentToken(token) => {
                     payment_intent.is_payment_processor_token_flow = Some(true);
-                    Some(api_models::payments::MandateIds {
+                    Some(mandates::MandateIds {
                         mandate_id: None,
                         mandate_reference_id: Some(
-                            api_models::payments::MandateReferenceId::ConnectorMandateId(
+                            mandates::MandateReferenceId::ConnectorMandateId(
                                 ConnectorMandateReferenceId::new(
                                     Some(token.processor_payment_token.clone()), // connector_mandate_id
                                     None, // payment_method_id
@@ -837,7 +836,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
                 | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
                 | RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
-                    Some(api_models::payments::MandateIds {
+                    Some(mandates::MandateIds {
                         mandate_id: None,
                         mandate_reference_id: mandate_reference_id_from_recurring_details,
                     })
