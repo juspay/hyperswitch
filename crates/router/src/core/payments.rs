@@ -13081,10 +13081,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         self.vault_operation = Some(vault_operation);
     }
 
-    fn set_vault_session_details(
-        &mut self,
-        vault_session_details: Option<api::VaultDetails>,
-    ) {
+    fn set_vault_session_details(&mut self, vault_session_details: Option<api::VaultDetails>) {
         self.vault_session_details = vault_session_details;
     }
 
@@ -13396,10 +13393,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn set_vault_session_details(
-        &mut self,
-        vault_session_details: Option<api::VaultDetails>,
-    ) {
+    fn set_vault_session_details(&mut self, vault_session_details: Option<api::VaultDetails>) {
         self.vault_session_details = vault_session_details;
     }
 
