@@ -246,7 +246,76 @@ function payLaterRedirection(
           case "stripe":
             // Stripe handles pay_later differently - may have different flow
             cy.log("Handling Stripe pay_later flow");
-            cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+
+            if (paymentMethodType === "affirm") {
+              cy.log("Handling Stripe Affirm redirect flow");
+              cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+
+              cy.get("body").then(($body) => {
+                const bodyText = $body.text().toLowerCase();
+                if (
+                  bodyText.includes("affirm") ||
+                  bodyText.includes("pay over time")
+                ) {
+                  cy.log("Affirm page detected");
+
+                  cy.get("body").then(($b) => {
+                    const phoneInput = $b.find(
+                      'input[type="tel"], input[name*="phone"], input[placeholder*="phone"], input[placeholder*="Phone"]'
+                    );
+                    if (phoneInput.length > 0) {
+                      cy.wrap(phoneInput[0])
+                        .should("be.visible")
+                        .clear()
+                        .type("5555555555");
+                    }
+                  });
+
+                  cy.get("body").then(($b) => {
+                    const pinInput = $b.find(
+                      'input[type="password"], input[name*="pin"], input[placeholder*="PIN"]'
+                    );
+                    if (pinInput.length > 0) {
+                      cy.wrap(pinInput[0])
+                        .should("be.visible")
+                        .clear()
+                        .type("1234");
+                    }
+                  });
+
+                  cy.get("body").then(($b) => {
+                    const ssnInput = $b.find(
+                      'input[name*="ssn"], input[placeholder*="SSN"], input[placeholder*="social"]'
+                    );
+                    if (ssnInput.length > 0) {
+                      cy.wrap(ssnInput[0])
+                        .should("be.visible")
+                        .clear()
+                        .type("1234");
+                    }
+                  });
+
+                  cy.get("body").then(($b) => {
+                    const termsCheckbox = $b.find(
+                      'input[type="checkbox"][name*="terms"], input[type="checkbox"][name*="agree"]'
+                    );
+                    if (termsCheckbox.length > 0) {
+                      cy.wrap(termsCheckbox[0]).should("be.visible").check();
+                    }
+                  });
+
+                  cy.get("body").then(($b) => {
+                    const submitBtn = $b.find('button[type="submit"]');
+                    if (submitBtn.length > 0) {
+                      cy.wrap(submitBtn[0]).should("be.visible").click();
+                    }
+                  });
+                }
+              });
+            } else {
+              cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+            }
+
             verifyUrl = false;
             break;
 
@@ -702,6 +771,14 @@ function bankRedirectRedirection(
                 cy.url().should("include", "paysafecard");
                 verifyUrl = false;
                 break;
+              case "open_banking_uk":
+                cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+                cy.url().should("include", "adyen");
+                cy.log(
+                  "Adyen OpenBankingUk redirect page loaded - sandbox error page, skipping interaction"
+                );
+                verifyUrl = false;
+                break;
               // The 'ideal' case is handled outside handleFlow
               default:
                 throw new Error(
@@ -1124,6 +1201,30 @@ function bankRedirectRedirection(
               default:
                 throw new Error(
                   `Unsupported Calida payment method type: ${paymentMethodType}`
+                );
+            }
+            break;
+
+          case "paysafe":
+            switch (paymentMethodType) {
+              case "interac":
+                cy.log("Handling Paysafe Interac bank redirect flow");
+
+                verifyUrl = false;
+                break;
+              case "skrill":
+                cy.log("Handling Paysafe Skrill wallet redirect flow");
+
+                verifyUrl = false;
+                break;
+              case "pay_safe_card":
+                cy.log("Handling Paysafe PaySafeCard gift card redirect flow");
+
+                verifyUrl = false;
+                break;
+              default:
+                throw new Error(
+                  `Unsupported Paysafe payment method type in handleFlow: ${paymentMethodType}`
                 );
             }
             break;
@@ -2207,12 +2308,10 @@ function paymentLinkCardRedirection(
             name.includes("card_number") ||
             autocomplete.includes("cc-number")
           ) {
-            /* eslint-disable cypress/no-force */
             cy.wrap(input)
-              .focus()
-              .clear({ force: true })
-              .type(card_number, { delay: 30, force: true });
-            /* eslint-enable cypress/no-force */
+              .should("be.visible")
+              .clear()
+              .type(card_number, { delay: 30 });
             cy.task("cli_log", `Filled card number in iframe ${index}`);
           } else if (
             placeholder.includes("expir") ||
@@ -2222,15 +2321,12 @@ function paymentLinkCardRedirection(
             name.includes("exp") ||
             autocomplete.includes("cc-exp")
           ) {
-            /* eslint-disable cypress/no-force */
             cy.wrap(input)
-              .focus()
-              .clear({ force: true })
+              .should("be.visible")
+              .clear()
               .type(`${card_exp_month}${card_exp_year.slice(-2)}`, {
                 delay: 30,
-                force: true,
               });
-            /* eslint-enable cypress/no-force */
             cy.task("cli_log", `Filled expiry in iframe ${index}`);
           } else if (
             placeholder.includes("cvc") ||
@@ -2242,12 +2338,10 @@ function paymentLinkCardRedirection(
             name.includes("cvv") ||
             autocomplete.includes("cc-csc")
           ) {
-            /* eslint-disable cypress/no-force */
             cy.wrap(input)
-              .focus()
-              .clear({ force: true })
-              .type(card_cvc, { delay: 30, force: true });
-            /* eslint-enable cypress/no-force */
+              .should("be.visible")
+              .clear()
+              .type(card_cvc, { delay: 30 });
             cy.task("cli_log", `Filled CVC in iframe ${index}`);
           }
         });
@@ -2262,12 +2356,10 @@ function paymentLinkCardRedirection(
     });
   });
 
-  /* eslint-disable cypress/no-force */
   cy.get("#submit", { timeout: 30000 })
     .should("be.visible")
     .and("not.have.class", "hidden")
-    .click({ force: true });
-  /* eslint-enable cypress/no-force */
+    .click();
   cy.task("cli_log", "Clicked submit button");
 
   if (expectedOutcome === "error") {
