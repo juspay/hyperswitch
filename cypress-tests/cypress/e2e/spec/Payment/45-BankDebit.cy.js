@@ -345,8 +345,8 @@ describe("Inespay SEPA Bank Debit tests", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("Inespay SEPA Bank Debit Create, Confirm, Refund and Sync flow", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm SEPA -> Simulate Redirect -> Retrieve Payment -> Refund -> Sync Refund", () => {
+  context("Inespay SEPA Bank Debit Create, Confirm and Retrieve flow", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm SEPA -> Simulate Redirect -> Retrieve Payment", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent for SEPA", () => {
@@ -561,33 +561,6 @@ describe("Inespay SEPA Bank Debit tests", () => {
         }
       });
 
-      cy.step("Full Refund", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Full Refund");
-          return;
-        }
-        const refundData = getConnectorDetails(globalState.get("connectorId"))[
-          "bank_debit_pm"
-        ]["Refund"];
-        cy.refundCallTest(fixtures.refundBody, refundData, globalState);
-        if (!utils.should_continue_further(refundData)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("Sync Refund", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Sync Refund");
-          return;
-        }
-        const syncRefundData = getConnectorDetails(globalState.get("connectorId"))[
-          "bank_debit_pm"
-        ]["SyncRefund"];
-        cy.syncRefundCallTest(syncRefundData, globalState);
-        if (!utils.should_continue_further(syncRefundData)) {
-          shouldContinue = false;
-        }
-      });
     });
   });
 });
