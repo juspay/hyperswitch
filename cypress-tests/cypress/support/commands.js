@@ -3508,6 +3508,10 @@ Cypress.Commands.add(
       }
     }
 
+    if (!reqData?.setup_future_usage && createConfirmPaymentBody.setup_future_usage) {
+      delete createConfirmPaymentBody.setup_future_usage;
+    }
+
     if (reqData?.split_payments && isStripeConnect(globalState)) {
       createConfirmPaymentBody.split_payments = reqData.split_payments;
     }
