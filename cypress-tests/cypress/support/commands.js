@@ -9147,8 +9147,7 @@ Cypress.Commands.add(
       authParts["publishable_key"] || globalState.get("publishableKey");
     const clientSecret =
       authParts["client_secret"] || globalState.get("clientSecret");
-    const profileIdForHeader =
-      authParts["profile_id"] || profileId;
+    const profileIdForHeader = authParts["profile_id"] || profileId;
     const customerIdFromAuth = authParts["customer_id"];
     const paymentIdFromAuth = authParts["payment_id"];
 
