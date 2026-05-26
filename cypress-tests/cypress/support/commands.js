@@ -9177,7 +9177,7 @@ Cypress.Commands.add(
 
     const headers = {
       "Content-Type": "application/json",
-      "api-key": publishableKey,
+      "api-key": publishableKey, // Required for connector routing resolution
       Authorization: authorizationHeader,
     };
 
