@@ -200,22 +200,27 @@ describe("Client Session Validation", () => {
         url: `${globalState.get("baseUrl")}/payments/${paymentIntentID}`,
         headers: {
           "Content-Type": "application/json",
-          "api-key": globalState.get("apiKey"),
+          "api-key": globalState.get("publishableKey"),
         },
         failOnStatusCode: false,
         body: {
           amount: 7000,
+          client_secret: globalState.get("clientSecret"),
         },
       }).then((response) => {
         expect(response.status).to.equal(200);
         expect(response.body.status).to.equal("requires_payment_method");
         if (response.body.sdk_authorization) {
-          globalState.set("sdkAuthorization", response.body.sdk_authorization);
+          globalState.set(
+            "sdkAuthorization",
+            response.body.sdk_authorization
+          );
         }
         if (response.body.client_secret) {
           globalState.set("clientSecret", response.body.client_secret);
         }
       });
+    });
     });
 
     it("Confirm with old CSI - expect 401", () => {
