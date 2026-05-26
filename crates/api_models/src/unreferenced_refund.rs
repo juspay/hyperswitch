@@ -22,7 +22,7 @@ pub struct UnreferencedRefundRequest {
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR", value_type = String)]
     pub connector_id: common_utils::id_type::MerchantConnectorAccountId,
 
-    /// Customer ID 
+    /// Customer ID
     #[schema(example = "cus_123456789")]
     pub customer_id: Option<String>,
 
@@ -32,7 +32,6 @@ pub struct UnreferencedRefundRequest {
 
     /// Recipient payment method data
     pub recipient_payment_method_data: RecipientPaymentMethodData,
-
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
@@ -67,7 +66,6 @@ impl RecipientCardData {
         Secret::new(full_year)
     }
 }
-
 
 // ─── Response ────────────────────────────────────────────────────────────────
 
@@ -106,7 +104,6 @@ pub struct UnreferencedRefundResponse {
 
     /// Raw response from connector
     pub raw_connector_response: Option<serde_json::Value>,
-
 }
 
 impl common_utils::events::ApiEventMetric for UnreferencedRefundRequest {}

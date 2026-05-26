@@ -11785,8 +11785,10 @@ impl<const T: u8> hyperswitch_interfaces::relay::ConnectorRelayIntegration
     fn handle_relay_success_response(
         &self,
         _response: bytes::Bytes,
-    ) -> error_stack::Result<hyperswitch_interfaces::relay::UnreferencedRefundResponse, ConnectorError>
-    {
+    ) -> error_stack::Result<
+        hyperswitch_interfaces::relay::UnreferencedRefundResponse,
+        ConnectorError,
+    > {
         Err(ConnectorError::FlowNotSupported {
             flow: "UnreferencedRefund".to_string(),
             connector: "DummyConnector".to_string(),
@@ -11798,8 +11800,10 @@ impl<const T: u8> hyperswitch_interfaces::relay::ConnectorRelayIntegration
         &self,
         _response: bytes::Bytes,
         _status_code: u16,
-    ) -> error_stack::Result<hyperswitch_interfaces::relay::UnreferencedRefundResponse, ConnectorError>
-    {
+    ) -> error_stack::Result<
+        hyperswitch_interfaces::relay::UnreferencedRefundResponse,
+        ConnectorError,
+    > {
         Err(ConnectorError::FlowNotSupported {
             flow: "UnreferencedRefund".to_string(),
             connector: "DummyConnector".to_string(),

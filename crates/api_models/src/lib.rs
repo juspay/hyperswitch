@@ -43,7 +43,6 @@ pub mod profile_acquirer;
 pub mod proxy;
 pub mod refunds;
 pub mod relay;
-pub mod unreferenced_refund;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_data_backfill;
 pub mod routing;
@@ -53,6 +52,7 @@ pub mod surcharge_decision_configs;
 pub mod three_ds_decision_rule;
 #[cfg(feature = "tokenization_v2")]
 pub mod tokenization;
+pub mod unreferenced_refund;
 pub mod user;
 pub mod user_role;
 pub mod verifications;

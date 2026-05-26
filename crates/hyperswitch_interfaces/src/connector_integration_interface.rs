@@ -145,7 +145,6 @@ impl ConnectorEnum {
             }
         }
     }
-
 }
 
 impl crate::relay::ConnectorRelayIntegration for ConnectorEnum {
