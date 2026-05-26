@@ -12,7 +12,12 @@ describe("Client Session Validation", () => {
     });
   });
 
-  after("flush global state", () => {
+  before("enable client session validation", () => {
+    cy.setupConfigs(globalState, "client_session_validation_enabled", "true");
+  });
+
+  after("cleanup and flush global state", () => {
+    cy.setupConfigs(globalState, "client_session_validation_enabled", "false");
     cy.task("setGlobalState", globalState.data);
   });
 

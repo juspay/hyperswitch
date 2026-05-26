@@ -9123,10 +9123,22 @@ Cypress.Commands.add(
     const sdkAuth = globalState.get("sdkAuthorization") || "";
     const authParts = {};
     if (sdkAuth) {
-      const decodedSdkAuth = atob(sdkAuth);
-      decodedSdkAuth.split(",").forEach((part) => {
-        const [key, ...valueParts] = part.split("=");
-        authParts[key.trim()] = valueParts.join("=").trim();
+      try {
+        const decodedSdkAuth = atob(sdkAuth);
+        decodedSdkAuth.split(",").forEach((part) => {
+          const [key, ...valueParts] = part.split("=");
+          authParts[key.trim()] = valueParts.join("=").trim();
+        });
+      } catch (e) {
+        Cypress.log({
+          name: "confirmWithSdkAuthTest",
+          message: `Failed to decode sdkAuthorization: ${e.message}`,
+        });
+      }
+    } else {
+      Cypress.log({
+        name: "confirmWithSdkAuthTest",
+        message: "sdkAuthorization is empty - falling back to publishable_key auth",
       });
     }
 
@@ -9177,9 +9189,11 @@ Cypress.Commands.add(
 
     const headers = {
       "Content-Type": "application/json",
-      "api-key": publishableKey, // Required for connector routing resolution
-      Authorization: authorizationHeader,
+      "api-key": publishableKey,
     };
+    if (authorizationHeader) {
+      headers["Authorization"] = authorizationHeader;
+    }
 
     cy.request({
       method: "POST",
