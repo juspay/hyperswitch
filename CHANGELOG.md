@@ -4,6 +4,28 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+
+## 2026.05.25.1
+
+### Features
+
+- **analytics:** Add ClickHouse-backed payment intents aggregate endpoints ([#12387](https://github.com/juspay/hyperswitch/pull/12387)) ([`f31231f`](https://github.com/juspay/hyperswitch/commit/f31231fc262eac6810a5a13a1d91b649e859a249))
+
+### Refactors
+
+- **mandate:** Move mandate types from api_models to hyperswitch_domain_models ([#12337](https://github.com/juspay/hyperswitch/pull/12337)) ([`860b978`](https://github.com/juspay/hyperswitch/commit/860b9782f71b012c75ad1e3cbf26596b961f285d))
+
+### Testing
+
+- **cypress:**
+  - Add Affirm PayLater payment test for Stripe connector ([#12308](https://github.com/juspay/hyperswitch/pull/12308)) ([`6222a25`](https://github.com/juspay/hyperswitch/commit/6222a25e813d0c3ff4c471b5a1d6a3cd309c460a))
+  - Add manual payment update coverage for stripe ([#12126](https://github.com/juspay/hyperswitch/pull/12126)) ([`52302ff`](https://github.com/juspay/hyperswitch/commit/52302ffa944c3456f4a3045f495204fd4700855d))
+  - Add clear pan retry coverage for bankofamerica ([#12422](https://github.com/juspay/hyperswitch/pull/12422)) ([`e940938`](https://github.com/juspay/hyperswitch/commit/e940938b8d1c6dc37aea94c0dc37cdea6e76b662))
+
+**Full Changelog:** [`2026.05.25.0...2026.05.25.1`](https://github.com/juspay/hyperswitch/compare/2026.05.25.0...2026.05.25.1)
+
+- - -
+
 ## 2026.05.25.0
 
 ### Features
