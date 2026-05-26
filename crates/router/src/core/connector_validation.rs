@@ -69,6 +69,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 hyperswitch_connectors::connectors::dummyconnector::transformers::DummyConnectorAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::AbsaSanlam => {
+                absa_sanlam::transformers::AbsaSanlamAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Aci => {
                 aci::transformers::AciAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -499,10 +503,6 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Revolv3 => {
                 revolv3::transformers::Revolv3AuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
-            api_enums::Connector::AbsaSanlam => {
-                absa_sanlam::transformers::AbsaSanlamAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Santander => {

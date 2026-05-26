@@ -536,6 +536,7 @@ impl TryFrom<Connector> for RoutableConnectors {
 impl From<RoutableConnectors> for Connector {
     fn from(routable_connector: RoutableConnectors) -> Self {
         match routable_connector {
+            RoutableConnectors::AbsaSanlam => Self::AbsaSanlam,
             RoutableConnectors::Authipay => Self::Authipay,
             RoutableConnectors::Adyenplatform => Self::Adyenplatform,
             #[cfg(feature = "dummy_connector")]
@@ -605,7 +606,6 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Globepay => Self::Globepay,
             RoutableConnectors::Gocardless => Self::Gocardless,
             RoutableConnectors::Helcim => Self::Helcim,
-            RoutableConnectors::AbsaSanlam => Self::AbsaSanlam,
             RoutableConnectors::Hyperpg => Self::Hyperpg,
             RoutableConnectors::Iatapay => Self::Iatapay,
             RoutableConnectors::Imerchantsolutions => Self::Imerchantsolutions,
