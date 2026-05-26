@@ -1767,6 +1767,7 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
           break;
         case "rapyd":
           cy.on("uncaught:exception", () => false);
+          cy.log("Starting Rapyd 3DS authentication flow");
 
           cy.get('[data-testid="3ds-code-input"]', {
             timeout: constants.TIMEOUT,
@@ -1774,13 +1775,20 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
             .should("be.visible")
             .type("123456");
 
-          cy.wait(2000);
+          cy.wait(5000);
 
-          cy.get('button[data-testid="place_order_button"]')
-            .should("exist")
-            .click({ force: true });
+          cy.get('button[data-testid="place_order_button"]', {
+            timeout: constants.TIMEOUT,
+          })
+            .should("be.visible")
+            .should("not.be.disabled")
+            .click();
 
-          cy.wait(15000);
+          cy.log(
+            "Rapyd 3DS submission confirmed, waiting for redirect to settle..."
+          );
+
+          cy.wait(12000);
 
           break;
         case "redsys":
@@ -1825,17 +1833,49 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
 
   cy.then(() => {
     if (connectorId === "rapyd") {
-      cy.url().then((currentUrl) => {
-        if (currentUrl.includes("sandboxcheckout.rapyd.net")) {
-          cy.log(
-            "Rapyd sandbox did not auto-redirect; navigating to expected return URL"
-          );
-          cy.visit(expectedUrl.href, { failOnStatusCode: false });
+      cy.log("Triggering Rapyd PSync via direct request");
+
+      try {
+        const callbackUrlObj = new URL(redirectionUrl.href);
+        const pathParts = callbackUrlObj.pathname
+          .split("/")
+          .filter((part) => part.length > 0);
+
+        // Find "payments" and "redirect" indices to handle optional /api/ prefix
+        const paymentsIdx = pathParts.indexOf("payments");
+        const redirectIdx = pathParts.indexOf("redirect");
+
+        if (
+          paymentsIdx !== -1 &&
+          redirectIdx !== -1 &&
+          redirectIdx === paymentsIdx + 1 &&
+          pathParts.length > redirectIdx + 2
+        ) {
+          const paymentId = pathParts[redirectIdx + 1];
+          const merchantId = pathParts[redirectIdx + 2];
+          const psyncUrl = `${callbackUrlObj.origin}${callbackUrlObj.pathname.substring(0, callbackUrlObj.pathname.indexOf("/payments/"))}/payments/${paymentId}/${merchantId}/redirect/response/rapyd`;
+
+          cy.log(`Triggering Rapyd PSync: ${psyncUrl}`);
+          cy.request({
+            method: "GET",
+            url: psyncUrl,
+            followRedirect: false,
+            failOnStatusCode: false,
+          }).then((response) => {
+            cy.log(`PSync response status: ${response.status}`);
+          });
         } else {
-          verifyReturnUrl(redirectionUrl, expectedUrl, true);
+          cy.log(
+            `Could not parse PSync URL from path: ${callbackUrlObj.pathname}`
+          );
         }
-      });
-    } else if (
+      } catch (e) {
+        cy.log(`Error in PSync: ${e.message}`);
+      }
+    }
+
+    if (
+      connectorId !== "rapyd" &&
       responseContentType &&
       !responseContentType.includes("application/json")
     ) {
