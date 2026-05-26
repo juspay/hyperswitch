@@ -210,10 +210,7 @@ describe("Client Session Validation", () => {
         expect(response.status).to.equal(200);
         expect(response.body.status).to.equal("requires_payment_method");
         if (response.body.sdk_authorization) {
-          globalState.set(
-            "sdkAuthorization",
-            response.body.sdk_authorization
-          );
+          globalState.set("sdkAuthorization", response.body.sdk_authorization);
         }
         if (response.body.client_secret) {
           globalState.set("clientSecret", response.body.client_secret);
