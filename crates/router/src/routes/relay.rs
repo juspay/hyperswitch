@@ -7,6 +7,40 @@ use crate::{
     services::{api, authentication as auth},
 };
 
+#[instrument(skip_all, fields(flow = ?Flow::RelayUnreferencedRefund))]
+#[cfg(feature = "oltp")]
+pub async fn unreferenced_refund(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Json<api_models::unreferenced_refund::UnreferencedRefundRequest>,
+) -> impl Responder {
+    let flow = Flow::RelayUnreferencedRefund;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            relay::relay_unreferenced_refund(
+                state,
+                auth.platform,
+                #[cfg(feature = "v1")]
+                auth.profile.map(|profile| profile.get_id().clone()),
+                #[cfg(feature = "v2")]
+                Some(auth.profile.get_id().clone()),
+                req,
+            )
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
+        }),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[instrument(skip_all, fields(flow = ?Flow::Relay))]
 #[cfg(feature = "oltp")]
 pub async fn relay(

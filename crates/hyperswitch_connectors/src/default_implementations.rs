@@ -11570,3 +11570,240 @@ default_imp_for_push_notification_flow!(
     connectors::Zsl,
     connectors::CtpMastercard
 );
+
+macro_rules! default_imp_for_connector_relay {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl hyperswitch_interfaces::relay::ConnectorRelayIntegration for $path::$connector {
+                fn build_relay_request(
+                    &self,
+                    _router_data: &hyperswitch_interfaces::relay::UnreferencedRefundRouterData<'_>,
+                ) -> error_stack::Result<common_utils::request::Request, ConnectorError> {
+                    Err(ConnectorError::FlowNotSupported {
+                        flow: "UnreferencedRefund".to_string(),
+                        connector: stringify!($connector).to_string(),
+                    }
+                    .into())
+                }
+
+                fn handle_relay_success_response(
+                    &self,
+                    _response: bytes::Bytes,
+                ) -> error_stack::Result<
+                    hyperswitch_interfaces::relay::UnreferencedRefundResponse,
+                    ConnectorError,
+                > {
+                    Err(ConnectorError::FlowNotSupported {
+                        flow: "UnreferencedRefund".to_string(),
+                        connector: stringify!($connector).to_string(),
+                    }
+                    .into())
+                }
+
+                fn get_relay_error_response(
+                    &self,
+                    _response: bytes::Bytes,
+                    _status_code: u16,
+                ) -> error_stack::Result<
+                    hyperswitch_interfaces::relay::UnreferencedRefundResponse,
+                    ConnectorError,
+                > {
+                    Err(ConnectorError::FlowNotSupported {
+                        flow: "UnreferencedRefund".to_string(),
+                        connector: stringify!($connector).to_string(),
+                    }
+                    .into())
+                }
+            }
+        )*
+    };
+}
+
+default_imp_for_connector_relay!(
+    connectors::Aci,
+    connectors::Adyen,
+    connectors::Adyenplatform,
+    connectors::Affirm,
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Archipel,
+    connectors::Authipay,
+    connectors::Authorizedotnet,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Barclaycard,
+    connectors::Billwerk,
+    connectors::Bitpay,
+    connectors::Blackhawknetwork,
+    connectors::Bluesnap,
+    connectors::Boku,
+    connectors::Braintree,
+    connectors::Breadpay,
+    connectors::Calida,
+    connectors::Cashtocode,
+    connectors::Celero,
+    connectors::Chargebee,
+    connectors::Checkbook,
+    connectors::Checkout,
+    connectors::Coinbase,
+    connectors::Coingate,
+    connectors::Cryptopay,
+    connectors::CtpMastercard,
+    connectors::Custombilling,
+    connectors::Cybersource,
+    connectors::Cybersourcedecisionmanager,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Dwolla,
+    connectors::Ebanx,
+    connectors::Elavon,
+    connectors::Envoy,
+    connectors::Facilitapay,
+    connectors::Finix,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Flexiti,
+    connectors::Forte,
+    connectors::Getnet,
+    connectors::Gigadat,
+    connectors::Globalpay,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Gpayments,
+    connectors::Helcim,
+    connectors::Hipay,
+    connectors::Hyperpg,
+    connectors::HyperswitchVault,
+    connectors::Hyperwallet,
+    connectors::Iatapay,
+    connectors::Imerchantsolutions,
+    connectors::Inespay,
+    connectors::Interpayments,
+    connectors::Itaubank,
+    connectors::Jpmorgan,
+    connectors::Juspaythreedsserver,
+    connectors::Katapult,
+    connectors::Klarna,
+    connectors::Loonio,
+    connectors::Mifinity,
+    connectors::Mollie,
+    connectors::Moneris,
+    connectors::Mpgs,
+    connectors::Multisafepay,
+    connectors::Netcetera,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Nmi,
+    connectors::Nomupay,
+    connectors::Noon,
+    connectors::Nordea,
+    connectors::Novalnet,
+    connectors::Nuvei,
+    connectors::Opayo,
+    connectors::Opennode,
+    connectors::Paybox,
+    connectors::Payeezy,
+    connectors::Payjustnow,
+    connectors::Payjustnowinstore,
+    connectors::Payload,
+    connectors::Payme,
+    connectors::Payone,
+    connectors::Paypal,
+    connectors::Paysafe,
+    connectors::Paystack,
+    connectors::Paytm,
+    connectors::Payu,
+    connectors::Peachpayments,
+    connectors::Phonepe,
+    connectors::Placetopay,
+    connectors::Plaid,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Recurly,
+    connectors::Redsys,
+    connectors::Revolv3,
+    connectors::Riskified,
+    connectors::Sanlam,
+    connectors::Santander,
+    connectors::Shift4,
+    connectors::Sift,
+    connectors::Signifyd,
+    connectors::Silverflow,
+    connectors::Square,
+    connectors::Stax,
+    connectors::Stripe,
+    connectors::Stripebilling,
+    connectors::Taxjar,
+    connectors::Tesouro,
+    connectors::Threedsecureio,
+    connectors::Thunes,
+    connectors::Tokenex,
+    connectors::Tokenio,
+    connectors::Truelayer,
+    connectors::Trustly,
+    connectors::Trustpay,
+    connectors::Trustpayments,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
+    connectors::Vgs,
+    connectors::Volt,
+    connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
+    connectors::Wise,
+    connectors::Worldline,
+    connectors::Worldpay,
+    connectors::Worldpaymodular,
+    connectors::Worldpayvantiv,
+    connectors::Worldpayxml,
+    connectors::Xendit,
+    connectors::Zen,
+    connectors::Zift,
+    connectors::Zsl
+);
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> hyperswitch_interfaces::relay::ConnectorRelayIntegration
+    for connectors::DummyConnector<T>
+{
+    fn build_relay_request(
+        &self,
+        _router_data: &hyperswitch_interfaces::relay::UnreferencedRefundRouterData<'_>,
+    ) -> error_stack::Result<common_utils::request::Request, ConnectorError> {
+        Err(ConnectorError::FlowNotSupported {
+            flow: "UnreferencedRefund".to_string(),
+            connector: "DummyConnector".to_string(),
+        }
+        .into())
+    }
+
+    fn handle_relay_success_response(
+        &self,
+        _response: bytes::Bytes,
+    ) -> error_stack::Result<hyperswitch_interfaces::relay::UnreferencedRefundResponse, ConnectorError>
+    {
+        Err(ConnectorError::FlowNotSupported {
+            flow: "UnreferencedRefund".to_string(),
+            connector: "DummyConnector".to_string(),
+        }
+        .into())
+    }
+
+    fn get_relay_error_response(
+        &self,
+        _response: bytes::Bytes,
+        _status_code: u16,
+    ) -> error_stack::Result<hyperswitch_interfaces::relay::UnreferencedRefundResponse, ConnectorError>
+    {
+        Err(ConnectorError::FlowNotSupported {
+            flow: "UnreferencedRefund".to_string(),
+            connector: "DummyConnector".to_string(),
+        }
+        .into())
+    }
+}
