@@ -27,13 +27,11 @@ export const connectorDetails = {
         Request: {
           currency: currencyMap[walletType] || "GBP",
           customer_acceptance: null,
-          setup_future_usage: "on_session",
         },
         Response: {
           status: 200,
           body: {
             status: "requires_payment_method",
-            setup_future_usage: "on_session",
           },
         },
       };
@@ -42,9 +40,19 @@ export const connectorDetails = {
       Request: {
         payment_method: "wallet",
         payment_method_type: "we_chat_pay",
+        payment_method_data: {
+          wallet: {
+            we_chat_pay_qr: {},
+          },
+        },
         currency: "GBP",
+        capture_method: "automatic",
         customer_acceptance: null,
-        setup_future_usage: "on_session",
+        billing: {
+          address: {
+            country: "GB",
+          },
+        },
       },
       Response: {
         status: 200,
@@ -60,9 +68,19 @@ export const connectorDetails = {
       Request: {
         payment_method: "wallet",
         payment_method_type: "ali_pay",
+        payment_method_data: {
+          wallet: {
+            ali_pay_qr: {},
+          },
+        },
         currency: "GBP",
+        capture_method: "automatic",
         customer_acceptance: null,
-        setup_future_usage: "on_session",
+        billing: {
+          address: {
+            country: "GB",
+          },
+        },
       },
       Response: {
         status: 200,

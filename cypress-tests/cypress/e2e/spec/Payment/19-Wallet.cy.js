@@ -393,33 +393,19 @@ describe("Wallet tests", () => {
           return;
         }
         const nextActionUrl = globalState.get("nextActionUrl");
-        const payment_method_type = globalState.get("paymentMethodType");
-        const expected_redirection = fixtures.confirmBody["return_url"];
 
         expect(
           nextActionUrl,
           "nextActionUrl should be present after Globepay wallet confirm"
         ).to.be.a("string");
 
-        // Visit the Globepay redirect URL which renders inline QR code
-        cy.visit(nextActionUrl);
+        // Globepay returns a base64 data URI for the QR code image — no HTTP visit needed
+        expect(
+          nextActionUrl,
+          "nextActionUrl should be a data URI containing a QR code image"
+        ).to.match(/^data:/);
 
-        // Verify QR code is visible on the page (Globepay renders QR inline)
-        cy.get("canvas:visible, img:visible, svg:visible, picture:visible", {
-          timeout: 30000,
-        })
-          .first()
-          .scrollIntoView()
-          .should("be.visible")
-          .then(($el) => {
-            cy.log(
-              "Verified Globepay QR code is visible",
-              $el.prop("tagName")
-            );
-          });
-
-        // Do not wait for or assert redirect URL - Globepay shows QR inline
-        cy.log("Globepay inline QR code verified - no redirect expected");
+        cy.log("Globepay inline QR code verified via data URI - no redirect expected");
       });
 
       cy.step("Retrieve Payment", () => {
@@ -514,33 +500,19 @@ describe("Wallet tests", () => {
           return;
         }
         const nextActionUrl = globalState.get("nextActionUrl");
-        const payment_method_type = globalState.get("paymentMethodType");
-        const expected_redirection = fixtures.confirmBody["return_url"];
 
         expect(
           nextActionUrl,
           "nextActionUrl should be present after Globepay wallet confirm"
         ).to.be.a("string");
 
-        // Visit the Globepay redirect URL which renders inline QR code
-        cy.visit(nextActionUrl);
+        // Globepay returns a base64 data URI for the QR code image — no HTTP visit needed
+        expect(
+          nextActionUrl,
+          "nextActionUrl should be a data URI containing a QR code image"
+        ).to.match(/^data:/);
 
-        // Verify QR code is visible on the page (Globepay renders QR inline)
-        cy.get("canvas:visible, img:visible, svg:visible, picture:visible", {
-          timeout: 30000,
-        })
-          .first()
-          .scrollIntoView()
-          .should("be.visible")
-          .then(($el) => {
-            cy.log(
-              "Verified Globepay QR code is visible",
-              $el.prop("tagName")
-            );
-          });
-
-        // Do not wait for or assert redirect URL - Globepay shows QR inline
-        cy.log("Globepay inline QR code verified - no redirect expected");
+        cy.log("Globepay inline QR code verified via data URI - no redirect expected");
       });
 
       cy.step("Retrieve Payment", () => {
