@@ -1278,12 +1278,6 @@ function bankRedirectRedirection(
 function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
   let responseContentType = null;
 
-  // Skip if redirectionUrl is null (happens when nextActionUrl is invalid)
-  if (!redirectionUrl || !redirectionUrl.href) {
-    cy.log("Skipping 3DS redirection - no valid redirect URL provided");
-    return;
-  }
-
   // First check what type of response we get from the redirect URL
   cy.request({
     url: redirectionUrl.href,

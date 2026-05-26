@@ -93,7 +93,7 @@ describe("Card - Payment Response Hash flow test", () => {
 
   context("3DS Auto-Capture - Verify Redirect Signature", () => {
     it("setup 3DS -> verify redirect signature", () => {
-      cy.setup3DSPayment(globalState, { includeRedirection: true });
+      cy.setup3DSPayment(globalState, { includeRedirection: false });
 
       cy.step("verify redirect signature", () => {
         if (!globalState.get("_setup3DSContinue")) {
