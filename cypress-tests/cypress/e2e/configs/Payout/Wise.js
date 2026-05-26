@@ -229,6 +229,18 @@ export const connectorDetails = {
       },
       EntityTypeCompany: {
         Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          payout_method_data: {
+            bank: {
+              iban: "NL46TEST0136169112",
+              bic: "ABNANL2A",
+              bank_name: "Test Bank",
+              bank_country_code: "NL",
+              bank_city: "Amsterdam",
+            },
+          },
+          billing: billing,
           entity_type: "Company",
         },
         Response: {
@@ -241,7 +253,20 @@ export const connectorDetails = {
         },
       },
       EntityTypeDefault: {
-        Request: {},
+        Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          payout_method_data: {
+            bank: {
+              iban: "NL46TEST0136169112",
+              bic: "ABNANL2A",
+              bank_name: "Test Bank",
+              bank_country_code: "NL",
+              bank_city: "Amsterdam",
+            },
+          },
+          billing: billing,
+        },
         Response: {
           status: 200,
           body: {
@@ -253,6 +278,18 @@ export const connectorDetails = {
       },
       EntityTypeIndividual: {
         Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          payout_method_data: {
+            bank: {
+              iban: "NL46TEST0136169112",
+              bic: "ABNANL2A",
+              bank_name: "Test Bank",
+              bank_country_code: "NL",
+              bank_city: "Amsterdam",
+            },
+          },
+          billing: billing,
           entity_type: "Individual",
         },
         Response: {
@@ -266,15 +303,26 @@ export const connectorDetails = {
       },
       EntityTypeInvalid: {
         Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          payout_method_data: {
+            bank: {
+              iban: "NL46TEST0136169112",
+              bic: "ABNANL2A",
+              bank_name: "Test Bank",
+              bank_country_code: "NL",
+              bank_city: "Amsterdam",
+            },
+          },
+          billing: billing,
           entity_type: "InvalidType",
         },
         Response: {
           status: 400,
           body: {
             error: {
-              type: "invalid_request",
-              message:
-                "Json deserialize error: unknown variant `InvalidType`",
+              error_type: "invalid_request",
+              message: "Json deserialize error: unknown variant `InvalidType`",
               code: "IR_06",
             },
           },
@@ -282,6 +330,18 @@ export const connectorDetails = {
       },
       EntityTypeNaturalPerson: {
         Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          payout_method_data: {
+            bank: {
+              iban: "NL46TEST0136169112",
+              bic: "ABNANL2A",
+              bank_name: "Test Bank",
+              bank_country_code: "NL",
+              bank_city: "Amsterdam",
+            },
+          },
+          billing: billing,
           entity_type: "NaturalPerson",
         },
         Response: {
@@ -295,6 +355,18 @@ export const connectorDetails = {
       },
       EntityTypeNonProfit: {
         Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          payout_method_data: {
+            bank: {
+              iban: "NL46TEST0136169112",
+              bic: "ABNANL2A",
+              bank_name: "Test Bank",
+              bank_country_code: "NL",
+              bank_city: "Amsterdam",
+            },
+          },
+          billing: billing,
           entity_type: "NonProfit",
         },
         Response: {
@@ -308,6 +380,18 @@ export const connectorDetails = {
       },
       EntityTypePersonal: {
         Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          payout_method_data: {
+            bank: {
+              iban: "NL46TEST0136169112",
+              bic: "ABNANL2A",
+              bank_name: "Test Bank",
+              bank_country_code: "NL",
+              bank_city: "Amsterdam",
+            },
+          },
+          billing: billing,
           entity_type: "Personal",
         },
         Response: {
@@ -321,6 +405,18 @@ export const connectorDetails = {
       },
       EntityTypePublicSector: {
         Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          payout_method_data: {
+            bank: {
+              iban: "NL46TEST0136169112",
+              bic: "ABNANL2A",
+              bank_name: "Test Bank",
+              bank_country_code: "NL",
+              bank_city: "Amsterdam",
+            },
+          },
+          billing: billing,
           entity_type: "PublicSector",
         },
         Response: {
