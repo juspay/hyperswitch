@@ -21,13 +21,14 @@ const NULL_CARD_METADATA = {
 };
 
 function withNullCardMetadata(data) {
-  if (data?.Response?.body?.payment_method_data?.card) {
+  const cloned = Cypress._.cloneDeep(data);
+  if (cloned?.Response?.body?.payment_method_data?.card) {
     Object.assign(
-      data.Response.body.payment_method_data.card,
+      cloned.Response.body.payment_method_data.card,
       NULL_CARD_METADATA
     );
   }
-  return data;
+  return cloned;
 }
 
 describe("Tax Connector Business Profile Flag", () => {
@@ -103,11 +104,10 @@ describe("Tax Connector Business Profile Flag", () => {
         let shouldProceed = true;
 
         cy.step("Create Payment Intent", () => {
+          const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
           const data = {
-            ...getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-              "PaymentIntent"
-            ],
-            ...TAX_PROFILE_CONFIG,
+            ...baseData,
+            Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
           };
 
           cy.createPaymentIntentTest(
@@ -128,11 +128,10 @@ describe("Tax Connector Business Profile Flag", () => {
             cy.task("cli_log", "Skipping step: Confirm Payment");
             return;
           }
+          const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
           const data = withNullCardMetadata({
-            ...getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-              "No3DSAutoCapture"
-            ],
-            ...TAX_PROFILE_CONFIG,
+            ...baseData,
+            Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
           });
 
           cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
@@ -147,11 +146,10 @@ describe("Tax Connector Business Profile Flag", () => {
             cy.task("cli_log", "Skipping step: Retrieve Payment");
             return;
           }
+          const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
           const data = withNullCardMetadata({
-            ...getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-              "No3DSAutoCapture"
-            ],
-            ...TAX_PROFILE_CONFIG,
+            ...baseData,
+            Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
           });
 
           cy.retrievePaymentCallTest({ globalState, data });
@@ -175,11 +173,10 @@ describe("Tax Connector Business Profile Flag", () => {
       let shouldProceed = true;
 
       cy.step("Create Payment Intent", () => {
+        const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
         const data = {
-          ...getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-            "PaymentIntent"
-          ],
-          ...TAX_PROFILE_CONFIG,
+          ...baseData,
+          Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
         };
 
         cy.createPaymentIntentTest(
@@ -200,11 +197,10 @@ describe("Tax Connector Business Profile Flag", () => {
           cy.task("cli_log", "Skipping step: Confirm Payment");
           return;
         }
+        const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
         const data = withNullCardMetadata({
-          ...getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-            "No3DSAutoCapture"
-          ],
-          ...TAX_PROFILE_CONFIG,
+          ...baseData,
+          Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
         });
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
@@ -219,11 +215,10 @@ describe("Tax Connector Business Profile Flag", () => {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
         }
+        const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
         const data = withNullCardMetadata({
-          ...getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-            "No3DSAutoCapture"
-          ],
-          ...TAX_PROFILE_CONFIG,
+          ...baseData,
+          Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
         });
 
         cy.retrievePaymentCallTest({ globalState, data });
@@ -249,11 +244,10 @@ describe("Tax Connector Business Profile Flag", () => {
         let shouldProceed = true;
 
         cy.step("Create Payment Intent with skip flag", () => {
+          const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
           const data = {
-            ...getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-              "PaymentIntent"
-            ],
-            ...TAX_PROFILE_CONFIG,
+            ...baseData,
+            Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
           };
 
           const paymentBody = { ...fixtures.createPaymentBody };
@@ -277,11 +271,10 @@ describe("Tax Connector Business Profile Flag", () => {
             cy.task("cli_log", "Skipping step: Confirm Payment");
             return;
           }
+          const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
           const data = withNullCardMetadata({
-            ...getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-              "No3DSAutoCapture"
-            ],
-            ...TAX_PROFILE_CONFIG,
+            ...baseData,
+            Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
           });
 
           cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
@@ -296,11 +289,10 @@ describe("Tax Connector Business Profile Flag", () => {
             cy.task("cli_log", "Skipping step: Retrieve Payment");
             return;
           }
+          const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
           const data = withNullCardMetadata({
-            ...getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-              "No3DSAutoCapture"
-            ],
-            ...TAX_PROFILE_CONFIG,
+            ...baseData,
+            Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
           });
 
           cy.retrievePaymentCallTest({ globalState, data });
@@ -352,11 +344,10 @@ describe("Tax Connector Business Profile Flag", () => {
       let shouldProceed = true;
 
       cy.step("Create Payment Intent", () => {
+        const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
         const data = {
-          ...getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-            "PaymentIntent"
-          ],
-          ...TAX_PROFILE_CONFIG,
+          ...baseData,
+          Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
         };
 
         cy.createPaymentIntentTest(
@@ -377,11 +368,10 @@ describe("Tax Connector Business Profile Flag", () => {
           cy.task("cli_log", "Skipping step: Confirm Payment");
           return;
         }
+        const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
         const data = withNullCardMetadata({
-          ...getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-            "No3DSAutoCapture"
-          ],
-          ...TAX_PROFILE_CONFIG,
+          ...baseData,
+          Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
         });
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
@@ -396,11 +386,10 @@ describe("Tax Connector Business Profile Flag", () => {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
         }
+        const baseData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
         const data = withNullCardMetadata({
-          ...getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-            "No3DSAutoCapture"
-          ],
-          ...TAX_PROFILE_CONFIG,
+          ...baseData,
+          Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
         });
 
         cy.retrievePaymentCallTest({ globalState, data });
