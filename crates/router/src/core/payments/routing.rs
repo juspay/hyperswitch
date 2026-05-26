@@ -1,3 +1,4 @@
+use hyperswitch_domain_models::mandates;
 mod transformers;
 pub mod utils;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -248,10 +249,10 @@ pub fn make_dsl_input(
                     .mandate_type
                     .clone()
                     .map(|mandate_type| match mandate_type {
-                        hyperswitch_domain_models::mandates::MandateDataType::SingleUse(_) => {
+                        mandates::MandateDataType::SingleUse(_) => {
                             euclid_enums::MandateType::SingleUse
                         }
-                        hyperswitch_domain_models::mandates::MandateDataType::MultiUse(_) => {
+                        mandates::MandateDataType::MultiUse(_) => {
                             euclid_enums::MandateType::MultiUse
                         }
                     })
@@ -371,12 +372,8 @@ pub fn make_dsl_input(
             .as_ref()
             .and_then(|mandate_data| {
                 mandate_data.mandate_type.clone().map(|mt| match mt {
-                    hyperswitch_domain_models::mandates::MandateDataType::SingleUse(_) => {
-                        euclid_enums::MandateType::SingleUse
-                    }
-                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(_) => {
-                        euclid_enums::MandateType::MultiUse
-                    }
+                    mandates::MandateDataType::SingleUse(_) => euclid_enums::MandateType::SingleUse,
+                    mandates::MandateDataType::MultiUse(_) => euclid_enums::MandateType::MultiUse,
                 })
             }),
         payment_type: Some(

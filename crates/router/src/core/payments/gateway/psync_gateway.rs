@@ -112,7 +112,8 @@ where
                     .clone()
                     .map(|raw_connector_response| raw_connector_response.expose().into());
                 router_data.connector_http_status_code = Some(status_code);
-
+                router_data.sender_payment_instrument_id =
+                    payment_get_response.sender_payment_instrument_id.clone();
                 Ok(router_data.clone())
             }
             CallConnectorAction::Trigger => {
@@ -235,7 +236,8 @@ where
                             .clone()
                             .map(|raw_connector_response| raw_connector_response.expose().into());
                         router_data.connector_http_status_code = Some(status_code);
-
+                        router_data.sender_payment_instrument_id =
+                            payment_get_response.sender_payment_instrument_id.clone();
                         Ok((router_data, (), payment_get_response))
                     },
                 ))
