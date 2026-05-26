@@ -180,3 +180,67 @@ value = false
 schema = { type = "boolean" }
 description = "Whether a specific incoming webhook event is disabled for a given connector"
 change_reason = "Initial setup"
+
+[default-configs.poll_config_external_three_ds]
+schema = { type = "object" }
+description = "Poll configuration for external 3DS authentication per connector"
+change_reason = "Initial setup"
+
+[default-configs.poll_config_external_three_ds.value]
+delay_in_secs = 2
+frequency = 5
+
+[default-configs.pt_mapping_outgoing_webhooks]
+schema = { type = "object" }
+description = "Outgoing webhook retry process tracker mapping configuration"
+change_reason = "Initial setup"
+
+[default-configs.pt_mapping_outgoing_webhooks.value.default_mapping]
+start_after = 60
+frequencies = [[300, 2], [600, 5], [3600, 5], [21600, 3]]
+
+[default-configs.pt_mapping_pcr_retries]
+schema = { type = "object" }
+description = "Revenue recovery (PCR) payment retry process tracker mapping configuration"
+change_reason = "Initial setup"
+
+[default-configs.pt_mapping_pcr_retries.value.default_mapping]
+start_after = 60
+frequencies = [[10800, 2], [21600, 3], [32400, 3], [43200, 3], [64800, 3]]
+
+[default-configs.pt_mapping_payment_sync]
+schema = { type = "object" }
+description = "Payment sync (psync) retry process tracker mapping configuration"
+change_reason = "Initial setup"
+
+[default-configs.pt_mapping_payment_sync.value]
+max_retries_count = 5
+
+[default-configs.pt_mapping_payment_sync.value.default_mapping]
+start_after = 60
+frequencies = [[300, 5]]
+
+[default-configs.pt_mapping_refund_sync]
+schema = { type = "object" }
+description = "Refund sync retry process tracker mapping configuration"
+change_reason = "Initial setup"
+
+[default-configs.pt_mapping_refund_sync.value]
+max_retries_count = 5
+
+[default-configs.pt_mapping_refund_sync.value.default_mapping]
+start_after = 60
+frequencies = [[300, 5]]
+
+[default-configs.pt_mapping_dispute_sync]
+schema = { type = "object" }
+description = "Dispute sync retry process tracker mapping configuration"
+change_reason = "Initial setup"
+
+[default-configs.pt_mapping_dispute_sync.value]
+max_retries_count = 5
+
+[default-configs.pt_mapping_dispute_sync.value.default_mapping]
+start_after = 60
+frequencies = [[300, 5]]
+
