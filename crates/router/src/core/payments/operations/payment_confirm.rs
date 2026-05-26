@@ -872,9 +872,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             request.surcharge_details.clone()
         } else {
             // Try to load the latest surcharge calculated during pre_confirm from Redis
-            let redis_key = helpers::get_pre_confirm_surcharge_redis_key(
-                &payment_attempt.payment_id,
-            );
+            let redis_key =
+                helpers::get_pre_confirm_surcharge_redis_key(&payment_attempt.payment_id);
             match state.store.get_redis_conn() {
                 Ok(redis_conn) => {
                     match redis_conn

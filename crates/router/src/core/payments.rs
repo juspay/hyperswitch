@@ -12741,11 +12741,13 @@ pub async fn payments_submit_pre_confirm(
                                 .get_redis_conn()
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable("Failed to get redis connection for surcharge")?;
-                            let redis_key = helpers::get_pre_confirm_surcharge_redis_key(&payment_id);
-                            let surcharge_to_store = api_models::payments::RequestSurchargeDetails {
-                                surcharge_amount,
-                                tax_amount: None,
-                            };
+                            let redis_key =
+                                helpers::get_pre_confirm_surcharge_redis_key(&payment_id);
+                            let surcharge_to_store =
+                                api_models::payments::RequestSurchargeDetails {
+                                    surcharge_amount,
+                                    tax_amount: None,
+                                };
                             redis_conn
                                 .serialize_and_set_key_with_expiry(
                                     &redis_key.as_str().into(),
@@ -12754,7 +12756,9 @@ pub async fn payments_submit_pre_confirm(
                                 )
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Failed to store pre_confirm surcharge in redis")?;
+                                .attach_printable(
+                                    "Failed to store pre_confirm surcharge in redis",
+                                )?;
                             logger::info!(
                                 redis_key = %redis_key,
                                 surcharge_amount = %surcharge_amount.get_amount_as_i64(),
