@@ -3045,7 +3045,6 @@ Cypress.Commands.add(
       body: confirmBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-
       cy.wrap(response).then(() => {
         if (response.status === 200) {
           expect(response.headers["content-type"]).to.include(
@@ -3106,13 +3105,28 @@ Cypress.Commands.add(
                   response.body.capture_method === "automatic" ||
                   response.body.capture_method === "manual"
                 ) {
-                  expect(response.body)
-                    .to.have.property("next_action")
-                    .to.have.property("redirect_to_url");
-                  globalState.set(
-                    "nextActionUrl",
-                    response.body.next_action.redirect_to_url
-                  );
+                  if (connectorId === "globepay") {
+                    // GlobePay returns QR code inline, not a redirect URL
+                    expect(response.body)
+                      .to.have.property("next_action")
+                      .to.have.property("type")
+                      .to.equal("qr_code_information");
+                    expect(response.body.next_action)
+                      .to.have.property("image_data_url")
+                      .to.be.a("string");
+                    globalState.set(
+                      "nextActionUrl",
+                      response.body.next_action.image_data_url
+                    );
+                  } else {
+                    expect(response.body)
+                      .to.have.property("next_action")
+                      .to.have.property("redirect_to_url");
+                    globalState.set(
+                      "nextActionUrl",
+                      response.body.next_action.redirect_to_url
+                    );
+                  }
                 } else {
                   throw new Error(
                     `Invalid capture method ${response.body.capture_method}`
