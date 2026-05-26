@@ -946,7 +946,12 @@ fn create_apple_pay_session_response(
                         payment_request_data: apple_pay_payment_request,
                         connector: connector_name,
                         delayed_session_token: delayed_response,
-                        sdk_next_action: { payment_types::SdkNextAction { next_action } },
+                        sdk_next_action: {
+                            payment_types::SdkNextAction {
+                                next_action,
+                                should_block_confirm: None,
+                            }
+                        },
                         connector_reference_id: None,
                         connector_sdk_public_key: None,
                         connector_merchant_id: None,
@@ -978,7 +983,12 @@ fn create_apple_pay_session_response(
                                 payment_request_data: apple_pay_payment_request,
                                 connector: connector_name,
                                 delayed_session_token: delayed_response,
-                                sdk_next_action: { payment_types::SdkNextAction { next_action } },
+                                sdk_next_action: {
+                                    payment_types::SdkNextAction {
+                                        next_action,
+                                        should_block_confirm: None,
+                                    }
+                                },
                                 connector_reference_id: None,
                                 connector_sdk_public_key: None,
                                 connector_merchant_id: None,
@@ -1030,6 +1040,7 @@ fn create_gpay_session_token(
                             connector: connector.connector_name.to_string(),
                             sdk_next_action: payment_types::SdkNextAction {
                                 next_action: payment_types::NextActionCall::Confirm,
+                                should_block_confirm: None,
                             },
                         },
                     ),
@@ -1121,6 +1132,7 @@ fn create_gpay_session_token(
                                 connector: connector.connector_name.to_string(),
                                 sdk_next_action: payment_types::SdkNextAction {
                                     next_action: payment_types::NextActionCall::Confirm,
+                                    should_block_confirm: None,
                                 },
                                 delayed_session_token: false,
                                 secrets: None,
@@ -1222,6 +1234,7 @@ fn create_gpay_session_token(
                                 connector: connector.connector_name.to_string(),
                                 sdk_next_action: payment_types::SdkNextAction {
                                     next_action: payment_types::NextActionCall::Confirm,
+                                    should_block_confirm: None,
                                 },
                                 delayed_session_token: false,
                                 secrets: None,
@@ -1397,6 +1410,7 @@ fn create_paypal_sdk_session_token(
                     session_token: paypal_sdk_data.data.client_id,
                     sdk_next_action: payment_types::SdkNextAction {
                         next_action: payment_types::NextActionCall::PostSessionTokens,
+                        should_block_confirm: None,
                     },
                     data_user_id_token: None,
                     client_token: None,

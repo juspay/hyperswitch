@@ -869,7 +869,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         // via InterPayments), apply them to net_amount now so that populate_surcharge_details
         // picks them up in the non-DSS path and persists them with the attempt.
         let resolved_surcharge = if request.surcharge_details.is_some() {
-            request.surcharge_details.clone()
+            request.surcharge_details
         } else {
             // Try to load the latest surcharge calculated during pre_confirm from Redis
             let redis_key =

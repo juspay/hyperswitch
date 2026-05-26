@@ -4786,7 +4786,10 @@ impl transformers::ForeignTryFrom<payments_grpc::SdkNextAction> for SdkNextActio
             payments_grpc::SdkNextAction::PostSessionTokens => NextActionCall::PostSessionTokens,
         };
 
-        Ok(Self { next_action })
+        Ok(Self {
+            next_action,
+            should_block_confirm: None,
+        })
     }
 }
 

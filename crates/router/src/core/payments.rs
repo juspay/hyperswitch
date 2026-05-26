@@ -12308,6 +12308,7 @@ impl From<CheckResult> for Option<api_models::payments::SdkNextAction> {
             CheckResult::Allow => None,
             CheckResult::Deny { message } => Some(api_models::payments::SdkNextAction {
                 next_action: api_models::payments::NextActionCall::Deny { message },
+                should_block_confirm: None,
             }),
         }
     }
@@ -12532,6 +12533,7 @@ pub async fn payments_submit_eligibility(
         .transpose()?
         .unwrap_or(api_models::payments::SdkNextAction {
             next_action: api_models::payments::NextActionCall::Confirm,
+            should_block_confirm: None,
         });
     Ok(services::ApplicationResponse::Json(
         api_models::payments::PaymentsEligibilityResponse {
@@ -12549,14 +12551,14 @@ pub async fn payments_submit_pre_confirm(
     payment_id: id_type::PaymentId,
 ) -> RouterResponse<api_models::payments::PaymentsPreConfirmResponse> {
     // Convert to eligibility request so we can reuse the existing data-fetching logic
-    // Extract postal code and country from payment_method_data.billing.address for surcharge BIN lookup
-    let billing_address = req
+    // Extract postal code and country from request billing address (will be used to override PI values below)
+    let req_billing_address = req
         .payment_method_data
         .as_ref()
         .and_then(|pmd| pmd.billing.as_ref())
         .and_then(|billing| billing.address.as_ref());
-    let postal_code = billing_address.and_then(|addr| addr.zip.clone());
-    let billing_country = billing_address.and_then(|addr| addr.country);
+    let req_postal_code = req_billing_address.and_then(|addr| addr.zip.clone());
+    let req_billing_country = req_billing_address.and_then(|addr| addr.country);
     let eligibility_req = api_models::payments::PaymentsEligibilityRequest {
         payment_id: req.payment_id.clone(),
         client_secret: req.client_secret.clone(),
@@ -12595,6 +12597,30 @@ pub async fn payments_submit_pre_confirm(
         _ => None,
     };
 
+    let pi_billing_address: Option<hyperswitch_domain_models::address::Address> =
+        payment_eligibility_data
+            .payment_intent
+            .billing_details
+            .as_ref()
+            .and_then(|b| {
+                b.clone()
+                    .deserialize_inner_value(|value| value.parse_value("Address"))
+                    .ok()
+                    .map(|enc| enc.into_inner())
+            });
+    let postal_code = req_postal_code.or_else(|| {
+        pi_billing_address
+            .as_ref()
+            .and_then(|addr| addr.address.as_ref())
+            .and_then(|det| det.zip.clone())
+    });
+    let billing_country = req_billing_country.or_else(|| {
+        pi_billing_address
+            .as_ref()
+            .and_then(|addr| addr.address.as_ref())
+            .and_then(|det| det.country)
+    });
+
     let business_profile = state
         .store
         .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
@@ -12624,6 +12650,7 @@ pub async fn payments_submit_pre_confirm(
         .transpose()?
         .unwrap_or(api_models::payments::SdkNextAction {
             next_action: api_models::payments::NextActionCall::Confirm,
+            should_block_confirm: None,
         });
 
     // If eligibility was denied, return without surcharge details

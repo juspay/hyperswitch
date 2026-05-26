@@ -1179,8 +1179,10 @@ impl UnifiedConnectorServiceClient {
         let mut request = tonic::Request::new(surcharge_calculate_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        let metadata = build_unified_connector_service_grpc_headers_for_surcharge(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
 
         *request.metadata_mut() = metadata;
 
@@ -1348,6 +1350,37 @@ pub fn build_unified_connector_service_grpc_headers(
             common_utils_consts::TENANT_HEADER
         );
     }
+
+    Ok(metadata)
+}
+
+/// Build gRPC headers for UCS surcharge requests.
+/// Same as [`build_unified_connector_service_grpc_headers`] but uses
+/// `x-surcharge-connector` instead of `x-connector` for the connector name,
+/// since surcharge uses a distinct connector type.
+pub fn build_unified_connector_service_grpc_headers_for_surcharge(
+    meta: ConnectorAuthMetadata,
+    grpc_headers: GrpcHeadersUcs,
+) -> Result<MetadataMap, UnifiedConnectorServiceError> {
+    let mut metadata = build_unified_connector_service_grpc_headers(meta.clone(), grpc_headers)?;
+
+    metadata.remove(consts::UCS_HEADER_CONNECTOR);
+
+    // Add the surcharge-specific connector header
+    let connector_name = meta.connector_name.clone();
+    let surcharge_connector_value =
+        connector_name
+            .parse::<MetadataValue<_>>()
+            .map_err(|error| {
+                logger::error!(?error);
+                UnifiedConnectorServiceError::HeaderInjectionFailed(
+                    consts::UCS_HEADER_SURCHARGE_CONNECTOR.to_string(),
+                )
+            })?;
+    metadata.append(
+        consts::UCS_HEADER_SURCHARGE_CONNECTOR,
+        surcharge_connector_value,
+    );
 
     Ok(metadata)
 }

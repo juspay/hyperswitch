@@ -10672,6 +10672,11 @@ pub struct SdkNextAction {
     /// The type of next action
     #[smithy(value_type = "NextActionCall")]
     pub next_action: NextActionCall,
+    /// Whether the SDK should block the confirm call until the merchant explicitly unblocks it.
+    /// true when a surcharge processor is enabled (surcharge must be shown to user before confirm),
+    /// false otherwise.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub should_block_confirm: Option<bool>,
 }
 
 #[derive(

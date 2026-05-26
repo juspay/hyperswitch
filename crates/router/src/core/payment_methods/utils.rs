@@ -873,10 +873,11 @@ pub async fn get_sdk_next_action_for_payment_method_list(
     customer_id: Option<&common_utils::id_type::CustomerId>,
     has_surcharge_processor: bool,
 ) -> api_models::payments::SdkNextAction {
-    let next_action_call = if has_surcharge_processor {
-        // A SurchargeProcessor MCA is enabled for this profile — SDK must call
-        // pre_confirm so that card surcharge is calculated via the external service.
-        api_models::payments::NextActionCall::PreConfirm
+    // Always return EligibilityCheck regardless of surcharge.
+    // should_block_confirm signals to the SDK whether it must show surcharge to the user
+    // before allowing confirm (true = surcharge processor present, false = no surcharge).
+    let should_block_confirm = if has_surcharge_processor {
+        true
     } else {
         let should_perform_eligibility_check = dimensions
             .get_should_perform_eligibility(
@@ -885,14 +886,19 @@ pub async fn get_sdk_next_action_for_payment_method_list(
                 customer_id,
             )
             .await;
-        if should_perform_eligibility_check {
-            api_models::payments::NextActionCall::EligibilityCheck
-        } else {
-            api_models::payments::NextActionCall::Confirm
+        // When there's no surcharge processor, only send EligibilityCheck if eligibility
+        // check is needed — otherwise fall back to Confirm with no blocking.
+        if !should_perform_eligibility_check {
+            return api_models::payments::SdkNextAction {
+                next_action: api_models::payments::NextActionCall::Confirm,
+                should_block_confirm: None,
+            };
         }
+        false
     };
     api_models::payments::SdkNextAction {
-        next_action: next_action_call,
+        next_action: api_models::payments::NextActionCall::EligibilityCheck,
+        should_block_confirm: Some(should_block_confirm),
     }
 }
 
