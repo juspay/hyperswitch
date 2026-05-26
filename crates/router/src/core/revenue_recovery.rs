@@ -618,6 +618,7 @@ pub async fn perform_calculate_workflow(
             state,
             &connector_customer_id,
             payment_intent,
+            revenue_recovery_payment_data.billing_mca.connector_name,
             retry_algorithm_type,
             process.retry_count,
         )

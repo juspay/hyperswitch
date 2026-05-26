@@ -15,6 +15,7 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::ResultExt;
+use hyperswitch_domain_models::mandates;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payment_methods::PaymentMethodWithRawData;
 #[cfg(feature = "v2")]
@@ -1253,7 +1254,7 @@ pub fn generate_payment_method_session_response(
 
 #[cfg(feature = "v2")]
 impl transformers::ForeignFrom<api_models::payment_methods::ConnectorTokenDetails>
-    for hyperswitch_domain_models::mandates::ConnectorTokenReferenceRecord
+    for mandates::ConnectorTokenReferenceRecord
 {
     fn foreign_from(item: api_models::payment_methods::ConnectorTokenDetails) -> Self {
         let api_models::payment_methods::ConnectorTokenDetails {
@@ -1285,16 +1286,16 @@ impl transformers::ForeignFrom<api_models::payment_methods::ConnectorTokenDetail
 impl
     transformers::ForeignFrom<(
         id_type::MerchantConnectorAccountId,
-        hyperswitch_domain_models::mandates::ConnectorTokenReferenceRecord,
+        mandates::ConnectorTokenReferenceRecord,
     )> for api_models::payment_methods::ConnectorTokenDetails
 {
     fn foreign_from(
         (connector_id, mandate_reference_record): (
             id_type::MerchantConnectorAccountId,
-            hyperswitch_domain_models::mandates::ConnectorTokenReferenceRecord,
+            mandates::ConnectorTokenReferenceRecord,
         ),
     ) -> Self {
-        let hyperswitch_domain_models::mandates::ConnectorTokenReferenceRecord {
+        let mandates::ConnectorTokenReferenceRecord {
             connector_token_request_reference_id,
             original_payment_authorized_amount,
             original_payment_authorized_currency,
@@ -1427,13 +1428,13 @@ impl DomainPaymentMethodWrapper {
             .map(|connector_tokens| {
                 let payments_map: std::collections::HashMap<
                     id_type::MerchantConnectorAccountId,
-                    hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord,
+                    mandates::PaymentsMandateReferenceRecord,
                 > = connector_tokens
                     .iter()
                     .map(|token_detail| {
                         (
                             token_detail.connector_id.clone(),
-                            hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord {
+                            mandates::PaymentsMandateReferenceRecord {
                                 connector_mandate_id: token_detail.token.clone().expose(),
                                 payment_method_type: response.payment_method_type,
                                 original_payment_authorized_amount: token_detail
@@ -1459,9 +1460,7 @@ impl DomainPaymentMethodWrapper {
                     })
                     .collect();
 
-                serde_json::to_value(
-                    hyperswitch_domain_models::mandates::PaymentsMandateReference(payments_map),
-                )
+                serde_json::to_value(mandates::PaymentsMandateReference(payments_map))
             })
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1552,13 +1551,13 @@ impl DomainPaymentMethodWrapper {
             .map(|connector_tokens| {
                 let payments_map: std::collections::HashMap<
                     id_type::MerchantConnectorAccountId,
-                    hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord,
+                    mandates::PaymentsMandateReferenceRecord,
                 > = connector_tokens
                     .iter()
                     .map(|token_detail| {
                         (
                             token_detail.connector_id.clone(),
-                            hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord {
+                            mandates::PaymentsMandateReferenceRecord {
                                 connector_mandate_id: token_detail.token.clone().expose(),
                                 payment_method_type: None,
                                 original_payment_authorized_amount: token_detail
@@ -1584,9 +1583,7 @@ impl DomainPaymentMethodWrapper {
                     })
                     .collect();
 
-                serde_json::to_value(
-                    hyperswitch_domain_models::mandates::PaymentsMandateReference(payments_map),
-                )
+                serde_json::to_value(mandates::PaymentsMandateReference(payments_map))
             })
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
