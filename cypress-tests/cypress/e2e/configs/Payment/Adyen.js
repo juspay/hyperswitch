@@ -1585,10 +1585,32 @@ export const connectorDetails = {
         },
       },
     }),
+    KakaoPayWalletMITAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "kakao_pay",
+        payment_method_data: {
+          wallet: {
+            kakao_pay_redirect: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
     PaypalWalletMITAutoCapture: getCustomExchange({
       Request: {
         payment_method: "wallet",
         payment_method_type: "paypal",
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
       },
       Response: {
         status: 200,
@@ -1601,6 +1623,11 @@ export const connectorDetails = {
       Request: {
         payment_method: "wallet",
         payment_method_type: "gcash",
+        payment_method_data: {
+          wallet: {
+            gcash_redirect: {},
+          },
+        },
       },
       Response: {
         status: 200,
@@ -1613,6 +1640,11 @@ export const connectorDetails = {
       Request: {
         payment_method: "wallet",
         payment_method_type: "momo",
+        payment_method_data: {
+          wallet: {
+            momo_redirect: {},
+          },
+        },
       },
       Response: {
         status: 200,
@@ -1625,6 +1657,11 @@ export const connectorDetails = {
       Request: {
         payment_method: "wallet",
         payment_method_type: "twint",
+        payment_method_data: {
+          wallet: {
+            twint_redirect: {},
+          },
+        },
       },
       Response: {
         status: 200,
@@ -1637,6 +1674,11 @@ export const connectorDetails = {
       Request: {
         payment_method: "wallet",
         payment_method_type: "dana",
+        payment_method_data: {
+          wallet: {
+            dana_redirect: {},
+          },
+        },
       },
       Response: {
         status: 200,
@@ -1649,6 +1691,11 @@ export const connectorDetails = {
       Request: {
         payment_method: "wallet",
         payment_method_type: "go_pay",
+        payment_method_data: {
+          wallet: {
+            go_pay_redirect: {},
+          },
+        },
       },
       Response: {
         status: 200,
@@ -1860,6 +1907,9 @@ export const connectorDetails = {
       },
     }),
     VippsWalletMandateCIT: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "vipps",

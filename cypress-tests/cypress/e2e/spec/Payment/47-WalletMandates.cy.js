@@ -223,7 +223,7 @@ describe("Wallet Mandate tests", () => {
     it("confirm-kakaopay-wallet-mandate-mit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
-      ]["WalletMITAutoCapture"];
+      ]["KakaoPayWalletMITAutoCapture"];
 
       const modifiedData = {
         ...data,
@@ -248,7 +248,7 @@ describe("Wallet Mandate tests", () => {
     it("retrieve-payment-after-mit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
-      ]["WalletMITAutoCapture"];
+      ]["KakaoPayWalletMITAutoCapture"];
 
       cy.retrievePaymentCallTest({ globalState, data });
     });
