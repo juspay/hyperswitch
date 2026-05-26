@@ -5159,19 +5159,20 @@ Cypress.Commands.add(
             response.body.capture_method === "manual"
           ) {
             if (response.body.next_action) {
-              if (response.body.next_action.redirect_to_url) {
-                globalState.set(
-                  "nextActionUrl",
-                  response.body.next_action.redirect_to_url
-                );
-                globalState.set("nextActionType", "redirect_to_url");
-              } else if (
+              if (
                 response.body.next_action.display_voucher_information
               ) {
                 globalState.set(
                   "nextActionType",
                   "display_voucher_information"
                 );
+                globalState.set("nextActionUrl", null);
+              } else if (response.body.next_action.redirect_to_url) {
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.redirect_to_url
+                );
+                globalState.set("nextActionType", "redirect_to_url");
               }
             }
 

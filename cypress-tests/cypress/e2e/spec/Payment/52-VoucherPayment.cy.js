@@ -90,6 +90,13 @@ describe("Voucher Payment tests", () => {
           cy.task("cli_log", "Skipping step: Handle Voucher Redirection");
           return;
         }
+        const nextActionType = globalState.get("nextActionType");
+        if (nextActionType === "display_voucher_information") {
+          cy.log(
+            "Skipping browser redirect for display_voucher_information voucher"
+          );
+          return;
+        }
         const expected_redirection = fixtures.confirmBody["return_url"];
         const payment_method_type = globalState.get("paymentMethodType");
         cy.handleVoucherRedirection(
@@ -162,6 +169,13 @@ describe("Voucher Payment tests", () => {
       cy.step("Handle Voucher Redirection", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Handle Voucher Redirection");
+          return;
+        }
+        const nextActionType = globalState.get("nextActionType");
+        if (nextActionType === "display_voucher_information") {
+          cy.log(
+            "Skipping browser redirect for display_voucher_information voucher"
+          );
           return;
         }
         const expected_redirection = fixtures.confirmBody["return_url"];
@@ -252,6 +266,13 @@ describe("Voucher Payment tests", () => {
           cy.task("cli_log", "Skipping step: Handle Voucher Redirection");
           return;
         }
+        const nextActionType = globalState.get("nextActionType");
+        if (nextActionType === "display_voucher_information") {
+          cy.log(
+            "Skipping browser redirect for display_voucher_information voucher"
+          );
+          return;
+        }
         const expected_redirection = fixtures.confirmBody["return_url"];
         const payment_method_type = globalState.get("paymentMethodType");
         cy.handleVoucherRedirection(
@@ -327,6 +348,13 @@ describe("Voucher Payment tests", () => {
       cy.step("Handle Voucher Redirection", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Handle Voucher Redirection");
+          return;
+        }
+        const nextActionType = globalState.get("nextActionType");
+        if (nextActionType === "display_voucher_information") {
+          cy.log(
+            "Skipping browser redirect for display_voucher_information voucher"
+          );
           return;
         }
         const expected_redirection = fixtures.confirmBody["return_url"];
@@ -406,6 +434,13 @@ describe("Voucher Payment tests", () => {
           cy.task("cli_log", "Skipping step: Handle Voucher Redirection");
           return;
         }
+        const nextActionType = globalState.get("nextActionType");
+        if (nextActionType === "display_voucher_information") {
+          cy.log(
+            "Skipping browser redirect for display_voucher_information voucher"
+          );
+          return;
+        }
         const expected_redirection = fixtures.confirmBody["return_url"];
         const payment_method_type = globalState.get("paymentMethodType");
         cy.handleVoucherRedirection(
@@ -480,6 +515,13 @@ describe("Voucher Payment tests", () => {
           cy.task("cli_log", "Skipping step: Handle Voucher Redirection");
           return;
         }
+        const nextActionType = globalState.get("nextActionType");
+        if (nextActionType === "display_voucher_information") {
+          cy.log(
+            "Skipping browser redirect for display_voucher_information voucher"
+          );
+          return;
+        }
         const expected_redirection = fixtures.confirmBody["return_url"];
         const payment_method_type = globalState.get("paymentMethodType");
         cy.handleVoucherRedirection(
@@ -552,6 +594,13 @@ describe("Voucher Payment tests", () => {
       cy.step("Handle Voucher Redirection", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Handle Voucher Redirection");
+          return;
+        }
+        const nextActionType = globalState.get("nextActionType");
+        if (nextActionType === "display_voucher_information") {
+          cy.log(
+            "Skipping browser redirect for display_voucher_information voucher"
+          );
           return;
         }
         const expected_redirection = fixtures.confirmBody["return_url"];
@@ -631,6 +680,13 @@ describe("Voucher Payment tests", () => {
           cy.task("cli_log", "Skipping step: Handle Voucher Redirection");
           return;
         }
+        const nextActionType = globalState.get("nextActionType");
+        if (nextActionType === "display_voucher_information") {
+          cy.log(
+            "Skipping browser redirect for display_voucher_information voucher"
+          );
+          return;
+        }
         const expected_redirection = fixtures.confirmBody["return_url"];
         const payment_method_type = globalState.get("paymentMethodType");
         cy.handleVoucherRedirection(
@@ -708,6 +764,13 @@ describe("Voucher Payment tests", () => {
           cy.task("cli_log", "Skipping step: Handle Voucher Redirection");
           return;
         }
+        const nextActionType = globalState.get("nextActionType");
+        if (nextActionType === "display_voucher_information") {
+          cy.log(
+            "Skipping browser redirect for display_voucher_information voucher"
+          );
+          return;
+        }
         const expected_redirection = fixtures.confirmBody["return_url"];
         const payment_method_type = globalState.get("paymentMethodType");
         cy.handleVoucherRedirection(
@@ -780,6 +843,13 @@ describe("Voucher Payment tests", () => {
       cy.step("Handle Voucher Redirection", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Handle Voucher Redirection");
+          return;
+        }
+        const nextActionType = globalState.get("nextActionType");
+        if (nextActionType === "display_voucher_information") {
+          cy.log(
+            "Skipping browser redirect for display_voucher_information voucher"
+          );
           return;
         }
         const expected_redirection = fixtures.confirmBody["return_url"];
