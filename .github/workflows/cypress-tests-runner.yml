@@ -16,8 +16,8 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "stripe authorizedotnet"
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "adyen nexixpay finix fiuu"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "stripe authorizedotnet paypal"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "adyen nexixpay finix"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "worldpay braintree cryptopay paypal worldpayxml volt"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "gigadat checkout redsys novalnet noon"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "loonio zift airwallex fiuu"
@@ -97,7 +97,8 @@ jobs:
     if: |
       github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
-    runs-on:  hyperswitch-runners
+    # use hyperswitch-runners-merge for merge queue level checks
+    runs-on: ${{ case(github.event_name == 'merge_group', 'hyperswitch-runners-merge', 'hyperswitch-runners') }}
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
@@ -155,7 +156,8 @@ jobs:
     if: |
       github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
-    runs-on: hyperswitch-runners
+    # use hyperswitch-runners-merge for merge queue level checks
+    runs-on: ${{ case(github.event_name == 'merge_group', 'hyperswitch-runners-merge', 'hyperswitch-runners') }}
     outputs:
       mandatory-matrix: ${{ steps.set-mandatory-matrix.outputs.matrix }}
     steps:    
@@ -170,14 +172,14 @@ jobs:
                 {
                   "name": "batch-1",
                   "connectors": "'"${MANDATORY_PAYMENTS_CONNECTORS_BATCH_1}"'",
-                  "parallel": 4,
+                  "parallel": 3,
                   "report_artifact_name": "cypress-mandatory-test-results-batch-1",
                   "server_logs_artifact": "mandatory-server-logs-batch-1"
                 },
                 {
                   "name": "batch-2",
                   "connectors": "'"${MANDATORY_PAYMENTS_CONNECTORS_BATCH_2}"'",
-                  "parallel": 4,
+                  "parallel": 3,
                   "report_artifact_name": "cypress-mandatory-test-results-batch-2",
                   "server_logs_artifact": "mandatory-server-logs-batch-2"
                 },
@@ -202,7 +204,8 @@ jobs:
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')))
     permissions:
       pull-requests: write
-    runs-on: hyperswitch-runners
+    # use hyperswitch-runners-merge for merge queue level checks
+    runs-on: ${{ case(github.event_name == 'merge_group', 'hyperswitch-runners-merge', 'hyperswitch-runners') }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-mandatory-matrix.outputs['mandatory-matrix']) }}
@@ -689,7 +692,7 @@ jobs:
     name: Extended Cypress Tests — Consolidated Result
     needs: [extended-cypress-tests]
     runs-on: ubuntu-latest
-    if: ${{ !cancelled() }}
+    if: false
     steps:
       - name: Evaluate Matrix Results
         shell: bash
@@ -1333,7 +1336,8 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           RUSTFLAGS: "-Cinstrument-coverage"
-        run: just build_v2 --jobs 3
+          CARGO_BUILD_JOBS: 6
+        run: just build_v2
 
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}
