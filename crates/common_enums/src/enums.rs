@@ -1896,6 +1896,8 @@ pub enum EventType {
     #[cfg(feature = "payouts")]
     PayoutReversed,
     InvoicePaid,
+    SurchargePaymentSucceeded,
+    SurchargeRefundFailed,
 }
 
 #[derive(
