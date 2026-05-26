@@ -2860,7 +2860,10 @@ Cypress.Commands.add(
                 `Invalid authentication type ${response.body.authentication_type}`
               );
             }
-          } else if (response.body.capture_method === "manual") {
+          } else if (
+            response.body.capture_method === "manual" ||
+            response.body.capture_method === "manual_multiple"
+          ) {
             if (response.body.authentication_type === "three_ds") {
               if (response.body.next_action) {
                 if (response.body.next_action.type === "invoke_ddc") {
@@ -3068,7 +3071,8 @@ Cypress.Commands.add(
               case "three_ds":
                 if (
                   response.body.capture_method === "automatic" ||
-                  response.body.capture_method === "manual"
+                  response.body.capture_method === "manual" ||
+                  response.body.capture_method === "manual_multiple"
                 ) {
                   if (response.body.status !== "failed") {
                     // we get many statuses here, hence this verification
@@ -3110,7 +3114,8 @@ Cypress.Commands.add(
               case "no_three_ds":
                 if (
                   response.body.capture_method === "automatic" ||
-                  response.body.capture_method === "manual"
+                  response.body.capture_method === "manual" ||
+                  response.body.capture_method === "manual_multiple"
                 ) {
                   expect(response.body)
                     .to.have.property("next_action")
@@ -3261,7 +3266,8 @@ Cypress.Commands.add(
 
           if (
             response.body.capture_method === "automatic" ||
-            response.body.capture_method === "manual"
+            response.body.capture_method === "manual" ||
+            response.body.capture_method === "manual_multiple"
           ) {
             switch (response.body.payment_method_type) {
               case "pix":
@@ -3381,7 +3387,8 @@ Cypress.Commands.add(
 
           if (
             response.body.capture_method === "automatic" ||
-            response.body.capture_method === "manual"
+            response.body.capture_method === "manual" ||
+            response.body.capture_method === "manual_multiple"
           ) {
             if (response.body.payment_method_type === "upi_collect") {
               expect(response.body)
@@ -3553,7 +3560,10 @@ Cypress.Commands.add(
                 `Invalid authentication type: ${response.body.authentication_type}`
               );
             }
-          } else if (response.body.capture_method === "manual") {
+          } else if (
+            response.body.capture_method === "manual" ||
+            response.body.capture_method === "manual_multiple"
+          ) {
             if (response.body.authentication_type === "three_ds") {
               if (response.body.next_action) {
                 if (response.body.next_action.type === "invoke_ddc") {
@@ -3742,7 +3752,10 @@ Cypress.Commands.add(
                 `Invalid authentication type: ${response.body.authentication_type}`
               );
             }
-          } else if (response.body.capture_method === "manual") {
+          } else if (
+            response.body.capture_method === "manual" ||
+            response.body.capture_method === "manual_multiple"
+          ) {
             if (response.body.authentication_type === "three_ds") {
               expect(response.body)
                 .to.have.property("next_action")
@@ -3998,7 +4011,10 @@ Cypress.Commands.add(
 
             // If capture method is manual, 'processing' status also means 'active'
             // for the payment method's usability.
-            if (response.body.capture_method === "manual") {
+            if (
+              response.body.capture_method === "manual" ||
+              response.body.capture_method === "manual_multiple"
+            ) {
               allowedActiveStatuses.push("processing");
             }
 
@@ -4449,7 +4465,10 @@ Cypress.Commands.add(
                 `Invalid authentication type ${response.body.authentication_type}`
               );
             }
-          } else if (response.body.capture_method === "manual") {
+          } else if (
+            response.body.capture_method === "manual" ||
+            response.body.capture_method === "manual_multiple"
+          ) {
             if (response.body.authentication_type === "three_ds") {
               if (response.body.status !== "succeeded") {
                 let nextActionUrl = null;
@@ -4603,7 +4622,10 @@ Cypress.Commands.add(
                 `Invalid authentication type ${response.body.authentication_type}`
               );
             }
-          } else if (response.body.capture_method === "manual") {
+          } else if (
+            response.body.capture_method === "manual" ||
+            response.body.capture_method === "manual_multiple"
+          ) {
             if (response.body.authentication_type === "three_ds") {
               expect(response.body)
                 .to.have.property("next_action")
@@ -4792,7 +4814,10 @@ Cypress.Commands.add(
                 `Invalid authentication type ${response.body.authentication_type}`
               );
             }
-          } else if (response.body.capture_method === "manual") {
+          } else if (
+            response.body.capture_method === "manual" ||
+            response.body.capture_method === "manual_multiple"
+          ) {
             if (response.body.authentication_type === "three_ds") {
               expect(response.body)
                 .to.have.property("next_action")
@@ -4887,7 +4912,10 @@ Cypress.Commands.add(
                 `Invalid authentication type ${response.body.authentication_type}`
               );
             }
-          } else if (response.body.capture_method === "manual") {
+          } else if (
+            response.body.capture_method === "manual" ||
+            response.body.capture_method === "manual_multiple"
+          ) {
             if (response.body.authentication_type === "three_ds") {
               expect(response.body)
                 .to.have.property("next_action")
@@ -5215,7 +5243,8 @@ Cypress.Commands.add(
 
           if (
             response.body.capture_method === "automatic" ||
-            response.body.capture_method === "manual"
+            response.body.capture_method === "manual" ||
+            response.body.capture_method === "manual_multiple"
           ) {
             switch (response.body.payment_method_type) {
               case "duit_now":
@@ -5301,7 +5330,8 @@ Cypress.Commands.add(
 
           if (
             response.body.capture_method === "automatic" ||
-            response.body.capture_method === "manual"
+            response.body.capture_method === "manual" ||
+            response.body.capture_method === "manual_multiple"
           ) {
             expect(response.body)
               .to.have.property("next_action")
