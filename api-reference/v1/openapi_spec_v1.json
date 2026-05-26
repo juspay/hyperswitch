@@ -40876,6 +40876,11 @@
         "properties": {
           "next_action": {
             "$ref": "#/components/schemas/NextActionCall"
+          },
+          "should_block_confirm": {
+            "type": "boolean",
+            "description": "Whether the SDK should block the confirm call until the merchant explicitly unblocks it.\ntrue when a surcharge processor is enabled (surcharge must be shown to user before confirm),\nfalse otherwise.",
+            "nullable": true
           }
         }
       },
