@@ -3920,6 +3920,7 @@ pub async fn create_payment_method_for_intent(
                 customer_details: None,
                 network_tokenization_data: None,
                 auxiliary_fingerprint_id,
+                compatibility_updated_at: None,
             },
             storage_scheme,
         )
@@ -4009,6 +4010,7 @@ pub async fn construct_payment_method_object(
         customer_details: None,
         network_tokenization_data: None,
         auxiliary_fingerprint_id: None,
+        compatibility_updated_at: None,
     })
 }
 
@@ -4076,6 +4078,7 @@ pub async fn create_payment_method_for_confirm(
                 customer_details: None,
                 network_tokenization_data: None,
                 auxiliary_fingerprint_id: None,
+                compatibility_updated_at: None,
             },
             storage_scheme,
         )

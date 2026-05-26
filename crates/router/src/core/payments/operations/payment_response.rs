@@ -775,10 +775,14 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_config.is_modular_with_pm_version(
+        if !feature_config.should_use_modular_pm_path(
+            payment_data.get_payment_method_info().map(|pm| pm.version),
             payment_data
                 .get_payment_method_info()
-                .map(|payment_method| payment_method.version),
+                .and_then(|pm| pm.compatibility_updated_at),
+            payment_data
+                .get_payment_method_info()
+                .map(|pm| pm.last_modified),
         ) {
             let _ = update_pm_connector_mandate_details(
                 state,
@@ -1079,10 +1083,14 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_config.is_modular_with_pm_version(
+        if !feature_config.should_use_modular_pm_path(
+            payment_data.get_payment_method_info().map(|pm| pm.version),
             payment_data
                 .get_payment_method_info()
-                .map(|payment_method| payment_method.version),
+                .and_then(|pm| pm.compatibility_updated_at),
+            payment_data
+                .get_payment_method_info()
+                .map(|pm| pm.last_modified),
         ) {
             let _ = update_pm_connector_mandate_details(
                 state,
@@ -1831,10 +1839,14 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_config.is_modular_with_pm_version(
+        if !feature_config.should_use_modular_pm_path(
+            payment_data.get_payment_method_info().map(|pm| pm.version),
             payment_data
                 .get_payment_method_info()
-                .map(|payment_method| payment_method.version),
+                .and_then(|pm| pm.compatibility_updated_at),
+            payment_data
+                .get_payment_method_info()
+                .map(|pm| pm.last_modified),
         ) {
             let _ = update_pm_connector_mandate_details(
                 state,
@@ -1970,10 +1982,14 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_config.is_modular_with_pm_version(
+        if !feature_config.should_use_modular_pm_path(
+            payment_data.get_payment_method_info().map(|pm| pm.version),
             payment_data
                 .get_payment_method_info()
-                .map(|payment_method| payment_method.version),
+                .and_then(|pm| pm.compatibility_updated_at),
+            payment_data
+                .get_payment_method_info()
+                .map(|pm| pm.last_modified),
         ) {
             let _ = update_pm_connector_mandate_details(
                 state,
