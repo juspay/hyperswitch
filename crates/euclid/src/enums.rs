@@ -192,6 +192,7 @@ pub enum PayoutType {
 #[strum(serialize_all = "snake_case")]
 /// RoutableConnectors are the subset of Connectors that are eligible for payments routing
 pub enum RoutableConnectors {
+    AbsaSanlam,
     Authipay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
@@ -325,7 +326,6 @@ pub enum RoutableConnectors {
     Redsys,
     Revolv3,
     Riskified,
-    AbsaSanlam,
     Santander,
     Shift4,
     Signifyd,
@@ -373,6 +373,7 @@ impl TryFrom<Connector> for RoutableConnectors {
 
     fn try_from(connector: Connector) -> Result<Self, Self::Error> {
         match connector {
+            Connector::AbsaSanlam => Ok(Self::AbsaSanlam),
             Connector::Authipay => Ok(Self::Authipay),
             Connector::Adyenplatform => Ok(Self::Adyenplatform),
             #[cfg(feature = "dummy_connector")]
@@ -407,7 +408,6 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Bluesnap => Ok(Self::Bluesnap),
             Connector::Blackhawknetwork => Ok(Self::Blackhawknetwork),
             Connector::Calida => Ok(Self::Calida),
-            Connector::AbsaSanlam => Ok(Self::AbsaSanlam),
             Connector::Boku => Ok(Self::Boku),
             Connector::Braintree => Ok(Self::Braintree),
             Connector::Breadpay => Ok(Self::Breadpay),

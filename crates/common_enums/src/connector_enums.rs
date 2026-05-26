@@ -28,6 +28,7 @@ pub use crate::PaymentMethodType;
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum Connector {
+    AbsaSanlam,
     Authipay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
@@ -169,7 +170,6 @@ pub enum Connector {
     Recurly,
     Redsys,
     Revolv3,
-    AbsaSanlam,
     Santander,
     Shift4,
     Silverflow,
@@ -309,6 +309,7 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
+            | Self::AbsaSanlam
 			| Self::Authipay
             | Self::Affirm
             | Self::Adyenplatform
@@ -393,7 +394,6 @@ impl Connector {
             | Self::Recurly
             | Self::Redsys
             | Self::Revolv3
-            | Self::AbsaSanlam
             | Self::Santander
             | Self::Shift4
             | Self::Silverflow

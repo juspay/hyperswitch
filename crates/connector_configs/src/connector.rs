@@ -527,6 +527,7 @@ impl ConnectorConfig {
     ) -> Result<Option<ConnectorTomlConfig>, String> {
         let connector_data = Self::new()?;
         match connector {
+            Connector::AbsaSanlam => Ok(connector_data.absa_sanlam),
             Connector::Aci => Ok(connector_data.aci),
             Connector::Authipay => Ok(connector_data.authipay),
             Connector::Adyen => Ok(connector_data.adyen),
@@ -640,7 +641,6 @@ impl ConnectorConfig {
             Connector::Tokenex => Ok(connector_data.tokenex),
             Connector::Tokenio => Ok(connector_data.tokenio),
             Connector::Truelayer => Ok(connector_data.truelayer),
-            Connector::AbsaSanlam => Ok(connector_data.absa_sanlam),
             Connector::Trustly => Ok(connector_data.trustly),
             Connector::Trustpay => Ok(connector_data.trustpay),
             Connector::Trustpayments => Ok(connector_data.trustpayments),
