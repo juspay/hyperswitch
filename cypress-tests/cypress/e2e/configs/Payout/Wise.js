@@ -227,6 +227,111 @@ export const connectorDetails = {
           },
         },
       },
+      EntityTypeCompany: {
+        Request: {
+          entity_type: "Company",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_confirmation",
+            payout_type: "bank",
+            entity_type: "Company",
+          },
+        },
+      },
+      EntityTypeDefault: {
+        Request: {},
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_confirmation",
+            payout_type: "bank",
+            entity_type: "Individual",
+          },
+        },
+      },
+      EntityTypeIndividual: {
+        Request: {
+          entity_type: "Individual",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_confirmation",
+            payout_type: "bank",
+            entity_type: "Individual",
+          },
+        },
+      },
+      EntityTypeInvalid: {
+        Request: {
+          entity_type: "InvalidType",
+        },
+        Response: {
+          status: 400,
+          body: {
+            error: {
+              type: "invalid_request",
+              message:
+                "Json deserialize error: unknown variant `InvalidType`",
+              code: "IR_06",
+            },
+          },
+        },
+      },
+      EntityTypeNaturalPerson: {
+        Request: {
+          entity_type: "NaturalPerson",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_confirmation",
+            payout_type: "bank",
+            entity_type: "NaturalPerson",
+          },
+        },
+      },
+      EntityTypeNonProfit: {
+        Request: {
+          entity_type: "NonProfit",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_confirmation",
+            payout_type: "bank",
+            entity_type: "NonProfit",
+          },
+        },
+      },
+      EntityTypePersonal: {
+        Request: {
+          entity_type: "Personal",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_confirmation",
+            payout_type: "bank",
+            entity_type: "Personal",
+          },
+        },
+      },
+      EntityTypePublicSector: {
+        Request: {
+          entity_type: "PublicSector",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_confirmation",
+            payout_type: "bank",
+            entity_type: "PublicSector",
+          },
+        },
+      },
     },
   },
 };
