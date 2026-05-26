@@ -516,7 +516,7 @@ describe("PayPal Wallet tests", () => {
   });
 });
 
-describe("MultiSafepay Wallet tests", () => {
+describe("Wallet Redirect tests", () => {
   before("seed global state", function () {
     let skip = false;
 
@@ -528,7 +528,7 @@ describe("MultiSafepay Wallet tests", () => {
         if (
           shouldIncludeConnector(
             connector,
-            CONNECTOR_LISTS.INCLUDE.MULTISAFEPAY_WALLET
+            CONNECTOR_LISTS.INCLUDE.WALLET_REDIRECT
           )
         ) {
           skip = true;
@@ -549,8 +549,8 @@ describe("MultiSafepay Wallet tests", () => {
   // Helper to generate a parameterized wallet flow context.
   // MultiSafepay wallet tests share the same 5-step structure:
   // Create PI -> List PMs -> Confirm -> Handle Redirection -> Retrieve.
-  function walletFlowContext(methodLabel, configKey, paymentIntentArg) {
-    context(`MultiSafepay ${methodLabel} Create and Confirm flow test`, () => {
+  function walletFlowContext(methodLabel, walletMethod, paymentIntentArg) {
+    context(`${methodLabel} Create and Confirm flow test`, () => {
       let shouldContinue = true;
 
       beforeEach(function () {
@@ -591,7 +591,7 @@ describe("MultiSafepay Wallet tests", () => {
           }
           const confirmData = getConnectorDetails(
             globalState.get("connectorId")
-          )["wallet_pm"][configKey];
+          )["wallet_pm"][walletMethod];
           cy.confirmBankRedirectCallTest(
             fixtures.confirmBody,
             confirmData,
@@ -624,7 +624,7 @@ describe("MultiSafepay Wallet tests", () => {
           }
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "wallet_pm"
-          ][configKey];
+          ][walletMethod];
           cy.retrievePaymentCallTest({
             globalState,
             data,
