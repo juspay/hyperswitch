@@ -55,7 +55,7 @@ use crate::{
 #[cfg(feature = "v1")]
 pub async fn save_network_token_details_in_nt_mapper(
     state: &SessionState,
-    processor: &domain::Processor,
+    provider: &domain::Provider,
     customer_id: &id_type::CustomerId,
     payment_method_id: String,
     network_token_requestor_ref_id: String,
@@ -64,7 +64,7 @@ pub async fn save_network_token_details_in_nt_mapper(
 
     //Insert the network token reference ID along with merchant id, customer id in CallbackMapper table for its respective webooks
     let callback_mapper_data = CallbackMapperData::NetworkTokenWebhook {
-        merchant_id: processor.get_account().get_id().clone(),
+        merchant_id: provider.get_account().get_id().clone(),
         customer_id: customer_id.to_owned(),
         payment_method_id: payment_method_id.clone(),
     };
@@ -532,7 +532,7 @@ where
                                         //Insert the network token reference ID along with merchant id, customer id in CallbackMapper table for its respective webooks
                                         save_network_token_details_in_nt_mapper(
                                             state,
-                                            platform.get_processor(),
+                                            platform.get_provider(),
                                             &customer_id,
                                             resp.payment_method_id.clone(),
                                             nt_ref_id,
@@ -678,7 +678,7 @@ where
                                                  //Insert the network token reference ID along with merchant id, customer id in CallbackMapper table for its respective webooks
                                                 save_network_token_details_in_nt_mapper(
                                                     state,
-                                                    platform.get_processor(),
+                                                    platform.get_provider(),
                                                     &customer_id,
                                                     resp.payment_method_id.clone(),
                                                     nt_ref_id.clone(),
@@ -968,7 +968,7 @@ where
                                     //Insert the network token reference ID along with merchant id, customer id in CallbackMapper table for its respective webooks
                                     save_network_token_details_in_nt_mapper(
                                         state,
-                                        platform.get_processor(),
+                                        platform.get_provider(),
                                         &customer_id,
                                         resp.payment_method_id.clone(),
                                         network_token_requestor_ref_id,
@@ -2200,7 +2200,7 @@ async fn generate_network_token_and_update_payment_method(
                 {
                     save_network_token_details_in_nt_mapper(
                         state,
-                        platform.get_processor(),
+                        platform.get_provider(),
                         &cust_id,
                         pm_info.payment_method_id.clone(),
                         nt_ref_id,
