@@ -78,7 +78,6 @@ export const connectorDetails = {
         amount: 6000,
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        billing: billingAddress,
       },
       Response: {
         status: 200,
