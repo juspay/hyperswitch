@@ -1,9 +1,10 @@
 use std::marker::PhantomData;
 
-use api_models::{enums::FrmSuggestion, payments::MandateTransactionType};
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::mandates;
 use hyperswitch_masking::ExposeInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -217,7 +218,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsUpdateMetadataRequest, Payme
         _provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
-        _mandate_type: Option<MandateTransactionType>,
+        _mandate_type: Option<mandates::MandateTransactionType>,
     ) -> errors::CustomResult<
         (
             PaymentUpdateMetadataOperation<'a, F>,
