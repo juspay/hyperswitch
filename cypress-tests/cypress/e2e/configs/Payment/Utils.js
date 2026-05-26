@@ -4,6 +4,7 @@ import { updateDefaultStatusCode } from "./Modifiers.js";
 
 import { connectorDetails as aciConnectorDetails } from "./Aci.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
+import { connectorDetails as affirmConnectorDetails } from "./Affirm.js";
 import { connectorDetails as airwallexConnectorDetails } from "./Airwallex.js";
 import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
 import { connectorDetails as authipayConnectorDetails } from "./Authipay.js";
@@ -80,6 +81,7 @@ import { connectorDetails as mifinityConnectorDetails } from "./Mifinity.js";
 const connectorDetails = {
   aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
+  affirm: affirmConnectorDetails,
   airwallex: airwallexConnectorDetails,
   archipel: archipelConnectorDetails,
   authipay: authipayConnectorDetails,
@@ -567,14 +569,24 @@ export const CONNECTOR_LISTS = {
     ],
     EXTERNAL_THREE_DS: ["stripe", "finix"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
+    AFFIRM_PAY_LATER: ["affirm"],
     EXTEND_AUTHORIZATION: ["adyen", "paypal"],
     GIFT_CARD: ["adyen"],
     RELAY_OPERATIONS: ["bankofamerica"],
-    PAY_LATER: ["klarna", "adyen", "aci", "stripe", "airwallex", "mollie"],
+    PAY_LATER: [
+      "klarna",
+      "adyen",
+      "aci",
+      "stripe",
+      "airwallex",
+      "mollie",
+      "affirm",
+    ],
     AFFIRM: ["stripe"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     STEP_UP_AUTH: ["cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
+    MULTIPLE_CAPTURE: ["adyen", "checkout"],
     USE_BILLING_AS_PAYMENT_METHOD_BILLING: ["bankofamerica"],
     MIT_WITH_LIMITED_CARD_DATA: ["peachpayments"],
     PAYMENT_LINK_CARD: ["stripe"],
