@@ -6,7 +6,7 @@ use api_models::admin::MerchantConnectorInfo;
 use api_models::enums as api_enums;
 use common_enums::ExecutionMode;
 use common_utils::{
-    ext_traits::{AsyncExt, StringExt},
+    ext_traits::AsyncExt,
     types::{ConnectorTransactionId, MinorUnit},
 };
 use diesel_models::{process_tracker::business_status, refund as diesel_refund};
@@ -20,9 +20,7 @@ use hyperswitch_interfaces::{
     integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject},
 };
 use router_env::{instrument, tracing, tracing::Instrument};
-use scheduler::{
-    consumer::types::process_data, errors as sch_errors, utils as process_tracker_utils,
-};
+use scheduler::{errors as sch_errors, utils as process_tracker_utils};
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
 
@@ -1927,6 +1925,7 @@ pub async fn schedule_refund_execution(
                                 Ok((updated_refund_data, raw_connector_response)) => {
                                     add_refund_sync_task(
                                         db,
+                                        state.superposition_service.as_ref(),
                                         &updated_refund_data,
                                         runner,
                                         state.conf.application_source
@@ -1954,6 +1953,7 @@ pub async fn schedule_refund_execution(
                         api_models::refunds::RefundType::Scheduled => {
                             add_refund_sync_task(
                                 db,
+                                state.superposition_service.as_ref(),
                                 &refund,
                                 runner,
                                 state.conf.application_source
@@ -2027,8 +2027,10 @@ pub async fn sync_refund_with_gateway_workflow(
         _ => {
             _ = retry_refund_sync_task(
                 &*state.store,
+                state.superposition_service.as_ref(),
                 response.connector,
                 response.merchant_id,
+                Some(refund_core.payment_id.clone()),
                 refund_tracker.to_owned(),
             )
             .await?;
@@ -2043,13 +2045,26 @@ pub async fn sync_refund_with_gateway_workflow(
 /// Returns bool which indicates whether this was the last refund retry or not
 pub async fn retry_refund_sync_task(
     db: &dyn db::StorageInterface,
+    superposition_client: &external_services::superposition::SuperpositionClient,
     connector: String,
     merchant_id: common_utils::id_type::MerchantId,
+    payment_id: Option<common_utils::id_type::PaymentId>,
     pt: storage::ProcessTracker,
 ) -> Result<bool, sch_errors::ProcessTrackerError> {
-    let schedule_time =
-        get_refund_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count + 1)
-            .await?;
+    let connector_enum = connector
+        .parse::<common_enums::connector_enums::Connector>()
+        .map_err(|_| sch_errors::ProcessTrackerError::UnexpectedFlow)?;
+    let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+        .with_processor_merchant_id(merchant_id.into())
+        .with_connector(connector_enum);
+    let schedule_time = get_refund_sync_process_schedule_time(
+        db,
+        superposition_client,
+        &dimensions,
+        pt.retry_count + 1,
+        payment_id.as_ref(),
+    )
+    .await?;
 
     match schedule_time {
         Some(s_time) => {
@@ -2156,6 +2171,7 @@ pub async fn trigger_refund_execute_workflow(
             .await?;
             add_refund_sync_task(
                 db,
+                state.superposition_service.as_ref(),
                 &updated_refund,
                 storage::ProcessTrackerRunner::RefundWorkflowRouter,
                 state.conf.application_source,
@@ -2166,6 +2182,7 @@ pub async fn trigger_refund_execute_workflow(
             // create sync task
             add_refund_sync_task(
                 db,
+                state.superposition_service.as_ref(),
                 &refund,
                 storage::ProcessTrackerRunner::RefundWorkflowRouter,
                 state.conf.application_source,
@@ -2202,18 +2219,32 @@ pub fn refund_to_refund_core_workflow_model(
 #[instrument(skip_all)]
 pub async fn add_refund_sync_task(
     db: &dyn db::StorageInterface,
+    superposition_client: &external_services::superposition::SuperpositionClient,
     refund: &diesel_refund::Refund,
     runner: storage::ProcessTrackerRunner,
     application_source: common_enums::ApplicationSource,
 ) -> RouterResult<storage::ProcessTracker> {
     let task = "SYNC_REFUND";
     let process_tracker_id = format!("{runner}_{task}_{}", refund.internal_reference_id);
-    let schedule_time =
-        get_refund_sync_process_schedule_time(db, &refund.connector, &refund.merchant_id, 0)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch schedule time for refund sync process")?
-            .unwrap_or_else(common_utils::date_time::now);
+    let connector_enum = refund
+        .connector
+        .parse::<common_enums::connector_enums::Connector>()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Invalid connector name in refund")?;
+    let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+        .with_processor_merchant_id(refund.merchant_id.clone().into())
+        .with_connector(connector_enum);
+    let schedule_time = get_refund_sync_process_schedule_time(
+        db,
+        superposition_client,
+        &dimensions,
+        0,
+        Some(&refund.payment_id),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to fetch schedule time for refund sync process")?
+    .unwrap_or_else(common_utils::date_time::now);
     let refund_workflow_tracking_data = refund_to_refund_core_workflow_model(refund);
     let tag = ["REFUND"];
     let process_tracker_entry = storage::ProcessTrackerNew::new(
@@ -2286,32 +2317,16 @@ pub async fn add_refund_execute_task(
 
 pub async fn get_refund_sync_process_schedule_time(
     db: &dyn db::StorageInterface,
-    connector: &str,
-    merchant_id: &common_utils::id_type::MerchantId,
+    superposition_client: &external_services::superposition::SuperpositionClient,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
     retry_count: i32,
+    payment_id: Option<&common_utils::id_type::PaymentId>,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
-    let mapping: common_utils::errors::CustomResult<
-        process_data::ConnectorPTMapping,
-        errors::StorageError,
-    > = db
-        .find_config_by_key(&format!("pt_mapping_refund_sync_{connector}"))
-        .await
-        .map(|value| value.config)
-        .and_then(|config| {
-            config
-                .parse_struct("ConnectorPTMapping")
-                .change_context(errors::StorageError::DeserializationFailed)
-        });
+    let mapping = dimensions
+        .get_pt_mapping_refund_sync(db, superposition_client, payment_id)
+        .await;
 
-    let mapping = match mapping {
-        Ok(x) => x,
-        Err(err) => {
-            logger::error!("Error: while getting connector mapping: {err:?}");
-            process_data::ConnectorPTMapping::default()
-        }
-    };
-
-    let time_delta = process_tracker_utils::get_schedule_time(mapping, merchant_id, retry_count);
+    let time_delta = process_tracker_utils::get_schedule_time(mapping, retry_count);
 
     Ok(process_tracker_utils::get_time_from_delta(time_delta))
 }
