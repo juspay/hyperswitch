@@ -63,7 +63,7 @@ describe("[Payout] Priority", () => {
   });
 
   context("Payout without priority - required field error", () => {
-    let shouldContinue = true;
+    const shouldContinue = true;
 
     beforeEach(function () {
       if (!shouldContinue) {
