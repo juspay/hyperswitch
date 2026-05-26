@@ -3,7 +3,7 @@ use std::vec::IntoIter;
 use common_utils::{ext_traits::Encode, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::ext_traits::OptionExt;
+use hyperswitch_domain_models::{ext_traits::OptionExt, mandates};
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -188,7 +188,7 @@ where
                             payment_data,
                             &payment_method_info,
                         )?;
-                        payment_data.set_mandate_id(api_models::payments::MandateIds {
+                        payment_data.set_mandate_id(mandates::MandateIds {
                             mandate_id: None,
                             mandate_reference_id, //mandate_ref_id
                         });
@@ -638,6 +638,10 @@ where
                 advice_message: None,
                 recommended_action: None,
                 card_network: payment_data.get_payment_attempt().extract_card_network(),
+                sender_payment_instrument_id: payment_data
+                    .get_payment_attempt()
+                    .sender_payment_instrument_id
+                    .clone(),
             };
 
             #[cfg(feature = "v1")]
@@ -871,6 +875,7 @@ pub fn make_new_auto_retry_payment_attempt(
         retry_type: Some(storage_enums::RetryType::AutoRetry),
         installment_data: Default::default(),
         external_surcharge_details: Default::default(),
+        sender_payment_instrument_id: Default::default(),
     }
 }
 
