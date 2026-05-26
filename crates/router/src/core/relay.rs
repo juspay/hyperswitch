@@ -9,7 +9,11 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::relay;
-use hyperswitch_interfaces::{ api::ConnectorCommon, api_client::call_connector_api};
+use hyperswitch_interfaces::{
+    api::ConnectorCommon,
+    api_client::call_connector_api,
+    relay::{ConnectorRelayIntegration, UnreferencedRefundRouterData},
+};
 use super::errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt};
 use crate::{
     connector::utils::RouterData,
