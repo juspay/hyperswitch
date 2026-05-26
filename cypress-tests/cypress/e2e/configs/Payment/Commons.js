@@ -1403,47 +1403,6 @@ export const connectorDetails = {
       },
     }),
     SyncRefund: getCustomExchange({}),
-    Affirm: getCustomExchange({
-      Request: {
-        payment_method: "pay_later",
-        payment_method_type: "affirm",
-        payment_experience: "redirect_to_url",
-        payment_method_data: {
-          pay_later: {
-            affirm_redirect: {},
-          },
-        },
-        billing: {
-          phone: {
-            number: "4155552671",
-            country_code: "+1",
-          },
-          address: {
-            line1: "123 Test St",
-            city: "San Francisco",
-            state: "California",
-            zip: "94122",
-            country: "US",
-            first_name: "John",
-            last_name: "Doe",
-          },
-        },
-        shipping: {
-          address: {
-            line1: "123 Test St",
-            city: "San Francisco",
-            state: "California",
-            zip: "94122",
-            country: "US",
-            first_name: "John",
-            last_name: "Doe",
-          },
-        },
-        customer_acceptance: {
-          acceptance_type: "online",
-        },
-      },
-    }),
     AfterpayClearplay: getCustomExchange({
       Request: {
         payment_method: "pay_later",

@@ -969,8 +969,6 @@ describe("PayLater tests", () => {
 
   context("Atome Manual Capture - Not Supported", () => {
     it("Create and Confirm Payment with manual capture (expect error)", () => {
-      let shouldContinue = true;
-
       cy.step("Create and Confirm Payment", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
