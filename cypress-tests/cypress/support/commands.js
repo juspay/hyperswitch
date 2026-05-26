@@ -9177,6 +9177,7 @@ Cypress.Commands.add(
 
     const headers = {
       "Content-Type": "application/json",
+      "api-key": publishableKey,
       Authorization: authorizationHeader,
     };
 
