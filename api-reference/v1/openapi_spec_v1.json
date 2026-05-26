@@ -39181,7 +39181,8 @@
           "refund",
           "capture",
           "incremental_authorization",
-          "void"
+          "void",
+          "unreferenced_refund"
         ]
       },
       "RelayVoidRequestData": {
