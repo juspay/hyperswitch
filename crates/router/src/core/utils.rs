@@ -77,15 +77,15 @@ impl FeatureConfig {
     pub fn should_use_modular_pm_path(
         &self,
         payment_method_version: Option<common_enums::ApiVersion>,
-        compat_fields_synced_at: Option<time::PrimitiveDateTime>,
-        record_modified_at: Option<time::PrimitiveDateTime>,
+        last_modified_by_modular: Option<time::PrimitiveDateTime>,
+        last_modified_by_legacy: Option<time::PrimitiveDateTime>,
     ) -> bool {
-        self.is_payment_method_modular_allowed
-            || (payment_method_version == Some(common_enums::ApiVersion::V2)
-                && matches!(
-                    (compat_fields_synced_at, record_modified_at),
-                    (Some(compat_updated), Some(last_mod)) if compat_updated >= last_mod
-                ))
+        (self.is_payment_method_modular_allowed
+            && matches!(
+                (last_modified_by_modular, last_modified_by_legacy),
+                (Some(last_mod_modular), Some(last_mod_legacy)) if last_mod_modular >= last_mod_legacy
+            ))
+            || payment_method_version == Some(common_enums::ApiVersion::V2)
     }
 }
 
