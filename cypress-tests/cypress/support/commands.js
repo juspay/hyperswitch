@@ -9138,7 +9138,8 @@ Cypress.Commands.add(
     } else {
       Cypress.log({
         name: "confirmWithSdkAuthTest",
-        message: "sdkAuthorization is empty - falling back to publishable_key auth",
+        message:
+          "sdkAuthorization is empty - falling back to publishable_key auth",
       });
     }
 
