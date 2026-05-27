@@ -7,8 +7,8 @@ use api_models::payments as api_payments;
 #[cfg(feature = "v2")]
 use api_models::payments::RevenueRecoveryGetIntentResponse;
 use api_models::payments::{
-    Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
-    MandateIds, NetworkDetails, RequestSurchargeDetails,
+    Address, CustomerDetails, CustomerDetailsResponse, FrmMessage, NetworkDetails,
+    RequestSurchargeDetails,
 };
 use common_enums::{Currency, MerchantAccountType, RequestIncrementalAuthorization};
 #[cfg(feature = "v1")]
@@ -38,7 +38,11 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payments::payment_intent::CustomerData, router_request_types, sdk_auth::SdkAuthorization,
+    mandates,
+    mandates::{ConnectorMandateReferenceId, MandateIds},
+    payments::payment_intent::CustomerData,
+    router_request_types,
+    sdk_auth::SdkAuthorization,
 };
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
@@ -1366,6 +1370,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         payment_method: None,
         payment_method_type: None,
         split_payments: payment_data.payment_intent.split_payments,
+        capture_method: Some(payment_data.payment_intent.capture_method),
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -3928,7 +3933,7 @@ where
             customer_acceptance: d.customer_acceptance.clone(),
 
             mandate_type: d.mandate_type.clone().map(|d| match d {
-                hyperswitch_domain_models::mandates::MandateDataType::MultiUse(Some(i)) => {
+                mandates::MandateDataType::MultiUse(Some(i)) => {
                     api::MandateType::MultiUse(Some(api::MandateAmountData {
                         amount: i.amount,
                         currency: i.currency,
@@ -3937,7 +3942,7 @@ where
                         metadata: i.metadata,
                     }))
                 }
-                hyperswitch_domain_models::mandates::MandateDataType::SingleUse(i) => {
+                mandates::MandateDataType::SingleUse(i) => {
                     api::MandateType::SingleUse(api::payments::MandateAmountData {
                         amount: i.amount,
                         currency: i.currency,
@@ -3946,9 +3951,7 @@ where
                         metadata: i.metadata,
                     })
                 }
-                hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None) => {
-                    api::MandateType::MultiUse(None)
-                }
+                mandates::MandateDataType::MultiUse(None) => api::MandateType::MultiUse(None),
             }),
             update_mandate_id: d.update_mandate_id.clone(),
         });
@@ -3973,7 +3976,7 @@ where
                 .mandate_reference_id
                 .as_ref()
                 .and_then(|mandate_ref| match mandate_ref {
-                    api_models::payments::MandateReferenceId::ConnectorMandateId(
+                    mandates::MandateReferenceId::ConnectorMandateId(
                         connector_mandate_reference_id,
                     ) => connector_mandate_reference_id.get_connector_mandate_id(),
                     _ => None,
@@ -5909,6 +5912,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             payment_method: Some(payment_data.payment_attempt.payment_method_type),
             payment_method_type: payment_data.payment_attempt.payment_method_subtype,
             split_payments: payment_data.payment_intent.split_payments,
+            capture_method: Some(payment_data.payment_intent.capture_method),
         })
     }
 }
@@ -6018,6 +6022,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             payment_method: payment_data.payment_attempt.payment_method,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             split_payments: payment_data.payment_intent.split_payments,
+            capture_method: payment_data.payment_attempt.capture_method,
         })
     }
 }

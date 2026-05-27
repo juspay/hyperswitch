@@ -26,6 +26,7 @@ import customerUpdateBody from "./update-customer-body.json";
 import voidBody from "./void-payment-body.json";
 import ntidConfirmBody from "./create-ntid-mit.json";
 import blocklistCreateBody from "./blocklist-create-body.json";
+import pmCollectLinkBody from "./pm-collect-link-body.json";
 import disputeEvidenceBody from "./dispute-evidence-body.json";
 import cardLimitedDataMITBody from "./create-card-limited-data-mit.json";
 import eligibilityCheckBody from "./eligibility-check-body.json";
@@ -83,4 +84,5 @@ export {
   paymentMethodSessionUpdate,
   paymentMethodSessionConfirm,
   modularPmServicePaymentsCall,
+  pmCollectLinkBody,
 };
