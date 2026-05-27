@@ -3508,7 +3508,10 @@ Cypress.Commands.add(
       }
     }
 
-    if (!reqData?.setup_future_usage && createConfirmPaymentBody.setup_future_usage) {
+    if (
+      !reqData?.setup_future_usage &&
+      createConfirmPaymentBody.setup_future_usage
+    ) {
       delete createConfirmPaymentBody.setup_future_usage;
     }
 

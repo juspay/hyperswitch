@@ -45,7 +45,10 @@ describe("Bank Debit tests", () => {
           "bank_debit_pm"
         ]["Sepa"];
         if (!utils.should_continue_further(data)) {
-          cy.task("cli_log", "Skipping step: Create and Confirm SEPA Bank Debit");
+          cy.task(
+            "cli_log",
+            "Skipping step: Create and Confirm SEPA Bank Debit"
+          );
           shouldContinue = false;
           return;
         }
@@ -146,7 +149,10 @@ describe("Bank Debit tests", () => {
           "bank_debit_pm"
         ]["Becs"];
         if (!utils.should_continue_further(data)) {
-          cy.task("cli_log", "Skipping step: Create and Confirm BECS Bank Debit");
+          cy.task(
+            "cli_log",
+            "Skipping step: Create and Confirm BECS Bank Debit"
+          );
           shouldContinue = false;
           return;
         }
