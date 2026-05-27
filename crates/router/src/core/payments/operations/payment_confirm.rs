@@ -9,7 +9,7 @@ use api_models::{
     payments::{ExtendedCardInfo, GetAddressFromPaymentMethodData},
 };
 use async_trait::async_trait;
-use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
+use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use diesel_models::payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId;
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
@@ -58,7 +58,6 @@ use crate::{
     routes::{app::ReqState, SessionState},
     services,
     types::{
-        self,
         api::{self, ConnectorCallType, PaymentIdTypeExt},
         domain::{self},
         storage::{self, enums as storage_enums},
@@ -1504,13 +1503,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .is_failed()
                 {
                     *should_continue_confirm_transaction = false;
-                    let default_poll_config = types::PollConfig::default();
-                    let default_config_str = default_poll_config
-                        .encode_to_string_of_json()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error while stringifying default poll config")?;
-
-                    // raise error if authentication_connector is not present since it should we be present in the current flow
+                    // raise error if authentication_connector is not present since it should be present in the current flow
                     let authentication_connector = authentication_store
                         .authentication
                         .authentication_connector
@@ -1519,21 +1512,20 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .attach_printable(
                             "authentication_connector not present in authentication record",
                         )?;
-
-                    let poll_config = state
-                        .store
-                        .find_config_by_key_unwrap_or(
-                            &types::PollConfig::get_poll_config_key(authentication_connector),
-                            Some(default_config_str),
+                    let connector = authentication_connector
+                        .parse::<common_enums::connector_enums::Connector>()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Invalid authentication connector name")?;
+                    let dimensions = dimension_state::Dimensions::new()
+                        .with_processor_merchant_id(processor.get_processor_merchant_id())
+                        .with_connector(connector);
+                    let poll_config = dimensions
+                        .get_poll_config_external_three_ds(
+                            state.store.as_ref(),
+                            state.superposition_service.as_ref(),
+                            Some(payment_data.payment_intent.get_id()),
                         )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("The poll config was not found in the DB")?;
-                    let poll_config: types::PollConfig = poll_config
-                        .config
-                        .parse_struct("PollConfig")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error while parsing PollConfig")?;
+                        .await;
                     payment_data.poll_config = Some(poll_config)
                 }
                 Some(authentication_store)
@@ -2051,33 +2043,25 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     || eligibility_response.status.is_failed()
                 {
                     *should_continue_confirm_transaction = false;
-                    let default_poll_config = types::PollConfig::default();
-                    let default_config_str = default_poll_config
-                        .encode_to_string_of_json()
+                    // raise error if authentication_connector is not present since it should be present in the current flow
+                    let authentication_connector = authentication_create_response.authentication_connector
+                        .ok_or(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("authentication_connector not found in eligibility_response")?;
+                    let connector = authentication_connector
+                        .to_string()
+                        .parse::<common_enums::connector_enums::Connector>()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error while stringifying default poll config")?;
-
-                    // raise error if authentication_connector is not present since it should we be present in the current flow
-                    let authentication_connector = eligibility_response.authentication_connector
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("authentication_connector not found in eligibility_response")?;
-
-                    let poll_config = state
-                        .store
-                        .find_config_by_key_unwrap_or(
-                            &types::PollConfig::get_poll_config_key(
-                                authentication_connector.to_string()
-                            ),
-                            Some(default_config_str),
+                        .attach_printable("Invalid authentication connector name")?;
+                    let dimensions = dimension_state::Dimensions::new()
+                        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+                        .with_connector(connector);
+                    let poll_config = dimensions
+                        .get_poll_config_external_three_ds(
+                            state.store.as_ref(),
+                            state.superposition_service.as_ref(),
+                            Some(payment_data.payment_intent.get_id()),
                         )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("The poll config was not found in the DB")?;
-                    let poll_config: types::PollConfig = poll_config
-                        .config
-                        .parse_struct("PollConfig")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error while parsing PollConfig")?;
+                        .await;
                     payment_data.poll_config = Some(poll_config)
                 }
 
@@ -2132,15 +2116,14 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             authentication_id: authentication_id.clone(),
                         };
 
-                        let response = crate::core::authentication_client::AuthenticationSyncFlow::call(
+                        crate::core::authentication_client::AuthenticationSyncFlow::call(
                             state,
                             &client,
                             (sync_req, business_profile.merchant_id.get_string_repr().to_owned()),
                         ).await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to call authentication sync flow")?;
+                        .attach_printable("Failed to call authentication sync flow")?
 
-                        response
                     }
                 } else {
                     return Err(errors::ApiErrorResponse::InternalServerError).attach_printable("Pull mechanism disabled or terminal status during post-authentication sync")?;
