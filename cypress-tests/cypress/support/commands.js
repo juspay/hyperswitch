@@ -9383,3 +9383,116 @@ Cypress.Commands.add("retrieveNonExistentPaymentLinkTest", (globalState) => {
     });
   });
 });
+
+// ============================================
+// Extended Card Info Commands
+// ============================================
+
+Cypress.Commands.add("toggleExtendedCardInfoTest", (enabled, globalState) => {
+  const adminApiKey = globalState.get("adminApiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const merchantId = globalState.get("merchantId");
+  const profileId = globalState.get("profileId");
+
+  cy.request({
+    method: "POST",
+    url: `${baseUrl}/account/${merchantId}/business_profile/${profileId}/toggle_extended_card_info`,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": adminApiKey,
+    },
+    body: { enabled },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status, "status_code").to.equal(200);
+      expect(response.body.enabled, "extended_card_info_enabled").to.equal(
+        enabled
+      );
+      globalState.set("extendedCardInfoEnabled", enabled);
+    });
+  });
+});
+
+Cypress.Commands.add(
+  "retrieveExtendedCardInfoTest",
+  (expectedStatus, globalState) => {
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const paymentId = globalState.get("paymentID");
+
+    cy.request({
+      method: "GET",
+      url: `${baseUrl}/payments/${paymentId}/extended_card_info`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status, "status_code").to.equal(expectedStatus);
+        if (response.status === 200) {
+          expect(response.body, "response body").to.have.property("payload");
+          expect(response.body.payload, "payload").to.be.a("string").and.to.not
+            .be.empty;
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add("setExtendedCardInfoConfigTest", (globalState) => {
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const merchantId = globalState.get("merchantId");
+  const profileId = globalState.get("profileId");
+
+  // NOTE: This is a test RSA public key used for encrypting extended card info.
+  // In production, the merchant would provide their own public key (typically via dashboard/API).
+  // The corresponding private key is required to decrypt the encrypted card data.
+  // For testing purposes, we use a generated key pair that the test runner has access to.
+  const publicKey =
+    "-----BEGIN PUBLIC KEY-----\n" +
+    "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwa6siKaSYqD1o4J3AbHq\n" +
+    "Km8oVTvep7GoN/C45qY60C7DO72H1O7Ujt6ZsSiK83EyI0CaUg3ORPS3ayobFNmu\n" +
+    "zR366ckK8GIf3BG7sVI6u/9751z4OvBHZMM9JFWa7Bx/RCPQ8aeM+iJoqf9auuQm\n" +
+    "3NCTlfaZJif45pShswR+xuZTR/bqnsOSP/MFROI9ch0NE7KRogy0tvrZe21lP24i\n" +
+    "Ro2LJJG+bYshxBddhxQf2ryJ85+/Trxdu16PunodGzCl6EMT3bvb4ZC41i15omqU\n" +
+    "aXXV1Z1wYUhlsO0jyd1bVvjyuE/KE1TbBS0gfR/RkacODmmE2zEdZ0EyyiXwqkmc\n" +
+    "oQIDAQAB\n" +
+    "-----END PUBLIC KEY-----";
+
+  cy.request({
+    method: "POST",
+    url: `${baseUrl}/account/${merchantId}/business_profile/${profileId}`,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    body: {
+      extended_card_info_config: {
+        public_key: publicKey,
+        ttl_in_secs: 900,
+      },
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status, "status_code").to.equal(200);
+      expect(
+        response.body.extended_card_info_config,
+        "extended_card_info_config"
+      ).to.not.be.null;
+    });
+  });
+});
