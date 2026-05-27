@@ -9522,64 +9522,6 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add(
-  "updatePaymentIntentTest",
-  (updateBody, data, globalState) => {
-    const { Request: reqData, Response: resData } = data || {};
-
-    const paymentIntentID = globalState.get("paymentID");
-    const url = `${globalState.get("baseUrl")}/payments/${paymentIntentID}`;
-
-    const body = { ...updateBody };
-    for (const key in reqData) {
-      body[key] = reqData[key];
-    }
-
-    const sdkAuth = globalState.get("sdkAuthorization") || "";
-    const headers = {
-      "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
-    };
-    if (sdkAuth) {
-      headers["Authorization"] = sdkAuth;
-      headers["api-key"] = globalState.get("publishableKey");
-      body.client_secret = globalState.get("clientSecret");
-    }
-
-    cy.request({
-      method: "PATCH",
-      url: url,
-      headers,
-      failOnStatusCode: false,
-      body: body,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-
-      cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
-
-        if (response.status === 200) {
-          if (response.body.sdk_authorization) {
-            globalState.set(
-              "sdkAuthorization",
-              response.body.sdk_authorization
-            );
-          }
-          if (response.body.client_secret) {
-            globalState.set("clientSecret", response.body.client_secret);
-          }
-
-          for (const key in resData.body) {
-            expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
-          }
-        } else {
-          defaultErrorHandler(response, resData);
-        }
-      });
-    });
-  }
-);
-
 Cypress.Commands.add("retrieveNonExistentPaymentLinkTest", (globalState) => {
   cy.request({
     method: "GET",
