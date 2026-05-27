@@ -660,6 +660,29 @@ export const CONNECTOR_LISTS = {
   },
 };
 
+// Null card metadata override for tax-specific business profiles.
+// The local sandbox returns null card metadata (card_type, card_network, card_issuer,
+// card_issuing_country) for payments created under a tax-specific business profile.
+// This constant + helper allow the Tax Connector spec to override the card metadata
+// in the expected response without modifying the base Stripe.js config.
+export const NULL_CARD_METADATA = {
+  card_type: null,
+  card_network: null,
+  card_issuer: null,
+  card_issuing_country: null,
+};
+
+export function withNullCardMetadata(data) {
+  const cloned = JSON.parse(JSON.stringify(data));
+  if (cloned?.Response?.body?.payment_method_data?.card) {
+    Object.assign(
+      cloned.Response.body.payment_method_data.card,
+      NULL_CARD_METADATA
+    );
+  }
+  return cloned;
+}
+
 // Helper functions
 export const shouldExcludeConnector = (connectorId, list) => {
   return Array.isArray(list) && list.includes(connectorId);

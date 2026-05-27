@@ -13,24 +13,6 @@ const TAX_PROFILE_CONFIG = {
   },
 };
 
-const NULL_CARD_METADATA = {
-  card_type: null,
-  card_network: null,
-  card_issuer: null,
-  card_issuing_country: null,
-};
-
-function withNullCardMetadata(data) {
-  const cloned = Cypress._.cloneDeep(data);
-  if (cloned?.Response?.body?.payment_method_data?.card) {
-    Object.assign(
-      cloned.Response.body.payment_method_data.card,
-      NULL_CARD_METADATA
-    );
-  }
-  return cloned;
-}
-
 describe("Tax Connector Business Profile Flag", () => {
   let connectorSupported = true;
 
@@ -86,6 +68,8 @@ describe("Tax Connector Business Profile Flag", () => {
     });
 
     it("enable-tax-connector-on-profile-test", () => {
+      // taxConnectorId references the payment connector created in the previous step
+      // (mcPrefix="taxConnector" → globalState key "taxConnectorId")
       const taxConnectorId = globalState.get("taxConnectorId");
       cy.updateBusinessProfileWithTaxConnector(
         fixtures.businessProfile.bpUpdate,
@@ -133,7 +117,7 @@ describe("Tax Connector Business Profile Flag", () => {
           const baseData = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["No3DSAutoCapture"];
-          const data = withNullCardMetadata({
+          const data = utils.withNullCardMetadata({
             ...baseData,
             Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
           });
@@ -153,12 +137,38 @@ describe("Tax Connector Business Profile Flag", () => {
           const baseData = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["No3DSAutoCapture"];
-          const data = withNullCardMetadata({
+          const data = utils.withNullCardMetadata({
             ...baseData,
             Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
           });
 
           cy.retrievePaymentCallTest({ globalState, data });
+
+          // Tax-specific assertions: when tax connector is enabled,
+          // tax_details and order_tax_amount should be present on the payment.
+          // Note: In sandbox, tax_details may be null if TaxJar does not
+          // calculate tax for the given address/currency — in that case this
+          // assertion will surface the gap.
+          cy.request({
+            method: "GET",
+            url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}?force_sync=true&expand_attempts=true`,
+            headers: {
+              "Content-Type": "application/json",
+              "api-key": globalState.get("apiKey"),
+            },
+            failOnStatusCode: false,
+          }).then((taxResponse) => {
+            if (taxResponse.status === 200) {
+              expect(
+                taxResponse.body.tax_details,
+                "tax_details should be present when tax connector enabled"
+              ).to.not.be.null;
+              expect(
+                taxResponse.body.order_tax_amount,
+                "order_tax_amount should be present when tax connector enabled"
+              ).to.not.be.null;
+            }
+          });
         });
       });
     }
@@ -208,7 +218,7 @@ describe("Tax Connector Business Profile Flag", () => {
         const baseData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSAutoCapture"];
-        const data = withNullCardMetadata({
+        const data = utils.withNullCardMetadata({
           ...baseData,
           Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
         });
@@ -228,12 +238,35 @@ describe("Tax Connector Business Profile Flag", () => {
         const baseData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSAutoCapture"];
-        const data = withNullCardMetadata({
+        const data = utils.withNullCardMetadata({
           ...baseData,
           Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
         });
 
         cy.retrievePaymentCallTest({ globalState, data });
+
+        // Tax-specific assertions: when tax connector is disabled,
+        // tax_details and order_tax_amount should be null.
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}?force_sync=true&expand_attempts=true`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((taxResponse) => {
+          if (taxResponse.status === 200) {
+            expect(
+              taxResponse.body.tax_details,
+              "tax_details should be null when tax connector disabled"
+            ).to.be.null;
+            expect(
+              taxResponse.body.order_tax_amount,
+              "order_tax_amount should be null when tax connector disabled"
+            ).to.be.null;
+          }
+        });
       });
     });
   });
@@ -288,7 +321,7 @@ describe("Tax Connector Business Profile Flag", () => {
           const baseData = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["No3DSAutoCapture"];
-          const data = withNullCardMetadata({
+          const data = utils.withNullCardMetadata({
             ...baseData,
             Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
           });
@@ -308,12 +341,36 @@ describe("Tax Connector Business Profile Flag", () => {
           const baseData = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["No3DSAutoCapture"];
-          const data = withNullCardMetadata({
+          const data = utils.withNullCardMetadata({
             ...baseData,
             Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
           });
 
           cy.retrievePaymentCallTest({ globalState, data });
+
+          // Tax-specific assertions: when skip_external_tax_calculation is set,
+          // tax_details and order_tax_amount should be null even though the
+          // tax connector is enabled on the profile.
+          cy.request({
+            method: "GET",
+            url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}?force_sync=true&expand_attempts=true`,
+            headers: {
+              "Content-Type": "application/json",
+              "api-key": globalState.get("apiKey"),
+            },
+            failOnStatusCode: false,
+          }).then((taxResponse) => {
+            if (taxResponse.status === 200) {
+              expect(
+                taxResponse.body.tax_details,
+                "tax_details should be null when skip_external_tax_calculation is set"
+              ).to.be.null;
+              expect(
+                taxResponse.body.order_tax_amount,
+                "order_tax_amount should be null when skip_external_tax_calculation is set"
+              ).to.be.null;
+            }
+          });
         });
       });
     }
@@ -391,7 +448,7 @@ describe("Tax Connector Business Profile Flag", () => {
         const baseData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSAutoCapture"];
-        const data = withNullCardMetadata({
+        const data = utils.withNullCardMetadata({
           ...baseData,
           Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
         });
@@ -411,12 +468,36 @@ describe("Tax Connector Business Profile Flag", () => {
         const baseData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSAutoCapture"];
-        const data = withNullCardMetadata({
+        const data = utils.withNullCardMetadata({
           ...baseData,
           Configs: { ...baseData.Configs, ...TAX_PROFILE_CONFIG.Configs },
         });
 
         cy.retrievePaymentCallTest({ globalState, data });
+
+        // Tax-specific assertions: after re-enabling tax connector,
+        // tax_details and order_tax_amount should be present again.
+        // Note: Same sandbox caveat as the tax-enabled context above.
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}?force_sync=true&expand_attempts=true`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((taxResponse) => {
+          if (taxResponse.status === 200) {
+            expect(
+              taxResponse.body.tax_details,
+              "tax_details should be present after re-enabling tax connector"
+            ).to.not.be.null;
+            expect(
+              taxResponse.body.order_tax_amount,
+              "order_tax_amount should be present after re-enabling tax connector"
+            ).to.not.be.null;
+          }
+        });
       });
     });
   });
