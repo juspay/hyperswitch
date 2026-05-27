@@ -6370,6 +6370,10 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                             connector: "Adyen",
                         })?
                     }
+                    payouts::Wallet::GooglePayDecrypt(_) => Err(errors::ConnectorError::NotSupported {
+                        message: "Google Pay Decrypt Wallet is not supported".to_string(),
+                        connector: "Adyen",
+                    })?,
                 };
                 let address: &hyperswitch_domain_models::address::AddressDetails =
                     item.router_data.get_billing_address()?;

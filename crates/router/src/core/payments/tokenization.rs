@@ -860,6 +860,10 @@ where
                                             .payment_method_token
                                             .as_ref()
                                             .is_some_and(|pmt| pmt.is_apple_pay_decrypt()),
+                                        save_payment_method_data
+                                            .payment_method_token
+                                            .as_ref()
+                                            .is_some_and(|pmt| pmt.is_google_pay_decrypt()),
                                     )
                             })
                             .unwrap_or(false)

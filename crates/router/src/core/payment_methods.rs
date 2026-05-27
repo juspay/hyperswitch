@@ -1075,6 +1075,44 @@ pub(crate) async fn get_payment_method_create_request(
             };
             Ok(payment_method_request)
         }
+        (
+            _,
+            Some(hyperswitch_domain_models::router_data::PaymentMethodToken::GooglePayDecrypt(
+                google_pay_decrypted_data,
+            )),
+        ) => {
+            let payment_method_data = Some(payment_methods::PaymentMethodCreateData::Wallet(
+                payment_methods::WalletDetail::GooglePayDecryptedData {
+                    application_primary_account_number: google_pay_decrypted_data
+                        .application_primary_account_number,
+                    expiry_month: google_pay_decrypted_data.card_exp_month,
+                    expiry_year: google_pay_decrypted_data.card_exp_year,
+                },
+            ));
+            let payment_method_request = payment_methods::PaymentMethodCreate {
+                payment_method,
+                payment_method_type,
+                payment_method_issuer: None,
+                payment_method_issuer_code: None,
+                #[cfg(feature = "payouts")]
+                bank_transfer: None,
+                #[cfg(feature = "payouts")]
+                bank_transfer_data: None,
+                #[cfg(feature = "payouts")]
+                wallet: None,
+                card: None,
+                metadata: None,
+                customer_id: customer_id.clone(),
+                card_network: None,
+                client_secret: None,
+                payment_method_data,
+                //TODO: why are we using api model in router internally
+                billing: payment_method_billing_address.cloned().map(From::from),
+                connector_mandate_details: None,
+                network_transaction_id: None,
+            };
+            Ok(payment_method_request)
+        }
         (Some(pm_data), _) => match payment_method {
             Some(payment_method) => match pm_data {
                 domain::PaymentMethodData::Card(card) => {

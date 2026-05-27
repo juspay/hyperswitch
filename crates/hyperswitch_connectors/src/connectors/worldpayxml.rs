@@ -1573,7 +1573,18 @@ impl ConnectorSpecifications for Worldpayxml {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 auth_type,
-            } => auth_type == common_enums::AuthenticationType::ThreeDs && request_data.is_card(),
+            } => { // add payment method token also
+                auth_type == common_enums::AuthenticationType::ThreeDs
+                    && matches!(
+                    request_data.payment_method_data,
+                    PaymentMethodData::Card(_)
+                        | PaymentMethodData::Wallet(
+                            hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(
+                                _
+                            )
+                        )
+                )
+            }
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,
@@ -1595,3 +1606,4 @@ impl ConnectorSpecifications for Worldpayxml {
             .map(|cid| cid.get_string_repr().to_string())
     }
 }
+ 
