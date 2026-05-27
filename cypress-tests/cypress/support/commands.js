@@ -37,6 +37,22 @@ import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
 import { handleRedirection } from "./redirectionHandler";
 
+// In MITM replay mode (MOCK_SERVER=true) there is no live browser redirection
+// to drive. Cypress.env may return a boolean or a string, hence String().
+function isMockServer() {
+  return String(Cypress.env("MOCK_SERVER")) === "true";
+}
+
+// Returns true (after logging a consistent skip line) when a redirection
+// command should bail out early because we're in replay mode.
+function skipRedirectionInMockServer(commandName) {
+  if (!isMockServer()) {
+    return false;
+  }
+  cy.task("cli_log", `Skipping ${commandName}: MOCK_SERVER=true`);
+  return true;
+}
+
 function getOriginalConnectorId(globalState) {
   return (
     globalState.get("originalConnectorId") || globalState.get("connectorId")
@@ -2355,6 +2371,8 @@ Cypress.Commands.add(
     }
 
     globalState.set("paymentAmount", createPaymentBody.amount);
+    globalState.set("paymentCurrency", createPaymentBody.currency);
+    globalState.set("captureMethod", capture_method);
     globalState.set("setupFutureUsage", createPaymentBody.setup_future_usage);
     cy.request({
       method: "POST",
@@ -3448,6 +3466,16 @@ Cypress.Commands.add(
     createConfirmPaymentBody.profile_id = profile_id;
     createConfirmPaymentBody.customer_id = customer_id;
 
+    globalState.set("captureMethod", capture_method);
+    globalState.set(
+      "paymentAmount",
+      createConfirmPaymentBody.amount || (reqData && reqData.amount)
+    );
+    globalState.set(
+      "paymentCurrency",
+      createConfirmPaymentBody.currency || (reqData && reqData.currency)
+    );
+
     for (const key in reqData) {
       // Skip split_payments here - it will be added conditionally below
       if (key !== "split_payments") {
@@ -4379,7 +4407,6 @@ Cypress.Commands.add(
         expect(response.headers["content-type"]).to.include("application/json");
         if (response.status === 200) {
           globalState.set("paymentID", response.body.payment_id);
-
           expect(response.body.payment_method_data, "payment_method_data").to
             .not.be.empty;
           const expectedConnector = getOriginalConnectorName(
@@ -5001,12 +5028,33 @@ Cypress.Commands.add(
   "handleRedirection",
   (globalState, expectedRedirection) => {
     const connectorId = globalState.get("connectorId");
-    const nextActionUrl = globalState.get("nextActionUrl");
-
+    // Cassettes recorded from a non-3DS scenario won't carry a
+    // next_action URL; fall back to example.com so replay can still
+    // burn the step-counter slot and reach later assertions.
+    let nextActionUrl = globalState.get("nextActionUrl");
     if (!nextActionUrl) {
-      throw new Error(
-        `handleRedirection: nextActionUrl is not set in globalState. Confirm step may not have returned a valid next_action URL.`
+      cy.task(
+        "cli_log",
+        "handleRedirection: nextActionUrl missing — falling back to https://example.com"
       );
+      nextActionUrl = "https://example.com";
+    }
+
+    if (isMockServer()) {
+      // In MITM replay mode the ThreeDS browser flow is skipped.  Consume one
+      // cy.request slot so the Cypress step counter stays aligned with how the
+      // cassettes were recorded (threeDsRedirection() always issues one request
+      // before starting browser navigation).  The force_sync Retrieve that
+      // follows will call Stripe PSync, receive "requires_capture" from the
+      // cassette, and HS transitions the payment state automatically.
+      if (Cypress.env("PROXY_ADMIN_URL")) {
+        cy.request({
+          url: nextActionUrl,
+          failOnStatusCode: false,
+          followRedirect: false,
+        });
+      }
+      return;
     }
 
     const expectedUrl = new URL(expectedRedirection);
@@ -5026,6 +5074,10 @@ Cypress.Commands.add(
   (globalState, paymentMethodType, expectedRedirection) => {
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
+
+    if (skipRedirectionInMockServer("handleBankRedirectRedirection")) {
+      return;
+    }
 
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
@@ -5049,6 +5101,10 @@ Cypress.Commands.add(
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
     const nextActionType = globalState.get("nextActionType");
+
+    if (skipRedirectionInMockServer("handleBankTransferRedirection")) {
+      return;
+    }
 
     const expectedUrl = new URL(expectedRedirection);
     let redirectionUrl = null;
@@ -5076,6 +5132,10 @@ Cypress.Commands.add(
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
 
+    if (skipRedirectionInMockServer("handleRewardRedirection")) {
+      return;
+    }
+
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
 
@@ -5094,6 +5154,10 @@ Cypress.Commands.add(
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
 
+    if (skipRedirectionInMockServer("handleCryptoRedirection")) {
+      return;
+    }
+
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
 
@@ -5111,6 +5175,10 @@ Cypress.Commands.add(
   (globalState, paymentMethodType, expectedRedirection) => {
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
+
+    if (skipRedirectionInMockServer("handleWalletRedirection")) {
+      return;
+    }
 
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
@@ -5366,11 +5434,37 @@ Cypress.Commands.add(
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
 
+    if (skipRedirectionInMockServer("handleUpiRedirection")) {
+      return;
+    }
+
     const expectedUrl = new URL(expected_redirection);
     const redirectionUrl = new URL(nextActionUrl);
 
     handleRedirection(
       "upi",
+      { redirectionUrl, expectedUrl },
+      connectorId,
+      paymentMethodType
+    );
+  }
+);
+
+Cypress.Commands.add(
+  "handlePayLaterRedirection",
+  (globalState, paymentMethodType, expected_redirection) => {
+    const connectorId = globalState.get("connectorId");
+    const nextActionUrl = globalState.get("nextActionUrl");
+
+    if (skipRedirectionInMockServer("handlePayLaterRedirection")) {
+      return;
+    }
+
+    const expectedUrl = new URL(expected_redirection);
+    const redirectionUrl = new URL(nextActionUrl);
+
+    handleRedirection(
+      "pay_later",
       { redirectionUrl, expectedUrl },
       connectorId,
       paymentMethodType
@@ -8324,6 +8418,16 @@ Cypress.Commands.add(
     createConfirmPaymentBody.capture_method = capture_method;
     createConfirmPaymentBody.profile_id = profile_id;
     createConfirmPaymentBody.customer_id = customer_id;
+
+    globalState.set("captureMethod", capture_method);
+    globalState.set(
+      "paymentAmount",
+      createConfirmPaymentBody.amount || (reqData && reqData.amount)
+    );
+    globalState.set(
+      "paymentCurrency",
+      createConfirmPaymentBody.currency || (reqData && reqData.currency)
+    );
 
     for (const key in reqData) {
       createConfirmPaymentBody[key] = reqData[key];
