@@ -6558,10 +6558,12 @@ pub async fn payment_methods_session_confirm(
             .await?;
     };
 
-    let associated_pm_data = payment_method_response.payment_method_data.as_ref().and_then(|pm_data| {
-        match pm_data {
-            payment_methods::PaymentMethodResponseData::Card(card) => {
-                Some(common_types::payment_methods::AssociatedPaymentMethodData::Card(
+    let associated_pm_data = payment_method_response
+        .payment_method_data
+        .as_ref()
+        .and_then(|pm_data| match pm_data {
+            payment_methods::PaymentMethodResponseData::Card(card) => Some(
+                common_types::payment_methods::AssociatedPaymentMethodData::Card(
                     common_types::payment_methods::AssociatedCardDetails {
                         last4_digits: card.last4_digits.clone(),
                         card_isin: card.card_isin.clone(),
@@ -6572,11 +6574,10 @@ pub async fn payment_methods_session_confirm(
                         card_issuer: card.card_issuer.clone(),
                         card_holder_name: card.card_holder_name.clone(),
                     },
-                ))
-            }
+                ),
+            ),
             _ => None,
-        }
-    });
+        });
 
     let associated_payment_methods = common_types::payment_methods::AssociatedPaymentMethods {
         payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(parent_payment_method_token),
