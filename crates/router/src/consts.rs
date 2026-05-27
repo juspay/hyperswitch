@@ -361,6 +361,18 @@ pub mod superposition {
     pub const FINGERPRINT_SECRET: &str = "fingerprint_secret";
     /// Routing default config key
     pub const ROUTING_DEFAULT_CONFIG: &str = "routing_default_config";
+    /// Poll config for external 3DS authentication key
+    pub const POLL_CONFIG_EXTERNAL_THREE_DS: &str = "poll_config_external_three_ds";
+    /// Outgoing webhook retry process tracker mapping key
+    pub const PT_MAPPING_OUTGOING_WEBHOOKS: &str = "pt_mapping_outgoing_webhooks";
+    /// PCR (Revenue Recovery) payments retry process tracker mapping key
+    pub const PT_MAPPING_PCR_RETRIES: &str = "pt_mapping_pcr_retries";
+    /// Payment sync (psync) retry process tracker mapping key
+    pub const PT_MAPPING_PAYMENT_SYNC: &str = "pt_mapping_payment_sync";
+    /// Refund sync retry process tracker mapping key
+    pub const PT_MAPPING_REFUND_SYNC: &str = "pt_mapping_refund_sync";
+    /// Dispute sync retry process tracker mapping key
+    pub const PT_MAPPING_DISPUTE_SYNC: &str = "pt_mapping_dispute_sync";
     /// GSM (Global Status Map) call configuration key
     pub const SHOULD_CALL_GSM: &str = "should_call_gsm";
     /// Eligibility check configuration key
@@ -387,6 +399,12 @@ pub mod superposition {
     /// Schedule PM modular forward compatibility PT configuration key
     pub const SHOULD_SCHEDULE_MODULAR_FORWARD_COMPAT: &str =
         "should_schedule_modular_forward_compat";
+    /// Schedule PM modular backward compatibility PT configuration key
+    pub const SHOULD_SCHEDULE_MODULAR_BACKWARD_COMPAT: &str =
+        "should_schedule_modular_backward_compat";
+    /// Trigger PM modular backward compatibility inline configuration key
+    pub const SHOULD_TRIGGER_BACKWARDS_COMPATIBILITY_INLINE: &str =
+        "should_trigger_backwards_compatibility_inline";
     /// dynamic fields configuration key for sdk config
     pub const DYNAMIC_FIELDS: &str = "dynamic_fields";
     /// payout sync tracker configuration key

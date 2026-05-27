@@ -74,11 +74,17 @@ pub struct FeatureConfig {
 }
 
 impl FeatureConfig {
-    pub fn is_modular_with_pm_version(
+    pub fn should_use_modular_pm_path(
         &self,
         payment_method_version: Option<common_enums::ApiVersion>,
+        last_modified_by_modular: Option<time::PrimitiveDateTime>,
+        last_modified_by_legacy: Option<time::PrimitiveDateTime>,
     ) -> bool {
-        self.is_payment_method_modular_allowed
+        (self.is_payment_method_modular_allowed
+            && matches!(
+                (last_modified_by_modular, last_modified_by_legacy),
+                (Some(last_mod_modular), Some(last_mod_legacy)) if last_mod_modular >= last_mod_legacy
+            ))
             || payment_method_version == Some(common_enums::ApiVersion::V2)
     }
 }
@@ -325,6 +331,7 @@ pub async fn construct_payout_router_data<'a, F>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -503,6 +510,7 @@ pub async fn construct_refund_router_data<'a, F>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -700,6 +708,7 @@ pub async fn construct_refund_router_data<'a, F>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -1217,6 +1226,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1328,6 +1338,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1445,6 +1456,7 @@ pub async fn construct_upload_file_router_data<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1523,6 +1535,7 @@ pub async fn construct_dispute_list_router_data<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     })
 }
 
@@ -1636,6 +1649,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1772,6 +1786,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1886,6 +1901,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1990,6 +2006,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }

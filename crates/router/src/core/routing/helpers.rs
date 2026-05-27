@@ -1980,7 +1980,7 @@ pub async fn enable_dynamic_routing_algorithm(
             dynamic_routing
                 .disable_algorithm_id(routing_types::DynamicRoutingType::ContractBasedRouting);
 
-            enable_specific_routing_algorithm(
+            Box::pin(enable_specific_routing_algorithm(
                 state,
                 key_store,
                 business_profile,
@@ -1989,11 +1989,11 @@ pub async fn enable_dynamic_routing_algorithm(
                 dynamic_routing_type,
                 dynamic_routing.success_based_algorithm,
                 payload,
-            )
+            ))
             .await
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
-            enable_specific_routing_algorithm(
+            Box::pin(enable_specific_routing_algorithm(
                 state,
                 key_store,
                 business_profile,
@@ -2002,7 +2002,7 @@ pub async fn enable_dynamic_routing_algorithm(
                 dynamic_routing_type,
                 dynamic_routing.elimination_routing_algorithm,
                 payload,
-            )
+            ))
             .await
         }
         routing_types::DynamicRoutingType::ContractBasedRouting => {

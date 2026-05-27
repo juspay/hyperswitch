@@ -14,6 +14,7 @@ use common_utils::{
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
+    mandates,
     payment_method_data::{
         BankRedirectData, Card, CardDetailsForNetworkTransactionId, GooglePayWalletData,
         PaymentMethodData, RealTimePaymentData, WalletData,
@@ -622,7 +623,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                 }
             },
             // Card payments using network transaction ID
-            Some(payments::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
+            Some(mandates::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
                 match item.router_data.request.payment_method_data {
                     PaymentMethodData::CardDetailsForNetworkTransactionId(ref raw_card_details) => {
                         FiuuPaymentMethodData::try_from((
