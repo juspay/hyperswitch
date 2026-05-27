@@ -305,6 +305,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::OidcToken
             | Flow::ListOrgForUser
             | Flow::ListMerchantsForUserInOrg
+            | Flow::GetUserMerchantDetails
             | Flow::ListProfileForUserInOrgAndMerchant
             | Flow::ListInvitationsForUser
             | Flow::AuthSelect

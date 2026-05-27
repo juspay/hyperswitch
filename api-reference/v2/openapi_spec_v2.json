@@ -10306,8 +10306,7 @@
             "description": "The CVC number for the card\nThis is optional in case the card needs to be vaulted",
             "example": "242"
           }
-        },
-        "additionalProperties": false
+        }
       },
       "CardDetailFromLocker": {
         "type": "object",
@@ -26320,6 +26319,13 @@
           "propertyName": "field_type"
         }
       },
+      "PaypalCaptureMethod": {
+        "type": "string",
+        "enum": [
+          "capture",
+          "authorize"
+        ]
+      },
       "PaypalFlow": {
         "type": "string",
         "enum": [
@@ -26373,6 +26379,22 @@
           "data_user_id_token": {
             "type": "string",
             "description": "User token required for returning customer flow, used by client to initiate sdk",
+            "nullable": true
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "intent": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaypalCaptureMethod"
+              }
+            ],
             "nullable": true
           }
         }
