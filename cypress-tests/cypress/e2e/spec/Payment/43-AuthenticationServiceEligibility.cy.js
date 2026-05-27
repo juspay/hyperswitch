@@ -38,16 +38,14 @@ describe("Authentication Service Eligibility", () => {
   context(
     "Org enabled, Merchant enabled - org takes precedence (3DS enabled)",
     () => {
-      it("should set org config to true", () => {
+      before("set org and merchant configs to true", () => {
         const orgId = globalState.get("organizationId");
-        const key = `authentication_service_eligible_${orgId}`;
-        cy.setConfigs(globalState, key, "true", "CREATE");
-      });
+        const orgKey = `authentication_service_eligible_${orgId}`;
+        cy.setConfigs(globalState, orgKey, "true", "CREATE");
 
-      it("should set merchant config to true", () => {
         const merchantId = globalState.get("merchantId");
-        const key = `authentication_service_eligible_${merchantId}`;
-        cy.setConfigs(globalState, key, "true", "CREATE");
+        const merchantKey = `authentication_service_eligible_${merchantId}`;
+        cy.setConfigs(globalState, merchantKey, "true", "CREATE");
       });
 
       it("should confirm 3DS payment with org and merchant both enabled", () => {
@@ -84,16 +82,14 @@ describe("Authentication Service Eligibility", () => {
   context(
     "Org enabled, Merchant disabled - org takes precedence (3DS enabled)",
     () => {
-      it("should set org config to true", () => {
+      before("set org config to true and merchant config to false", () => {
         const orgId = globalState.get("organizationId");
-        const key = `authentication_service_eligible_${orgId}`;
-        cy.setConfigs(globalState, key, "true", "CREATE");
-      });
+        const orgKey = `authentication_service_eligible_${orgId}`;
+        cy.setConfigs(globalState, orgKey, "true", "CREATE");
 
-      it("should set merchant config to false", () => {
         const merchantId = globalState.get("merchantId");
-        const key = `authentication_service_eligible_${merchantId}`;
-        cy.setConfigs(globalState, key, "false", "CREATE");
+        const merchantKey = `authentication_service_eligible_${merchantId}`;
+        cy.setConfigs(globalState, merchantKey, "false", "CREATE");
       });
 
       it("should confirm 3DS payment with org overriding merchant", () => {
@@ -130,16 +126,14 @@ describe("Authentication Service Eligibility", () => {
   context(
     "Org disabled, Merchant enabled - org takes precedence (3DS disabled)",
     () => {
-      it("should set org config to false", () => {
+      before("set org config to false and merchant config to true", () => {
         const orgId = globalState.get("organizationId");
-        const key = `authentication_service_eligible_${orgId}`;
-        cy.setConfigs(globalState, key, "false", "CREATE");
-      });
+        const orgKey = `authentication_service_eligible_${orgId}`;
+        cy.setConfigs(globalState, orgKey, "false", "CREATE");
 
-      it("should set merchant config to true", () => {
         const merchantId = globalState.get("merchantId");
-        const key = `authentication_service_eligible_${merchantId}`;
-        cy.setConfigs(globalState, key, "true", "CREATE");
+        const merchantKey = `authentication_service_eligible_${merchantId}`;
+        cy.setConfigs(globalState, merchantKey, "true", "CREATE");
       });
 
       it("should confirm payment with no_three_ds when org overrides merchant", () => {
@@ -174,16 +168,14 @@ describe("Authentication Service Eligibility", () => {
   );
 
   context("Org disabled, Merchant disabled - both deny (3DS disabled)", () => {
-    it("should set org config to false", () => {
+    before("set org and merchant configs to false", () => {
       const orgId = globalState.get("organizationId");
-      const key = `authentication_service_eligible_${orgId}`;
-      cy.setConfigs(globalState, key, "false", "CREATE");
-    });
+      const orgKey = `authentication_service_eligible_${orgId}`;
+      cy.setConfigs(globalState, orgKey, "false", "CREATE");
 
-    it("should set merchant config to false", () => {
       const merchantId = globalState.get("merchantId");
-      const key = `authentication_service_eligible_${merchantId}`;
-      cy.setConfigs(globalState, key, "false", "CREATE");
+      const merchantKey = `authentication_service_eligible_${merchantId}`;
+      cy.setConfigs(globalState, merchantKey, "false", "CREATE");
     });
 
     it("should confirm payment with no_three_ds when both configs disabled", () => {
@@ -219,7 +211,7 @@ describe("Authentication Service Eligibility", () => {
   context(
     "No org config, Merchant enabled - merchant fallback (3DS enabled)",
     () => {
-      it("should set merchant config to true", () => {
+      before("set merchant config to true", () => {
         const merchantId = globalState.get("merchantId");
         const key = `authentication_service_eligible_${merchantId}`;
         cy.setConfigs(globalState, key, "true", "CREATE");
@@ -252,7 +244,7 @@ describe("Authentication Service Eligibility", () => {
   context(
     "No org config, Merchant disabled - merchant fallback (3DS disabled)",
     () => {
-      it("should set merchant config to false", () => {
+      before("set merchant config to false", () => {
         const merchantId = globalState.get("merchantId");
         const key = `authentication_service_eligible_${merchantId}`;
         cy.setConfigs(globalState, key, "false", "CREATE");
@@ -295,4 +287,68 @@ describe("Authentication Service Eligibility", () => {
       );
     });
   });
+
+  context(
+    "Eligibility data storage enabled - data stored during UAS 3DS flow",
+    () => {
+      before("enable eligibility storage config", () => {
+        const merchantId = globalState.get("merchantId");
+        const key = `should_store_eligibility_check_data_for_authentication_${merchantId}`;
+        cy.setConfigs(globalState, key, "true", "CREATE");
+      });
+
+      it("should confirm 3DS payment with eligibility storage enabled", () => {
+        cy.log(
+          "Note: Redis storage of eligibility data cannot be directly asserted via Cypress API"
+        );
+        const data = getConnectorDetails(globalState.get("connectorId"))
+          .auth_service_eligibility.EligibilityStorageEnabled;
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+      });
+
+      after("cleanup eligibility storage config", () => {
+        const merchantId = globalState.get("merchantId");
+        const key = `should_store_eligibility_check_data_for_authentication_${merchantId}`;
+        cy.setConfigs(globalState, key, "true", "DELETE");
+      });
+    }
+  );
+
+  context(
+    "Eligibility data storage disabled - no data stored during UAS 3DS flow",
+    () => {
+      before("disable eligibility storage config", () => {
+        const merchantId = globalState.get("merchantId");
+        const key = `should_store_eligibility_check_data_for_authentication_${merchantId}`;
+        cy.setConfigs(globalState, key, "false", "CREATE");
+      });
+
+      it("should confirm 3DS payment with eligibility storage disabled", () => {
+        cy.log(
+          "Note: Redis storage of eligibility data cannot be directly asserted via Cypress API"
+        );
+        const data = getConnectorDetails(globalState.get("connectorId"))
+          .auth_service_eligibility.EligibilityStorageDisabled;
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+      });
+
+      after("cleanup eligibility storage config", () => {
+        const merchantId = globalState.get("merchantId");
+        const key = `should_store_eligibility_check_data_for_authentication_${merchantId}`;
+        cy.setConfigs(globalState, key, "false", "DELETE");
+      });
+    }
+  );
 });

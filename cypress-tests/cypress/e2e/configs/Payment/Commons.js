@@ -321,6 +321,17 @@ export const payment_methods_enabled = [
         recurring_enabled: true,
         installment_payment_enabled: true,
       },
+      {
+        payment_method_type: "bancontact_card",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
     ],
   },
   {
@@ -360,6 +371,39 @@ export const payment_methods_enabled = [
       },
       {
         payment_method_type: "instant_bank_transfer_poland",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+  {
+    payment_method: "bank_debit",
+    payment_method_types: [
+      {
+        payment_method_type: "ach",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "sepa",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "bacs",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "becs",
         minimum_amount: 1,
         maximum_amount: 68607706,
         recurring_enabled: true,
@@ -509,6 +553,22 @@ export const payment_methods_enabled = [
         recurring_enabled: false,
         installment_payment_enabled: false,
       },
+      {
+        payment_method_type: "mifinity",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "paypal",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
     ],
   },
   {
@@ -552,6 +612,17 @@ export const payment_methods_enabled = [
         recurring_enabled: false,
         installment_payment_enabled: false,
       },
+      {
+        payment_method_type: "pay_safe_card",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
     ],
   },
   {
@@ -566,6 +637,33 @@ export const payment_methods_enabled = [
         minimum_amount: 0,
         maximum_amount: 68607706,
         recurring_enabled: true,
+        installment_payment_enabled: false,
+      },
+    ],
+  },
+  {
+    payment_method: "pay_later",
+    payment_method_types: [
+      {
+        payment_method_type: "klarna",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "affirm",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
         installment_payment_enabled: false,
       },
     ],
@@ -701,48 +799,100 @@ export const connectorDetails = {
           },
         },
       }),
-    Ideal: getCustomExchange({
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "ideal",
-        payment_method_data: {
-          bank_redirect: {
-            ideal: {
-              bank_name: "ing",
+    Ideal: {
+      ...getCustomExchange({
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "ideal",
+          payment_method_data: {
+            bank_redirect: {
+              ideal: {
+                bank_name: "ing",
+                country: "NL",
+              },
+            },
+          },
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
               country: "NL",
+              first_name: "john",
+              last_name: "doe",
             },
           },
         },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "NL",
-            first_name: "john",
-            last_name: "doe",
+      }),
+      MandateSingleUseAutoCapture: getCustomExchange({
+        Request: {},
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
           },
         },
-      },
-    }),
-    OpenBankingUk: getCustomExchange({
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "open_banking_uk",
-        payment_method_data: {
-          bank_redirect: {
-            open_banking_uk: {
-              issuer: "citi",
-              country: "GB",
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+      }),
+    },
+    BancontactCard: {
+      ...getCustomExchange({
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "bancontact_card",
+          payment_method_data: {
+            bank_redirect: {
+              bancontact_card: {
+                card_number: "6703444444444449",
+                card_exp_month: "03",
+                card_exp_year: "2030",
+              },
             },
           },
+          billing: standardBillingAddress,
         },
-        billing: standardBillingAddress,
-      },
-    }),
+      }),
+      MandateSingleUseAutoCapture: getCustomExchange({
+        Request: {},
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+      }),
+    },
+    OpenBankingUk: {
+      ...getCustomExchange({
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "open_banking_uk",
+          payment_method_data: {
+            bank_redirect: {
+              open_banking_uk: {
+                issuer: "citi",
+                country: "GB",
+              },
+            },
+          },
+          billing: standardBillingAddress,
+        },
+      }),
+      MandateSingleUseAutoCapture: getCustomExchange({
+        Request: {},
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+      }),
+    },
     OnlineBankingFpx: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
@@ -902,6 +1052,25 @@ export const connectorDetails = {
         },
       },
     }),
+    Trustly: {
+      ...getCustomExchange({
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "trustly",
+          payment_method_data: {
+            bank_redirect: {
+              trustly: {
+                country: "NL",
+              },
+            },
+          },
+          billing: standardBillingAddress,
+        },
+      }),
+    },
   },
   bank_debit_pm: {
     PaymentIntent: (paymentMethodType) => {
@@ -918,7 +1087,7 @@ export const connectorDetails = {
         },
       });
     },
-    SepaDebit: getCustomExchange({
+    Sepa: getCustomExchange({
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "sepa",
@@ -1054,6 +1223,226 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
     }),
+    Mifinity: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "mifinity",
+        authentication_type: "no_three_ds",
+        billing: {
+          ...standardBillingAddress,
+          address: {
+            ...standardBillingAddress.address,
+            country: "GB",
+          },
+          phone: {
+            number: "1234567890",
+            country_code: "+44",
+          },
+          email: "test@example.com",
+        },
+        payment_method_data: {
+          wallet: {
+            mifinity: {
+              date_of_birth: "1990-01-01",
+              language_preference: "en",
+            },
+          },
+        },
+      },
+    }),
+    PaypalRedirect: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+        billing: standardBillingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    Skrill: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "skrill",
+        payment_method_data: {
+          wallet: {
+            skrill: {},
+          },
+        },
+      },
+    }),
+  },
+  pay_later_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: getCurrency(paymentMethodType),
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
+    Klarna: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "klarna",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            klarna_redirect: {
+              billing_email: "guest@juspay.in",
+              billing_country: "DE",
+            },
+          },
+        },
+        billing: {
+          email: "guest@juspay.in",
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+    }),
+    Affirm: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "affirm",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            affirm_redirect: {},
+          },
+        },
+        billing: {
+          email: "guest@juspay.in",
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+    }),
+    AutoCapture: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        capture_method: "automatic",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    ManualCapture: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        capture_method: "manual",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    AffirmManualCapture: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "affirm",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            affirm_redirect: {
+              billing_email: "guest@juspay.in",
+              billing_country: "US",
+            },
+          },
+        },
+        billing: {
+          email: "guest@juspay.in",
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056599999",
+            country_code: "+1",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+    }),
+    Capture: getCustomExchange({
+      Request: {
+        amount_to_capture: 6000,
+      },
+    }),
+    Refund: getCustomExchange({
+      Request: {
+        amount: 6000,
+      },
+    }),
+    PartialRefund: getCustomExchange({
+      Request: {
+        amount: 2000,
+      },
+    }),
+    SyncRefund: getCustomExchange({}),
   },
   real_time_payment_pm: {
     PaymentIntent: getCustomExchange({
@@ -1182,6 +1571,23 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
     }),
+    ExtendedCardInfo: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
     No3DSFailPayment: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -1248,6 +1654,38 @@ export const connectorDetails = {
         },
       },
     }),
+    PaymentIntentWithSessionExpiry: getCustomExchange({
+      Request: {
+        currency: "USD",
+        session_expiry: 60,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    SessionExpiredConfirmPayment: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "The provided client_secret has expired",
+            code: "IR_08",
+          },
+        },
+      },
+    }),
     Capture: getCustomExchange({
       Request: {
         amount_to_capture: 6000,
@@ -1256,6 +1694,27 @@ export const connectorDetails = {
     PartialCapture: getCustomExchange({
       Request: {
         amount_to_capture: 2000,
+      },
+    }),
+    MultipleCapture: getCustomExchange({
+      Request: {
+        amount_to_capture: 3000,
+      },
+    }),
+    MultipleCapturePartial: getCustomExchange({
+      Request: {
+        amount_to_capture: 2000,
+      },
+    }),
+    MultipleCaptureFinal: getCustomExchange({
+      Request: {
+        amount_to_capture: 2000,
+      },
+    }),
+    MultipleCaptureRetrieve: getCustomExchange({}),
+    MultipleCaptureOvercapture: getCustomExchange({
+      Request: {
+        amount_to_capture: 7000,
       },
     }),
     Void: getCustomExchange({
@@ -1324,6 +1783,120 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "pending",
+        },
+      },
+    }),
+    ManualRefundUpdate: getCustomExchange({
+      Request: {
+        status: "failed",
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    ManualRefundUpdateErrorCode: getCustomExchange({
+      Request: {
+        status: "failed",
+        error_code: {
+          set: "TEST_ERROR_CODE",
+        },
+        error_message: {
+          set: "Test error message for manual update",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    ManualRefundUpdatePartialRefund: getCustomExchange({
+      Request: {
+        status: "failed",
+        error_code: {
+          set: "PARTIAL_REFUND_FAILED",
+        },
+        error_message: {
+          set: "Partial refund failed via manual update",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    ManualRefundUpdateIdempotency: getCustomExchange({
+      Request: {
+        status: "failed",
+        error_code: {
+          set: "IDEMPOTENCY_TEST",
+        },
+        error_message: {
+          set: "First manual update for idempotency test",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    ManualRefundUpdateUnset: getCustomExchange({
+      Request: {
+        error_code: {
+          unset: null,
+        },
+        error_message: {
+          unset: null,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    SyncRefundManualUpdateFailed: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+        },
+      },
+    }),
+    SyncRefundManualUpdateErrorCode: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "TEST_ERROR_CODE",
+          error_message: "Test error message for manual update",
+        },
+      },
+    }),
+    SyncRefundManualUpdatePartialRefund: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "PARTIAL_REFUND_FAILED",
+          error_message: "Partial refund failed via manual update",
+        },
+      },
+    }),
+    SyncRefundManualUpdateIdempotency: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "IDEMPOTENCY_TEST",
+          error_message: "First manual update for idempotency test",
+        },
+      },
+    }),
+    SyncRefundManualUpdateUnset: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
         },
       },
     }),
@@ -1959,6 +2532,15 @@ export const connectorDetails = {
         },
       },
     }),
+    MITWithLimitedCardData: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
     PartnerMerchantIdentifier: getCustomExchange({
       Request: {
         currency: "USD",
@@ -2331,6 +2913,215 @@ export const connectorDetails = {
           eci: "05",
           transaction_status: "Y",
           exemption_indicator: "low_value",
+        },
+      },
+    }),
+    CardTestingGuard: {
+      FailConfirm: getCustomExchange({
+        Request: {
+          payment_method: "card",
+          payment_method_data: {
+            card: successfulNo3DSCardDetails,
+          },
+          customer_acceptance: null,
+          setup_future_usage: "on_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "failed",
+          },
+        },
+      }),
+      GuestFailConfirm: getCustomExchange({
+        Request: {
+          payment_method: "card",
+          payment_method_data: {
+            card: successfulNo3DSCardDetails,
+          },
+          customer_acceptance: null,
+        },
+        Response: {
+          status: 200,
+          expectBlockedPayment: true,
+          body: {
+            status: "failed",
+          },
+        },
+      }),
+      BlockedConfirm: getCustomExchange({
+        Request: {
+          payment_method: "card",
+          payment_method_data: {
+            card: successfulNo3DSCardDetails,
+          },
+          customer_acceptance: null,
+          setup_future_usage: "on_session",
+        },
+        Response: {
+          status: 400,
+          body: {
+            error: {
+              type: "invalid_request",
+              code: "IR_16",
+              message: "Blocked due to suspicious activity",
+            },
+          },
+        },
+      }),
+      GuestBlockedConfirm: getCustomExchange({
+        Request: {
+          payment_method: "card",
+          payment_method_data: {
+            card: successfulNo3DSCardDetails,
+          },
+          customer_acceptance: null,
+        },
+        Response: {
+          status: 400,
+          body: {
+            error: {
+              type: "invalid_request",
+              code: "IR_16",
+              message: "Blocked due to suspicious activity",
+            },
+          },
+        },
+      }),
+    },
+    L2L3Data: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        metadata: {
+          order_tax_amount: 500,
+          shipping_cost: 100,
+          order_po_number: "PO-12345",
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    UseBillingAsPaymentMethodBilling: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+      },
+    }),
+    UseBillingAsPaymentMethodBillingDisabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+      },
+    }),
+    ManualPaymentUpdate: getCustomExchange({
+      Request: {
+        attempt_status: "pending",
+        error_code: "TEST_ERROR",
+        error_message: "Manual test error message",
+      },
+      Response: {
+        status: 200,
+        body: {
+          attempt_status: "pending",
+        },
+      },
+    }),
+    ManualPaymentUpdateStatusOnly: getCustomExchange({
+      Request: {
+        attempt_status: "pending",
+      },
+      Response: {
+        status: 200,
+        body: {
+          attempt_status: "pending",
+        },
+      },
+    }),
+    OrderDetails: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    OrderDetailsMultipleItems: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        order_details: [
+          {
+            product_name: "Test Product 1",
+            quantity: 1,
+            amount: 3000,
+          },
+          {
+            product_name: "Test Product 2",
+            quantity: 2,
+            amount: 1500,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    OrderDetailsMissingProductName: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        order_details: [
+          {
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            error_type: "invalid_request",
+            code: "IR_06",
+          },
         },
       },
     }),
@@ -2730,6 +3521,46 @@ export const connectorDetails = {
         },
       },
     }),
+    // Storage flag does not affect authentication outcome — both enabled and
+    // disabled flows produce the same 3DS challenge. Distinction is only
+    // observable via Redis, which cannot be asserted through the API layer.
+    EligibilityStorageEnabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    // Storage flag does not affect authentication outcome — both enabled and
+    // disabled flows produce the same 3DS challenge. Distinction is only
+    // observable via Redis, which cannot be asserted through the API layer.
+    EligibilityStorageDisabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
   },
   Dispute: {
     ListDisputes: {
@@ -2979,6 +3810,368 @@ export const connectorDetails = {
         },
         currency: "USD",
         customer_acceptance: null,
+      },
+    }),
+    ConnectorTestingData: getCustomExchange({
+      Configs: { TRIGGER_SKIP: true },
+      Request: {},
+      Response: {
+        status: 200,
+        body: { status: "failed" },
+      },
+    }),
+    ConnectorTestingDataConfirm: getCustomExchange({
+      Configs: { TRIGGER_SKIP: true },
+      Request: {},
+      Response: {
+        status: 200,
+        body: { status: "failed" },
+      },
+    }),
+    PaySafeCard: getCustomExchange({
+      Request: {
+        payment_method: "gift_card",
+        payment_method_type: "pay_safe_card",
+        payment_method_data: {
+          gift_card: {
+            pay_safe_card: {},
+          },
+        },
+      },
+    }),
+  },
+  pm_collect_link: {
+    pmCollectLinkCreate: {
+      Request: {
+        return_url: "https://example.com/return",
+      },
+      Response: {
+        status: 200,
+      },
+    },
+    pmCollectLinkRender: {
+      Response: {
+        status: 200,
+      },
+    },
+    pmCollectLinkRenderNotFound: {
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_37",
+            message: "payment method collect link not found",
+          },
+        },
+      },
+    },
+  },
+  payment_link_pm: {
+    PaymentLinkBasic: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        description: "Test Payment Link",
+        email: "test@example.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+
+    PaymentLinkWithTheme: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 7000,
+        description: "Test with custom theme",
+        email: "test@example.com",
+        payment_link_config: {
+          theme: "#FF6B35",
+        },
+      },
+      Response: {
+        status: 200,
+      },
+    }),
+    PaymentLinkWithLogo: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        amount: 8000,
+        description: "Test with merchant logo",
+        email: "test@example.com",
+        payment_link_config: {
+          logo: "https://example.com/logo.png",
+          seller_name: "Test Merchant Inc",
+        },
+      },
+      Response: {
+        status: 200,
+      },
+    }),
+    PaymentLinkWithSdkLayout: getCustomExchange({
+      Request: {
+        currency: "GBP",
+        amount: 5500,
+        description: "Test with accordion layout",
+        email: "test@example.com",
+        payment_link_config: {
+          sdk_layout: "accordion",
+          display_sdk_only: false,
+        },
+      },
+      Response: {
+        status: 200,
+      },
+    }),
+    PaymentLinkCardPayment: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        description: "Test Payment Link Card Payment",
+        email: "test@example.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+      CardData: {
+        card_number: "4242424242424242",
+        card_exp_month: "12",
+        card_exp_year: "35",
+        card_cvc: "123",
+      },
+    }),
+    PaymentLink3DSCard: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        description: "Test Payment Link 3DS Card",
+        email: "test@example.com",
+        authentication_type: "three_ds",
+      },
+      CardData: {
+        card_number: "4000002500003155",
+        card_exp_month: "12",
+        card_exp_year: "35",
+        card_cvc: "123",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    }),
+    PaymentLinkTabsLayout: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        amount: 6500,
+        description: "Test with tabs layout",
+        email: "test@example.com",
+        payment_link_config: {
+          sdk_layout: "tabs",
+          display_sdk_only: false,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+      CardData: {
+        card_number: "4242424242424242",
+        card_exp_month: "12",
+        card_exp_year: "35",
+        card_cvc: "123",
+      },
+    }),
+  },
+  relay_pm: {
+    RefundRelay: {
+      Request: {
+        type: "refund",
+        data: {
+          refund: {
+            amount: 1000,
+            currency: "USD",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          type: "refund",
+        },
+      },
+    },
+    CaptureRelay: {
+      Request: {
+        type: "capture",
+        data: {
+          capture: {
+            authorized_amount: 2000,
+            amount_to_capture: 1500,
+            currency: "USD",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          type: "capture",
+        },
+      },
+    },
+    RetrieveRelay: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          type: "refund",
+        },
+      },
+    },
+    RetrieveCaptureRelay: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          type: "capture",
+        },
+      },
+    },
+    MissingConnectorId: {
+      Request: {
+        connector_resource_id: "test_connector_resource_id",
+        type: "refund",
+        data: {
+          refund: {
+            amount: 1000,
+            currency: "USD",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            message: "Json deserialize error: missing field `connector_id`",
+            code: "IR_06",
+          },
+        },
+      },
+    },
+    InvalidRelayType: {
+      Request: {
+        connector_resource_id: "test_connector_resource_id",
+        connector_id: "test_connector_id",
+        type: "invalid_type",
+        data: {
+          refund: {
+            amount: 1000,
+            currency: "USD",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            message: "Json deserialize error: unknown variant `invalid_type`",
+            code: "IR_06",
+          },
+        },
+      },
+    },
+    RelayNotFound: {
+      Request: {},
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            code: "IR_37",
+            message: "relay not found",
+          },
+        },
+      },
+    },
+  },
+  step_up_auth: {
+    PaymentIntentOnly: getCustomExchange({
+      Request: {
+        currency: "USD",
+        authentication_type: "three_ds",
+        request_external_three_ds_authentication: true,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    ConfirmPayment: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        authentication_type: "three_ds",
+        request_external_three_ds_authentication: true,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    ThreeDSAuthentication: getCustomExchange({
+      Request: {
+        device_channel: "BRW",
+        threeds_method_comp_ind: "Y",
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    ThreeDSAuthenticationUnconfirmed: getCustomExchange({
+      Request: {
+        device_channel: "BRW",
+        threeds_method_comp_ind: "Y",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_16",
+            message:
+              "You cannot authenticate this payment because payment_attempt.external_three_ds_authentication_attempted is false",
+          },
+        },
+      },
+    }),
+    AuthorizeAfterFrictionlessAuth: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
       },
     }),
   },

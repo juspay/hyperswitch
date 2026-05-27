@@ -65,7 +65,8 @@
                       "v2/payment-methods/payment-method--update-v1",
                       "v2/payment-methods/payment-method--delete-v1",
                       "v2/payment-methods/payment-method--list-customer-saved-payment-methods-v1",
-                      "v2/payment-methods/payment-method--payment-method-token-to-payment-method-id-v1"
+                      "v2/payment-methods/payment-method--payment-method-token-to-payment-method-id-v1",
+                      "v2/payment-methods/payment-method--set-default-payment-method-for-customer-v1"
                     ]
                   },
                   {
@@ -263,7 +264,10 @@
                       "v1/blocklist/get-blocklist",
                       "v1/blocklist/post-blocklist",
                       "v1/blocklist/delete-blocklist",
-                      "v1/blocklist/post-blocklisttoggle"
+                      "v1/blocklist/post-blocklisttoggle",
+                      "v1/blocklist/blocklist--batch-upload",
+                      "v1/blocklist/blocklist--batch-list",
+                      "v1/blocklist/blocklist--batch-status"
                     ]
                   },
                   {

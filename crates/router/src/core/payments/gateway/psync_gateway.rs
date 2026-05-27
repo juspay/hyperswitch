@@ -112,10 +112,11 @@ where
                     .clone()
                     .map(|raw_connector_response| raw_connector_response.expose().into());
                 router_data.connector_http_status_code = Some(status_code);
-
+                router_data.sender_payment_instrument_id =
+                    payment_get_response.sender_payment_instrument_id.clone();
                 Ok(router_data.clone())
             }
-            CallConnectorAction::UCSHandleResponse(_) | CallConnectorAction::Trigger => {
+            CallConnectorAction::Trigger => {
                 let connector_name = router_data.connector.clone();
                 let connector_enum =
                     common_enums::connector_enums::Connector::from_str(&connector_name)
@@ -151,12 +152,9 @@ where
                     .attach_printable("Failed to fetch Unified Connector Service client")?;
 
                 let payment_get_request =
-                    payments_grpc::PaymentServiceGetRequest::foreign_try_from((
-                        router_data,
-                        call_connector_action,
-                    ))
-                    .change_context(ConnectorError::RequestEncodingFailed)
-                    .attach_printable("Failed to construct Payment Get Request")?;
+                    payments_grpc::PaymentServiceGetRequest::foreign_try_from(router_data)
+                        .change_context(ConnectorError::RequestEncodingFailed)
+                        .attach_printable("Failed to construct Payment Get Request")?;
 
                 let connector_auth_metadata =
                     unified_connector_service::build_unified_connector_service_auth_metadata(
@@ -238,7 +236,8 @@ where
                             .clone()
                             .map(|raw_connector_response| raw_connector_response.expose().into());
                         router_data.connector_http_status_code = Some(status_code);
-
+                        router_data.sender_payment_instrument_id =
+                            payment_get_response.sender_payment_instrument_id.clone();
                         Ok((router_data, (), payment_get_response))
                     },
                 ))

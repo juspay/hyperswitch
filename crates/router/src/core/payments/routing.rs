@@ -1,3 +1,4 @@
+use hyperswitch_domain_models::mandates;
 mod transformers;
 pub mod utils;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -248,10 +249,10 @@ pub fn make_dsl_input(
                     .mandate_type
                     .clone()
                     .map(|mandate_type| match mandate_type {
-                        hyperswitch_domain_models::mandates::MandateDataType::SingleUse(_) => {
+                        mandates::MandateDataType::SingleUse(_) => {
                             euclid_enums::MandateType::SingleUse
                         }
-                        hyperswitch_domain_models::mandates::MandateDataType::MultiUse(_) => {
+                        mandates::MandateDataType::MultiUse(_) => {
                             euclid_enums::MandateType::MultiUse
                         }
                     })
@@ -371,12 +372,8 @@ pub fn make_dsl_input(
             .as_ref()
             .and_then(|mandate_data| {
                 mandate_data.mandate_type.clone().map(|mt| match mt {
-                    hyperswitch_domain_models::mandates::MandateDataType::SingleUse(_) => {
-                        euclid_enums::MandateType::SingleUse
-                    }
-                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(_) => {
-                        euclid_enums::MandateType::MultiUse
-                    }
+                    mandates::MandateDataType::SingleUse(_) => euclid_enums::MandateType::SingleUse,
+                    mandates::MandateDataType::MultiUse(_) => euclid_enums::MandateType::MultiUse,
                 })
             }),
         payment_type: Some(
@@ -1549,10 +1546,12 @@ impl RoutingStage for HybridRoutingStage {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v1")]
 pub async fn perform_hybrid_routing_if_enabled(
     state: &SessionState,
     business_profile: &domain::Profile,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     payment_dsl_input: &routing::PaymentsDslInput<'_>,
     backend_input: &backend::BackendInput,
     fallback_config: &[routing_types::RoutableConnectorChoice],
@@ -1574,8 +1573,8 @@ pub async fn perform_hybrid_routing_if_enabled(
     };
 
     let is_decision_engine_cutover_enabled = matches!(
-        utils::get_routing_result_source(state, business_profile).await,
-        Some(api_models::routing::RoutingResultSource::DecisionEngine)
+        utils::get_routing_result_source(state, dimensions).await,
+        api_models::routing::RoutingResultSource::DecisionEngine
     );
 
     if is_decision_engine_cutover_enabled {
@@ -1641,6 +1640,7 @@ pub async fn static_routing_v1(
 pub async fn perform_static_routing_v1(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     algorithm_id: Option<&common_utils::id_type::RoutingId>,
     business_profile: &domain::Profile,
     transaction_data: &routing::TransactionData<'_>,
@@ -1766,6 +1766,7 @@ pub async fn perform_static_routing_v1(
     Ok((
         utils::select_routing_result(
             state,
+            dimensions,
             business_profile,
             routable_connectors,
             de_evaluated_connector,

@@ -723,6 +723,16 @@ impl EventInterface for KafkaStore {
             .await
     }
 
+    async fn find_event_by_event_id(
+        &self,
+        event_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Event, errors::StorageError> {
+        self.diesel_store
+            .find_event_by_event_id(event_id, merchant_key_store)
+            .await
+    }
+
     async fn find_event_by_merchant_id_event_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -744,6 +754,46 @@ impl EventInterface for KafkaStore {
             .find_event_by_merchant_id_idempotent_event_id(
                 merchant_id,
                 idempotent_event_id,
+                merchant_key_store,
+            )
+            .await
+    }
+
+    async fn find_event_by_initiator_merchant_id_idempotent_event_id(
+        &self,
+        initiator_merchant_id: &id_type::MerchantId,
+        idempotent_event_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Event, errors::StorageError> {
+        self.diesel_store
+            .find_event_by_initiator_merchant_id_idempotent_event_id(
+                initiator_merchant_id,
+                idempotent_event_id,
+                merchant_key_store,
+            )
+            .await
+    }
+
+    async fn list_initial_events_by_initiator_merchant_id_constraints(
+        &self,
+        initiator_merchant_id: &id_type::MerchantId,
+        created_after: PrimitiveDateTime,
+        created_before: PrimitiveDateTime,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        event_types: HashSet<common_enums::EventType>,
+        is_delivered: Option<bool>,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_initial_events_by_initiator_merchant_id_constraints(
+                initiator_merchant_id,
+                created_after,
+                created_before,
+                limit,
+                offset,
+                event_types,
+                is_delivered,
                 merchant_key_store,
             )
             .await
@@ -774,6 +824,21 @@ impl EventInterface for KafkaStore {
             .await
     }
 
+    async fn list_events_by_initiator_merchant_id_initial_attempt_id(
+        &self,
+        initial_attempt_id: &str,
+        initiator_merchant_id: &id_type::MerchantId,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_events_by_initiator_merchant_id_initial_attempt_id(
+                initial_attempt_id,
+                initiator_merchant_id,
+                merchant_key_store,
+            )
+            .await
+    }
+
     async fn list_events_by_merchant_id_initial_attempt_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -784,6 +849,23 @@ impl EventInterface for KafkaStore {
             .list_events_by_merchant_id_initial_attempt_id(
                 merchant_id,
                 initial_attempt_id,
+                merchant_key_store,
+            )
+            .await
+    }
+
+    async fn list_initial_events_by_initiator_merchant_id_primary_object_id(
+        &self,
+        initiator_merchant_id: &id_type::MerchantId,
+        primary_object_id: &str,
+        profile_id: Option<id_type::ProfileId>,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_initial_events_by_initiator_merchant_id_primary_object_id(
+                initiator_merchant_id,
+                primary_object_id,
+                profile_id,
                 merchant_key_store,
             )
             .await
@@ -874,6 +956,17 @@ impl EventInterface for KafkaStore {
             .await
     }
 
+    async fn update_event_by_event_id(
+        &self,
+        event_id: &str,
+        event: domain::EventUpdate,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Event, errors::StorageError> {
+        self.diesel_store
+            .update_event_by_event_id(event_id, event, merchant_key_store)
+            .await
+    }
+
     async fn update_event_by_merchant_id_event_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -883,6 +976,46 @@ impl EventInterface for KafkaStore {
     ) -> CustomResult<domain::Event, errors::StorageError> {
         self.diesel_store
             .update_event_by_merchant_id_event_id(merchant_id, event_id, event, merchant_key_store)
+            .await
+    }
+
+    async fn count_initial_events_by_profile_id_constraints(
+        &self,
+        profile_id: &id_type::ProfileId,
+        created_after: PrimitiveDateTime,
+        created_before: PrimitiveDateTime,
+        event_types: HashSet<common_enums::EventType>,
+        is_delivered: Option<bool>,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .count_initial_events_by_profile_id_constraints(
+                profile_id,
+                created_after,
+                created_before,
+                event_types,
+                is_delivered,
+            )
+            .await
+    }
+
+    async fn count_initial_events_by_initiator_merchant_id_constraints(
+        &self,
+        initiator_merchant_id: &id_type::MerchantId,
+        profile_id: Option<id_type::ProfileId>,
+        created_after: PrimitiveDateTime,
+        created_before: PrimitiveDateTime,
+        event_types: HashSet<common_enums::EventType>,
+        is_delivered: Option<bool>,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .count_initial_events_by_initiator_merchant_id_constraints(
+                initiator_merchant_id,
+                profile_id,
+                created_after,
+                created_before,
+                event_types,
+                is_delivered,
+            )
             .await
     }
 
@@ -1040,13 +1173,16 @@ impl PaymentLinkInterface for KafkaStore {
             .await
     }
 
-    async fn list_payment_link_by_merchant_id(
+    async fn list_payment_link_by_processor_merchant_id(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         payment_link_constraints: api_models::payments::PaymentLinkListConstraints,
     ) -> CustomResult<Vec<storage::PaymentLink>, errors::StorageError> {
         self.diesel_store
-            .list_payment_link_by_merchant_id(merchant_id, payment_link_constraints)
+            .list_payment_link_by_processor_merchant_id(
+                processor_merchant_id,
+                payment_link_constraints,
+            )
             .await
     }
 }
@@ -2470,6 +2606,17 @@ impl PayoutAttemptInterface for KafkaStore {
             .get_filters_for_payouts(payouts, merchant_id, storage_scheme)
             .await
     }
+
+    async fn find_payout_attempts_by_merchant_id_payout_id(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        payout_id: &id_type::PayoutId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<storage::PayoutAttempt>, errors::StorageError> {
+        self.diesel_store
+            .find_payout_attempts_by_merchant_id_payout_id(merchant_id, payout_id, storage_scheme)
+            .await
+    }
 }
 
 #[cfg(not(feature = "payouts"))]
@@ -2585,6 +2732,7 @@ impl PayoutsInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         active_payout_ids: &[id_type::PayoutId],
+        profile_id_list: Option<Vec<id_type::ProfileId>>,
         connector: Option<Vec<api_models::enums::PayoutConnectors>>,
         currency: Option<Vec<enums::Currency>>,
         status: Option<Vec<enums::PayoutStatus>>,
@@ -2594,6 +2742,7 @@ impl PayoutsInterface for KafkaStore {
             .get_total_count_of_filtered_payouts(
                 merchant_id,
                 active_payout_ids,
+                profile_id_list,
                 connector,
                 currency,
                 status,
