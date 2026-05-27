@@ -16,7 +16,7 @@ pub use api_models::{
     payments::{
         Address, AddressDetails, Amount, ApplepayPaymentMethod, AuthenticationForStartResponse,
         Card, CryptoData, CustomerDetails, CustomerDetailsResponse, HyperswitchVaultSessionDetails,
-        MandateAmountData, MandateData, MandateTransactionType, MandateType,
+        InternalVaultSessionDetails, MandateAmountData, MandateData, MandateTransactionType, MandateType,
         MandateValidationFields, NextActionType, OpenBankingSessionToken, PayLaterData,
         PaymentIdType, PaymentListConstraints, PaymentListFilters, PaymentListFiltersV2,
         PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp,
@@ -30,11 +30,10 @@ pub use api_models::{
         PaymentsRequest, PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest,
         PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
         PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse, PgRedirectResponse,
-        PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VaultSessionDetails,
-        VerifyRequest, VerifyResponse, VgsSessionDetails, WalletData,
+        PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VaultDetails,
+        VaultSessionDetails, VerifyRequest, VerifyResponse, VgsSessionDetails, WalletData,
     },
 };
-pub use api_models::payments::{InternalVaultSessionDetails, VaultDetails};
 pub use common_types::payments::{AcceptanceType, CustomerAcceptance, OnlineMandate};
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{

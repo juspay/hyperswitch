@@ -6196,7 +6196,7 @@ pub async fn payment_methods_session_update(
         None,
         None,
         None,
-        None
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
