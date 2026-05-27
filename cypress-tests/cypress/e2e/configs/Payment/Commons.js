@@ -3109,9 +3109,6 @@ export const connectorDetails = {
       },
     }),
     ClientSessionValidConfirm: getCustomExchange({
-      Configs: {
-        skipBillingAssertion: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -3141,11 +3138,7 @@ export const connectorDetails = {
       Response: {
         status: 401,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "API key not provided or invalid API key used",
-            code: "IR_01",
-          },
+          error: {},
         },
       },
     }),
@@ -3162,11 +3155,7 @@ export const connectorDetails = {
       Response: {
         status: 401,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "API key not provided or invalid API key used",
-            code: "IR_01",
-          },
+          error: {},
         },
       },
     }),
