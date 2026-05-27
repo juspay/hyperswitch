@@ -1,3 +1,12 @@
+/**
+ * Helper to set up a 3DS payment intent + confirm so that signature/redirect
+ * verification tests (in 52-PaymentResponseHash.cy.js) can reuse the same flow.
+ *
+ * Separating the setup here avoids duplicating create-payment + confirm logic
+ * across multiple test contexts.  The caller can choose whether the helper should
+ * also perform the browser redirection step (default true) or skip it so the
+ * test can inspect the `next_action.redirect_to_url` directly.
+ */
 import * as fixtures from "../fixtures/imports";
 import getConnectorDetails, * as utils from "../e2e/configs/Payment/Utils";
 

@@ -9714,7 +9714,7 @@ Cypress.Commands.add("assertPaymentResponseHashEnabled", (globalState) => {
 Cypress.Commands.add("verifyRedirectSignature", (globalState) => {
   const paymentId = globalState.get("paymentID");
   const baseUrl = globalState.get("baseUrl");
-  const publishableKey = globalState.get("publishableKey");
+  const apiKey = globalState.get("apiKey");
   const url = `${baseUrl}/payments/${paymentId}`;
 
   cy.request({
@@ -9722,7 +9722,7 @@ Cypress.Commands.add("verifyRedirectSignature", (globalState) => {
     url,
     headers: {
       "Content-Type": "application/json",
-      "api-key": publishableKey,
+      "api-key": apiKey,
     },
     failOnStatusCode: false,
   }).then((retrieveResponse) => {
@@ -9774,8 +9774,8 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
   ).to.be.a("string").and.not.be.empty;
 
   const paymentId = globalState.get("paymentID");
-  const publishableKey = globalState.get("publishableKey");
   const baseUrl = globalState.get("baseUrl");
+  const apiKey = globalState.get("apiKey");
   const url = `${baseUrl}/payments/${paymentId}`;
 
   cy.request({
@@ -9783,7 +9783,7 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
     url,
     headers: {
       "Content-Type": "application/json",
-      "api-key": publishableKey,
+      "api-key": apiKey,
     },
     failOnStatusCode: false,
   }).then((paymentResponse) => {
