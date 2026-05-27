@@ -690,3 +690,25 @@ function coerceValue(value, type) {
       return value;
   }
 }
+
+// Local sandbox returns null card metadata (card_type, card_network, card_issuer,
+// card_issuing_country) for payments under the tax-specific business profile.
+// Override at spec level via withNullCardMetadata() to match actual response
+// without modifying the base connector config used by other specs.
+export const NULL_CARD_METADATA = {
+  card_type: null,
+  card_network: null,
+  card_issuer: null,
+  card_issuing_country: null,
+};
+
+export function withNullCardMetadata(data) {
+  const cloned = JSON.parse(JSON.stringify(data));
+  if (cloned?.Response?.body?.payment_method_data?.card) {
+    Object.assign(
+      cloned.Response.body.payment_method_data.card,
+      NULL_CARD_METADATA
+    );
+  }
+  return cloned;
+}
