@@ -1967,7 +1967,7 @@ impl CommonMandateReference {
 
 #[cfg(feature = "v1")]
 fn should_update_key(record: &serde_json::Map<String, serde_json::Value>, key: &str) -> bool {
-    !record.contains_key(key) || record.get(key).map_or(false, serde_json::Value::is_null)
+    !record.contains_key(key) || record.get(key).is_some_and(serde_json::Value::is_null)
 }
 
 #[cfg(feature = "v1")]

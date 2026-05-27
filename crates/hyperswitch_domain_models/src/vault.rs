@@ -539,7 +539,6 @@ impl From<payment_methods::Card> for PaymentMethodVaultingData {
             card_network,
             nick_name: card.nick_name.map(hyperswitch_masking::Secret::new),
             card_issuing_country: None,
-            card_issuing_country_code: None,
             card_issuer: None,
             card_type: None,
         })

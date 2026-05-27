@@ -27,15 +27,6 @@ struct ForwardCompatVaultFingerprintRequest {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, serde::Serialize)]
-struct ForwardCompatAddVaultRequest<'a, D> {
-    entity_id: String,
-    vault_id: crate::types::domain::VaultId,
-    data: &'a D,
-    ttl: i64,
-}
-
-#[cfg(feature = "v1")]
 fn is_forward_compat_complete(payment_method: &crate::types::domain::PaymentMethod) -> bool {
     payment_method.version == common_enums::ApiVersion::V2
         && payment_method.compatibility_updated_at == Some(payment_method.last_modified)
@@ -79,8 +70,8 @@ async fn upsert_payment_method_to_generic_vault(
     vault_id: crate::types::domain::VaultId,
     data: &hyperswitch_domain_models::vault::PaymentMethodVaultingData,
 ) -> Result<(), errors::ProcessTrackerError> {
-    let payload = ForwardCompatAddVaultRequest {
-        entity_id: customer_id.get_string_repr().to_owned(),
+    let payload = pm_types::AddCompatVaultRequest {
+        entity_id: customer_id.clone(),
         vault_id,
         data,
         ttl: state.conf.locker.ttl_for_storage_in_secs,
@@ -233,28 +224,11 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
                         .await?,
                     );
 
-                    // Step 5: Upsert the card into generic locker via direct AddVault call.
-                    let payload = pm_types::AddCompatVaultRequest {
-                        entity_id: customer_id.clone(),
-                        vault_id: crate::types::domain::VaultId::generate(card_reference),
-                        data: &pmd,
-                        ttl: state.conf.locker.ttl_for_storage_in_secs,
-                    }
-                    .encode_to_vec()
-                    .change_context(errors::VaultError::RequestEncodingFailed)
-                    .attach_printable("Failed to encode AddVaultRequest")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Failed to add payment method in generic locker in compatibility PT",
-                    )?;
-
-                    let query_params =
-                        Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Upsert));
-
-                    let resp = upsert_payment_method_to_generic_vault(
+                    let vault_id = crate::types::domain::VaultId::generate(card_reference);
+                    upsert_payment_method_to_generic_vault(
                         state,
                         &customer_id,
-                        crate::types::domain::VaultId::generate(card_reference),
+                        vault_id,
                         &pmd,
                     )
                     .await?;
