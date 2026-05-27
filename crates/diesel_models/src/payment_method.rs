@@ -403,6 +403,7 @@ pub enum PaymentMethodUpdate {
     PopulateLegacyCompatFields {
         payment_method: Option<storage_enums::PaymentMethod>,
         payment_method_type: Option<storage_enums::PaymentMethodType>,
+        connector_mandate_details: Option<CommonMandateReference>,
         last_modified_by: Option<String>,
     },
 }
@@ -1105,35 +1106,39 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 payment_method_type,
                 connector_mandate_details,
                 last_modified_by,
-            } => Self {
-                metadata: None,
-                payment_method_data: None,
-                last_used_at: None,
-                network_transaction_id: None,
-                network_transaction_link_id: None,
-                status: None,
-                locker_id: None,
-                locker_fingerprint_id: None,
-                network_token_requestor_reference_id: None,
-                payment_method,
-                connector_mandate_details,
-                updated_by: None,
-                payment_method_issuer: None,
-                payment_method_type,
-                last_modified: common_utils::date_time::now(),
-                network_token_locker_id: None,
-                network_token_payment_method_data: None,
-                scheme: None,
-                last_modified_by,
-                customer_details: None,
-                network_tokenization_data: None,
-                payment_method_type_v2: None,
-                payment_method_subtype: None,
-                id: None,
-                version: None,
-                compatibility_updated_at: None,
-                auxiliary_fingerprint_id: None,
-            },
+            } => {
+                let now = common_utils::date_time::now();
+
+                Self {
+                    metadata: None,
+                    payment_method_data: None,
+                    last_used_at: None,
+                    network_transaction_id: None,
+                    network_transaction_link_id: None,
+                    status: None,
+                    locker_id: None,
+                    locker_fingerprint_id: None,
+                    network_token_requestor_reference_id: None,
+                    payment_method,
+                    connector_mandate_details,
+                    updated_by: None,
+                    payment_method_issuer: None,
+                    payment_method_type,
+                    last_modified: now,
+                    network_token_locker_id: None,
+                    network_token_payment_method_data: None,
+                    scheme: None,
+                    last_modified_by,
+                    customer_details: None,
+                    network_tokenization_data: None,
+                    payment_method_type_v2: None,
+                    payment_method_subtype: None,
+                    id: None,
+                    version: None,
+                    compatibility_updated_at: Some(now),
+                    auxiliary_fingerprint_id: None,
+                }
+            }
         }
     }
 }
@@ -1369,6 +1374,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
             PaymentMethodUpdate::PopulateLegacyCompatFields {
                 payment_method,
                 payment_method_type,
+                connector_mandate_details,
                 last_modified_by,
             } => Self {
                 payment_method_data: None,
@@ -1380,7 +1386,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 payment_method,
                 payment_method_type,
                 payment_method_type_v2: None,
-                connector_mandate_details: None,
+                connector_mandate_details,
                 updated_by: None,
                 payment_method_subtype: None,
                 last_modified: now,
@@ -1688,6 +1694,12 @@ impl CommonMandateReference {
             .transpose()
             .change_context(ParsingError::StructParseFailure("payout mandate details"))?;
 
+        #[cfg(feature = "v2")]
+        {
+            payments = Self::add_v1_connector_mandate_fields(Some(payments))
+                .unwrap_or_else(|| serde_json::json!({}));
+        }
+
         Ok(payments)
     }
 
@@ -1803,67 +1815,28 @@ impl CommonMandateReference {
     ) -> Option<serde_json::Value> {
         let mut connector_mandate_details = connector_mandate_details?;
 
-        let payment_connector_references = connector_mandate_details.as_object_mut();
-
-        if let Some(payment_connector_references) = payment_connector_references {
-            let connector_ids = payment_connector_references
-                .keys()
-                .cloned()
-                .collect::<Vec<_>>();
-
-            for connector_id in connector_ids {
-                if connector_id == "payouts" {
-                    continue;
-                }
-
-                if let Some(connector_reference) = payment_connector_references
-                    .get_mut(&connector_id)
-                    .and_then(|reference| reference.as_object_mut())
-                {
-                    add_if_missing_key(
-                        connector_reference,
-                        "connector_mandate_id",
-                        "connector_token",
-                    );
-                    add_if_missing_key(
-                        connector_reference,
-                        "payment_method_type",
-                        "payment_method_subtype",
-                    );
-                    add_if_missing_key(
-                        connector_reference,
-                        "connector_mandate_request_reference_id",
-                        "connector_token_request_reference_id",
-                    );
-
-                    if should_update_key(connector_reference, "connector_token_status") {
-                        if let Some(legacy_status) =
-                            connector_reference.get("connector_mandate_status")
-                        {
-                            if let Some(legacy_status) = legacy_status.as_str() {
-                                let token_status = match legacy_status.to_ascii_lowercase().as_str()
-                                {
-                                    "active" => serde_json::to_value(
-                                        common_enums::ConnectorTokenStatus::Active,
-                                    )
-                                    .ok(),
-                                    "inactive" => serde_json::to_value(
-                                        common_enums::ConnectorTokenStatus::Inactive,
-                                    )
-                                    .ok(),
-                                    _ => None,
-                                };
-
-                                if let Some(token_status) = token_status {
-                                    connector_reference
-                                        .insert("connector_token_status".to_string(), token_status);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        update_payment_connector_references(
+            &mut connector_mandate_details,
+            |connector_reference| {
+                add_alias_fields(
+                    connector_reference,
+                    &[
+                        ("connector_mandate_id", "connector_token"),
+                        ("payment_method_type", "payment_method_subtype"),
+                        (
+                            "connector_mandate_request_reference_id",
+                            "connector_token_request_reference_id",
+                        ),
+                    ],
+                );
+                add_status_alias(
+                    connector_reference,
+                    "connector_mandate_status",
+                    "connector_token_status",
+                    connector_token_status_from_mandate_status,
+                );
+            },
+        );
 
         Some(connector_mandate_details)
     }
@@ -1872,75 +1845,34 @@ impl CommonMandateReference {
     ///
     /// This keeps new keys in place and only augments each payment connector entry with
     /// V1-specific keys when missing.
-    #[cfg(feature = "v1")]
+    #[cfg(any(feature = "v1", feature = "v2"))]
     pub fn add_v1_connector_mandate_fields(
         connector_mandate_details: Option<serde_json::Value>,
     ) -> Option<serde_json::Value> {
         let mut connector_mandate_details = connector_mandate_details?;
 
-        let payment_connector_references = connector_mandate_details.as_object_mut();
-
-        if let Some(payment_connector_references) = payment_connector_references {
-            let connector_ids = payment_connector_references
-                .keys()
-                .cloned()
-                .collect::<Vec<_>>();
-
-            for connector_id in connector_ids {
-                if connector_id == "payouts" {
-                    continue;
-                }
-
-                if let Some(connector_reference) = payment_connector_references
-                    .get_mut(&connector_id)
-                    .and_then(|reference| reference.as_object_mut())
-                {
-                    add_if_missing_key(
-                        connector_reference,
-                        "connector_token",
-                        "connector_mandate_id",
-                    );
-                    add_if_missing_key(
-                        connector_reference,
-                        "payment_method_subtype",
-                        "payment_method_type",
-                    );
-                    add_if_missing_key(
-                        connector_reference,
-                        "connector_token_request_reference_id",
-                        "connector_mandate_request_reference_id",
-                    );
-
-                    if should_update_key(connector_reference, "connector_mandate_status") {
-                        if let Some(token_status) =
-                            connector_reference.get("connector_token_status")
-                        {
-                            if let Some(token_status) = token_status.as_str() {
-                                let mandate_status =
-                                    match token_status.to_ascii_lowercase().as_str() {
-                                        "active" => serde_json::to_value(
-                                            common_enums::ConnectorMandateStatus::Active,
-                                        )
-                                        .ok(),
-                                        "inactive" => serde_json::to_value(
-                                            common_enums::ConnectorMandateStatus::Inactive,
-                                        )
-                                        .ok(),
-                                        _ => None,
-                                    };
-
-                                if let Some(mandate_status) = mandate_status {
-                                    connector_reference.insert(
-                                        "connector_mandate_status".to_string(),
-                                        mandate_status,
-                                    );
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        update_payment_connector_references(
+            &mut connector_mandate_details,
+            |connector_reference| {
+                add_alias_fields(
+                    connector_reference,
+                    &[
+                        ("connector_token", "connector_mandate_id"),
+                        ("payment_method_subtype", "payment_method_type"),
+                        (
+                            "connector_token_request_reference_id",
+                            "connector_mandate_request_reference_id",
+                        ),
+                    ],
+                );
+                add_status_alias(
+                    connector_reference,
+                    "connector_token_status",
+                    "connector_mandate_status",
+                    connector_mandate_status_from_token_status,
+                );
+            },
+        );
 
         Some(connector_mandate_details)
     }
@@ -1965,12 +1897,88 @@ impl CommonMandateReference {
     }
 }
 
+#[cfg(any(feature = "v1", feature = "v2"))]
+fn update_payment_connector_references(
+    connector_mandate_details: &mut serde_json::Value,
+    mut update_connector_reference: impl FnMut(&mut serde_json::Map<String, serde_json::Value>),
+) {
+    let Some(payment_connector_references) = connector_mandate_details.as_object_mut() else {
+        return;
+    };
+
+    let connector_ids = payment_connector_references
+        .keys()
+        .filter(|connector_id| connector_id.as_str() != "payouts")
+        .cloned()
+        .collect::<Vec<_>>();
+
+    for connector_id in connector_ids {
+        if let Some(connector_reference) = payment_connector_references
+            .get_mut(&connector_id)
+            .and_then(serde_json::Value::as_object_mut)
+        {
+            update_connector_reference(connector_reference);
+        }
+    }
+}
+
+#[cfg(any(feature = "v1", feature = "v2"))]
+fn add_alias_fields(
+    connector_reference: &mut serde_json::Map<String, serde_json::Value>,
+    aliases: &[(&str, &str)],
+) {
+    aliases.iter().for_each(|(source_key, destination_key)| {
+        add_if_missing_key(connector_reference, source_key, destination_key)
+    });
+}
+
+#[cfg(any(feature = "v1", feature = "v2"))]
+fn add_status_alias(
+    connector_reference: &mut serde_json::Map<String, serde_json::Value>,
+    source_key: &str,
+    destination_key: &str,
+    status_alias: impl FnOnce(&str) -> Option<serde_json::Value>,
+) {
+    if !should_update_key(connector_reference, destination_key) {
+        return;
+    }
+
+    let Some(status) = connector_reference
+        .get(source_key)
+        .and_then(serde_json::Value::as_str)
+    else {
+        return;
+    };
+
+    if let Some(status_alias) = status_alias(status) {
+        connector_reference.insert(destination_key.to_string(), status_alias);
+    }
+}
+
 #[cfg(feature = "v1")]
+fn connector_token_status_from_mandate_status(status: &str) -> Option<serde_json::Value> {
+    match status.to_ascii_lowercase().as_str() {
+        "active" => serde_json::to_value(common_enums::ConnectorTokenStatus::Active).ok(),
+        "inactive" => serde_json::to_value(common_enums::ConnectorTokenStatus::Inactive).ok(),
+        _ => None,
+    }
+}
+
+#[cfg(any(feature = "v1", feature = "v2"))]
+fn connector_mandate_status_from_token_status(status: &str) -> Option<serde_json::Value> {
+    match status.to_ascii_lowercase().as_str() {
+        "active" => serde_json::to_value(common_enums::ConnectorMandateStatus::Active).ok(),
+        "inactive" => serde_json::to_value(common_enums::ConnectorMandateStatus::Inactive).ok(),
+        _ => None,
+    }
+}
+
+#[cfg(any(feature = "v1", feature = "v2"))]
 fn should_update_key(record: &serde_json::Map<String, serde_json::Value>, key: &str) -> bool {
     !record.contains_key(key) || record.get(key).is_some_and(serde_json::Value::is_null)
 }
 
-#[cfg(feature = "v1")]
+#[cfg(any(feature = "v1", feature = "v2"))]
 fn add_if_missing_key(
     connector_reference: &mut serde_json::Map<String, serde_json::Value>,
     source_key: &str,
@@ -1982,6 +1990,47 @@ fn add_if_missing_key(
                 connector_reference.insert(destination_key.to_string(), source_value.clone());
             }
         }
+    }
+}
+
+#[cfg(all(test, any(feature = "v1", feature = "v2")))]
+mod connector_mandate_alias_tests {
+    use super::CommonMandateReference;
+
+    #[test]
+    fn add_v1_connector_mandate_fields_backfills_legacy_aliases() {
+        let connector_mandate_details = serde_json::json!({
+            "mca_123": {
+                "connector_token": "tok_123",
+                "payment_method_type": "credit",
+                "connector_token_request_reference_id": "req_123",
+                "connector_token_status": "active"
+            }
+        });
+
+        let updated = CommonMandateReference::add_v1_connector_mandate_fields(Some(
+            connector_mandate_details,
+        ))
+        .expect("mandate details should be backfilled");
+        let connector_reference = updated
+            .get("mca_123")
+            .expect("mandate connector reference should exist");
+
+        assert_eq!(
+            connector_reference.get("connector_mandate_id"),
+            Some(&serde_json::json!("tok_123"))
+        );
+        assert_eq!(
+            connector_reference.get("payment_method_subtype"),
+            Some(&serde_json::json!("credit"))
+        );
+        assert_eq!(
+            connector_reference.get("connector_mandate_request_reference_id"),
+            Some(&serde_json::json!("req_123"))
+        );
+        assert!(connector_reference
+            .get("connector_mandate_status")
+            .is_some_and(|status| !status.is_null()));
     }
 }
 

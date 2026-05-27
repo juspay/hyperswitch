@@ -476,6 +476,53 @@ fn generate_task_id_for_payment_method_status_update_workflow(
     format!("{runner}_{task}_{key_id}")
 }
 
+fn generate_task_id_for_payment_method_modular_compat_workflow(
+    key_id: &str,
+    runner: storage::ProcessTrackerRunner,
+    task: &str,
+) -> String {
+    let suffix = uuid::Uuid::now_v7()
+        .as_simple()
+        .to_string()
+        .chars()
+        .take(8)
+        .collect::<String>();
+    format!("{runner}_{task}_{key_id}_{suffix}")
+}
+
+#[cfg(test)]
+mod payment_method_modular_compat_task_id_tests {
+    use super::*;
+
+    #[test]
+    fn modular_compat_task_ids_are_unique_and_short() {
+        let payment_method_id = "pm_9lJFd5Q24a5NJLgyMDhZ";
+        let runner = storage::ProcessTrackerRunner::PaymentMethodModularForwardCompatWorkflow;
+        let task = PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TASK;
+
+        let first = generate_task_id_for_payment_method_modular_compat_workflow(
+            payment_method_id,
+            runner,
+            task,
+        );
+        let second = generate_task_id_for_payment_method_modular_compat_workflow(
+            payment_method_id,
+            runner,
+            task,
+        );
+
+        assert_ne!(first, second);
+        assert!(first.len() <= 127);
+        assert!(second.len() <= 127);
+
+        let prefix = format!("{runner}_{task}_{payment_method_id}_");
+        assert!(first.starts_with(&prefix));
+        assert!(second.starts_with(&prefix));
+        assert_eq!(first.trim_start_matches(&prefix).len(), 8);
+        assert_eq!(second.trim_start_matches(&prefix).len(), 8);
+    }
+}
+
 #[cfg(feature = "v1")]
 pub async fn add_payment_method_status_update_task(
     db: &dyn StorageInterface,
@@ -556,7 +603,7 @@ pub async fn add_payment_method_modular_forward_compat_task(
     let runner = storage::ProcessTrackerRunner::PaymentMethodModularForwardCompatWorkflow;
     let task = PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TASK;
     let tag = [PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TAG];
-    let process_tracker_id = generate_task_id_for_payment_method_status_update_workflow(
+    let process_tracker_id = generate_task_id_for_payment_method_modular_compat_workflow(
         payment_method.payment_method_id.as_str(),
         runner,
         task,
@@ -612,7 +659,7 @@ pub async fn add_payment_method_modular_backward_compat_task(
     let runner = storage::ProcessTrackerRunner::PaymentMethodModularBackwardCompatWorkflow;
     let task = PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TASK;
     let tag = [PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TAG];
-    let process_tracker_id = generate_task_id_for_payment_method_status_update_workflow(
+    let process_tracker_id = generate_task_id_for_payment_method_modular_compat_workflow(
         &payment_method_id,
         runner,
         task,
