@@ -211,6 +211,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     locker_fingerprint_id,
                     network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
                     storage_type: None,
+                    compatibility_updated_at: None,
                 },
                 self.provider.get_account().storage_scheme,
             )
