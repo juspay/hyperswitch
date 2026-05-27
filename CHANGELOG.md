@@ -4,6 +4,47 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.27.0
+
+### Features
+
+- **superposition:** Migrate object configs to superposition ([#11625](https://github.com/juspay/hyperswitch/pull/11625)) ([`3bcd559`](https://github.com/juspay/hyperswitch/commit/3bcd559dd617484c34b43149b137db26fbc565b4))
+- **user:** Add dashboard merchant details API for dashboard bootstrap ([#12160](https://github.com/juspay/hyperswitch/pull/12160)) ([`60fa789`](https://github.com/juspay/hyperswitch/commit/60fa789eb82cdb4adaee5510fb349a0e7ec583f3))
+- Feat(payment-methods): add compatibility_updated_at field to payment methods ([#12439](https://github.com/juspay/hyperswitch/pull/12439))
+Co-authored-by: Gaurav Rawat <GauravRawat369> ([`b04d027`](https://github.com/juspay/hyperswitch/commit/b04d0276d713417df655f0002ee2748b3d7e43e1))
+
+### Testing
+
+- **cypress:**
+  - Affirm refund flow coverage ([#12000](https://github.com/juspay/hyperswitch/pull/12000)) ([`b1cbbf2`](https://github.com/juspay/hyperswitch/commit/b1cbbf26e4242b82c200b844667720dfac728a05))
+  - Add Multiple Capture coverage for adyen and checkout ([#12340](https://github.com/juspay/hyperswitch/pull/12340)) ([`9f4b75f`](https://github.com/juspay/hyperswitch/commit/9f4b75fe8913044eb2cf6fe5642e2941471998d8))
+
+**Full Changelog:** [`2026.05.26.0...2026.05.27.0`](https://github.com/juspay/hyperswitch/compare/2026.05.26.0...2026.05.27.0)
+
+- - -
+
+
+## 2026.05.25.1
+
+### Features
+
+- **analytics:** Add ClickHouse-backed payment intents aggregate endpoints ([#12387](https://github.com/juspay/hyperswitch/pull/12387)) ([`f31231f`](https://github.com/juspay/hyperswitch/commit/f31231fc262eac6810a5a13a1d91b649e859a249))
+
+### Refactors
+
+- **mandate:** Move mandate types from api_models to hyperswitch_domain_models ([#12337](https://github.com/juspay/hyperswitch/pull/12337)) ([`860b978`](https://github.com/juspay/hyperswitch/commit/860b9782f71b012c75ad1e3cbf26596b961f285d))
+
+### Testing
+
+- **cypress:**
+  - Add Affirm PayLater payment test for Stripe connector ([#12308](https://github.com/juspay/hyperswitch/pull/12308)) ([`6222a25`](https://github.com/juspay/hyperswitch/commit/6222a25e813d0c3ff4c471b5a1d6a3cd309c460a))
+  - Add manual payment update coverage for stripe ([#12126](https://github.com/juspay/hyperswitch/pull/12126)) ([`52302ff`](https://github.com/juspay/hyperswitch/commit/52302ffa944c3456f4a3045f495204fd4700855d))
+  - Add clear pan retry coverage for bankofamerica ([#12422](https://github.com/juspay/hyperswitch/pull/12422)) ([`e940938`](https://github.com/juspay/hyperswitch/commit/e940938b8d1c6dc37aea94c0dc37cdea6e76b662))
+
+**Full Changelog:** [`2026.05.25.0...2026.05.25.1`](https://github.com/juspay/hyperswitch/compare/2026.05.25.0...2026.05.25.1)
+
+- - -
+
 ## 2026.05.25.0
 
 ### Features
