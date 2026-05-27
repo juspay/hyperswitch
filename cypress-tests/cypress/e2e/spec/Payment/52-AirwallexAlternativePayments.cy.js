@@ -357,12 +357,12 @@ describe("Airwallex Alternative Payments", () => {
     it("create-payment-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "pay_later_pm"
-      ]["AutoCapture"];
+      ]["AtomeAutoCapture"];
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
         data,
-        "three_ds",
+        "no_three_ds",
         "automatic",
         globalState
       );
