@@ -670,8 +670,8 @@ export const connectorDetails = {
           bank_debit: {
             ach_bank_debit: {
               account_number: "000123456789",
-              routing_number: "110000000",
-              bank_account_holder_name: "Test Account",
+              routing_number: "121042882",
+              bank_account_holder_name: "John Doe",
               bank_type: "checking",
             },
           },
@@ -681,24 +681,23 @@ export const connectorDetails = {
             first_name: "John",
             last_name: "Doe",
             line1: "123 Main St",
-            city: "San Fransico",
-            state: "CA",
+            city: "San Francisco",
+            state: "California",
             zip: "94122",
             country: "US",
           },
           phone: {
-            number: "8056594427",
+            number: "4155551234",
             country_code: "+1",
           },
-          email: "test@example.com",
+          email: "a@gmail.com",
         },
+        email: "a@gmail.com",
       },
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_message:
-            "ACH Verification Declined: Routing number formatted correctly, but not found during lookup., detailed_error_information: , avs_message: ",
+          status: "succeeded",
         },
       },
     },
