@@ -156,10 +156,10 @@ where
     logger::debug!(connector_request=?connector_request);
     let mut router_data = req.clone();
     match call_connector_action {
-        common_enums::CallConnectorAction::HandleResponse(res) => {
+        common_enums::CallConnectorAction::HandleResponse{ resource_object, event_type: _ } => {
             let response = types::Response {
                 headers: None,
-                response: res.into(),
+                response: resource_object.into(),
                 status_code: 200,
             };
             connector_integration.handle_response(req, None, response)
@@ -246,7 +246,7 @@ where
                         Some(request) => match request {
                             RequestContent::Json(i)
                             | RequestContent::FormUrlEncoded(i)
-                            | RequestContent::Xml(i) => i
+                            | RequestContent::Xml(i, _) => i
                                 .masked_serialize()
                                 .unwrap_or(json!({ "error": "failed to mask serialize"})),
                             RequestContent::FormData((_, i)) => i

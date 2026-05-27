@@ -1,11 +1,10 @@
 use std::marker::PhantomData;
 
-use api_models::{
-    admin::PaymentMethodsEnabled, enums::FrmSuggestion, payments::MandateTransactionType,
-};
+use api_models::{admin::PaymentMethodsEnabled, enums::FrmSuggestion};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::mandates;
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
 
@@ -76,6 +75,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             &[
                 storage_enums::IntentStatus::Failed,
                 storage_enums::IntentStatus::Succeeded,
+                storage_enums::IntentStatus::Review,
             ],
             "create a session token for",
         )?;
@@ -336,7 +336,7 @@ where
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
-        _mandate_type: Option<MandateTransactionType>,
+        _mandate_type: Option<mandates::MandateTransactionType>,
     ) -> errors::CustomResult<
         (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,

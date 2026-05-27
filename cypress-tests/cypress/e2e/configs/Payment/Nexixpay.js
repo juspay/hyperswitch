@@ -1,3 +1,5 @@
+import { getIframeRedirectionConfig } from "./Modifiers";
+
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "08",
@@ -167,6 +169,10 @@ export const connectorDetails = {
         },
       },
     },
+    ...getIframeRedirectionConfig({
+      cardDetails: successfulThreeDSTestCardDetails,
+      currency: "EUR",
+    }),
     No3DSManualCapture: {
       Request: {
         payment_method: "card",

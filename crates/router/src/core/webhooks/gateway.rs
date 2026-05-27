@@ -19,6 +19,7 @@ use crate::core::payments::helpers::MerchantConnectorAccountType;
 use crate::{
     consts,
     core::{
+        configs::dimension_state,
         errors::{self, utils::ConnectorErrorExt, RouterResult},
         metrics,
         unified_connector_service::{
@@ -132,14 +133,29 @@ pub enum FilterDecision {
 
 impl FilterDecision {
     pub async fn evaluate(event_type: IncomingWebhookEvent, ctx: &WebhookGatewayContext) -> Self {
+        use std::str::FromStr;
         let supported = !matches!(event_type, IncomingWebhookEvent::EventNotSupported);
-        let enabled = !webhook_utils::is_webhook_event_disabled(
-            &*ctx.state.store,
-            &ctx.connector_name,
-            ctx.platform.get_processor().get_account().get_id(),
-            &event_type,
-        )
-        .await;
+        let enabled = {
+            match common_enums::connector_enums::Connector::from_str(&ctx.connector_name) {
+                Ok(connector_enum) => {
+                    let dimensions = dimension_state::Dimensions::new()
+                        .with_processor_merchant_id(
+                            ctx.platform.get_processor().get_processor_merchant_id(),
+                        )
+                        .with_provider_merchant_id(
+                            ctx.platform.get_provider().get_provider_merchant_id(),
+                        );
+                    !webhook_utils::is_webhook_event_disabled(
+                        &ctx.state,
+                        connector_enum,
+                        &dimensions,
+                        &event_type,
+                    )
+                    .await
+                }
+                Err(_) => false,
+            }
+        };
         let flow: api_models::webhooks::WebhookFlow = event_type.into();
         let return_response = matches!(flow, api_models::webhooks::WebhookFlow::ReturnResponse);
 

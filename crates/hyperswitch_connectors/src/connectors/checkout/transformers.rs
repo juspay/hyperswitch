@@ -542,6 +542,23 @@ fn build_metadata(
     Some(Secret::new(metadata_json))
 }
 
+/// Pad a 2-digit "YY" expiry year to 4-digit "20YY", pass-through if already 4-digit.
+///
+/// `CardData::get_expiry_year_4_digit` (in `crates/hyperswitch_connectors/src/utils.rs`)
+/// covers `Card`, `CardDetailsForNetworkTransactionId`, `DecryptedWalletTokenDetailsForNetworkTransactionId`,
+/// and `ApplePayDecrypt` — but not `NetworkTokenData` or
+/// `NetworkTokenDetailsForNetworkTransactionId`. The PaymentSource::NetworkToken
+/// paths below need the same YY → YYYY coercion, since Checkout's API expects
+/// a 4-digit `expiry_year`.
+fn pad_expiry_year_to_4_digit(year: Secret<String>) -> Secret<String> {
+    let raw = year.expose();
+    if raw.len() == 2 {
+        Secret::new(format!("20{raw}"))
+    } else {
+        Secret::new(raw)
+    }
+}
+
 fn is_metadata_empty(val: &Option<Secret<serde_json::Value>>) -> bool {
     match val {
         None => true,
@@ -863,7 +880,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     source_type: "network_token".to_string(),
                     token: cards::CardNumber::from(token),
                     expiry_month,
-                    expiry_year,
+                    expiry_year: pad_expiry_year_to_4_digit(expiry_year),
                     token_type,
                     cryptogram,
                     eci: token_data.eci,
@@ -908,7 +925,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     source_type: "network_token".to_string(),
                     token: cards::CardNumber::from(token_data.network_token),
                     expiry_month: token_data.token_exp_month,
-                    expiry_year: token_data.token_exp_year,
+                    expiry_year: pad_expiry_year_to_4_digit(token_data.token_exp_year),
                     token_type,
                     cryptogram: None,
                     eci: token_data.eci,
@@ -1361,6 +1378,7 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
             mandate_reference: Box::new(mandate_reference),
             connector_metadata: Some(connector_meta),
             network_txn_id: item.response.scheme_id.clone(),
+            network_txn_link_id: None,
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
@@ -1477,6 +1495,7 @@ impl
             mandate_reference: Box::new(mandate_reference),
             connector_metadata: Some(connector_meta),
             network_txn_id: item.response.scheme_id.clone(),
+            network_txn_link_id: None,
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
@@ -1558,6 +1577,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
             mandate_reference: Box::new(mandate_reference),
             connector_metadata: None,
             network_txn_id: item.response.scheme_id.clone(),
+            network_txn_link_id: None,
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
@@ -1638,6 +1658,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymentVoidResponse>> for Payments
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: item.response.scheme_id.clone(),
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -1741,6 +1762,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: item.response.scheme_id.clone(),
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.reference,
                 incremental_authorization_allowed: None,
                 authentication_data: None,

@@ -1,10 +1,11 @@
 pub mod transformers;
-use std::fmt::Debug;
 
 #[cfg(feature = "frm")]
 use api_models::webhooks::IncomingWebhookEvent;
 #[cfg(feature = "frm")]
 use base64::Engine;
+#[cfg(feature = "frm")]
+use common_utils::types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector};
 #[cfg(feature = "frm")]
 use common_utils::{
     consts,
@@ -71,17 +72,28 @@ use transformers as signifyd;
 
 use crate::constants::headers;
 #[cfg(feature = "frm")]
-use crate::{
-    types::{
-        FrmCheckoutRouterData, FrmCheckoutType, FrmFulfillmentRouterData, FrmFulfillmentType,
-        FrmRecordReturnRouterData, FrmRecordReturnType, FrmSaleRouterData, FrmSaleType,
-        FrmTransactionRouterData, FrmTransactionType, ResponseRouterData,
-    },
-    utils::get_header_key_value,
+use crate::types::{
+    FrmCheckoutRouterData, FrmCheckoutType, FrmFulfillmentRouterData, FrmFulfillmentType,
+    FrmRecordReturnRouterData, FrmRecordReturnType, FrmSaleRouterData, FrmSaleType,
+    FrmTransactionRouterData, FrmTransactionType, ResponseRouterData,
 };
+#[cfg(feature = "frm")]
+use crate::utils::{convert_amount, get_header_key_value};
 
-#[derive(Debug, Clone)]
-pub struct Signifyd;
+#[derive(Clone)]
+pub struct Signifyd {
+    #[cfg(feature = "frm")]
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+}
+
+impl Signifyd {
+    pub fn new() -> &'static Self {
+        &Self {
+            #[cfg(feature = "frm")]
+            amount_converter: &FloatMajorUnitForConnector,
+        }
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Signifyd
 where
@@ -255,7 +267,15 @@ impl ConnectorIntegration<Sale, FraudCheckSaleData, FraudCheckResponseData> for 
         req: &FrmSaleRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, ConnectorError> {
-        let req_obj = signifyd::SignifydPaymentsSaleRequest::try_from(req)?;
+        let currency = req
+            .request
+            .currency
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "currency",
+            })?;
+        let amount = convert_amount(self.amount_converter, req.request.amount, currency)?;
+        let req_data = signifyd::SignifydRouterData::new(amount, req);
+        let req_obj = signifyd::SignifydPaymentsSaleRequest::try_from(&req_data)?;
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
@@ -335,7 +355,15 @@ impl ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseDa
         req: &FrmCheckoutRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, ConnectorError> {
-        let req_obj = signifyd::SignifydPaymentsCheckoutRequest::try_from(req)?;
+        let currency = req
+            .request
+            .currency
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "currency",
+            })?;
+        let amount = convert_amount(self.amount_converter, req.request.amount, currency)?;
+        let req_data = signifyd::SignifydRouterData::new(amount, req);
+        let req_obj = signifyd::SignifydPaymentsCheckoutRequest::try_from(&req_data)?;
         Ok(RequestContent::Json(Box::new(req_obj)))
     }
 
@@ -709,7 +737,10 @@ impl IncomingWebhook for Signifyd {
             .body
             .parse_struct("SignifydWebhookBody")
             .change_context(ConnectorError::WebhookEventTypeNotFound)?;
-        Ok(IncomingWebhookEvent::from(resource.review_disposition))
+        Ok(resource
+            .review_disposition
+            .map(IncomingWebhookEvent::from)
+            .unwrap_or(IncomingWebhookEvent::EventNotSupported))
     }
 
     fn get_webhook_resource_object(

@@ -46,8 +46,8 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation,
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorCustomerAction, ConnectorIntegration,
+        ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     disputes::DisputePayload,
@@ -1261,11 +1261,19 @@ impl ConnectorSpecifications for Payload {
         &self,
         #[cfg(feature = "v1")]
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> bool {
+    ) -> ConnectorCustomerAction {
         #[cfg(feature = "v1")]
-        return payment_attempt.customer_acceptance.is_some()
-            && payment_attempt.setup_future_usage_applied == Some(enums::FutureUsage::OffSession);
+        {
+            if payment_attempt.customer_acceptance.is_some()
+                && payment_attempt.setup_future_usage_applied
+                    == Some(enums::FutureUsage::OffSession)
+            {
+                ConnectorCustomerAction::CallConnectorCustomer
+            } else {
+                ConnectorCustomerAction::NoAction
+            }
+        }
         #[cfg(feature = "v2")]
-        return false;
+        ConnectorCustomerAction::NoAction
     }
 }

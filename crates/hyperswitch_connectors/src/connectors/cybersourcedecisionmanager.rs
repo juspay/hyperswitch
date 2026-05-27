@@ -9,7 +9,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::{
@@ -474,11 +474,7 @@ impl ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseDa
             .ok_or(ConnectorError::MissingRequiredField {
                 field_name: "Currency",
             })?;
-        let amount = convert_amount(
-            self.amount_converter,
-            MinorUnit::new(req.request.amount),
-            currency,
-        )?;
+        let amount = convert_amount(self.amount_converter, req.request.amount, currency)?;
 
         let connector_router_data =
             cybersourcedecisionmanager::CybersourcedecisionmanagerRouterData::from((amount, req));
