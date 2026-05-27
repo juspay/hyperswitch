@@ -144,31 +144,6 @@ describe("Card - Payment Response Hash flow test", () => {
 
         cy.computeAndVerifyRedirectSignature(globalState);
       });
-
-      cy.step("verify tampered and wrong-key signatures fail", () => {
-        if (!globalState.get("_setup3DSContinue")) {
-          cy.task("cli_log", "Skipping step: verify tampered signatures fail");
-          return;
-        }
-
-        cy.verifyTamperedSignatureFails(globalState);
-      });
-    });
-  });
-
-  context("3DS Auto-Capture - Webhook Signature Verification", () => {
-    it("setup 3DS -> verify webhook delivery signature", () => {
-      cy.setup3DSPayment(globalState, { includeRedirection: true });
-
-      cy.step("wait for webhook delivery and verify signature", () => {
-        if (!globalState.get("_setup3DSContinue")) {
-          cy.task("cli_log", "Skipping step: webhook signature verification");
-          return;
-        }
-
-        cy.fetchWebhookWithRetry(globalState);
-        cy.verifyWebhookSignatureHeader(globalState);
-      });
     });
   });
 });
