@@ -134,7 +134,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
         let token_data = {
             let feature_config = utils::get_feature_config(state, platform, dimensions).await;
             let should_use_modular_payment_method_flow =
-                feature_config.is_modular_with_pm_version(None);
+                feature_config.should_use_modular_pm_path(None, None, None);
             match (
                 payment_attempt.payment_token.clone(),
                 should_use_modular_payment_method_flow,
