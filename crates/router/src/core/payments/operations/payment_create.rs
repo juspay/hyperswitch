@@ -971,7 +971,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             };
 
             if let Some(payment_method) = payment_method_info {
-                if feature_config.is_modular_with_pm_version(Some(payment_method.version)) {
+                if feature_config.should_use_modular_pm_path(
+                    Some(payment_method.version),
+                    payment_method.compatibility_updated_at,
+                    Some(payment_method.last_modified),
+                ) {
                     logger::debug!(
                         "Payment method version is V2, fetching payment method from PM Modular Service"
                     );
