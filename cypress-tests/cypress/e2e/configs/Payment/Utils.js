@@ -24,6 +24,7 @@ import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
 import { connectorDetails as commonConnectorDetails } from "./Commons.js";
 import { connectorDetails as cryptopayConnectorDetails } from "./Cryptopay.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
+import { connectorDetails as cybersourcedecisionmanagerConnectorDetails } from "./Cybersourcedecisionmanager.js";
 import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
 import { connectorDetails as deutschebankConnectorDetails } from "./Deutschebank.js";
 import { connectorDetails as dlocalConnectorDetails } from "./Dlocal.js";
@@ -43,6 +44,7 @@ import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
 import { connectorDetails as klarnaConnectorDetails } from "./Klarna.js";
 import { connectorDetails as loonioConnectorDetails } from "./Loonio.js";
+import { connectorDetails as mifinityConnectorDetails } from "./Mifinity.js";
 import { connectorDetails as mollieConnectorDetails } from "./Mollie.js";
 import { connectorDetails as monerisConnectorDetails } from "./Moneris.js";
 import { connectorDetails as multisafepayConnectorDetails } from "./Multisafepay.js";
@@ -60,7 +62,9 @@ import { connectorDetails as payuConnectorDetails } from "./Payu.js";
 import { connectorDetails as peachpaymentsConnectorDetails } from "./Peachpayments.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
+import { connectorDetails as riskifiedConnectorDetails } from "./Riskified.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
+import { connectorDetails as signifydConnectorDetails } from "./Signifyd.js";
 import { connectorDetails as silverflowConnectorDetails } from "./Silverflow.js";
 import { connectorDetails as squareConnectorDetails } from "./Square.js";
 import { connectorDetails as staxConnectorDetails } from "./Stax.js";
@@ -77,7 +81,6 @@ import { connectorDetails as worldpayvantivConnectorDetails } from "./Worldpayva
 import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.js";
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 import { connectorDetails as ziftConnectorDetails } from "./Zift.js";
-import { connectorDetails as mifinityConnectorDetails } from "./Mifinity.js";
 const connectorDetails = {
   aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
@@ -101,6 +104,7 @@ const connectorDetails = {
   commons: commonConnectorDetails,
   cryptopay: cryptopayConnectorDetails,
   cybersource: cybersourceConnectorDetails,
+  cybersourcedecisionmanager: cybersourcedecisionmanagerConnectorDetails,
   dlocal: dlocalConnectorDetails,
   datatrans: datatransConnectorDetails,
   deutschebank: deutschebankConnectorDetails,
@@ -136,7 +140,9 @@ const connectorDetails = {
   peachpayments: peachpaymentsConnectorDetails,
   powertranz: powertranzConnectorDetails,
   redsys: redsysConnectorDetails,
+  riskified: riskifiedConnectorDetails,
   shift4: shift4ConnectorDetails,
+  signifyd: signifydConnectorDetails,
   silverflow: silverflowConnectorDetails,
   square: squareConnectorDetails,
   stax: staxConnectorDetails,
