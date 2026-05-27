@@ -376,6 +376,13 @@ export const payment_methods_enabled = [
         recurring_enabled: true,
         installment_payment_enabled: true,
       },
+      {
+        payment_method_type: "indonesian_bank_transfer",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
     ],
   },
   {
@@ -772,6 +779,17 @@ export const payment_methods_enabled = [
       },
       {
         payment_method_type: "affirm",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "atome",
         payment_experience: "redirect_to_url",
         card_networks: null,
         accepted_currencies: null,
