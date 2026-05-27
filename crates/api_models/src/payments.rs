@@ -10329,14 +10329,14 @@ pub enum SessionToken {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 pub struct VaultDetails {
     /// Internal vault details containing the SDK authorization token (v1 only)
-    pub internal_vault: Option<InternalVaultDetails>,
+    pub internal_vault: Option<InternalVaultSessionDetails>,
     /// External vault details (e.g. VGS or Hyperswitch Vault)
     pub external_vault_details: Option<VaultSessionDetails>,
 }
 
 /// Internal vault details for SDK authorization
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
-pub struct InternalVaultDetails {
+pub struct InternalVaultSessionDetails {
     /// Base64-encoded SDK authorization token for the internal vault session
     pub sdk_authorization: String,
 }

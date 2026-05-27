@@ -34,7 +34,7 @@ pub use api_models::{
         VerifyRequest, VerifyResponse, VgsSessionDetails, WalletData,
     },
 };
-pub use api_models::payments::{InternalVaultDetails, VaultDetails};
+pub use api_models::payments::{InternalVaultSessionDetails, VaultDetails};
 pub use common_types::payments::{AcceptanceType, CustomerAcceptance, OnlineMandate};
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{
