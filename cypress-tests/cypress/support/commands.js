@@ -4325,7 +4325,6 @@ Cypress.Commands.add(
               }
             }
           }
-
         } else {
           throw new Error(
             `Retrieve Payment Call Failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
@@ -9638,15 +9637,18 @@ Cypress.Commands.add(
     const apiKey = globalState.get("adminApiKey");
     const baseUrl = globalState.get("baseUrl");
     const url = `${baseUrl}/accounts/${merchantId}`;
+
+    cy.request({
+      method: "GET",
+      url,
+      headers: {
+        "Content-Type": "application/json",
         "api-key": apiKey,
       },
       failOnStatusCode: false,
     }).then((response) => {
       if (!response || response.status !== 200) {
-        cy.task(
-          "cli_log",
-          "Failed to fetch account config - skipping spec"
-        );
+        cy.task("cli_log", "Failed to fetch account config - skipping spec");
         skipFn();
         return;
       }
@@ -9812,15 +9814,17 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
       "signature_algorithm must be a supported HMAC algorithm"
     );
 
-    const params = [];
+    const signatureParams = [];
     urlObj.searchParams.forEach((value, key) => {
       if (key !== "signature" && key !== "signature_algorithm") {
-        params.push([key, value]);
+        signatureParams.push([key, value]);
       }
     });
 
-    params.sort((a, b) => a[0].localeCompare(b[0]));
-    const signingPayload = params.map(([k, v]) => `${k}=${v}`).join("&");
+    signatureParams.sort((a, b) => a[0].localeCompare(b[0]));
+    const signingPayload = signatureParams
+      .map(([k, v]) => `${k}=${v}`)
+      .join("&");
     const algorithm = resolveAlgorithm(signatureAlgorithm);
 
     cy.task("computeHmac", {
@@ -10060,4 +10064,3 @@ function verifyWebhookSignatureFromData(
     cy.task("cli_log", `Webhook signature verified - signature match: YES`);
   });
 }
-
