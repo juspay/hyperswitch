@@ -1573,7 +1573,8 @@ impl ConnectorSpecifications for Worldpayxml {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 auth_type,
-            } => { // add payment method token also
+            } => {
+                // add payment method token also
                 auth_type == common_enums::AuthenticationType::ThreeDs
                     && matches!(
                     request_data.payment_method_data,
@@ -1606,4 +1607,3 @@ impl ConnectorSpecifications for Worldpayxml {
             .map(|cid| cid.get_string_repr().to_string())
     }
 }
- 
