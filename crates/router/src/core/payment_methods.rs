@@ -6275,7 +6275,9 @@ async fn update_associated_payment_methods_in_session(
     key_store: &domain::MerchantKeyStore,
     payment_method_session_id: &id_type::GlobalPaymentMethodSessionId,
     payment_method_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
-    associated_payment_methods: Option<Vec<common_types::payment_methods::AssociatedPaymentMethods>>,
+    associated_payment_methods: Option<
+        Vec<common_types::payment_methods::AssociatedPaymentMethods>,
+    >,
 ) -> RouterResult<hyperswitch_domain_models::payment_methods::PaymentMethodSession> {
     let update = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {
         associated_payment_methods,
@@ -6336,7 +6338,10 @@ pub async fn payment_methods_session_update_payment_method(
 
     // Extract card CVC and holder name from the update request (if card update)
     let (card_cvc, card_holder_name) = extract_card_cvc_and_holder_name(
-        request.payment_method_update_request.payment_method_data.as_ref(),
+        request
+            .payment_method_update_request
+            .payment_method_data
+            .as_ref(),
     );
 
     // If only CVC/holder name are provided (no payment_method_token), this is a
