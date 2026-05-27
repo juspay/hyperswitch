@@ -1035,7 +1035,7 @@ pub fn payments_update_metadata() {}
 /// Payments - Submit Eligibility Data
 #[utoipa::path(
     post,
-    path = "/payments/{payment_id}/eligibility",
+    path = "/payments/{payment_id}/eligibility_check",
     params(
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
@@ -1061,7 +1061,7 @@ pub fn payments_submit_eligibility() {}
 ///   with `surcharge_details: null`.
 #[utoipa::path(
     post,
-    path = "/payments/{payment_id}/pre_confirm",
+    path = "/payments/{payment_id}/eligibility",
     params(
         ("payment_id" = String, Path, description = "The identifier for the payment")
     ),

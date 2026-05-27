@@ -813,7 +813,7 @@ pub enum SurchargeStrategy {
     /// Apply the calculated surcharge to the payment (default)
     #[default]
     Apply,
-    /// Calculate but do not apply the surcharge; return the amount only
+    /// Do not apply the surcharge; return the amount only
     Waive,
 }
 

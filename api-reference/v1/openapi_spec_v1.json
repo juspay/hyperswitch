@@ -1664,7 +1664,7 @@
         ]
       }
     },
-    "/payments/{payment_id}/eligibility": {
+    "/payments/{payment_id}/eligibility_check": {
       "post": {
         "tags": [
           "Payments"
@@ -1721,7 +1721,7 @@
         ]
       }
     },
-    "/payments/{payment_id}/pre_confirm": {
+    "/payments/{payment_id}/eligibility": {
       "post": {
         "tags": [
           "Payments"
@@ -16777,8 +16777,7 @@
           "tax_processor",
           "surcharge_processor",
           "billing_processor",
-          "vault_processor",
-          "surcharge_processor"
+          "vault_processor"
         ]
       },
       "ConnectorVolumeSplit": {
@@ -30694,14 +30693,6 @@
             "description": "Custom payment link config id set at business profile, send only if business_specific_configs is configured",
             "nullable": true
           },
-          "surcharge_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RequestSurchargeDetails"
-              }
-            ],
-            "nullable": true
-          },
           "payment_type": {
             "allOf": [
               {
@@ -30923,6 +30914,11 @@
           "profile_acquirer_id": {
             "type": "string",
             "description": "Identification for the profile acquirer to be used for this payment.",
+            "nullable": true
+          },
+          "surcharge_strategy": {
+            "type": "string",
+            "description": "The strategy to use when applying surcharge for this payment.",
             "nullable": true
           }
         }
@@ -31472,6 +31468,11 @@
           "profile_acquirer_id": {
             "type": "string",
             "description": "Identification for the profile acquirer to be used for this payment.",
+            "nullable": true
+          },
+          "surcharge_strategy": {
+            "type": "string",
+            "description": "The strategy to use when applying surcharge for this payment.",
             "nullable": true
           }
         }
@@ -32517,6 +32518,76 @@
           }
         }
       },
+      "PaymentsPreConfirmRequest": {
+        "type": "object",
+        "description": "Request body for the pre_confirm endpoint.\nCombines eligibility checks with external surcharge calculation in a single call.",
+        "required": [
+          "client_secret",
+          "payment_method_type",
+          "payment_token"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "Token used for client side verification",
+            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EligibilityPaymentMethodDataRequest"
+              }
+            ],
+            "nullable": true
+          },
+          "browser_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_token": {
+            "type": "string",
+            "description": "The payment token to look up the saved payment method",
+            "example": "token_abc123xyz"
+          }
+        }
+      },
+      "PaymentsPreConfirmResponse": {
+        "type": "object",
+        "description": "Response body for the pre_confirm endpoint.",
+        "required": [
+          "payment_id",
+          "sdk_next_action"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "sdk_next_action": {
+            "$ref": "#/components/schemas/SdkNextAction"
+          },
+          "surcharge_details": {
+            "type": "string",
+            "description": "Surcharge details if an external surcharge was calculated. None if eligibility was denied\nor no surcharge connector is configured for this merchant.",
+            "nullable": true
+          }
+        }
+      },
       "PaymentsRequest": {
         "type": "object",
         "properties": {
@@ -33144,6 +33215,11 @@
           "profile_acquirer_id": {
             "type": "string",
             "description": "Identification for the profile acquirer to be used for this payment.",
+            "nullable": true
+          },
+          "surcharge_strategy": {
+            "type": "string",
+            "description": "The strategy to use when applying surcharge for this payment.",
             "nullable": true
           }
         },
@@ -34645,6 +34721,11 @@
           "profile_acquirer_id": {
             "type": "string",
             "description": "Identification for the profile acquirer to be used for this payment.",
+            "nullable": true
+          },
+          "surcharge_strategy": {
+            "type": "string",
+            "description": "The strategy to use when applying surcharge for this payment.",
             "nullable": true
           }
         }
@@ -40795,6 +40876,11 @@
         "properties": {
           "next_action": {
             "$ref": "#/components/schemas/NextActionCall"
+          },
+          "should_block_confirm": {
+            "type": "boolean",
+            "description": "Whether the SDK should block the confirm call until the merchant explicitly unblocks it.\ntrue when a surcharge processor is enabled (surcharge must be shown to user before confirm),\nfalse otherwise.",
+            "nullable": true
           }
         }
       },
@@ -42111,6 +42197,14 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "SurchargeStrategy": {
+        "type": "string",
+        "description": "Strategy for applying external surcharge",
+        "enum": [
+          "apply",
+          "waive"
+        ]
       },
       "SwishQrData": {
         "type": "object"

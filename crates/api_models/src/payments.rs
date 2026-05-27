@@ -1430,6 +1430,7 @@ pub struct PaymentsRequest {
     #[smithy(value_type = "Option<String>")]
     pub profile_id: Option<id_type::ProfileId>,
 
+    #[remove_in(PaymentsConfirmRequest)]
     #[schema(value_type = Option<RequestSurchargeDetails>)]
     #[smithy(value_type = "Option<RequestSurchargeDetails>")]
     pub surcharge_details: Option<RequestSurchargeDetails>,
@@ -1596,7 +1597,7 @@ pub struct PaymentsRequest {
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
 
     /// The strategy to use when applying surcharge for this payment.
-    #[schema(value_type = Option<SurchargeStrategy>)]
+    #[schema(value_type = Option<String>)]
     pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
@@ -10671,6 +10672,11 @@ pub struct SdkNextAction {
     /// The type of next action
     #[smithy(value_type = "NextActionCall")]
     pub next_action: NextActionCall,
+    /// Whether the SDK should block the confirm call until the merchant explicitly unblocks it.
+    /// true when a surcharge processor is enabled (surcharge must be shown to user before confirm),
+    /// false otherwise.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub should_block_confirm: Option<bool>,
 }
 
 #[derive(
@@ -12951,9 +12957,6 @@ pub struct PaymentsPreConfirmRequest {
     /// The payment token to look up the saved payment method
     #[schema(value_type = String, example = "token_abc123xyz")]
     pub payment_token: Option<Secret<String>>,
-    /// The strategy to use when applying surcharge for this payment.
-    #[schema(value_type = Option<SurchargeStrategy>)]
-    pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
 /// Response body for the pre_confirm endpoint.
@@ -12967,6 +12970,7 @@ pub struct PaymentsPreConfirmResponse {
     pub sdk_next_action: SdkNextAction,
     /// Surcharge details if an external surcharge was calculated. None if eligibility was denied
     /// or no surcharge connector is configured for this merchant.
+    #[schema(value_type = Option<String>)]
     pub surcharge_details: Option<payment_methods::SurchargeDetailsResponse>,
 }
 
