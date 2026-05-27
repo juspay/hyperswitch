@@ -655,6 +655,7 @@ pub type DimensionsWithProcessorMerchantIdAndConnector = Dimensions<
     HasProcessorMerchantId,
     NoOrgId,
     NoProfileId,
+    NoTransactionType,
     HasConnector,
     NoPayoutRetryType,
     NoWebhookEvent,
