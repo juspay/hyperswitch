@@ -3868,25 +3868,6 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                 ),
                 (Connector::Adyen, fields(vec![], vec![], vec![])),
                 (
-                    Connector::Santander,
-                    RequiredFieldFinal {
-                        mandate: HashMap::new(),
-                        non_mandate: HashMap::new(),
-                        common: HashMap::from([
-                            RequiredField::PixDocumentType(vec!["cpf", "cnpj"]).to_tuple(),
-                            RequiredField::PixDocumentNumber.to_tuple(),
-                            RequiredField::BillingUserFirstName.to_tuple(),
-                            RequiredField::BillingUserLastName.to_tuple(),
-                            RequiredField::BillingAddressCity.to_tuple(),
-                            RequiredField::BillingAddressState.to_tuple(),
-                            RequiredField::BillingAddressZip.to_tuple(),
-                            RequiredField::BillingAddressCountries(vec!["BR"]).to_tuple(),
-                            RequiredField::BillingAddressLine1.to_tuple(),
-                            RequiredField::BillingAddressLine2.to_tuple(),
-                        ]),
-                    },
-                ),
-                (
                     Connector::Calida,
                     RequiredFieldFinal {
                         mandate: HashMap::new(),
@@ -3956,6 +3937,28 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                         RequiredField::PixDocumentNumber.to_tuple(),
                         RequiredField::BillingUserFirstName.to_tuple(),
                         RequiredField::BillingUserLastName.to_tuple(),
+                    ]),
+                },
+            )]),
+        ),
+        (
+            enums::PaymentMethodType::PixEmv,
+            connectors(vec![(
+                Connector::Santander,
+                RequiredFieldFinal {
+                    mandate: HashMap::new(),
+                    non_mandate: HashMap::new(),
+                    common: HashMap::from([
+                        RequiredField::PixDocumentType(vec!["cpf", "cnpj"]).to_tuple(),
+                        RequiredField::PixDocumentNumber.to_tuple(),
+                        RequiredField::BillingUserFirstName.to_tuple(),
+                        RequiredField::BillingUserLastName.to_tuple(),
+                        RequiredField::BillingAddressCity.to_tuple(),
+                        RequiredField::BillingAddressState.to_tuple(),
+                        RequiredField::BillingAddressZip.to_tuple(),
+                        RequiredField::BillingAddressCountries(vec!["BR"]).to_tuple(),
+                        RequiredField::BillingAddressLine1.to_tuple(),
+                        RequiredField::BillingAddressLine2.to_tuple(),
                     ]),
                 },
             )]),
