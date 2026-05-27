@@ -923,6 +923,10 @@ impl Payments {
                         .route(web::post().to(payments::payments_list_by_filter)),
                 )
                 .service(
+                    web::resource("/list-platform")
+                        .route(web::get().to(payments::payments_list_for_platform)),
+                )
+                .service(
                     web::resource("/profile/list")
                         .route(web::get().to(payments::profile_payments_list))
                         .route(web::post().to(payments::profile_payments_list_by_filter)),

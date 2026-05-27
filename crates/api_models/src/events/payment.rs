@@ -40,7 +40,7 @@ use crate::{
         PaymentsManualUpdateRequest, PaymentsManualUpdateResponse,
         PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse, PaymentsRejectRequest,
         PaymentsRetrieveRequest, PaymentsStartRequest, PaymentsUpdateMetadataRequest,
-        PaymentsUpdateMetadataResponse,
+        PaymentsUpdateMetadataResponse, PlatformPaymentListResponse,
     },
 };
 
@@ -525,6 +525,13 @@ impl ApiEventMetric for RecoveryPaymentListResponse {
 
 #[cfg(feature = "v1")]
 impl ApiEventMetric for PaymentListResponseV2 {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::ResourceListAPI)
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for PlatformPaymentListResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::ResourceListAPI)
     }

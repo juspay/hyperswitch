@@ -96,6 +96,20 @@ pub trait PaymentIntentInterface {
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, Self::Error>;
 
+    /// List raw payment intent rows for a platform merchant across all its
+    /// connected merchants. Filters on `payment_intent.merchant_id`
+    /// (which equals the platform's id on connected-merchant rows) instead of
+    /// `processor_merchant_id`. Returns undecrypted diesel rows because the
+    /// caller maps to a slim DTO that omits PII fields - this avoids fetching
+    /// each connected merchant's key store at list time.
+    #[cfg(all(feature = "v1", feature = "olap"))]
+    async fn filter_payment_intent_by_platform_merchant_id_for_listing(
+        &self,
+        platform_merchant_id: &id_type::MerchantId,
+        filters: &PaymentIntentFetchConstraints,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<DieselPaymentIntent>, Self::Error>;
+
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,

@@ -36,6 +36,8 @@ use diesel_models::{
         NetworkDetails as DieselNetworkDetails,
     },
 };
+#[cfg(all(feature = "v1", feature = "olap"))]
+use diesel_models::PaymentIntent as DieselPaymentIntent;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payments::payment_intent::CustomerData, router_request_types, sdk_auth::SdkAuthorization,
@@ -4363,6 +4365,31 @@ pub fn construct_connector_invoke_hidden_frame(
     };
 
     Ok(api_models::payments::NextActionData::InvokeHiddenIframe { iframe_data })
+}
+
+#[cfg(all(feature = "v1", feature = "olap"))]
+impl ForeignFrom<DieselPaymentIntent> for api::PlatformPaymentListItem {
+    fn foreign_from(pi: DieselPaymentIntent) -> Self {
+        Self {
+            payment_id: pi.payment_id,
+            merchant_id: pi.merchant_id,
+            processor_merchant_id: pi.processor_merchant_id,
+            profile_id: pi.profile_id,
+            status: pi.status,
+            amount: pi.amount,
+            amount_captured: pi.amount_captured,
+            currency: pi.currency,
+            customer_id: pi.customer_id,
+            description: pi.description,
+            metadata: pi.metadata,
+            created: Some(pi.created_at),
+            modified_at: pi.modified_at,
+            attempt_count: pi.attempt_count,
+            setup_future_usage: pi.setup_future_usage,
+            merchant_order_reference_id: pi.merchant_order_reference_id,
+            return_url: pi.return_url,
+        }
+    }
 }
 
 #[cfg(feature = "v1")]

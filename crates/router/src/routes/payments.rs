@@ -1870,6 +1870,40 @@ pub async fn payments_list(
     .await
 }
 
+#[instrument(skip_all, fields(flow = ?Flow::PlatformPaymentsList))]
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub async fn payments_list_for_platform(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Query<payment_types::PaymentListConstraints>,
+) -> impl Responder {
+    let flow = Flow::PlatformPaymentsList;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            payments::list_payments_for_platform(state, auth.platform, None, req)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: true,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::MerchantPaymentRead,
+                allow_connected: false,
+                allow_platform: true,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(all(feature = "olap", feature = "v2"))]
 pub async fn revenue_recovery_invoices_list(

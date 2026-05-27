@@ -9014,6 +9014,82 @@ pub struct PaymentListResponse {
     pub data: Vec<PaymentsListResponseItem>,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
+pub struct PlatformPaymentListItem {
+    /// Unique identifier for the payment.
+    #[schema(value_type = String, example = "pay_mbabizu24mvu3mela5njyhpit4")]
+    pub payment_id: id_type::PaymentId,
+
+    /// Identifier of the platform merchant. Equals the caller's merchant id.
+    #[schema(value_type = String, example = "platform_merchant_1")]
+    pub merchant_id: id_type::MerchantId,
+
+    /// Identifier of the connected merchant that owns this payment.
+    #[schema(value_type = Option<String>, example = "connected_merchant_1")]
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+
+    /// Identifier of the business profile under which this payment was created.
+    #[schema(value_type = Option<String>, example = "pro_abcdefghijklmnop")]
+    pub profile_id: Option<id_type::ProfileId>,
+
+    #[schema(value_type = IntentStatus, example = "succeeded")]
+    pub status: api_enums::IntentStatus,
+
+    /// Amount in lowest denomination of the currency.
+    #[schema(value_type = i64, example = 6540)]
+    pub amount: MinorUnit,
+
+    /// Amount captured so far.
+    #[schema(value_type = Option<i64>, example = 6540)]
+    pub amount_captured: Option<MinorUnit>,
+
+    #[schema(value_type = Option<Currency>, example = "USD")]
+    pub currency: Option<api_enums::Currency>,
+
+    /// Reference id of the customer (PII fields are intentionally excluded for platform listings).
+    #[schema(value_type = Option<String>, example = "cus_meowuwunwiuwiwjw")]
+    pub customer_id: Option<id_type::CustomerId>,
+
+    /// Description of the payment.
+    #[schema(example = "It's my first payment request")]
+    pub description: Option<String>,
+
+    /// Merchant-supplied metadata.
+    #[schema(value_type = Option<Object>, example = r#"{"udf1": "some-value"}"#)]
+    pub metadata: Option<serde_json::Value>,
+
+    #[serde(with = "common_utils::custom_serde::iso8601::option", default)]
+    pub created: Option<PrimitiveDateTime>,
+
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub modified_at: PrimitiveDateTime,
+
+    /// Total number of payment attempts associated with this payment.
+    #[schema(example = 1)]
+    pub attempt_count: i16,
+
+    #[schema(value_type = Option<FutureUsage>, example = "off_session")]
+    pub setup_future_usage: Option<api_enums::FutureUsage>,
+
+    /// Merchant-supplied order reference id.
+    #[schema(max_length = 255, example = "Custom_Order_id_123")]
+    pub merchant_order_reference_id: Option<String>,
+
+    /// Return URL configured on the payment.
+    #[schema(example = "https://example.com/return")]
+    pub return_url: Option<String>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
+pub struct PlatformPaymentListResponse {
+    /// The number of payments included in the list.
+    pub size: usize,
+    /// The list of payment summaries across the platform's connected merchants.
+    pub data: Vec<PlatformPaymentListItem>,
+}
+
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct RecoveryPaymentListResponse {

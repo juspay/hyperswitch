@@ -551,6 +551,22 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     }
 
     #[cfg(all(feature = "v1", feature = "olap"))]
+    async fn filter_payment_intent_by_platform_merchant_id_for_listing(
+        &self,
+        platform_merchant_id: &common_utils::id_type::MerchantId,
+        filters: &PaymentIntentFetchConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<DieselPaymentIntent>, StorageError> {
+        self.router_store
+            .filter_payment_intent_by_platform_merchant_id_for_listing(
+                platform_merchant_id,
+                filters,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -1036,6 +1052,81 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             )
         })?
         .await
+    }
+
+    #[cfg(all(feature = "v1", feature = "olap"))]
+    #[instrument(skip_all)]
+    async fn filter_payment_intent_by_platform_merchant_id_for_listing(
+        &self,
+        platform_merchant_id: &common_utils::id_type::MerchantId,
+        filters: &PaymentIntentFetchConstraints,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<DieselPaymentIntent>, StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
+
+        // Filter on `merchant_id` (which equals the platform's id on connected-merchant
+        // rows) so a single indexed lookup returns payments across every connected
+        // merchant under this platform. No decryption is performed; the diesel rows
+        // are returned raw because the caller maps to a slim DTO that excludes PII.
+        let mut query = <DieselPaymentIntent as HasTable>::table()
+            .filter(pi_dsl::merchant_id.eq(platform_merchant_id.to_owned()))
+            .order(pi_dsl::created_at.desc())
+            .into_boxed();
+
+        match filters {
+            PaymentIntentFetchConstraints::Single { payment_intent_id } => {
+                query = query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()));
+            }
+            PaymentIntentFetchConstraints::List(params) => {
+                if let Some(limit) = params.limit {
+                    query = query.limit(limit.into());
+                }
+
+                if let Some(customer_id) = &params.customer_id {
+                    query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
+                }
+                if let Some(profile_id) = &params.profile_id {
+                    query = query.filter(pi_dsl::profile_id.eq_any(profile_id.clone()));
+                }
+
+                // Platform list only supports date-based pagination cursors.
+                // `starting_after_id` / `ending_before_id` would require a per-row
+                // lookup that the existing helper scopes to a single processor merchant
+                // and is intentionally not wired up for cross-merchant platform listings.
+                if let Some(starting_at) = params.starting_at {
+                    query = query.filter(pi_dsl::created_at.ge(starting_at));
+                }
+                if let Some(ending_at) = params.ending_at {
+                    query = query.filter(pi_dsl::created_at.le(ending_at));
+                }
+
+                query = query.offset(params.offset.into());
+
+                if let Some(currency) = &params.currency {
+                    query = query.filter(pi_dsl::currency.eq_any(currency.clone()));
+                }
+
+                if let Some(status) = &params.status {
+                    query = query.filter(pi_dsl::status.eq_any(status.clone()));
+                }
+            }
+        }
+
+        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
+
+        db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
+            query.get_results_async::<DieselPaymentIntent>(conn),
+            db_metrics::DatabaseOperation::Filter,
+        )
+        .await
+        .map_err(|er| {
+            StorageError::DatabaseError(
+                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
+                    .attach_printable("Error filtering platform payment records"),
+            )
+            .into()
+        })
     }
 
     #[cfg(all(feature = "v1", feature = "olap"))]

@@ -9204,6 +9204,38 @@ pub async fn list_payments(
     ))
 }
 
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub async fn list_payments_for_platform(
+    state: SessionState,
+    platform: domain::Platform,
+    profile_id_list: Option<Vec<id_type::ProfileId>>,
+    constraints: api::PaymentListConstraints,
+) -> RouterResponse<api::PlatformPaymentListResponse> {
+    helpers::validate_payment_list_request(&constraints)?;
+    let platform_merchant_id = platform.get_provider().get_account().get_id();
+    let db = state.store.as_ref();
+    let payment_intents = db
+        .filter_payment_intent_by_platform_merchant_id_for_listing(
+            platform_merchant_id,
+            &(constraints, profile_id_list).try_into()?,
+            platform.get_provider().get_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let data: Vec<api::PlatformPaymentListItem> = payment_intents
+        .into_iter()
+        .map(ForeignFrom::foreign_from)
+        .collect();
+
+    Ok(services::ApplicationResponse::Json(
+        api::PlatformPaymentListResponse {
+            size: data.len(),
+            data,
+        },
+    ))
+}
+
 #[cfg(all(feature = "v2", feature = "olap"))]
 pub async fn list_payments(
     state: SessionState,
