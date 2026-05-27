@@ -129,7 +129,8 @@ describe("Client Session Validation", () => {
           globalState
         );
 
-        if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm without client_session_id - legacy fallback", () => {
@@ -152,7 +153,7 @@ describe("Client Session Validation", () => {
       it("Retrieve Payment", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-          ]["ClientSessionValidConfirm"];
+        ]["ClientSessionValidConfirm"];
 
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
       });
