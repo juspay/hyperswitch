@@ -399,51 +399,65 @@ function payLaterRedirection(
             break;
 
           case "airwallex":
-            // Airwallex Klarna PayLater - follows similar pattern to other Klarna flows
             cy.log(`Handling Airwallex ${paymentMethodType} pay_later flow`);
 
             // Wait for the page to load
             cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
 
-            // Airwallex Klarna redirects to standard Klarna playground
-            // Verify we landed on a Klarna page
-            cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
-              const bodyText = $body.text();
-              const klarnaIndicators = [
-                /klarna/i,
-                /playground/i,
-                /buy now.*pay later/i,
-                /continue.*klarna/i,
-                /smoooth/i,
-              ];
+            if (paymentMethodType === "atome") {
+              // Atome redirects to sandbox-gateway.apaylater.net
+              cy.url().then((url) => {
+                if (url.includes("apaylater.net")) {
+                  cy.log(
+                    "Successfully navigated to Atome page - verified redirection"
+                  );
+                } else {
+                  cy.log(
+                    `Warning: URL (${url}) does not contain expected Atome indicators`
+                  );
+                }
+              });
+            } else {
+              // Airwallex Klarna redirects to standard Klarna playground
+              // Verify we landed on a Klarna page
+              cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
+                const bodyText = $body.text();
+                const klarnaIndicators = [
+                  /klarna/i,
+                  /playground/i,
+                  /buy now.*pay later/i,
+                  /continue.*klarna/i,
+                  /smoooth/i,
+                ];
 
-              const hasKlarnaIndicator = klarnaIndicators.some((pattern) =>
-                pattern.test(bodyText)
-              );
-
-              if (hasKlarnaIndicator) {
-                cy.log(
-                  "Successfully navigated to Klarna page - verified redirection"
+                const hasKlarnaIndicator = klarnaIndicators.some((pattern) =>
+                  pattern.test(bodyText)
                 );
-              } else {
-                // Check URL as fallback
-                cy.url().then((url) => {
-                  if (
-                    url.includes("klarna") ||
-                    url.includes("playground") ||
-                    url.includes("airwallex")
-                  ) {
-                    cy.log(
-                      "URL indicates Klarna redirect - verified navigation"
-                    );
-                  } else {
-                    cy.log(
-                      `Warning: URL (${url}) does not contain expected Klarna indicators`
-                    );
-                  }
-                });
-              }
-            });
+
+                if (hasKlarnaIndicator) {
+                  cy.log(
+                    "Successfully navigated to Klarna page - verified redirection"
+                  );
+                } else {
+                  // Check URL as fallback
+                  cy.url().then((url) => {
+                    if (
+                      url.includes("klarna") ||
+                      url.includes("playground") ||
+                      url.includes("airwallex")
+                    ) {
+                      cy.log(
+                        "URL indicates Klarna redirect - verified navigation"
+                      );
+                    } else {
+                      cy.log(
+                        `Warning: URL (${url}) does not contain expected Klarna indicators`
+                      );
+                    }
+                  });
+                }
+              });
+            }
 
             verifyUrl = false; // Don't complete payment, just verify navigation
             break;
@@ -1236,10 +1250,17 @@ function bankRedirectRedirection(
             break;
 
           case "airwallex":
-            if (["paypal", "skrill"].includes(paymentMethodType)) {
-              cy.log(`Handling Airwallex ${paymentMethodType} wallet redirect`);
+            if (paymentMethodType === "paypal") {
+              cy.log("Handling Airwallex PayPal wallet redirect");
               cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
               verifyUrl = false;
+            } else if (paymentMethodType === "skrill") {
+              cy.log("Handling Airwallex Skrill wallet redirect");
+              cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+              cy.get("button#approve", { timeout: constants.TIMEOUT })
+                .should("be.visible")
+                .click();
+              verifyUrl = true;
             } else {
               throw new Error(
                 `Unsupported Airwallex payment method type: ${paymentMethodType}`

@@ -223,10 +223,11 @@ describe("Airwallex Alternative Payments", () => {
         "wallet_pm"
       ]["Skrill"];
 
+      cy.wait(5000);
       cy.retrievePaymentCallTest({
         globalState,
         data,
-        expectedIntentStatus: "requires_customer_action",
+        expectedIntentStatus: "succeeded",
       });
     });
   });

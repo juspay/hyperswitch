@@ -1047,9 +1047,6 @@ export const connectorDetails = {
       },
     }),
     Atome: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "pay_later",
         payment_method_type: "atome",
@@ -1060,14 +1057,31 @@ export const connectorDetails = {
           },
         },
         billing: {
-          email: "test@example.com",
+          email: "guest@example.com",
           address: {
-            line1: "123 Test St",
-            city: "Singapore",
-            zip: "238863",
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
             country: "SG",
-            first_name: "Test",
-            last_name: "User",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9876543210",
+            country_code: "+65",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "SG",
           },
         },
         order_details: [
@@ -1076,10 +1090,29 @@ export const connectorDetails = {
             quantity: 1,
             amount: 6000,
             total_amount: 6000,
-            description: "Test Product Description",
           },
         ],
-        return_url: "https://example.com",
+        browser_info: {
+          user_agent:
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+          accept_header:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+          language: "nl-NL",
+          color_depth: 24,
+          screen_height: 723,
+          screen_width: 1536,
+          time_zone: 0,
+          java_enabled: true,
+          java_script_enabled: true,
+          ip_address: "127.0.0.1",
+        },
+        return_url: "https://google.com/",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
       },
     }),
   },
@@ -1184,9 +1217,6 @@ export const connectorDetails = {
       },
     }),
     Skrill: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "skrill",
@@ -1196,8 +1226,17 @@ export const connectorDetails = {
             skrill: {},
           },
         },
-        billing: standardBillingAddress,
+        billing: {
+          ...standardBillingAddress,
+          email: "test@example.com",
+        },
         return_url: "https://example.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
       },
     }),
     AutoCapture: getCustomExchange({
