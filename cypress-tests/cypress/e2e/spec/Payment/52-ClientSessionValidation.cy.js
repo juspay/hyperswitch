@@ -196,7 +196,7 @@ describe("Client Session Validation", () => {
       const paymentIntentID = globalState.get("paymentID");
 
       cy.request({
-        method: "PATCH",
+        method: "POST",
         url: `${globalState.get("baseUrl")}/payments/${paymentIntentID}`,
         headers: {
           "Content-Type": "application/json",
