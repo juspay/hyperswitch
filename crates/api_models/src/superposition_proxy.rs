@@ -164,6 +164,7 @@ pub struct ListContextsRequest {
     pub last_modified_by: Option<Vec<String>>,
     pub plaintext: Option<String>,
     pub dimension_params: HashMap<String, String>,
+    pub dimension_match_strategy: Option<String>,
 }
 
 impl ApiEventMetric for ListContextsRequest {

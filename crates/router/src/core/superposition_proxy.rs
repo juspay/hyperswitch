@@ -210,7 +210,11 @@ pub async fn list_contexts(
         .list_contexts()
         .workspace_id(req.workspace_id.expose())
         .org_id(req.org_id.expose())
-        .dimension_match_strategy(DimensionMatchStrategy::AnyMatch)
+        .set_dimension_match_strategy(
+            req.dimension_match_strategy
+                .as_deref()
+                .map(DimensionMatchStrategy::from),
+        )
         .set_dimension_params(
             (!req.dimension_params.is_empty()).then_some(req.dimension_params),
         )

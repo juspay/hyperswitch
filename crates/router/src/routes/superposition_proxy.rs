@@ -59,6 +59,7 @@ fn parse_list_contexts_request(
     let mut last_modified_by = Vec::new();
     let mut plaintext = None;
     let mut dimension_params = HashMap::new();
+    let mut dimension_match_strategy = None;
 
     for (key, value) in params {
         match key.as_str() {
@@ -74,6 +75,7 @@ fn parse_list_contexts_request(
             "created_by" => created_by.push(value),
             "last_modified_by" => last_modified_by.push(value),
             "plaintext" => plaintext = Some(value),
+            "dimension_match_strategy" => dimension_match_strategy = Some(value),
             _ => {}
         }
     }
@@ -91,6 +93,7 @@ fn parse_list_contexts_request(
         last_modified_by: (!last_modified_by.is_empty()).then_some(last_modified_by),
         plaintext,
         dimension_params,
+        dimension_match_strategy,
     }
 }
 
