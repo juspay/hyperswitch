@@ -1591,7 +1591,7 @@ impl CommonMandateReference {
     }
 
     #[cfg(feature = "v1")]
-    fn parse_payments_reference_with_token_fallback(
+    pub fn parse_payments_reference_with_token_fallback(
         payments_json: serde_json::Value,
     ) -> CustomResult<PaymentsMandateReference, ParsingError> {
         match serde_json::from_value::<PaymentsMandateReference>(payments_json.clone()) {
