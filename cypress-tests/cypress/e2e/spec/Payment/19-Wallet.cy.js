@@ -585,9 +585,9 @@ describe("AliPay Wallet tests", () => {
           cy.task("cli_log", "Skipping step: Confirm Payment");
           return;
         }
-        const confirmData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["wallet_pm"]["AliPay"];
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["AliPay"];
         cy.confirmBankRedirectCallTest(
           fixtures.confirmBody,
           confirmData,
@@ -700,9 +700,9 @@ describe("WeChatPay Wallet tests", () => {
           cy.task("cli_log", "Skipping step: Confirm Payment");
           return;
         }
-        const confirmData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["wallet_pm"]["WeChatPay"];
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["WeChatPay"];
         cy.confirmBankRedirectCallTest(
           fixtures.confirmBody,
           confirmData,
@@ -815,9 +815,9 @@ describe("MbWay Wallet tests", () => {
           cy.task("cli_log", "Skipping step: Confirm Payment");
           return;
         }
-        const confirmData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["wallet_pm"]["MbWay"];
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["MbWay"];
         cy.confirmBankRedirectCallTest(
           fixtures.confirmBody,
           confirmData,
