@@ -1000,7 +1000,7 @@ impl Payments {
                         .route(web::post().to(payments::payments_reject)),
                 )
                 .service(
-                    web::resource("/{payment_id}/eligibility")
+                    web::resource("/{payment_id}/eligibility_check")
                         .route(web::post().to(payments::payments_submit_eligibility)),
                 )
                 .service(
@@ -1008,7 +1008,7 @@ impl Payments {
                         .route(web::get().to(payment_methods::list_payment_methods_for_payments_client)),
                 )
                 .service(
-                    web::resource("/{payment_id}/pre_confirm")
+                    web::resource("/{payment_id}/eligibility")
                         .route(web::post().to(payments::payments_submit_pre_confirm)),
                 )
                 .service(
