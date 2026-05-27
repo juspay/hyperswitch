@@ -1147,9 +1147,6 @@ export const connectorDetails = {
         },
       }),
     IndonesianBankTransfer: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_transfer",
         payment_method_type: "indonesian_bank_transfer",
@@ -1171,6 +1168,12 @@ export const connectorDetails = {
           },
         },
         currency: "IDR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
       },
     }),
     AutoCapture: getCustomExchange({
