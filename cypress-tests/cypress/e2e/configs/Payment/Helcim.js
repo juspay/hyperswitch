@@ -83,6 +83,31 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentWithShippingCost: {
+      Request: {
+        currency: "USD",
+        shipping_cost: 50,
+        amount: 3000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          shipping_cost: 50,
+          amount: 3000,
+        },
+      },
+    },
+    PaymentConfirmWithShippingCost: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+    },
     Refund: {
       Request: {
         amount: 6500,
