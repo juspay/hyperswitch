@@ -73,8 +73,8 @@ describe("Airwallex Alternative Payments", () => {
 
     it("create-payment-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["PaymentIntent"]("PaypalRedirect");
+        "pay_later_pm"
+      ]["AtomeAutoCapture"];
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,

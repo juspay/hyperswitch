@@ -1046,6 +1046,20 @@ export const connectorDetails = {
         },
       },
     }),
+    AtomeAutoCapture: getCustomExchange({
+      Request: {
+        currency: "SGD",
+        capture_method: "automatic",
+        description: "Test Order",
+        return_url: "https://google.com/",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
     Atome: getCustomExchange({
       Configs: {
         skipBillingAssertion: true,
