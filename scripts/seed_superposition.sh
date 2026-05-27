@@ -1,7 +1,7 @@
-#!/bin/bash
+#!/bin/sh
 # Seed Superposition with default configuration for local development
 
-set -euo pipefail
+set -eu
 
 SUPERPOSITION_URL="${SUPERPOSITION_URL:-http://localhost:8081}"
 SEED_FILE="${SEED_FILE:-./config/superposition_seed.toml}"
@@ -43,34 +43,35 @@ fi
 
 # POST a payload and accept 2xx or 409 (already exists); fail loudly on anything else.
 post_or_fail() {
-    local url="$1"
-    local payload="$2"
-    local label="$3"
+    pof_url="$1"
+    pof_payload="$2"
+    pof_label="$3"
 
-    local tmp
-    tmp=$(mktemp)
-    local status
-    status=$(curl -sS -o "$tmp" -w "%{http_code}" -X POST "$url" \
+    pof_tmp=$(mktemp)
+    pof_status=$(curl -sS -o "$pof_tmp" -w "%{http_code}" -X POST "$pof_url" \
         -H "Content-Type: application/json" \
         -H "x-org-id: $ORG_ID" \
         -H "x-workspace: $WORKSPACE_ID" \
-        -d "$payload")
+        -d "$pof_payload")
 
-    case "$status" in
+    case "$pof_status" in
         2??)
             ;;
         409)
-            echo "  $label already exists (HTTP 409), continuing"
+            echo "  $pof_label already exists (HTTP 409), continuing"
             ;;
         *)
-            echo "Error: $label failed with HTTP $status"
+            echo "Error: $pof_label failed with HTTP $pof_status"
             echo "Response body:"
-            cat "$tmp"
-            rm -f "$tmp"
+            cat "$pof_tmp"
+            rm -f "$pof_tmp"
             exit 1
             ;;
     esac
-    rm -f "$tmp"
+    rm -f "$pof_tmp"
+    
+    # Reset variables to mimic local scope cleanliness in pure POSIX sh
+    pof_url="" pof_payload="" pof_label="" pof_tmp="" pof_status=""
 }
 
 # Convert TOML seed file to JSON for processing
