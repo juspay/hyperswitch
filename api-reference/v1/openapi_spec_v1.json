@@ -1664,7 +1664,7 @@
         ]
       }
     },
-    "/payments/{payment_id}/eligibility": {
+    "/payments/{payment_id}/eligibility_check": {
       "post": {
         "tags": [
           "Payments"
@@ -1721,7 +1721,7 @@
         ]
       }
     },
-    "/payments/{payment_id}/pre_confirm": {
+    "/payments/{payment_id}/eligibility": {
       "post": {
         "tags": [
           "Payments"
