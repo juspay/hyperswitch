@@ -710,7 +710,8 @@ async fn trigger_webhook_to_connector(
                         delivery_attempt,
                         ScheduleWebhookRetry::WithProcessTracker(Box::new(process_tracker)),
                     )
-                    .await?;
+                    .await;
+                    Ok(())
                 }
                 Ok(response) => {
                     let status_code = response.status_code;
@@ -748,6 +749,7 @@ async fn trigger_webhook_to_connector(
                         )
                         .await?;
                     }
+                    Ok(())
                 }
             }
         }
@@ -762,7 +764,8 @@ async fn trigger_webhook_to_connector(
                     delivery_attempt,
                     ScheduleWebhookRetry::NoSchedule,
                 )
-                .await?
+                .await;
+                Ok(())
             }
             Ok(response) => {
                 let status_code = response.status_code;
@@ -776,16 +779,18 @@ async fn trigger_webhook_to_connector(
 
                 if (200..300).contains(&status_code) {
                     increment_webhook_outgoing_received_count(&business_profile.merchant_id);
+                    Ok(())
                 } else {
                     error_response_handler(
                         state,
                         &business_profile.merchant_id,
                         delivery_attempt,
-                        status_code.as_u16(),
+                        status_code,
                         "Ignoring error when sending webhook to connector",
                         ScheduleWebhookRetry::NoSchedule,
                     )
                     .await?;
+                    Ok(())
                 }
             }
         }
