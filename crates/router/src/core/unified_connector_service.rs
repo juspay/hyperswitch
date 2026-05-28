@@ -28,7 +28,7 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::refunds,
     router_request_types::RefundsData,
-    router_response_types::{NotifyConnectorResponseData, PaymentsResponseData, PayoutsResponseData, RefundsResponseData},
+    router_response_types::{PaymentsResponseData, PayoutsResponseData, RefundsResponseData},
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};

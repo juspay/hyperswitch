@@ -5,21 +5,15 @@ use hyperswitch_masking::Secret;
 use serde::Serialize;
 
 use crate::{
-    core::{errors, metrics, webhooks::utils::WebhookRecipientData},
-    db::StorageInterface,
-    events::outgoing_webhook_logs::{
-        OutgoingWebhookEvent, OutgoingWebhookEventContent, OutgoingWebhookEventMetric,
-    },
+    core::{errors, webhooks::utils::WebhookRecipientData},
     headers, logger,
-    routes::{app::SessionStateInfo, SessionState},
+    routes::SessionState,
     services::request::Maskable,
     types::{
         api,
         domain::{self},
         storage::{self, enums},
-        transformers::ForeignFrom,
-    },
-    utils::{OptionExt, ValueExt},
+    }
 };
 
 #[derive(Debug)]

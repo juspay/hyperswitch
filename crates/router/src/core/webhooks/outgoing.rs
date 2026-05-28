@@ -20,7 +20,7 @@ use router_env::{
     tracing::{self, Instrument},
 };
 
-use super::{types, utils, MERCHANT_CONNECTOR_ID, MERCHANT_ID};
+use super::{types, utils, MERCHANT_ID};
 #[cfg(feature = "stripe")]
 use crate::compatibility::stripe::webhooks as stripe_webhooks;
 use crate::{
@@ -596,7 +596,7 @@ async fn trigger_webhook_to_connector(
                 logger::error!(
                     "Missing merchant_connector_id in tracking data for connector webhook"
                 );
-                return Err(errors::WebhooksFlowError::MissingMerchantConnectorId);
+                return Err(errors::WebhooksFlowError::MerchantConfigNotFound.into());
             }
         };
 
@@ -613,7 +613,7 @@ async fn trigger_webhook_to_connector(
             Ok(mca) => mca,
             Err(err) => {
                 logger::error!(?err, "Failed to find merchant connector account");
-                return Err(errors::WebhooksFlowError::MerchantConfigNotFound)
+                return Err(errors::WebhooksFlowError::MerchantConfigNotFound.into())
             }
         };
 
