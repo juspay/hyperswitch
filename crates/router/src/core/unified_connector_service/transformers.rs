@@ -34,6 +34,7 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{
         PaymentsResponseData, PayoutsResponseData, RedirectForm, RefundsResponseData,
+        NotifyConnectorResponseData,
     },
 };
 pub use hyperswitch_interfaces::{
@@ -7303,6 +7304,35 @@ impl transformers::ForeignTryFrom<payments_grpc::SurchargeServiceCalculateRespon
             surcharge_amount,
             connector_surcharge_id: external_surcharge_transaction_id,
             surcharge_fee_percent,
+            error_code: grpc_response.error.as_ref().and_then(|error_info| {
+                error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.code.clone())
+            }),
+            error_message: grpc_response.error.as_ref().and_then(|error_info| {
+                error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.message.clone())
+            }),
+        })
+    }
+}
+
+
+
+impl transformers::ForeignTryFrom<payments_grpc::NotifyConnectorResponse>
+    for NotifyConnectorResponseData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        grpc_response: payments_grpc::NotifyConnectorResponse,
+    ) -> Result<Self, Self::Error> {
+
+        Ok(Self {
+            status_code: grpc_response.status_code,
             error_code: grpc_response.error.as_ref().and_then(|error_info| {
                 error_info
                     .connector_details

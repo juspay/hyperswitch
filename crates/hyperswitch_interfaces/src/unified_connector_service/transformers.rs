@@ -201,6 +201,10 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Surcharge Calculate from gRPC Server
     #[error("Failed to perform Surcharge Calculate from gRPC Server")]
     SurchargeCalculateFailure,
+
+    /// Failed to perform Notify Connector via gRPC Server
+    #[error("Failed to perform Notify Connector from gRPC Server")]
+    NotifyConnector,
 }
 
 impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>

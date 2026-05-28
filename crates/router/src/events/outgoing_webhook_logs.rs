@@ -81,7 +81,8 @@ pub enum OutgoingWebhookEventContent {
         content: Value,
     },
     Surcharge {
-        external_surcharge_id: String,
+        payment_id: common_utils::id_type::PaymentId,
+        attempt_id: String,
     },
 }
 pub trait OutgoingWebhookEventMetric {

@@ -113,6 +113,10 @@ pub enum EventMetadata {
         invoice_id: Option<common_utils::id_type::InvoiceId>,
         payment_id: Option<common_utils::id_type::PaymentId>,
     },
+    Surcharge {
+        payment_id: common_utils::id_type::PaymentId,
+        attempt_id: String,
+    }
 }
 
 common_utils::impl_to_sql_from_sql_json!(EventMetadata);

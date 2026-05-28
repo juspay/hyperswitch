@@ -31,3 +31,5 @@ pub(crate) use self::{
 };
 
 const MERCHANT_ID: &str = "merchant_id";
+
+const MERCHANT_CONNECTOR_ID: &str = "merchant_connector_id";

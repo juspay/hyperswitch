@@ -5,7 +5,7 @@ use hyperswitch_masking::Secret;
 use serde::Serialize;
 
 use crate::{
-    core::{errors, metrics},
+    core::{errors, metrics, webhooks::utils::WebhookRecipientData},
     db::StorageInterface,
     events::outgoing_webhook_logs::{
         OutgoingWebhookEvent, OutgoingWebhookEventContent, OutgoingWebhookEventMetric,
@@ -19,7 +19,7 @@ use crate::{
         storage::{self, enums},
         transformers::ForeignFrom,
     },
-    utils::{OptionExt, ValueExt, WebhookRecipientData},
+    utils::{OptionExt, ValueExt},
 };
 
 #[derive(Debug)]
