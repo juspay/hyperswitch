@@ -65,7 +65,9 @@ impl superposition_sdk::config::Intercept for InternalAuthInterceptor {
 
     fn modify_before_transmit(
         &self,
-        context: &mut superposition_sdk::config::interceptors::BeforeTransmitInterceptorContextMut<'_>,
+        context: &mut superposition_sdk::config::interceptors::BeforeTransmitInterceptorContextMut<
+            '_,
+        >,
         _runtime_components: &superposition_sdk::config::RuntimeComponents,
         _cfg: &mut superposition_sdk::config::ConfigBag,
     ) -> Result<(), aws_smithy_runtime_api::box_error::BoxError> {
@@ -137,9 +139,7 @@ impl HyperswitchHttpDataSource {
         if_modified_since: Option<chrono::DateTime<chrono::Utc>>,
         dimension_match_strategy: Option<superposition_sdk::types::DimensionMatchStrategy>,
     ) -> superposition_provider::types::Result<
-        superposition_provider::data_source::FetchResponse<
-            superposition_provider::ExperimentData,
-        >,
+        superposition_provider::data_source::FetchResponse<superposition_provider::ExperimentData>,
     > {
         let mut builder = self
             .client
@@ -175,8 +175,7 @@ impl HyperswitchHttpDataSource {
         match result {
             Ok(res) => {
                 use chrono::TimeZone as _;
-                let modified_at = chrono::Utc
-                    .timestamp_nanos(res.last_modified.as_nanos() as i64);
+                let modified_at = chrono::Utc.timestamp_nanos(res.last_modified.as_nanos() as i64);
                 superposition_provider::utils::ConversionUtils::convert_experiment_config_response(
                     res,
                 )
@@ -191,9 +190,11 @@ impl HyperswitchHttpDataSource {
             {
                 Ok(superposition_provider::data_source::FetchResponse::NotModified)
             }
-            Err(e) => Err(superposition_provider::types::SuperpositionError::NetworkError(
-                format!("Failed to list experiments: {e}"),
-            )),
+            Err(e) => Err(
+                superposition_provider::types::SuperpositionError::NetworkError(format!(
+                    "Failed to list experiments: {e}"
+                )),
+            ),
         }
     }
 }
@@ -206,9 +207,7 @@ impl superposition_provider::data_source::SuperpositionDataSource for Hyperswitc
         prefix_filter: Option<Vec<String>>,
         if_modified_since: Option<chrono::DateTime<chrono::Utc>>,
     ) -> superposition_provider::types::Result<
-        superposition_provider::data_source::FetchResponse<
-            superposition_provider::ConfigData,
-        >,
+        superposition_provider::data_source::FetchResponse<superposition_provider::ConfigData>,
     > {
         let mut builder = self
             .client
@@ -240,8 +239,7 @@ impl superposition_provider::data_source::SuperpositionDataSource for Hyperswitc
         match result {
             Ok(res) => {
                 use chrono::TimeZone as _;
-                let modified_at = chrono::Utc
-                    .timestamp_nanos(res.last_modified.as_nanos() as i64);
+                let modified_at = chrono::Utc.timestamp_nanos(res.last_modified.as_nanos() as i64);
                 superposition_provider::utils::ConversionUtils::convert_get_config_response(res)
                     .map(|d| superposition_provider::ConfigData {
                         data: d,
@@ -254,9 +252,11 @@ impl superposition_provider::data_source::SuperpositionDataSource for Hyperswitc
             {
                 Ok(superposition_provider::data_source::FetchResponse::NotModified)
             }
-            Err(e) => Err(superposition_provider::types::SuperpositionError::NetworkError(
-                format!("Failed to fetch config: {e}"),
-            )),
+            Err(e) => Err(
+                superposition_provider::types::SuperpositionError::NetworkError(format!(
+                    "Failed to fetch config: {e}"
+                )),
+            ),
         }
     }
 
@@ -264,9 +264,7 @@ impl superposition_provider::data_source::SuperpositionDataSource for Hyperswitc
         &self,
         if_modified_since: Option<chrono::DateTime<chrono::Utc>>,
     ) -> superposition_provider::types::Result<
-        superposition_provider::data_source::FetchResponse<
-            superposition_provider::ExperimentData,
-        >,
+        superposition_provider::data_source::FetchResponse<superposition_provider::ExperimentData>,
     > {
         self.fetch_experiments_with_filters(None, None, if_modified_since, None)
             .await
@@ -278,9 +276,7 @@ impl superposition_provider::data_source::SuperpositionDataSource for Hyperswitc
         prefix_filter: Option<Vec<String>>,
         if_modified_since: Option<chrono::DateTime<chrono::Utc>>,
     ) -> superposition_provider::types::Result<
-        superposition_provider::data_source::FetchResponse<
-            superposition_provider::ExperimentData,
-        >,
+        superposition_provider::data_source::FetchResponse<superposition_provider::ExperimentData>,
     > {
         self.fetch_experiments_with_filters(
             context,
@@ -297,9 +293,7 @@ impl superposition_provider::data_source::SuperpositionDataSource for Hyperswitc
         prefix_filter: Option<Vec<String>>,
         if_modified_since: Option<chrono::DateTime<chrono::Utc>>,
     ) -> superposition_provider::types::Result<
-        superposition_provider::data_source::FetchResponse<
-            superposition_provider::ExperimentData,
-        >,
+        superposition_provider::data_source::FetchResponse<superposition_provider::ExperimentData>,
     > {
         self.fetch_experiments_with_filters(
             context,
