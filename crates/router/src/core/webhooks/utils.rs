@@ -298,12 +298,13 @@ pub(crate) struct WebhookRecipientContext {
     pub profile: domain::Profile,
 }
 
-pub(crate) struct WebhookEventData {
+pub(crate) struct WebhookPayload {
     pub event_type: types::storage::enums::EventType,
     pub event_content: api::OutgoingWebhookContent,
     pub recipient_data: WebhookRecipientData,
 }
 
+#[derive( Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub(crate) enum WebhookRecipientData {
     Merchant,
     Connector {

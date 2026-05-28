@@ -5,7 +5,7 @@ use hyperswitch_masking::Secret;
 use serde::Serialize;
 
 use crate::{
-    core::errors,
+    core::{errors, webhooks::utils},
     headers, logger,
     services::request::Maskable,
     types::storage::{self, enums},
@@ -90,6 +90,7 @@ pub(crate) struct OutgoingWebhookTrackingData {
     pub(crate) primary_object_id: String,
     pub(crate) primary_object_type: enums::EventObjectType,
     pub(crate) initial_attempt_id: Option<String>,
+    pub(crate) recipient_data: utils::WebhookRecipientData,
 }
 
 pub struct WebhookResponse {

@@ -49,10 +49,10 @@ pub(crate) async fn get_webhook_events(
     primary_content: &api::OutgoingWebhookContent,
     webhook_resource_data: Option<WebhookResourceData>,
     provider_profile: &domain::Profile,
-) -> CustomResult<Vec<utils::WebhookEventData>, errors::ApiErrorResponse> {
+) -> CustomResult<Vec<utils::WebhookPayload>, errors::ApiErrorResponse> {
     let mut webhook_events = Vec::new();
 
-    let event_data = utils::WebhookEventData {
+    let event_data = utils::WebhookPayload {
         event_type: primary_event_type,
         event_content: primary_content.clone(),
         recipient_data: utils::WebhookRecipientData::Merchant,
@@ -113,7 +113,7 @@ pub(crate) async fn get_webhook_events(
                                     .clone(),
                             };
 
-                            let event_data = utils::WebhookEventData {
+                            let event_data = utils::WebhookPayload {
                                 event_type: enums::EventType::SurchargePaymentSucceeded,
                                 event_content: api::OutgoingWebhookContent::SurchargeDetails(
                                     Box::new(event_content),
@@ -152,7 +152,7 @@ pub(crate) async fn get_webhook_events(
                                     .clone(),
                             };
 
-                            let event_data = utils::WebhookEventData {
+                            let event_data = utils::WebhookPayload {
                                 event_type: enums::EventType::SurchargeRefundSucceeded,
                                 event_content: api::OutgoingWebhookContent::SurchargeDetails(
                                     Box::new(event_content),
@@ -197,7 +197,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         return Ok(());
     };
 
-    let events_to_trigger = get_webhook_events(
+    let events_to_trigger  = get_webhook_events(
         &state,
         platform.clone(),
         primary_event_type,
@@ -256,7 +256,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     )
     .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
     .attach_printable("Failed to construct outgoing webhook request content")?;
-
+    let recipient = event_data.recipient_data.get_event_recipient(); 
     let event_metadata = storage::EventMetadata::foreign_from(&content);
     let key_manager_state = &(&state).into();
     let new_event = domain::Event {
@@ -297,7 +297,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         is_overall_delivery_successful: Some(false),
         processor_merchant_id: Some(processor_merchant_id.clone()),
         initiator_merchant_id: Some(webhook_recipient.key_store.merchant_id.clone()),
-        recipient: Some(event_data.recipient_data.get_event_recipient()),
+        recipient: Some(recipient),
     };
 
     let lock_value = utils::perform_redis_lock(
@@ -363,6 +363,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         &webhook_recipient,
         &event,
         state.conf.application_source,
+        event_data.recipient_data.clone()
     )
     .await
     .inspect_err(|error| {
@@ -742,6 +743,7 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
     webhook_recipient: &utils::WebhookRecipientContext,
     event: &domain::Event,
     application_source: common_enums::ApplicationSource,
+    webhook_recipient_data: utils::WebhookRecipientData,
 ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
     let provider_merchant_id = platform.get_provider().get_account().get_id().clone();
     let processor_merchant_id = platform.get_processor().get_account().get_id().clone();
@@ -767,6 +769,7 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
         primary_object_id: event.primary_object_id.clone(),
         primary_object_type: event.primary_object_type,
         initial_attempt_id: event.initial_attempt_id.clone(),
+        recipient_data: webhook_recipient_data,
     };
 
     let runner = storage::ProcessTrackerRunner::OutgoingWebhookRetryWorkflow;
