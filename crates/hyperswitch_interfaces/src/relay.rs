@@ -37,6 +37,15 @@ pub struct UnreferencedRefundResponse {
 
 /// Trait implemented by connectors that support relay operations (e.g. unreferenced refund).
 pub trait ConnectorRelayIntegration {
+    /// Connector base URL from config.
+    fn base_url<'a>(
+        &self,
+        connectors: &'a hyperswitch_domain_models::connector_endpoints::Connectors,
+    ) -> &'a str;
+
+    /// Whether this connector requires an access token before relay requests.
+    fn supports_access_token(&self) -> bool;
+
     /// Build the outbound HTTP request.
     fn build_relay_request(
         &self,
@@ -56,8 +65,7 @@ pub trait ConnectorRelayIntegration {
         status_code: u16,
     ) -> error_stack::Result<UnreferencedRefundResponse, ConnectorError>;
 
-    /// Parse a 5xx error response — default impl returns a generic message without JSON parsing,
-    /// matching UCS get_5xx_error_response behaviour.
+    /// Parse a 5xx error response — default impl returns a generic message without JSON parsing.
     fn get_relay_5xx_error_response(
         &self,
         status_code: u16,
@@ -72,7 +80,7 @@ pub trait ConnectorRelayIntegration {
     }
 
     /// Orchestrates the three methods above based on HTTP status code.
-    /// Mirrors UCS handle_connector_response() — connectors do not override this.
+    /// Connectors do not override this.
     fn handle_relay_response(
         &self,
         response: Bytes,

@@ -99,8 +99,7 @@ pub use self::{
 };
 use crate::{
     api::subscriptions::Subscriptions, connector_integration_v2::ConnectorIntegrationV2, consts,
-    errors, events::connector_api_logs::ConnectorEvent, metrics, relay::ConnectorRelayIntegration,
-    types, webhooks,
+    errors, events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
 };
 
 /// Connector trait
@@ -126,7 +125,6 @@ pub trait Connector:
     + ExternalVault
     + Subscriptions
     + WebhookRegister
-    + ConnectorRelayIntegration
 {
 }
 
@@ -151,8 +149,7 @@ impl<
             + UnifiedAuthenticationService
             + revenue_recovery::RevenueRecovery
             + ExternalVault
-            + Subscriptions
-            + ConnectorRelayIntegration,
+            + Subscriptions,
     > Connector for T
 {
 }

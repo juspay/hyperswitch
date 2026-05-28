@@ -283,69 +283,80 @@ pub async fn add_access_token<
     }
 }
 
-/// Add an access token for relay flows (e.g. unreferenced refund).
-///
+
 /// Reads the Redis cache first. On a cache miss, calls UCS via the
 /// `create_server_authentication_token` gRPC method to generate a fresh token, caches it,
 /// and returns it.
-///
-/// Returns `None` if the connector doesn't support access tokens.
-pub async fn add_access_token_for_relay(
+pub async fn get_access_token_for_relay(
     state: &SessionState,
-    connector: &api_types::ConnectorData,
+    connector_name: &str,
+    merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
     merchant_id: &common_utils::id_type::MerchantId,
     profile_id: &common_utils::id_type::ProfileId,
     merchant_connector_account: &domain::MerchantConnectorAccount,
     processor: &domain::Processor,
-    creds_identifier: Option<&str>,
+    relay_id: &common_utils::id_type::RelayId,
 ) -> RouterResult<Option<types::AccessToken>> {
-    if !connector
-        .connector_name
-        .supports_access_token(common_enums::PaymentMethod::Card)
-    {
-        return Ok(None);
-    }
-
-    let merchant_connector_id_or_connector_name = connector
-        .merchant_connector_id
-        .as_ref()
+    let merchant_connector_id_or_connector_name = merchant_connector_id
         .map(|id| id.get_string_repr().to_string())
-        .or_else(|| creds_identifier.map(str::to_string))
-        .unwrap_or_else(|| connector.connector_name.to_string());
+        .unwrap_or(connector_name.to_string());
 
-    let key = common_utils::access_token::get_default_access_token_key(
+    let access_token_key = common_utils::access_token::get_default_access_token_key(
         merchant_id,
         merchant_connector_id_or_connector_name,
     );
 
     let cached = state
         .store
-        .get_access_token(key.clone())
+        .get_access_token(access_token_key.clone())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to read access token from cache for relay")?;
+        .attach_printable("Failed to read access token from cache")?;
 
-    if let Some(token) = cached {
-        logger::info!(
-            connector = %connector.connector_name,
-            "Cached access token found for relay flow"
-        );
-        return Ok(Some(token));
+    match cached {
+        Some(access_token) => {
+            logger::info!(
+                connector = %connector_name,
+                "Cached access token found"
+            );
+            Ok(Some(access_token))
+        }
+        None => {
+            logger::info!(
+                connector = %connector_name,
+                "No cached access token — generating via UCS"
+            );
+            fetch_access_token_from_ucs(
+                state,
+                connector_name,
+                merchant_id,
+                profile_id,
+                merchant_connector_account,
+                processor,
+                relay_id,
+                access_token_key,
+            )
+            .await
+        }
     }
+}
 
-    logger::info!(
-        connector = %connector.connector_name,
-        "No cached access token for relay — generating via UCS"
-    );
-
+async fn fetch_access_token_from_ucs(
+    state: &SessionState,
+    connector_name: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
+    profile_id: &common_utils::id_type::ProfileId,
+    merchant_connector_account: &domain::MerchantConnectorAccount,
+    processor: &domain::Processor,
+    relay_id: &common_utils::id_type::RelayId,
+    access_token_key: String,
+) -> RouterResult<Option<types::AccessToken>> {
     let client = state
         .grpc_client
         .unified_connector_service_client
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "UCS gRPC client not configured; cannot generate access token for relay",
-        )?;
+        .attach_printable("UCS gRPC client not configured")?;
 
     #[cfg(feature = "v1")]
     let mca_type = payments::helpers::MerchantConnectorAccountType::DbVal(Box::new(
@@ -361,10 +372,10 @@ pub async fn add_access_token_for_relay(
         unified_connector_service::build_unified_connector_service_auth_metadata(
             mca_type,
             processor,
-            connector.connector_name.to_string(),
+            connector_name.to_string(),
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to build UCS auth metadata for relay access token")?;
+        .attach_printable("Failed to build UCS auth metadata")?;
 
     let lineage_ids =
         external_services::grpc_client::LineageIds::new(merchant_id.clone(), profile_id.clone());
@@ -382,10 +393,10 @@ pub async fn add_access_token_for_relay(
     #[cfg(feature = "v2")]
     let test_mode = merchant_connector_account.get_connector_test_mode();
 
-    let relay_reference_id = uuid::Uuid::new_v4().to_string();
     let create_request =
         payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
-            merchant_access_token_id: Some(relay_reference_id),
+            merchant_access_token_id: Some(relay_id.get_string_repr().to_string()),
+            // depricated field we have to remove this/ Default to unspecified connector
             connector: 0_i32,
             metadata: None,
             connector_feature_data: None,
@@ -406,11 +417,13 @@ pub async fn add_access_token_for_relay(
         .attach_printable("Failed to parse UCS access token response for relay")?;
 
     let access_token = access_token_result.map_err(|err| {
-        logger::error!(ucs_error = ?err, "UCS returned error for relay access token generation");
         error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("UCS returned error response for relay access token generation")
+            .attach_printable(format!(
+                "UCS returned error for relay access token generation: {err:?}"
+            ))
     })?;
 
+    // The expiry should be adjusted for network delays from the connector
     let modified_token = types::AccessToken {
         expires: access_token
             .expires
@@ -418,15 +431,14 @@ pub async fn add_access_token_for_relay(
         ..access_token
     };
 
-    if let Err(cache_err) = state
+    state
         .store
-        .set_access_token(key, modified_token.clone())
+        .set_access_token(access_token_key, modified_token.clone())
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to cache relay access token")
-    {
-        logger::error!(error = ?cache_err, "Failed to cache relay access token — proceeding anyway");
-    }
+        .map_err(|cache_err| {
+            logger::error!(error = ?cache_err, "Failed to cache relay access token — proceeding anyway");
+        })
+        .ok();
 
     Ok(Some(modified_token))
 }

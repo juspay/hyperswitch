@@ -50,7 +50,7 @@ impl Relay {
             connector_id: relay_request.connector_id.clone(),
             profile_id: profile_id.clone(),
             merchant_id: merchant_id.clone(),
-            relay_type: relay_request.relay_type,
+            relay_type: relay_request.relay_type.into(),
             request_data: relay_request.data.clone().map(From::from),
             status: common_enums::RelayStatus::Created,
             connector_reference_id: None,
@@ -93,6 +93,13 @@ impl From<api_models::relay::RelayData> for RelayData {
                 currency: relay_void_request.currency,
                 cancellation_reason: relay_void_request.cancellation_reason,
             }),
+            api_models::relay::RelayData::UnreferencedRefund(data) => {
+                Self::UnreferencedRefund(RelayUnreferencedRefundData {
+                    amount: data.amount,
+                    currency: data.currency,
+                    customer_id: data.customer_id,
+                })
+            }
         }
     }
 }
@@ -286,44 +293,45 @@ impl RelayUpdate {
     }
 }
 
-impl TryFrom<RelayData> for api_models::relay::RelayData {
-    type Error = ApiErrorResponse;
 
-    fn try_from(relay: RelayData) -> Result<Self, Self::Error> {
+impl From<RelayData> for api_models::relay::RelayData {
+    fn from(relay: RelayData) -> Self {
         match relay {
-            RelayData::Refund(relay_refund_request) => {
-                Ok(Self::Refund(api_models::relay::RelayRefundRequestData {
-                    amount: relay_refund_request.amount,
-                    currency: relay_refund_request.currency,
-                    reason: relay_refund_request.reason,
-                }))
+            RelayData::Refund(data) => Self::Refund(api_models::relay::RelayRefundRequestData {
+                amount: data.amount,
+                currency: data.currency,
+                reason: data.reason,
+            }),
+            RelayData::Capture(data) => {
+                Self::Capture(api_models::relay::RelayCaptureRequestData {
+                    authorized_amount: data.authorized_amount,
+                    amount_to_capture: data.amount_to_capture,
+                    currency: data.currency,
+                    capture_method: data.capture_method,
+                })
             }
-            RelayData::Capture(relay_capture_request) => {
-                Ok(Self::Capture(api_models::relay::RelayCaptureRequestData {
-                    authorized_amount: relay_capture_request.authorized_amount,
-                    amount_to_capture: relay_capture_request.amount_to_capture,
-                    currency: relay_capture_request.currency,
-                    capture_method: relay_capture_request.capture_method,
-                }))
-            }
-            RelayData::IncrementalAuthorization(relay_incremental_authorization_request) => {
-                Ok(Self::IncrementalAuthorization(
+            RelayData::IncrementalAuthorization(data) => {
+                Self::IncrementalAuthorization(
                     api_models::relay::RelayIncrementalAuthorizationRequestData {
-                        total_amount: relay_incremental_authorization_request.total_amount,
-                        additional_amount: relay_incremental_authorization_request
-                            .additional_amount,
-                        currency: relay_incremental_authorization_request.currency,
+                        total_amount: data.total_amount,
+                        additional_amount: data.additional_amount,
+                        currency: data.currency,
                     },
-                ))
+                )
             }
-            RelayData::Void(relay_void_request) => {
-                Ok(Self::Void(api_models::relay::RelayVoidRequestData {
-                    amount: relay_void_request.amount,
-                    currency: relay_void_request.currency,
-                    cancellation_reason: relay_void_request.cancellation_reason,
-                }))
+            RelayData::Void(data) => Self::Void(api_models::relay::RelayVoidRequestData {
+                amount: data.amount,
+                currency: data.currency,
+                cancellation_reason: data.cancellation_reason,
+            }),
+            RelayData::UnreferencedRefund(data) => {
+                Self::UnreferencedRefund(api_models::relay::RelayUnreferencedRefundData {
+                    amount: data.amount,
+                    currency: data.currency,
+                    customer_id: data.customer_id,
+                    recipient_payment_method_data: None,
+                })
             }
-            RelayData::UnreferencedRefund(_) => Err(ApiErrorResponse::InternalServerError),
         }
     }
 }
@@ -340,41 +348,9 @@ impl From<Relay> for api_models::relay::RelayResponse {
                 },
             );
 
-        let data = value.request_data.and_then(|relay_data| match relay_data {
-            RelayData::Refund(relay_refund_request) => Some(api_models::relay::RelayData::Refund(
-                api_models::relay::RelayRefundRequestData {
-                    amount: relay_refund_request.amount,
-                    currency: relay_refund_request.currency,
-                    reason: relay_refund_request.reason,
-                },
-            )),
-            RelayData::Capture(relay_capture_request) => Some(
-                api_models::relay::RelayData::Capture(api_models::relay::RelayCaptureRequestData {
-                    authorized_amount: relay_capture_request.authorized_amount,
-                    amount_to_capture: relay_capture_request.amount_to_capture,
-                    currency: relay_capture_request.currency,
-                    capture_method: relay_capture_request.capture_method,
-                }),
-            ),
-            RelayData::IncrementalAuthorization(relay_incremental_authorization_request) => {
-                Some(api_models::relay::RelayData::IncrementalAuthorization(
-                    api_models::relay::RelayIncrementalAuthorizationRequestData {
-                        total_amount: relay_incremental_authorization_request.total_amount,
-                        additional_amount: relay_incremental_authorization_request
-                            .additional_amount,
-                        currency: relay_incremental_authorization_request.currency,
-                    },
-                ))
-            }
-            RelayData::Void(relay_void_request) => Some(api_models::relay::RelayData::Void(
-                api_models::relay::RelayVoidRequestData {
-                    amount: relay_void_request.amount,
-                    currency: relay_void_request.currency,
-                    cancellation_reason: relay_void_request.cancellation_reason,
-                },
-            )),
-            RelayData::UnreferencedRefund(_) => None,
-        });
+        let data = value
+            .request_data
+            .map(api_models::relay::RelayData::from);
         Self {
             id: value.id,
             status: value.status,
@@ -488,6 +464,7 @@ impl RelayData {
                 .attach_printable("relay data does not contain unreferenced refund data"),
         }
     }
+
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

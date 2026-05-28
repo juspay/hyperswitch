@@ -9,6 +9,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
+use hyperswitch_domain_models::connector_endpoints::Connectors;
 use hyperswitch_interfaces::{
     errors::ConnectorError,
     relay::{ConnectorRelayIntegration, UnreferencedRefundResponse, UnreferencedRefundRouterData},
@@ -19,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
-use crate::connectors::fiservcommercehub::Fiservcommercehub;
+pub struct Fiservcommercehub;
 
 struct FiservcommercehubAuthType {
     api_key: Secret<String>,
@@ -303,6 +304,14 @@ impl Fiservcommercehub {
 }
 
 impl ConnectorRelayIntegration for Fiservcommercehub {
+    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
+        connectors.fiservcommercehub.base_url.as_ref()
+    }
+
+    fn supports_access_token(&self) -> bool {
+        true
+    }
+
     fn build_relay_request(
         &self,
         router_data: &UnreferencedRefundRouterData<'_>,

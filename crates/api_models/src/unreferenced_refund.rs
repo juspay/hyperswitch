@@ -106,5 +106,38 @@ pub struct UnreferencedRefundResponse {
     pub raw_connector_response: Option<serde_json::Value>,
 }
 
+impl TryFrom<crate::relay::RelayRequest> for UnreferencedRefundRequest {
+    type Error = error_stack::Report<common_utils::errors::ValidationError>;
+
+    fn try_from(request: crate::relay::RelayRequest) -> Result<Self, Self::Error> {
+        let data = match request.data {
+            Some(crate::relay::RelayData::UnreferencedRefund(data)) => data,
+            _ => Err(error_stack::report!(
+                common_utils::errors::ValidationError::InvalidValue {
+                    message: "Relay data of type unreferenced_refund is required".to_string(),
+                }
+            ))?,
+        };
+
+        let recipient_payment_method_data =
+            data.recipient_payment_method_data.ok_or_else(|| {
+                error_stack::report!(
+                    common_utils::errors::ValidationError::MissingRequiredField {
+                        field_name: "recipient_payment_method_data".to_string(),
+                    }
+                )
+            })?;
+
+        Ok(Self {
+            amount: data.amount,
+            currency: data.currency,
+            connector_id: request.connector_id,
+            customer_id: data.customer_id,
+            connector_resource_id: Some(request.connector_resource_id),
+            recipient_payment_method_data,
+        })
+    }
+}
+
 impl common_utils::events::ApiEventMetric for UnreferencedRefundRequest {}
 impl common_utils::events::ApiEventMetric for UnreferencedRefundResponse {}

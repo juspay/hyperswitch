@@ -296,6 +296,33 @@ impl TryFrom<Connector> for VaultConnectors {
 }
 
 #[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RelayConnectors {
+    Fiservcommercehub,
+}
+
+impl From<RelayConnectors> for Connector {
+    fn from(value: RelayConnectors) -> Self {
+        match value {
+            RelayConnectors::Fiservcommercehub => Self::Fiservcommercehub,
+        }
+    }
+}
+
+#[derive(
     Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display, strum::EnumString, ToSchema,
 )]
 #[strum(serialize_all = "snake_case")]

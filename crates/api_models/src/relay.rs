@@ -2,7 +2,10 @@ use common_utils::types::MinorUnit;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::enums as api_enums;
+use crate::{
+    enums as api_enums,
+    unreferenced_refund,
+};
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct RelayRequest {
@@ -14,7 +17,6 @@ pub struct RelayRequest {
     pub connector_id: common_utils::id_type::MerchantConnectorAccountId,
     /// The type of relay request
     #[serde(rename = "type")]
-    #[schema(value_type = RelayType)]
     pub relay_type: api_enums::RelayType,
     /// The data that is associated with the relay request
     pub data: Option<RelayData>,
@@ -28,6 +30,18 @@ pub enum RelayData {
     Capture(RelayCaptureRequestData),
     IncrementalAuthorization(RelayIncrementalAuthorizationRequestData),
     Void(RelayVoidRequestData),
+    UnreferencedRefund(RelayUnreferencedRefundData),
+}
+
+#[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
+pub struct RelayUnreferencedRefundData {
+    #[schema(value_type = i64, example = 6540)]
+    pub amount: MinorUnit,
+    #[schema(value_type = Currency)]
+    pub currency: api_enums::Currency,
+    pub customer_id: Option<String>,
+    pub recipient_payment_method_data:
+        Option<unreferenced_refund::RecipientPaymentMethodData>,
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
@@ -109,7 +123,6 @@ pub struct RelayResponse {
     pub profile_id: common_utils::id_type::ProfileId,
     /// The type of relay request
     #[serde(rename = "type")]
-    #[schema(value_type = RelayType)]
     pub relay_type: api_enums::RelayType,
     /// The data that is associated with the relay request
     pub data: Option<RelayData>,

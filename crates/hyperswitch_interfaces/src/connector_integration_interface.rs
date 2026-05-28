@@ -147,48 +147,6 @@ impl ConnectorEnum {
     }
 }
 
-impl crate::relay::ConnectorRelayIntegration for ConnectorEnum {
-    fn build_relay_request(
-        &self,
-        router_data: &crate::relay::UnreferencedRefundRouterData<'_>,
-    ) -> error_stack::Result<Request, errors::ConnectorError> {
-        match self {
-            Self::Old(connector) => connector.build_relay_request(router_data),
-            Self::New(_) => Err(errors::ConnectorError::NotImplemented(
-                "relay not supported for v2 connectors".to_string(),
-            )
-            .into()),
-        }
-    }
-
-    fn handle_relay_success_response(
-        &self,
-        response: bytes::Bytes,
-    ) -> error_stack::Result<crate::relay::UnreferencedRefundResponse, errors::ConnectorError> {
-        match self {
-            Self::Old(connector) => connector.handle_relay_success_response(response),
-            Self::New(_) => Err(errors::ConnectorError::NotImplemented(
-                "relay not supported for v2 connectors".to_string(),
-            )
-            .into()),
-        }
-    }
-
-    fn get_relay_error_response(
-        &self,
-        response: bytes::Bytes,
-        status_code: u16,
-    ) -> error_stack::Result<crate::relay::UnreferencedRefundResponse, errors::ConnectorError> {
-        match self {
-            Self::Old(connector) => connector.get_relay_error_response(response, status_code),
-            Self::New(_) => Err(errors::ConnectorError::NotImplemented(
-                "relay not supported for v2 connectors".to_string(),
-            )
-            .into()),
-        }
-    }
-}
-
 #[async_trait::async_trait]
 impl IncomingWebhook for ConnectorEnum {
     fn get_webhook_body_decoding_algorithm(
