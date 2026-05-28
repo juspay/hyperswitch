@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.25.0-hotfix2
+
+### Features
+
+- **core:** Add Interpayments in routable connectors ([#12488](https://github.com/juspay/hyperswitch/pull/12488)) ([`160a454`](https://github.com/juspay/hyperswitch/commit/160a454c75f1d2ea2a819d6d089a0ec43de588ea))
+
+**Full Changelog:** [`2026.05.25.0-hotfix1...2026.05.25.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.05.25.0-hotfix1...2026.05.25.0-hotfix2)
+
+- - -
+
 ## 2026.05.25.0-hotfix1
 
 ### Bug Fixes
