@@ -529,7 +529,7 @@ impl types::WebhookTrigger for types::ConnectorWebhook {
         provider_merchant_id: common_utils::id_type::MerchantId,
         processor_merchant_id: common_utils::id_type::MerchantId,
         event: domain::Event,
-        request_content: OutgoingWebhookRequestContent,
+        _request_content: OutgoingWebhookRequestContent,
         delivery_attempt: enums::WebhookDeliveryAttempt,
         content: Option<api::OutgoingWebhookContent>,
         process_tracker: Option<storage::ProcessTracker>,
@@ -542,11 +542,11 @@ impl types::WebhookTrigger for types::ConnectorWebhook {
         let trigger_webhook_result = trigger_webhook_to_connector(
             state.clone(),
             business_profile,
-            merchant_key_store,
-            provider_merchant_id,
+            merchant_key_store.clone(),
+            provider_merchant_id.clone(),
             event.clone(),
             delivery_attempt,
-            content,
+            content.clone(),
             process_tracker,
         )
         .await;
@@ -1430,7 +1430,7 @@ async fn update_notify_connector_event_in_storage(
     };
 
     let event_update = domain::EventUpdate::UpdateResponse {
-        is_webhook_notified: true,
+        is_webhook_notified,
         response: Some(
             crypto_operation(
                 key_manager_state,
