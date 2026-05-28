@@ -293,7 +293,6 @@ impl RelayUpdate {
     }
 }
 
-
 impl From<RelayData> for api_models::relay::RelayData {
     fn from(relay: RelayData) -> Self {
         match relay {
@@ -302,23 +301,19 @@ impl From<RelayData> for api_models::relay::RelayData {
                 currency: data.currency,
                 reason: data.reason,
             }),
-            RelayData::Capture(data) => {
-                Self::Capture(api_models::relay::RelayCaptureRequestData {
-                    authorized_amount: data.authorized_amount,
-                    amount_to_capture: data.amount_to_capture,
+            RelayData::Capture(data) => Self::Capture(api_models::relay::RelayCaptureRequestData {
+                authorized_amount: data.authorized_amount,
+                amount_to_capture: data.amount_to_capture,
+                currency: data.currency,
+                capture_method: data.capture_method,
+            }),
+            RelayData::IncrementalAuthorization(data) => Self::IncrementalAuthorization(
+                api_models::relay::RelayIncrementalAuthorizationRequestData {
+                    total_amount: data.total_amount,
+                    additional_amount: data.additional_amount,
                     currency: data.currency,
-                    capture_method: data.capture_method,
-                })
-            }
-            RelayData::IncrementalAuthorization(data) => {
-                Self::IncrementalAuthorization(
-                    api_models::relay::RelayIncrementalAuthorizationRequestData {
-                        total_amount: data.total_amount,
-                        additional_amount: data.additional_amount,
-                        currency: data.currency,
-                    },
-                )
-            }
+                },
+            ),
             RelayData::Void(data) => Self::Void(api_models::relay::RelayVoidRequestData {
                 amount: data.amount,
                 currency: data.currency,
@@ -348,9 +343,7 @@ impl From<Relay> for api_models::relay::RelayResponse {
                 },
             );
 
-        let data = value
-            .request_data
-            .map(api_models::relay::RelayData::from);
+        let data = value.request_data.map(api_models::relay::RelayData::from);
         Self {
             id: value.id,
             status: value.status,
@@ -464,7 +457,6 @@ impl RelayData {
                 .attach_printable("relay data does not contain unreferenced refund data"),
         }
     }
-
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

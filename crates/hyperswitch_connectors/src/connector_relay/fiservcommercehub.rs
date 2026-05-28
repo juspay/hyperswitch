@@ -8,8 +8,7 @@ use common_utils::{
     types::FloatMajorUnit,
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::router_data::ConnectorAuthType;
-use hyperswitch_domain_models::connector_endpoints::Connectors;
+use hyperswitch_domain_models::{connector_endpoints::Connectors, router_data::ConnectorAuthType};
 use hyperswitch_interfaces::{
     errors::ConnectorError,
     relay::{ConnectorRelayIntegration, UnreferencedRefundResponse, UnreferencedRefundRouterData},

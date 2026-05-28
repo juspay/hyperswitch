@@ -2,10 +2,7 @@ use common_utils::types::MinorUnit;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::{
-    enums as api_enums,
-    unreferenced_refund,
-};
+use crate::{enums as api_enums, unreferenced_refund};
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct RelayRequest {
@@ -40,8 +37,7 @@ pub struct RelayUnreferencedRefundData {
     #[schema(value_type = Currency)]
     pub currency: api_enums::Currency,
     pub customer_id: Option<String>,
-    pub recipient_payment_method_data:
-        Option<unreferenced_refund::RecipientPaymentMethodData>,
+    pub recipient_payment_method_data: Option<unreferenced_refund::RecipientPaymentMethodData>,
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]

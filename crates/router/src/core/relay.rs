@@ -8,8 +8,8 @@ use common_utils::{
     id_type::{self, GenerateId},
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::relay;
 use hyperswitch_connectors::connector_relay::RelayConnectors;
+use hyperswitch_domain_models::relay;
 use hyperswitch_interfaces::{
     api_client::call_connector_api,
     relay::{ConnectorRelayIntegration, UnreferencedRefundRouterData},
@@ -232,9 +232,8 @@ impl RelayInterface for RelayRefund {
                 },
             );
 
-        let data = api_models::relay::RelayData::from(
-            value.request_data.get_required_value("RelayData")?,
-        );
+        let data =
+            api_models::relay::RelayData::from(value.request_data.get_required_value("RelayData")?);
 
         Ok(api_models::relay::RelayResponse {
             id: value.id,
@@ -364,9 +363,8 @@ impl RelayInterface for RelayCapture {
                 },
             );
 
-        let data = api_models::relay::RelayData::from(
-            value.request_data.get_required_value("RelayData")?,
-        );
+        let data =
+            api_models::relay::RelayData::from(value.request_data.get_required_value("RelayData")?);
 
         Ok(api_models::relay::RelayResponse {
             id: value.id,
@@ -396,7 +394,8 @@ impl RelayRequestInner<RelayIncrementalAuthorization> {
             | Some(relay_api_models::RelayData::Capture(_))
             | Some(relay_api_models::RelayData::UnreferencedRefund(_))
             | None => Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Relay data is required for relay type incremental_authorization".to_string(),
+                message: "Relay data is required for relay type incremental_authorization"
+                    .to_string(),
             })?,
         }
     }
@@ -497,9 +496,8 @@ impl RelayInterface for RelayIncrementalAuthorization {
                 },
             );
 
-        let data = api_models::relay::RelayData::from(
-            value.request_data.get_required_value("RelayData")?,
-        );
+        let data =
+            api_models::relay::RelayData::from(value.request_data.get_required_value("RelayData")?);
 
         Ok(api_models::relay::RelayResponse {
             id: value.id,
@@ -628,9 +626,8 @@ impl RelayInterface for RelayVoid {
                 },
             );
 
-        let data = api_models::relay::RelayData::from(
-            value.request_data.get_required_value("RelayData")?,
-        );
+        let data =
+            api_models::relay::RelayData::from(value.request_data.get_required_value("RelayData")?);
 
         Ok(api_models::relay::RelayResponse {
             id: value.id,
@@ -1003,12 +1000,11 @@ async fn process_unreferenced_refund(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse connector auth type")?;
 
-    let relay_connector = RelayConnectors::from_connector_name(&connector_name)
-        .change_context(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!(
-                "Connector {connector_name} does not support unreferenced refund"
-            ),
-        })?;
+    let relay_connector = RelayConnectors::from_connector_name(&connector_name).change_context(
+        errors::ApiErrorResponse::InvalidRequestData {
+            message: format!("Connector {connector_name} does not support unreferenced refund"),
+        },
+    )?;
 
     let base_url = relay_connector.base_url(&state.conf.connectors);
 
@@ -1165,7 +1161,14 @@ pub async fn relay_unreferenced_refund(
         .unwrap_or_else(|| format!("internal_{}", uuid::Uuid::new_v4()));
 
     let (updated_relay, connector_name, raw_connector_response) =
-        process_relay_unreferenced_refund(&state, &platform, &profile_id, connector_resource_id.clone(), &request).await?;
+        process_relay_unreferenced_refund(
+            &state,
+            &platform,
+            &profile_id,
+            connector_resource_id.clone(),
+            &request,
+        )
+        .await?;
 
     let error = updated_relay
         .error_code

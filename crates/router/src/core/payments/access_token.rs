@@ -283,7 +283,6 @@ pub async fn add_access_token<
     }
 }
 
-
 /// Reads the Redis cache first. On a cache miss, calls UCS via the
 /// `create_server_authentication_token` gRPC method to generate a fresh token, caches it,
 /// and returns it.
@@ -417,10 +416,9 @@ async fn fetch_access_token_from_ucs(
         .attach_printable("Failed to parse UCS access token response for relay")?;
 
     let access_token = access_token_result.map_err(|err| {
-        error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(format!(
-                "UCS returned error for relay access token generation: {err:?}"
-            ))
+        error_stack::Report::new(errors::ApiErrorResponse::InternalServerError).attach_printable(
+            format!("UCS returned error for relay access token generation: {err:?}"),
+        )
     })?;
 
     // The expiry should be adjusted for network delays from the connector
