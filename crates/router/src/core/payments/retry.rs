@@ -253,7 +253,6 @@ where
     Ok(router_data)
 }
 
-
 #[cfg(feature = "v1")]
 pub async fn get_merchant_max_auto_retries_enabled(
     db: &dyn StorageInterface,
