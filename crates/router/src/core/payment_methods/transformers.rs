@@ -1774,7 +1774,6 @@ impl
 impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(response: CreatePaymentMethodResponse) -> Result<Self, Self::Error> {
-
         let current_time = common_utils::date_time::now();
 
         Ok(Self(domain::PaymentMethod {
