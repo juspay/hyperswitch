@@ -879,7 +879,7 @@ pub enum CardType {
 // when the customer is on_session again, the cvc can be collected from the customer
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
+// #[serde(deny_unknown_fields)]
 pub struct CardDetail {
     /// Card Number
     #[schema(value_type = String,example = "4111111145551142")]
