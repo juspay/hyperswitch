@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.02.0-hotfix7.9.1
+
+### Bug Fixes
+
+- **core:** Next action handling and customer acceptance handling in CompleteAuthorize Flow ([#12498](https://github.com/juspay/hyperswitch/pull/12498)) ([`c6a7644`](https://github.com/juspay/hyperswitch/commit/c6a76440b016256d7dac9122a4db574603cc29e8))
+
+**Full Changelog:** [`2026.04.02.0-hotfix7.9...2026.04.02.0-hotfix7.9.1`](https://github.com/juspay/hyperswitch/compare/2026.04.02.0-hotfix7.9...2026.04.02.0-hotfix7.9.1)
+
+- - -
+
 ## 2026.04.02.0-hotfix7.9
 
 ### Features
