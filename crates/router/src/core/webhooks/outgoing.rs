@@ -220,7 +220,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     let now = common_utils::date_time::now();
 
     for event_data in events_to_trigger {
-        insert_event_and_spawn_webhook_delivery(
+        let _ = insert_event_and_spawn_webhook_delivery(
             state.clone(),
             &platform,
             event_data,
@@ -233,7 +233,14 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
             now,
             event_class,
         )
-        .await;
+        .await
+        .inspect_err(|error| {
+            logger::error!(
+                ?error,
+                "Failed to insert event and spawn webhook delivery for event type {}",
+                event_data.event_type
+            );
+        })?;
     }
 
     Ok(())
