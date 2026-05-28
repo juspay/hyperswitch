@@ -28,7 +28,7 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::refunds,
     router_request_types::RefundsData,
-    router_response_types::{PaymentsResponseData, PayoutsResponseData, RefundsResponseData},
+    router_response_types::{NotifyConnectorResponseData, PaymentsResponseData, PayoutsResponseData, RefundsResponseData},
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
@@ -3225,9 +3225,12 @@ pub async fn call_unified_connector_service_for_notify_connector(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("UCS notify_connector gRPC call failed")?;
 
-    hyperswitch_domain_models::router_response_types::NotifyConnectorResponseData::try_from(
-        response.into_inner(),
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to parse UCS notify_connector response")?
+    let notify_connector_response_data =
+        hyperswitch_domain_models::router_response_types::NotifyConnectorResponseData::foreign_try_from(
+            response.into_inner(),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse UCS notify_connector response")?;
+
+    Ok(notify_connector_response_data)
 }
