@@ -646,7 +646,7 @@ async fn trigger_webhook_to_connector(
                 .await
             }
             Ok(response) => {
-                let status_code = response.status_code.clone(); 
+                let status_code = response.status_code.clone();
                 let updated_event = update_notify_connector_event_in_storage(
                     state.clone(),
                     merchant_key_store.clone(),
@@ -655,15 +655,15 @@ async fn trigger_webhook_to_connector(
                 )
                 .await?;
 
-                if (200..300).contains(&response.status_code) {
-                mark_surcharge_sale_as_notified(
-                    &state,
-                    &event,
-                    &processor_merchant_id,
-                    &merchant_key_store,
-                )
-                .await;
-                logger::info!("Successfully notified connector via UCS");
+                if (200..300).contains(&status_code) {
+                    mark_surcharge_sale_as_notified(
+                        &state,
+                        &event,
+                        &processor_merchant_id,
+                        &merchant_key_store,
+                    )
+                    .await;
+                    logger::info!("Successfully notified connector via UCS");
 
                     update_overall_delivery_status_in_storage(
                         state.clone(),
@@ -690,6 +690,8 @@ async fn trigger_webhook_to_connector(
                     )
                     .await?;
                 }
+
+                Ok(())
             }
         },
         enums::WebhookDeliveryAttempt::AutomaticRetry => {
