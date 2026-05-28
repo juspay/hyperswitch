@@ -15,7 +15,10 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use hyperswitch_interfaces::{consts, webhooks::WebhookResourceData};
 use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface, Secret};
-use router_env::{instrument, tracing::{self, Instrument}};
+use router_env::{
+    instrument,
+    tracing::{self, Instrument},
+};
 
 use super::{types, utils, MERCHANT_ID};
 #[cfg(feature = "stripe")]
@@ -197,7 +200,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         return Ok(());
     };
 
-    let events_to_trigger  = get_webhook_events(
+    let events_to_trigger = get_webhook_events(
         &state,
         platform.clone(),
         primary_event_type,
@@ -246,20 +249,14 @@ async fn insert_event_and_spawn_webhook_delivery(
     event_class: enums::EventClass,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let delivery_attempt = enums::WebhookDeliveryAttempt::InitialAttempt;
-    let idempotent_event_id = utils::get_idempotent_event_id(
-        &primary_object_id,
-        event_data.event_type,
-        delivery_attempt,
-    )
-    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-    .attach_printable("Failed to generate idempotent event ID")?;
+    let idempotent_event_id =
+        utils::get_idempotent_event_id(&primary_object_id, event_data.event_type, delivery_attempt)
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .attach_printable("Failed to generate idempotent event ID")?;
 
     if let utils::WebhookRecipientData::Merchant = event_data.recipient_data {
-        let webhook_url_result =
-            get_webhook_url_from_business_profile(&webhook_recipient.profile);
-        if webhook_url_result.is_err()
-            || webhook_url_result.as_ref().is_ok_and(String::is_empty)
-        {
+        let webhook_url_result = get_webhook_url_from_business_profile(&webhook_recipient.profile);
+        if webhook_url_result.is_err() || webhook_url_result.as_ref().is_ok_and(String::is_empty) {
             logger::debug!(
                 business_profile_id=?webhook_recipient.profile.get_id(),
                 %idempotent_event_id,

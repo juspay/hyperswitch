@@ -5,8 +5,7 @@ use hyperswitch_masking::Secret;
 use serde::Serialize;
 
 use crate::{
-    core::errors,
-    core::metrics,
+    core::{errors, metrics},
     db::StorageInterface,
     events::outgoing_webhook_logs::{
         OutgoingWebhookEvent, OutgoingWebhookEventContent, OutgoingWebhookEventMetric,

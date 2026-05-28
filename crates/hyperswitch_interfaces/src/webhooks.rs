@@ -60,7 +60,7 @@ pub enum WebhookResourceData {
     Refund {
         /// The payment attempt details attached with the refund
         payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    }
+    },
 }
 
 impl WebhookResourceData {
