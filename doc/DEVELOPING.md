@@ -72,6 +72,13 @@ pnpm dev --bind lan
 ```
 
 This runs dev as `authenticated/private` with a private-network bind preset.
+On a fresh authenticated/private instance, open the app, sign in or create an
+account, and use the setup screen to claim the first instance admin from the
+browser. The CLI fallback remains:
+
+```sh
+pnpm paperclipai auth bootstrap-ceo
+```
 
 For Tailscale-only reachability on a detected tailnet address:
 
