@@ -542,10 +542,11 @@ impl types::WebhookTrigger for types::ConnectorWebhook {
         let trigger_webhook_result = trigger_webhook_to_connector(
             state.clone(),
             business_profile,
-            &merchant_key_store,
+            merchant_key_store,
+            provider_merchant_id,
             event.clone(),
-            request_content,
             delivery_attempt,
+            content,
             process_tracker,
         )
         .await;
@@ -569,7 +570,6 @@ async fn trigger_webhook_to_connector(
     business_profile: domain::Profile,
     merchant_key_store: domain::MerchantKeyStore,
     provider_merchant_id: common_utils::id_type::MerchantId,
-    processor_merchant_id: common_utils::id_type::MerchantId,
     event: domain::Event,
     delivery_attempt: enums::WebhookDeliveryAttempt,
     content: Option<api::OutgoingWebhookContent>,
@@ -659,7 +659,7 @@ async fn trigger_webhook_to_connector(
                     mark_surcharge_sale_as_notified(
                         &state,
                         &event,
-                        &processor_merchant_id,
+                        &provider_merchant_id,
                         &merchant_key_store,
                     )
                     .await;

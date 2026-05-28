@@ -134,7 +134,8 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
             }
             Self::SurchargeDetails(surcharge_data) => {
                 Some(OutgoingWebhookEventContent::Surcharge {
-                    external_surcharge_id: surcharge_data.external_surcharge_id.clone(),
+                    payment_id: surcharge_data.payment_id.clone(),
+                    attempt_id: surcharge_data.attempt_id.clone(),
                 })
             }
         }

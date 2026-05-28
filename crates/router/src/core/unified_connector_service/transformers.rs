@@ -7332,7 +7332,8 @@ impl transformers::ForeignTryFrom<payments_grpc::NotifyConnectorResponse>
     ) -> Result<Self, Self::Error> {
 
         Ok(Self {
-            status_code: grpc_response.status_code,
+            status_code: u16::try_from(grpc_response.status_code).change_context(UnifiedConnectorServiceError::ParsingFailed)
+                .attach_printable("Failed to parse status code from UCS response")?,
             error_code: grpc_response.error.as_ref().and_then(|error_info| {
                 error_info
                     .connector_details
