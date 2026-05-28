@@ -5,10 +5,22 @@ use hyperswitch_masking::Secret;
 use serde::Serialize;
 
 use crate::{
-    core::{errors, webhooks::utils},
+    core::errors,
+    core::metrics,
+    db::StorageInterface,
+    events::outgoing_webhook_logs::{
+        OutgoingWebhookEvent, OutgoingWebhookEventContent, OutgoingWebhookEventMetric,
+    },
     headers, logger,
+    routes::{app::SessionStateInfo, SessionState},
     services::request::Maskable,
-    types::storage::{self, enums},
+    types::{
+        api,
+        domain::{self},
+        storage::{self, enums},
+        transformers::ForeignFrom,
+    },
+    utils::{OptionExt, ValueExt, WebhookRecipientData},
 };
 
 #[derive(Debug)]
@@ -90,7 +102,7 @@ pub(crate) struct OutgoingWebhookTrackingData {
     pub(crate) primary_object_id: String,
     pub(crate) primary_object_type: enums::EventObjectType,
     pub(crate) initial_attempt_id: Option<String>,
-    pub(crate) recipient_data: utils::WebhookRecipientData,
+    pub(crate) recipient_data: WebhookRecipientData,
 }
 
 pub struct WebhookResponse {
@@ -139,3 +151,28 @@ impl WebhookResponse {
         }
     }
 }
+
+/// Trait for dispatching outgoing webhook delivery.
+///
+/// Two concrete implementations exist:
+/// - [`MerchantWebhook`]: delivers webhooks to merchant-configured URLs
+/// - [`ConnectorWebhook`]: reserved for delivering connector-facing webhooks
+#[async_trait::async_trait]
+pub(crate) trait WebhookTrigger: Send + Sync {
+    async fn trigger_and_raise(
+        &self,
+        state: SessionState,
+        business_profile: domain::Profile,
+        merchant_key_store: domain::MerchantKeyStore,
+        provider_merchant_id: common_utils::id_type::MerchantId,
+        processor_merchant_id: common_utils::id_type::MerchantId,
+        event: domain::Event,
+        request_content: webhook_events::OutgoingWebhookRequestContent,
+        delivery_attempt: enums::WebhookDeliveryAttempt,
+        content: Option<api::OutgoingWebhookContent>,
+        process_tracker: Option<storage::ProcessTracker>,
+    );
+}
+
+pub(crate) struct MerchantWebhook;
+pub(crate) struct ConnectorWebhook;

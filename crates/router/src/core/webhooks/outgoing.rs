@@ -212,29 +212,62 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     let now = common_utils::date_time::now();
 
     for event_data in events_to_trigger {
-        let delivery_attempt = enums::WebhookDeliveryAttempt::InitialAttempt;
-        let idempotent_event_id = utils::get_idempotent_event_id(
-            &primary_object_id,
-            primary_event_type,
-            delivery_attempt,
+        insert_event_and_spawn_webhook_delivery(
+            state.clone(),
+            &platform,
+            event_data,
+            &webhook_recipient,
+            provider_merchant_id.clone(),
+            processor_merchant_id.clone(),
+            primary_object_id.clone(),
+            primary_object_type,
+            primary_object_created_at,
+            now,
+            event_class,
         )
-        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-        .attach_printable("Failed to generate idempotent event ID")?;
+        .await?;
+    }
 
-        if let utils::WebhookRecipientData::Merchant = event_data.recipient_data {
-            let webhook_url_result =
-                get_webhook_url_from_business_profile(&webhook_recipient.profile);
-            if webhook_url_result.is_err()
-                || webhook_url_result.as_ref().is_ok_and(String::is_empty)
-            {
-                logger::debug!(
-                    business_profile_id=?webhook_recipient.profile.get_id(),
-                    %idempotent_event_id,
-                    "merchant webhook URL \
-                     could not be obtained; skipping outgoing webhooks for event"
-                );
-            }
-        };
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn insert_event_and_spawn_webhook_delivery(
+    state: SessionState,
+    platform: &domain::Platform,
+    event_data: utils::WebhookPayload,
+    webhook_recipient: &utils::WebhookRecipientContext,
+    provider_merchant_id: common_utils::id_type::MerchantId,
+    processor_merchant_id: common_utils::id_type::MerchantId,
+    primary_object_id: String,
+    primary_object_type: enums::EventObjectType,
+    primary_object_created_at: Option<time::PrimitiveDateTime>,
+    now: time::PrimitiveDateTime,
+    event_class: enums::EventClass,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    let delivery_attempt = enums::WebhookDeliveryAttempt::InitialAttempt;
+    let idempotent_event_id = utils::get_idempotent_event_id(
+        &primary_object_id,
+        event_data.event_type,
+        delivery_attempt,
+    )
+    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+    .attach_printable("Failed to generate idempotent event ID")?;
+
+    if let utils::WebhookRecipientData::Merchant = event_data.recipient_data {
+        let webhook_url_result =
+            get_webhook_url_from_business_profile(&webhook_recipient.profile);
+        if webhook_url_result.is_err()
+            || webhook_url_result.as_ref().is_ok_and(String::is_empty)
+        {
+            logger::debug!(
+                business_profile_id=?webhook_recipient.profile.get_id(),
+                %idempotent_event_id,
+                "merchant webhook URL \
+                 could not be obtained; skipping outgoing webhooks for event"
+            );
+        }
+    };
 
     let event_id = utils::generate_event_id();
     let event_type = event_data.event_type;
@@ -256,7 +289,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     )
     .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
     .attach_printable("Failed to construct outgoing webhook request content")?;
-    let recipient = event_data.recipient_data.get_event_recipient(); 
+    let recipient = event_data.recipient_data.get_event_recipient();
     let event_metadata = storage::EventMetadata::foreign_from(&content);
     let key_manager_state = &(&state).into();
     let new_event = domain::Event {
@@ -324,13 +357,13 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         logger::debug!(
             "Event with idempotent ID `{idempotent_event_id}` already exists in the database"
         );
-        utils::free_redis_lock(
+        let _ = utils::free_redis_lock(
             &state,
             &idempotent_event_id,
             webhook_recipient.key_store.merchant_id.clone(),
             lock_value,
         )
-        .await?;
+        .await;
         return Ok(());
     }
 
@@ -349,21 +382,21 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         }
     }?;
 
-    utils::free_redis_lock(
+    let _ = utils::free_redis_lock(
         &state,
         &idempotent_event_id,
         webhook_recipient.key_store.merchant_id.clone(),
         lock_value,
     )
-    .await?;
+    .await;
 
     let process_tracker = add_outgoing_webhook_retry_task_to_process_tracker(
         &*state.store,
-        &platform,
-        &webhook_recipient,
+        platform,
+        webhook_recipient,
         &event,
         state.conf.application_source,
-        event_data.recipient_data.clone()
+        event_data.recipient_data.clone(),
     )
     .await
     .inspect_err(|error| {
@@ -378,7 +411,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     let cloned_key_store = webhook_recipient.key_store.clone();
     let cloned_provider_merchant_id = provider_merchant_id.clone();
     let cloned_processor_merchant_id = processor_merchant_id.clone();
-    let cloned_profile =  webhook_recipient.profile.clone();
+    let cloned_profile = webhook_recipient.profile.clone();
     // Using a tokio spawn here and not arbiter because not all caller of this function
     // may have an actix arbiter
     tokio::spawn(
@@ -400,8 +433,6 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         .in_current_span(),
     );
 
-    }
-
     Ok(())
 }
 
@@ -419,34 +450,90 @@ pub(crate) async fn trigger_webhook_and_raise_event(
     content: Option<api::OutgoingWebhookContent>,
     process_tracker: Option<storage::ProcessTracker>,
 ) {
-    logger::debug!(
-        event_id=%event.event_id,
-        idempotent_event_id=?event.idempotent_event_id,
-        initial_attempt_id=?event.initial_attempt_id,
-        "Attempting to send webhook"
-    );
+    let trigger: Box<dyn types::WebhookTrigger> = match event.recipient {
+        Some(enums::EventRecipient::Connector) => Box::new(types::ConnectorWebhook),
+        _ => Box::new(types::MerchantWebhook),
+    };
 
-    let trigger_webhook_result = trigger_webhook_to_merchant(
-        state.clone(),
-        business_profile,
-        merchant_key_store,
-        event.clone(),
-        request_content,
-        delivery_attempt,
-        process_tracker,
-    )
-    .await;
+    trigger
+        .trigger_and_raise(
+            state,
+            business_profile,
+            merchant_key_store.clone(),
+            provider_merchant_id,
+            processor_merchant_id,
+            event,
+            request_content,
+            delivery_attempt,
+            content,
+            process_tracker,
+        )
+        .await;
+}
 
-    let _ = raise_webhooks_analytics_event(
-        state,
-        trigger_webhook_result,
-        content,
-        provider_merchant_id,
-        processor_merchant_id,
-        event,
-        merchant_key_store,
-    )
-    .await;
+#[async_trait::async_trait]
+impl types::WebhookTrigger for types::MerchantWebhook {
+    async fn trigger_and_raise(
+        &self,
+        state: SessionState,
+        business_profile: domain::Profile,
+        merchant_key_store: domain::MerchantKeyStore,
+        provider_merchant_id: common_utils::id_type::MerchantId,
+        processor_merchant_id: common_utils::id_type::MerchantId,
+        event: domain::Event,
+        request_content: OutgoingWebhookRequestContent,
+        delivery_attempt: enums::WebhookDeliveryAttempt,
+        content: Option<api::OutgoingWebhookContent>,
+        process_tracker: Option<storage::ProcessTracker>,
+    ) {
+        logger::debug!(
+            event_id=%event.event_id,
+            idempotent_event_id=?event.idempotent_event_id,
+            initial_attempt_id=?event.initial_attempt_id,
+            "Attempting to send webhook"
+        );
+
+        let trigger_webhook_result = trigger_webhook_to_merchant(
+            state.clone(),
+            business_profile,
+            &merchant_key_store,
+            event.clone(),
+            request_content,
+            delivery_attempt,
+            process_tracker,
+        )
+        .await;
+
+        let _ = raise_webhooks_analytics_event(
+            state,
+            trigger_webhook_result,
+            content,
+            provider_merchant_id,
+            processor_merchant_id,
+            event,
+            &merchant_key_store,
+        )
+        .await;
+    }
+}
+
+#[async_trait::async_trait]
+impl types::WebhookTrigger for types::ConnectorWebhook {
+    async fn trigger_and_raise(
+        &self,
+        _state: SessionState,
+        _business_profile: domain::Profile,
+        _merchant_key_store: domain::MerchantKeyStore,
+        _provider_merchant_id: common_utils::id_type::MerchantId,
+        _processor_merchant_id: common_utils::id_type::MerchantId,
+        _event: domain::Event,
+        _request_content: OutgoingWebhookRequestContent,
+        _delivery_attempt: enums::WebhookDeliveryAttempt,
+        _content: Option<api::OutgoingWebhookContent>,
+        _process_tracker: Option<storage::ProcessTracker>,
+    ) {
+        todo!("Connector webhook delivery not yet implemented");
+    }
 }
 
 async fn trigger_webhook_to_merchant(
