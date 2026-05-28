@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.25.0-hotfix1
+
+### Bug Fixes
+
+- **payment-methods:** Version based retrieval in PaymentMethod domain ([#12490](https://github.com/juspay/hyperswitch/pull/12490)) ([`4bb30a7`](https://github.com/juspay/hyperswitch/commit/4bb30a7c74d9b8ec152a2592ff59f1170bbbb4a7))
+
+**Full Changelog:** [`2026.05.25.0...2026.05.25.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.05.25.0...2026.05.25.0-hotfix1)
+
+- - -
+
 ## 2026.05.25.0
 
 ### Features
