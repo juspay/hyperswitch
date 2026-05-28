@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.25.0-hotfix3
+
+### Bug Fixes
+
+- **payment-methods:** Update version and last modified timestamps ([#12500](https://github.com/juspay/hyperswitch/pull/12500)) ([`918f74a`](https://github.com/juspay/hyperswitch/commit/918f74a331356f60801f394a3c3edd965a21e705))
+
+**Full Changelog:** [`2026.05.25.0-hotfix2...2026.05.25.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.05.25.0-hotfix2...2026.05.25.0-hotfix3)
+
+- - -
+
 ## 2026.05.25.0-hotfix2
 
 ### Features
