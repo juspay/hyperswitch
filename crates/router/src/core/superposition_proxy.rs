@@ -138,9 +138,7 @@ fn validate_superposition_context_body(
 
 fn filter_by_allowlist(items: &mut Vec<DefaultConfigResponse>, allowlist: &[String]) {
     items.retain(|item| {
-        allowlist
-            .iter()
-            .any(|allowed| item.key.starts_with(allowed.as_str()))
+        allowlist.iter().any(|allowed| item.key == allowed.as_str())
     });
 }
 
