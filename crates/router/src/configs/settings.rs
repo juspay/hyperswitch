@@ -970,6 +970,8 @@ pub struct WebhooksSettings {
 pub struct NotifyConnectorSettings {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub surcharge_payment_succeeded: HashSet<enums::Connector>,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub surcharge_refund_succeeded: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]

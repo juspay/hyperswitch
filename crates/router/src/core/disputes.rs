@@ -13,6 +13,7 @@ use strum::IntoEnumIterator;
 pub mod transformers;
 
 use common_enums;
+use hyperswitch_interfaces::webhooks::WebhookResourceData;
 
 use super::{
     errors::{self, ConnectorErrorExt, RouterResponse, StorageErrorExt},
@@ -34,7 +35,6 @@ use crate::{
     },
     workflows::process_dispute,
 };
-use hyperswitch_interfaces::webhooks::WebhookResourceData;
 
 pub(crate) fn should_call_connector_for_dispute_sync(
     force_sync: Option<bool>,
@@ -943,8 +943,8 @@ pub async fn update_dispute_data(
         api::OutgoingWebhookContent::DisputeDetails(Box::new(disputes_response.clone())),
         Some(dispute_object.created_at),
         webhook_recipient,
-        Some(WebhookResourceData::Payment {payment_attempt}),
-        business_profile
+        Some(WebhookResourceData::Payment { payment_attempt }),
+        business_profile,
     ))
     .await?;
     Ok(disputes_response)

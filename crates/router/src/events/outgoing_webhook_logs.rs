@@ -80,6 +80,9 @@ pub enum OutgoingWebhookEventContent {
         payment_id: Option<common_utils::id_type::PaymentId>,
         content: Value,
     },
+    Surcharge {
+        external_surcharge_id: String,
+    }
 }
 pub trait OutgoingWebhookEventMetric {
     fn get_outgoing_webhook_event_content(&self) -> Option<OutgoingWebhookEventContent>;
@@ -126,6 +129,11 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
                     payment_id: subscription.get_optional_payment_id(),
                     content: hyperswitch_masking::masked_serialize(&subscription)
                         .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
+                })
+            }
+            Self::SurchargeDetails(surcharge_data) => {
+                Some(OutgoingWebhookEventContent::Surcharge {
+                    external_surcharge_id: surcharge_data.external_surcharge_id.clone(),
                 })
             }
         }

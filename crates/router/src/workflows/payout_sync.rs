@@ -292,7 +292,7 @@ impl PayoutSyncWorkFlow {
                 Some(payout_data.payout_attempt.created_at),
                 webhook_recipient,
                 None,
-                business_profile
+                business_profile,
             ))
             .await?;
         }

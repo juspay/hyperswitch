@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use api_models::{
     webhook_events::{OutgoingWebhookRequestContent, OutgoingWebhookResponseContent},
@@ -17,7 +17,7 @@ use hyperswitch_interfaces::{consts, webhooks::WebhookResourceData};
 use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use router_env::{
     instrument,
-    tracing::{self, Instrument},
+    tracing,
 };
 
 use super::{types, utils, MERCHANT_ID};
@@ -25,7 +25,7 @@ use super::{types, utils, MERCHANT_ID};
 use crate::compatibility::stripe::webhooks as stripe_webhooks;
 use crate::{
     core::{
-        errors::{self, CustomResult},
+        errors::{self, CustomResult, utils::StorageErrorExt},
         metrics,
     },
     db::StorageInterface,
@@ -45,202 +45,360 @@ use crate::{
     workflows::outgoing_webhook_retry,
 };
 
+pub(crate) async fn get_webhook_events(
+    state: &SessionState,
+    platform: domain::Platform,
+    primary_event_type: enums::EventType,
+    primary_content: &api::OutgoingWebhookContent,
+    webhook_resource_data: Option<WebhookResourceData>,
+    webhook_recipient: utils::WebhookRecipientContext,
+    provider_profile: &domain::Profile,
+) -> CustomResult<Vec<utils::WebhookEventData>, errors::ApiErrorResponse> {
+    let mut webhook_events = Vec::new();
+
+    let event_data = utils::WebhookEventData {
+        event_type: primary_event_type,
+        event_content: primary_content.clone(),
+        recipient_data: utils::WebhookRecipientData::Merchant,
+    };
+    webhook_events.push(event_data);
+
+    let surcharge_connector_id = provider_profile
+        .surcharge_connector_details
+        .as_ref()
+        .and_then(|surcharge_connector_details| {
+            surcharge_connector_details.surcharge_connector_id.clone()
+        });
+
+    if let Some(merchant_surcharge_connector_id) = surcharge_connector_id {
+        let merchant_surcharge_connector = state
+            .store
+            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                platform.get_provider().get_account().get_id(),
+                &merchant_surcharge_connector_id,
+                platform.get_provider().get_key_store(),
+            )
+            .await
+             .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+        id: merchant_surcharge_connector_id.get_string_repr().to_string(),
+    })?;
+
+    let connector_name = common_enums::connector_enums::Connector::from_str(&merchant_surcharge_connector.connector_name)
+    .change_context(
+        errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "connector",
+        },
+    )?;
+
+        match &webhook_resource_data {
+            Some(WebhookResourceData::Payment { payment_attempt }) => {
+                if matches!(
+                    primary_event_type,
+                    common_enums::EventType::SurchargePaymentSucceeded
+                ) {
+                    if let Some(external_surcharge_details) =
+                        &payment_attempt.external_surcharge_details
+                    {
+                        if state
+                            .conf
+                            .webhooks
+                            .notify_connector
+                            .surcharge_payment_succeeded
+                            .contains(&connector_name)
+                        {
+                            let event_content = api_models::payments::ResponseSurchargeDetails {
+                                surcharge_amount: external_surcharge_details
+                                    .external_surcharge_amount
+                                    .clone(),
+                                external_surcharge_id: external_surcharge_details
+                                    .external_surcharge_id
+                                    .clone(),
+                            };
+
+                            let event_data = utils::WebhookEventData {
+                                event_type: enums::EventType::SurchargePaymentSucceeded,
+                                event_content: api::OutgoingWebhookContent::SurchargeDetails(
+                                    Box::new(event_content),
+                                ),
+                                recipient_data: utils::WebhookRecipientData::Connector {
+                                    merchant_connector_id: merchant_surcharge_connector_id,
+                                },
+                            };
+                            webhook_events.push(event_data);
+                        }
+                    }
+                }
+            }
+
+            Some(WebhookResourceData::Refund { payment_attempt }) => {
+                if matches!(
+                    primary_event_type,
+                    enums::EventType::SurchargeRefundSucceeded
+                ) {
+                    if let Some(external_surcharge_details) =
+                        &payment_attempt.external_surcharge_details
+                    {
+                        if state
+                            .conf
+                            .webhooks
+                            .notify_connector
+                            .surcharge_refund_succeeded
+                            .contains(&connector_name)
+                        {
+                            let event_content = api_models::payments::ResponseSurchargeDetails {
+                                surcharge_amount: external_surcharge_details
+                                    .external_surcharge_amount
+                                    .clone(),
+                                external_surcharge_id: external_surcharge_details
+                                    .external_surcharge_id
+                                    .clone(),
+                            };
+
+                            let event_data = utils::WebhookEventData {
+                                event_type: enums::EventType::SurchargeRefundSucceeded,
+                                event_content: api::OutgoingWebhookContent::SurchargeDetails(
+                                    Box::new(event_content),
+                                ),
+                                recipient_data: utils::WebhookRecipientData::Connector {
+                                    merchant_connector_id: merchant_surcharge_connector_id,
+                                },
+                            };
+                            webhook_events.push(event_data);
+                        }
+                    }
+                }
+            }
+
+            None => {}
+        }
+    }
+
+    Ok(webhook_events)
+}
+
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     state: SessionState,
     platform: domain::Platform,
-    event_type: enums::EventType,
+    primary_event_type: enums::EventType,
     event_class: enums::EventClass,
     primary_object_id: String,
     primary_object_type: enums::EventObjectType,
-    content: api::OutgoingWebhookContent,
+    primary_content: api::OutgoingWebhookContent,
     primary_object_created_at: Option<time::PrimitiveDateTime>,
     webhook_recipient: utils::WebhookRecipientContext,
     webhook_resource_data: Option<WebhookResourceData>,
     provider_profile: domain::Profile,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    let delivery_attempt = enums::WebhookDeliveryAttempt::InitialAttempt;
-    let idempotent_event_id =
-        utils::get_idempotent_event_id(&primary_object_id, event_type, delivery_attempt)
-            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .attach_printable("Failed to generate idempotent event ID")?;
-    let webhook_url_result = get_webhook_url_from_business_profile(&webhook_recipient.profile);
-
-    if !state.conf.webhooks.outgoing_enabled
-        || webhook_url_result.is_err()
-        || webhook_url_result.as_ref().is_ok_and(String::is_empty)
-    {
+    if !state.conf.webhooks.outgoing_enabled {
         logger::debug!(
             business_profile_id=?webhook_recipient.profile.get_id(),
-            %idempotent_event_id,
-            "Outgoing webhooks are disabled in application configuration, or merchant webhook URL \
-             could not be obtained; skipping outgoing webhooks for event"
+            "Outgoing webhooks are disabled in application configuration"
         );
         return Ok(());
-    }
-
-    let event_id = utils::generate_event_id();
-    let provider_merchant_id = platform.get_provider().get_account().get_id().clone();
-    let processor_merchant_id = platform.get_processor().get_account().get_id().clone();
-    let now = common_utils::date_time::now();
-
-    let outgoing_webhook = api::OutgoingWebhook {
-        merchant_id: provider_merchant_id.clone(),
-        event_id: event_id.clone(),
-        event_type,
-        content: content.clone(),
-        timestamp: now,
-        processor_merchant_id: Some(processor_merchant_id.clone()),
     };
 
-    let request_content = get_outgoing_webhook_request(
-        &webhook_recipient.merchant_account,
-        outgoing_webhook,
-        &webhook_recipient.profile,
-    )
-    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-    .attach_printable("Failed to construct outgoing webhook request content")?;
-
-    let event_metadata = storage::EventMetadata::foreign_from(&content);
-    let key_manager_state = &(&state).into();
-    let new_event = domain::Event {
-        event_id: event_id.clone(),
-        event_type,
-        event_class,
-        is_webhook_notified: false,
-        primary_object_id,
-        primary_object_type,
-        created_at: now,
-        merchant_id: Some(provider_merchant_id.clone()),
-        business_profile_id: Some(webhook_recipient.profile.get_id().to_owned()),
-        primary_object_created_at,
-        idempotent_event_id: Some(idempotent_event_id.clone()),
-        initial_attempt_id: Some(event_id.clone()),
-        request: Some(
-            crypto_operation(
-                key_manager_state,
-                type_name!(domain::Event),
-                CryptoOperation::Encrypt(
-                    request_content
-                        .encode_to_string_of_json()
-                        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                        .attach_printable("Failed to encode outgoing webhook request content")
-                        .map(Secret::new)?,
-                ),
-                Identifier::Merchant(webhook_recipient.key_store.merchant_id.clone()),
-                webhook_recipient.key_store.key.get_inner().peek(),
-            )
-            .await
-            .and_then(|val| val.try_into_operation())
-            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .attach_printable("Failed to encrypt outgoing webhook request content")?,
-        ),
-        response: None,
-        delivery_attempt: Some(delivery_attempt),
-        metadata: Some(event_metadata),
-        is_overall_delivery_successful: Some(false),
-        processor_merchant_id: Some(processor_merchant_id.clone()),
-        initiator_merchant_id: Some(webhook_recipient.key_store.merchant_id.clone()),
-        recipient: Some(enums::EventRecipient::Merchant),
-    };
-
-    let lock_value = utils::perform_redis_lock(
+    let events_to_trigger = get_webhook_events(
         &state,
-        &idempotent_event_id,
-        webhook_recipient.key_store.merchant_id.clone(),
-    )
-    .await?;
+        platform.clone(),
+        primary_event_type,
+        &primary_content,
+        webhook_resource_data,
+        webhook_recipient,
+        &provider_profile,
+    ).await?;
 
-    if lock_value.is_none() {
-        return Ok(());
-    }
+    //  if webhook_url_result.is_err() || webhook_url_result.as_ref().is_ok_and(String::is_empty) {
+    //     logger::debug!(
+    //         business_profile_id=?webhook_recipient.profile.get_id(),
+    //         %idempotent_event_id,
+    //         "merchant webhook URL \
+    //          could not be obtained; skipping outgoing webhooks for event"
+    //     );
+    // }
 
-    if (state
-        .store
-        .find_event_by_initiator_merchant_id_idempotent_event_id(
-            &webhook_recipient.key_store.merchant_id,
-            &idempotent_event_id,
-            &webhook_recipient.key_store,
-        )
-        .await)
-        .is_ok()
-    {
-        logger::debug!(
-            "Event with idempotent ID `{idempotent_event_id}` already exists in the database"
-        );
-        utils::free_redis_lock(
-            &state,
-            &idempotent_event_id,
-            webhook_recipient.key_store.merchant_id.clone(),
-            lock_value,
-        )
-        .await?;
-        return Ok(());
-    }
+    // let delivery_attempt = enums::WebhookDeliveryAttempt::InitialAttempt;
+    // let idempotent_event_id =
+    //     utils::get_idempotent_event_id(&primary_object_id, event_type, delivery_attempt)
+    //         .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+    //         .attach_printable("Failed to generate idempotent event ID")?;
+    // let webhook_url_result = get_webhook_url_from_business_profile(&webhook_recipient.profile);
 
-    let event_insert_result = state
-        .store
-        .insert_event(new_event, &webhook_recipient.key_store)
-        .await;
+    // if !state.conf.webhooks.outgoing_enabled
+    //     || webhook_url_result.is_err()
+    //     || webhook_url_result.as_ref().is_ok_and(String::is_empty)
+    // {
+    //     logger::debug!(
+    //         business_profile_id=?webhook_recipient.profile.get_id(),
+    //         %idempotent_event_id,
+    //         "Outgoing webhooks are disabled in application configuration, or merchant webhook URL \
+    //          could not be obtained; skipping outgoing webhooks for event"
+    //     );
+    //     return Ok(());
+    // }
 
-    let event = match event_insert_result {
-        Ok(event) => Ok(event),
-        Err(error) => {
-            logger::error!(event_insertion_failure=?error);
-            Err(error
-                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                .attach_printable("Failed to insert event in events table"))
-        }
-    }?;
+    // let event_id = utils::generate_event_id();
+    // let provider_merchant_id = platform.get_provider().get_account().get_id().clone();
+    // let processor_merchant_id = platform.get_processor().get_account().get_id().clone();
+    // let now = common_utils::date_time::now();
 
-    utils::free_redis_lock(
-        &state,
-        &idempotent_event_id,
-        webhook_recipient.key_store.merchant_id.clone(),
-        lock_value,
-    )
-    .await?;
+    // let outgoing_webhook = api::OutgoingWebhook {
+    //     merchant_id: provider_merchant_id.clone(),
+    //     event_id: event_id.clone(),
+    //     event_type,
+    //     content: content.clone(),
+    //     timestamp: now,
+    //     processor_merchant_id: Some(processor_merchant_id.clone()),
+    // };
 
-    let process_tracker = add_outgoing_webhook_retry_task_to_process_tracker(
-        &*state.store,
-        &platform,
-        &webhook_recipient,
-        &event,
-        state.conf.application_source,
-    )
-    .await
-    .inspect_err(|error| {
-        logger::error!(
-            ?error,
-            "Failed to add outgoing webhook retry task to process tracker"
-        );
-    })
-    .ok();
+    // let request_content = get_outgoing_webhook_request(
+    //     &webhook_recipient.merchant_account,
+    //     outgoing_webhook,
+    //     &webhook_recipient.profile,
+    // )
+    // .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+    // .attach_printable("Failed to construct outgoing webhook request content")?;
 
-    let cloned_key_store = webhook_recipient.key_store.clone();
-    let cloned_provider_merchant_id = provider_merchant_id.clone();
-    let cloned_processor_merchant_id = processor_merchant_id.clone();
-    // Using a tokio spawn here and not arbiter because not all caller of this function
-    // may have an actix arbiter
-    tokio::spawn(
-        async move {
-            Box::pin(trigger_webhook_and_raise_event(
-                state,
-                webhook_recipient.profile,
-                &cloned_key_store,
-                cloned_provider_merchant_id,
-                cloned_processor_merchant_id,
-                event,
-                request_content,
-                delivery_attempt,
-                Some(content),
-                process_tracker,
-            ))
-            .await;
-        }
-        .in_current_span(),
-    );
+    // let event_metadata = storage::EventMetadata::foreign_from(&content);
+    // let key_manager_state = &(&state).into();
+    // let new_event = domain::Event {
+    //     event_id: event_id.clone(),
+    //     event_type,
+    //     event_class,
+    //     is_webhook_notified: false,
+    //     primary_object_id,
+    //     primary_object_type,
+    //     created_at: now,
+    //     merchant_id: Some(provider_merchant_id.clone()),
+    //     business_profile_id: Some(webhook_recipient.profile.get_id().to_owned()),
+    //     primary_object_created_at,
+    //     idempotent_event_id: Some(idempotent_event_id.clone()),
+    //     initial_attempt_id: Some(event_id.clone()),
+    //     request: Some(
+    //         crypto_operation(
+    //             key_manager_state,
+    //             type_name!(domain::Event),
+    //             CryptoOperation::Encrypt(
+    //                 request_content
+    //                     .encode_to_string_of_json()
+    //                     .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+    //                     .attach_printable("Failed to encode outgoing webhook request content")
+    //                     .map(Secret::new)?,
+    //             ),
+    //             Identifier::Merchant(webhook_recipient.key_store.merchant_id.clone()),
+    //             webhook_recipient.key_store.key.get_inner().peek(),
+    //         )
+    //         .await
+    //         .and_then(|val| val.try_into_operation())
+    //         .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+    //         .attach_printable("Failed to encrypt outgoing webhook request content")?,
+    //     ),
+    //     response: None,
+    //     delivery_attempt: Some(delivery_attempt),
+    //     metadata: Some(event_metadata),
+    //     is_overall_delivery_successful: Some(false),
+    //     processor_merchant_id: Some(processor_merchant_id.clone()),
+    //     initiator_merchant_id: Some(webhook_recipient.key_store.merchant_id.clone()),
+    //     recipient: Some(enums::EventRecipient::Merchant),
+    // };
+
+    // let lock_value = utils::perform_redis_lock(
+    //     &state,
+    //     &idempotent_event_id,
+    //     webhook_recipient.key_store.merchant_id.clone(),
+    // )
+    // .await?;
+
+    // if lock_value.is_none() {
+    //     return Ok(());
+    // }
+
+    // if (state
+    //     .store
+    //     .find_event_by_initiator_merchant_id_idempotent_event_id(
+    //         &webhook_recipient.key_store.merchant_id,
+    //         &idempotent_event_id,
+    //         &webhook_recipient.key_store,
+    //     )
+    //     .await)
+    //     .is_ok()
+    // {
+    //     logger::debug!(
+    //         "Event with idempotent ID `{idempotent_event_id}` already exists in the database"
+    //     );
+    //     utils::free_redis_lock(
+    //         &state,
+    //         &idempotent_event_id,
+    //         webhook_recipient.key_store.merchant_id.clone(),
+    //         lock_value,
+    //     )
+    //     .await?;
+    //     return Ok(());
+    // }
+
+    // let event_insert_result = state
+    //     .store
+    //     .insert_event(new_event, &webhook_recipient.key_store)
+    //     .await;
+
+    // let event = match event_insert_result {
+    //     Ok(event) => Ok(event),
+    //     Err(error) => {
+    //         logger::error!(event_insertion_failure=?error);
+    //         Err(error
+    //             .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+    //             .attach_printable("Failed to insert event in events table"))
+    //     }
+    // }?;
+
+    // utils::free_redis_lock(
+    //     &state,
+    //     &idempotent_event_id,
+    //     webhook_recipient.key_store.merchant_id.clone(),
+    //     lock_value,
+    // )
+    // .await?;
+
+    // let process_tracker = add_outgoing_webhook_retry_task_to_process_tracker(
+    //     &*state.store,
+    //     &platform,
+    //     &webhook_recipient,
+    //     &event,
+    //     state.conf.application_source,
+    // )
+    // .await
+    // .inspect_err(|error| {
+    //     logger::error!(
+    //         ?error,
+    //         "Failed to add outgoing webhook retry task to process tracker"
+    //     );
+    // })
+    // .ok();
+
+    // let cloned_key_store = webhook_recipient.key_store.clone();
+    // let cloned_provider_merchant_id = provider_merchant_id.clone();
+    // let cloned_processor_merchant_id = processor_merchant_id.clone();
+    // // Using a tokio spawn here and not arbiter because not all caller of this function
+    // // may have an actix arbiter
+    // tokio::spawn(
+    //     async move {
+    //         Box::pin(trigger_webhook_and_raise_event(
+    //             state,
+    //             webhook_recipient.profile,
+    //             &cloned_key_store,
+    //             cloned_provider_merchant_id,
+    //             cloned_processor_merchant_id,
+    //             event,
+    //             request_content,
+    //             delivery_attempt,
+    //             Some(content),
+    //             process_tracker,
+    //         ))
+    //         .await;
+    //     }
+    //     .in_current_span(),
+    // );
 
     Ok(())
 }
@@ -1018,6 +1176,7 @@ impl ForeignFrom<&api::OutgoingWebhookContent> for storage::EventMetadata {
                     payment_id: subscription.get_optional_payment_id(),
                 }
             }
+            webhooks::OutgoingWebhookContent::SurchargeDetails(_) => todo!() // Todoo
         }
     }
 }

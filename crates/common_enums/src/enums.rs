@@ -1916,7 +1916,7 @@ pub enum EventType {
     PayoutReversed,
     InvoicePaid,
     SurchargePaymentSucceeded,
-    SurchargeRefundFailed,
+    SurchargeRefundSucceeded,
 }
 
 #[derive(

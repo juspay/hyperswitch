@@ -1913,6 +1913,18 @@ pub struct RequestSurchargeDetails {
     pub tax_amount: Option<MinorUnit>,
 }
 
+/// Details of surcharge applied on this payment, if applicable
+#[derive(
+    Default, Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct ResponseSurchargeDetails {
+    #[schema(value_type = i64, example = 6540)]
+    #[smithy(value_type = "i64")]
+    pub surcharge_amount: MinorUnit,
+    pub external_surcharge_id: String,
+}
+
 // for v2 use the type from common_utils::types
 #[cfg(feature = "v1")]
 /// Browser information to be used for 3DS 2.0

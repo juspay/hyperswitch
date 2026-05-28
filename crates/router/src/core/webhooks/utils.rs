@@ -298,6 +298,22 @@ pub(crate) struct WebhookRecipientContext {
     pub profile: domain::Profile,
 }
 
+
+
+pub(crate) struct WebhookEventData {
+    pub event_type: types::storage::enums::EventType,
+    pub event_content: api::OutgoingWebhookContent,
+    pub recipient_data: WebhookRecipientData
+}
+
+pub(crate) enum WebhookRecipientData {
+    Merchant,
+    Connector { 
+        merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId
+    }
+}
+
+
 /// Resolves the webhook recipient from the `created_by` field on the resource.
 ///
 /// Used in the incoming webhook flow where the Platform struct has no initiator populated.

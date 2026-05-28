@@ -39,8 +39,8 @@ pub use hyperswitch_connectors::utils::QrImage;
 use hyperswitch_domain_models::payments::PaymentIntent;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
-use hyperswitch_masking::{ExposeInterface, SwitchStrategy};
 use hyperswitch_interfaces::webhooks::WebhookResourceData;
+use hyperswitch_masking::{ExposeInterface, SwitchStrategy};
 use nanoid::nanoid;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -1238,9 +1238,8 @@ where
                 tokio::spawn(
                     async move {
                         let primary_object_created_at = payments_response_json.created;
-                        let webhook_resource_data = WebhookResourceData::Payment {
-                            payment_attempt
-                        };
+                        let webhook_resource_data =
+                            WebhookResourceData::Payment { payment_attempt };
 
                         Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                             cloned_state,
@@ -1289,7 +1288,7 @@ pub async fn trigger_refund_outgoing_webhook(
     state: &SessionState,
     platform: &domain::Platform,
     refund: &diesel_models::Refund,
-    payment_attempt: domain::PaymentAttempt
+    payment_attempt: domain::PaymentAttempt,
 ) -> RouterResult<()> {
     let profile_id = payment_attempt.profile_id.clone();
     let refund_status = refund.refund_status;
@@ -1330,9 +1329,7 @@ pub async fn trigger_refund_outgoing_webhook(
             let cloned_platform = platform.clone();
             tokio::spawn(
                 async move {
-                    let webhook_resource_data = WebhookResourceData::Payment {
-                            payment_attempt
-                        };
+                    let webhook_resource_data = WebhookResourceData::Payment { payment_attempt };
                     Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                         cloned_state,
                         cloned_platform,
@@ -1432,7 +1429,7 @@ pub async fn trigger_payouts_webhook(
                         primary_object_created_at,
                         webhook_recipient,
                         None,
-                        business_profile
+                        business_profile,
                     ))
                     .await
                 }
@@ -1488,7 +1485,7 @@ pub async fn trigger_subscriptions_outgoing_webhook(
     let cloned_state = state.clone();
     let invoice_id = invoice.id.get_string_repr().to_owned();
     let created_at = subscription.created_at;
-    let business_profile =  profile.clone();
+    let business_profile = profile.clone();
 
     tokio::spawn(async move {
         Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(

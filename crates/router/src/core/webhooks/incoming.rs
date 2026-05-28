@@ -593,7 +593,7 @@ async fn process_webhook_business_logic(
                 connector_name,
                 source_verified,
                 event_type,
-                webhook_resource_data
+                webhook_resource_data,
             ))
             .await
             .attach_printable("Incoming webhook flow for refunds failed"),
@@ -1035,7 +1035,7 @@ async fn payments_incoming_webhook_flow(
                     api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                     primary_object_created_at,
                     webhook_recipient,
-                    Some(WebhookResourceData::Payment{payment_attempt}),
+                    Some(WebhookResourceData::Payment { payment_attempt }),
                     business_profile,
                 ))
                 .await?;
@@ -1354,7 +1354,7 @@ async fn payout_incoming_webhook_update_status(
             Some(payout_data.payout_attempt.created_at),
             webhook_recipient,
             None,
-            business_profile
+            business_profile,
         ))
         .await?;
     }
@@ -2068,8 +2068,8 @@ async fn external_authentication_incoming_webhook_flow(
                                 )),
                                 primary_object_created_at,
                                 webhook_recipient,
-                                None, // Todoo: Should support for external authentication ? 
-                                business_profile
+                                None, // Todoo: Should support for external authentication ?
+                                business_profile,
                             ))
                             .await?;
                         };
@@ -2174,7 +2174,7 @@ async fn mandates_incoming_webhook_flow(
                 Some(updated_mandate.created_at),
                 webhook_recipient,
                 None,
-                business_profile
+                business_profile,
             ))
             .await?;
         }
@@ -2292,7 +2292,7 @@ async fn frm_incoming_webhook_flow(
                         primary_object_created_at,
                         webhook_recipient,
                         None,
-                        business_profile
+                        business_profile,
                     ))
                     .await?;
                 };
@@ -2431,7 +2431,7 @@ async fn disputes_incoming_webhook_flow(
             Some(dispute_object.created_at),
             webhook_recipient,
             None,
-            business_profile
+            business_profile,
         ))
         .await?;
         metrics::INCOMING_DISPUTE_WEBHOOK_MERCHANT_NOTIFIED_METRIC.add(1, &[]);
@@ -2501,7 +2501,7 @@ async fn bank_transfer_webhook_flow(
                 errors::ApiErrorResponse::WebhookAuthenticationFailed
             )),
             None,
-            None
+            None,
         )
     };
 
@@ -2532,8 +2532,10 @@ async fn bank_transfer_webhook_flow(
                     api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                     primary_object_created_at,
                     webhook_recipient,
-                    payment_attempt.map(|pa| WebhookResourceData::Payment { payment_attempt: pa }),
-                    business_profile
+                    payment_attempt.map(|pa| WebhookResourceData::Payment {
+                        payment_attempt: pa,
+                    }),
+                    business_profile,
                 ))
                 .await?;
             }
