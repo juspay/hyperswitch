@@ -836,6 +836,30 @@ export const connectorDetails = {
       },
     },
   },
+  wallet_pm: {
+    PaypalRedirect: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+        billing: billingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "19",
+          error_message:
+            "An error occurred during processing.  Please try again.",
+        },
+      },
+    },
+  },
   webhook: {
     TransactionIdConfig: {
       // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
