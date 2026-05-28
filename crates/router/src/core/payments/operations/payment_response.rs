@@ -102,7 +102,8 @@ where
 
         match (is_volatile, payment_method_id) {
             (Some(false), Some(pm_id)) => {
-                let should_update = resp.status.should_update_payment_method();
+
+                let acknowledgement_status = resp.status.acknowledgement_status_for_mod_payment_method();
 
                 let payment_method_type = payment_data
                     .payment_attempt
@@ -110,12 +111,10 @@ where
                     .map(|pm| pm.to_string());
 
                 logger::info!(
-                    "Payment method is {:?}; is eligible for modular update: {}",
+                    "Payment method is {:?}; is eligible for modular update",
                     payment_method_type,
-                    should_update
                 );
 
-                if should_update {
                     // #1 - Derive network transaction ID from the connector response.
                     let (network_transaction_id, connector_token_details) = if matches!(
                         payment_data.payment_attempt.setup_future_usage_applied,
@@ -216,15 +215,15 @@ where
                             )),
                             _ => None,
                         });
-                    let acknowledgement_status =
-                        Some(common_enums::AcknowledgementStatus::Authenticated);
+
+            
 
                     let payload = UpdatePaymentMethodV1Payload {
                         payment_method_data,
                         connector_token_details,
                         network_transaction_id: network_transaction_id
                             .map(hyperswitch_masking::Secret::new),
-                        acknowledgement_status,
+                        acknowledgement_status: Some(acknowledgement_status),
                     };
 
                     // #3 - Execute the modular payment-method update call if there is something to be updated
@@ -257,7 +256,6 @@ where
                         logger::info!("No updates found for modular payment method update call");
                     }
                 }
-            }
             (_, _) => {
                 logger::info!("Payment method is not eligible for modular update");
             }
@@ -2084,8 +2082,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     payment_data.whole_connector_response = router_data.raw_connector_response.clone();
 
-    let payment_method_status = router_data.payment_method_status;
-
     // TODO: refactor of gsm_error_category with respective feature flag
     #[allow(unused_variables)]
     let (capture_update, mut payment_attempt_update, gsm_error_category) = match router_data
@@ -2929,12 +2925,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     payment_data.payment_intent = payment_intent;
     payment_data.payment_attempt = payment_attempt;
-    payment_method_status.and_then(|status| {
-        payment_data
-            .payment_method_info
-            .as_mut()
-            .map(|info| info.status = status)
-    });
+    let derived_pm_status =
+        common_enums::PaymentMethodStatus::from(payment_data.payment_attempt.status);
+    payment_data
+        .payment_method_info
+        .as_mut()
+        .map(|info| info.status = derived_pm_status);
 
     if payment_data.payment_attempt.status == enums::AttemptStatus::Failure {
         let _ = card_testing_guard_utils::increment_blocked_count_in_cache(
