@@ -298,18 +298,26 @@ pub(crate) struct WebhookRecipientContext {
     pub profile: domain::Profile,
 }
 
-
-
 pub(crate) struct WebhookEventData {
     pub event_type: types::storage::enums::EventType,
     pub event_content: api::OutgoingWebhookContent,
-    pub recipient_data: WebhookRecipientData
+    pub recipient_data: WebhookRecipientData,
 }
 
 pub(crate) enum WebhookRecipientData {
     Merchant,
-    Connector { 
-        merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId
+    Connector {
+        merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    },
+}
+
+impl WebhookRecipientData {
+    pub fn get_event_recipient(&self) -> common_enums::EventRecipient {
+        match self {
+            WebhookRecipientData::Merchant => common_enums::EventRecipient::Merchant,
+            WebhookRecipientData::Connector {..} => 
+                common_enums::EventRecipient::Connector
+        }
     }
 }
 

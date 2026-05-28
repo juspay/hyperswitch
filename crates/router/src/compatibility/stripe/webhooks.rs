@@ -353,9 +353,7 @@ impl From<api::OutgoingWebhookContent> for StripeWebhookObject {
             api_models::webhooks::OutgoingWebhookContent::SubscriptionDetails(_) => {
                 Self::Subscriptions
             }
-            api_models::webhooks::OutgoingWebhookContent::SurchargeDetails(_) => {
-                Self::Surcharge
-            }
+            api_models::webhooks::OutgoingWebhookContent::SurchargeDetails(_) => Self::Surcharge,
         }
     }
 }

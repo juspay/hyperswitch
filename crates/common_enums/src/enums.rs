@@ -1766,7 +1766,7 @@ impl Currency {
 #[strum(serialize_all = "snake_case")]
 pub enum EventRecipient {
     Merchant,
-    Customer,
+    Connector,
 }
 
 #[derive(
