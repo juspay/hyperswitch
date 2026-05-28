@@ -59,31 +59,18 @@ describe("Wallet Mandate tests", () => {
       cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
     });
 
-    it("create-wallet-mandate-payment-intent-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["WalletMandateSingleUseNo3DSAutoCapture"];
-
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("confirm-paypal-wallet-mandate-cit-test", () => {
+    it("paypal-wallet-mandate-cit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
       ]["PaypalWalletMandateCIT"];
 
-      cy.confirmBankRedirectCallTest(
-        fixtures.confirmBody,
+      cy.citForMandatesCallTest(
+        fixtures.citConfirmBody,
         data,
+        6000,
         true,
+        "automatic",
+        "new_mandate",
         globalState
       );
 
@@ -104,7 +91,7 @@ describe("Wallet Mandate tests", () => {
     it("retrieve-payment-after-cit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
-      ]["WalletMandateSingleUseNo3DSAutoCapture"];
+      ]["PaypalWalletMandateCIT"];
 
       cy.retrievePaymentCallTest({
         globalState,
@@ -114,22 +101,14 @@ describe("Wallet Mandate tests", () => {
       if (shouldContinue) shouldContinue = should_continue_further(data);
     });
 
-    it("confirm-paypal-wallet-mandate-mit-test", () => {
+    it("paypal-wallet-mandate-mit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
       ]["PaypalWalletMITAutoCapture"];
 
-      const modifiedData = {
-        ...data,
-        Request: {
-          ...data.Request,
-          currency: "EUR",
-        },
-      };
-
-      cy.mitForMandatesCallTest(
-        fixtures.mitConfirmBody,
-        modifiedData,
+      cy.mitUsingPMId(
+        fixtures.pmIdConfirmBody,
+        data,
         6000,
         true,
         "automatic",
@@ -157,39 +136,22 @@ describe("Wallet Mandate tests", () => {
       }
     });
 
-    it("create-wallet-mandate-payment-intent-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["WalletMandateSingleUseNo3DSAutoCapture"];
-
-      const modifiedData = {
-        ...data,
-        Request: {
-          ...data.Request,
-          currency: "KRW",
-        },
-      };
-
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        modifiedData,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = should_continue_further(data);
+    it("create-customer-call-test", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
     });
 
-    it("confirm-kakaopay-wallet-mandate-cit-test", () => {
+    it("kakaopay-wallet-mandate-cit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
       ]["KakaoPayWalletMandateCIT"];
 
-      cy.confirmBankRedirectCallTest(
-        fixtures.confirmBody,
+      cy.citForMandatesCallTest(
+        fixtures.citConfirmBody,
         data,
+        6000,
         true,
+        "automatic",
+        "new_mandate",
         globalState
       );
 
@@ -210,7 +172,7 @@ describe("Wallet Mandate tests", () => {
     it("retrieve-payment-after-cit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
-      ]["WalletMandateSingleUseNo3DSAutoCapture"];
+      ]["KakaoPayWalletMandateCIT"];
 
       cy.retrievePaymentCallTest({
         globalState,
@@ -220,22 +182,14 @@ describe("Wallet Mandate tests", () => {
       if (shouldContinue) shouldContinue = should_continue_further(data);
     });
 
-    it("confirm-kakaopay-wallet-mandate-mit-test", () => {
+    it("kakaopay-wallet-mandate-mit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
       ]["KakaoPayWalletMITAutoCapture"];
 
-      const modifiedData = {
-        ...data,
-        Request: {
-          ...data.Request,
-          currency: "KRW",
-        },
-      };
-
-      cy.mitForMandatesCallTest(
-        fixtures.mitConfirmBody,
-        modifiedData,
+      cy.mitUsingPMId(
+        fixtures.pmIdConfirmBody,
+        data,
         6000,
         true,
         "automatic",
@@ -263,39 +217,22 @@ describe("Wallet Mandate tests", () => {
       }
     });
 
-    it("create-wallet-mandate-payment-intent-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["WalletMandateSingleUseNo3DSAutoCapture"];
-
-      const modifiedData = {
-        ...data,
-        Request: {
-          ...data.Request,
-          currency: "PHP",
-        },
-      };
-
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        modifiedData,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = should_continue_further(data);
+    it("create-customer-call-test", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
     });
 
-    it("confirm-gcash-wallet-mandate-cit-test", () => {
+    it("gcash-wallet-mandate-cit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
       ]["GcashWalletMandateCIT"];
 
-      cy.confirmBankRedirectCallTest(
-        fixtures.confirmBody,
+      cy.citForMandatesCallTest(
+        fixtures.citConfirmBody,
         data,
+        6000,
         true,
+        "automatic",
+        "new_mandate",
         globalState
       );
 
@@ -316,7 +253,7 @@ describe("Wallet Mandate tests", () => {
     it("retrieve-payment-after-cit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
-      ]["WalletMandateSingleUseNo3DSAutoCapture"];
+      ]["GcashWalletMandateCIT"];
 
       cy.retrievePaymentCallTest({
         globalState,
@@ -326,22 +263,14 @@ describe("Wallet Mandate tests", () => {
       if (shouldContinue) shouldContinue = should_continue_further(data);
     });
 
-    it("confirm-gcash-wallet-mandate-mit-test", () => {
+    it("gcash-wallet-mandate-mit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
       ]["GcashWalletMITAutoCapture"];
 
-      const modifiedData = {
-        ...data,
-        Request: {
-          ...data.Request,
-          currency: "PHP",
-        },
-      };
-
-      cy.mitForMandatesCallTest(
-        fixtures.mitConfirmBody,
-        modifiedData,
+      cy.mitUsingPMId(
+        fixtures.pmIdConfirmBody,
+        data,
         6000,
         true,
         "automatic",
@@ -369,39 +298,22 @@ describe("Wallet Mandate tests", () => {
       }
     });
 
-    it("create-wallet-mandate-payment-intent-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["WalletMandateSingleUseNo3DSAutoCapture"];
-
-      const modifiedData = {
-        ...data,
-        Request: {
-          ...data.Request,
-          currency: "VND",
-        },
-      };
-
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        modifiedData,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = should_continue_further(data);
+    it("create-customer-call-test", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
     });
 
-    it("confirm-momo-wallet-mandate-cit-test", () => {
+    it("momo-wallet-mandate-cit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
       ]["MomoWalletMandateCIT"];
 
-      cy.confirmBankRedirectCallTest(
-        fixtures.confirmBody,
+      cy.citForMandatesCallTest(
+        fixtures.citConfirmBody,
         data,
+        6000,
         true,
+        "automatic",
+        "new_mandate",
         globalState
       );
 
@@ -422,7 +334,7 @@ describe("Wallet Mandate tests", () => {
     it("retrieve-payment-after-cit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
-      ]["WalletMandateSingleUseNo3DSAutoCapture"];
+      ]["MomoWalletMandateCIT"];
 
       cy.retrievePaymentCallTest({
         globalState,
@@ -432,22 +344,14 @@ describe("Wallet Mandate tests", () => {
       if (shouldContinue) shouldContinue = should_continue_further(data);
     });
 
-    it("confirm-momo-wallet-mandate-mit-test", () => {
+    it("momo-wallet-mandate-mit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
       ]["MomoWalletMITAutoCapture"];
 
-      const modifiedData = {
-        ...data,
-        Request: {
-          ...data.Request,
-          currency: "VND",
-        },
-      };
-
-      cy.mitForMandatesCallTest(
-        fixtures.mitConfirmBody,
-        modifiedData,
+      cy.mitUsingPMId(
+        fixtures.pmIdConfirmBody,
+        data,
         6000,
         true,
         "automatic",
@@ -475,39 +379,22 @@ describe("Wallet Mandate tests", () => {
       }
     });
 
-    it("create-wallet-mandate-payment-intent-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["WalletMandateSingleUseNo3DSAutoCapture"];
-
-      const modifiedData = {
-        ...data,
-        Request: {
-          ...data.Request,
-          currency: "CHF",
-        },
-      };
-
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        modifiedData,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = should_continue_further(data);
+    it("create-customer-call-test", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
     });
 
-    it("confirm-twint-wallet-mandate-cit-test", () => {
+    it("twint-wallet-mandate-cit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
       ]["TwintWalletMandateCIT"];
 
-      cy.confirmBankRedirectCallTest(
-        fixtures.confirmBody,
+      cy.citForMandatesCallTest(
+        fixtures.citConfirmBody,
         data,
+        6000,
         true,
+        "automatic",
+        "new_mandate",
         globalState
       );
 
@@ -528,7 +415,7 @@ describe("Wallet Mandate tests", () => {
     it("retrieve-payment-after-cit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
-      ]["WalletMandateSingleUseNo3DSAutoCapture"];
+      ]["TwintWalletMandateCIT"];
 
       cy.retrievePaymentCallTest({
         globalState,
@@ -538,22 +425,14 @@ describe("Wallet Mandate tests", () => {
       if (shouldContinue) shouldContinue = should_continue_further(data);
     });
 
-    it("confirm-twint-wallet-mandate-mit-test", () => {
+    it("twint-wallet-mandate-mit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
       ]["TwintWalletMITAutoCapture"];
 
-      const modifiedData = {
-        ...data,
-        Request: {
-          ...data.Request,
-          currency: "CHF",
-        },
-      };
-
-      cy.mitForMandatesCallTest(
-        fixtures.mitConfirmBody,
-        modifiedData,
+      cy.mitUsingPMId(
+        fixtures.pmIdConfirmBody,
+        data,
         6000,
         true,
         "automatic",
@@ -581,39 +460,22 @@ describe("Wallet Mandate tests", () => {
       }
     });
 
-    it("create-wallet-mandate-payment-intent-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["WalletMandateSingleUseNo3DSAutoCapture"];
-
-      const modifiedData = {
-        ...data,
-        Request: {
-          ...data.Request,
-          currency: "NOK",
-        },
-      };
-
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        modifiedData,
-        "three_ds",
-        "automatic",
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = should_continue_further(data);
+    it("create-customer-call-test", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
     });
 
-    it("confirm-vipps-wallet-mandate-cit-test", () => {
+    it("vipps-wallet-mandate-cit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
       ]["VippsWalletMandateCIT"];
 
-      cy.confirmBankRedirectCallTest(
-        fixtures.confirmBody,
+      cy.citForMandatesCallTest(
+        fixtures.citConfirmBody,
         data,
+        6000,
         true,
+        "automatic",
+        "new_mandate",
         globalState
       );
 
@@ -634,7 +496,7 @@ describe("Wallet Mandate tests", () => {
     it("retrieve-payment-after-cit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
-      ]["WalletMandateSingleUseNo3DSAutoCapture"];
+      ]["VippsWalletMandateCIT"];
 
       cy.retrievePaymentCallTest({
         globalState,
@@ -644,22 +506,14 @@ describe("Wallet Mandate tests", () => {
       if (shouldContinue) shouldContinue = should_continue_further(data);
     });
 
-    it("confirm-vipps-wallet-mandate-mit-test", () => {
+    it("vipps-wallet-mandate-mit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
       ]["VippsWalletMITAutoCapture"];
 
-      const modifiedData = {
-        ...data,
-        Request: {
-          ...data.Request,
-          currency: "NOK",
-        },
-      };
-
-      cy.mitForMandatesCallTest(
-        fixtures.mitConfirmBody,
-        modifiedData,
+      cy.mitUsingPMId(
+        fixtures.pmIdConfirmBody,
+        data,
         6000,
         true,
         "automatic",
@@ -687,39 +541,22 @@ describe("Wallet Mandate tests", () => {
       }
     });
 
-    it("create-wallet-mandate-payment-intent-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["WalletMandateSingleUseNo3DSAutoCapture"];
-
-      const modifiedData = {
-        ...data,
-        Request: {
-          ...data.Request,
-          currency: "IDR",
-        },
-      };
-
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        modifiedData,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = should_continue_further(data);
+    it("create-customer-call-test", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
     });
 
-    it("confirm-dana-wallet-mandate-cit-test", () => {
+    it("dana-wallet-mandate-cit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
       ]["DanaWalletMandateCIT"];
 
-      cy.confirmBankRedirectCallTest(
-        fixtures.confirmBody,
+      cy.citForMandatesCallTest(
+        fixtures.citConfirmBody,
         data,
+        6000,
         true,
+        "automatic",
+        "new_mandate",
         globalState
       );
 
@@ -740,7 +577,7 @@ describe("Wallet Mandate tests", () => {
     it("retrieve-payment-after-cit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
-      ]["WalletMandateSingleUseNo3DSAutoCapture"];
+      ]["DanaWalletMandateCIT"];
 
       cy.retrievePaymentCallTest({
         globalState,
@@ -750,22 +587,14 @@ describe("Wallet Mandate tests", () => {
       if (shouldContinue) shouldContinue = should_continue_further(data);
     });
 
-    it("confirm-dana-wallet-mandate-mit-test", () => {
+    it("dana-wallet-mandate-mit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
       ]["DanaWalletMITAutoCapture"];
 
-      const modifiedData = {
-        ...data,
-        Request: {
-          ...data.Request,
-          currency: "IDR",
-        },
-      };
-
-      cy.mitForMandatesCallTest(
-        fixtures.mitConfirmBody,
-        modifiedData,
+      cy.mitUsingPMId(
+        fixtures.pmIdConfirmBody,
+        data,
         6000,
         true,
         "automatic",
@@ -793,39 +622,22 @@ describe("Wallet Mandate tests", () => {
       }
     });
 
-    it("create-wallet-mandate-payment-intent-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["WalletMandateSingleUseNo3DSAutoCapture"];
-
-      const modifiedData = {
-        ...data,
-        Request: {
-          ...data.Request,
-          currency: "IDR",
-        },
-      };
-
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        modifiedData,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = should_continue_further(data);
+    it("create-customer-call-test", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
     });
 
-    it("confirm-gopay-wallet-mandate-cit-test", () => {
+    it("gopay-wallet-mandate-cit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
       ]["GoPayWalletMandateCIT"];
 
-      cy.confirmBankRedirectCallTest(
-        fixtures.confirmBody,
+      cy.citForMandatesCallTest(
+        fixtures.citConfirmBody,
         data,
+        6000,
         true,
+        "automatic",
+        "new_mandate",
         globalState
       );
 
@@ -846,7 +658,7 @@ describe("Wallet Mandate tests", () => {
     it("retrieve-payment-after-cit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
-      ]["WalletMandateSingleUseNo3DSAutoCapture"];
+      ]["GoPayWalletMandateCIT"];
 
       cy.retrievePaymentCallTest({
         globalState,
@@ -856,22 +668,14 @@ describe("Wallet Mandate tests", () => {
       if (shouldContinue) shouldContinue = should_continue_further(data);
     });
 
-    it("confirm-gopay-wallet-mandate-mit-test", () => {
+    it("gopay-wallet-mandate-mit-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
       ]["GoPayWalletMITAutoCapture"];
 
-      const modifiedData = {
-        ...data,
-        Request: {
-          ...data.Request,
-          currency: "IDR",
-        },
-      };
-
-      cy.mitForMandatesCallTest(
-        fixtures.mitConfirmBody,
-        modifiedData,
+      cy.mitUsingPMId(
+        fixtures.pmIdConfirmBody,
+        data,
         6000,
         true,
         "automatic",

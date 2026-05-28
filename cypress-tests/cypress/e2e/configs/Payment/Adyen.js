@@ -1564,163 +1564,6 @@ export const connectorDetails = {
         },
       },
     }),
-    WalletMandateSingleUseNo3DSAutoCapture: getCustomExchange({
-      Request: {
-        currency: "EUR",
-        setup_future_usage: "off_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-    WalletMITAutoCapture: getCustomExchange({
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    }),
-    KakaoPayWalletMITAutoCapture: getCustomExchange({
-      Request: {
-        payment_method: "wallet",
-        payment_method_type: "kakao_pay",
-        payment_method_data: {
-          wallet: {
-            kakao_pay_redirect: {},
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    }),
-    PaypalWalletMITAutoCapture: getCustomExchange({
-      Request: {
-        payment_method: "wallet",
-        payment_method_type: "paypal",
-        payment_method_data: {
-          wallet: {
-            paypal_redirect: {},
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    }),
-    GcashWalletMITAutoCapture: getCustomExchange({
-      Request: {
-        payment_method: "wallet",
-        payment_method_type: "gcash",
-        payment_method_data: {
-          wallet: {
-            gcash_redirect: {},
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    }),
-    MomoWalletMITAutoCapture: getCustomExchange({
-      Request: {
-        payment_method: "wallet",
-        payment_method_type: "momo",
-        payment_method_data: {
-          wallet: {
-            momo_redirect: {},
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    }),
-    TwintWalletMITAutoCapture: getCustomExchange({
-      Request: {
-        payment_method: "wallet",
-        payment_method_type: "twint",
-        payment_method_data: {
-          wallet: {
-            twint_redirect: {},
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    }),
-    DanaWalletMITAutoCapture: getCustomExchange({
-      Request: {
-        payment_method: "wallet",
-        payment_method_type: "dana",
-        payment_method_data: {
-          wallet: {
-            dana_redirect: {},
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    }),
-    GoPayWalletMITAutoCapture: getCustomExchange({
-      Request: {
-        payment_method: "wallet",
-        payment_method_type: "go_pay",
-        payment_method_data: {
-          wallet: {
-            go_pay_redirect: {},
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    }),
-    VippsWalletMITAutoCapture: getCustomExchange({
-      Request: {
-        payment_method: "wallet",
-        payment_method_type: "vipps",
-        payment_method_data: {
-          wallet: {
-            vipps_redirect: {},
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    }),
     PaypalWalletMandateCIT: getCustomExchange({
       Request: {
         payment_method: "wallet",
@@ -1730,24 +1573,19 @@ export const connectorDetails = {
             paypal_redirect: {},
           },
         },
-        mandate_data: getMandateData("EUR"),
-        payment_type: "new_mandate",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "2024-01-01T00:00:00Z",
+          online: {
+            ip_address: "10.0.0.1",
+            user_agent: "test",
+          },
+        },
+        mandate_data: null,
         setup_future_usage: "off_session",
+        currency: "USD",
+        return_url: "https://example.com",
         billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            city: "San Fransico",
-            state: "CA",
-            zip: "94122",
-            country: "US",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "8056594427",
-            country_code: "+91",
-          },
           email: "test@example.com",
         },
       },
@@ -1755,6 +1593,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_status: "inactive",
         },
       },
     }),
@@ -1767,24 +1606,19 @@ export const connectorDetails = {
             kakao_pay_redirect: {},
           },
         },
-        mandate_data: getMandateData("KRW"),
-        payment_type: "new_mandate",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "2024-01-01T00:00:00Z",
+          online: {
+            ip_address: "10.0.0.1",
+            user_agent: "test",
+          },
+        },
+        mandate_data: null,
         setup_future_usage: "off_session",
+        currency: "KRW",
+        return_url: "https://example.com",
         billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            city: "Seoul",
-            state: "Seoul",
-            zip: "04500",
-            country: "KR",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "8056594427",
-            country_code: "+82",
-          },
           email: "test@example.com",
         },
       },
@@ -1792,6 +1626,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_status: "inactive",
         },
       },
     }),
@@ -1804,24 +1639,19 @@ export const connectorDetails = {
             gcash_redirect: {},
           },
         },
-        mandate_data: getMandateData("PHP"),
-        payment_type: "new_mandate",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "2024-01-01T00:00:00Z",
+          online: {
+            ip_address: "10.0.0.1",
+            user_agent: "test",
+          },
+        },
+        mandate_data: null,
         setup_future_usage: "off_session",
+        currency: "PHP",
+        return_url: "https://example.com",
         billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            city: "Manila",
-            state: "Metro Manila",
-            zip: "1000",
-            country: "PH",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "8056594427",
-            country_code: "+63",
-          },
           email: "test@example.com",
         },
       },
@@ -1829,6 +1659,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_status: "inactive",
         },
       },
     }),
@@ -1841,24 +1672,19 @@ export const connectorDetails = {
             momo_redirect: {},
           },
         },
-        mandate_data: getMandateData("VND"),
-        payment_type: "new_mandate",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "2024-01-01T00:00:00Z",
+          online: {
+            ip_address: "10.0.0.1",
+            user_agent: "test",
+          },
+        },
+        mandate_data: null,
         setup_future_usage: "off_session",
+        currency: "VND",
+        return_url: "https://example.com",
         billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            city: "Ho Chi Minh City",
-            state: "Ho Chi Minh",
-            zip: "700000",
-            country: "VN",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "8056594427",
-            country_code: "+84",
-          },
           email: "test@example.com",
         },
       },
@@ -1866,6 +1692,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_status: "inactive",
         },
       },
     }),
@@ -1878,24 +1705,19 @@ export const connectorDetails = {
             twint_redirect: {},
           },
         },
-        mandate_data: getMandateData("CHF"),
-        payment_type: "new_mandate",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "2024-01-01T00:00:00Z",
+          online: {
+            ip_address: "10.0.0.1",
+            user_agent: "test",
+          },
+        },
+        mandate_data: null,
         setup_future_usage: "off_session",
+        currency: "CHF",
+        return_url: "https://example.com",
         billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            city: "Zurich",
-            state: "Zurich",
-            zip: "8001",
-            country: "CH",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "8056594427",
-            country_code: "+41",
-          },
           email: "test@example.com",
         },
       },
@@ -1903,6 +1725,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_status: "inactive",
         },
       },
     }),
@@ -1918,24 +1741,19 @@ export const connectorDetails = {
             vipps_redirect: {},
           },
         },
-        mandate_data: getMandateData("NOK"),
-        payment_type: "new_mandate",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "2024-01-01T00:00:00Z",
+          online: {
+            ip_address: "10.0.0.1",
+            user_agent: "test",
+          },
+        },
+        mandate_data: null,
         setup_future_usage: "off_session",
+        currency: "NOK",
+        return_url: "https://example.com",
         billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            city: "Oslo",
-            state: "Oslo",
-            zip: "0150",
-            country: "NO",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "8056594427",
-            country_code: "+47",
-          },
           email: "test@example.com",
         },
       },
@@ -1943,6 +1761,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_status: "inactive",
         },
       },
     }),
@@ -1955,24 +1774,19 @@ export const connectorDetails = {
             dana_redirect: {},
           },
         },
-        mandate_data: getMandateData("IDR"),
-        payment_type: "new_mandate",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "2024-01-01T00:00:00Z",
+          online: {
+            ip_address: "10.0.0.1",
+            user_agent: "test",
+          },
+        },
+        mandate_data: null,
         setup_future_usage: "off_session",
+        currency: "IDR",
+        return_url: "https://example.com",
         billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            city: "Jakarta",
-            state: "DKI Jakarta",
-            zip: "10110",
-            country: "ID",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "8056594427",
-            country_code: "+62",
-          },
           email: "test@example.com",
         },
       },
@@ -1980,6 +1794,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_status: "inactive",
         },
       },
     }),
@@ -1992,24 +1807,19 @@ export const connectorDetails = {
             go_pay_redirect: {},
           },
         },
-        mandate_data: getMandateData("IDR"),
-        payment_type: "new_mandate",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "2024-01-01T00:00:00Z",
+          online: {
+            ip_address: "10.0.0.1",
+            user_agent: "test",
+          },
+        },
+        mandate_data: null,
         setup_future_usage: "off_session",
+        currency: "IDR",
+        return_url: "https://example.com",
         billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            city: "Jakarta",
-            state: "DKI Jakarta",
-            zip: "10110",
-            country: "ID",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "8056594427",
-            country_code: "+62",
-          },
           email: "test@example.com",
         },
       },
@@ -2017,6 +1827,143 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          payment_method_status: "inactive",
+        },
+      },
+    }),
+    PaypalWalletMITAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        setup_future_usage: "off_session",
+        currency: "USD",
+        billing: {
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    KakaoPayWalletMITAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "kakao_pay",
+        setup_future_usage: "off_session",
+        currency: "KRW",
+        billing: {
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    GcashWalletMITAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "gcash",
+        setup_future_usage: "off_session",
+        currency: "PHP",
+        billing: {
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    MomoWalletMITAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "momo",
+        setup_future_usage: "off_session",
+        currency: "VND",
+        billing: {
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    TwintWalletMITAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "twint",
+        setup_future_usage: "off_session",
+        currency: "CHF",
+        billing: {
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    VippsWalletMITAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "vipps",
+        setup_future_usage: "off_session",
+        currency: "NOK",
+        billing: {
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    DanaWalletMITAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "dana",
+        setup_future_usage: "off_session",
+        currency: "IDR",
+        billing: {
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    GoPayWalletMITAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "go_pay",
+        setup_future_usage: "off_session",
+        currency: "IDR",
+        billing: {
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     }),
