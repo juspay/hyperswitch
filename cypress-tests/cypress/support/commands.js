@@ -5521,6 +5521,15 @@ Cypress.Commands.add(
       return;
     }
 
+    if (RequestBodyUtils.isCI()) {
+      cy.task(
+        "cli_log",
+        `Skipping voucher redirect for ${paymentMethodType} in CI environment. ` +
+          `Voucher payment is validated via Retrieve Payment.`
+      );
+      return;
+    }
+
     const connectorId = globalState.get("connectorId");
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
