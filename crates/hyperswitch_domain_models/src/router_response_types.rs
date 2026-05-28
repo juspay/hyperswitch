@@ -153,6 +153,7 @@ pub struct SurchargeCalculationResponseData {
 }
 
 
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct NotifyConnectorResponseData {
     pub status_code: u16,
     /// Error code if calculation failed or returned 0
