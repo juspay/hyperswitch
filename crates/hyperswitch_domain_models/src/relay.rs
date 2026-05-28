@@ -292,38 +292,46 @@ impl RelayUpdate {
         }
     }
 }
-
 impl From<RelayData> for api_models::relay::RelayData {
     fn from(relay: RelayData) -> Self {
         match relay {
-            RelayData::Refund(data) => Self::Refund(api_models::relay::RelayRefundRequestData {
-                amount: data.amount,
-                currency: data.currency,
-                reason: data.reason,
-            }),
-            RelayData::Capture(data) => Self::Capture(api_models::relay::RelayCaptureRequestData {
-                authorized_amount: data.authorized_amount,
-                amount_to_capture: data.amount_to_capture,
-                currency: data.currency,
-                capture_method: data.capture_method,
-            }),
-            RelayData::IncrementalAuthorization(data) => Self::IncrementalAuthorization(
-                api_models::relay::RelayIncrementalAuthorizationRequestData {
-                    total_amount: data.total_amount,
-                    additional_amount: data.additional_amount,
-                    currency: data.currency,
-                },
-            ),
-            RelayData::Void(data) => Self::Void(api_models::relay::RelayVoidRequestData {
-                amount: data.amount,
-                currency: data.currency,
-                cancellation_reason: data.cancellation_reason,
-            }),
-            RelayData::UnreferencedRefund(data) => {
+            RelayData::Refund(relay_refund_request) => {
+                Self::Refund(api_models::relay::RelayRefundRequestData {
+                    amount: relay_refund_request.amount,
+                    currency: relay_refund_request.currency,
+                    reason: relay_refund_request.reason,
+                })
+            }
+            RelayData::Capture(relay_capture_request) => {
+                Self::Capture(api_models::relay::RelayCaptureRequestData {
+                    authorized_amount: relay_capture_request.authorized_amount,
+                    amount_to_capture: relay_capture_request.amount_to_capture,
+                    currency: relay_capture_request.currency,
+                    capture_method: relay_capture_request.capture_method,
+                })
+            }
+            RelayData::IncrementalAuthorization(relay_incremental_authorization_request) => {
+                Self::IncrementalAuthorization(
+                    api_models::relay::RelayIncrementalAuthorizationRequestData {
+                        total_amount: relay_incremental_authorization_request.total_amount,
+                        additional_amount: relay_incremental_authorization_request
+                            .additional_amount,
+                        currency: relay_incremental_authorization_request.currency,
+                    },
+                )
+            }
+            RelayData::Void(relay_void_request) => {
+                Self::Void(api_models::relay::RelayVoidRequestData {
+                    amount: relay_void_request.amount,
+                    currency: relay_void_request.currency,
+                    cancellation_reason: relay_void_request.cancellation_reason,
+                })
+            }
+            RelayData::UnreferencedRefund(relay_unreferenced_refund_data) => {
                 Self::UnreferencedRefund(api_models::relay::RelayUnreferencedRefundData {
-                    amount: data.amount,
-                    currency: data.currency,
-                    customer_id: data.customer_id,
+                    amount: relay_unreferenced_refund_data.amount,
+                    currency: relay_unreferenced_refund_data.currency,
+                    customer_id: relay_unreferenced_refund_data.customer_id,
                     recipient_payment_method_data: None,
                 })
             }
