@@ -11,7 +11,7 @@ use hyperswitch_domain_models::{
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
-use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
+use hyperswitch_interfaces::webhooks::{IncomingWebhookRequestDetails, WebhookResourceData};
 use router_env::{instrument, tracing, RequestId};
 
 use super::{types, utils, MERCHANT_ID};
@@ -586,6 +586,8 @@ async fn payments_incoming_webhook_flow(
                     api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                     primary_object_created_at,
                     webhook_recipient,
+                    None,
+                    profile,
                 ))
                 .await?;
             };

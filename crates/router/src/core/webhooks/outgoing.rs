@@ -13,7 +13,7 @@ use common_utils::{
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
-use hyperswitch_interfaces::consts;
+use hyperswitch_interfaces::{consts, webhooks::WebhookResourceData};
 use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use router_env::{
     instrument,
@@ -57,6 +57,8 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     content: api::OutgoingWebhookContent,
     primary_object_created_at: Option<time::PrimitiveDateTime>,
     webhook_recipient: utils::WebhookRecipientContext,
+    webhook_resource_data: Option<WebhookResourceData>,
+    provider_profile: domain::Profile,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let delivery_attempt = enums::WebhookDeliveryAttempt::InitialAttempt;
     let idempotent_event_id =
@@ -140,7 +142,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         is_overall_delivery_successful: Some(false),
         processor_merchant_id: Some(processor_merchant_id.clone()),
         initiator_merchant_id: Some(webhook_recipient.key_store.merchant_id.clone()),
-        recipient: enums::EventRecipient::Merchant,
+        recipient: Some(enums::EventRecipient::Merchant),
     };
 
     let lock_value = utils::perform_redis_lock(

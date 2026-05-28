@@ -30,6 +30,7 @@ use hyperswitch_domain_models::{
     router_response_types::revenue_recovery as revenue_recovery_response,
     ApiModelToDieselModelConvertor,
 };
+use hyperswitch_interfaces::webhooks::WebhookResourceData;
 use time::PrimitiveDateTime;
 
 use super::errors::StorageErrorExt;
@@ -1613,6 +1614,8 @@ impl RevenueRecoveryOutgoingWebhook {
                     outgoing_webhook_content,
                     payment_intent.created_at,
                     webhook_recipient,
+                    None,  // Todo: Extend Revenue Recovery to Include Webhook Resource Context for Connector Notify Support
+                    profile
                 )
                 .await
                 .change_context(errors::RecoveryError::InvalidTask)

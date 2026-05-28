@@ -5737,6 +5737,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             .map(|payment_method_type| payment_method_type.into());
 
         Ok(Self {
+            connector_order_id: None,
             merchant_refund_id: Some(router_data.request.refund_id.clone()),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
             payment_amount: router_data.request.payment_amount,
@@ -5809,6 +5810,7 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             .map(|payment_method_type| payment_method_type.into());
 
         Ok(Self {
+            connector_order_id: None,
             merchant_refund_id: Some(router_data.connector_request_reference_id.clone()),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
             refund_id: router_data.request.connector_refund_id.clone().ok_or(
@@ -6303,6 +6305,7 @@ impl
         let access_token = router_data.access_token.as_ref().map(|t| t.token.clone());
 
         Ok(Self {
+            description: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address,
             connector_feature_data,
@@ -6417,6 +6420,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            description: None,
             merchant_payout_id: router_data.payout_id.clone(),
             address: Some(address),
             amount: Some(money),

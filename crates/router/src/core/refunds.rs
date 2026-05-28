@@ -489,7 +489,7 @@ pub async fn trigger_refund_to_gateway(
         state,
         platform,
         &response,
-        payment_attempt.profile_id.clone(),
+        payment_attempt.clone()
     )
     .await
     .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
@@ -1122,7 +1122,7 @@ pub async fn sync_refund_with_gateway(
         state,
         platform,
         &response,
-        payment_attempt.profile_id.clone(),
+        payment_attempt.clone()
     )
     .await
     .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))

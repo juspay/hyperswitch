@@ -1693,6 +1693,7 @@ mod tests {
                     is_overall_delivery_successful: Some(false),
                     processor_merchant_id: Some(merchant_id.to_owned()),
                     initiator_merchant_id: Some(merchant_id.to_owned()),
+                    recipient: Some(enums::EventRecipient::Merchant),
                 },
                 &merchant_key_store,
             )
@@ -2191,6 +2192,8 @@ mod tests {
                     content_clone,
                     primary_object_created_at,
                     webhook_recipient,
+                    None,
+                    business_profile_clone,
                 )
                 .await
                 .map_err(|e| format!("create_event_and_trigger_outgoing_webhook failed: {e}"))

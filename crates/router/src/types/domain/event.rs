@@ -80,7 +80,7 @@ pub struct Event {
     pub initiator_merchant_id: Option<common_utils::id_type::MerchantId>,
 
     /// The intended recipient of the webhook event.
-    pub recipient: EventRecipient,
+    pub recipient: Option<EventRecipient>,
 }
 
 #[derive(Debug)]
