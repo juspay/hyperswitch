@@ -360,7 +360,7 @@ pub async fn persist_individual_pm_balance_details_in_redis<'a>(
         redis_conn
             .set_hash_fields(
                 &redis_key.as_str().into(),
-                value_list,
+                &value_list,
                 Some(intent_fulfillment_time),
             )
             .await
