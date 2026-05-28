@@ -82,7 +82,7 @@ pub enum OutgoingWebhookEventContent {
     },
     Surcharge {
         external_surcharge_id: String,
-    }
+    },
 }
 pub trait OutgoingWebhookEventMetric {
     fn get_outgoing_webhook_event_content(&self) -> Option<OutgoingWebhookEventContent>;

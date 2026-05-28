@@ -304,7 +304,7 @@ pub(crate) struct WebhookPayload {
     pub recipient_data: WebhookRecipientData,
 }
 
-#[derive( Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub(crate) enum WebhookRecipientData {
     Merchant,
     Connector {
@@ -316,12 +316,10 @@ impl WebhookRecipientData {
     pub fn get_event_recipient(&self) -> common_enums::EventRecipient {
         match self {
             WebhookRecipientData::Merchant => common_enums::EventRecipient::Merchant,
-            WebhookRecipientData::Connector {..} => 
-                common_enums::EventRecipient::Connector
+            WebhookRecipientData::Connector { .. } => common_enums::EventRecipient::Connector,
         }
     }
 }
-
 
 /// Resolves the webhook recipient from the `created_by` field on the resource.
 ///
