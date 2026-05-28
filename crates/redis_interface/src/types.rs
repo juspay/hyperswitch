@@ -25,25 +25,6 @@ pub struct RedisValue {
 
 // ─── Shared configuration types ─────────────────────────────────────────────
 
-/// Allows conversion from RedisValue to bytes for use with ToRedisArgs
-impl redis::ToRedisArgs for RedisValue {
-    fn write_redis_args<W>(&self, out: &mut W)
-    where
-        W: ?Sized + redis::RedisWrite,
-    {
-        match &self.inner {
-            RedisCrateValue::BulkString(bytes) => bytes.write_redis_args(out),
-            RedisCrateValue::SimpleString(s) => s.write_redis_args(out),
-            _ => {
-                // Fallback: serialize as empty bytes
-                Vec::<u8>::new().write_redis_args(out)
-            }
-        }
-    }
-}
-
-impl redis::ToSingleRedisArg for RedisValue {}
-
 #[derive(Debug, serde::Deserialize, Clone)]
 #[serde(default)]
 pub struct RedisSettings {
