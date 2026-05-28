@@ -744,3 +744,21 @@ writable_config! {
     input = serde_json::Value,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndTransactionType
 }
+
+config! {
+    superposition_key = STEP_UP_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for StepUpEnabled {
+    const KEY: &'static str = "step_up_enabled";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("step_up_enabled_{}", id.get_string_repr()))
+    }
+}

@@ -95,11 +95,6 @@ impl From<MerchantId> for keymanager::Identifier {
 
 /// All the keys that can be formed from merchant id
 impl MerchantId {
-    /// get step up enabled key
-    pub fn get_step_up_enabled_key(&self) -> String {
-        format!("step_up_enabled_{}", self.get_string_repr())
-    }
-
     /// get_max_auto_retries_enabled key
     pub fn get_max_auto_retries_enabled(&self) -> String {
         format!("max_auto_retries_enabled_{}", self.get_string_repr())

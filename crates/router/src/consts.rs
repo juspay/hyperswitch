@@ -417,6 +417,8 @@ pub mod superposition {
     pub const THREEDS_ROUTING_REGION_UAS: &str = "threeds_routing_region_uas";
     /// disabled webhook events configuration key per merchant and connector
     pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "incoming_webhook_disabled_events";
+    /// Step-up authentication enabled configuration key per merchant and connector
+    pub const STEP_UP_ENABLED: &str = "step_up_enabled";
 }
 
 #[cfg(test)]
