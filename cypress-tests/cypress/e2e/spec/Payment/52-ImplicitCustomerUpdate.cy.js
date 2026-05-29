@@ -34,9 +34,10 @@ describe("Card - Implicit Customer Update flow test", () => {
 
         cy.step("Create+Confirm Payment with updated customer fields", () => {
           const connectorId = globalState.get("connectorId");
-          const data = getConnectorDetails(connectorId)["card_pm"][
-            "ImplicitCustomerUpdate"
-          ];
+          const data =
+            getConnectorDetails(connectorId)["card_pm"][
+              "ImplicitCustomerUpdate"
+            ];
 
           if (!data) {
             cy.log(
@@ -92,9 +93,10 @@ describe("Card - Implicit Customer Update flow test", () => {
 
         cy.step("Create+Confirm Payment with partial customer fields", () => {
           const connectorId = globalState.get("connectorId");
-          const data = getConnectorDetails(connectorId)["card_pm"][
-            "ImplicitCustomerUpdatePartial"
-          ];
+          const data =
+            getConnectorDetails(connectorId)["card_pm"][
+              "ImplicitCustomerUpdatePartial"
+            ];
 
           if (!data) {
             cy.log(
