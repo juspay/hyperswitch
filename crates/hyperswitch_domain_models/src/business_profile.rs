@@ -1837,6 +1837,14 @@ impl Profile {
                 }
             ))
     }
+
+    /// As per RBI guidelines, Alt-ID is applicable for merchants based in India
+    pub fn is_alt_id_eligible_merchant(&self) -> bool {
+        matches!(
+            self.merchant_business_country,
+            Some(api_enums::CountryAlpha2::IN)
+        )
+    }
 }
 
 #[cfg(feature = "v2")]

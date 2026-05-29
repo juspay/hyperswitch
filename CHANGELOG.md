@@ -4,6 +4,26 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.28.0
+
+### Features
+
+- **core:**
+  - Paypal manual capture changes in sessionApi ([#12374](https://github.com/juspay/hyperswitch/pull/12374)) ([`beb6e86`](https://github.com/juspay/hyperswitch/commit/beb6e86bf45d57caf7bbef025d44378534404061))
+  - Add Interpayments in routable connectors ([#12486](https://github.com/juspay/hyperswitch/pull/12486)) ([`d913053`](https://github.com/juspay/hyperswitch/commit/d913053f3adb98b234273bf4f9dffc72bd17d5ac))
+
+### Testing
+
+- **cypress:** Add Extended Card Info coverage ([#12095](https://github.com/juspay/hyperswitch/pull/12095)) ([`9d7bec0`](https://github.com/juspay/hyperswitch/commit/9d7bec06b344e45dff872893a34e761f08bc3536))
+
+### Documentation
+
+- **blocklist:** Add batch upload, list, and status endpoints to API reference ([#12457](https://github.com/juspay/hyperswitch/pull/12457)) ([`a0a42dd`](https://github.com/juspay/hyperswitch/commit/a0a42dd478201628cf053dc7c34d3c43c41a77ff))
+
+**Full Changelog:** [`2026.05.27.0...2026.05.28.0`](https://github.com/juspay/hyperswitch/compare/2026.05.27.0...2026.05.28.0)
+
+- - -
+
 ## 2026.05.27.0
 
 ### Features
