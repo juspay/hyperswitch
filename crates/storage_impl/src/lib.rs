@@ -10,6 +10,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface, RedisStore};
 mod address;
+pub mod authentication;
 pub mod business_profile;
 pub mod callback_mapper;
 pub mod card_issuer;
@@ -518,6 +519,19 @@ impl UniqueConstraints for diesel_models::Mandate {
     }
     fn table_name(&self) -> &str {
         "Mandate"
+    }
+}
+
+impl UniqueConstraints for diesel_models::authentication::Authentication {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![format!(
+            "auth_{}_{}",
+            self.merchant_id.get_string_repr(),
+            self.authentication_id.get_string_repr()
+        )]
+    }
+    fn table_name(&self) -> &str {
+        "Authentication"
     }
 }
 
