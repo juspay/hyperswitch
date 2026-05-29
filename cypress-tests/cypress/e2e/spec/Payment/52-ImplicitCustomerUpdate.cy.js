@@ -39,16 +39,8 @@ describe("Card - Implicit Customer Update flow test", () => {
               "ImplicitCustomerUpdate"
             ];
 
-          const body = JSON.parse(
-            JSON.stringify(fixtures.createConfirmPaymentBody)
-          );
-
-          if (connectorId === "adyen") {
-            body.payment_method_data.card.card_cvc = "7373";
-          }
-
           cy.createConfirmPaymentTest(
-            body,
+            JSON.parse(JSON.stringify(fixtures.createConfirmPaymentBody)),
             data,
             "no_three_ds",
             "automatic",
@@ -98,16 +90,8 @@ describe("Card - Implicit Customer Update flow test", () => {
               "ImplicitCustomerUpdatePartial"
             ];
 
-          const body = JSON.parse(
-            JSON.stringify(fixtures.createConfirmPaymentBody)
-          );
-
-          if (connectorId === "adyen") {
-            body.payment_method_data.card.card_cvc = "7373";
-          }
-
           cy.createConfirmPaymentTest(
-            body,
+            JSON.parse(JSON.stringify(fixtures.createConfirmPaymentBody)),
             data,
             "no_three_ds",
             "automatic",
