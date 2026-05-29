@@ -1761,13 +1761,7 @@ export const connectorDetails = {
         phone_country_code: "+1",
         payment_method: "card",
         payment_method_data: {
-          card: {
-            card_number: "370000000000002",
-            card_exp_month: "03",
-            card_exp_year: "30",
-            card_holder_name: "John Doe",
-            card_cvc: "7373",
-          },
+          card: successfulNo3DSCardDetails,
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -1786,13 +1780,7 @@ export const connectorDetails = {
         name: "Partial Name",
         payment_method: "card",
         payment_method_data: {
-          card: {
-            card_number: "370000000000002",
-            card_exp_month: "03",
-            card_exp_year: "30",
-            card_holder_name: "John Doe",
-            card_cvc: "7373",
-          },
+          card: successfulNo3DSCardDetails,
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
