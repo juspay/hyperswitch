@@ -763,7 +763,7 @@ jobs:
       (github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' &&
         contains(github.event.pull_request.labels.*.name, 'S-test-ready'))) && !cancelled()
-    runs-on: hyperswitch-runners
+    runs-on: ${{ case(github.event_name == 'merge_group', 'hyperswitch-runners-merge', 'hyperswitch-runners') }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-mock-matrix.outputs['mock-matrix']) }}
