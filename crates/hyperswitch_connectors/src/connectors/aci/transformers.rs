@@ -6,6 +6,7 @@ use common_types::payments::{ApplePayPredecryptData, GPayPredecryptData};
 use common_utils::{id_type, pii::Email, request::Method, types::StringMajorUnit};
 use error_stack::report;
 use hyperswitch_domain_models::{
+    mandates,
     payment_method_data::{
         ApplePayWalletData, BankRedirectData, Card, GooglePayWalletData, NetworkTokenData,
         PayLaterData, PaymentMethodData, SamsungPayWalletData, WalletData,
@@ -1116,14 +1117,14 @@ impl
 impl
     TryFrom<(
         &AciRouterData<&PaymentsAuthorizeRouterData>,
-        api_models::payments::MandateIds,
+        mandates::MandateIds,
     )> for AciPaymentsRequest
 {
     type Error = Error;
     fn try_from(
         value: (
             &AciRouterData<&PaymentsAuthorizeRouterData>,
-            api_models::payments::MandateIds,
+            mandates::MandateIds,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, _mandate_data) = value;

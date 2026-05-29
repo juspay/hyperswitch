@@ -1230,6 +1230,54 @@ export const connectorDetails = {
           },
         },
       },
+      MandateSingleUseAutoCapture: {
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "bancontact_card",
+          payment_method_data: {
+            bank_redirect: {
+              bancontact_card: {},
+            },
+          },
+          billing: {
+            email: "joseph.Doe@example.com",
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
+              country: "BE",
+              first_name: "joseph",
+              last_name: "Doe",
+            },
+            phone: {
+              number: "9123456789",
+              country_code: "+91",
+            },
+          },
+          currency: "EUR",
+          customer_acceptance: customerAcceptance,
+          mandate_data: {
+            customer_acceptance: customerAcceptance,
+            mandate_type: {
+              single_use: {
+                amount: 8000,
+                currency: "EUR",
+              },
+            },
+          },
+          setup_future_usage: "off_session",
+          payment_type: "new_mandate",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+      },
     },
   },
   pay_later_pm: {
@@ -1268,6 +1316,43 @@ export const connectorDetails = {
               billing_email: "customer@email.com",
               billing_country: "US",
             },
+          },
+        },
+        billing: {
+          email: "customer@email.com",
+          address: {
+            line1: "1467 Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "Mock",
+            last_name: "Mock",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    Affirm: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "affirm",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            affirm_redirect: {},
           },
         },
         billing: {
