@@ -98,6 +98,21 @@ impl From<Secret<String>> for MaskedSortCode {
     }
 }
 
+/// Masked branch code
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct MaskedBranchCode(Secret<String>);
+impl From<String> for MaskedBranchCode {
+    fn from(src: String) -> Self {
+        let masked_value = apply_mask(src.as_ref(), 2, 2);
+        Self(Secret::from(masked_value))
+    }
+}
+impl From<Secret<String>> for MaskedBranchCode {
+    fn from(secret: Secret<String>) -> Self {
+        Self::from(secret.expose())
+    }
+}
+
 /// Masked Routing number
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MaskedRoutingNumber(Secret<String>);

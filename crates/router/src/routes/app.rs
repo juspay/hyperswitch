@@ -422,6 +422,7 @@ impl AppState {
         storage_impl: StorageImpl,
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
+        service_name: &'static str,
     ) -> Self {
         #[allow(clippy::expect_used)]
         let secret_management_client = conf
@@ -512,7 +513,7 @@ impl AppState {
             let superposition_service = conf
                 .superposition
                 .get_inner()
-                .get_superposition_client()
+                .get_superposition_client(service_name)
                 .await
                 .expect("Failed to initialize superposition client");
             Self {
@@ -561,8 +562,12 @@ impl AppState {
             enabled: km_conf.enabled,
             url: km_conf.url.clone(),
             client_idle_timeout: conf.proxy.idle_pool_connection_timeout,
-            #[cfg(feature = "km_forward_x_request_id")]
             request_id: None,
+            event_emitter: if conf.events.emit_external_service_call_events {
+                Arc::new(event_handler.clone())
+            } else {
+                Arc::new(common_utils::external_service::NoOpEventEmitter)
+            },
             #[cfg(feature = "keymanager_mtls")]
             cert: km_conf.cert.clone(),
             #[cfg(feature = "keymanager_mtls")]
@@ -616,12 +621,14 @@ impl AppState {
         conf: settings::Settings<SecuredSecret>,
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
+        service_name: &'static str,
     ) -> Self {
         Box::pin(Self::with_storage(
             conf,
             StorageImpl::Postgresql,
             shut_down_signal,
             api_client,
+            service_name,
         ))
         .await
     }
@@ -947,6 +954,10 @@ impl Payments {
                     web::resource("/{payment_id}/manual-update")
                         .route(web::put().to(payments::payments_manual_update)),
                 )
+                .service(
+                    web::resource("/{payment_id}/manual-status-update")
+                        .route(web::post().to(payments::payments_manual_status_update)),
+                )
         }
         #[cfg(feature = "oltp")]
         {
@@ -991,6 +1002,10 @@ impl Payments {
                 .service(
                     web::resource("/{payment_id}/eligibility")
                         .route(web::post().to(payments::payments_submit_eligibility)),
+                )
+                .service(
+                    web::resource("/{payment_id}/client")
+                        .route(web::get().to(payment_methods::list_payment_methods_for_payments_client)),
                 )
                 .service(
                     web::resource("/redirect/{payment_id}/{merchant_id}/{attempt_id}")
@@ -1400,6 +1415,10 @@ impl Customers {
                         .route(web::get().to(customers::customers_retrieve))
                         .route(web::delete().to(customers::customers_delete)),
                 )
+                .service(
+                    web::resource("/{customer_id}/payment-methods/{payment_method_id}/default")
+                        .route(web::post().to(payment_methods::default_payment_method_set_api)),
+                )
         }
         route
     }
@@ -1602,6 +1621,10 @@ impl PaymentMethods {
                         payment_methods::list_countries_currencies_for_connector_payment_method,
                     ),
                 ));
+            route = route.service(
+                web::resource("/{id}/details")
+                    .route(web::get().to(payment_methods::payment_method_retrieve_olap_api)),
+            );
         }
         #[cfg(feature = "oltp")]
         {
@@ -1853,6 +1876,15 @@ impl Blocklist {
             .service(
                 web::resource("/toggle").route(web::post().to(blocklist::toggle_blocklist_guard)),
             )
+            .service(
+                web::resource("/batch")
+                    .route(web::post().to(blocklist::upload_batch_blocklist))
+                    .route(web::get().to(blocklist::list_batch_blocklist_jobs)),
+            )
+            .service(
+                web::resource("/batch/{job_id}")
+                    .route(web::get().to(blocklist::get_batch_blocklist_job_status)),
+            )
     }
 }
 
@@ -1868,7 +1900,11 @@ impl CardIssuers {
                     .route(web::post().to(card_issuer::add_card_issuer))
                     .route(web::get().to(card_issuer::list_card_issuers)),
             )
-            .service(web::resource("/{id}").route(web::put().to(card_issuer::update_card_issuer)))
+            .service(
+                web::resource("/{id}")
+                    .route(web::put().to(card_issuer::update_card_issuer))
+                    .route(web::delete().to(card_issuer::delete_card_issuer)),
+            )
     }
 }
 
@@ -2729,6 +2765,10 @@ impl User {
                 .route(web::post().to(user::user_merchant_account_create)),
         );
         route = route.service(
+            web::resource("/merchant-details")
+                .route(web::get().to(user::get_user_merchant_details)),
+        );
+        route = route.service(
             web::scope("/list")
                 .service(
                     web::resource("/merchant")
@@ -2786,6 +2826,10 @@ impl User {
             .service(
                 web::resource("/create_merchant")
                     .route(web::post().to(user::user_merchant_account_create)),
+            )
+            .service(
+                web::resource("/merchant_details")
+                    .route(web::get().to(user::get_user_merchant_details)),
             )
             // TODO: To be deprecated
             .service(

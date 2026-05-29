@@ -1,12 +1,14 @@
 //! Create payment method flow types and dummy models.
-use api_models::payments;
+use api_models::{payment_methods::BankRedirectDetail, payments};
 use cards::CardNumber;
 use common_utils::{
     id_type, pii,
     request::{Method, RequestContent},
     types::MinorUnit,
 };
-use hyperswitch_domain_models::payment_method_data::{BankDebitData, PaymentMethodData};
+use hyperswitch_domain_models::payment_method_data::{
+    BankDebitData, BankRedirectData, PaymentMethodData,
+};
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -78,6 +80,7 @@ pub enum PaymentMethodCreateData {
     ProxyCard(ProxyCardDetail),
     BankDebit(BankDebitDetail),
     Wallet(WalletPaymentMethodData),
+    BankRedirect(BankRedirectDetail),
 }
 
 /// Tokenized card data for external vault proxy PM creation
@@ -191,6 +194,24 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                     operation: "CreatePaymentMethodV1Request to ModularPMCreateRequest".to_string(),
                     kind: MicroserviceClientErrorKind::InvalidRequest(
                         "Only ACH bank debit is supported for modular PM creation".to_string(),
+                    ),
+                }),
+            },
+            PaymentMethodData::BankRedirect(bank_redirect) => match bank_redirect {
+                BankRedirectData::BancontactCard {
+                    card_number: _,
+                    card_exp_month: _,
+                    card_exp_year: _,
+                    card_holder_name: _,
+                } => {
+                    let bank_redirect_detail = BankRedirectDetail::BancontactCard {};
+                    Ok(Self::BankRedirect(bank_redirect_detail))
+                }
+                _ => Err(MicroserviceClientError {
+                    operation: "CreatePaymentMethodV1Request to ModularPMCreateRequest".to_string(),
+                    kind: MicroserviceClientErrorKind::InvalidRequest(
+                        "Only BancontactCard bank redirect is supported for modular PM creation"
+                            .to_string(),
                     ),
                 }),
             },

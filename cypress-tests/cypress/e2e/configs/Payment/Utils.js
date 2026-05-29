@@ -4,6 +4,7 @@ import { updateDefaultStatusCode } from "./Modifiers.js";
 
 import { connectorDetails as aciConnectorDetails } from "./Aci.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
+import { connectorDetails as affirmConnectorDetails } from "./Affirm.js";
 import { connectorDetails as airwallexConnectorDetails } from "./Airwallex.js";
 import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
 import { connectorDetails as authipayConnectorDetails } from "./Authipay.js";
@@ -40,6 +41,7 @@ import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
+import { connectorDetails as klarnaConnectorDetails } from "./Klarna.js";
 import { connectorDetails as loonioConnectorDetails } from "./Loonio.js";
 import { connectorDetails as mollieConnectorDetails } from "./Mollie.js";
 import { connectorDetails as monerisConnectorDetails } from "./Moneris.js";
@@ -75,9 +77,11 @@ import { connectorDetails as worldpayvantivConnectorDetails } from "./Worldpayva
 import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.js";
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 import { connectorDetails as ziftConnectorDetails } from "./Zift.js";
+import { connectorDetails as mifinityConnectorDetails } from "./Mifinity.js";
 const connectorDetails = {
   aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
+  affirm: affirmConnectorDetails,
   airwallex: airwallexConnectorDetails,
   archipel: archipelConnectorDetails,
   authipay: authipayConnectorDetails,
@@ -114,6 +118,7 @@ const connectorDetails = {
   iatapay: iatapayConnectorDetails,
   itaubank: itaubankConnectorDetails,
   jpmorgan: jpmorganConnectorDetails,
+  klarna: klarnaConnectorDetails,
   mollie: mollieConnectorDetails,
   moneris: monerisConnectorDetails,
   multisafepay: multisafepayConnectorDetails,
@@ -149,6 +154,7 @@ const connectorDetails = {
   xendit: xenditConnectorDetails,
   zift: ziftConnectorDetails,
   loonio: loonioConnectorDetails,
+  mifinity: mifinityConnectorDetails,
 };
 
 /**
@@ -425,14 +431,19 @@ export const CONNECTOR_LISTS = {
       "bamboraapac",
       "bankofamerica",
       "billwerk",
+      "bluesnap",
       "braintree",
+      "cashtocode",
       "facilitapay",
       "fiserv",
       "fiuu",
       "forte",
       "globalpay",
+      "gigadat",
       "jpmorgan",
+      "loonio",
       "nexinets",
+      "noon",
       "novalnet",
       "payload",
       "paypal",
@@ -444,7 +455,7 @@ export const CONNECTOR_LISTS = {
       "mollie",
       "zift",
     ],
-    MANDATE_ID_TEST: ["airwallex", "payload"],
+    MANDATE_ID_TEST: ["airwallex", "payload", "gigadat", "loonio"],
     // Add more exclusion lists
   },
 
@@ -458,9 +469,21 @@ export const CONNECTOR_LISTS = {
       // "stripe",
     ],
     DDC_RACE_CONDITION: ["worldpay"],
+    CONNECTOR_TESTING_DATA: ["adyen", "airwallex", "braintree", "noon"],
     // ucs connectors
     UCS_CONNECTORS: ["authorizedotnet"],
     OVERCAPTURE: ["adyen"],
+    IFRAME_REDIRECTION: [
+      "adyen",
+      "cybersource",
+      "barclaycard",
+      "paypal",
+      "bluesnap",
+      "braintree",
+      "nmi",
+      "nexixpay",
+      "deutschebank",
+    ],
     MANUAL_RETRY: [
       "cybersource",
       "checkout",
@@ -507,6 +530,16 @@ export const CONNECTOR_LISTS = {
       "paypal",
       "stripe",
     ],
+    BANK_DEBIT: ["adyen", "novalnet", "payload"], // payload verified as working
+    BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
+    BANK_REDIRECT_MANDATE: ["adyen"],
+    BLUECODE_WALLET: ["calida"],
+    ALIPAY_HK_WALLET: ["adyen"],
+    PAYPAL_WALLET: ["novalnet", "paypal"],
+    MIFINITY_WALLET: ["mifinity"],
+    SKRILL_WALLET: ["paysafe"],
+    PAYSAFECARD_GIFT_CARD: ["paysafe"],
+    PAYPAL_MANDATE: ["paypal"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [
       "adyen",
@@ -517,6 +550,7 @@ export const CONNECTOR_LISTS = {
       "finix",
     ],
     BILLING_DESCRIPTOR_INVALID_PHONE: ["nuvei"],
+    FEATURE_METADATA: ["bankofamerica"],
     AUTO_RETRY: [
       "cybersource",
       "checkout",
@@ -531,6 +565,65 @@ export const CONNECTOR_LISTS = {
       "globalpay",
       "nexinets",
       "nmi",
+      "paypal",
+      "powertranz",
+      "shift4",
+      "trustpay",
+      "worldpay",
+      "worldpayvantiv",
+    ],
+    EXTERNAL_THREE_DS: ["stripe", "finix"],
+    PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
+    AFFIRM_PAY_LATER: ["affirm"],
+    EXTEND_AUTHORIZATION: ["adyen", "paypal"],
+    GIFT_CARD: ["adyen"],
+    RELAY_OPERATIONS: ["bankofamerica"],
+    PAY_LATER: [
+      "klarna",
+      "adyen",
+      "aci",
+      "stripe",
+      "airwallex",
+      "mollie",
+      "affirm",
+    ],
+    AFFIRM: ["stripe"],
+    AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
+    STEP_UP_AUTH: ["cybersource"],
+    PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
+    MULTIPLE_CAPTURE: ["adyen", "checkout"],
+    USE_BILLING_AS_PAYMENT_METHOD_BILLING: ["bankofamerica"],
+    MIT_WITH_LIMITED_CARD_DATA: ["peachpayments"],
+    EXTENDED_CARD_INFO: ["stripe"],
+    PAYMENT_LINK_CARD: ["stripe"],
+    ORDER_DETAILS: [
+      "stripe",
+      "cybersource",
+      "checkout",
+      "airwallex",
+      "braintree",
+      "bankofamerica",
+      "paypal",
+      "trustpay",
+    ],
+    CARD_TESTING_GUARD: ["bankofamerica"],
+    CLEAR_PAN_RETRY: ["bankofamerica"],
+    L2L3DATA: ["checkout", "nuvei", "worldpayvantiv"],
+    REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
+    MANUAL_PAYMENT_UPDATE: ["stripe"],
+    STEP_UP_RETRY: [
+      "cybersource",
+      "checkout",
+      "stripe",
+      "adyen",
+      "airwallex",
+      "authorizedotnet",
+      "bankofamerica",
+      "datatrans",
+      "fiuu",
+      "globalpay",
+      "nexinets",
+      "nmi",
       "nuvei",
       "paypal",
       "powertranz",
@@ -539,18 +632,18 @@ export const CONNECTOR_LISTS = {
       "worldpay",
       "worldpayvantiv",
     ],
-    EXTERNAL_THREE_DS: ["stripe"],
-    BANK_DEBIT: ["novalnet"],
+    POLL_CONFIG: ["stripe"],
     // Add more inclusion lists
   },
 };
 
 // Helper functions
 export const shouldExcludeConnector = (connectorId, list) => {
-  return list.includes(connectorId);
+  return Array.isArray(list) && list.includes(connectorId);
 };
 
 export const shouldIncludeConnector = (connectorId, list) => {
+  if (!Array.isArray(list)) return true;
   return !list.includes(connectorId);
 };
 

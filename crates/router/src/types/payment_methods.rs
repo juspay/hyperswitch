@@ -54,6 +54,14 @@ pub struct AddVaultRequest<D> {
     pub ttl: i64,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AddCompatVaultRequest<D> {
+    pub entity_id: id_type::CustomerId,
+    pub vault_id: domain::VaultId,
+    pub data: D,
+    pub ttl: i64,
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultRequest<D> {
@@ -156,6 +164,12 @@ pub struct VaultRetrieveRequest {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultRetrieveRequest {
     pub entity_id: id_type::GlobalCustomerId,
+    pub vault_id: domain::VaultId,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct GenericVaultRetrieveRequest {
+    pub entity_id: id_type::CustomerId,
     pub vault_id: domain::VaultId,
 }
 

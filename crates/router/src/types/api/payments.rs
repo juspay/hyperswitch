@@ -17,27 +17,27 @@ pub use api_models::{
     payments::{
         Address, AddressDetails, Amount, ApplepayPaymentMethod, AuthenticationForStartResponse,
         Card, CryptoData, CustomerDetails, CustomerDetailsResponse, HyperswitchVaultSessionDetails,
-        MandateAmountData, MandateData, MandateTransactionType, MandateType,
-        MandateValidationFields, NextActionType, OpenBankingSessionToken, PayLaterData,
-        PaymentIdType, PaymentListConstraints, PaymentListFilters, PaymentListFiltersV2,
-        PaymentMethodData, PaymentMethodDataRequest, ProxyPaymentMethodDataRequest, ProxyPaymentMethodData, PaymentMethodDataResponse, PaymentOp,
-        PaymentsAggregateResponse, PaymentsApproveRequest, PaymentsCancelPostCaptureRequest,
-        PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
-        PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
-        PaymentsExtendAuthorizationRequest, PaymentsExternalAuthenticationRequest,
-        PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
-        PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse,
-        PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRejectRequest,
-        PaymentsRequest, PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest,
-        PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
-        PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse, PgRedirectResponse,
-        PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VaultSessionDetails,
-        VerifyRequest, VerifyResponse, VgsSessionDetails, WalletData,
+        MandateAmountData, MandateData, MandateType, MandateValidationFields, NextActionType,
+        OpenBankingSessionToken, PayLaterData, PaymentIdType, PaymentListConstraints,
+        PaymentListFilters, PaymentListFiltersV2, PaymentMethodData, PaymentMethodDataRequest, ProxyPaymentMethodDataRequest, ProxyPaymentMethodData,
+        PaymentMethodDataResponse, PaymentOp, PaymentsAggregateResponse, PaymentsApproveRequest,
+        PaymentsCancelPostCaptureRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
+        PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
+        PaymentsDynamicTaxCalculationResponse, PaymentsExtendAuthorizationRequest,
+        PaymentsExternalAuthenticationRequest, PaymentsIncrementalAuthorizationRequest,
+        PaymentsManualUpdateRequest, PaymentsPostSessionTokensRequest,
+        PaymentsPostSessionTokensResponse, PaymentsRedirectRequest, PaymentsRedirectionResponse,
+        PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
+        PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
+        PaymentsStartRequest, PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse,
+        PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, UrlDetails,
+        VaultSessionDetails, VerifyRequest, VerifyResponse, VgsSessionDetails, WalletData,
     },
 };
 pub use api_models::payments::{InternalVaultDetails, VaultDetails};
 pub use common_types::payments::{AcceptanceType, CustomerAcceptance, OnlineMandate};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::mandates;
 pub use hyperswitch_domain_models::router_flow_types::payments::{
     Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
     CreateConnectorCustomer, CreateOrder, ExtendAuthorization, ExternalVaultProxy, GenerateQr,
@@ -52,8 +52,10 @@ pub use hyperswitch_interfaces::api::payments::{
     PaymentPostCaptureVoid, PaymentPostSessionTokens, PaymentReject, PaymentSession,
     PaymentSessionUpdate, PaymentSync, PaymentToken, PaymentUpdateMetadata, PaymentVoid,
     PaymentsCompleteAuthorize, PaymentsCreateOrder, PaymentsGenerateQr, PaymentsPostProcessing,
-    PaymentsPreProcessing, PaymentsPushNotification, TaxCalculation,
+    PaymentsPreProcessing, PaymentsPushNotification, SurchargeCalculation, SurchargeComplete,
+    SurchargeRefund, TaxCalculation,
 };
+pub use mandates::MandateTransactionType;
 
 pub use super::payments_v2::{
     ConnectorCustomerV2, MandateSetupV2, PaymentApproveV2, PaymentAuthorizeSessionTokenV2,

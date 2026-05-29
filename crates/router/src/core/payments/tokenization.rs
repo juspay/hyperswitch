@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use ::payment_methods::controller::PaymentMethodsController;
-use api_models::payments::ConnectorMandateReferenceId;
 use common_enums::{ConnectorMandateStatus, PaymentMethod};
 use common_types::{self, callback_mapper::CallbackMapperData};
 use common_utils::{
@@ -13,14 +12,15 @@ use common_utils::{
 };
 use diesel_models::business_profile::ExternalVaultConnectorDetails;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payment_method_data::{
-    get_applepay_wallet_info, get_googlepay_wallet_info,
-};
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
     callback_mapper::CallbackMapper,
     mandates::{CommonMandateReference, PaymentsMandateReference, PaymentsMandateReferenceRecord},
     payment_method_data,
+};
+use hyperswitch_domain_models::{
+    mandates::ConnectorMandateReferenceId,
+    payment_method_data::{get_applepay_wallet_info, get_googlepay_wallet_info},
 };
 use hyperswitch_interfaces::api::gateway;
 use hyperswitch_masking::{ExposeInterface, Secret};
@@ -182,11 +182,13 @@ where
                 .map(|token_filter| token_filter.long_lived_token)
                 .unwrap_or(false);
 
-            let network_transaction_id = match &responses {
-                types::PaymentsResponseData::TransactionResponse { network_txn_id, .. } => {
-                    network_txn_id.clone()
-                }
-                _ => None,
+            let (network_transaction_id, network_transaction_link_id) = match &responses {
+                types::PaymentsResponseData::TransactionResponse {
+                    network_txn_id,
+                    network_txn_link_id,
+                    ..
+                } => (network_txn_id.clone(), network_txn_link_id.clone()),
+                _ => (None, None),
             };
 
             let network_transaction_id =
@@ -199,6 +201,15 @@ where
                         logger::info!("Skip storing network transaction id");
                         None
                     }
+                } else {
+                    None
+                };
+
+            let network_transaction_link_id =
+                if save_payment_method_data.request.get_setup_future_usage()
+                    == Some(storage_enums::FutureUsage::OffSession)
+                {
+                    network_transaction_link_id
                 } else {
                     None
                 };
@@ -274,6 +285,7 @@ where
                         &customer_id.clone(),
                         billing_name,
                         payment_method_billing_address,
+                        save_payment_method_data.payment_method_token.clone(),
                     )
                     .await?;
                 let payment_methods_data =
@@ -543,6 +555,7 @@ where
                                                 pm_status,
                                                 network_transaction_id,
                                                 encrypted_payment_method_billing_address,
+                                                network_transaction_link_id,
                                                 resp.card.and_then(|card| {
                                                     card.card_network.map(|card_network| {
                                                         card_network.to_string()
@@ -689,6 +702,7 @@ where
                                                     pm_status,
                                                     network_transaction_id,
                                                     encrypted_payment_method_billing_address,
+                                                    network_transaction_link_id,
                                                     resp.card.and_then(|card| {
                                                         card.card_network.map(|card_network| {
                                                             card_network.to_string()
@@ -841,7 +855,12 @@ where
                         let customer_saved_pm_option = if payment_method_type
                             .map(|payment_method_type_value| {
                                 payment_method_type_value
-                                    .should_check_for_customer_saved_payment_method_type()
+                                    .should_check_for_customer_saved_payment_method_type(
+                                        save_payment_method_data
+                                            .payment_method_token
+                                            .as_ref()
+                                            .is_some_and(|pmt| pmt.is_apple_pay_decrypt()),
+                                    )
                             })
                             .unwrap_or(false)
                         {
@@ -898,7 +917,10 @@ where
                                 create_payment_method_metadata(None, connector_token)?;
 
                             locker_id = resp.payment_method.and_then(|pm| {
-                                if pm == PaymentMethod::Card || pm == PaymentMethod::BankDebit {
+                                if pm == PaymentMethod::Card
+                                    || pm == PaymentMethod::BankDebit
+                                    || pm == PaymentMethod::Wallet
+                                {
                                     Some(resp.payment_method_id)
                                 } else {
                                     None
@@ -920,6 +942,7 @@ where
                                     pm_status,
                                     network_transaction_id,
                                     encrypted_payment_method_billing_address,
+                                    network_transaction_link_id,
                                     resp.card.and_then(|card| {
                                         card.card_network
                                             .map(|card_network| card_network.to_string())
@@ -1275,6 +1298,25 @@ pub async fn save_in_locker_internal(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Add Bank Debit Failed"),
+        (
+            None,
+            None,
+            Some(api_models::payment_methods::PaymentMethodCreateData::Wallet(wallet_create_data)),
+        ) => Box::pin(
+            PmCards {
+                state,
+                provider: platform.get_provider(),
+            }
+            .add_wallet_to_locker(
+                payment_method_request,
+                wallet_create_data,
+                platform.get_provider().get_key_store(),
+                &customer_id,
+            ),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Add Wallet Failed"),
 
         _ => {
             let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
@@ -2101,6 +2143,7 @@ async fn generate_network_token_and_update_payment_method(
                 &customer_id.clone(),
                 billing_name,
                 payment_method_billing_address,
+                None,
             )
             .await?;
 

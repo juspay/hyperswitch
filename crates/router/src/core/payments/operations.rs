@@ -1,3 +1,4 @@
+use hyperswitch_domain_models::mandates;
 #[cfg(feature = "v1")]
 pub mod payment_approve;
 #[cfg(feature = "v1")]
@@ -71,6 +72,8 @@ use api_models::enums::FrmSuggestion;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
+#[cfg(feature = "v1")]
+use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -104,7 +107,7 @@ pub use self::{
 };
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
 #[cfg(feature = "v1")]
-use crate::core::payment_methods::transformers::PaymentMethodWithRawData;
+pub use crate::core::payment_methods::transformers::PaymentMethodFetchData;
 #[cfg(feature = "v2")]
 use crate::core::payments;
 use crate::{
@@ -225,7 +228,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         platform: &domain::Platform,
         auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        payment_method_with_raw_data: Option<PaymentMethodWithRawData>,
+        payment_method_fetch_data: PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
 
@@ -338,8 +341,8 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _request: &R,
         _platform: &domain::Platform,
         _feature_config: &core_utils::FeatureConfig,
-    ) -> RouterResult<Option<PaymentMethodWithRawData>> {
-        Ok(None)
+    ) -> RouterResult<PaymentMethodFetchData> {
+        Ok(PaymentMethodFetchData::default())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -418,7 +421,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _business_profile: &domain::Profile,
         _processor: &domain::Processor,
         _initiator: Option<&domain::Initiator>,
-        _mandate_type: Option<api_models::payments::MandateTransactionType>,
+        _mandate_type: Option<mandates::MandateTransactionType>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
@@ -432,7 +435,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _connector_call_type: &ConnectorCallType,
         _business_profile: &domain::Profile,
         _platform: &domain::Platform,
-        _mandate_type: Option<api_models::payments::MandateTransactionType>,
+        _mandate_type: Option<mandates::MandateTransactionType>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
@@ -454,6 +457,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut D,
         _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
@@ -673,10 +677,10 @@ where
     #[cfg(feature = "v1")]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        _state: &SessionState,
-        _payment_data: &mut D,
+        state: &SessionState,
+        payment_data: &mut D,
         _request: Option<CustomerDetails>,
-        _provider: &domain::Provider,
+        provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         _mandate_type: Option<api::MandateTransactionType>,
@@ -687,11 +691,27 @@ where
         ),
         errors::StorageError,
     > {
-        // We don't need to fetch customer here.
-        // Customer details have already been populated in the payment_intent during Confirm
-        // The customer returned from this method is only used for updating connector_customer_id
-        // which does not happen in case of Retrieve
-        Ok((Box::new(self), None))
+        let db = &*state.store;
+        let merchant_key_store = provider.get_key_store();
+        let storage_scheme = provider.get_account().storage_scheme;
+        let customer = payment_data
+            .get_payment_intent()
+            .customer_id
+            .as_ref()
+            .async_map(|customer_id| async {
+                db.find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
+                    customer_id,
+                    &merchant_key_store.merchant_id,
+                    merchant_key_store,
+                    storage_scheme,
+                )
+                .await
+            })
+            .await
+            .transpose()?
+            .flatten();
+
+        Ok((Box::new(self), customer))
     }
 
     async fn get_connector<'a>(
@@ -726,6 +746,7 @@ where
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut D,
         _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
@@ -816,6 +837,7 @@ where
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut D,
         _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
@@ -907,6 +929,7 @@ where
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut D,
         _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
@@ -992,6 +1015,7 @@ where
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut D,
         _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {

@@ -23,7 +23,7 @@ use common_utils::{
 };
 use diesel_models::{enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
+use hyperswitch_domain_models::{mandates, payments::payment_attempt::PaymentAttempt};
 use hyperswitch_masking::{Deserialize, ExposeInterface, Secret};
 use regex::Regex;
 
@@ -251,6 +251,14 @@ where
                             .connector_transaction_id
                             .clone(),
                     })?
+                } else {
+                    Ok(self.status)
+                }
+            }
+            enums::AttemptStatus::CaptureFailed => {
+                // If the intent has already been marked successful but we receive a CaptureFailed event for the payment attempt (via webhook), mark it as Review
+                if payment_data.payment_intent.status == enums::IntentStatus::Succeeded {
+                    Ok(enums::AttemptStatus::CaptureReview)
                 } else {
                     Ok(self.status)
                 }
@@ -862,13 +870,13 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_))
-                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                Some(mandates::MandateReferenceId::NetworkMandateId(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
                 | None
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
     }
 }
@@ -1042,13 +1050,13 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_))
-                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                Some(mandates::MandateReferenceId::NetworkMandateId(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
                 | None
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
     }
 
@@ -1056,12 +1064,12 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
-                    Some(network_transaction_id.clone())
+                Some(mandates::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
+                    Some(network_transaction_id.network_transaction_id.clone())
                 }
-                Some(payments::MandateReferenceId::ConnectorMandateId(_))
-                | Some(payments::MandateReferenceId::CardWithLimitedData)
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                Some(mandates::MandateReferenceId::ConnectorMandateId(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
                 | None => None,
             })
     }
@@ -1169,13 +1177,13 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.get_connector_mandate_request_reference_id()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_))
-                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                Some(mandates::MandateReferenceId::NetworkMandateId(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
                 | None
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
             .ok_or_else(missing_field_err("connector_mandate_request_reference_id"))
     }
@@ -1309,13 +1317,13 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.get_connector_mandate_request_reference_id()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_))
-                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                Some(mandates::MandateReferenceId::NetworkMandateId(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
                 | None
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
             .ok_or_else(missing_field_err("connector_mandate_request_reference_id"))
     }
@@ -2018,7 +2026,7 @@ pub trait MandateReferenceData {
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
 }
 
-impl MandateReferenceData for payments::ConnectorMandateReferenceId {
+impl MandateReferenceData for mandates::ConnectorMandateReferenceId {
     fn get_connector_mandate_id(&self) -> Result<String, Error> {
         self.get_connector_mandate_id()
             .ok_or_else(missing_field_err("mandate_id"))
@@ -2325,7 +2333,8 @@ impl FrmTransactionRouterDataRequest for fraud_check::FrmTransactionRouterData {
             | storage_enums::AttemptStatus::PaymentMethodAwaited
             | storage_enums::AttemptStatus::ConfirmationAwaited
             | storage_enums::AttemptStatus::DeviceDataCollectionPending
-            | storage_enums::AttemptStatus::IntegrityFailure => None,
+            | storage_enums::AttemptStatus::IntegrityFailure
+            | storage_enums::AttemptStatus::CaptureReview => None,
         }
     }
 }
@@ -2359,7 +2368,8 @@ pub fn is_payment_failure(status: enums::AttemptStatus) -> bool {
         | common_enums::AttemptStatus::ConfirmationAwaited
         | common_enums::AttemptStatus::DeviceDataCollectionPending
         | common_enums::AttemptStatus::IntegrityFailure
-        | common_enums::AttemptStatus::PartiallyAuthorized => false,
+        | common_enums::AttemptStatus::PartiallyAuthorized
+        | common_enums::AttemptStatus::CaptureReview => false,
     }
 }
 
@@ -2599,6 +2609,7 @@ pub enum PaymentMethodDataType {
     OnlineBankingFpx,
     OnlineBankingThailand,
     AchBankDebit,
+    EftDebitOrder,
     SepaBankDebit,
     SepaGuarenteedDebit,
     BecsBankDebit,
@@ -2777,6 +2788,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     domain::payments::BankDebitData::SepaGuarenteedBankDebit { .. } => Self::SepaGuarenteedDebit,
                     domain::payments::BankDebitData::BecsBankDebit { .. } => Self::BecsBankDebit,
                     domain::payments::BankDebitData::BacsBankDebit { .. } => Self::BacsBankDebit,
+                    domain::payments::BankDebitData::EftDebitOrder { .. } => Self::EftDebitOrder,
                 }
             }
             domain::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {

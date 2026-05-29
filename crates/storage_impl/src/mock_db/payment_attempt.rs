@@ -241,6 +241,7 @@ impl PaymentAttemptInterface for MockDb {
             connector_request_reference_id: payment_attempt.connector_request_reference_id,
             debit_routing_savings: None,
             network_transaction_id: payment_attempt.network_transaction_id,
+            network_transaction_link_id: payment_attempt.network_transaction_link_id,
             is_overcapture_enabled: None,
             network_details: payment_attempt.network_details,
             is_stored_credential: payment_attempt.is_stored_credential,
@@ -250,6 +251,8 @@ impl PaymentAttemptInterface for MockDb {
             error_details: payment_attempt.error_details,
             retry_type: payment_attempt.retry_type,
             installment_data: payment_attempt.installment_data,
+            external_surcharge_details: payment_attempt.external_surcharge_details,
+            sender_payment_instrument_id: payment_attempt.sender_payment_instrument_id,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)

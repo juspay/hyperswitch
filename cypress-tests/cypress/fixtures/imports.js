@@ -10,6 +10,7 @@ import citConfirmBody from "./create-mandate-cit.json";
 import mitConfirmBody from "./create-mandate-mit.json";
 import createPaymentBody from "./create-payment-body.json";
 import createPayoutBody from "./create-payout-confirm-body.json";
+import payoutRoutingConfigBody from "./payout-routing-config-body.json";
 import pmIdConfirmBody from "./create-pm-id-mit.json";
 import gsmBody from "./gsm-body.json";
 import listRefundCall from "./list-refund-call-body.json";
@@ -25,14 +26,20 @@ import customerUpdateBody from "./update-customer-body.json";
 import voidBody from "./void-payment-body.json";
 import ntidConfirmBody from "./create-ntid-mit.json";
 import blocklistCreateBody from "./blocklist-create-body.json";
+import pmCollectLinkBody from "./pm-collect-link-body.json";
+import disputeEvidenceBody from "./dispute-evidence-body.json";
+import cardLimitedDataMITBody from "./create-card-limited-data-mit.json";
 import eligibilityCheckBody from "./eligibility-check-body.json";
+import extendAuthBody from "./extend-auth-body.json";
+import relayBody from "./relay-body.json";
+import threeDSAuthenticationBody from "./three-ds-authentication-body.json";
 import * as IncomingWebhookBody from "./webhooks/import";
 import customerCreate from "./modularPmService/modularPmServiceCustomerCreate.json";
 import paymentMethodCreate from "./modularPmService/modular-pm-service-pm-create.json";
 import paymentMethodUpdate from "./modularPmService/modular-pm-service-pm-update.json";
 import paymentMethodSessionCreate from "./modularPmService/modular-pm-service-pms-create.json";
 import paymentMethodSessionUpdate from "./modularPmService/modular-pm-service-update-pms-saved-pm.json";
-import paymentMethodSessionConfirm from "./modularPmService/modular-pm-service-pms-confim.json";
+import paymentMethodSessionConfirm from "./modularPmService/modular-pm-service-pms-confirm.json";
 import modularPmServicePaymentsCall from "./modularPmService/modular-pm-service-payments-call.json";
 export {
   apiKeyCreateBody,
@@ -40,6 +47,7 @@ export {
   blocklistCreateBody,
   businessProfile,
   captureBody,
+  cardLimitedDataMITBody,
   citConfirmBody,
   configs,
   confirmBody,
@@ -49,15 +57,20 @@ export {
   createPayoutBody,
   customerCreateBody,
   customerUpdateBody,
+  disputeEvidenceBody,
   eligibilityCheckBody,
+  extendAuthBody,
+  threeDSAuthenticationBody,
   gsmBody,
   listRefundCall,
   merchantCreateBody,
   merchantUpdateBody,
   mitConfirmBody,
   ntidConfirmBody,
+  payoutRoutingConfigBody,
   pmIdConfirmBody,
   refundBody,
+  relayBody,
   routingConfigBody,
   saveCardConfirmBody,
   sessionTokenBody,
@@ -71,4 +84,5 @@ export {
   paymentMethodSessionUpdate,
   paymentMethodSessionConfirm,
   modularPmServicePaymentsCall,
+  pmCollectLinkBody,
 };

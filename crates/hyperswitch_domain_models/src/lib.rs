@@ -122,6 +122,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             pix_additional_details,
             boleto_additional_details,
             pix_automatico_additional_details,
+            finix_additional_details,
             ..
         } = from;
 
@@ -137,6 +138,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
                 .map(diesel_models::types::BoletoAdditionalDetails::convert_from),
             pix_automatico_additional_details: pix_automatico_additional_details
                 .map(diesel_models::types::PixAutomaticoAdditionalDetails::convert_from),
+            finix_additional_details: finix_additional_details
+                .map(diesel_models::types::FinixAdditionalDetails::convert_from),
         }
     }
 
@@ -148,6 +151,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             pix_additional_details,
             boleto_additional_details,
             pix_automatico_additional_details,
+            finix_additional_details,
             ..
         } = self;
 
@@ -159,6 +163,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             boleto_additional_details: boleto_additional_details.map(|v| v.convert_back()),
             pix_automatico_additional_details: pix_automatico_additional_details
                 .map(|v| v.convert_back()),
+            finix_additional_details: finix_additional_details.map(|v| v.convert_back()),
         }
     }
 }
@@ -183,6 +188,114 @@ impl ApiModelToDieselModelConvertor<api_models::payments::BoletoAdditionalDetail
             payment_type: self.payment_type,
             covenant_code: self.covenant_code,
             pix_key: self.pix_key,
+        }
+    }
+}
+
+impl ApiModelToDieselModelConvertor<api_models::payments::FinixAdditionalDetails>
+    for diesel_models::types::FinixAdditionalDetails
+{
+    fn convert_from(from: api_models::payments::FinixAdditionalDetails) -> Self {
+        Self {
+            fraud_session_id: from.fraud_session_id,
+        }
+    }
+
+    fn convert_back(self) -> api_models::payments::FinixAdditionalDetails {
+        api_models::payments::FinixAdditionalDetails {
+            fraud_session_id: self.fraud_session_id,
+        }
+    }
+}
+
+impl ApiModelToDieselModelConvertor<api_models::payments::SantanderMandatePeriodicity>
+    for diesel_models::types::SantanderMandatePeriodicity
+{
+    fn convert_from(from: api_models::payments::SantanderMandatePeriodicity) -> Self {
+        match from {
+            api_models::payments::SantanderMandatePeriodicity::Weekly => Self::Weekly,
+            api_models::payments::SantanderMandatePeriodicity::Monthly => Self::Monthly,
+            api_models::payments::SantanderMandatePeriodicity::Quarterly => Self::Quarterly,
+            api_models::payments::SantanderMandatePeriodicity::Semiannually => Self::Semiannually,
+            api_models::payments::SantanderMandatePeriodicity::Annually => Self::Annually,
+        }
+    }
+
+    fn convert_back(self) -> api_models::payments::SantanderMandatePeriodicity {
+        match self {
+            Self::Weekly => api_models::payments::SantanderMandatePeriodicity::Weekly,
+            Self::Monthly => api_models::payments::SantanderMandatePeriodicity::Monthly,
+            Self::Quarterly => api_models::payments::SantanderMandatePeriodicity::Quarterly,
+            Self::Semiannually => api_models::payments::SantanderMandatePeriodicity::Semiannually,
+            Self::Annually => api_models::payments::SantanderMandatePeriodicity::Annually,
+        }
+    }
+}
+
+impl ApiModelToDieselModelConvertor<api_models::payments::SantanderMandateDetails>
+    for diesel_models::types::SantanderMandateDetails
+{
+    fn convert_from(m: api_models::payments::SantanderMandateDetails) -> Self {
+        Self {
+            fixed_recurring_amount: m.fixed_recurring_amount,
+            min_recurring_amount: m.min_recurring_amount,
+            start_date: m.start_date,
+            end_date: m.end_date,
+            periodicity: m
+                .periodicity
+                .map(diesel_models::types::SantanderMandatePeriodicity::convert_from),
+        }
+    }
+
+    fn convert_back(self) -> api_models::payments::SantanderMandateDetails {
+        api_models::payments::SantanderMandateDetails {
+            fixed_recurring_amount: self.fixed_recurring_amount,
+            min_recurring_amount: self.min_recurring_amount,
+            start_date: self.start_date,
+            end_date: self.end_date,
+            periodicity: self.periodicity.map(|p| p.convert_back()),
+        }
+    }
+}
+
+impl ApiModelToDieselModelConvertor<api_models::payments::SantanderPixAutomaticoReceiverDetails>
+    for diesel_models::types::SantanderPixAutomaticoReceiverDetails
+{
+    fn convert_from(r: api_models::payments::SantanderPixAutomaticoReceiverDetails) -> Self {
+        Self {
+            branch_code: r.branch_code,
+            account_number: r.account_number,
+            account_type: r
+                .account_type
+                .map(diesel_models::types::AccountType::convert_from),
+        }
+    }
+
+    fn convert_back(self) -> api_models::payments::SantanderPixAutomaticoReceiverDetails {
+        api_models::payments::SantanderPixAutomaticoReceiverDetails {
+            branch_code: self.branch_code,
+            account_number: self.account_number,
+            account_type: self.account_type.map(|a| a.convert_back()),
+        }
+    }
+}
+
+impl ApiModelToDieselModelConvertor<api_models::payments::AccountType>
+    for diesel_models::types::AccountType
+{
+    fn convert_from(from: api_models::payments::AccountType) -> Self {
+        match from {
+            api_models::payments::AccountType::Current => Self::Current,
+            api_models::payments::AccountType::Savings => Self::Savings,
+            api_models::payments::AccountType::Payment => Self::Payment,
+        }
+    }
+
+    fn convert_back(self) -> api_models::payments::AccountType {
+        match self {
+            Self::Current => api_models::payments::AccountType::Current,
+            Self::Savings => api_models::payments::AccountType::Savings,
+            Self::Payment => api_models::payments::AccountType::Payment,
         }
     }
 }
@@ -232,9 +345,30 @@ impl ApiModelToDieselModelConvertor<api_models::payments::PixAutomaticoAdditiona
 {
     fn convert_from(from: api_models::payments::PixAutomaticoAdditionalDetails) -> Self {
         match from {
-            api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoPush(v) => {
-                Self::PixAutomaticoPush(diesel_models::types::PixAutomaticoPushDetails {
-                    time: v.time,
+            api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => {
+                Self::PixAutomaticoPush(diesel_models::types::PixAutomaticoPushData {
+                    time: push.time,
+                    retry_policy: push.retry_policy,
+                    mandate_details: push
+                        .mandate_details
+                        .map(diesel_models::types::SantanderMandateDetails::convert_from),
+                })
+            }
+            api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoQr(qr) => {
+                Self::PixAutomaticoQr(diesel_models::types::PixAutomaticoQrData {
+                    retry_policy: qr.retry_policy,
+                    mandate_details: qr
+                        .mandate_details
+                        .map(diesel_models::types::SantanderMandateDetails::convert_from),
+                })
+            }
+            api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoMit(mit) => {
+                Self::PixAutomaticoMit(diesel_models::types::PixAutomaticoMitData {
+                    receiver_details: mit.receiver_details.map(
+                        diesel_models::types::SantanderPixAutomaticoReceiverDetails::convert_from,
+                    ),
+                    mandate_execution_date: mit.mandate_execution_date,
+                    auto_adjust_date: mit.auto_adjust_date,
                 })
             }
         }
@@ -242,9 +376,30 @@ impl ApiModelToDieselModelConvertor<api_models::payments::PixAutomaticoAdditiona
 
     fn convert_back(self) -> api_models::payments::PixAutomaticoAdditionalDetails {
         match self {
-            Self::PixAutomaticoPush(v) => {
+            Self::PixAutomaticoPush(push) => {
                 api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoPush(
-                    api_models::payments::PixAutomaticoPushDetails { time: v.time },
+                    api_models::payments::PixAutomaticoPushData {
+                        time: push.time,
+                        retry_policy: push.retry_policy,
+                        mandate_details: push.mandate_details.map(|m| m.convert_back()),
+                    },
+                )
+            }
+            Self::PixAutomaticoQr(qr) => {
+                api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoQr(
+                    api_models::payments::PixAutomaticoQrData {
+                        retry_policy: qr.retry_policy,
+                        mandate_details: qr.mandate_details.map(|m| m.convert_back()),
+                    },
+                )
+            }
+            Self::PixAutomaticoMit(mit) => {
+                api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoMit(
+                    api_models::payments::PixAutomaticoMitData {
+                        receiver_details: mit.receiver_details.map(|r| r.convert_back()),
+                        mandate_execution_date: mit.mandate_execution_date,
+                        auto_adjust_date: mit.auto_adjust_date,
+                    },
                 )
             }
         }
@@ -262,6 +417,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             pix_additional_details,
             boleto_additional_details,
             pix_automatico_additional_details,
+            finix_additional_details,
         } = from;
 
         Self {
@@ -277,6 +433,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
                 .map(diesel_models::types::BoletoAdditionalDetails::convert_from),
             pix_automatico_additional_details: pix_automatico_additional_details
                 .map(diesel_models::types::PixAutomaticoAdditionalDetails::convert_from),
+            finix_additional_details: finix_additional_details
+                .map(diesel_models::types::FinixAdditionalDetails::convert_from),
         }
     }
 
@@ -289,6 +447,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             pix_additional_details,
             boleto_additional_details,
             pix_automatico_additional_details,
+            finix_additional_details,
         } = self;
 
         ApiFeatureMetadata {
@@ -302,6 +461,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             boleto_additional_details: boleto_additional_details.map(|v| v.convert_back()),
             pix_automatico_additional_details: pix_automatico_additional_details
                 .map(|v| v.convert_back()),
+            finix_additional_details: finix_additional_details.map(|v| v.convert_back()),
         }
     }
 }
