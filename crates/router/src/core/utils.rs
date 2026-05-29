@@ -74,11 +74,17 @@ pub struct FeatureConfig {
 }
 
 impl FeatureConfig {
-    pub fn is_modular_with_pm_version(
+    pub fn should_use_modular_pm_path(
         &self,
         payment_method_version: Option<common_enums::ApiVersion>,
+        last_modified_by_modular: Option<time::PrimitiveDateTime>,
+        last_modified_by_legacy: Option<time::PrimitiveDateTime>,
     ) -> bool {
-        self.is_payment_method_modular_allowed
+        (self.is_payment_method_modular_allowed
+            && matches!(
+                (last_modified_by_modular, last_modified_by_legacy),
+                (Some(last_mod_modular), Some(last_mod_legacy)) if last_mod_modular >= last_mod_legacy
+            ))
             || payment_method_version == Some(common_enums::ApiVersion::V2)
     }
 }

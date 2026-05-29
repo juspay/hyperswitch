@@ -470,6 +470,24 @@ impl DatabaseBackedConfig for ShouldScheduleModularBackwardCompat {
 }
 
 config! {
+    superposition_key = SHOULD_TRIGGER_BACKWARDS_COMPATIBILITY_INLINE,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProviderMerchantId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldTriggerBackwardsCompatibilityInline {
+    const KEY: &'static str = "should_trigger_backwards_compatibility_inline";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_provider_merchant_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
     superposition_key = PAYOUT_TRACKER_MAPPING,
     output = RetryMapping,
     default = RetryMapping::default(),
@@ -521,6 +539,60 @@ impl DatabaseBackedConfig for MaxAutoPayoutRetries {
                     })
             })
     }
+}
+
+config! {
+    superposition_key = POLL_CONFIG_EXTERNAL_THREE_DS,
+    output = crate::types::PollConfig,
+    default = crate::types::PollConfig::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+config! {
+    superposition_key = PT_MAPPING_OUTGOING_WEBHOOKS,
+    output = scheduler::types::process_data::OutgoingWebhookRetryProcessTrackerMapping,
+    default = scheduler::types::process_data::OutgoingWebhookRetryProcessTrackerMapping::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantId,
+    targeting_key = id_type::PaymentId
+}
+
+config! {
+    superposition_key = PT_MAPPING_PCR_RETRIES,
+    output = scheduler::types::process_data::RevenueRecoveryPaymentProcessTrackerMapping,
+    default = scheduler::types::process_data::RevenueRecoveryPaymentProcessTrackerMapping::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+config! {
+    superposition_key = PT_MAPPING_PAYMENT_SYNC,
+    output = scheduler::types::process_data::ConnectorPTMapping,
+    default = scheduler::types::process_data::ConnectorPTMapping::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+config! {
+    superposition_key = PT_MAPPING_REFUND_SYNC,
+    output = scheduler::types::process_data::ConnectorPTMapping,
+    default = scheduler::types::process_data::ConnectorPTMapping::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+config! {
+    superposition_key = PT_MAPPING_DISPUTE_SYNC,
+    output = scheduler::types::process_data::ConnectorPTMapping,
+    default = scheduler::types::process_data::ConnectorPTMapping::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
 }
 
 config! {

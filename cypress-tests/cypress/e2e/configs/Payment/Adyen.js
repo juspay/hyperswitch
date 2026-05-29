@@ -1,5 +1,9 @@
 import { customerAcceptance, multiUseMandateData } from "./Commons";
-import { getCurrency, getCustomExchange } from "./Modifiers";
+import {
+  getCurrency,
+  getCustomExchange,
+  getIframeRedirectionConfig,
+} from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
@@ -34,6 +38,38 @@ const singleUseMandateData = {
     },
   },
 };
+
+const mandateBrowserInfo = {
+  user_agent:
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+  accept_header:
+    "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+  language: "nl-NL",
+  color_depth: 24,
+  screen_height: 723,
+  screen_width: 1536,
+  time_zone: 0,
+  java_enabled: true,
+  java_script_enabled: true,
+  ip_address: "127.0.0.1",
+};
+
+const getMandateData = (currency) => ({
+  customer_acceptance: {
+    acceptance_type: "online",
+    accepted_at: "2025-01-01T00:00:00.000Z",
+    online: {
+      ip_address: "127.0.0.1",
+      user_agent: "Mozilla/5.0",
+    },
+  },
+  mandate_type: {
+    single_use: {
+      amount: 6540,
+      currency,
+    },
+  },
+});
 
 export const connectorDetails = {
   card_pm: {
@@ -133,6 +169,9 @@ export const connectorDetails = {
         },
       },
     },
+    ...getIframeRedirectionConfig({
+      cardDetails: successfulThreeDSTestCardDetails,
+    }),
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
@@ -226,6 +265,65 @@ export const connectorDetails = {
           amount: 6000,
           amount_capturable: 6000,
           amount_received: null,
+        },
+      },
+    },
+    MultipleCapture: {
+      Request: {
+        amount_to_capture: 2000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MultipleCapturePartial: {
+      Request: {
+        amount_to_capture: 2000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MultipleCaptureFinal: {
+      Request: {
+        amount_to_capture: 2000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MultipleCaptureRetrieve: {
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+          amount: 6000,
+          amount_capturable: 0,
+          amount_received: 6000,
+        },
+      },
+    },
+    MultipleCaptureOvercapture: {
+      Request: {
+        amount_to_capture: 7000,
+      },
+      Response: {
+        status: 422,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "amount_to_capture is greater than amount",
+            code: "IR_06",
+          },
         },
       },
     },
@@ -1061,7 +1159,7 @@ export const connectorDetails = {
           },
           phone: {
             number: "9123456789",
-            country_code: "+91",
+            country_code: "+31",
           },
         },
       },
@@ -1069,6 +1167,281 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+      MandateSingleUseAutoCapture: {
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "ideal",
+          payment_method_data: {
+            bank_redirect: {
+              ideal: {
+                bank_name: "ing",
+              },
+            },
+          },
+          browser_info: mandateBrowserInfo,
+          currency: "EUR",
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
+              country: "NL",
+              first_name: "joseph",
+              last_name: "Doe",
+            },
+            phone: {
+              number: "9123456789",
+              country_code: "+31",
+            },
+          },
+          mandate_data: getMandateData("EUR"),
+          payment_type: "new_mandate",
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+      },
+    },
+    BancontactCard: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "bancontact_card",
+        payment_method_data: {
+          bank_redirect: {
+            bancontact_card: {
+              card_number: "6703444444444449",
+              card_exp_month: "03",
+              card_exp_year: "2030",
+            },
+          },
+        },
+        currency: "EUR",
+        billing: {
+          address: {
+            line1: "1 Main St",
+            line2: "Apt 4",
+            city: "Brussels",
+            zip: "1000",
+            country: "BE",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@example.com",
+          phone: {
+            number: "9123456789",
+            country_code: "+32",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      MandateSingleUseAutoCapture: {
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "bancontact_card",
+          payment_method_data: {
+            bank_redirect: {
+              bancontact_card: {
+                card_number: "6703444444444449",
+                card_exp_month: "03",
+                card_exp_year: "2030",
+              },
+            },
+          },
+          browser_info: mandateBrowserInfo,
+          currency: "EUR",
+          billing: {
+            address: {
+              line1: "1 Main St",
+              line2: "Apt 4",
+              city: "Brussels",
+              zip: "1000",
+              country: "BE",
+              first_name: "John",
+              last_name: "Doe",
+            },
+            email: "test@example.com",
+            phone: {
+              number: "9123456789",
+              country_code: "+32",
+            },
+          },
+          mandate_data: getMandateData("EUR"),
+          payment_type: "new_mandate",
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+      },
+    },
+    OpenBankingUk: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "open_banking_uk",
+        payment_method_data: {
+          bank_redirect: {
+            open_banking_uk: {
+              issuer: "lloyds",
+            },
+          },
+        },
+        currency: "GBP",
+        billing: {
+          address: {
+            line1: "1 Main St",
+            city: "London",
+            zip: "SW1A 1AA",
+            country: "GB",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@example.com",
+          phone: {
+            number: "9123456789",
+            country_code: "+44",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      MandateSingleUseAutoCapture: {
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "open_banking_uk",
+          payment_method_data: {
+            bank_redirect: {
+              open_banking_uk: {
+                issuer: "lloyds",
+              },
+            },
+          },
+          browser_info: mandateBrowserInfo,
+          currency: "GBP",
+          billing: {
+            address: {
+              line1: "1 Main St",
+              city: "London",
+              zip: "SW1A 1AA",
+              country: "GB",
+              first_name: "John",
+              last_name: "Doe",
+            },
+            email: "test@example.com",
+            phone: {
+              number: "9123456789",
+              country_code: "+44",
+            },
+          },
+          mandate_data: getMandateData("GBP"),
+          payment_type: "new_mandate",
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+      },
+    },
+    Trustly: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "trustly",
+        payment_method_data: {
+          bank_redirect: {
+            trustly: {
+              country: "SE",
+            },
+          },
+        },
+        currency: "EUR",
+        billing: {
+          address: {
+            line1: "1 Main St",
+            city: "Stockholm",
+            zip: "11122",
+            country: "SE",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@example.com",
+          phone: {
+            number: "9123456789",
+            country_code: "+46",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      MandateSingleUseAutoCapture: {
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "trustly",
+          payment_method_data: {
+            bank_redirect: {
+              trustly: {
+                country: "SE",
+              },
+            },
+          },
+          browser_info: mandateBrowserInfo,
+          currency: "EUR",
+          billing: {
+            address: {
+              line1: "1 Main St",
+              city: "Stockholm",
+              zip: "11122",
+              country: "SE",
+              first_name: "John",
+              last_name: "Doe",
+            },
+            email: "test@example.com",
+            phone: {
+              number: "9123456789",
+              country_code: "+46",
+            },
+          },
+          mandate_data: getMandateData("EUR"),
+          payment_type: "new_mandate",
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+        Configs: {
+          TRIGGER_SKIP: true,
         },
       },
     },

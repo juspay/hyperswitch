@@ -954,6 +954,8 @@ diesel::table! {
         updated_by -> Nullable<Varchar>,
         #[max_length = 2048]
         customer_user_agent_extended -> Nullable<Varchar>,
+        #[max_length = 255]
+        network_transaction_link_id -> Nullable<Varchar>,
     }
 }
 
@@ -1334,6 +1336,9 @@ diesel::table! {
         payment_method_id -> Nullable<Varchar>,
         created_at -> Timestamp,
         last_modified -> Timestamp,
+        payment_method -> Nullable<Varchar>,
+        #[max_length = 64]
+        payment_method_type -> Nullable<Varchar>,
         payment_method_data -> Nullable<Bytea>,
         #[max_length = 64]
         locker_id -> Nullable<Varchar>,
@@ -1375,6 +1380,7 @@ diesel::table! {
         payment_method_subtype -> Nullable<Varchar>,
         #[max_length = 255]
         network_transaction_link_id -> Nullable<Varchar>,
+        compatibility_updated_at -> Nullable<Timestamp>,
         external_vault_token_data -> Nullable<Bytea>,
         #[max_length = 64]
         auxiliary_fingerprint_id -> Nullable<Varchar>,
