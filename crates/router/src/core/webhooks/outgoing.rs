@@ -779,7 +779,7 @@ async fn trigger_webhook_to_connector(
                 )
                 .await?;
 
-                if !(200..300).contains(&status_code){
+                if !(200..300).contains(&status_code) {
                     error_response_handler(
                         state,
                         &business_profile.merchant_id,
@@ -791,7 +791,7 @@ async fn trigger_webhook_to_connector(
                     .await?;
                 }
             }
-        }
+        },
     }
 
     Ok(())
