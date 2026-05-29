@@ -51,6 +51,10 @@ pub enum PartitionKey<'a> {
         merchant_id: &'a common_utils::id_type::MerchantId,
         mandate_id: &'a str,
     },
+    MerchantIdAuthenticationId {
+        merchant_id: &'a common_utils::id_type::MerchantId,
+        authentication_id: &'a common_utils::id_type::AuthenticationId,
+    },
     #[cfg(feature = "v2")]
     GlobalId {
         id: &'a str,
@@ -110,6 +114,14 @@ impl std::fmt::Display for PartitionKey<'_> {
             } => f.write_str(&format!(
                 "mid_{}_mandate_{mandate_id}",
                 merchant_id.get_string_repr()
+            )),
+            PartitionKey::MerchantIdAuthenticationId {
+                merchant_id,
+                authentication_id,
+            } => f.write_str(&format!(
+                "mid_{}_auth_{}",
+                merchant_id.get_string_repr(),
+                authentication_id.get_string_repr()
             )),
 
             #[cfg(feature = "v2")]

@@ -9,6 +9,7 @@ use crate::payment_intent::PaymentIntentUpdate;
 use crate::payment_intent::PaymentIntentUpdateInternal;
 use crate::{
     address::{Address, AddressNew, AddressUpdateInternal},
+    authentication::{Authentication, AuthenticationNew, AuthenticationUpdateInternal},
     customers::{Customer, CustomerNew, CustomerUpdateInternal},
     errors,
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
@@ -48,6 +49,7 @@ impl DBOperation {
                 Insertable::ReverseLookUp(_) => "reverse_lookup",
                 Insertable::PaymentMethod(_) => "payment_method",
                 Insertable::Mandate(_) => "mandate",
+                Insertable::Authentication(_) => "authentication",
             },
             Self::Update { updatable } => match **updatable {
                 Updateable::PaymentIntentUpdate(_) => "payment_intent",
@@ -59,6 +61,7 @@ impl DBOperation {
                 Updateable::PayoutAttemptUpdate(_) => "payout_attempt",
                 Updateable::PaymentMethodUpdate(_) => "payment_method",
                 Updateable::MandateUpdate(_) => " mandate",
+                Updateable::AuthenticationUpdate(_) => "authentication",
             },
         }
     }
@@ -76,6 +79,7 @@ pub enum DBResult {
     PayoutAttempt(Box<PayoutAttempt>),
     PaymentMethod(Box<PaymentMethod>),
     Mandate(Box<Mandate>),
+    Authentication(Box<Authentication>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -110,6 +114,9 @@ impl DBOperation {
                     DBResult::PaymentMethod(Box::new(rev.insert(conn).await?))
                 }
                 Insertable::Mandate(m) => DBResult::Mandate(Box::new(m.insert(conn).await?)),
+                Insertable::Authentication(a) => {
+                    DBResult::Authentication(Box::new(a.insert(conn).await?))
+                }
             },
             Self::Update { updatable } => match *updatable {
                 #[cfg(feature = "v1")]
@@ -178,6 +185,15 @@ impl DBOperation {
                 Updateable::CustomerUpdate(cust) => DBResult::Customer(Box::new(
                     Customer::update_by_id(conn, cust.orig.id, cust.update_data).await?,
                 )),
+                Updateable::AuthenticationUpdate(a) => DBResult::Authentication(Box::new(
+                    Authentication::update_by_merchant_id_authentication_id_internal(
+                        conn,
+                        &a.orig.merchant_id,
+                        &a.orig.authentication_id,
+                        a.update_data,
+                    )
+                    .await?,
+                )),
             },
         })
     }
@@ -217,6 +233,7 @@ pub enum Insertable {
     PayoutAttempt(PayoutAttemptNew),
     PaymentMethod(Box<PaymentMethodNew>),
     Mandate(MandateNew),
+    Authentication(Box<AuthenticationNew>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -231,6 +248,7 @@ pub enum Updateable {
     PayoutAttemptUpdate(PayoutAttemptUpdateMems),
     PaymentMethodUpdate(Box<PaymentMethodUpdateMems>),
     MandateUpdate(MandateUpdateMems),
+    AuthenticationUpdate(Box<AuthenticationUpdateMems>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -300,4 +318,10 @@ pub struct PaymentMethodUpdateMems {
 pub struct MandateUpdateMems {
     pub orig: Mandate,
     pub update_data: MandateUpdateInternal,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AuthenticationUpdateMems {
+    pub orig: Authentication,
+    pub update_data: AuthenticationUpdateInternal,
 }

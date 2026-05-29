@@ -10,6 +10,47 @@ use crate::{
     PgPooledConn, StorageResult,
 };
 
+impl Authentication {
+    pub async fn update_by_merchant_id_authentication_id_internal(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        authentication_id: &common_utils::id_type::AuthenticationId,
+        update: AuthenticationUpdateInternal,
+    ) -> StorageResult<Self> {
+        match generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::authentication_id.eq(authentication_id.to_owned())),
+            update.clone(),
+        )
+        .await
+        {
+            Err(error) => match error.current_context() {
+                errors::DatabaseError::NotFound => Err(error.attach_printable(
+                    "Authentication with the given Authentication ID does not exist",
+                )),
+                errors::DatabaseError::NoFieldsToUpdate => {
+                    generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+                        conn,
+                        dsl::merchant_id
+                            .eq(merchant_id.to_owned())
+                            .and(dsl::authentication_id.eq(authentication_id.to_owned())),
+                    )
+                    .await
+                }
+                _ => Err(error),
+            },
+            result => result,
+        }
+    }
+}
+
 impl AuthenticationNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Authentication> {
         generics::generic_insert(conn, self).await

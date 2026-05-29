@@ -22,6 +22,11 @@ impl AuthenticationId {
     pub fn get_external_authentication_request_poll_id(&self) -> String {
         format!("external_authentication_{}", self.get_string_repr())
     }
+
+    /// Get the Redis hash field key for KV store operations
+    pub fn get_hash_key_for_kv_store(&self) -> String {
+        format!("auth_{}", self.get_string_repr())
+    }
 }
 
 impl crate::events::ApiEventMetric for AuthenticationId {
