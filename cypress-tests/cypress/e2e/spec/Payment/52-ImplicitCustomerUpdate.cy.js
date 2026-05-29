@@ -56,23 +56,11 @@ describe("Card - Implicit Customer Update flow test", () => {
             return;
           }
 
-          const customer_id = globalState.get("customerId");
-
-          cy.request({
-            method: "GET",
-            url: `${globalState.get("baseUrl")}/customers/${customer_id}`,
-            headers: {
-              "Content-Type": "application/json",
-              "api-key": globalState.get("apiKey"),
-            },
-            failOnStatusCode: false,
-          }).then((response) => {
-            expect(response.status).to.equal(200);
-            expect(response.body.customer_id).to.equal(customer_id);
-            expect(response.body.email).to.equal("updated@example.com");
-            expect(response.body.name).to.equal("Updated Name");
-            expect(response.body.phone).to.equal("888888888");
-            expect(response.body.phone_country_code).to.equal("+1");
+          cy.customerRetrieveAndAssertCall(globalState, {
+            email: "updated@example.com",
+            name: "Updated Name",
+            phone: "888888888",
+            phone_country_code: "+1",
           });
         });
       });
@@ -120,23 +108,11 @@ describe("Card - Implicit Customer Update flow test", () => {
             return;
           }
 
-          const customer_id = globalState.get("customerId");
-
-          cy.request({
-            method: "GET",
-            url: `${globalState.get("baseUrl")}/customers/${customer_id}`,
-            headers: {
-              "Content-Type": "application/json",
-              "api-key": globalState.get("apiKey"),
-            },
-            failOnStatusCode: false,
-          }).then((response) => {
-            expect(response.status).to.equal(200);
-            expect(response.body.customer_id).to.equal(customer_id);
-            expect(response.body.email).to.equal("partial@example.com");
-            expect(response.body.name).to.equal("Partial Name");
-            expect(response.body.phone).to.equal("999999999");
-            expect(response.body.phone_country_code).to.equal("+65");
+          cy.customerRetrieveAndAssertCall(globalState, {
+            email: "partial@example.com",
+            name: "Partial Name",
+            phone: "999999999",
+            phone_country_code: "+65",
           });
         });
       });
