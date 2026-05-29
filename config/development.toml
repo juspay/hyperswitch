@@ -212,6 +212,7 @@ redis_lock_expiry_seconds = 180             # 3 * 60 seconds
 
 [webhooks.notify_connector]
 surcharge_payment_succeeded = "interpayments,stripe"
+surcharge_refund_succeeded = "interpayments,stripe"
 
 [merchant_id_auth]
 merchant_id_auth_enabled = false
