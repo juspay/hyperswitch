@@ -3640,8 +3640,13 @@ pub async fn get_token_data_for_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-    let token_data_response =
-        generate_token_data_response(&state, request, profile, &payment_method).await?;
+    let token_data_response = Box::pin(generate_token_data_response(
+        &state,
+        request,
+        profile,
+        &payment_method,
+    ))
+    .await?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         token_data_response,

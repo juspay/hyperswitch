@@ -5049,6 +5049,25 @@ where
         }
     }
 
+    if let Some(network_token_data) = network_tokenization::evaluate_and_fetch_altid(
+        state,
+        payment_data.get_payment_method_data(),
+        payment_data.get_payment_intent().currency,
+        &connector.connector_name,
+        payment_data
+            .get_payment_attempt()
+            .customer_acceptance
+            .is_none(),
+        payment_data.get_payment_intent().amount,
+        business_profile,
+    )
+    .await?
+    {
+        payment_data.set_payment_method_data(Some(domain::PaymentMethodData::NetworkToken(
+            network_token_data,
+        )));
+    }
+
     if payment_data
         .get_payment_attempt()
         .merchant_connector_id
