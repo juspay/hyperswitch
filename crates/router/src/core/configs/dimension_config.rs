@@ -767,10 +767,59 @@ impl DatabaseBackedConfig for StepUpEnabled {
 }
 
 config! {
+    superposition_key = AUTHENTICATION_SERVICE_ELIGIBLE,
+    output = bool,
+    default = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndOrgId,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for AuthenticationServiceEligible {
+    const KEY: &'static str = "authentication_service_eligible";
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_organization_id()
+            .map(|id| format!("authentication_service_eligible_{}", id.get_string_repr()))
+    }
+}
+
+config! {
     superposition_key = PRE_ROUTING_DISABLED_PM_PMT,
     output = MerchantPreRoutingConfig,
     default = MerchantPreRoutingConfig::default(),
     object = true,
     requires = dimension_state::DimensionsWithProcessorMerchantId,
     targeting_key = id_type::CustomerId
+}
+
+config! {
+    superposition_key = BLOCKLIST_GUARD,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for BlocklistGuard {
+    const KEY: &'static str = "blocklist_guard";
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("guard_blocklist_for_{}", id.get_string_repr()))
+    }
+}
+
+config! {
+    superposition_key = UCS_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::EmptyDimensions,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for UcsEnabled {
+    const KEY: &'static str = "ucs_enabled";
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        Some("ucs_enabled".to_string())
+    }
 }

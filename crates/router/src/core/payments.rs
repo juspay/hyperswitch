@@ -6945,24 +6945,13 @@ where
     F: Send + Clone + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let merchant_id = processor.get_account().get_id();
-    let blocklist_enabled_key = merchant_id.get_blocklist_guard_key();
-    let blocklist_guard_enabled = state
-        .store
-        .find_config_by_key_unwrap_or(&blocklist_enabled_key, Some("false".to_string()))
+    let blocklist_guard_enabled = dimensions
+        .get_blocklist_guard(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
         .await;
-
-    let blocklist_guard_enabled: bool = match blocklist_guard_enabled {
-        Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
-
-        // If it is not present in db we are defaulting it to false
-        Err(inner) => {
-            if !inner.current_context().is_db_not_found() {
-                logger::error!("Error fetching guard blocklist enabled config {:?}", inner);
-            }
-            false
-        }
-    };
 
     if blocklist_guard_enabled {
         Ok(operation
@@ -12374,24 +12363,17 @@ impl EligibilityCheck for BlockListCheck {
         state: &SessionState,
         platform: &domain::Platform,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
-        let merchant_id = platform.get_processor().get_account().get_id();
-        let blocklist_enabled_key = merchant_id.get_blocklist_guard_key();
-        let blocklist_guard_enabled = state
-            .store
-            .find_config_by_key_unwrap_or(&blocklist_enabled_key, Some("false".to_string()))
-            .await;
+        let dimensions = Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
-        Ok(match blocklist_guard_enabled {
-            Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
-
-            // If it is not present in db we are defaulting it to false
-            Err(inner) => {
-                if !inner.current_context().is_db_not_found() {
-                    logger::error!("Error fetching guard blocklist enabled config {:?}", inner);
-                }
-                false
-            }
-        })
+        Ok(dimensions
+            .get_blocklist_guard(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                None,
+            )
+            .await)
     }
 
     async fn execute_check(

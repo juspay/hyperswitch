@@ -421,6 +421,12 @@ pub mod superposition {
     pub const STEP_UP_ENABLED: &str = "step_up_enabled";
     /// Pre-routing disabled payment methods config key
     pub const PRE_ROUTING_DISABLED_PM_PMT: &str = "pre_routing_disabled_pm_pmt";
+    /// Merchant eligible for authentication service config key
+    pub const AUTHENTICATION_SERVICE_ELIGIBLE: &str = "authentication_service_eligible";
+    /// Blocklist guard enabled configuration key
+    pub const BLOCKLIST_GUARD: &str = "blocklist_guard";
+    /// UCS enabled configuration key
+    pub const UCS_ENABLED: &str = "ucs_enabled";
 }
 
 #[cfg(test)]

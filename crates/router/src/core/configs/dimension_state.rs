@@ -682,9 +682,29 @@ pub type DimensionsWithProcessorAndProviderMerchantIdAndProfileId = Dimensions<
     NoPayoutRetryType,
     NoWebhookEvent,
 >;
+pub type EmptyDimensions = Dimensions<
+    NoProviderMerchantId,
+    NoProcessorMerchantId,
+    NoOrgId,
+    NoProfileId,
+    NoTransactionType,
+    NoConnector,
+    NoPayoutRetryType,
+    NoWebhookEvent,
+>;
 pub type DimensionsWithOrgId = Dimensions<
     NoProviderMerchantId,
     NoProcessorMerchantId,
+    HasOrgId,
+    NoProfileId,
+    NoTransactionType,
+    NoConnector,
+    NoPayoutRetryType,
+    NoWebhookEvent,
+>;
+pub type DimensionsWithProcessorMerchantIdAndOrgId = Dimensions<
+    NoProviderMerchantId,
+    HasProcessorMerchantId,
     HasOrgId,
     NoProfileId,
     NoTransactionType,
@@ -751,6 +771,17 @@ pub type DimensionsWithProcessorAndProviderMerchantIdAndConnectorAndWebhookEvent
     HasConnector,
     NoPayoutRetryType,
     HasWebhookEvent,
+>;
+
+pub type DimensionsWithConnector = Dimensions<
+    NoProviderMerchantId,
+    NoProcessorMerchantId,
+    NoOrgId,
+    NoProfileId,
+    NoTransactionType,
+    HasConnector,
+    NoPayoutRetryType,
+    NoWebhookEvent,
 >;
 
 pub type DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndTransactionType = Dimensions<
