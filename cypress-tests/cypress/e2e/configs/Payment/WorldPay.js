@@ -945,7 +945,7 @@ export const connectorDetails = {
         phone_country_code: "+1",
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulNoThreeDsCardDetailsRequest,
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -964,7 +964,7 @@ export const connectorDetails = {
         name: "Partial Name",
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulNoThreeDsCardDetailsRequest,
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
