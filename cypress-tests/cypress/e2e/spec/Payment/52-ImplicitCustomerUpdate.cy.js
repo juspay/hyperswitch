@@ -1,19 +1,15 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import getConnectorDetails, {
-  CONNECTOR_LISTS,
-  shouldIncludeConnector,
-} from "../../configs/Payment/Utils";
+import getConnectorDetails from "../../configs/Payment/Utils";
 import * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
 describe("Card - Implicit Customer Update flow test", () => {
-  before("seed global state", function () {
-    cy.log(
-      "SKIPPING — implicit_customer_update is deprecated (since 2026.01.30.0) and non-functional per API re-verification"
-    );
-    this.skip();
+  before("seed global state", () => {
+    cy.task("getGlobalState").then((state) => {
+      globalState = new State(state);
+    });
   });
 
   after("flush global state", () => {
@@ -42,7 +38,7 @@ describe("Card - Implicit Customer Update flow test", () => {
           ]["ImplicitCustomerUpdate"];
 
           cy.createConfirmPaymentTest(
-            fixtures.createConfirmPaymentBody,
+            JSON.parse(JSON.stringify(fixtures.createConfirmPaymentBody)),
             data,
             "no_three_ds",
             "automatic",
@@ -80,6 +76,70 @@ describe("Card - Implicit Customer Update flow test", () => {
             expect(response.body.name).to.equal("Updated Name");
             expect(response.body.phone).to.equal("888888888");
             expect(response.body.phone_country_code).to.equal("+1");
+          });
+        });
+      });
+    }
+  );
+
+  context(
+    "Create customer, confirm payment with partial inline customer update, verify only specified fields changed",
+    () => {
+      it("Create Customer -> Confirm Payment with partial update -> Verify only email and name changed", () => {
+        let shouldContinue = true;
+
+        cy.step("Create Customer", () => {
+          cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+        });
+
+        cy.step("Retrieve Baseline Customer", () => {
+          cy.customerRetrieveCall(globalState);
+        });
+
+        cy.step("Create+Confirm Payment with partial customer fields", () => {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["ImplicitCustomerUpdatePartial"];
+
+          cy.createConfirmPaymentTest(
+            JSON.parse(JSON.stringify(fixtures.createConfirmPaymentBody)),
+            data,
+            "no_three_ds",
+            "automatic",
+            globalState
+          );
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("Verify Partial Customer Record Updated", () => {
+          if (!shouldContinue) {
+            cy.task(
+              "cli_log",
+              "Skipping step: Verify Partial Customer Record Updated"
+            );
+            return;
+          }
+
+          const customer_id = globalState.get("customerId");
+
+          cy.request({
+            method: "GET",
+            url: `${globalState.get("baseUrl")}/customers/${customer_id}`,
+            headers: {
+              "Content-Type": "application/json",
+              "api-key": globalState.get("apiKey"),
+            },
+            failOnStatusCode: false,
+          }).then((response) => {
+            expect(response.status).to.equal(200);
+            expect(response.body.customer_id).to.equal(customer_id);
+            expect(response.body.email).to.equal("partial@example.com");
+            expect(response.body.name).to.equal("Partial Name");
+            expect(response.body.phone).to.equal("999999999");
+            expect(response.body.phone_country_code).to.equal("+65");
           });
         });
       });
