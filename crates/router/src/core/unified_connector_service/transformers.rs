@@ -33,8 +33,8 @@ use hyperswitch_domain_models::{
         SyncRequestType,
     },
     router_response_types::{
-        PaymentsResponseData, PayoutsResponseData, RedirectForm, RefundsResponseData,
-        NotifyConnectorResponseData,
+        NotifyConnectorResponseData, PaymentsResponseData, PayoutsResponseData, RedirectForm,
+        RefundsResponseData,
     },
 };
 pub use hyperswitch_interfaces::{
@@ -7320,8 +7320,6 @@ impl transformers::ForeignTryFrom<payments_grpc::SurchargeServiceCalculateRespon
     }
 }
 
-
-
 impl transformers::ForeignTryFrom<payments_grpc::NotifyConnectorResponse>
     for NotifyConnectorResponseData
 {
@@ -7330,9 +7328,9 @@ impl transformers::ForeignTryFrom<payments_grpc::NotifyConnectorResponse>
     fn foreign_try_from(
         grpc_response: payments_grpc::NotifyConnectorResponse,
     ) -> Result<Self, Self::Error> {
-
         Ok(Self {
-            status_code: u16::try_from(grpc_response.status_code).change_context(UnifiedConnectorServiceError::ParsingFailed)
+            status_code: u16::try_from(grpc_response.status_code)
+                .change_context(UnifiedConnectorServiceError::ParsingFailed)
                 .attach_printable("Failed to parse status code from UCS response")?,
             error_code: grpc_response.error.as_ref().and_then(|error_info| {
                 error_info

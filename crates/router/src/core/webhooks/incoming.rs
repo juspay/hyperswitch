@@ -2068,7 +2068,7 @@ async fn external_authentication_incoming_webhook_flow(
                                 )),
                                 primary_object_created_at,
                                 webhook_recipient,
-                                None, 
+                                None,
                                 business_profile,
                             ))
                             .await?;

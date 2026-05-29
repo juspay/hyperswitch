@@ -12,7 +12,10 @@ use common_utils::{
 };
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{type_encryption::{crypto_operation, CryptoOperation}, router_response_types::NotifyConnectorResponseData};
+use hyperswitch_domain_models::{
+    router_response_types::NotifyConnectorResponseData,
+    type_encryption::{crypto_operation, CryptoOperation},
+};
 use hyperswitch_interfaces::{consts, webhooks::WebhookResourceData};
 use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use router_env::{
@@ -568,7 +571,6 @@ impl types::WebhookTrigger for types::ConnectorWebhook {
             &merchant_key_store,
         )
         .await;
-
     }
 }
 
@@ -583,50 +585,46 @@ async fn trigger_webhook_to_connector(
     process_tracker: Option<storage::ProcessTracker>,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     let merchant_connector_id = process_tracker
-            .as_ref()
-            .and_then(|pt| {
-                serde_json::from_value::<types::OutgoingWebhookTrackingData>(
-                    pt.tracking_data.clone(),
-                )
+        .as_ref()
+        .and_then(|pt| {
+            serde_json::from_value::<types::OutgoingWebhookTrackingData>(pt.tracking_data.clone())
                 .ok()
-            })
-            .and_then(|td| match td.recipient_data {
-                utils::WebhookRecipientData::Connector {
-                    merchant_connector_id,
-                } => Some(merchant_connector_id),
-                _ => None,
-            });
+        })
+        .and_then(|td| match td.recipient_data {
+            utils::WebhookRecipientData::Connector {
+                merchant_connector_id,
+            } => Some(merchant_connector_id),
+            _ => None,
+        });
 
-        let merchant_connector_id = match merchant_connector_id {
-            Some(id) => id,
-            None => {
-                logger::error!(
-                    "Missing merchant_connector_id in tracking data for connector webhook"
-                );
-                return Err(errors::WebhooksFlowError::MerchantConfigNotFound.into());
-            }
-        };
+    let merchant_connector_id = match merchant_connector_id {
+        Some(id) => id,
+        None => {
+            logger::error!("Missing merchant_connector_id in tracking data for connector webhook");
+            return Err(errors::WebhooksFlowError::MerchantConfigNotFound.into());
+        }
+    };
 
-        let mca_result = state
-            .store
-            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                &provider_merchant_id,
-                &merchant_connector_id,
-                &merchant_key_store,
-            )
-            .await;
+    let mca_result = state
+        .store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            &provider_merchant_id,
+            &merchant_connector_id,
+            &merchant_key_store,
+        )
+        .await;
 
-        let mca = match mca_result {
-            Ok(mca) => mca,
-            Err(err) => {
-                logger::error!(?err, "Failed to find merchant connector account");
-                return Err(errors::WebhooksFlowError::MerchantConfigNotFound.into())
-            }
-        };
+    let mca = match mca_result {
+        Ok(mca) => mca,
+        Err(err) => {
+            logger::error!(?err, "Failed to find merchant connector account");
+            return Err(errors::WebhooksFlowError::MerchantConfigNotFound.into());
+        }
+    };
 
-        let connector_name = mca.connector_name.clone();
+    let connector_name = mca.connector_name.clone();
 
-        let response = crate::core::unified_connector_service::call_unified_connector_service_for_notify_connector(
+    let response = crate::core::unified_connector_service::call_unified_connector_service_for_notify_connector(
             &state,
             &event,
             content,
@@ -637,10 +635,11 @@ async fn trigger_webhook_to_connector(
         )
         .await;
 
-        match delivery_attempt {
+    match delivery_attempt {
         enums::WebhookDeliveryAttempt::InitialAttempt => match response {
             Err(error) => {
-                let client_error = error.change_context(errors::ApiClientError::InternalServerErrorReceived);
+                let client_error =
+                    error.change_context(errors::ApiClientError::InternalServerErrorReceived);
                 api_client_error_handler(
                     state.clone(),
                     merchant_key_store.clone(),
@@ -800,7 +799,7 @@ async fn trigger_webhook_to_connector(
                     Ok(())
                 }
             }
-        }
+        },
     }
 }
 
@@ -810,7 +809,6 @@ async fn mark_surcharge_sale_as_notified(
     processor_merchant_id: &common_utils::id_type::MerchantId,
     merchant_key_store: &domain::MerchantKeyStore,
 ) {
-
     let merchant_account = state
         .store
         .find_merchant_account_by_merchant_id(processor_merchant_id, merchant_key_store)
@@ -945,8 +943,7 @@ async fn trigger_webhook_to_merchant(
 
     let webhook_recipient_merchant_id = &business_profile.merchant_id;
 
-
-match delivery_attempt {
+    match delivery_attempt {
         enums::WebhookDeliveryAttempt::InitialAttempt => match response {
             Err(client_error) => {
                 api_client_error_handler(
@@ -1422,13 +1419,12 @@ async fn update_notify_connector_event_in_storage(
     state: SessionState,
     merchant_key_store: domain::MerchantKeyStore,
     event_id: &str,
-    grpc_response: NotifyConnectorResponseData
+    grpc_response: NotifyConnectorResponseData,
 ) -> CustomResult<domain::Event, errors::WebhooksFlowError> {
     let status_code = grpc_response.status_code.clone();
     let is_webhook_notified = (200..300).contains(&status_code);
     let key_manager_state = &(&state).into();
-    let response_body = Secret::from(serde_json::to_string(&grpc_response)
-    .unwrap_or_default());
+    let response_body = Secret::from(serde_json::to_string(&grpc_response).unwrap_or_default());
     let response_to_store = OutgoingWebhookResponseContent {
         body: Some(response_body),
         headers: None,
@@ -1465,7 +1461,6 @@ async fn update_notify_connector_event_in_storage(
         .await
         .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
 }
-
 
 async fn update_event_in_storage(
     state: SessionState,
@@ -1663,9 +1658,9 @@ impl ForeignFrom<&api::OutgoingWebhookContent> for storage::EventMetadata {
                 }
             }
             webhooks::OutgoingWebhookContent::SurchargeDetails(surcharge) => Self::Surcharge {
-                    payment_id: surcharge.payment_id.clone(),
-                    attempt_id: surcharge.attempt_id.clone()
-                }
+                payment_id: surcharge.payment_id.clone(),
+                attempt_id: surcharge.attempt_id.clone(),
+            },
         }
     }
 }
@@ -1722,10 +1717,10 @@ fn get_outgoing_webhook_event_content_from_event_metadata(
         },
         diesel_models::EventMetadata::Surcharge {
             payment_id,
-            attempt_id
+            attempt_id,
         } => OutgoingWebhookEventContent::Surcharge {
             payment_id,
             attempt_id,
-        }
+        },
     })
 }

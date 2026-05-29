@@ -13,7 +13,7 @@ use crate::{
         api,
         domain::{self},
         storage::{self, enums},
-    }
+    },
 };
 
 #[derive(Debug)]
