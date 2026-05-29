@@ -210,9 +210,7 @@ mod kv_impl {
             .await;
 
             let diesel_authentication = match storage_scheme {
-                diesel_models::enums::MerchantStorageScheme::PostgresOnly => {
-                    database_call().await
-                }
+                diesel_models::enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 diesel_models::enums::MerchantStorageScheme::RedisKv => {
                     let key = PartitionKey::MerchantIdAuthenticationId {
                         merchant_id,
@@ -272,9 +270,7 @@ mod kv_impl {
             .await;
 
             let diesel_authentication = match storage_scheme {
-                diesel_models::enums::MerchantStorageScheme::PostgresOnly => {
-                    database_call().await
-                }
+                diesel_models::enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 diesel_models::enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!(
                         "auth_connector_{}_{}",
