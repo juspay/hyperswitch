@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.25.0-hotfix4
+
+### Bug Fixes
+
+- **routing:** Preserve routed_through in Apple Pay web-domain auto-retry flow ([#12504](https://github.com/juspay/hyperswitch/pull/12504)) ([`b0acb3c`](https://github.com/juspay/hyperswitch/commit/b0acb3cb3d258549ccc6ff17c7e33e469875d558))
+
+**Full Changelog:** [`2026.05.25.0-hotfix3...2026.05.25.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2026.05.25.0-hotfix3...2026.05.25.0-hotfix4)
+
+- - -
+
 ## 2026.05.25.0-hotfix3
 
 ### Bug Fixes
