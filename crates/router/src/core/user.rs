@@ -3981,12 +3981,12 @@ pub async fn clone_connector(
         None,
     );
 
-    admin::create_connector(
+    Box::pin(admin::create_connector(
         state,
         merchant_connector_create,
         destination_context.get_processor().clone(),
         Some(request.destination.profile_id),
-    )
+    ))
     .await
     .map_err(|e| {
         let message = e.current_context().error_message();

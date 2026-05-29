@@ -6,10 +6,7 @@ use common_utils::{errors::CustomResult, ext_traits::ValueExt, id_type};
 use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 
-use super::{
-    payments::{OperationSessionGetters, OperationSessionSetters},
-    routing::TransactionData,
-};
+use super::payments::{OperationSessionGetters, OperationSessionSetters};
 use crate::{
     core::{
         errors,
@@ -239,7 +236,7 @@ pub async fn check_for_debit_routing_connector_in_profile<
     let debit_routing_supported_connectors =
         state.conf.debit_routing_config.supported_connectors.clone();
 
-    let transaction_data = super::routing::PaymentsDslInput::new(
+    let _transaction_data = super::routing::PaymentsDslInput::new(
         payment_data.get_setup_mandate(),
         payment_data.get_payment_attempt(),
         payment_data.get_payment_intent(),
@@ -249,27 +246,30 @@ pub async fn check_for_debit_routing_connector_in_profile<
         payment_data.get_currency(),
     );
 
-    let fallback_config_optional = super::routing::helpers::get_merchant_default_config(
-        &*state.clone().store,
-        business_profile_id.get_string_repr(),
-        &enums::TransactionType::from(&TransactionData::Payment(transaction_data)),
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .map_err(|error| {
-        logger::warn!(?error, "Failed to fetch default connector for a profile");
-    })
-    .ok();
+    let merchant_id = payment_data.get_payment_intent().merchant_id.clone();
+    let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+        .with_processor_merchant_id(
+            crate::core::configs::dimension_state::ProcessorMerchantId::new(merchant_id.clone()),
+        )
+        .with_provider_merchant_id(
+            crate::core::configs::dimension_state::ProviderMerchantId::new(merchant_id.clone()),
+        )
+        .with_profile_id(business_profile_id.clone())
+        .with_transaction_type(enums::TransactionType::Payment);
+    let fallback_config = dimensions
+        .get_routing_default_config(
+            &*state.clone().store,
+            Some(state.superposition_service.as_ref()),
+            Some(&merchant_id),
+        )
+        .await;
 
-    let is_debit_routable_connector_present = fallback_config_optional
-        .map(|fallback_config| {
-            fallback_config.iter().any(|fallback_config_connector| {
-                debit_routing_supported_connectors.contains(&api_enums::Connector::from(
-                    fallback_config_connector.connector,
-                ))
-            })
-        })
-        .unwrap_or(false);
+    let is_debit_routable_connector_present =
+        fallback_config.iter().any(|fallback_config_connector| {
+            debit_routing_supported_connectors.contains(&api_enums::Connector::from(
+                fallback_config_connector.connector,
+            ))
+        });
 
     is_debit_routable_connector_present
 }

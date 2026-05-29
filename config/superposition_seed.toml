@@ -52,6 +52,12 @@ schema = { type = "string" }
 description = "Incoming webhook event type identifier (e.g. payment_intent.succeeded)"
 change_reason = "Initial setup"
 
+[dimensions.transaction_type]
+position = 8
+schema = { type = "string" }
+description = "Transaction type identifier (e.g. payment, payout, refund)"
+change_reason = "Initial setup"
+
 [default-configs.requires_cvv]
 value = true
 schema = { type = "boolean" }
@@ -243,4 +249,41 @@ max_retries_count = 5
 [default-configs.pt_mapping_dispute_sync.value.default_mapping]
 start_after = 60
 frequencies = [[300, 5]]
+
+[default-configs.routing_default_config]
+schema = { type = "object" }
+description = "Default routing configuration per merchant/profile/transaction-type"
+change_reason = "Initial setup"
+
+[default-configs.step_up_enabled]
+value = false
+schema = { type = "boolean" }
+description = "Whether step-up 3DS authentication is enabled per connector"
+change_reason = "Initial setup"
+
+[default-configs.authentication_service_eligible]
+value = true
+schema = { type = "boolean" }
+description = "Whether the merchant/organization is eligible for authentication service"
+change_reason = "Initial setup"
+
+[default-configs.pre_routing_disabled_pm_pmt]
+schema = { type = "object" }
+description = "Pre-routing disabled payment methods and types per merchant"
+change_reason = "Initial setup"
+
+[default-configs.pre_routing_disabled_pm_pmt.value]
+skip_rules = []
+
+[default-configs.blocklist_guard]
+value = false
+schema = { type = "boolean" }
+description = "Whether blocklist guard is enabled for the merchant"
+change_reason = "Initial setup"
+
+[default-configs.ucs_enabled]
+value = false
+schema = { type = "boolean" }
+description = "Whether Unified Connector Service (UCS) is enabled"
+change_reason = "Initial setup"
 

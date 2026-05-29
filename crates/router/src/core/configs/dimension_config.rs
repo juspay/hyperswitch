@@ -1,13 +1,16 @@
 use std::collections::HashSet;
 
-use api_models::webhooks::IncomingWebhookEvent;
+use api_models::{routing as routing_types, webhooks::IncomingWebhookEvent};
 use common_enums;
 use common_utils::errors::CustomResult;
 use external_services::superposition;
 use scheduler::consumer::types::process_data::RetryMapping;
 
 use super::{dimension_state, fetch_db_config_for_dimensions, ConfigContext, DatabaseBackedConfig};
-use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
+use crate::{
+    consts::superposition as superposition_consts,
+    core::payments::routing::utils::MerchantPreRoutingConfig, db::StorageInterface, utils::id_type,
+};
 /// This adds `WritableConfig` trait implementation and `set_<key>()` method.
 ///
 /// # Usage
@@ -117,6 +120,52 @@ macro_rules! config {
             impl DatabaseBackedConfig for [<$key:camel>] {
                 const KEY: &'static str = stringify!([<$key:snake>]);
                 fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+                    None
+                }
+            }
+        }
+    };
+
+    // Object array config variant (with object_array = true)
+    // Use this when the config value is always a JSON array.
+    // Handles the case where the OpenFeature provider encodes an empty array as an empty
+    // StructValue (which would otherwise be mistaken for an empty object).
+    (
+        superposition_key = $key:ident,
+        output = $output:ty,
+        default = $default:expr,
+        object_array = true,
+        requires = $requirement:ty,
+        targeting_key = $targeting_type:ty
+    ) => {
+        paste::paste! {
+            pub struct [<$key:camel>];
+
+            impl superposition::Config for [<$key:camel>] {
+                type Output = serde_json::Value;
+                type TargetingKey = $targeting_type;
+                const SUPERPOSITION_KEY: &'static str = superposition_consts::$key;
+                fn default_value() -> Self::Output {
+                    serde_json::to_value(&$default).expect("Failed to serialize default")
+                }
+            }
+
+            impl $requirement {
+                pub async fn [<get_ $key:lower>](
+                    &self,
+                    storage: &dyn StorageInterface,
+                    superposition_client: Option<&superposition::SuperpositionClient>,
+                    targeting_key: Option<&$targeting_type>,
+                ) -> $output {
+                    crate::core::configs::fetch_db_config_for_object_array::<[<$key:camel>], $output>(
+                        storage, superposition_client, self, targeting_key
+                    ).await
+                }
+            }
+
+            impl DatabaseBackedConfig for [<$key:camel>] {
+                const KEY: &'static str = stringify!([<$key:snake>]);
+                fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
                     None
                 }
             }
@@ -681,5 +730,96 @@ impl DatabaseBackedConfig for IncomingWebhookDisabledEvents {
                 .ok()
             })
             .map(|event| disabled_events.contains(&event))
+    }
+}
+
+config! {
+    superposition_key = ROUTING_DEFAULT_CONFIG,
+    output = Vec<routing_types::RoutableConnectorChoice>,
+    default = Vec::<routing_types::RoutableConnectorChoice>::new(),
+    object_array = true,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndTransactionType,
+    targeting_key = id_type::MerchantId
+}
+
+writable_config! {
+    superposition_key = ROUTING_DEFAULT_CONFIG,
+    input = serde_json::Value,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndTransactionType
+}
+
+config! {
+    superposition_key = STEP_UP_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for StepUpEnabled {
+    const KEY: &'static str = "step_up_enabled";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("step_up_enabled_{}", id.get_string_repr()))
+    }
+}
+
+config! {
+    superposition_key = AUTHENTICATION_SERVICE_ELIGIBLE,
+    output = bool,
+    default = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndOrgId,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for AuthenticationServiceEligible {
+    const KEY: &'static str = "authentication_service_eligible";
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_organization_id()
+            .map(|id| format!("authentication_service_eligible_{}", id.get_string_repr()))
+    }
+}
+
+config! {
+    superposition_key = PRE_ROUTING_DISABLED_PM_PMT,
+    output = MerchantPreRoutingConfig,
+    default = MerchantPreRoutingConfig::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantId,
+    targeting_key = id_type::CustomerId
+}
+
+config! {
+    superposition_key = BLOCKLIST_GUARD,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for BlocklistGuard {
+    const KEY: &'static str = "blocklist_guard";
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("guard_blocklist_for_{}", id.get_string_repr()))
+    }
+}
+
+config! {
+    superposition_key = UCS_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::EmptyDimensions,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for UcsEnabled {
+    const KEY: &'static str = "ucs_enabled";
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        Some("ucs_enabled".to_string())
     }
 }

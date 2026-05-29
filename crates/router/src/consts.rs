@@ -359,6 +359,8 @@ pub mod superposition {
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
     /// Fingerprint secret configuration key
     pub const FINGERPRINT_SECRET: &str = "fingerprint_secret";
+    /// Routing default config key
+    pub const ROUTING_DEFAULT_CONFIG: &str = "routing_default_config";
     /// Poll config for external 3DS authentication key
     pub const POLL_CONFIG_EXTERNAL_THREE_DS: &str = "poll_config_external_three_ds";
     /// Outgoing webhook retry process tracker mapping key
@@ -415,6 +417,16 @@ pub mod superposition {
     pub const THREEDS_ROUTING_REGION_UAS: &str = "threeds_routing_region_uas";
     /// disabled webhook events configuration key per merchant and connector
     pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "incoming_webhook_disabled_events";
+    /// Step-up authentication enabled configuration key per merchant and connector
+    pub const STEP_UP_ENABLED: &str = "step_up_enabled";
+    /// Pre-routing disabled payment methods config key
+    pub const PRE_ROUTING_DISABLED_PM_PMT: &str = "pre_routing_disabled_pm_pmt";
+    /// Merchant eligible for authentication service config key
+    pub const AUTHENTICATION_SERVICE_ELIGIBLE: &str = "authentication_service_eligible";
+    /// Blocklist guard enabled configuration key
+    pub const BLOCKLIST_GUARD: &str = "blocklist_guard";
+    /// UCS enabled configuration key
+    pub const UCS_ENABLED: &str = "ucs_enabled";
 }
 
 #[cfg(test)]
