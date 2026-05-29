@@ -57,6 +57,7 @@ use hyperswitch_domain_models::payouts::{
 use hyperswitch_domain_models::{
     card_issuer::CardIssuersInterface,
     cards_info::CardsInfoInterface,
+    authentication::AuthenticationInterface,
     master_key::MasterKeyInterface,
     payment_methods::PaymentMethodInterface,
     payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
@@ -143,7 +144,7 @@ pub trait StorageInterface:
     + health_check::HealthCheckDbInterface
     + user_authentication_method::UserAuthenticationMethodInterface
     + hyperswitch_ai_interaction::HyperswitchAiInteractionInterface
-    + authentication::AuthenticationInterface
+    + AuthenticationInterface<Error = StorageError>
     + generic_link::GenericLinkInterface
     + relay::RelayInterface
     + user::theme::ThemeInterface

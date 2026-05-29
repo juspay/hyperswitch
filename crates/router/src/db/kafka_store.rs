@@ -24,6 +24,7 @@ use hyperswitch_domain_models::payouts::{
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::platform::Initiator;
 use hyperswitch_domain_models::{
+    authentication::AuthenticationInterface,
     cards_info::CardsInfoInterface,
     disputes,
     invoice::{Invoice as DomainInvoice, InvoiceInterface, InvoiceUpdate as DomainInvoiceUpdate},
@@ -66,7 +67,6 @@ use crate::{
         self,
         address::AddressInterface,
         api_keys::ApiKeyInterface,
-        authentication::AuthenticationInterface,
         authorization::AuthorizationInterface,
         business_profile::ProfileInterface,
         callback_mapper::CallbackMapperInterface,
@@ -4082,13 +4082,15 @@ impl AuthorizationInterface for KafkaStore {
 
 #[async_trait::async_trait]
 impl AuthenticationInterface for KafkaStore {
+    type Error = errors::StorageError;
+
     async fn insert_authentication(
         &self,
         state: &KeyManagerState,
         key_store: &domain::MerchantKeyStore,
         authentication: hyperswitch_domain_models::authentication::Authentication,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
+    ) -> error_stack::Result<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
     {
         let auth = self
             .diesel_store
@@ -4113,7 +4115,7 @@ impl AuthenticationInterface for KafkaStore {
         key_store: &domain::MerchantKeyStore,
         state: &KeyManagerState,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
+    ) -> error_stack::Result<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
     {
         self.diesel_store
             .find_authentication_by_merchant_id_authentication_id(
@@ -4133,7 +4135,7 @@ impl AuthenticationInterface for KafkaStore {
         key_store: &domain::MerchantKeyStore,
         state: &KeyManagerState,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
+    ) -> error_stack::Result<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
     {
         self.diesel_store
             .find_authentication_by_merchant_id_connector_authentication_id(
@@ -4153,7 +4155,7 @@ impl AuthenticationInterface for KafkaStore {
         key_store: &domain::MerchantKeyStore,
         state: &KeyManagerState,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
+    ) -> error_stack::Result<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
     {
         let auth = self
             .diesel_store

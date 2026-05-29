@@ -186,7 +186,7 @@ impl DBOperation {
                     Customer::update_by_id(conn, cust.orig.id, cust.update_data).await?,
                 )),
                 Updateable::AuthenticationUpdate(a) => DBResult::Authentication(Box::new(
-                    Authentication::update_by_merchant_id_authentication_id_internal(
+                    Authentication::update_by_merchant_id_authentication_id(
                         conn,
                         &a.orig.merchant_id,
                         &a.orig.authentication_id,
