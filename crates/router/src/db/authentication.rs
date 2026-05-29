@@ -1,15 +1,10 @@
-use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
+use common_utils::types::keymanager::KeyManagerState;
 use diesel_models::enums::MerchantStorageScheme;
-use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{
-    behaviour::{Conversion, ReverseConversion},
-    merchant_key_store::MerchantKeyStore,
-};
-use router_env::{instrument, tracing};
+use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 use storage_impl::StorageError;
 
-use super::{MockDb, Store};
-use crate::{connection, core::errors::CustomResult, types::storage};
+use super::MockDb;
+use crate::core::errors::CustomResult;
 
 #[async_trait::async_trait]
 pub trait AuthenticationInterface {
