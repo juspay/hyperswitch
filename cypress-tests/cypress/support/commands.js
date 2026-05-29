@@ -2080,10 +2080,9 @@ Cypress.Commands.add(
         expect(response.body.customer_id).to.equal(customer_id);
 
         for (const [field, expectedValue] of Object.entries(expectedFields)) {
-          expect(
-            response.body[field],
-            `customer.${field}`
-          ).to.equal(expectedValue);
+          expect(response.body[field], `customer.${field}`).to.equal(
+            expectedValue
+          );
         }
       });
     });
