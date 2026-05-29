@@ -1762,7 +1762,10 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: {
-            ...successfulNo3DSCardDetails,
+            card_number: "370000000000002",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "John Doe",
             card_cvc: "7373",
           },
         },
@@ -1784,7 +1787,10 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: {
-            ...successfulNo3DSCardDetails,
+            card_number: "370000000000002",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "John Doe",
             card_cvc: "7373",
           },
         },
