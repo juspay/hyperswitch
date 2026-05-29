@@ -3781,7 +3781,15 @@ where
                 || next_action_containing_fetch_qr_code_url.is_some()
                 || payment_data.get_authentication().is_some()
             {
-                next_action_response = payment_attempt.authentication_data.as_ref().map(|_| {
+                next_action_response = next_action_invoke_ddc_iframe.map(|ddc_iframe_data| {
+                                api_models::payments::NextActionData::InvokeDdc {
+                                    ddc_data: api_models::payments::DDCData {
+                                        iframe_url: ddc_iframe_data.iframe_url,
+                                        timeout_ms: ddc_iframe_data.timeout_ms,
+                                    }
+                                }
+                            }).or(
+                                payment_attempt.authentication_data.as_ref().map(|_| {
                                 // Check if iframe redirection is enabled in the business profile
                                 let redirect_url = helpers::create_startpay_url(
                                     base_url,
@@ -3799,7 +3807,7 @@ where
                                         redirect_to_url: redirect_url,
                                     }
                                 }
-                            })
+                            }))
                             .or(bank_transfer_next_steps
                             .map(|bank_transfer| {
                                 api_models::payments::NextActionData::DisplayBankTransferInformation {
@@ -3835,14 +3843,6 @@ where
                                     display_from_timestamp: wait_screen_data.display_from_timestamp,
                                     display_to_timestamp: wait_screen_data.display_to_timestamp,
                                     poll_config: wait_screen_data.poll_config,
-                                }
-                            }))
-                            .or(next_action_invoke_ddc_iframe.map(|ddc_iframe_data| {
-                                api_models::payments::NextActionData::InvokeDdc {
-                                    ddc_data: api_models::payments::DDCData {
-                                        iframe_url: ddc_iframe_data.iframe_url,
-                                        timeout_ms: ddc_iframe_data.timeout_ms,
-                                    }
                                 }
                             }))
                             .or(match payment_data.get_authentication(){
