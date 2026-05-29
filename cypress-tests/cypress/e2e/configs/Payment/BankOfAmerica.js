@@ -828,6 +828,25 @@ export const connectorDetails = {
         },
       },
     },
+    ImplicitCustomerUpdatePartial: {
+      Request: {
+        currency: "USD",
+        email: "partial@example.com",
+        name: "Partial Name",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     PaymentIntentWithFeatureMetadata: {
       Request: {
         currency: "USD",
