@@ -223,6 +223,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     let now = common_utils::date_time::now();
 
     for event_data in events_to_trigger {
+        let event_type = event_data.event_type.clone();
         let _ = insert_event_and_spawn_webhook_delivery(
             state.clone(),
             &platform,
@@ -241,7 +242,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
             logger::error!(
                 ?error,
                 "Failed to insert event and spawn webhook delivery for event type {}",
-                event_data.event_type
+                event_type
             );
         })?;
     }
@@ -649,7 +650,7 @@ async fn trigger_webhook_to_connector(
                     delivery_attempt,
                     ScheduleWebhookRetry::NoSchedule,
                 )
-                .await
+                .await?;
             }
             Ok(response) => {
                 let status_code = response.status_code.clone();
@@ -696,8 +697,6 @@ async fn trigger_webhook_to_connector(
                     )
                     .await?;
                 }
-
-                Ok(())
             }
         },
         enums::WebhookDeliveryAttempt::AutomaticRetry => {
@@ -716,8 +715,7 @@ async fn trigger_webhook_to_connector(
                         delivery_attempt,
                         ScheduleWebhookRetry::WithProcessTracker(Box::new(process_tracker)),
                     )
-                    .await;
-                    Ok(())
+                    .await?;
                 }
                 Ok(response) => {
                     let status_code = response.status_code;
@@ -755,7 +753,6 @@ async fn trigger_webhook_to_connector(
                         )
                         .await?;
                     }
-                    Ok(())
                 }
             }
         }
@@ -770,8 +767,7 @@ async fn trigger_webhook_to_connector(
                     delivery_attempt,
                     ScheduleWebhookRetry::NoSchedule,
                 )
-                .await;
-                Ok(())
+                .await?;
             }
             Ok(response) => {
                 let status_code = response.status_code;
@@ -783,10 +779,7 @@ async fn trigger_webhook_to_connector(
                 )
                 .await?;
 
-                if (200..300).contains(&status_code) {
-                    increment_webhook_outgoing_received_count(&business_profile.merchant_id);
-                    Ok(())
-                } else {
+                if !(200..300).contains(&status_code){
                     error_response_handler(
                         state,
                         &business_profile.merchant_id,
@@ -796,11 +789,12 @@ async fn trigger_webhook_to_connector(
                         ScheduleWebhookRetry::NoSchedule,
                     )
                     .await?;
-                    Ok(())
                 }
             }
-        },
+        }
     }
+
+    Ok(())
 }
 
 async fn mark_surcharge_sale_as_notified(

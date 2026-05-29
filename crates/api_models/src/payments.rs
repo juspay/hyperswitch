@@ -1924,7 +1924,6 @@ pub struct ResponseSurchargeDetails {
     pub surcharge_amount: MinorUnit,
     pub external_surcharge_id: String,
     pub payment_id: id_type::PaymentId,
-    /// A unique identifier for this specific payment attempt.
     #[smithy(value_type = "String")]
     pub attempt_id: String,
 }
