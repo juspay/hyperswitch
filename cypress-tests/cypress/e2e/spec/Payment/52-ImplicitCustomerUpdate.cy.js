@@ -33,19 +33,9 @@ describe("Card - Implicit Customer Update flow test", () => {
         });
 
         cy.step("Create+Confirm Payment with updated customer fields", () => {
-          const connectorId = globalState.get("connectorId");
-          const data =
-            getConnectorDetails(connectorId)["card_pm"][
-              "ImplicitCustomerUpdate"
-            ];
-
-          if (!data) {
-            cy.log(
-              `SKIP: ImplicitCustomerUpdate config not found for connector "${connectorId}"`
-            );
-            shouldContinue = false;
-            return;
-          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["ImplicitCustomerUpdate"];
 
           cy.createConfirmPaymentTest(
             JSON.parse(JSON.stringify(fixtures.createConfirmPaymentBody)),
@@ -92,19 +82,9 @@ describe("Card - Implicit Customer Update flow test", () => {
         });
 
         cy.step("Create+Confirm Payment with partial customer fields", () => {
-          const connectorId = globalState.get("connectorId");
-          const data =
-            getConnectorDetails(connectorId)["card_pm"][
-              "ImplicitCustomerUpdatePartial"
-            ];
-
-          if (!data) {
-            cy.log(
-              `SKIP: ImplicitCustomerUpdatePartial config not found for connector "${connectorId}"`
-            );
-            shouldContinue = false;
-            return;
-          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["ImplicitCustomerUpdatePartial"];
 
           cy.createConfirmPaymentTest(
             JSON.parse(JSON.stringify(fixtures.createConfirmPaymentBody)),
