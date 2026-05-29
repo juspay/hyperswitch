@@ -87,11 +87,7 @@ use crate::{
         },
         payments::{
             helpers,
-            routing::{
-                self,
-                utils::perform_pre_routing,
-                SessionFlowRoutingInput,
-            },
+            routing::{self, utils::perform_pre_routing, SessionFlowRoutingInput},
         },
         utils as core_utils,
     },
@@ -3656,10 +3652,8 @@ pub async fn build_merchant_enabled_pms_context(
             )
             .await;
 
-        let mut skip_pre_routing: HashMap<
-            enums::PaymentMethod,
-            HashSet<enums::PaymentMethodType>,
-        > = HashMap::new();
+        let mut skip_pre_routing: HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>> =
+            HashMap::new();
         for rule in pre_routing_config.skip_rules.iter() {
             skip_pre_routing
                 .entry(rule.payment_method)

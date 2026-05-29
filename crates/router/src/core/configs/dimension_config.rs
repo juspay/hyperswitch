@@ -766,7 +766,6 @@ impl DatabaseBackedConfig for StepUpEnabled {
     }
 }
 
-
 config! {
     superposition_key = PRE_ROUTING_DISABLED_PM_PMT,
     output = MerchantPreRoutingConfig,
