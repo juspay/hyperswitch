@@ -33,12 +33,21 @@ describe("Card - Implicit Customer Update flow test", () => {
         });
 
         cy.step("Create+Confirm Payment with updated customer fields", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["ImplicitCustomerUpdate"];
+          const connectorId = globalState.get("connectorId");
+          const data = getConnectorDetails(connectorId)["card_pm"][
+            "ImplicitCustomerUpdate"
+          ];
+
+          const body = JSON.parse(
+            JSON.stringify(fixtures.createConfirmPaymentBody)
+          );
+
+          if (connectorId === "adyen") {
+            body.payment_method_data.card.card_cvc = "7373";
+          }
 
           cy.createConfirmPaymentTest(
-            JSON.parse(JSON.stringify(fixtures.createConfirmPaymentBody)),
+            body,
             data,
             "no_three_ds",
             "automatic",
@@ -82,12 +91,21 @@ describe("Card - Implicit Customer Update flow test", () => {
         });
 
         cy.step("Create+Confirm Payment with partial customer fields", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["ImplicitCustomerUpdatePartial"];
+          const connectorId = globalState.get("connectorId");
+          const data = getConnectorDetails(connectorId)["card_pm"][
+            "ImplicitCustomerUpdatePartial"
+          ];
+
+          const body = JSON.parse(
+            JSON.stringify(fixtures.createConfirmPaymentBody)
+          );
+
+          if (connectorId === "adyen") {
+            body.payment_method_data.card.card_cvc = "7373";
+          }
 
           cy.createConfirmPaymentTest(
-            JSON.parse(JSON.stringify(fixtures.createConfirmPaymentBody)),
+            body,
             data,
             "no_three_ds",
             "automatic",
