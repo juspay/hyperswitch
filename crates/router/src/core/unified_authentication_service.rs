@@ -694,6 +694,7 @@ pub async fn create_new_authentication(
             &key_manager_state,
             processor.get_key_store(),
             new_authentication,
+            processor.get_account().storage_scheme,
         )
         .await
         .to_duplicate_response(ApiErrorResponse::GenericDuplicateError {
@@ -1052,6 +1053,7 @@ pub async fn authentication_eligibility_core(
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
+            merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
@@ -1210,6 +1212,7 @@ pub async fn authentication_eligibility_core(
                 },
                 platform.get_processor().get_key_store(),
                 key_manager_state_ref,
+                merchant_account.storage_scheme,
             )
             .await
             .change_context(ApiErrorResponse::InternalServerError)
@@ -1314,6 +1317,7 @@ pub async fn authentication_eligibility_core(
         None,
         merchant_category_code,
         merchant_country_code.clone(),
+        merchant_account.storage_scheme,
     ))
     .await?;
 
@@ -1355,6 +1359,7 @@ pub async fn authentication_authenticate_core(
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
+            merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
@@ -1463,6 +1468,7 @@ pub async fn authentication_authenticate_core(
             .and_then(|sdk_information| sdk_information.device_details),
         None,
         None,
+        merchant_account.storage_scheme,
     ))
     .await?;
 
@@ -1687,6 +1693,7 @@ pub async fn authentication_eligibility_check_core(
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
+            merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
@@ -1971,6 +1978,7 @@ async fn execute_post_authentication_flow(
         None,
         None,
         None,
+        merchant_account.storage_scheme,
     )
     .await?;
 
@@ -2066,6 +2074,7 @@ pub async fn authentication_sync_core(
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
+            merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
@@ -2381,6 +2390,7 @@ pub async fn authentication_post_sync_core(
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
+            merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
@@ -2437,6 +2447,7 @@ pub async fn authentication_post_sync_core(
         None,
         None,
         None,
+        merchant_account.storage_scheme,
     )
     .await?;
 
@@ -2505,6 +2516,7 @@ pub async fn authentication_session_core(
             &authentication_id,
             platform.get_processor().get_key_store(),
             &key_manager_state,
+            merchant_account.storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {

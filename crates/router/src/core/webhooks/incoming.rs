@@ -1883,6 +1883,7 @@ async fn external_authentication_incoming_webhook_flow(
                             &authentication_id,
                             platform.get_processor().get_key_store(),
                             &key_manager_state,
+                            platform.get_processor().get_account().storage_scheme,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
@@ -1898,6 +1899,7 @@ async fn external_authentication_incoming_webhook_flow(
                             connector_authentication_id.clone(),
                             platform.get_processor().get_key_store(),
                             &key_manager_state,
+                            platform.get_processor().get_account().storage_scheme,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
@@ -1917,6 +1919,7 @@ async fn external_authentication_incoming_webhook_flow(
                 authentication_update,
                 platform.get_processor().get_key_store(),
                 &key_manager_state,
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

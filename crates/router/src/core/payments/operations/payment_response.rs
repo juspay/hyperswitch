@@ -2802,6 +2802,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     authentication_update,
                     processor.get_key_store(),
                     &key_manager_state,
+                    processor.get_account().storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;

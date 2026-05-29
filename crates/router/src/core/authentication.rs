@@ -47,6 +47,7 @@ pub async fn perform_authentication(
     payment_id: common_utils::id_type::PaymentId,
     force_3ds_challenge: bool,
     merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+    storage_scheme: diesel_models::enums::MerchantStorageScheme,
 ) -> CustomResult<api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let router_data = transformers::construct_authentication_router_data(
         state,
@@ -98,6 +99,7 @@ pub async fn perform_authentication(
         None,
         merchant_key_store,
         authentication_info,
+        storage_scheme,
     ))
     .await?;
     response
@@ -138,6 +140,7 @@ pub async fn perform_post_authentication(
             &authentication_id,
             processor.get_key_store(),
             key_state,
+            processor.get_account().storage_scheme,
         )
         .await
         .to_not_found_response(ApiErrorResponse::InternalServerError)
@@ -185,6 +188,7 @@ pub async fn perform_post_authentication(
             None,
             processor.get_key_store(),
             authentication_info,
+            processor.get_account().storage_scheme,
         )
         .await?
     } else {
@@ -289,6 +293,7 @@ pub async fn perform_pre_authentication(
             acquirer_details.clone(),
             processor.get_key_store(),
             authentication_info,
+            processor.get_account().storage_scheme,
         ))
         .await?;
         // from version call response, we will get to know the maximum supported 3ds version.
@@ -338,6 +343,7 @@ pub async fn perform_pre_authentication(
         acquirer_details,
         processor.get_key_store(),
         authentication_info,
+        processor.get_account().storage_scheme,
     ))
     .await?;
 

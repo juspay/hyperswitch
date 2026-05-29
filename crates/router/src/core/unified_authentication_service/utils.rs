@@ -171,6 +171,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
     device_details: Option<api_models::payments::DeviceDetails>,
     merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
+    storage_scheme: diesel_models::enums::MerchantStorageScheme,
 ) -> RouterResult<hyperswitch_domain_models::authentication::Authentication> {
     let key_state = state.into();
     let authentication_update = match router_data.response {
@@ -444,6 +445,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
             authentication_update,
             merchant_key_store,
             &key_state,
+            storage_scheme,
         )
         .await
         .change_context(ApiErrorResponse::InternalServerError)

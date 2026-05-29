@@ -63,6 +63,7 @@ pub async fn update_trackers<F: Clone, Req>(
     acquirer_details: Option<super::types::AcquirerDetails>,
     merchant_key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
     authentication_info: router_request_types::authentication::AuthenticationInfo,
+    storage_scheme: diesel_models::enums::MerchantStorageScheme,
 ) -> RouterResult<authentication::Authentication> {
     let key_manager_state = state.into();
     let authentication_update = match router_data.response {
@@ -344,6 +345,7 @@ pub async fn update_trackers<F: Clone, Req>(
             authentication_update,
             merchant_key_store,
             &key_manager_state,
+            storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -472,6 +474,7 @@ pub async fn create_new_authentication(
             &key_manager_state,
             processor.get_key_store(),
             new_authentication,
+            processor.get_account().storage_scheme,
         )
         .await
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
