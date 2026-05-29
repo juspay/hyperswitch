@@ -457,7 +457,10 @@ impl
                     .clone(),
             ),
             eci: apple_pay_data.payment_data.eci_indicator.clone(),
-            payment_brand: PaymentBrand::ApplePayTkn,
+            payment_brand: get_aci_wallet_payment_brand(
+                &apple_pay_wallet_data.payment_method.network,
+                PaymentBrand::ApplePayTkn,
+            ),
             apple_pay_source: Some(detect_wallet_source(browser_info)),
             google_pay_source: None,
         };
@@ -522,7 +525,10 @@ impl
             })?,
             token_cryptogram: google_pay_data.cryptogram.clone(),
             eci: google_pay_data.eci_indicator.clone(),
-            payment_brand: PaymentBrand::GooglePayTkn,
+            payment_brand: get_aci_wallet_payment_brand(
+                &google_pay_wallet_data.info.card_network,
+                PaymentBrand::GooglePayTkn,
+            ),
             apple_pay_source: None,
             google_pay_source: Some(detect_wallet_source(browser_info)),
         };
@@ -718,6 +724,27 @@ fn get_aci_payment_brand(
                 .into())
             }
         }
+    }
+}
+
+/// Map the card-network string carried in the Apple Pay / Google Pay wallet data
+/// (e.g. "visa", "masterCard", "AMEX") to ACI's `PaymentBrand`.
+///
+/// When Hyperswitch decrypts the wallet token itself, ACI expects the underlying
+/// card network as the `paymentBrand` on the `tokenAccount.*` path rather than the
+/// generic `APPLEPAYTKN` / `GOOGLEPAYTKN` brand. Falls back to `fallback` when the
+/// network string can't be mapped.
+fn get_aci_wallet_payment_brand(network: &str, fallback: PaymentBrand) -> PaymentBrand {
+    match network.to_lowercase().as_str() {
+        "visa" => PaymentBrand::Visa,
+        "mastercard" | "master" => PaymentBrand::Mastercard,
+        "amex" | "americanexpress" => PaymentBrand::AmericanExpress,
+        "jcb" => PaymentBrand::Jcb,
+        "diners" | "dinersclub" => PaymentBrand::DinersClub,
+        "discover" => PaymentBrand::Discover,
+        "unionpay" | "chinaunionpay" => PaymentBrand::UnionPay,
+        "maestro" => PaymentBrand::Maestro,
+        _ => fallback,
     }
 }
 
