@@ -52,10 +52,7 @@ describe("Card - Implicit Customer Update flow test", () => {
 
         cy.step("Verify Customer Record Updated", () => {
           if (!shouldContinue) {
-            cy.task(
-              "cli_log",
-              "Skipping step: Verify Customer Record Updated"
-            );
+            cy.task("cli_log", "Skipping step: Verify Customer Record Updated");
             return;
           }
 
