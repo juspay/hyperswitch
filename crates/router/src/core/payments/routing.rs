@@ -1260,6 +1260,11 @@ where
                 .first()
                 .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
 
+            routing_data.routed_through =
+                Some(first_connector.connector_data.connector_name.to_string());
+            routing_data.merchant_connector_id =
+                first_connector.connector_data.merchant_connector_id.clone();
+
             #[cfg(feature = "retry")]
             {
                 let should_do_retry = crate::core::payments::retry::config_should_call_gsm(
@@ -1300,17 +1305,6 @@ where
             }
 
             if connector_call_type.is_none() {
-                routing_data.routed_through = Some(
-                    first_connector
-                        .connector_data
-                        .connector_name
-                        .to_string()
-                        .clone(),
-                );
-
-                routing_data.merchant_connector_id =
-                    first_connector.connector_data.merchant_connector_id.clone();
-
                 crate::core::payments::helpers::override_setup_future_usage_to_on_session(
                     &*state.store,
                     payment_data,
