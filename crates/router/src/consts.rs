@@ -419,6 +419,8 @@ pub mod superposition {
     pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "incoming_webhook_disabled_events";
     /// Step-up authentication enabled configuration key per merchant and connector
     pub const STEP_UP_ENABLED: &str = "step_up_enabled";
+    /// Pre-routing disabled payment methods config key
+    pub const PRE_ROUTING_DISABLED_PM_PMT: &str = "pre_routing_disabled_pm_pmt";
 }
 
 #[cfg(test)]

@@ -7,7 +7,10 @@ use external_services::superposition;
 use scheduler::consumer::types::process_data::RetryMapping;
 
 use super::{dimension_state, fetch_db_config_for_dimensions, ConfigContext, DatabaseBackedConfig};
-use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
+use crate::{
+    consts::superposition as superposition_consts,
+    core::payments::routing::utils::MerchantPreRoutingConfig, db::StorageInterface, utils::id_type,
+};
 /// This adds `WritableConfig` trait implementation and `set_<key>()` method.
 ///
 /// # Usage
@@ -761,4 +764,14 @@ impl DatabaseBackedConfig for StepUpEnabled {
             .get_processor_merchant_id()
             .map(|id| format!("step_up_enabled_{}", id.get_string_repr()))
     }
+}
+
+
+config! {
+    superposition_key = PRE_ROUTING_DISABLED_PM_PMT,
+    output = MerchantPreRoutingConfig,
+    default = MerchantPreRoutingConfig::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantId,
+    targeting_key = id_type::CustomerId
 }
