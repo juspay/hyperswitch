@@ -1185,6 +1185,7 @@ enabled = true                      # Switch to enable or disable PayPal onboard
 
 [events]
 source = "logs" # The event sink to push events supports kafka or logs (stdout)
+emit_external_service_call_events = false # Enable external service call event emission
 
 [events.kafka]
 brokers = []                             # Kafka broker urls for bootstrapping the client
@@ -1202,6 +1203,7 @@ consolidated_events_topic = "topic"      # Kafka topic to be used for Consolidat
 authentication_analytics_topic = "topic" # Kafka topic to be used for Authentication events
 routing_logs_topic = "topic"             # Kafka topic to be used for Routing events
 revenue_recovery_topic = "topic"         # Kafka topic to be used for revenue recovery events
+external_service_call_topic = "topic"   # Kafka topic to be used for external service call events
 
 # File storage configuration
 [file_storage]
@@ -1297,6 +1299,7 @@ delete_token_url= ""          # base url to delete token from token service
 check_token_status_url= ""    # base url to check token status from token service
 webhook_source_verification_key= "" # webhook source verification key to verify the webhook payload from token service
 check_tokenize_eligibility_url="" # base url to check tokenization eligibility from token service
+fetch_altid_url= ""           # base url to fetch Alt-ID and cryptogram for guest checkout tokenization
 
 [network_tokenization_supported_connectors]
 connector_list = "adyen,cybersource,peachpayments,trustpay" # Supported connectors for network tokenization
