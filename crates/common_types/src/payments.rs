@@ -343,7 +343,6 @@ pub type DecisionManagerResponse = DecisionManagerRecord;
     SmithyModel,
 )]
 #[diesel(sql_type = Jsonb)]
-#[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct StripeChargeResponseData {
     /// Identifier for charge created for the payment
