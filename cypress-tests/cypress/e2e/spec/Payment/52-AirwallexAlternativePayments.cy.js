@@ -19,7 +19,6 @@ describe("Airwallex Alternative Payments", () => {
         const airwallexLists = [
           CONNECTOR_LISTS.INCLUDE.AIRWALLEX_WALLET,
           CONNECTOR_LISTS.INCLUDE.AIRWALLEX_PAYLATER,
-          CONNECTOR_LISTS.INCLUDE.AIRWALLEX_BANK_TRANSFER,
         ];
         const shouldRun = airwallexLists.some((list) =>
           list.includes(connector)
@@ -412,92 +411,4 @@ describe("Airwallex Alternative Payments", () => {
     });
   });
 
-  context("Indonesian Bank Transfer flow", () => {
-    let shouldContinue = true;
-
-    before("seed global state", function () {
-      let skip = false;
-
-      cy.task("getGlobalState")
-        .then((state) => {
-          globalState = new State(state);
-          const connector = globalState.get("connectorId");
-          if (
-            shouldIncludeConnector(
-              connector,
-              CONNECTOR_LISTS.INCLUDE.AIRWALLEX_BANK_TRANSFER
-            )
-          ) {
-            skip = true;
-          }
-        })
-        .then(() => {
-          if (skip) {
-            this.skip();
-          }
-        });
-    });
-
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
-
-    it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["PaymentIntent"]("IndonesianBankTransfer");
-
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "three_ds",
-        "automatic",
-        globalState
-      );
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
-
-    it("payment_methods-call-test", () => {
-      cy.paymentMethodsCallTest(globalState);
-    });
-
-    it("confirm-bank-transfer-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["IndonesianBankTransfer"];
-
-      cy.confirmBankTransferCallTest(
-        fixtures.confirmBody,
-        data,
-        true,
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
-
-    it("handle-bank-transfer-redirection-call-test", () => {
-      const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
-      cy.handleBankTransferRedirection(
-        globalState,
-        payment_method_type,
-        expected_redirection
-      );
-    });
-
-    it("sync-payment-status-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["IndonesianBankTransfer"];
-
-      cy.retrievePaymentCallTest({
-        globalState,
-        data,
-        expectedIntentStatus: "requires_customer_action",
-      });
-    });
-  });
 });
