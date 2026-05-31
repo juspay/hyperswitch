@@ -1,9 +1,4 @@
-use std::collections::HashMap;
-
 use common_utils::events::{ApiEventMetric, ApiEventsType};
-use hyperswitch_masking::Secret;
-use serde_json::Map;
-use superposition_types::api::context::PutRequest as ContextPutRequest;
 
 /// Context entry returned by Superposition list/create endpoints.
 #[derive(Debug, Clone, serde::Serialize)]
@@ -150,117 +145,20 @@ impl<T> ApiEventMetric for PaginatedListResponse<T> {
     }
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct ListContextsRequest {
-    pub org_id: Secret<String>,
-    pub workspace_id: Secret<String>,
-    pub count: Option<i32>,
-    pub page: Option<i32>,
-    pub all: Option<bool>,
-    pub prefix: Option<Vec<String>>,
-    pub sort_on: Option<String>,
-    pub sort_by: Option<String>,
-    pub created_by: Option<Vec<String>>,
-    pub last_modified_by: Option<Vec<String>>,
-    pub plaintext: Option<String>,
-    pub dimension_params: HashMap<String, String>,
-    pub dimension_match_strategy: Option<String>,
-}
-
-impl ApiEventMetric for ListContextsRequest {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::Miscellaneous)
-    }
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct ListDefaultConfigsRequest {
-    pub org_id: Secret<String>,
-    pub workspace_id: Secret<String>,
-    pub count: Option<i32>,
-    pub page: Option<i32>,
-    pub all: Option<bool>,
-    pub name: Option<String>,
-}
-
-impl ApiEventMetric for ListDefaultConfigsRequest {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::Miscellaneous)
-    }
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct ListDimensionsRequest {
-    pub org_id: Secret<String>,
-    pub workspace_id: Secret<String>,
-    pub count: Option<i32>,
-    pub page: Option<i32>,
-    pub all: Option<bool>,
-}
-
-impl ApiEventMetric for ListDimensionsRequest {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::Miscellaneous)
-    }
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct ListAuditLogsRequest {
-    pub org_id: Secret<String>,
-    pub workspace_id: Secret<String>,
-    pub count: Option<i32>,
-    pub page: Option<i32>,
-    pub all: Option<bool>,
-    pub from_date: Option<String>,
-    pub to_date: Option<String>,
-    pub table: Option<Vec<String>>,
-    pub action: Option<Vec<String>>,
-    pub username: Option<String>,
-    pub sort_by: Option<String>,
-    pub dimension_params: HashMap<String, String>,
-}
-
-impl ApiEventMetric for ListAuditLogsRequest {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::Miscellaneous)
-    }
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct ProxyCreateContextRequest {
-    pub body: ContextPutRequest,
-    pub org_id: Secret<String>,
-    pub workspace_id: Secret<String>,
-}
-
-impl std::fmt::Debug for ProxyCreateContextRequest {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ProxyCreateContextRequest")
-            .field("org_id", &self.org_id)
-            .field("workspace_id", &self.workspace_id)
-            .finish()
-    }
-}
-
-impl ApiEventMetric for ProxyCreateContextRequest {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::Miscellaneous)
-    }
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct ResolveConfigBody {
-    pub context: Map<String, serde_json::Value>,
-}
-
+/// Resolved configuration returned by the Superposition resolve endpoint.
 #[derive(Debug, serde::Serialize)]
-pub struct ProxyResolveConfigRequest {
-    pub body: ResolveConfigBody,
-    pub org_id: Secret<String>,
-    pub workspace_id: Secret<String>,
+pub struct ResolveConfigResponse {
+    /// The resolved configuration values.
+    pub config: serde_json::Value,
+    /// Version of the configuration that was resolved.
+    pub version: String,
+    /// Last modification timestamp (RFC3339).
+    pub last_modified: String,
+    /// Identifier of the audit log entry for this resolution, if any.
+    pub audit_id: Option<String>,
 }
 
-impl ApiEventMetric for ProxyResolveConfigRequest {
+impl ApiEventMetric for ResolveConfigResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Miscellaneous)
     }

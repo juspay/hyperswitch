@@ -109,7 +109,7 @@ generate_permissions! {
         },
         SuperpositionConfig: {
             scopes: [Read, Write],
-            entities: [Profile, Merchant, Organization, Tenant]
+            entities: [Merchant]
         },
     ]
 }

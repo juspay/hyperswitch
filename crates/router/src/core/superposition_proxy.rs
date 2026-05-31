@@ -1,16 +1,14 @@
 pub use api_models::superposition_proxy::{
     AuditLogResponse, ContextResponse, DefaultConfigResponse, DimensionResponse,
-    ListAuditLogsRequest, ListContextsRequest, ListDefaultConfigsRequest, ListDimensionsRequest,
-    PaginatedListResponse, ProxyCreateContextRequest, ProxyResolveConfigRequest, ResolveConfigBody,
+    PaginatedListResponse, ResolveConfigResponse,
 };
 use external_services::superposition::{
-    audit_log_full_to_struct, context_put_from_request, context_response_to_struct,
-    create_context_output_to_struct, datetime_to_string, default_config_response_to_struct,
-    dimension_response_to_struct, document_to_value, map_sdk_error, parse_datetime,
-    value_to_document, AuditAction, ContextFilterSortOn, DimensionMatchStrategy, SortBy,
-    SuperpositionError,
+    audit_log_full_to_struct, context_response_to_struct, create_context_output_to_struct,
+    datetime_to_string, default_config_response_to_struct, dimension_response_to_struct,
+    doc_map_to_json, document_to_value, map_sdk_error, CreateContextInputBuilder,
+    GetResolvedConfigInputBuilder, ListAuditLogsInputBuilder, ListContextsInputBuilder,
+    ListDefaultConfigsInputBuilder, ListDimensionsInputBuilder, SuperpositionError,
 };
-use hyperswitch_masking::ExposeInterface;
 use router_env::logger;
 
 use crate::{
@@ -167,7 +165,7 @@ fn map_superposition_err(
 pub async fn list_contexts(
     state: SessionState,
     auth: UserFromToken,
-    req: ListContextsRequest,
+    input: ListContextsInputBuilder,
 ) -> RouterResponse<PaginatedListResponse<ContextResponse>> {
     logger::info!(
         user_id = %auth.user_id,
@@ -177,10 +175,10 @@ pub async fn list_contexts(
         "superposition list_contexts request"
     );
 
-    let dimension_params_vec: Vec<(String, String)> = req
-        .dimension_params
+    let dimension_params_vec: Vec<(String, String)> = input
+        .get_dimension_params()
         .iter()
-        .map(|(k, v)| (k.clone(), v.clone()))
+        .flat_map(|map| map.iter().map(|(k, v)| (k.clone(), v.clone())))
         .collect();
 
     if let Err(validation_error) = require_superposition_context(&dimension_params_vec) {
@@ -202,30 +200,8 @@ pub async fn list_contexts(
         return Err(validation_error);
     }
 
-    let list_contexts_output = state
-        .superposition_service
-        .superposition_sdk_client()
-        .list_contexts()
-        .workspace_id(req.workspace_id.expose())
-        .org_id(req.org_id.expose())
-        .set_dimension_match_strategy(
-            req.dimension_match_strategy
-                .as_deref()
-                .map(DimensionMatchStrategy::from),
-        )
-        .set_dimension_params(
-            (!req.dimension_params.is_empty()).then_some(req.dimension_params),
-        )
-        .set_count(req.count)
-        .set_page(req.page)
-        .set_all(req.all)
-        .set_prefix(req.prefix)
-        .set_sort_on(req.sort_on.as_deref().map(ContextFilterSortOn::from))
-        .set_sort_by(req.sort_by.as_deref().map(SortBy::from))
-        .set_created_by(req.created_by)
-        .set_last_modified_by(req.last_modified_by)
-        .set_plaintext(req.plaintext)
-        .send()
+    let list_contexts_output = input
+        .send_with(state.superposition_service.superposition_sdk_client())
         .await
         .map_err(|sdk_error| {
             logger::error!(error = ?sdk_error, "superposition list_contexts upstream request failed");
@@ -278,7 +254,7 @@ pub async fn list_contexts(
 pub async fn list_default_configs(
     state: SessionState,
     auth: UserFromToken,
-    req: ListDefaultConfigsRequest,
+    input: ListDefaultConfigsInputBuilder,
 ) -> RouterResponse<PaginatedListResponse<DefaultConfigResponse>> {
     logger::info!(
         user_id = %auth.user_id,
@@ -296,19 +272,16 @@ pub async fn list_default_configs(
         .default_configs_allowlist
         .clone();
     let allowlist_active = !allowlist.is_empty();
-    let fetch_all = allowlist_active || req.all.unwrap_or(false);
+    // When an allowlist is active we must fetch every config (ignoring paging)
+    // so the allowlist filter below sees the full set.
+    let fetch_all = allowlist_active || matches!(input.get_all(), Some(true));
+    let mut input = input.set_all(Some(fetch_all));
+    if fetch_all {
+        input = input.set_count(None).set_page(None);
+    }
 
-    let list_default_configs_output = state
-        .superposition_service
-        .superposition_sdk_client()
-        .list_default_configs()
-        .workspace_id(req.workspace_id.expose())
-        .org_id(req.org_id.expose())
-        .set_count(if fetch_all { None } else { req.count })
-        .set_page(if fetch_all { None } else { req.page })
-        .set_all(Some(fetch_all))
-        .set_name(req.name)
-        .send()
+    let list_default_configs_output = input
+        .send_with(state.superposition_service.superposition_sdk_client())
         .await
         .map_err(|sdk_error| {
             logger::error!(
@@ -344,7 +317,7 @@ pub async fn list_default_configs(
 pub async fn list_dimensions(
     state: SessionState,
     auth: UserFromToken,
-    req: ListDimensionsRequest,
+    input: ListDimensionsInputBuilder,
 ) -> RouterResponse<PaginatedListResponse<DimensionResponse>> {
     logger::info!(
         user_id = %auth.user_id,
@@ -354,16 +327,8 @@ pub async fn list_dimensions(
         "superposition list_dimensions request"
     );
 
-    let list_dimensions_output = state
-        .superposition_service
-        .superposition_sdk_client()
-        .list_dimensions()
-        .workspace_id(req.workspace_id.expose())
-        .org_id(req.org_id.expose())
-        .set_count(req.count)
-        .set_page(req.page)
-        .set_all(req.all)
-        .send()
+    let list_dimensions_output = input
+        .send_with(state.superposition_service.superposition_sdk_client())
         .await
         .map_err(|sdk_error| {
             logger::error!(
@@ -395,7 +360,7 @@ pub async fn list_dimensions(
 pub async fn create_context(
     state: SessionState,
     auth: UserFromToken,
-    req: ProxyCreateContextRequest,
+    input: CreateContextInputBuilder,
 ) -> RouterResponse<ContextResponse> {
     logger::info!(
         user_id = %auth.user_id,
@@ -405,10 +370,13 @@ pub async fn create_context(
         "superposition create_context request"
     );
 
-    let context_json = serde_json::to_value(&req.body.context).map_err(|serialize_error| {
-        error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(format!("failed to serialize context: {serialize_error}"))
-    })?;
+    // Read the context dimensions back off the SDK request to run auth-scoped
+    // validation (the builder carries the already-converted `ContextPut`).
+    let context_json = input
+        .get_request()
+        .as_ref()
+        .map(|context_put| doc_map_to_json(context_put.context()))
+        .unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::new()));
 
     if let Err(validation_error) = validate_superposition_context_body(&context_json, &auth) {
         logger::warn!(
@@ -421,19 +389,8 @@ pub async fn create_context(
         return Err(validation_error);
     }
 
-    let context_put = context_put_from_request(&req.body).map_err(|build_error| {
-        logger::error!(error = ?build_error, "superposition create_context failed to build ContextPut");
-        build_error.change_context(errors::ApiErrorResponse::InternalServerError)
-    })?;
-
-    let created_context = state
-        .superposition_service
-        .superposition_sdk_client()
-        .create_context()
-        .workspace_id(req.workspace_id.expose())
-        .org_id(req.org_id.expose())
-        .request(context_put)
-        .send()
+    let created_context = input
+        .send_with(state.superposition_service.superposition_sdk_client())
         .await
         .map_err(|sdk_error| {
             logger::error!(error = ?sdk_error, "superposition create_context upstream request failed");
@@ -452,8 +409,8 @@ pub async fn create_context(
 pub async fn resolve_config(
     state: SessionState,
     auth: UserFromToken,
-    req: ProxyResolveConfigRequest,
-) -> RouterResponse<serde_json::Value> {
+    input: GetResolvedConfigInputBuilder,
+) -> RouterResponse<ResolveConfigResponse> {
     logger::info!(
         user_id = %auth.user_id,
         merchant_id = %auth.merchant_id.get_string_repr(),
@@ -462,7 +419,13 @@ pub async fn resolve_config(
         "superposition resolve_config request"
     );
 
-    let context_json = serde_json::Value::Object(req.body.context.clone());
+    // Read the context dimensions back off the SDK request to run auth-scoped
+    // validation (the builder carries the already-converted context map).
+    let context_json = input
+        .get_context()
+        .as_ref()
+        .map(|context| doc_map_to_json(context))
+        .unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::new()));
     if let Err(validation_error) = validate_superposition_context_body(&context_json, &auth) {
         logger::warn!(
             user_id = %auth.user_id,
@@ -474,21 +437,10 @@ pub async fn resolve_config(
         return Err(validation_error);
     }
 
-    let mut resolved_config_builder = state
-        .superposition_service
-        .superposition_sdk_client()
-        .get_resolved_config()
-        .workspace_id(req.workspace_id.expose())
-        .org_id(req.org_id.expose());
-
-    for (dimension_key, dimension_value) in &req.body.context {
-        resolved_config_builder = resolved_config_builder.context(
-            dimension_key.clone(),
-            value_to_document(dimension_value.clone()),
-        );
-    }
-
-    let resolved_config = resolved_config_builder.send().await.map_err(|sdk_error| {
+    let resolved_config = input
+        .send_with(state.superposition_service.superposition_sdk_client())
+        .await
+        .map_err(|sdk_error| {
         logger::error!(error = ?sdk_error, "superposition resolve_config upstream request failed");
         map_superposition_err(
             error_stack::report!(map_sdk_error(sdk_error)),
@@ -513,12 +465,12 @@ pub async fn resolve_config(
         }
     }
 
-    let response = serde_json::json!({
-        "config": config_value,
-        "version": resolved_config.version(),
-        "last_modified": datetime_to_string(resolved_config.last_modified()),
-        "audit_id": resolved_config.audit_id(),
-    });
+    let response = ResolveConfigResponse {
+        config: config_value,
+        version: resolved_config.version().to_owned(),
+        last_modified: datetime_to_string(resolved_config.last_modified()),
+        audit_id: resolved_config.audit_id().map(str::to_owned),
+    };
 
     logger::info!(user_id = %auth.user_id, "superposition resolve_config success");
     Ok(ApplicationResponse::Json(response))
@@ -527,7 +479,7 @@ pub async fn resolve_config(
 pub async fn list_audit_logs(
     state: SessionState,
     auth: UserFromToken,
-    req: ListAuditLogsRequest,
+    input: ListAuditLogsInputBuilder,
 ) -> RouterResponse<PaginatedListResponse<AuditLogResponse>> {
     logger::info!(
         user_id = %auth.user_id,
@@ -537,47 +489,8 @@ pub async fn list_audit_logs(
         "superposition list_audit_logs request"
     );
 
-    let from_date = req
-        .from_date
-        .as_deref()
-        .map(|s| {
-            parse_datetime(s).map_err(|_| {
-                error_stack::report!(errors::ApiErrorResponse::InvalidRequestData {
-                    message: format!("invalid from_date format: {s}"),
-                })
-            })
-        })
-        .transpose()?;
-
-    let to_date = req
-        .to_date
-        .as_deref()
-        .map(|s| {
-            parse_datetime(s).map_err(|_| {
-                error_stack::report!(errors::ApiErrorResponse::InvalidRequestData {
-                    message: format!("invalid to_date format: {s}"),
-                })
-            })
-        })
-        .transpose()?;
-
-    let audit_logs_output = state
-        .superposition_service
-        .superposition_sdk_client()
-        .list_audit_logs()
-        .workspace_id(req.workspace_id.expose())
-        .org_id(req.org_id.expose())
-        .set_count(req.count)
-        .set_page(req.page)
-        .set_all(req.all)
-        .set_from_date(from_date)
-        .set_to_date(to_date)
-        .set_tables(req.table)
-        .set_action(req.action.map(|actions| actions.iter().map(|a| AuditAction::from(a.as_str())).collect()))
-        .set_username(req.username)
-        .set_sort_by(req.sort_by.as_deref().map(SortBy::from))
-        .set_dimension_params((!req.dimension_params.is_empty()).then_some(req.dimension_params))
-        .send()
+    let audit_logs_output = input
+        .send_with(state.superposition_service.superposition_sdk_client())
         .await
         .map_err(|sdk_error| {
             logger::error!(error = ?sdk_error, "superposition list_audit_logs upstream request failed");

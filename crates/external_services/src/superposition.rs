@@ -14,9 +14,18 @@ use error_stack::{report, ResultExt};
 use hyperswitch_masking::ExposeInterface;
 use serde_json::Map;
 use superposition_provider::traits::AllFeatureProvider;
+pub use superposition_sdk::operation::{
+    create_context::builders::CreateContextInputBuilder,
+    get_resolved_config::builders::GetResolvedConfigInputBuilder,
+    list_audit_logs::builders::ListAuditLogsInputBuilder,
+    list_contexts::builders::ListContextsInputBuilder,
+    list_default_configs::builders::ListDefaultConfigsInputBuilder,
+    list_dimensions::builders::ListDimensionsInputBuilder,
+};
 pub use superposition_sdk::types::{
     AuditAction, ContextFilterSortOn, DimensionMatchStrategy, SortBy,
 };
+pub use superposition_types::api::config::ContextPayload as ResolveConfigBody;
 pub use superposition_types::api::context::PutRequest as ContextPutRequest;
 
 pub use self::types::{ConfigContext, SuperpositionClientConfig, SuperpositionError, ToDocument};
@@ -202,25 +211,6 @@ pub fn audit_log_full_to_struct(log: &superposition_sdk::types::AuditLogFull) ->
         new_data: log.new_data().map(|d| document_to_value(d.clone())),
         query: log.query().to_owned(),
     }
-}
-
-/// Append a pre-encoded query string to an SDK HTTP request URI.
-pub fn append_query_params(
-    req: &mut aws_smithy_runtime_api::client::orchestrator::HttpRequest,
-    qs: &str,
-) {
-    if qs.is_empty() {
-        return;
-    }
-    let current = req.uri().to_string();
-    let sep = if current.contains('?') { '&' } else { '?' };
-    let new_uri = format!("{current}{sep}{qs}");
-    let _ = req.set_uri(new_uri.as_str());
-}
-
-/// Build a URL-encoded query string from key-value pairs.
-pub fn build_query_string(params: &[(String, String)]) -> String {
-    serde_urlencoded::to_string(params).unwrap_or_default()
 }
 
 /// Convert a `ContextPutRequest` into the SDK `ContextPut` type.

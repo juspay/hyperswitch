@@ -1,20 +1,15 @@
-use std::collections::HashMap;
-
 use actix_web::{web, HttpRequest, HttpResponse};
-use external_services::superposition::ContextPutRequest;
-use hyperswitch_masking::Secret;
-use router_env::{instrument, tracing, Flow};
+use external_services::superposition::{
+    context_put_from_request, parse_datetime, value_to_document, AuditAction, ContextFilterSortOn,
+    ContextPutRequest, CreateContextInputBuilder, DimensionMatchStrategy,
+    GetResolvedConfigInputBuilder, ListAuditLogsInputBuilder, ListContextsInputBuilder,
+    ListDefaultConfigsInputBuilder, ListDimensionsInputBuilder, ResolveConfigBody, SortBy,
+};
+use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::{
-        api_locking,
-        superposition_proxy::{
-            self as superposition_proxy, ListAuditLogsRequest, ListContextsRequest,
-            ListDefaultConfigsRequest, ListDimensionsRequest, ProxyCreateContextRequest,
-            ProxyResolveConfigRequest, ResolveConfigBody,
-        },
-    },
+    core::{api_locking, superposition_proxy},
     services::{api, authentication as auth, authorization::permissions::Permission},
 };
 
@@ -44,164 +39,168 @@ fn extract_proxy_headers(req: &HttpRequest) -> Result<(String, String), HttpResp
     Ok((org_id, workspace_id))
 }
 
-fn parse_list_contexts_request(
+/// Build the Superposition SDK `ListContexts` input builder directly from the
+/// raw query parameters. The builder is threaded to the core handler and sent
+/// via `send_with`, so no intermediate request DTO is needed. Dimension filters
+/// keep their `dimension[...]` keys (the core handler reads them back off the
+/// builder for auth scoping validation).
+fn build_list_contexts_input(
     org_id: String,
     workspace_id: String,
     params: Vec<(String, String)>,
-) -> ListContextsRequest {
-    let mut count = None;
-    let mut page = None;
-    let mut all = None;
+) -> ListContextsInputBuilder {
+    let mut builder = ListContextsInputBuilder::default()
+        .org_id(org_id)
+        .workspace_id(workspace_id);
     let mut prefix = Vec::new();
-    let mut sort_on = None;
-    let mut sort_by = None;
     let mut created_by = Vec::new();
     let mut last_modified_by = Vec::new();
-    let mut plaintext = None;
-    let mut dimension_params = HashMap::new();
-    let mut dimension_match_strategy = None;
 
     for (key, value) in params {
         match key.as_str() {
             k if k.starts_with("dimension[") => {
-                dimension_params.insert(key, value);
+                builder = builder.dimension_params(key, value);
             }
-            "count" => count = value.parse().ok(),
-            "page" => page = value.parse().ok(),
-            "all" => all = value.parse().ok(),
+            "count" => builder = builder.set_count(value.parse().ok()),
+            "page" => builder = builder.set_page(value.parse().ok()),
+            "all" => builder = builder.set_all(value.parse().ok()),
             "prefix" => prefix.push(value),
-            "sort_on" => sort_on = Some(value),
-            "sort_by" => sort_by = Some(value),
+            "sort_on" => {
+                builder = builder.set_sort_on(Some(ContextFilterSortOn::from(value.as_str())))
+            }
+            "sort_by" => builder = builder.set_sort_by(Some(SortBy::from(value.as_str()))),
             "created_by" => created_by.push(value),
             "last_modified_by" => last_modified_by.push(value),
-            "plaintext" => plaintext = Some(value),
-            "dimension_match_strategy" => dimension_match_strategy = Some(value),
+            "plaintext" => builder = builder.set_plaintext(Some(value)),
+            "dimension_match_strategy" => {
+                builder = builder
+                    .set_dimension_match_strategy(Some(DimensionMatchStrategy::from(value.as_str())))
+            }
             _ => {}
         }
     }
 
-    ListContextsRequest {
-        org_id: Secret::new(org_id),
-        workspace_id: Secret::new(workspace_id),
-        count,
-        page,
-        all,
-        prefix: (!prefix.is_empty()).then_some(prefix),
-        sort_on,
-        sort_by,
-        created_by: (!created_by.is_empty()).then_some(created_by),
-        last_modified_by: (!last_modified_by.is_empty()).then_some(last_modified_by),
-        plaintext,
-        dimension_params,
-        dimension_match_strategy,
-    }
+    builder
+        .set_prefix((!prefix.is_empty()).then_some(prefix))
+        .set_created_by((!created_by.is_empty()).then_some(created_by))
+        .set_last_modified_by((!last_modified_by.is_empty()).then_some(last_modified_by))
 }
 
-fn parse_list_default_configs_request(
+/// Build the `ListDefaultConfigs` SDK input builder from raw query parameters.
+/// Allowlist-driven paging overrides are applied later in the core handler.
+fn build_list_default_configs_input(
     org_id: String,
     workspace_id: String,
     params: Vec<(String, String)>,
-) -> ListDefaultConfigsRequest {
-    let mut count = None;
-    let mut page = None;
-    let mut all = None;
-    let mut name = None;
+) -> ListDefaultConfigsInputBuilder {
+    let mut builder = ListDefaultConfigsInputBuilder::default()
+        .org_id(org_id)
+        .workspace_id(workspace_id);
 
     for (key, value) in params {
         match key.as_str() {
-            "count" => count = value.parse().ok(),
-            "page" => page = value.parse().ok(),
-            "all" => all = value.parse().ok(),
-            "name" => name = Some(value),
+            "count" => builder = builder.set_count(value.parse().ok()),
+            "page" => builder = builder.set_page(value.parse().ok()),
+            "all" => builder = builder.set_all(value.parse().ok()),
+            "name" => builder = builder.set_name(Some(value)),
             _ => {}
         }
     }
 
-    ListDefaultConfigsRequest {
-        org_id: Secret::new(org_id),
-        workspace_id: Secret::new(workspace_id),
-        count,
-        page,
-        all,
-        name,
-    }
+    builder
 }
 
-fn parse_list_dimensions_request(
+/// Build the `ListDimensions` SDK input builder from raw query parameters.
+fn build_list_dimensions_input(
     org_id: String,
     workspace_id: String,
     params: Vec<(String, String)>,
-) -> ListDimensionsRequest {
-    let mut count = None;
-    let mut page = None;
-    let mut all = None;
+) -> ListDimensionsInputBuilder {
+    let mut builder = ListDimensionsInputBuilder::default()
+        .org_id(org_id)
+        .workspace_id(workspace_id);
 
     for (key, value) in params {
         match key.as_str() {
-            "count" => count = value.parse().ok(),
-            "page" => page = value.parse().ok(),
-            "all" => all = value.parse().ok(),
+            "count" => builder = builder.set_count(value.parse().ok()),
+            "page" => builder = builder.set_page(value.parse().ok()),
+            "all" => builder = builder.set_all(value.parse().ok()),
             _ => {}
         }
     }
 
-    ListDimensionsRequest {
-        org_id: Secret::new(org_id),
-        workspace_id: Secret::new(workspace_id),
-        count,
-        page,
-        all,
-    }
+    builder
 }
 
-fn parse_list_audit_logs_request(
+/// Build the `ListAuditLogs` SDK input builder from raw query parameters.
+/// Fails with a `400` response when a date filter cannot be parsed, mirroring
+/// the header-validation handling in [`extract_proxy_headers`].
+fn build_list_audit_logs_input(
     org_id: String,
     workspace_id: String,
     params: Vec<(String, String)>,
-) -> ListAuditLogsRequest {
-    let mut count = None;
-    let mut page = None;
-    let mut all = None;
-    let mut from_date = None;
-    let mut to_date = None;
+) -> Result<ListAuditLogsInputBuilder, HttpResponse> {
+    let bad_date = |field: &str, value: &str| {
+        HttpResponse::BadRequest().json(serde_json::json!({
+            "error": { "message": format!("invalid {field} format: {value}") }
+        }))
+    };
+
+    let mut builder = ListAuditLogsInputBuilder::default()
+        .org_id(org_id)
+        .workspace_id(workspace_id);
     let mut table: Vec<String> = Vec::new();
     let mut action: Vec<String> = Vec::new();
-    let mut username = None;
-    let mut sort_by = None;
-    let mut dimension_params = HashMap::new();
 
     for (key, value) in params {
         match key.as_str() {
             k if k.starts_with("dimension[") => {
-                dimension_params.insert(key, value);
+                builder = builder.dimension_params(key, value);
             }
-            "count" => count = value.parse().ok(),
-            "page" => page = value.parse().ok(),
-            "all" => all = value.parse().ok(),
-            "from_date" => from_date = Some(value),
-            "to_date" => to_date = Some(value),
+            "count" => builder = builder.set_count(value.parse().ok()),
+            "page" => builder = builder.set_page(value.parse().ok()),
+            "all" => builder = builder.set_all(value.parse().ok()),
+            "from_date" => {
+                let parsed = parse_datetime(&value).map_err(|_| bad_date("from_date", &value))?;
+                builder = builder.set_from_date(Some(parsed));
+            }
+            "to_date" => {
+                let parsed = parse_datetime(&value).map_err(|_| bad_date("to_date", &value))?;
+                builder = builder.set_to_date(Some(parsed));
+            }
             "table" => table.extend(value.split(',').map(|s| s.trim().to_owned())),
             "action" => action.extend(value.split(',').map(|s| s.trim().to_owned())),
-            "username" => username = Some(value),
-            "sort_by" => sort_by = Some(value),
+            "username" => builder = builder.set_username(Some(value)),
+            "sort_by" => builder = builder.set_sort_by(Some(SortBy::from(value.as_str()))),
             _ => {}
         }
     }
 
-    ListAuditLogsRequest {
-        org_id: Secret::new(org_id),
-        workspace_id: Secret::new(workspace_id),
-        count,
-        page,
-        all,
-        from_date,
-        to_date,
-        table: (!table.is_empty()).then_some(table),
-        action: (!action.is_empty()).then_some(action),
-        username,
-        sort_by,
-        dimension_params,
+    let action = (!action.is_empty())
+        .then(|| action.iter().map(|a| AuditAction::from(a.as_str())).collect());
+
+    Ok(builder
+        .set_tables((!table.is_empty()).then_some(table))
+        .set_action(action))
+}
+
+/// Build the `GetResolvedConfig` SDK input builder from the resolve-config
+/// request body. Context dimensions are converted to `Document` values; the
+/// core handler reads them back off the builder for auth-scoped validation.
+fn build_resolve_config_input(
+    org_id: String,
+    workspace_id: String,
+    body: ResolveConfigBody,
+) -> GetResolvedConfigInputBuilder {
+    let mut builder = GetResolvedConfigInputBuilder::default()
+        .org_id(org_id)
+        .workspace_id(workspace_id);
+
+    for (dimension_key, dimension_value) in body.context {
+        builder = builder.context(dimension_key, value_to_document(dimension_value));
     }
+
+    builder
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::SuperpositionListContexts))]
@@ -215,15 +214,16 @@ pub async fn list_contexts(
         Ok(headers) => headers,
         Err(response) => return response,
     };
-    let payload = parse_list_contexts_request(org_id, workspace_id, query.into_inner());
+    let input = build_list_contexts_input(org_id, workspace_id, query.into_inner());
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        payload,
-        |state, user, req, _| async move {
-            superposition_proxy::list_contexts(state, user, req).await
+        (),
+        move |state, user, _, _| {
+            let input = input.clone();
+            async move { superposition_proxy::list_contexts(state, user, input).await }
         },
         &auth::JWTAuth {
             permission: Permission::MerchantSuperpositionConfigRead,
@@ -246,15 +246,16 @@ pub async fn list_default_configs(
         Ok(headers) => headers,
         Err(response) => return response,
     };
-    let payload = parse_list_default_configs_request(org_id, workspace_id, query.into_inner());
+    let input = build_list_default_configs_input(org_id, workspace_id, query.into_inner());
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        payload,
-        |state, user, req, _| async move {
-            superposition_proxy::list_default_configs(state, user, req).await
+        (),
+        move |state, user, _, _| {
+            let input = input.clone();
+            async move { superposition_proxy::list_default_configs(state, user, input).await }
         },
         &auth::JWTAuth {
             permission: Permission::MerchantSuperpositionConfigRead,
@@ -277,15 +278,16 @@ pub async fn list_dimensions(
         Ok(headers) => headers,
         Err(response) => return response,
     };
-    let payload = parse_list_dimensions_request(org_id, workspace_id, query.into_inner());
+    let input = build_list_dimensions_input(org_id, workspace_id, query.into_inner());
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        payload,
-        |state, user, req, _| async move {
-            superposition_proxy::list_dimensions(state, user, req).await
+        (),
+        move |state, user, _, _| {
+            let input = input.clone();
+            async move { superposition_proxy::list_dimensions(state, user, input).await }
         },
         &auth::JWTAuth {
             permission: Permission::MerchantSuperpositionConfigRead,
@@ -309,19 +311,29 @@ pub async fn create_context(
         Err(response) => return response,
     };
 
-    let payload = ProxyCreateContextRequest {
-        body: body.into_inner(),
-        org_id: Secret::new(org_id),
-        workspace_id: Secret::new(workspace_id),
+    let context_put = match context_put_from_request(&body.into_inner()) {
+        Ok(context_put) => context_put,
+        Err(error) => {
+            logger::error!(?error, "superposition create_context failed to build ContextPut");
+            return HttpResponse::BadRequest().json(serde_json::json!({
+                "error": { "message": "invalid context request body" }
+            }));
+        }
     };
+
+    let input = CreateContextInputBuilder::default()
+        .org_id(org_id)
+        .workspace_id(workspace_id)
+        .request(context_put);
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        payload,
-        |state, user, req, _| async move {
-            superposition_proxy::create_context(state, user, req).await
+        (),
+        move |state, user, _, _| {
+            let input = input.clone();
+            async move { superposition_proxy::create_context(state, user, input).await }
         },
         &auth::JWTAuth {
             permission: Permission::MerchantSuperpositionConfigWrite,
@@ -345,19 +357,16 @@ pub async fn resolve_config(
         Err(response) => return response,
     };
 
-    let payload = ProxyResolveConfigRequest {
-        body: body.into_inner(),
-        org_id: Secret::new(org_id),
-        workspace_id: Secret::new(workspace_id),
-    };
+    let input = build_resolve_config_input(org_id, workspace_id, body.into_inner());
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        payload,
-        |state, user, req, _| async move {
-            superposition_proxy::resolve_config(state, user, req).await
+        (),
+        move |state, user, _, _| {
+            let input = input.clone();
+            async move { superposition_proxy::resolve_config(state, user, input).await }
         },
         &auth::JWTAuth {
             permission: Permission::MerchantSuperpositionConfigRead,
@@ -380,15 +389,19 @@ pub async fn list_audit_logs(
         Ok(headers) => headers,
         Err(response) => return response,
     };
-    let payload = parse_list_audit_logs_request(org_id, workspace_id, query.into_inner());
+    let input = match build_list_audit_logs_input(org_id, workspace_id, query.into_inner()) {
+        Ok(input) => input,
+        Err(response) => return response,
+    };
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        payload,
-        |state, user, req, _| async move {
-            superposition_proxy::list_audit_logs(state, user, req).await
+        (),
+        move |state, user, _, _| {
+            let input = input.clone();
+            async move { superposition_proxy::list_audit_logs(state, user, input).await }
         },
         &auth::JWTAuth {
             permission: Permission::MerchantSuperpositionConfigRead,
