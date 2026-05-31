@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.25.0-hotfix5
+
+### Bug Fixes
+
+- **split_payments:** Remove deny_unknown_fields from StripeChargeResponseData ([#12517](https://github.com/juspay/hyperswitch/pull/12517)) ([`c833f04`](https://github.com/juspay/hyperswitch/commit/c833f04d37a0437b1b3be204b67d82b578a24e41))
+
+**Full Changelog:** [`2026.05.25.0-hotfix4...2026.05.25.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2026.05.25.0-hotfix4...2026.05.25.0-hotfix5)
+
+- - -
+
 ## 2026.05.25.0-hotfix4
 
 ### Bug Fixes
