@@ -410,5 +410,4 @@ describe("Airwallex Alternative Payments", () => {
       });
     });
   });
-
 });
