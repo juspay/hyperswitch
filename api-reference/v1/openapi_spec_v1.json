@@ -41573,8 +41573,7 @@
             "example": "acct_1234567890",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "StripeChargeType": {
         "type": "string",
