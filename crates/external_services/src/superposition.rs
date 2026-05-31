@@ -14,19 +14,20 @@ use error_stack::{report, ResultExt};
 use hyperswitch_masking::ExposeInterface;
 use serde_json::Map;
 use superposition_provider::traits::AllFeatureProvider;
-pub use superposition_sdk::operation::{
-    create_context::builders::CreateContextInputBuilder,
-    get_resolved_config::builders::GetResolvedConfigInputBuilder,
-    list_audit_logs::builders::ListAuditLogsInputBuilder,
-    list_contexts::builders::ListContextsInputBuilder,
-    list_default_configs::builders::ListDefaultConfigsInputBuilder,
-    list_dimensions::builders::ListDimensionsInputBuilder,
+pub use superposition_sdk::{
+    operation::{
+        create_context::builders::CreateContextInputBuilder,
+        get_resolved_config::builders::GetResolvedConfigInputBuilder,
+        list_audit_logs::builders::ListAuditLogsInputBuilder,
+        list_contexts::builders::ListContextsInputBuilder,
+        list_default_configs::builders::ListDefaultConfigsInputBuilder,
+        list_dimensions::builders::ListDimensionsInputBuilder,
+    },
+    types::{AuditAction, ContextFilterSortOn, DimensionMatchStrategy, SortBy},
 };
-pub use superposition_sdk::types::{
-    AuditAction, ContextFilterSortOn, DimensionMatchStrategy, SortBy,
+pub use superposition_types::api::{
+    config::ContextPayload as ResolveConfigBody, context::PutRequest as ContextPutRequest,
 };
-pub use superposition_types::api::config::ContextPayload as ResolveConfigBody;
-pub use superposition_types::api::context::PutRequest as ContextPutRequest;
 
 pub use self::types::{ConfigContext, SuperpositionClientConfig, SuperpositionError, ToDocument};
 use crate::config_metrics;

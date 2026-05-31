@@ -73,8 +73,9 @@ fn build_list_contexts_input(
             "last_modified_by" => last_modified_by.push(value),
             "plaintext" => builder = builder.set_plaintext(Some(value)),
             "dimension_match_strategy" => {
-                builder = builder
-                    .set_dimension_match_strategy(Some(DimensionMatchStrategy::from(value.as_str())))
+                builder = builder.set_dimension_match_strategy(Some(DimensionMatchStrategy::from(
+                    value.as_str(),
+                )))
             }
             _ => {}
         }
@@ -176,8 +177,12 @@ fn build_list_audit_logs_input(
         }
     }
 
-    let action = (!action.is_empty())
-        .then(|| action.iter().map(|a| AuditAction::from(a.as_str())).collect());
+    let action = (!action.is_empty()).then(|| {
+        action
+            .iter()
+            .map(|a| AuditAction::from(a.as_str()))
+            .collect()
+    });
 
     Ok(builder
         .set_tables((!table.is_empty()).then_some(table))
@@ -314,7 +319,10 @@ pub async fn create_context(
     let context_put = match context_put_from_request(&body.into_inner()) {
         Ok(context_put) => context_put,
         Err(error) => {
-            logger::error!(?error, "superposition create_context failed to build ContextPut");
+            logger::error!(
+                ?error,
+                "superposition create_context failed to build ContextPut"
+            );
             return HttpResponse::BadRequest().json(serde_json::json!({
                 "error": { "message": "invalid context request body" }
             }));
