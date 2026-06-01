@@ -29,6 +29,7 @@ describe("[Payout] Priority", () => {
           )
         ) {
           skip = true;
+          shouldContinue = false;
         }
       })
       .then(() => {
