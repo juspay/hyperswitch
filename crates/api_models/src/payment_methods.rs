@@ -278,7 +278,6 @@ pub struct PaymentMethodMigrate {
 
     /// Payment method details from locker. Deprecated, use bank_transfer_data instead
     #[cfg(feature = "payouts")]
-    #[schema(deprecated)]
     pub bank_transfer: Option<payouts::Bank>,
 
     // Payment method details from locker
