@@ -400,6 +400,12 @@ pub enum NetworkTokenizationError {
     NotSupported { message: String },
     #[error("Failed to encrypt the NetworkToken payment method details")]
     NetworkTokenDetailsEncryptionFailed,
+    #[error("Failed to fetch Alt-ID from network token service")]
+    FetchAltIdFailed,
+    #[error("Failed to encrypt card data")]
+    CardDataEncryptionFailed,
+    #[error("Failed to decrypt response data")]
+    ResponseDecryptionFailed,
 }
 
 #[derive(Debug, thiserror::Error)]

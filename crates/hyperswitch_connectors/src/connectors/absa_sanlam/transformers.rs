@@ -12,12 +12,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::{types::ResponseRouterData, utils};
 
-pub struct SanlamAuthType {
+pub struct AbsaSanlamAuthType {
     pub(super) api_key: Secret<String>,
     pub(super) merchant_id: Secret<String>,
 }
 
-impl TryFrom<&ConnectorAuthType> for SanlamAuthType {
+impl TryFrom<&ConnectorAuthType> for AbsaSanlamAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
@@ -32,26 +32,26 @@ impl TryFrom<&ConnectorAuthType> for SanlamAuthType {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
-pub enum SanlamWebhookEvent {
-    Payment(SanlamPaymentWebhookEvent),
+pub enum AbsaSanlamWebhookEvent {
+    Payment(AbsaSanlamPaymentWebhookEvent),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct SanlamPaymentWebhookEvent {
-    pub event_type: SanlamWebhookEventType,
-    pub payment: SanlamWebhookPayment,
-    pub error: Option<SanlamWebhookError>,
+pub struct AbsaSanlamPaymentWebhookEvent {
+    pub event_type: AbsaSanlamWebhookEventType,
+    pub payment: AbsaSanlamWebhookPayment,
+    pub error: Option<AbsaSanlamWebhookError>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct SanlamWebhookError {
+pub struct AbsaSanlamWebhookError {
     pub code: Option<String>,
     pub message: Option<String>,
     pub reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub enum SanlamWebhookEventType {
+pub enum AbsaSanlamWebhookEventType {
     #[serde(rename = "payment.succeeded")]
     PaymentSucceeded,
     #[serde(rename = "payment.failed")]
@@ -61,28 +61,28 @@ pub enum SanlamWebhookEventType {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct SanlamWebhookPayment {
+pub struct AbsaSanlamWebhookPayment {
     pub user_reference: String,
-    pub status: SanlamPaymentStatus,
+    pub status: AbsaSanlamPaymentStatus,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum SanlamPaymentStatus {
+pub enum AbsaSanlamPaymentStatus {
     Success,
     Failure,
     Dispute,
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, SanlamWebhookEvent, T, PaymentsResponseData>>
+impl<F, T> TryFrom<ResponseRouterData<F, AbsaSanlamWebhookEvent, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, SanlamWebhookEvent, T, PaymentsResponseData>,
+        item: ResponseRouterData<F, AbsaSanlamWebhookEvent, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match item.response {
-            SanlamWebhookEvent::Payment(payment_event) => {
+            AbsaSanlamWebhookEvent::Payment(payment_event) => {
                 let status = common_enums::AttemptStatus::try_from(&payment_event.payment.status)?;
                 let response = if utils::is_payment_failure(status) {
                     Err(ErrorResponse {
@@ -131,13 +131,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, SanlamWebhookEvent, T, PaymentsResponse
     }
 }
 
-impl TryFrom<&SanlamPaymentStatus> for common_enums::AttemptStatus {
+impl TryFrom<&AbsaSanlamPaymentStatus> for common_enums::AttemptStatus {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &SanlamPaymentStatus) -> Result<Self, Self::Error> {
+    fn try_from(item: &AbsaSanlamPaymentStatus) -> Result<Self, Self::Error> {
         match item {
-            SanlamPaymentStatus::Success => Ok(Self::Charged),
-            SanlamPaymentStatus::Failure => Ok(Self::Failure),
-            SanlamPaymentStatus::Dispute => {
+            AbsaSanlamPaymentStatus::Success => Ok(Self::Charged),
+            AbsaSanlamPaymentStatus::Failure => Ok(Self::Failure),
+            AbsaSanlamPaymentStatus::Dispute => {
                 Err(errors::ConnectorError::ResponseDeserializationFailed)?
             }
         }
