@@ -1806,6 +1806,28 @@ export const connectorDetails = {
         },
       },
     }),
+    AutoCapture: getCustomExchange({
+      Request: {
+        capture_method: "automatic",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    ManualCapture: getCustomExchange({
+      Request: {
+        capture_method: "manual",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
     AffirmAutoCapture: getCustomExchange({
       Request: {
         currency: "USD",
