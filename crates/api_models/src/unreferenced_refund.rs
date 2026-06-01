@@ -45,13 +45,13 @@ pub struct RecipientCardData {
     #[schema(value_type = String, example = "4000000000009995")]
     pub card_number: CardNumber,
 
-    #[schema(example = "03")]
+    #[schema(value_type = String, example = "03")]
     pub card_exp_month: Secret<String>,
 
-    #[schema(example = "30")]
+    #[schema(value_type = String, example = "30")]
     pub card_exp_year: Secret<String>,
 
-    #[schema(example = "John Doe")]
+    #[schema(value_type = Option<String>, example = "John Doe")]
     pub card_holder_name: Option<Secret<String>>,
 }
 

@@ -14,6 +14,7 @@ pub struct RelayRequest {
     pub connector_id: common_utils::id_type::MerchantConnectorAccountId,
     /// The type of relay request
     #[serde(rename = "type")]
+    #[schema(value_type = RelayType)]
     pub relay_type: api_enums::RelayType,
     /// The data that is associated with the relay request
     pub data: Option<RelayData>,
@@ -36,7 +37,9 @@ pub struct RelayUnreferencedRefundData {
     pub amount: MinorUnit,
     #[schema(value_type = Currency)]
     pub currency: api_enums::Currency,
+    #[schema(value_type = String)]
     pub customer_id: Option<String>,
+    #[schema(value_type = RecipientPaymentMethodData)]
     pub recipient_payment_method_data: Option<unreferenced_refund::RecipientPaymentMethodData>,
 }
 
