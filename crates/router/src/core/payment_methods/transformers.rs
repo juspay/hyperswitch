@@ -1196,7 +1196,7 @@ impl
             payment_method_subtype,
             created: item.created_at,
             last_used_at: item.last_used_at,
-            recurring_enabled: psp_tokenization_enabled.unwrap_or(false),
+            recurring_enabled: Some(psp_tokenization_enabled.unwrap_or(false)),
             payment_method_data,
             requires_cvv: true,
             is_default,
