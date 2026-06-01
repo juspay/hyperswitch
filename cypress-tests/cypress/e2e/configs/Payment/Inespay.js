@@ -48,7 +48,6 @@ export const connectorDetails = {
             sepa_bank_debit: sepaBankDebitDetails,
           },
         },
-        currency: "EUR",
         billing: {
           address: {
             line1: "Calle de Alcalá",
@@ -83,7 +82,6 @@ export const connectorDetails = {
             sepa_bank_debit: sepaBankDebitDetails,
           },
         },
-        currency: "EUR",
         billing: {
           address: {
             line1: "Calle de Alcalá",

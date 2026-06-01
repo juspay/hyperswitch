@@ -387,27 +387,12 @@ describe("Wallet tests", () => {
         }
       });
 
-      cy.step("Handle Globepay QR redirection", () => {
+      cy.step("Handle WeChatPay QR redirection", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Handle Globepay QR redirection");
+          cy.task("cli_log", "Skipping step: Handle WeChatPay QR redirection");
           return;
         }
-        const nextActionUrl = globalState.get("nextActionUrl");
-
-        expect(
-          nextActionUrl,
-          "nextActionUrl should be present after Globepay wallet confirm"
-        ).to.be.a("string");
-
-        // Globepay returns a base64 data URI for the QR code image — no HTTP visit needed
-        expect(
-          nextActionUrl,
-          "nextActionUrl should be a data URI containing a QR code image"
-        ).to.match(/^data:/);
-
-        cy.log(
-          "Globepay inline QR code verified via data URI - no redirect expected"
-        );
+        cy.handleGlobepayQRRedirection(globalState);
       });
 
       cy.step("Retrieve Payment", () => {
@@ -496,27 +481,12 @@ describe("Wallet tests", () => {
         }
       });
 
-      cy.step("Handle Globepay QR redirection", () => {
+      cy.step("Handle AliPay QR redirection", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Handle Globepay QR redirection");
+          cy.task("cli_log", "Skipping step: Handle AliPay QR redirection");
           return;
         }
-        const nextActionUrl = globalState.get("nextActionUrl");
-
-        expect(
-          nextActionUrl,
-          "nextActionUrl should be present after Globepay wallet confirm"
-        ).to.be.a("string");
-
-        // Globepay returns a base64 data URI for the QR code image — no HTTP visit needed
-        expect(
-          nextActionUrl,
-          "nextActionUrl should be a data URI containing a QR code image"
-        ).to.match(/^data:/);
-
-        cy.log(
-          "Globepay inline QR code verified via data URI - no redirect expected"
-        );
+        cy.handleGlobepayQRRedirection(globalState);
       });
 
       cy.step("Retrieve Payment", () => {

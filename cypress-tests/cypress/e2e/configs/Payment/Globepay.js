@@ -45,7 +45,6 @@ export const connectorDetails = {
             we_chat_pay_qr: {},
           },
         },
-        currency: "GBP",
         capture_method: "automatic",
         customer_acceptance: null,
         billing: {
@@ -73,7 +72,6 @@ export const connectorDetails = {
             ali_pay_qr: {},
           },
         },
-        currency: "GBP",
         capture_method: "automatic",
         customer_acceptance: null,
         billing: {
