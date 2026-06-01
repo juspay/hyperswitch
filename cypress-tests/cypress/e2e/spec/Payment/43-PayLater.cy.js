@@ -1036,25 +1036,28 @@ describe("PayLater tests", () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.step("Confirm Payment - expect manual capture not supported error", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment");
-          return;
+      cy.step(
+        "Confirm Payment - expect manual capture not supported error",
+        () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Confirm Payment");
+            return;
+          }
+          const confirmData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["pay_later_pm"]["AtomeManualCaptureConfirmError"];
+          cy.confirmBankRedirectCallTest(
+            fixtures.confirmBody,
+            confirmData,
+            true,
+            globalState
+          ).then((response) => {
+            expect(response.status).to.eq(400);
+            expect(response.body.error.code).to.eq("IR_19");
+            expect(response.body.error.type).to.eq("invalid_request");
+          });
         }
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "pay_later_pm"
-        ]["AtomeManualCaptureConfirmError"];
-        cy.confirmBankRedirectCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        ).then((response) => {
-          expect(response.status).to.eq(400);
-          expect(response.body.error.code).to.eq("IR_19");
-          expect(response.body.error.type).to.eq("invalid_request");
-        });
-      });
+      );
     });
   });
 });
