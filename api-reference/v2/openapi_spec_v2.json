@@ -6822,14 +6822,6 @@
         "properties": {
           "payment_method_token": {
             "$ref": "#/components/schemas/AssociatedPaymentMethodTokenType"
-          },
-          "payment_method_data": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AssociatedPaymentMethodData"
-              }
-            ],
-            "nullable": true
           }
         }
       },
