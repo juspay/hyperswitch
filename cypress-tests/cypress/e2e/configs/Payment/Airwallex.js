@@ -1061,9 +1061,6 @@ export const connectorDetails = {
       },
     }),
     Atome: getCustomExchange({
-      Configs: {
-        skipBillingAssertion: true,
-      },
       Request: {
         payment_method: "pay_later",
         payment_method_type: "atome",
