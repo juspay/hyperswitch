@@ -8620,7 +8620,17 @@ pub struct PaymentStartRedirectionParams {
 }
 
 /// Details of external authentication
-#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Setter,
+    Clone,
+    Default,
+    Debug,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ExternalAuthenticationDetailsResponse {
     /// Authentication Type - Challenge / Frictionless
@@ -8877,7 +8887,17 @@ pub struct RecoveryPaymentListResponse {
     pub data: Vec<RecoveryPaymentsListResponseItem>,
 }
 
-#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[derive(
+    Setter,
+    Clone,
+    Default,
+    Debug,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct IncrementalAuthorizationResponse {
     /// The unique identifier of authorization

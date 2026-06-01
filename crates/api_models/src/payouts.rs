@@ -898,7 +898,14 @@ pub enum PayoutMethodDataResponse {
 }
 
 #[derive(
-    Default, Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema,
+    Default,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    Clone,
+    PartialEq,
+    ToSchema,
+    router_derive::PolymorphicSchema,
 )]
 pub struct PayoutAttemptResponse {
     /// Unique identifier for the attempt

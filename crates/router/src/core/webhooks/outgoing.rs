@@ -138,10 +138,7 @@ pub(crate) async fn get_webhook_events(
             }
 
             Some(WebhookResourceData::Refund { payment_attempt }) => {
-                if matches!(
-                    primary_event_type,
-                    enums::EventType::RefundSucceeded
-                ) {
+                if matches!(primary_event_type, enums::EventType::RefundSucceeded) {
                     if let Some(external_surcharge_details) =
                         &payment_attempt.external_surcharge_details
                     {
