@@ -7,7 +7,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data,
+    mandates, payment_method_data,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::{Execute, RSync},
     router_request_types::ResponseId,
@@ -102,7 +102,7 @@ impl TryFrom<&GlobalPayRouterData<&PaymentsAuthorizeRouterData>> for GlobalpayPa
                         .mandate_id
                         .as_ref()
                         .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                            Some(mandates::MandateReferenceId::ConnectorMandateId(
                                 connector_mandate_ids,
                             )) => connector_mandate_ids.get_connector_mandate_id(),
                             _ => None,
@@ -442,6 +442,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, GlobalpayPaymentsResponse, T, PaymentsR
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.reference.clone(),
                 incremental_authorization_allowed: None,
                 authentication_data: None,

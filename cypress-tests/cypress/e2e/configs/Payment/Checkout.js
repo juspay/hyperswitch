@@ -259,6 +259,65 @@ export const connectorDetails = {
         },
       },
     },
+    MultipleCapture: {
+      Request: {
+        amount_to_capture: 2000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MultipleCapturePartial: {
+      Request: {
+        amount_to_capture: 2000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "partially_captured_and_capturable",
+        },
+      },
+    },
+    MultipleCaptureFinal: {
+      Request: {
+        amount_to_capture: 2000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MultipleCaptureRetrieve: {
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 6000,
+          amount_capturable: 0,
+          amount_received: 6000,
+        },
+      },
+    },
+    MultipleCaptureOvercapture: {
+      Request: {
+        amount_to_capture: 7000,
+      },
+      Response: {
+        status: 422,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "amount_to_capture is greater than amount",
+            code: "IR_06",
+          },
+        },
+      },
+    },
     Void: {
       Request: {},
       Response: {
@@ -719,6 +778,36 @@ export const connectorDetails = {
             statement_descriptor_suffix: null,
             reference: null,
           },
+        },
+      },
+    },
+    L2L3Data: {
+      Request: {
+        currency: "USD",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        billing_descriptor: {
+          name: "Juspay",
+          city: "San Francisco",
+        },
+        order_tax_amount: 500,
+        shipping_cost: 100,
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },

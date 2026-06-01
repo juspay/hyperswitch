@@ -885,6 +885,157 @@ export const connectorDetails = {
       },
     },
   },
+  bank_redirect_pm: {
+    Ideal: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              bank_name: "ing",
+              country: "NL",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Amsterdam",
+            state: "North Holland",
+            zip: "1000",
+            country: "NL",
+            first_name: "john",
+            last_name: "doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+31",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Giropay: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "giropay",
+        payment_method_data: {
+          bank_redirect: {
+            giropay: {
+              country: "DE",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Berlin",
+            state: "Berlin",
+            zip: "10115",
+            country: "DE",
+            first_name: "john",
+            last_name: "doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+49",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Sofort: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "sofort",
+        payment_method_data: {
+          bank_redirect: {
+            sofort: {
+              country: "DE",
+              preferred_language: "en",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Berlin",
+            state: "Berlin",
+            zip: "10115",
+            country: "DE",
+            first_name: "john",
+            last_name: "doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+49",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "INVALID_REQUEST_DATA",
+          error_message: "FAILED",
+        },
+      },
+    },
+    Eps: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "eps",
+        payment_method_data: {
+          bank_redirect: {
+            eps: {
+              bank_name: "bank_austria",
+              country: "AT",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Vienna",
+            state: "Vienna",
+            zip: "1010",
+            country: "AT",
+            first_name: "john",
+            last_name: "doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+43",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+  },
   pm_list: {
     PmListResponse: {
       PmListNull: {

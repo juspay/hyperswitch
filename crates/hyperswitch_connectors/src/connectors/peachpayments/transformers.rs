@@ -1040,6 +1040,7 @@ pub fn get_peachpayments_response(
             network_txn_id: response
                 .ecommerce_card_payment_only_transaction_data
                 .and_then(|data| data.trace_id),
+            network_txn_link_id: None,
             connector_response_reference_id: Some(response.reference_id),
             incremental_authorization_allowed: None,
             authentication_data: None,
@@ -1088,6 +1089,7 @@ pub fn get_webhook_response(
             network_txn_id: transaction
                 .ecommerce_card_payment_only_transaction_data
                 .and_then(|data| data.trace_id),
+            network_txn_link_id: None,
             connector_response_reference_id: Some(transaction.reference_id.clone()),
             incremental_authorization_allowed: None,
             authentication_data: None,
@@ -1159,6 +1161,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsCaptureResponse, T, Paymen
                     })
                 }),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.reference_id),
                 incremental_authorization_allowed: None,
                 authentication_data: None,

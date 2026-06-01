@@ -1859,8 +1859,14 @@ fn get_bank_redirect_required_fields(
                         vec![],
                         vec![
                             RequiredField::Email,
-                            RequiredField::BillingUserFirstName,
-                            RequiredField::BillingUserLastName,
+                            RequiredField::BillingFirstName(
+                                "billing_first_name",
+                                FieldType::UserBillingName,
+                            ),
+                            RequiredField::BillingLastName(
+                                "billing_last_name",
+                                FieldType::UserBillingName,
+                            ),
                         ],
                         vec![],
                     ),
@@ -1894,6 +1900,14 @@ fn get_bank_redirect_required_fields(
                         vec![
                             RequiredField::BillingAddressCountries(vec!["ALL"]),
                             RequiredField::Email,
+                            RequiredField::BillingFirstName(
+                                "billing_first_name",
+                                FieldType::UserBillingName,
+                            ),
+                            RequiredField::BillingLastName(
+                                "billing_last_name",
+                                FieldType::UserBillingName,
+                            ),
                         ],
                         vec![],
                     ),
@@ -3775,7 +3789,7 @@ fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, Connect
         (
             enums::PaymentMethodType::EftDebitOrder,
             connectors(vec![(
-                Connector::Sanlam,
+                Connector::AbsaSanlam,
                 RequiredFieldFinal {
                     mandate: HashMap::new(),
                     non_mandate: HashMap::new(),

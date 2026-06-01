@@ -626,6 +626,11 @@ impl FloatMajorUnit {
         Self(0.0)
     }
 
+    /// gets amount as i64
+    pub fn get_amount_as_f64(self) -> f64 {
+        self.0
+    }
+
     /// converts to minor unit as i64 from FloatMajorUnit
     fn to_minor_unit_as_i64(
         self,
@@ -1458,6 +1463,19 @@ impl_enum_str!(
         },
     }
 );
+
+impl CreatedBy {
+    /// Returns `true` if the creator is the provider (platform) merchant, i.e. an API-triggered
+    /// creation whose `merchant_id` matches `provider_merchant_id`.
+    pub fn is_provider_initiated(&self, provider_merchant_id: &id_type::MerchantId) -> bool {
+        match self {
+            Self::Api { merchant_id } => id_type::MerchantId::wrap(merchant_id.clone())
+                .map(|parsed_merchant_id| parsed_merchant_id == *provider_merchant_id)
+                .unwrap_or_default(),
+            Self::Jwt { .. } | Self::Invalid | Self::EmbeddedToken { .. } => false,
+        }
+    }
+}
 
 /// Trait for enums created with `impl_enum_str!` macro that have an `Invalid` variant.
 /// This trait allows generic functions to check if a parsed enum value is invalid.
