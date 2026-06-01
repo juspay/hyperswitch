@@ -21,16 +21,16 @@ pub async fn unreferenced_refund(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            relay::relay_unreferenced_refund(
-                state,
-                auth.platform,
-                #[cfg(feature = "v1")]
-                auth.profile.map(|profile| profile.get_id().clone()),
-                #[cfg(feature = "v2")]
-                Some(auth.profile.get_id().clone()),
-                req,
-            )
+        |state, auth: auth::AuthenticationData, req, _| async move {
+            #[cfg(feature = "v1")]
+            let profile_id = auth
+                .profile
+                .get_required_value("profile_id")?
+                .get_id()
+                .clone();
+            #[cfg(feature = "v2")]
+            let profile_id = auth.profile.get_id().clone();
+            relay::relay_unreferenced_refund(state, auth.platform, profile_id, req).await
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             allow_connected_scope_operation: false,

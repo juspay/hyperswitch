@@ -103,7 +103,7 @@ pub struct UnreferencedRefundResponse {
     pub error: Option<RelayError>,
 
     /// Raw response from connector
-    pub raw_connector_response: Option<serde_json::Value>,
+    pub raw_connector_response: Option<Secret<serde_json::Value>>,
 }
 
 impl TryFrom<crate::relay::RelayRequest> for UnreferencedRefundRequest {

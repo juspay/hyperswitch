@@ -4,7 +4,7 @@ use api_models::unreferenced_refund::UnreferencedRefundRequest;
 use bytes::Bytes;
 use common_utils::request::Request;
 use hyperswitch_domain_models::router_data::{AccessToken, ConnectorAuthType};
-
+use hyperswitch_masking::Secret;
 use crate::errors::ConnectorError;
 
 /// All data required to build a relay request
@@ -32,7 +32,7 @@ pub struct UnreferencedRefundResponse {
     /// Connector error message (populated on failure)
     pub error_message: Option<String>,
     /// Raw JSON response from the connector
-    pub raw_response: Option<serde_json::Value>,
+    pub raw_response: Option<Secret<serde_json::Value>>,
 }
 
 /// Trait implemented by connectors that support relay operations (e.g. unreferenced refund).

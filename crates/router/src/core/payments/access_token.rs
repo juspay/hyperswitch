@@ -290,20 +290,17 @@ pub async fn add_access_token<
 pub async fn get_access_token_for_relay(
     state: &SessionState,
     connector_name: &str,
-    merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
     merchant_id: &common_utils::id_type::MerchantId,
     profile_id: &common_utils::id_type::ProfileId,
     merchant_connector_account: &domain::MerchantConnectorAccount,
     processor: &domain::Processor,
     relay_id: &common_utils::id_type::RelayId,
 ) -> RouterResult<Option<types::AccessToken>> {
-    let merchant_connector_id_or_connector_name = merchant_connector_id
-        .map(|id| id.get_string_repr().to_string())
-        .unwrap_or(connector_name.to_string());
+    let merchant_connector_id = merchant_connector_account.get_id().get_string_repr().to_string();
 
     let access_token_key = common_utils::access_token::get_default_access_token_key(
         merchant_id,
-        merchant_connector_id_or_connector_name,
+        merchant_connector_id,
     );
 
     let cached = state

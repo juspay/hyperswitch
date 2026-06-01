@@ -8,6 +8,7 @@ use common_utils::{
     self, fp_utils,
     id_type::{self, GenerateId},
 };
+use hyperswitch_masking::Secret;
 use error_stack::ResultExt;
 use hyperswitch_connectors::connector_relay::RelayConnectors;
 use hyperswitch_domain_models::relay;
@@ -999,7 +1000,7 @@ async fn process_unreferenced_refund(
     profile_id: &id_type::ProfileId,
     connector_resource_id: String,
     request: &api_models::unreferenced_refund::UnreferencedRefundRequest,
-) -> RouterResult<(relay::Relay, String, Option<serde_json::Value>)> {
+) -> RouterResult<(relay::Relay, String, Option<Secret<serde_json::Value>>)> {
     let db = state.store.as_ref();
     let merchant_id = platform.get_provider().get_account().get_id();
     let processor_merchant_id = platform.get_processor().get_account().get_id();
@@ -1048,7 +1049,6 @@ async fn process_unreferenced_refund(
         access_token_core::get_access_token_for_relay(
             state,
             &connector_name,
-            Some(connector_id),
             processor_merchant_id,
             profile_id,
             &connector_account,
@@ -1126,9 +1126,7 @@ async fn process_unreferenced_refund(
                 status: relay_status,
                 error_code: connector_resp.error_code,
                 error_message: connector_resp.error_message,
-                response_data: connector_resp
-                    .raw_response
-                    .map(hyperswitch_masking::Secret::new),
+                response_data: connector_resp.raw_response,
             };
             (bytes, relay_update)
         }
@@ -1160,7 +1158,9 @@ async fn process_unreferenced_refund(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update unreferenced refund relay record")?;
 
-    let raw_connector_response = serde_json::from_slice::<serde_json::Value>(&response_bytes).ok();
+    let raw_connector_response = serde_json::from_slice::<serde_json::Value>(&response_bytes)
+        .ok()
+        .map(hyperswitch_masking::Secret::new);
 
     Ok((updated_relay, connector_name, raw_connector_response))
 }
@@ -1171,7 +1171,7 @@ async fn process_relay_unreferenced_refund(
     profile_id: &id_type::ProfileId,
     connector_resource_id: String,
     request: &api_models::unreferenced_refund::UnreferencedRefundRequest,
-) -> RouterResult<(relay::Relay, String, Option<serde_json::Value>)> {
+) -> RouterResult<(relay::Relay, String, Option<Secret<serde_json::Value>>)> {
     fp_utils::when(!request.amount.is_greater_than(0), || {
         Err(errors::ApiErrorResponse::PreconditionFailed {
             message: "Amount must be greater than 0".to_string(),
@@ -1197,15 +1197,14 @@ async fn process_relay_unreferenced_refund(
 pub async fn relay_unreferenced_refund(
     state: SessionState,
     platform: domain::Platform,
-    profile_id_optional: Option<id_type::ProfileId>,
+    profile_id: id_type::ProfileId,
     request: api_models::unreferenced_refund::UnreferencedRefundRequest,
 ) -> RouterResponse<api_models::unreferenced_refund::UnreferencedRefundResponse> {
-    let profile_id = profile_id_optional.get_required_value("ProfileId")?;
 
     let connector_resource_id = request
         .connector_resource_id
         .clone()
-        .unwrap_or_else(|| format!("internal_{}", uuid::Uuid::new_v4()));
+        .unwrap_or_else(|| format!("internal_{}", uuid::Uuid::now_v7()));
 
     let (updated_relay, connector_name, raw_connector_response) =
         process_relay_unreferenced_refund(

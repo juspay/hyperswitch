@@ -382,7 +382,9 @@ impl ConnectorRelayIntegration for Fiservcommercehub {
         &self,
         response: Bytes,
     ) -> error_stack::Result<UnreferencedRefundResponse, ConnectorError> {
-        let raw_response = serde_json::from_slice::<serde_json::Value>(&response).ok();
+        let raw_response = serde_json::from_slice::<serde_json::Value>(&response)
+            .ok()
+            .map(Secret::new);
 
         let parsed: FiservcommercehubCreditResponse = serde_json::from_slice(&response)
             .change_context(ConnectorError::ResponseDeserializationFailed)
@@ -410,7 +412,9 @@ impl ConnectorRelayIntegration for Fiservcommercehub {
         response: Bytes,
         _status_code: u16,
     ) -> error_stack::Result<UnreferencedRefundResponse, ConnectorError> {
-        let raw_response = serde_json::from_slice::<serde_json::Value>(&response).ok();
+        let raw_response = serde_json::from_slice::<serde_json::Value>(&response)
+            .ok()
+            .map(Secret::new);
 
         let err_resp: FiservcommercehubErrorResponse = serde_json::from_slice(&response)
             .change_context(ConnectorError::ResponseDeserializationFailed)
