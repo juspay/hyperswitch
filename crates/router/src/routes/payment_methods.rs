@@ -629,8 +629,6 @@ pub async fn list_payment_method_api(
         let jwt_auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationData, _>> =
             Box::new(auth::JWTAuth {
                 permission: Permission::MerchantPaymentRead,
-                allow_connected: true,
-                allow_platform: true,
             });
 
         (jwt_auth, api::AuthFlow::Merchant)
