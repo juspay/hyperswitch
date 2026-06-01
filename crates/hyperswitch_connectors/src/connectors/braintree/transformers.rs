@@ -1,6 +1,5 @@
 use api_models::{
-    payments as payment_types,
-    payments::{ApplePaySessionResponse, SessionToken},
+    payments::{self as payment_types, ApplePaySessionResponse, PaypalCaptureMethod, SessionToken},
     webhooks::IncomingWebhookEvent,
 };
 use common_enums::enums;
@@ -2004,6 +2003,8 @@ impl
                                             )?,
                                     },
                                 ),
+                                currency: Some(data.request.currency),
+                                intent: data.request.capture_method.map(PaypalCaptureMethod::from),
                             },
                         ))
                     }
