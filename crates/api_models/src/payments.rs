@@ -9217,6 +9217,7 @@ pub struct VerifyResponse {
     pub email: Option<Email>,
     pub name: Option<Secret<String>>,
     pub phone: Option<Secret<String>>,
+    #[schema(deprecated)]
     pub mandate_id: Option<String>,
     #[auth_based]
     pub payment_method: Option<api_enums::PaymentMethod>,

@@ -16,6 +16,7 @@ pub struct MandateId {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MandateRevokedResponse {
     /// The identifier for mandate
+    #[schema(deprecated)]
     #[smithy(value_type = "String")]
     pub mandate_id: String,
     /// The status for mandates
