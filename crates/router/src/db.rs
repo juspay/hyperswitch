@@ -55,9 +55,9 @@ use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
 };
 use hyperswitch_domain_models::{
+    authentication::AuthenticationInterface,
     card_issuer::CardIssuersInterface,
     cards_info::CardsInfoInterface,
-    authentication::AuthenticationInterface,
     master_key::MasterKeyInterface,
     payment_methods::PaymentMethodInterface,
     payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},

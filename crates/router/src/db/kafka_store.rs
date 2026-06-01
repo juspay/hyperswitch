@@ -4090,8 +4090,10 @@ impl AuthenticationInterface for KafkaStore {
         key_store: &domain::MerchantKeyStore,
         authentication: hyperswitch_domain_models::authentication::Authentication,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
-    {
+    ) -> error_stack::Result<
+        hyperswitch_domain_models::authentication::Authentication,
+        errors::StorageError,
+    > {
         let auth = self
             .diesel_store
             .insert_authentication(state, key_store, authentication, storage_scheme)
@@ -4115,8 +4117,10 @@ impl AuthenticationInterface for KafkaStore {
         key_store: &domain::MerchantKeyStore,
         state: &KeyManagerState,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
-    {
+    ) -> error_stack::Result<
+        hyperswitch_domain_models::authentication::Authentication,
+        errors::StorageError,
+    > {
         self.diesel_store
             .find_authentication_by_merchant_id_authentication_id(
                 merchant_id,
@@ -4135,8 +4139,10 @@ impl AuthenticationInterface for KafkaStore {
         key_store: &domain::MerchantKeyStore,
         state: &KeyManagerState,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
-    {
+    ) -> error_stack::Result<
+        hyperswitch_domain_models::authentication::Authentication,
+        errors::StorageError,
+    > {
         self.diesel_store
             .find_authentication_by_merchant_id_connector_authentication_id(
                 merchant_id,
@@ -4155,8 +4161,10 @@ impl AuthenticationInterface for KafkaStore {
         key_store: &domain::MerchantKeyStore,
         state: &KeyManagerState,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<hyperswitch_domain_models::authentication::Authentication, errors::StorageError>
-    {
+    ) -> error_stack::Result<
+        hyperswitch_domain_models::authentication::Authentication,
+        errors::StorageError,
+    > {
         let auth = self
             .diesel_store
             .update_authentication_by_merchant_id_authentication_id(

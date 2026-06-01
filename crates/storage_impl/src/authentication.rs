@@ -186,7 +186,12 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
         match storage_scheme {
             common_enums::MerchantStorageScheme::PostgresOnly => {
                 self.router_store
-                    .insert_authentication(state, merchant_key_store, authentication, storage_scheme)
+                    .insert_authentication(
+                        state,
+                        merchant_key_store,
+                        authentication,
+                        storage_scheme,
+                    )
                     .await
             }
             common_enums::MerchantStorageScheme::RedisKv => {
@@ -455,7 +460,9 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
                     .change_context(errors::StorageError::EncryptionError)?;
 
                 let authentication_storage_update =
-                    diesel_models::authentication::AuthenticationUpdate::from(authentication_update);
+                    diesel_models::authentication::AuthenticationUpdate::from(
+                        authentication_update,
+                    );
                 let authentication_update_internal =
                     diesel_models::authentication::AuthenticationUpdateInternal::from(
                         authentication_storage_update,
