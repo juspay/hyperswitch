@@ -6261,8 +6261,8 @@ pub async fn payment_methods_session_retrieve(
 async fn store_cvc_as_payment_token_in_redis(
     state: &SessionState,
     token: &str,
-    card_cvc: Option<hyperswitch_masking::Secret<String>>,
-    card_holder_name: Option<hyperswitch_masking::Secret<String>>,
+    card_cvc: Option<Secret<String>>,
+    card_holder_name: Option<Secret<String>>,
 ) -> RouterResult<()> {
     let redis_token_data =
         storage::PaymentTokenData::temporary_card_token(card_cvc, card_holder_name);
@@ -6279,8 +6279,8 @@ async fn store_cvc_as_payment_token_in_redis(
 fn extract_card_cvc_and_holder_name(
     payment_method_data: Option<&payment_methods::PaymentMethodUpdateData>,
 ) -> (
-    Option<hyperswitch_masking::Secret<String>>,
-    Option<hyperswitch_masking::Secret<String>>,
+    Option<Secret<String>>,
+    Option<Secret<String>>,
 ) {
     match payment_method_data {
         Some(payment_methods::PaymentMethodUpdateData::Card(card_update)) => (
