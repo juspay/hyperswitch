@@ -11147,6 +11147,7 @@
       "Connector": {
         "type": "string",
         "enum": [
+          "absa_sanlam",
           "authipay",
           "adyenplatform",
           "stripe_billing_test",
@@ -11260,7 +11261,6 @@
           "recurly",
           "redsys",
           "revolv3",
-          "sanlam",
           "santander",
           "shift4",
           "silverflow",
@@ -28008,8 +28008,41 @@
                 "$ref": "#/components/schemas/BankDebitDetail"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "proxy_card"
+            ],
+            "properties": {
+              "proxy_card": {
+                "$ref": "#/components/schemas/RawProxyCardDataResponse"
+              }
+            }
           }
         ]
+      },
+      "RawProxyCardDataResponse": {
+        "type": "object",
+        "required": [
+          "card_number"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "example": "4111111145551142"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "example": "25",
+            "nullable": true
+          },
+          "card_exp_month": {
+            "type": "string",
+            "example": "10",
+            "nullable": true
+          }
+        }
       },
       "RealTimePaymentData": {
         "oneOf": [
@@ -29189,6 +29222,7 @@
         "type": "string",
         "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
+          "absa_sanlam",
           "authipay",
           "adyenplatform",
           "stripe_billing_test",
@@ -29296,7 +29330,6 @@
           "redsys",
           "revolv3",
           "riskified",
-          "sanlam",
           "santander",
           "shift4",
           "signifyd",
