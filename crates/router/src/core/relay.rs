@@ -1,9 +1,8 @@
 use std::marker::PhantomData;
 
-use bytes::Bytes;
-
 use api_models::relay as relay_api_models;
 use async_trait::async_trait;
+use bytes::Bytes;
 use common_enums::RelayStatus;
 use common_utils::{
     self, fp_utils,

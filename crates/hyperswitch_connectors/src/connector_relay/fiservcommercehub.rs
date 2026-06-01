@@ -290,9 +290,7 @@ impl Fiservcommercehub {
             expiration_year.len(),
         );
         name_on_card.as_ref().map(|name| {
-            encryption_block_fields.push_str(
-                &format!(",card.nameOnCard:{}", name.len())
-            );
+            encryption_block_fields.push_str(&format!(",card.nameOnCard:{}", name.len()));
         });
 
         Ok(EncryptionData {
