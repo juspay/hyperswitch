@@ -1001,13 +1001,14 @@ async fn process_unreferenced_refund(
     request: &api_models::unreferenced_refund::UnreferencedRefundRequest,
 ) -> RouterResult<(relay::Relay, String, Option<serde_json::Value>)> {
     let db = state.store.as_ref();
-    let merchant_id = platform.get_processor().get_account().get_id();
+    let merchant_id = platform.get_provider().get_account().get_id();
+    let processor_merchant_id = platform.get_processor().get_account().get_id();
     let connector_id: &id_type::MerchantConnectorAccountId = &request.connector_id;
 
     #[cfg(feature = "v1")]
     let connector_account = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            merchant_id,
+            processor_merchant_id,
             connector_id,
             platform.get_processor().get_key_store(),
         )
@@ -1048,7 +1049,7 @@ async fn process_unreferenced_refund(
             state,
             &connector_name,
             Some(connector_id),
-            merchant_id,
+            processor_merchant_id,
             profile_id,
             &connector_account,
             platform.get_processor(),
@@ -1058,6 +1059,10 @@ async fn process_unreferenced_refund(
     } else {
         None
     };
+
+    let created_by = platform
+        .get_initiator()
+        .and_then(|initiator| initiator.to_created_by());
 
     let relay_domain = relay::Relay {
         id: relay_id,
@@ -1080,6 +1085,8 @@ async fn process_unreferenced_refund(
         created_at: common_utils::date_time::now(),
         modified_at: common_utils::date_time::now(),
         response_data: None,
+        processor_merchant_id: Some(processor_merchant_id.clone()),
+        created_by,
     };
 
     let relay_record = db
