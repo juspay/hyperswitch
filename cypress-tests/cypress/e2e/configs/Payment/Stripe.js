@@ -398,6 +398,40 @@ export const connectorDetails = {
         },
       },
     },
+    RefundInstant: {
+      Request: {
+        amount: 6000,
+        refund_type: "instant",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          refund_type: "instant",
+          card_type: null,
+          card_network: null,
+          card_issuer: null,
+          card_issuing_country: null,
+        },
+      },
+    },
+    RefundScheduled: {
+      Request: {
+        amount: 6000,
+        refund_type: "scheduled",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+          refund_type: "scheduled",
+          card_type: null,
+          card_network: null,
+          card_issuer: null,
+          card_issuing_country: null,
+        },
+      },
+    },
     // IncrementalAuth: { // commenting out due to credentials issue
     //   Request: {
     //     amount: 8000,

@@ -1906,6 +1906,32 @@ export const connectorDetails = {
       },
     }),
     SyncRefund: getCustomExchange({}),
+    RefundInstant: getCustomExchange({
+      Request: {
+        amount: 6000,
+        refund_type: "instant",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          refund_type: "instant",
+        },
+      },
+    }),
+    RefundScheduled: getCustomExchange({
+      Request: {
+        amount: 6000,
+        refund_type: "scheduled",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+          refund_type: "scheduled",
+        },
+      },
+    }),
     PartialAuth: getCustomExchange({
       Request: {
         enable_partial_authorization: true,
