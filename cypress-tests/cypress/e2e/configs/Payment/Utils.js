@@ -636,7 +636,6 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     POLL_CONFIG: ["stripe"],
-    AIRWALLEX_BANK_TRANSFER: ["airwallex"],
     AIRWALLEX_PAYLATER: ["airwallex"],
     AIRWALLEX_WALLET: ["airwallex"],
     // Add more inclusion lists
