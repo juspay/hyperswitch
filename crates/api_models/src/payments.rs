@@ -9079,6 +9079,46 @@ pub struct PlatformPaymentListItem {
     /// Return URL configured on the payment.
     #[schema(example = "https://example.com/return")]
     pub return_url: Option<String>,
+
+    /// Connector used for the active attempt.
+    #[schema(value_type = Option<Connector>, example = "stripe")]
+    pub connector: Option<String>,
+
+    /// Payment method category used for the active attempt (e.g. card, wallet).
+    #[schema(value_type = Option<PaymentMethod>, example = "card")]
+    pub payment_method: Option<api_enums::PaymentMethod>,
+
+    /// Payment method subtype used for the active attempt (e.g. credit, apple_pay).
+    #[schema(value_type = Option<PaymentMethodType>, example = "credit")]
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+
+    /// Card network used for the active attempt, when applicable.
+    #[schema(example = "Visa")]
+    pub card_network: Option<String>,
+
+    /// Identifier of the transaction at the connector for the active attempt.
+    #[schema(example = "993672945374576J")]
+    pub connector_transaction_id: Option<String>,
+
+    /// Amount still capturable on the active attempt.
+    #[schema(value_type = i64, example = 6540)]
+    pub amount_capturable: MinorUnit,
+
+    /// Authentication type used for the active attempt (e.g. three_ds, no_three_ds).
+    #[schema(value_type = Option<AuthenticationType>, example = "three_ds")]
+    pub authentication_type: Option<api_enums::AuthenticationType>,
+
+    /// Capture method used for the active attempt (manual, automatic, etc.).
+    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
+    pub capture_method: Option<api_enums::CaptureMethod>,
+
+    /// Client secret used by SDKs to confirm the payment.
+    #[schema(example = "pay_..._secret_...")]
+    pub client_secret: Option<String>,
+
+    /// Error message from the connector for the active attempt, if any.
+    #[schema(example = "Your card was declined.")]
+    pub error_message: Option<String>,
 }
 
 #[cfg(feature = "v1")]

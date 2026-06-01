@@ -923,7 +923,7 @@ impl Payments {
                         .route(web::post().to(payments::payments_list_by_filter)),
                 )
                 .service(
-                    web::resource("/list-platform")
+                    web::resource("/platform/list")
                         .route(web::get().to(payments::payments_list_for_platform)),
                 )
                 .service(

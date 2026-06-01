@@ -2093,14 +2093,17 @@ impl PaymentIntentInterface for KafkaStore {
     }
 
     #[cfg(all(feature = "olap", feature = "v1"))]
-    async fn filter_payment_intent_by_platform_merchant_id_for_listing(
+    async fn get_filtered_payment_intents_attempt_for_platform(
         &self,
         platform_merchant_id: &id_type::MerchantId,
         filters: &hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<Vec<diesel_models::PaymentIntent>, errors::StorageError> {
+    ) -> CustomResult<
+        Vec<(diesel_models::PaymentIntent, diesel_models::PaymentAttempt)>,
+        errors::StorageError,
+    > {
         self.diesel_store
-            .filter_payment_intent_by_platform_merchant_id_for_listing(
+            .get_filtered_payment_intents_attempt_for_platform(
                 platform_merchant_id,
                 filters,
                 storage_scheme,

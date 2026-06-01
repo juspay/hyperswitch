@@ -9214,8 +9214,8 @@ pub async fn list_payments_for_platform(
     helpers::validate_payment_list_request(&constraints)?;
     let platform_merchant_id = platform.get_provider().get_account().get_id();
     let db = state.store.as_ref();
-    let payment_intents = db
-        .filter_payment_intent_by_platform_merchant_id_for_listing(
+    let payment_intent_attempt_rows = db
+        .get_filtered_payment_intents_attempt_for_platform(
             platform_merchant_id,
             &(constraints, profile_id_list).try_into()?,
             platform.get_provider().get_account().storage_scheme,
@@ -9223,7 +9223,7 @@ pub async fn list_payments_for_platform(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-    let data: Vec<api::PlatformPaymentListItem> = payment_intents
+    let data: Vec<api::PlatformPaymentListItem> = payment_intent_attempt_rows
         .into_iter()
         .map(ForeignFrom::foreign_from)
         .collect();

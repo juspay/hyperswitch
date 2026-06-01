@@ -29,6 +29,10 @@ use common_utils::{
         StringMajorUnitForConnector,
     },
 };
+#[cfg(all(feature = "v1", feature = "olap"))]
+use diesel_models::{
+    PaymentAttempt as DieselPaymentAttempt, PaymentIntent as DieselPaymentIntent,
+};
 use diesel_models::{
     ephemeral_key,
     payment_attempt::{
@@ -36,8 +40,6 @@ use diesel_models::{
         NetworkDetails as DieselNetworkDetails,
     },
 };
-#[cfg(all(feature = "v1", feature = "olap"))]
-use diesel_models::PaymentIntent as DieselPaymentIntent;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payments::payment_intent::CustomerData, router_request_types, sdk_auth::SdkAuthorization,
@@ -4368,8 +4370,8 @@ pub fn construct_connector_invoke_hidden_frame(
 }
 
 #[cfg(all(feature = "v1", feature = "olap"))]
-impl ForeignFrom<DieselPaymentIntent> for api::PlatformPaymentListItem {
-    fn foreign_from(pi: DieselPaymentIntent) -> Self {
+impl ForeignFrom<(DieselPaymentIntent, DieselPaymentAttempt)> for api::PlatformPaymentListItem {
+    fn foreign_from((pi, pa): (DieselPaymentIntent, DieselPaymentAttempt)) -> Self {
         Self {
             payment_id: pi.payment_id,
             merchant_id: pi.merchant_id,
@@ -4388,6 +4390,20 @@ impl ForeignFrom<DieselPaymentIntent> for api::PlatformPaymentListItem {
             setup_future_usage: pi.setup_future_usage,
             merchant_order_reference_id: pi.merchant_order_reference_id,
             return_url: pi.return_url,
+            // Attempt-level fields surfaced for the dashboard listing.
+            connector: pa.connector,
+            payment_method: pa.payment_method,
+            payment_method_type: pa.payment_method_type,
+            card_network: pa.card_network,
+            connector_transaction_id: pa
+                .connector_transaction_id
+                .as_ref()
+                .map(|tid| tid.get_id().clone()),
+            amount_capturable: pa.amount_capturable,
+            authentication_type: pa.authentication_type,
+            capture_method: pa.capture_method,
+            client_secret: pi.client_secret,
+            error_message: pa.error_message,
         }
     }
 }

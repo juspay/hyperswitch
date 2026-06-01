@@ -6,7 +6,9 @@ use common_utils::ext_traits::{AsyncExt, Encode};
 #[cfg(feature = "v2")]
 use common_utils::fallback_reverse_lookup_not_found;
 #[cfg(feature = "olap")]
-use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
+use diesel::{
+    associations::HasTable, BoolExpressionMethods, ExpressionMethods, JoinOnDsl, QueryDsl,
+};
 #[cfg(feature = "v1")]
 use diesel_models::payment_intent::PaymentIntentUpdate as DieselPaymentIntentUpdate;
 #[cfg(feature = "v2")]
@@ -25,6 +27,8 @@ use diesel_models::schema_v2::{
     payment_attempt::{self as payment_attempt_schema, dsl as pa_dsl},
     payment_intent::dsl as pi_dsl,
 };
+#[cfg(all(feature = "v1", feature = "olap"))]
+use diesel_models::PaymentAttempt as DieselPaymentAttempt;
 use diesel_models::{
     enums::MerchantStorageScheme, kv, payment_intent::PaymentIntent as DieselPaymentIntent,
 };
@@ -551,14 +555,14 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     }
 
     #[cfg(all(feature = "v1", feature = "olap"))]
-    async fn filter_payment_intent_by_platform_merchant_id_for_listing(
+    async fn get_filtered_payment_intents_attempt_for_platform(
         &self,
         platform_merchant_id: &common_utils::id_type::MerchantId,
         filters: &PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<DieselPaymentIntent>, StorageError> {
+    ) -> error_stack::Result<Vec<(DieselPaymentIntent, DieselPaymentAttempt)>, StorageError> {
         self.router_store
-            .filter_payment_intent_by_platform_merchant_id_for_listing(
+            .get_filtered_payment_intents_attempt_for_platform(
                 platform_merchant_id,
                 filters,
                 storage_scheme,
@@ -1056,20 +1060,21 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     #[instrument(skip_all)]
-    async fn filter_payment_intent_by_platform_merchant_id_for_listing(
+    async fn get_filtered_payment_intents_attempt_for_platform(
         &self,
         platform_merchant_id: &common_utils::id_type::MerchantId,
         filters: &PaymentIntentFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<DieselPaymentIntent>, StorageError> {
+    ) -> error_stack::Result<Vec<(DieselPaymentIntent, DieselPaymentAttempt)>, StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
 
-        // Filter on `merchant_id` (which equals the platform's id on connected-merchant
-        // rows) so a single indexed lookup returns payments across every connected
-        // merchant under this platform. No decryption is performed; the diesel rows
-        // are returned raw because the caller maps to a slim DTO that excludes PII.
         let mut query = <DieselPaymentIntent as HasTable>::table()
+            .inner_join(
+                payment_attempt_schema::table.on(pa_dsl::attempt_id
+                    .eq(pi_dsl::active_attempt_id)
+                    .and(pa_dsl::merchant_id.eq(pi_dsl::merchant_id))),
+            )
             .filter(pi_dsl::merchant_id.eq(platform_merchant_id.to_owned()))
             .order(pi_dsl::created_at.desc())
             .into_boxed();
@@ -1116,7 +1121,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
-            query.get_results_async::<DieselPaymentIntent>(conn),
+            query.get_results_async::<(DieselPaymentIntent, DieselPaymentAttempt)>(conn),
             db_metrics::DatabaseOperation::Filter,
         )
         .await

@@ -19,6 +19,8 @@ use common_utils::{
         CreatedBy, MinorUnit,
     },
 };
+#[cfg(all(feature = "v1", feature = "olap"))]
+use diesel_models::PaymentAttempt as DieselPaymentAttempt;
 use diesel_models::{
     PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
 };
@@ -96,19 +98,23 @@ pub trait PaymentIntentInterface {
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, Self::Error>;
 
-    /// List raw payment intent rows for a platform merchant across all its
-    /// connected merchants. Filters on `payment_intent.merchant_id`
+    /// List raw payment intent + active attempt rows for a platform merchant across
+    /// all its connected merchants. Filters on `payment_intent.merchant_id`
     /// (which equals the platform's id on connected-merchant rows) instead of
-    /// `processor_merchant_id`. Returns undecrypted diesel rows because the
-    /// caller maps to a slim DTO that omits PII fields - this avoids fetching
-    /// each connected merchant's key store at list time.
+    /// `processor_merchant_id`, and inner-joins `payment_attempt` on the intent's
+    /// `active_attempt_id` (scoped by `merchant_id` since `attempt_id` is unique
+    /// per merchant only) so the response can include attempt-level fields
+    /// (connector, payment_method, card_network, connector_transaction_id, etc.).
+    /// Returns undecrypted diesel rows because the caller maps to a slim DTO that
+    /// omits PII fields - this avoids fetching each connected merchant's key store
+    /// at list time.
     #[cfg(all(feature = "v1", feature = "olap"))]
-    async fn filter_payment_intent_by_platform_merchant_id_for_listing(
+    async fn get_filtered_payment_intents_attempt_for_platform(
         &self,
         platform_merchant_id: &id_type::MerchantId,
         filters: &PaymentIntentFetchConstraints,
         storage_scheme: common_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<DieselPaymentIntent>, Self::Error>;
+    ) -> error_stack::Result<Vec<(DieselPaymentIntent, DieselPaymentAttempt)>, Self::Error>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn filter_payment_intents_by_time_range_constraints(
