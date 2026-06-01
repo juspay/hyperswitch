@@ -4880,6 +4880,8 @@ impl transformers::ForeignTryFrom<payments_grpc::ClientAuthenticationTokenData> 
                         .transpose()?,
                     // todo UCS
                     data_user_id_token: None,
+                    currency: None,
+                    intent: None,
                 };
 
                 Ok(Self::Paypal(Box::new(paypal_session_token_response)))
@@ -6321,6 +6323,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
+            description: router_data.description.clone(),
         })
     }
 }
@@ -6438,6 +6441,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
+            description: router_data.description.clone(),
         })
     }
 }

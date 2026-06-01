@@ -544,6 +544,7 @@ async fn store_bank_details_in_payment_methods(
                 locker_fingerprint_id: None,
                 network_tokenization_data: None,
                 storage_type: None,
+                compatibility_updated_at: None,
             };
 
             new_entries.push(pm_new);

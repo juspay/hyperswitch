@@ -1,4 +1,4 @@
-use diesel_models::routing_algorithm as routing_storage;
+use diesel_models::{errors::DatabaseError, routing_algorithm as routing_storage};
 use error_stack::report;
 use router_env::{instrument, tracing};
 use storage_impl::mock_db::MockDb;
@@ -24,10 +24,10 @@ pub trait RoutingAlgorithmInterface {
         algorithm_id: &common_utils::id_type::RoutingId,
     ) -> StorageResult<routing_storage::RoutingAlgorithm>;
 
-    async fn find_routing_algorithm_by_algorithm_id_merchant_id(
+    async fn find_routing_algorithm_by_algorithm_id_processor_merchant_id(
         &self,
         algorithm_id: &common_utils::id_type::RoutingId,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<routing_storage::RoutingAlgorithm>;
 
     async fn find_routing_algorithm_metadata_by_algorithm_id_profile_id(
@@ -90,19 +90,37 @@ impl RoutingAlgorithmInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn find_routing_algorithm_by_algorithm_id_merchant_id(
+    async fn find_routing_algorithm_by_algorithm_id_processor_merchant_id(
         &self,
         algorithm_id: &common_utils::id_type::RoutingId,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<routing_storage::RoutingAlgorithm> {
         let conn = connection::pg_connection_write(self).await?;
-        routing_storage::RoutingAlgorithm::find_by_algorithm_id_merchant_id(
+        // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
+        // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
+        let result = routing_storage::RoutingAlgorithm::find_by_algorithm_id_processor_merchant_id(
             &conn,
             algorithm_id,
-            merchant_id,
+            processor_merchant_id,
         )
-        .await
-        .map_err(|error| report!(errors::StorageError::from(error)))
+        .await;
+
+        match result {
+            Ok(routing_algorithm) => Ok(routing_algorithm),
+            Err(error) => {
+                if matches!(error.current_context(), DatabaseError::NotFound) {
+                    routing_storage::RoutingAlgorithm::find_by_algorithm_id_merchant_id(
+                        &conn,
+                        algorithm_id,
+                        processor_merchant_id,
+                    )
+                    .await
+                    .map_err(|error| report!(errors::StorageError::from(error)))
+                } else {
+                    Err(report!(errors::StorageError::from(error)))
+                }
+            }
+        }
     }
 
     #[instrument(skip_all)]
@@ -191,10 +209,10 @@ impl RoutingAlgorithmInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn find_routing_algorithm_by_algorithm_id_merchant_id(
+    async fn find_routing_algorithm_by_algorithm_id_processor_merchant_id(
         &self,
         _algorithm_id: &common_utils::id_type::RoutingId,
-        _merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<routing_storage::RoutingAlgorithm> {
         Err(errors::StorageError::MockDbError)?
     }
