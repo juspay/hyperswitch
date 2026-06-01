@@ -2770,6 +2770,12 @@ Cypress.Commands.add(
             expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
           }
         } else if (response.status === 200) {
+          if (response.body.next_action?.redirect_to_url) {
+            globalState.set(
+              "nextActionUrl",
+              response.body.next_action.redirect_to_url
+            );
+          }
           globalState.set("paymentID", paymentIntentID);
           updateConnectorState(globalState, response.body.connector);
           globalState.set(
