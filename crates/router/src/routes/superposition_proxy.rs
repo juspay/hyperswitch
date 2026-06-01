@@ -40,10 +40,7 @@ fn extract_proxy_headers(req: &HttpRequest) -> Result<(String, String), HttpResp
 }
 
 /// Build the Superposition SDK `ListContexts` input builder directly from the
-/// raw query parameters. The builder is threaded to the core handler and sent
-/// via `send_with`, so no intermediate request DTO is needed. Dimension filters
-/// keep their `dimension[...]` keys (the core handler reads them back off the
-/// builder for auth scoping validation).
+/// raw query parameters.
 fn build_list_contexts_input(
     org_id: String,
     workspace_id: String,
@@ -87,55 +84,47 @@ fn build_list_contexts_input(
         .set_last_modified_by((!last_modified_by.is_empty()).then_some(last_modified_by))
 }
 
-/// Build the `ListDefaultConfigs` SDK input builder from raw query parameters.
+/// Build the `ListDefaultConfigs` SDK input builder from typed query parameters.
 /// Allowlist-driven paging overrides are applied later in the core handler.
 fn build_list_default_configs_input(
     org_id: String,
     workspace_id: String,
-    params: Vec<(String, String)>,
+    params: SuperpositionListQuery,
 ) -> ListDefaultConfigsInputBuilder {
-    let mut builder = ListDefaultConfigsInputBuilder::default()
+    ListDefaultConfigsInputBuilder::default()
         .org_id(org_id)
-        .workspace_id(workspace_id);
-
-    for (key, value) in params {
-        match key.as_str() {
-            "count" => builder = builder.set_count(value.parse().ok()),
-            "page" => builder = builder.set_page(value.parse().ok()),
-            "all" => builder = builder.set_all(value.parse().ok()),
-            "name" => builder = builder.set_name(Some(value)),
-            _ => {}
-        }
-    }
-
-    builder
+        .workspace_id(workspace_id)
+        .set_count(params.count)
+        .set_page(params.page)
+        .set_all(params.all)
+        .set_name(params.name)
 }
 
-/// Build the `ListDimensions` SDK input builder from raw query parameters.
+/// Typed query params shared by the simple Superposition list endpoints
+/// (`ListDimensions`, `ListDefaultConfigs`).
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct SuperpositionListQuery {
+    pub count: Option<i32>,
+    pub page: Option<i32>,
+    pub all: Option<bool>,
+    pub name: Option<String>,
+}
+
+/// Build the `ListDimensions` SDK input builder from typed query parameters.
 fn build_list_dimensions_input(
     org_id: String,
     workspace_id: String,
-    params: Vec<(String, String)>,
+    params: SuperpositionListQuery,
 ) -> ListDimensionsInputBuilder {
-    let mut builder = ListDimensionsInputBuilder::default()
+    ListDimensionsInputBuilder::default()
         .org_id(org_id)
-        .workspace_id(workspace_id);
-
-    for (key, value) in params {
-        match key.as_str() {
-            "count" => builder = builder.set_count(value.parse().ok()),
-            "page" => builder = builder.set_page(value.parse().ok()),
-            "all" => builder = builder.set_all(value.parse().ok()),
-            _ => {}
-        }
-    }
-
-    builder
+        .workspace_id(workspace_id)
+        .set_count(params.count)
+        .set_page(params.page)
+        .set_all(params.all)
 }
 
 /// Build the `ListAuditLogs` SDK input builder from raw query parameters.
-/// Fails with a `400` response when a date filter cannot be parsed, mirroring
-/// the header-validation handling in [`extract_proxy_headers`].
 fn build_list_audit_logs_input(
     org_id: String,
     workspace_id: String,
@@ -190,8 +179,7 @@ fn build_list_audit_logs_input(
 }
 
 /// Build the `GetResolvedConfig` SDK input builder from the resolve-config
-/// request body. Context dimensions are converted to `Document` values; the
-/// core handler reads them back off the builder for auth-scoped validation.
+/// request body.
 fn build_resolve_config_input(
     org_id: String,
     workspace_id: String,
@@ -244,7 +232,7 @@ pub async fn list_contexts(
 pub async fn list_default_configs(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query: web::Query<Vec<(String, String)>>,
+    query: web::Query<SuperpositionListQuery>,
 ) -> HttpResponse {
     let flow = Flow::SuperpositionListDefaultConfigs;
     let (org_id, workspace_id) = match extract_proxy_headers(&req) {
@@ -276,7 +264,7 @@ pub async fn list_default_configs(
 pub async fn list_dimensions(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query: web::Query<Vec<(String, String)>>,
+    query: web::Query<SuperpositionListQuery>,
 ) -> HttpResponse {
     let flow = Flow::SuperpositionListDimensions;
     let (org_id, workspace_id) = match extract_proxy_headers(&req) {
