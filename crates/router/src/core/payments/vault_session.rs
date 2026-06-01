@@ -130,7 +130,7 @@ async fn call_internal_pm_session_create_for_vault(
     );
 
     let request = CreatePaymentMethodSessionV1Request {
-        customer_id:customer_id.cloned(),
+        customer_id: customer_id.cloned(),
         modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
         storage_type: common_enums::StorageType::Persistent,
     };
@@ -191,9 +191,7 @@ where
     let is_external_vault_sdk_enabled = profile.external_vault_details.is_external_vault_enabled();
 
     if is_external_vault_sdk_enabled {
-        let customer_id = customer
-            .as_ref()
-            .map(|c| c.get_id());
+        let customer_id = customer.as_ref().map(|c| c.get_id());
 
         let vault_details =
             call_internal_pm_session_create_for_vault(state, platform, profile, customer_id)

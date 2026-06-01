@@ -1,7 +1,9 @@
 //! Payment method session create flow types and models.
 
-use common_utils::{id_type, request::{Method, RequestContent}};
-
+use common_utils::{
+    id_type,
+    request::{Method, RequestContent},
+};
 use hyperswitch_interfaces::micro_service::MicroserviceClientError;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -57,22 +59,18 @@ impl From<VaultSessionDetailsResponse> for api_models::payments::VaultSessionDet
     fn from(resp: VaultSessionDetailsResponse) -> Self {
         match resp {
             VaultSessionDetailsResponse::Vgs(vgs) => {
-                Self::Vgs(
-                    api_models::payments::VgsSessionDetails {
-                        external_vault_id: vgs.external_vault_id,
-                        sdk_env: vgs.sdk_env,
-                    },
-                )
+                Self::Vgs(api_models::payments::VgsSessionDetails {
+                    external_vault_id: vgs.external_vault_id,
+                    sdk_env: vgs.sdk_env,
+                })
             }
             VaultSessionDetailsResponse::HyperswitchVault(hsv) => {
-                Self::HyperswitchVault(
-                    api_models::payments::HyperswitchVaultSessionDetails {
-                        payment_method_session_id: hsv.payment_method_session_id,
-                        client_secret: hsv.client_secret,
-                        publishable_key: hsv.publishable_key,
-                        profile_id: hsv.profile_id,
-                    },
-                )
+                Self::HyperswitchVault(api_models::payments::HyperswitchVaultSessionDetails {
+                    payment_method_session_id: hsv.payment_method_session_id,
+                    client_secret: hsv.client_secret,
+                    publishable_key: hsv.publishable_key,
+                    profile_id: hsv.profile_id,
+                })
             }
         }
     }
