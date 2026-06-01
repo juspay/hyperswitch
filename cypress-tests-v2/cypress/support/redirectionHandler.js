@@ -337,28 +337,6 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
         cy.get("#outcomeSelect").select("Approve").should("have.value", "Y");
         cy.get('button[type="submit"]').click();
       });
-  } else if (connectorId === "rapyd") {
-    cy.on("uncaught:exception", () => false);
-
-    cy.get('[data-testid="3ds-code-input"]', {
-      timeout: TIMEOUT,
-    })
-      .should("be.visible")
-      .type("123456");
-
-    cy.wait(2000);
-
-    cy.get('button[data-testid="place_order_button"]')
-      .should("exist")
-      .click({ force: true });
-
-    cy.wait(WAIT_TIME);
-
-    cy.log(
-      "Rapyd sandbox: redirect back to merchant is not supported. Skipping URL verification."
-    );
-
-    return;
   } else {
     // If connectorId is neither of adyen, trustpay, nmi, stripe, bankofamerica or cybersource, wait for 10 seconds
     cy.wait(WAIT_TIME);

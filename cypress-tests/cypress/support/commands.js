@@ -638,7 +638,6 @@ Cypress.Commands.add("merchantRetrieveCall", (globalState, options = {}) => {
         "payment_response_hash_key"
       ).to.not.be.null;
       expect(response.body.publishable_key, "publishable_key").to.not.be.null;
-      cy.log("HI");
       expect(response.body.default_profile, "default_profile").to.not.be.null;
       expect(response.body.organization_id, "organization_id").to.not.be.null;
       globalState.set("organizationId", response.body.organization_id);
@@ -5510,7 +5509,7 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState, order = 0) => {
         }
 
         expect(new Date(lastUsedAt).getTime(), "last_used_at").to.be.lessThan(
-          Date.now() + 5000
+          Date.now()
         ).and.to.not.be.null;
 
         // For order > 0, validate payment methods are ordered by last_used_at

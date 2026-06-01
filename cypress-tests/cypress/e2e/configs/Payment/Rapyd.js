@@ -515,7 +515,7 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "Setup Mandate flow for Rapyd",
+            message: "Setup Mandate flow for Rapyd is not implemented",
             code: "IR_00",
           },
         },
@@ -550,33 +550,7 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "Setup Mandate flow for Rapyd",
-            code: "IR_00",
-          },
-        },
-      },
-    },
-    MITAutoCapture: {
-      Request: {},
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Setup Mandate flow for Rapyd",
-            code: "IR_00",
-          },
-        },
-      },
-    },
-    MITManualCapture: {
-      Request: {},
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Setup Mandate flow for Rapyd",
+            message: "Setup Mandate flow for Rapyd is not implemented",
             code: "IR_00",
           },
         },
