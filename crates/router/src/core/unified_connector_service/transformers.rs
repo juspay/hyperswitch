@@ -6323,6 +6323,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
+            description: router_data.description.clone(),
         })
     }
 }
@@ -6440,6 +6441,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
+            description: router_data.description.clone(),
         })
     }
 }
