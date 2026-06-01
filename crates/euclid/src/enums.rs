@@ -192,6 +192,7 @@ pub enum PayoutType {
 #[strum(serialize_all = "snake_case")]
 /// RoutableConnectors are the subset of Connectors that are eligible for payments routing
 pub enum RoutableConnectors {
+    AbsaSanlam,
     Authipay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
@@ -284,6 +285,7 @@ pub enum RoutableConnectors {
     Iatapay,
     Imerchantsolutions,
     Inespay,
+    Interpayments,
     Itaubank,
     Jpmorgan,
     Klarna,
@@ -325,7 +327,6 @@ pub enum RoutableConnectors {
     Redsys,
     Revolv3,
     Riskified,
-    Sanlam,
     Santander,
     Shift4,
     Signifyd,
@@ -373,6 +374,7 @@ impl TryFrom<Connector> for RoutableConnectors {
 
     fn try_from(connector: Connector) -> Result<Self, Self::Error> {
         match connector {
+            Connector::AbsaSanlam => Ok(Self::AbsaSanlam),
             Connector::Authipay => Ok(Self::Authipay),
             Connector::Adyenplatform => Ok(Self::Adyenplatform),
             #[cfg(feature = "dummy_connector")]
@@ -407,7 +409,6 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Bluesnap => Ok(Self::Bluesnap),
             Connector::Blackhawknetwork => Ok(Self::Blackhawknetwork),
             Connector::Calida => Ok(Self::Calida),
-            Connector::Sanlam => Ok(Self::Sanlam),
             Connector::Boku => Ok(Self::Boku),
             Connector::Braintree => Ok(Self::Braintree),
             Connector::Breadpay => Ok(Self::Breadpay),
@@ -445,6 +446,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Hyperpg => Ok(Self::Hyperpg),
             Connector::Iatapay => Ok(Self::Iatapay),
             Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
+            Connector::Interpayments => Ok(Self::Interpayments),
             Connector::Itaubank => Ok(Self::Itaubank),
             Connector::Jpmorgan => Ok(Self::Jpmorgan),
             Connector::Klarna => Ok(Self::Klarna),
@@ -522,7 +524,6 @@ impl TryFrom<Connector> for RoutableConnectors {
             | Connector::Juspaythreedsserver
             | Connector::Netcetera
             | Connector::Taxjar
-            | Connector::Interpayments
             | Connector::Threedsecureio
             | Connector::Vgs
             | Connector::CtpVisa
@@ -536,6 +537,7 @@ impl TryFrom<Connector> for RoutableConnectors {
 impl From<RoutableConnectors> for Connector {
     fn from(routable_connector: RoutableConnectors) -> Self {
         match routable_connector {
+            RoutableConnectors::AbsaSanlam => Self::AbsaSanlam,
             RoutableConnectors::Authipay => Self::Authipay,
             RoutableConnectors::Adyenplatform => Self::Adyenplatform,
             #[cfg(feature = "dummy_connector")]
@@ -605,10 +607,10 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Globepay => Self::Globepay,
             RoutableConnectors::Gocardless => Self::Gocardless,
             RoutableConnectors::Helcim => Self::Helcim,
-            RoutableConnectors::Sanlam => Self::Sanlam,
             RoutableConnectors::Hyperpg => Self::Hyperpg,
             RoutableConnectors::Iatapay => Self::Iatapay,
             RoutableConnectors::Imerchantsolutions => Self::Imerchantsolutions,
+            RoutableConnectors::Interpayments => Self::Interpayments,
             RoutableConnectors::Itaubank => Self::Itaubank,
             RoutableConnectors::Jpmorgan => Self::Jpmorgan,
             RoutableConnectors::Klarna => Self::Klarna,
