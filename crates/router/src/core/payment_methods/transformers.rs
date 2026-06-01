@@ -1472,8 +1472,6 @@ impl DomainPaymentMethodWrapper {
 
         let current_time = common_utils::date_time::now();
 
-        let current_time = common_utils::date_time::now();
-
         Ok(Self(domain::PaymentMethod {
             customer_id: response.customer_id.clone(),
             merchant_id: response.merchant_id.clone(),
@@ -1491,7 +1489,6 @@ impl DomainPaymentMethodWrapper {
             created_at: response
                 .created
                 .unwrap_or_else(common_utils::date_time::now),
-            last_modified: current_time,
             last_modified: current_time,
             payment_method: Some(response.payment_method),
             payment_method_type: response.payment_method_type,
@@ -1512,7 +1509,6 @@ impl DomainPaymentMethodWrapper {
             payment_method_billing_address: encrypted_payment_method_billing_address,
             updated_by: None,
             version: common_enums::ApiVersion::V2, //to be updated later
-            version: common_enums::ApiVersion::V2, //to be updated later
             network_token_requestor_reference_id: None, //to be added later
             network_token_locker_id: None,
             network_token_payment_method_data: None,
@@ -1527,7 +1523,6 @@ impl DomainPaymentMethodWrapper {
             locker_fingerprint_id: None,
             network_tokenization_data: None,
             storage_type: response.storage_type,
-            compatibility_updated_at: Some(current_time),
             compatibility_updated_at: Some(current_time),
         }))
     }
@@ -1604,8 +1599,6 @@ impl DomainPaymentMethodWrapper {
 
         let current_time = common_utils::date_time::now();
 
-        let current_time = common_utils::date_time::now();
-
         Ok(Self(domain::PaymentMethod {
             customer_id: response.customer_id.clone(),
             merchant_id: response.merchant_id.clone(),
@@ -1623,7 +1616,6 @@ impl DomainPaymentMethodWrapper {
             created_at: response
                 .created
                 .unwrap_or_else(common_utils::date_time::now),
-            last_modified: current_time,
             last_modified: current_time,
             payment_method: response.payment_method,
             payment_method_type: response.payment_method_type,
@@ -1644,7 +1636,6 @@ impl DomainPaymentMethodWrapper {
             payment_method_billing_address: encrypted_payment_method_billing_address,
             updated_by: None,
             version: common_enums::ApiVersion::V2, //to be updated later
-            version: common_enums::ApiVersion::V2, //to be updated later
             network_token_requestor_reference_id: None, //to be added later
             network_token_locker_id: None,
             network_token_payment_method_data: None,
@@ -1659,7 +1650,6 @@ impl DomainPaymentMethodWrapper {
             locker_fingerprint_id: None,
             network_tokenization_data: None,
             storage_type: response.storage_type,
-            compatibility_updated_at: Some(current_time),
             compatibility_updated_at: Some(current_time),
         }))
     }
@@ -1816,7 +1806,6 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
                 .created
                 .unwrap_or_else(common_utils::date_time::now),
             last_modified: current_time,
-            last_modified: current_time,
             payment_method: response.payment_method,
             payment_method_type: response.payment_method_type,
             payment_method_issuer: None,
@@ -1836,7 +1825,6 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
             payment_method_billing_address: None, //Should be sent from PM service
             updated_by: None,
             version: common_enums::ApiVersion::V2,
-            version: common_enums::ApiVersion::V2,
             network_token_requestor_reference_id: None, //to be added later
             network_token_locker_id: None,
             network_token_payment_method_data: None,
@@ -1847,7 +1835,6 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
             locker_fingerprint_id: None,
             network_tokenization_data: None,
             storage_type: response.storage_type,
-            compatibility_updated_at: Some(current_time),
             compatibility_updated_at: Some(current_time),
         }))
     }
