@@ -36,13 +36,7 @@ pub struct PaymentMethodResponseItemV1 {
     pub billing: Option<api_models::payments::Address>,
     pub network_tokenization: Option<NetworkTokenResponse>,
     pub psp_tokenization_enabled: bool,
-    /// Connector-level PSP mandate tokens for this payment method.
-    /// Used to determine `recurring_enabled` by checking active MCAs against this list.
-    #[serde(default)]
     pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
-    /// Network transaction ID set by the card network during a CIT.
-    /// Used together with `is_connector_agnostic_mit_enabled` to allow MIT without a connector mandate.
-    #[serde(default)]
     pub network_transaction_id: Option<String>,
 }
 

@@ -5535,7 +5535,7 @@ pub async fn get_mca_status(
 pub async fn get_mca_status(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
-    // profile_id: Option<id_type::ProfileId>,
+    profile_id: Option<id_type::ProfileId>,
     merchant_id: &id_type::MerchantId,
     is_connector_agnostic_mit_enabled: bool,
     connector_mandate_details: Option<&CommonMandateReference>,
