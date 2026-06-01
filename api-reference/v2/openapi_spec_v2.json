@@ -28008,8 +28008,41 @@
                 "$ref": "#/components/schemas/BankDebitDetail"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "proxy_card"
+            ],
+            "properties": {
+              "proxy_card": {
+                "$ref": "#/components/schemas/RawProxyCardDataResponse"
+              }
+            }
           }
         ]
+      },
+      "RawProxyCardDataResponse": {
+        "type": "object",
+        "required": [
+          "card_number"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "example": "4111111145551142"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "example": "25",
+            "nullable": true
+          },
+          "card_exp_month": {
+            "type": "string",
+            "example": "10",
+            "nullable": true
+          }
+        }
       },
       "RealTimePaymentData": {
         "oneOf": [
