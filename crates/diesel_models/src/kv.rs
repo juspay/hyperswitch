@@ -319,7 +319,6 @@ mod entity_type {
         }
         "refund" => {
             crate::refund::RefundNew,
-            crate::refund::RefundUpdate,
             crate::refund::RefundUpdateInternal,
         }
         "mandate" => {
