@@ -2766,6 +2766,10 @@ export const connectorDetails = {
       };
     },
     Sepa: {
+      Configs: {
+        // TRIGGER_SKIP: Adyen requires mandate_data for SEPA bank debit — use MandateSingleUseSepa instead
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "sepa",
@@ -2796,6 +2800,65 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+    MandateSingleUseSepa: {
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        currency: "EUR",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "John Doe",
+            },
+          },
+        },
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            single_use: {
+              amount: 6540,
+              currency: "EUR",
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Amsterdam",
+            state: "North Holland",
+            zip: "1012",
+            country: "NL",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        payment_type: "new_mandate",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MITAutoCaptureSepa: {
+      Request: {
+        off_session: true,
+        confirm: true,
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
         },
       },
     },
@@ -2885,6 +2948,66 @@ export const connectorDetails = {
           },
         },
         payment_type: "new_mandate",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MandateSingleUseBacs: {
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "bacs",
+        currency: "GBP",
+        payment_method_data: {
+          bank_debit: {
+            bacs_bank_debit: {
+              account_number: "09083055",
+              sort_code: "560036",
+              bank_account_holder_name: "David Archer",
+            },
+          },
+        },
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            single_use: {
+              amount: 6540,
+              currency: "GBP",
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "London",
+            state: "England",
+            zip: "SW1A 1AA",
+            country: "GB",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        payment_type: "new_mandate",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MITAutoCaptureBacs: {
+      Request: {
+        off_session: true,
+        confirm: true,
+        currency: "GBP",
       },
       Response: {
         status: 200,
