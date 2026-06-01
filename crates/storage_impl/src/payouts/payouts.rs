@@ -110,7 +110,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     created_by: new.created_by.clone(),
                 };
 
-                let mut query_gen_conn = pg_connection_read(self).await?;
+                let mut query_gen_conn = pg_connection_write(self).await?;
                 let drainer_query = new
                     .to_storage_model()
                     .generate_drainer_insert_query(&mut query_gen_conn)
@@ -183,7 +183,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     .encode_to_string_of_json()
                     .change_context(StorageError::SerializationFailed)?;
 
-                let mut query_gen_conn = pg_connection_read(self).await?;
+                let mut query_gen_conn = pg_connection_write(self).await?;
                 let drainer_query = diesel_payout_update
                     .clone()
                     .generate_drainer_update_query(

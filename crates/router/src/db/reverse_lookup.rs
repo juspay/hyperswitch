@@ -114,7 +114,7 @@ mod storage {
                         source: new.source.clone(),
                         updated_by: storage_scheme.to_string(),
                     };
-                    let mut query_gen_conn = connection::pg_connection_read(self).await?;
+                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
                     let drainer_query = new
                         .generate_drainer_insert_query(&mut query_gen_conn)
                         .await

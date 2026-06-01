@@ -105,7 +105,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     .await
                     .change_context(StorageError::EncryptionError)?;
 
-                let mut query_gen_conn = pg_connection_read(self).await?;
+                let mut query_gen_conn = pg_connection_write(self).await?;
                 let drainer_query = new_payment_intent
                     .generate_drainer_insert_query(&mut query_gen_conn)
                     .await
@@ -185,7 +185,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                         .await?;
                 }
 
-                let mut query_gen_conn = pg_connection_read(self).await?;
+                let mut query_gen_conn = pg_connection_write(self).await?;
                 let drainer_query = new_payment_intent
                     .generate_drainer_insert_query(&mut query_gen_conn)
                     .await
@@ -287,7 +287,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     .encode_to_string_of_json()
                     .change_context(StorageError::SerializationFailed)?;
 
-                let mut query_gen_conn = pg_connection_read(self).await?;
+                let mut query_gen_conn = pg_connection_write(self).await?;
                 let drainer_query = diesel_intent_update
                     .generate_drainer_update_query(
                         &mut query_gen_conn,
@@ -366,7 +366,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     .encode_to_string_of_json()
                     .change_context(StorageError::SerializationFailed)?;
 
-                let mut query_gen_conn = pg_connection_read(self).await?;
+                let mut query_gen_conn = pg_connection_write(self).await?;
                 let drainer_query = diesel_intent_update
                     .generate_drainer_update_query(
                         &mut query_gen_conn,

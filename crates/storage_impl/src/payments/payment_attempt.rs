@@ -877,7 +877,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 self.insert_reverse_lookup(reverse_lookup, storage_scheme)
                     .await?;
 
-                let mut query_gen_conn = pg_connection_read(self).await?;
+                let mut query_gen_conn = pg_connection_write(self).await?;
                 let drainer_query = payment_attempt_new
                     .generate_drainer_insert_query(&mut query_gen_conn)
                     .await
@@ -985,7 +985,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         .await?;
                 }
 
-                let mut query_gen_conn = pg_connection_read(self).await?;
+                let mut query_gen_conn = pg_connection_write(self).await?;
                 let drainer_query = diesel_payment_attempt_new
                     .generate_drainer_insert_query(&mut query_gen_conn)
                     .await
@@ -1137,7 +1137,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     (_, _) => {}
                 }
 
-                let mut query_gen_conn = pg_connection_read(self).await?;
+                let mut query_gen_conn = pg_connection_write(self).await?;
                 let drainer_query = payment_attempt
                     .clone()
                     .to_storage_model()
@@ -1195,7 +1195,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             .clone()
             .update_with_attempt_id(&conn, payment_attempt_internal.clone());
 
-        let mut query_gen_conn = pg_connection_read(self).await?;
+        let mut query_gen_conn = pg_connection_write(self).await?;
         let drainer_query = payment_attempt_internal
             .generate_drainer_update_query(&mut query_gen_conn, payment_attempt.id.clone())
             .await

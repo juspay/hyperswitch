@@ -271,7 +271,7 @@ mod storage {
                     let redis_value = serde_json::to_string(&updated_mandate)
                         .change_context(errors::StorageError::SerializationFailed)?;
 
-                    let mut query_gen_conn = connection::pg_connection_read(self).await?;
+                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
                     let drainer_query = m_update
                         .generate_drainer_update_query(
                             &mut query_gen_conn,
@@ -364,7 +364,7 @@ mod storage {
                             .await?;
                     }
 
-                    let mut query_gen_conn = connection::pg_connection_read(self).await?;
+                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
                     let drainer_query = mandate
                         .generate_drainer_insert_query(&mut query_gen_conn)
                         .await
