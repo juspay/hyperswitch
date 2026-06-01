@@ -24,6 +24,7 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::UsersView
             | Self::AccountView
             | Self::ThemeView
+            | Self::ConfigurationsView
             | Self::ReconSourcesView
             | Self::ReconTransactionsView
             | Self::ReconExceptionsView
@@ -36,6 +37,7 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::AccountManage
             | Self::InternalManage
             | Self::ThemeManage
+            | Self::ConfigurationsManage
             | Self::ReconSourcesManage
             | Self::ReconExceptionsManage
             | Self::ReconTransactionsManage
@@ -53,6 +55,7 @@ impl PermissionGroupExt for PermissionGroup {
             Self::AccountView | Self::AccountManage => ParentGroup::Account,
 
             Self::ThemeView | Self::ThemeManage => ParentGroup::Theme,
+            Self::ConfigurationsView | Self::ConfigurationsManage => ParentGroup::Configurations,
             Self::InternalManage => ParentGroup::Internal,
             Self::ReconSourcesView | Self::ReconSourcesManage => ParentGroup::ReconSources,
             Self::ReconExceptionsView | Self::ReconExceptionsManage => ParentGroup::ReconExceptions,
@@ -99,6 +102,11 @@ impl PermissionGroupExt for PermissionGroup {
             Self::InternalManage => vec![Self::InternalManage],
             Self::ThemeView => vec![Self::ThemeView, Self::AccountView],
             Self::ThemeManage => vec![Self::ThemeManage, Self::AccountView],
+
+            Self::ConfigurationsView => vec![Self::ConfigurationsView],
+            Self::ConfigurationsManage => {
+                vec![Self::ConfigurationsView, Self::ConfigurationsManage]
+            }
 
             Self::ReconSourcesView => vec![
                 Self::ReconSourcesView,
@@ -155,7 +163,9 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::AccountManage
             | Self::InternalManage
             | Self::ThemeView
-            | Self::ThemeManage => RoleProductCategory::Orchestration,
+            | Self::ThemeManage
+            | Self::ConfigurationsView
+            | Self::ConfigurationsManage => RoleProductCategory::Orchestration,
 
             // Recon-only groups.
             Self::ReconSourcesView
@@ -190,6 +200,7 @@ impl ParentGroupExt for ParentGroup {
             Self::Account => ACCOUNT.to_vec(),
             Self::Internal => INTERNAL.to_vec(),
             Self::Theme => THEME.to_vec(),
+            Self::Configurations => CONFIGURATIONS.to_vec(),
             Self::ReconSources => RECON_SOURCES.to_vec(),
             Self::ReconExceptions => RECON_EXCEPTIONS.to_vec(),
             Self::ReconTransactions => RECON_TRANSACTIONS.to_vec(),
@@ -258,16 +269,13 @@ pub static ANALYTICS: [Resource; 3] = [Resource::Analytics, Resource::Report, Re
 
 pub static USERS: [Resource; 2] = [Resource::User, Resource::Account];
 
-pub static ACCOUNT: [Resource; 4] = [
-    Resource::Account,
-    Resource::ApiKey,
-    Resource::WebhookEvent,
-    Resource::SuperpositionConfig,
-];
+pub static ACCOUNT: [Resource; 3] = [Resource::Account, Resource::ApiKey, Resource::WebhookEvent];
 
 pub static INTERNAL: [Resource; 1] = [Resource::InternalConnector];
 
 pub static THEME: [Resource; 1] = [Resource::Theme];
+
+pub static CONFIGURATIONS: [Resource; 1] = [Resource::SuperpositionConfig];
 
 pub static RECON_SOURCES: [Resource; 3] = [
     Resource::ReconIngestion,
