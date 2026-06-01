@@ -2550,11 +2550,13 @@ where
     D: OperationSessionGetters<F> + Send + Sync,
     Op: Operation<F, R, Data = D> + Send + Sync,
 {
-    if feature_config.is_modular_with_pm_version(
-        payment_data
-            .get_payment_method_info()
-            .map(|payment_method| payment_method.version),
-    ) {
+    if payment_data.get_payment_method_info().is_some_and(|pm| {
+        feature_config.should_use_modular_pm_path(
+            Some(pm.version),
+            pm.compatibility_updated_at,
+            Some(pm.last_modified),
+        )
+    }) {
         logger::debug!(
             payment_id = ?payment_data.get_payment_attempt().payment_id,
             "Modular merchant detected; calling update_modular_pm_and_mandate"
@@ -5045,6 +5047,25 @@ where
                 payments::VaultOperation::ExistingVaultData(_) => (),
             }
         }
+    }
+
+    if let Some(network_token_data) = network_tokenization::evaluate_and_fetch_altid(
+        state,
+        payment_data.get_payment_method_data(),
+        payment_data.get_payment_intent().currency,
+        &connector.connector_name,
+        payment_data
+            .get_payment_attempt()
+            .customer_acceptance
+            .is_none(),
+        payment_data.get_payment_intent().amount,
+        business_profile,
+    )
+    .await?
+    {
+        payment_data.set_payment_method_data(Some(domain::PaymentMethodData::NetworkToken(
+            network_token_data,
+        )));
     }
 
     if payment_data
@@ -8397,11 +8418,13 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let connector = payment_data.get_payment_attempt().connector.to_owned();
-    let should_use_modular_pm_path = feature_config.is_modular_with_pm_version(
-        payment_data
-            .get_payment_method_info()
-            .map(|payment_method| payment_method.version),
-    );
+    let should_use_modular_pm_path = payment_data.get_payment_method_info().is_some_and(|pm| {
+        feature_config.should_use_modular_pm_path(
+            Some(pm.version),
+            pm.compatibility_updated_at,
+            Some(pm.last_modified),
+        )
+    });
 
     let is_mandate = payment_data
         .get_mandate_id()
@@ -8607,11 +8630,13 @@ where
     let is_external_authentication_requested = payment_data
         .get_payment_intent()
         .request_external_three_ds_authentication;
-    let should_use_modular_pm_path = feature_config.is_modular_with_pm_version(
-        payment_data
-            .get_payment_method_info()
-            .map(|payment_method| payment_method.version),
-    );
+    let should_use_modular_pm_path = payment_data.get_payment_method_info().is_some_and(|pm| {
+        feature_config.should_use_modular_pm_path(
+            Some(pm.version),
+            pm.compatibility_updated_at,
+            Some(pm.last_modified),
+        )
+    });
     let payment_data =
         if !is_operation_confirm(operation) || is_external_authentication_requested == Some(true) {
             if !should_use_modular_pm_path {
@@ -10208,11 +10233,13 @@ where
             }),
     };
 
-    let should_use_modular_pm_path = feature_config.is_modular_with_pm_version(
-        payment_data
-            .get_payment_method_info()
-            .map(|payment_method| payment_method.version),
-    );
+    let should_use_modular_pm_path = payment_data.get_payment_method_info().is_some_and(|pm| {
+        feature_config.should_use_modular_pm_path(
+            Some(pm.version),
+            pm.compatibility_updated_at,
+            Some(pm.last_modified),
+        )
+    });
 
     let decided_connector = decide_connector(
         state.clone(),

@@ -1722,6 +1722,7 @@ pub struct PaymentsSessionData {
     pub amount: i64,
     pub currency: common_enums::Currency,
     pub country: Option<common_enums::CountryAlpha2>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
     pub surcharge_details: Option<SurchargeDetails>,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub email: Option<pii::Email>,
