@@ -1444,6 +1444,7 @@ diesel::table! {
         payment_method_subtype -> Nullable<Varchar>,
         #[max_length = 255]
         network_transaction_link_id -> Nullable<Varchar>,
+        compatibility_updated_at -> Nullable<Timestamp>,
     }
 }
 
@@ -1751,6 +1752,10 @@ diesel::table! {
         algorithm_for -> TransactionType,
         #[max_length = 64]
         decision_engine_routing_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 

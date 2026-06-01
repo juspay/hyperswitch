@@ -6,17 +6,16 @@ use api_models::{
     admin::ExtendedCardInfoConfig,
     enums::FrmSuggestion,
     mandates::RecurringDetails,
-    payments::{
-        ConnectorMandateReferenceId, ExtendedCardInfo, GetAddressFromPaymentMethodData,
-        MandateTransactionType,
-    },
+    payments::{ExtendedCardInfo, GetAddressFromPaymentMethodData},
 };
 use async_trait::async_trait;
-use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
+use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use diesel_models::payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId;
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
 use hyperswitch_domain_models::{
+    mandates,
+    mandates::{ConnectorMandateReferenceId, MandateTransactionType},
     payment_method_data::RecurringDetails as domain_recurring_details,
     payment_methods::PaymentMethodWithRawData,
     payments::{self as domain_payments, payment_intent::PaymentIntentUpdateFields},
@@ -59,7 +58,6 @@ use crate::{
     routes::{app::ReqState, SessionState},
     services,
     types::{
-        self,
         api::{self, ConnectorCallType, PaymentIdTypeExt},
         domain::{self},
         storage::{self, enums as storage_enums},
@@ -668,9 +666,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let payment_method_info = payment_method_info.or(prefetched_payment_method_info);
         let feature_config = core_utils::get_feature_config(state, platform, dimensions).await;
-        let payment_method_version = payment_method_info.as_ref().map(|pm| pm.version);
-        let is_modular_payment_method_flow =
-            feature_config.is_modular_with_pm_version(payment_method_version);
+        let is_modular_payment_method_flow = payment_method_info.as_ref().is_some_and(|pm| {
+            feature_config.should_use_modular_pm_path(
+                Some(pm.version),
+                pm.compatibility_updated_at,
+                Some(pm.last_modified),
+            )
+        });
         let (token_data, payment_method_info) = if is_modular_payment_method_flow {
             (None, payment_method_info)
         } else {
@@ -817,10 +819,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .and_then(|recurring_details| match recurring_details {
                 RecurringDetails::ProcessorPaymentToken(token) => {
                     payment_intent.is_payment_processor_token_flow = Some(true);
-                    Some(api_models::payments::MandateIds {
+                    Some(mandates::MandateIds {
                         mandate_id: None,
                         mandate_reference_id: Some(
-                            api_models::payments::MandateReferenceId::ConnectorMandateId(
+                            mandates::MandateReferenceId::ConnectorMandateId(
                                 ConnectorMandateReferenceId::new(
                                     Some(token.processor_payment_token.clone()), // connector_mandate_id
                                     None, // payment_method_id
@@ -837,7 +839,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
                 | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
                 | RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
-                    Some(api_models::payments::MandateIds {
+                    Some(mandates::MandateIds {
                         mandate_id: None,
                         mandate_reference_id: mandate_reference_id_from_recurring_details,
                     })
@@ -1375,7 +1377,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
             match payment_method_info {
                 Some(payment_method)
-                    if feature_config.is_modular_with_pm_version(Some(payment_method.version)) =>
+                    if feature_config.should_use_modular_pm_path(
+                        Some(payment_method.version),
+                        payment_method.compatibility_updated_at,
+                        Some(payment_method.last_modified),
+                    ) =>
                 {
                     logger::debug!(
                         "Payment method version is V2, fetching payment method from PM Modular Service"
@@ -1565,13 +1571,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .is_failed()
                 {
                     *should_continue_confirm_transaction = false;
-                    let default_poll_config = types::PollConfig::default();
-                    let default_config_str = default_poll_config
-                        .encode_to_string_of_json()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error while stringifying default poll config")?;
-
-                    // raise error if authentication_connector is not present since it should we be present in the current flow
+                    // raise error if authentication_connector is not present since it should be present in the current flow
                     let authentication_connector = authentication_store
                         .authentication
                         .authentication_connector
@@ -1580,21 +1580,20 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .attach_printable(
                             "authentication_connector not present in authentication record",
                         )?;
-
-                    let poll_config = state
-                        .store
-                        .find_config_by_key_unwrap_or(
-                            &types::PollConfig::get_poll_config_key(authentication_connector),
-                            Some(default_config_str),
+                    let connector = authentication_connector
+                        .parse::<common_enums::connector_enums::Connector>()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Invalid authentication connector name")?;
+                    let dimensions = dimension_state::Dimensions::new()
+                        .with_processor_merchant_id(processor.get_processor_merchant_id())
+                        .with_connector(connector);
+                    let poll_config = dimensions
+                        .get_poll_config_external_three_ds(
+                            state.store.as_ref(),
+                            state.superposition_service.as_ref(),
+                            Some(payment_data.payment_intent.get_id()),
                         )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("The poll config was not found in the DB")?;
-                    let poll_config: types::PollConfig = poll_config
-                        .config
-                        .parse_struct("PollConfig")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error while parsing PollConfig")?;
+                        .await;
                     payment_data.poll_config = Some(poll_config)
                 }
                 Some(authentication_store)
@@ -2112,33 +2111,25 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     || eligibility_response.status.is_failed()
                 {
                     *should_continue_confirm_transaction = false;
-                    let default_poll_config = types::PollConfig::default();
-                    let default_config_str = default_poll_config
-                        .encode_to_string_of_json()
+                    // raise error if authentication_connector is not present since it should be present in the current flow
+                    let authentication_connector = authentication_create_response.authentication_connector
+                        .ok_or(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("authentication_connector not found in eligibility_response")?;
+                    let connector = authentication_connector
+                        .to_string()
+                        .parse::<common_enums::connector_enums::Connector>()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error while stringifying default poll config")?;
-
-                    // raise error if authentication_connector is not present since it should we be present in the current flow
-                    let authentication_connector = eligibility_response.authentication_connector
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("authentication_connector not found in eligibility_response")?;
-
-                    let poll_config = state
-                        .store
-                        .find_config_by_key_unwrap_or(
-                            &types::PollConfig::get_poll_config_key(
-                                authentication_connector.to_string()
-                            ),
-                            Some(default_config_str),
+                        .attach_printable("Invalid authentication connector name")?;
+                    let dimensions = dimension_state::Dimensions::new()
+                        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+                        .with_connector(connector);
+                    let poll_config = dimensions
+                        .get_poll_config_external_three_ds(
+                            state.store.as_ref(),
+                            state.superposition_service.as_ref(),
+                            Some(payment_data.payment_intent.get_id()),
                         )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("The poll config was not found in the DB")?;
-                    let poll_config: types::PollConfig = poll_config
-                        .config
-                        .parse_struct("PollConfig")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error while parsing PollConfig")?;
+                        .await;
                     payment_data.poll_config = Some(poll_config)
                 }
 
@@ -2193,15 +2184,14 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             authentication_id: authentication_id.clone(),
                         };
 
-                        let response = crate::core::authentication_client::AuthenticationSyncFlow::call(
+                        crate::core::authentication_client::AuthenticationSyncFlow::call(
                             state,
                             &client,
                             (sync_req, business_profile.merchant_id.get_string_repr().to_owned()),
                         ).await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to call authentication sync flow")?;
+                        .attach_printable("Failed to call authentication sync flow")?
 
-                        response
                     }
                 } else {
                     return Err(errors::ApiErrorResponse::InternalServerError).attach_printable("Pull mechanism disabled or terminal status during post-authentication sync")?;

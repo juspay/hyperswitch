@@ -2,7 +2,10 @@
 use api_models::payouts::{PayoutMethodData, Wallet as WalletPayout};
 use api_models::{
     enums,
-    payments::{NextActionCall, PaypalSessionTokenResponse, SdkNextAction, SessionToken},
+    payments::{
+        NextActionCall, PaypalCaptureMethod, PaypalSessionTokenResponse, SdkNextAction,
+        SessionToken,
+    },
     webhooks::IncomingWebhookEvent,
 };
 use base64::Engine;
@@ -1565,6 +1568,8 @@ impl
             client_token: None,
             data_user_id_token: response.id_token.clone().map(|id| id.expose()),
             transaction_info: None,
+            currency: Some(data.request.currency),
+            intent: data.request.capture_method.map(PaypalCaptureMethod::from),
         }));
         Ok(Self {
             response: Ok(PaymentsResponseData::SessionResponse { session_token }),

@@ -13,7 +13,7 @@ use hyperswitch_connectors::constants as connector_consts;
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
-    payments as domain_payments, router_data,
+    mandates, payments as domain_payments, router_data,
     router_data_v2::{flow_common_types, PaymentFlowData},
     router_flow_types, router_request_types, router_response_types,
 };
@@ -1218,7 +1218,7 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_amount(&self) -> i64 {
         self.amount
     }
-    fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds> {
+    fn get_mandate_id(&self) -> Option<&mandates::MandateIds> {
         self.mandate_id.as_ref()
     }
     fn get_payment_method_data(&self) -> domain::payments::PaymentMethodData {
@@ -1227,13 +1227,11 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage> {
         self.setup_future_usage
     }
-    fn get_setup_mandate_details(
-        &self,
-    ) -> Option<&hyperswitch_domain_models::mandates::MandateData> {
+    fn get_setup_mandate_details(&self) -> Option<&mandates::MandateData> {
         self.setup_mandate_details.as_ref()
     }
 
-    fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>) {
+    fn set_mandate_id(&mut self, new_mandate_id: Option<mandates::MandateIds>) {
         self.mandate_id = new_mandate_id;
     }
     fn get_customer_acceptance(&self) -> Option<common_payments_types::CustomerAcceptance> {
