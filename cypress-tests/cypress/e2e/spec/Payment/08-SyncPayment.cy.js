@@ -4,15 +4,6 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
-// Per-spec amount offset to avoid Helcim sandbox duplicate-transaction detection
-const HELCIM_OFFSET = 400;
-
-function maybePatchHelcimAmount(body) {
-  if (globalState?.get("connectorId") === "helcim" && body) {
-    body.amount = (body.amount || 6000) + HELCIM_OFFSET;
-  }
-}
-
 describe("Card - Sync payment flow test", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -32,8 +23,6 @@ describe("Card - Sync payment flow test", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
-
-        maybePatchHelcimAmount(fixtures.createPaymentBody);
 
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
