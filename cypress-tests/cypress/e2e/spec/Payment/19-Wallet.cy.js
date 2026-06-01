@@ -431,28 +431,7 @@ context("PayPal Mandate CIT flow test", () => {
           shouldIncludeConnector(
             connector,
             CONNECTOR_LISTS.INCLUDE.PAYPAL_WALLET
-          )
-        ) {
-          skip = true;
-          return;
-        }
-      })
-      .then(() => {
-        if (skip) {
-          this.skip();
-        }
-      });
-  });
-
-  before("seed global state", function () {
-    let skip = false;
-
-    cy.task("getGlobalState")
-      .then((state) => {
-        globalState = new State(state);
-        const connector = globalState.get("connectorId");
-
-        if (
+          ) ||
           shouldIncludeConnector(
             connector,
             CONNECTOR_LISTS.INCLUDE.PAYPAL_MANDATE
