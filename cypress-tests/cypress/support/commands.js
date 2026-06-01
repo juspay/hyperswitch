@@ -9399,24 +9399,6 @@ Cypress.Commands.add("getForexRates", (globalState) => {
       "Content-Type": "application/json",
       "api-key": apiKey,
     },
-// Extended Card Info Commands
-// ============================================
-
-Cypress.Commands.add("toggleExtendedCardInfoTest", (enabled, globalState) => {
-  const adminApiKey = globalState.get("adminApiKey");
-  const baseUrl = globalState.get("baseUrl");
-  const merchantId = globalState.get("merchantId");
-  const profileId = globalState.get("profileId");
-
-  cy.request({
-    method: "POST",
-    url: `${baseUrl}/account/${merchantId}/business_profile/${profileId}/toggle_extended_card_info`,
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "api-key": adminApiKey,
-    },
-    body: { enabled },
     failOnStatusCode: false,
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
@@ -9501,6 +9483,39 @@ Cypress.Commands.add("getForexRatesWithoutAuth", (globalState) => {
     url: `${baseUrl}/forex/rates`,
     headers: {
       "Content-Type": "application/json",
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    cy.wrap(response).then(() => {
+      expect(response.status, "status_code").to.equal(401);
+    });
+  });
+});
+
+// ============================================
+// Extended Card Info Commands
+// ============================================
+
+Cypress.Commands.add("toggleExtendedCardInfoTest", (enabled, globalState) => {
+  const adminApiKey = globalState.get("adminApiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const merchantId = globalState.get("merchantId");
+  const profileId = globalState.get("profileId");
+
+  cy.request({
+    method: "POST",
+    url: `${baseUrl}/account/${merchantId}/business_profile/${profileId}/toggle_extended_card_info`,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": adminApiKey,
+    },
+    body: { enabled },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
       expect(response.status, "status_code").to.equal(200);
       expect(response.body.enabled, "extended_card_info_enabled").to.equal(
         enabled
@@ -9579,7 +9594,14 @@ Cypress.Commands.add("setExtendedCardInfoConfigTest", (globalState) => {
     failOnStatusCode: false,
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
-    expect(response.status).to.equal(401);
+
+    cy.wrap(response).then(() => {
+      expect(response.status, "status_code").to.equal(200);
+      expect(
+        response.body.extended_card_info_config,
+        "extended_card_info_config"
+      ).to.not.be.null;
+    });
   });
 });
 
@@ -9609,13 +9631,3 @@ Cypress.Commands.add(
     });
   }
 );
-
-    cy.wrap(response).then(() => {
-      expect(response.status, "status_code").to.equal(200);
-      expect(
-        response.body.extended_card_info_config,
-        "extended_card_info_config"
-      ).to.not.be.null;
-    });
-  });
-});
