@@ -5173,7 +5173,8 @@ pub async fn retrieve_payment_method(
 
     when(
         matches!(
-            payment_method.status, common_enums::PaymentMethodStatus::Redacted
+            payment_method.status,
+            common_enums::PaymentMethodStatus::Redacted
         ),
         || {
             Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -5240,7 +5241,8 @@ pub async fn retrieve_payment_method(
         .map(|billing| billing.into_inner())
         .map(From::from);
 
-    let acknowledgement_status = Option::<common_enums::AcknowledgementStatus>::from(payment_method.status);
+    let acknowledgement_status =
+        Option::<common_enums::AcknowledgementStatus>::from(payment_method.status);
 
     transformers::generate_payment_method_response(
         &payment_method,
