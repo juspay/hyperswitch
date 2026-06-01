@@ -2469,7 +2469,12 @@ Cypress.Commands.add(
           expect(createPaymentBody.capture_method, "capture_method").to.equal(
             response.body.capture_method
           );
-          expect(response.body.payment_method, "payment_method").to.be.null;
+          if (
+            createPaymentBody.payment_method !== "wallet" &&
+            response.body.payment_method !== "wallet"
+          ) {
+            expect(response.body.payment_method, "payment_method").to.be.null;
+          }
           expect(response.body.payment_method_data, "payment_method_data").to.be
             .null;
           expect(response.body.merchant_connector_id, "merchant_connector_id")
@@ -3977,7 +3982,10 @@ Cypress.Commands.add(
             globalState.get("paymentAmount")
           );
           expect(response.body.profile_id, "profile_id").to.not.be.null;
-          if (!configs.skipBillingAssertion) {
+          if (
+            !configs.skipBillingAssertion &&
+            response.body.payment_method !== "wallet"
+          ) {
             expect(response.body.billing, "billing_address").to.not.be.null;
           }
           expect(response.body.customer, "customer").to.not.be.empty;

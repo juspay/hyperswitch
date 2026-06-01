@@ -998,6 +998,226 @@ export const connectorDetails = {
       },
     },
   },
+  wallet_pm: {
+    PaymentIntent: (walletName) => {
+      const configs = {
+        AliPay: {
+          Request: {
+            currency: "USD",
+            payment_method: "wallet",
+            payment_method_type: "ali_pay",
+            payment_method_data: {
+              wallet: {
+                ali_pay_redirect: {},
+              },
+            },
+          },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_confirmation",
+            },
+          },
+        },
+        AliPayManualFail: {
+          Request: {
+            currency: "USD",
+            capture_method: "manual",
+            payment_method: "wallet",
+            payment_method_type: "ali_pay",
+            payment_method_data: {
+              wallet: {
+                ali_pay_redirect: {},
+              },
+            },
+          },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_confirmation",
+            },
+          },
+        },
+        CashAppAuto: {
+          Request: {
+            currency: "USD",
+            payment_method: "wallet",
+            payment_method_type: "cashapp",
+            payment_method_data: {
+              wallet: {
+                cashapp_qr: {},
+              },
+            },
+          },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_confirmation",
+            },
+          },
+        },
+        CashAppManual: {
+          Request: {
+            currency: "USD",
+            capture_method: "manual",
+            payment_method: "wallet",
+            payment_method_type: "cashapp",
+            payment_method_data: {
+              wallet: {
+                cashapp_qr: {},
+              },
+            },
+          },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_confirmation",
+            },
+          },
+        },
+        CashAppMandate: {
+          Request: {
+            currency: "USD",
+            setup_future_usage: "off_session",
+            payment_method: "wallet",
+            payment_method_type: "cashapp",
+            payment_method_data: {
+              wallet: {
+                cashapp_qr: {},
+              },
+            },
+            mandate_data: {
+              customer_acceptance: {
+                acceptance_type: "online",
+                accepted_at: "2026-06-01T00:00:00Z",
+                online: {
+                  ip_address: "127.0.0.1",
+                  user_agent: "Mozilla/5.0",
+                },
+              },
+              mandate_type: {
+                single_use: {
+                  amount: 10000,
+                  currency: "USD",
+                },
+              },
+            },
+          },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_confirmation",
+            },
+          },
+        },
+      };
+      return configs[walletName];
+    },
+    AliPay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "ali_pay",
+        billing: null,
+        payment_method_data: {
+          wallet: {
+            ali_pay_redirect: {},
+          },
+        },
+      },
+        },
+        billing: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          next_action: {
+            type: "redirect_to_url",
+          },
+        },
+      },
+    },
+    CashAppAuto: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "cashapp",
+        payment_method_data: {
+          wallet: {
+            cashapp_qr: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          next_action: {
+            type: "qr_code_information",
+          },
+        },
+      },
+    },
+    CashAppManual: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "cashapp",
+        payment_method_data: {
+          wallet: {
+            cashapp_qr: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          next_action: {
+            type: "qr_code_information",
+          },
+        },
+      },
+    },
+    CashAppMandate: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "cashapp",
+        payment_method_data: {
+          wallet: {
+            cashapp_qr: {},
+          },
+        },
+        mandate_data: {
+          customer_acceptance: {
+            acceptance_type: "online",
+            accepted_at: "2026-06-01T00:00:00Z",
+            online: {
+              ip_address: "127.0.0.1",
+              user_agent: "Mozilla/5.0",
+            },
+          },
+          mandate_type: {
+            single_use: {
+              amount: 10000,
+              currency: "USD",
+            },
+          },
+        },
+        payment_method_info: {
+          type: "cashapp",
+          id: "cashapp-mandate-qa",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          next_action: {
+            type: "qr_code_information",
+          },
+        },
+      },
+    },
+  },
   bank_transfer_pm: {
     Ach: {
       Request: {
