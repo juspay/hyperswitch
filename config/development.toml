@@ -210,10 +210,6 @@ max_age = 365
 outgoing_enabled = true
 redis_lock_expiry_seconds = 180             # 3 * 60 seconds
 
-[webhooks.notify_connector]
-surcharge_payment_succeeded = "interpayments"
-surcharge_refund_succeeded = "interpayments"
-
 [merchant_id_auth]
 merchant_id_auth_enabled = false
 

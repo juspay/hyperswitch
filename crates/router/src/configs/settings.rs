@@ -969,16 +969,6 @@ pub struct WebhooksSettings {
     pub outgoing_enabled: bool,
     pub ignore_error: WebhookIgnoreErrorSettings,
     pub redis_lock_expiry_seconds: u32,
-    pub notify_connector: NotifyConnectorSettings,
-}
-
-#[derive(Debug, Clone, Deserialize, Default)]
-#[serde(default)]
-pub struct NotifyConnectorSettings {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub surcharge_payment_succeeded: HashSet<enums::Connector>,
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub surcharge_refund_succeeded: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
