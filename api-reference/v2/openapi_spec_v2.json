@@ -22564,14 +22564,6 @@
             ],
             "nullable": true
           },
-          "bank": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MaskedBankDetails"
-              }
-            ],
-            "nullable": true
-          },
           "created": {
             "type": "string",
             "format": "date-time",
@@ -22613,6 +22605,19 @@
           "psp_tokenization_enabled": {
             "type": "boolean",
             "description": "Whether psp_tokenization is enabled for the payment_method, this will be true when at least\none multi-use token with status `Active` is available for the payment method"
+          },
+          "connector_tokens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectorTokenDetails"
+            },
+            "description": "The connector token details if available",
+            "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`.",
+            "nullable": true
           }
         }
       },
