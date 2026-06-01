@@ -119,6 +119,7 @@ pub struct RelayResponse {
     pub profile_id: common_utils::id_type::ProfileId,
     /// The type of relay request
     #[serde(rename = "type")]
+    #[schema(value_type = RelayType)]
     pub relay_type: api_enums::RelayType,
     /// The data that is associated with the relay request
     pub data: Option<RelayData>,
