@@ -56,7 +56,7 @@ impl From<VaultSessionDetailsResponse> for api_models::payments::VaultSessionDet
     fn from(resp: VaultSessionDetailsResponse) -> Self {
         match resp {
             VaultSessionDetailsResponse::Vgs(vgs) => {
-                api_models::payments::VaultSessionDetails::Vgs(
+                Self::Vgs(
                     api_models::payments::VgsSessionDetails {
                         external_vault_id: vgs.external_vault_id,
                         sdk_env: vgs.sdk_env,
@@ -64,7 +64,7 @@ impl From<VaultSessionDetailsResponse> for api_models::payments::VaultSessionDet
                 )
             }
             VaultSessionDetailsResponse::HyperswitchVault(hsv) => {
-                api_models::payments::VaultSessionDetails::HyperswitchVault(
+                Self::HyperswitchVault(
                     api_models::payments::HyperswitchVaultSessionDetails {
                         payment_method_session_id: hsv.payment_method_session_id,
                         client_secret: hsv.client_secret,

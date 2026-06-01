@@ -17,7 +17,9 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::mandates;
 #[cfg(feature = "v1")]
-use hyperswitch_domain_models::payment_methods::PaymentMethodWithRawData;
+use hyperswitch_domain_models::payment_methods::{
+    PaymentMethodWithRawData, VaultCardData, VaultPaymentMethodData,
+};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{payment_method_data, sdk_auth::SdkAuthorization};
 #[cfg(feature = "v1")]
@@ -1402,33 +1404,6 @@ pub struct DomainPaymentMethodDataWrapper(pub domain::PaymentMethodData);
 
 /// Vault token data returned by the internal PM service for a proxy card (repeat CIT flow).
 /// Fields are vault token references (opaque strings), not real card data.
-#[cfg(feature = "v1")]
-#[derive(Clone, Debug)]
-pub struct VaultCardData {
-    pub card_number: Secret<String>,
-    pub card_exp_year: Option<Secret<String>>,
-    pub card_exp_month: Option<Secret<String>>,
-}
-
-/// Domain-level vault payment method token data (populated only for the repeat CIT / proxy-card
-/// path where the PM service returns vault token references instead of real card data).
-#[cfg(feature = "v1")]
-#[derive(Clone, Debug)]
-pub enum VaultPaymentMethodData {
-    VaultCardData(VaultCardData),
-}
-
-#[derive(Clone, Debug)]
-#[cfg(feature = "v1")]
-pub struct PaymentMethodWithRawData {
-    pub payment_method: DomainPaymentMethodWrapper,
-    /// Populated when the PM service returns real card data (Card / CardWithNT variants).
-    pub raw_payment_method_data: Option<domain::PaymentMethodData>,
-    /// Populated when the PM service returns proxy/vault token references (ProxyCard variant).
-    /// Mutually exclusive with `raw_payment_method_data`.
-    pub vault_payment_method_token_data: Option<VaultPaymentMethodData>,
-}
-
 #[cfg(feature = "v1")]
 impl DomainPaymentMethodWrapper {
     pub async fn transform_pm_mod_retrieve_response(

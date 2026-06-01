@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use common_enums as enums;
-use common_utils::{id_type, ucs_types, ucs_types::UcsReferenceId};
+use common_utils::{id_type, ucs_types};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 #[cfg(feature = "v2")]
@@ -10,7 +10,7 @@ use hyperswitch_domain_models::{
 };
 use std::str::FromStr;
 use hyperswitch_interfaces::api::gateway;
-use hyperswitch_masking::{ExposeInterface, ExposeInterface as UcsMaskingExposeInterface};
+use hyperswitch_masking::ExposeInterface;
 use unified_connector_service_client::payments as payments_grpc;
 
 use super::{ConstructFlowSpecificData, Feature};

@@ -123,9 +123,9 @@ pub enum RawPaymentMethodData {
 /// Proxy card data returned in retrieve response (vault token reference)
 #[derive(Clone, Debug, Deserialize)]
 pub struct RawProxyCardDataResponse {
-    pub card_number: hyperswitch_masking::Secret<String>,
-    pub card_exp_year: Option<hyperswitch_masking::Secret<String>>,
-    pub card_exp_month: Option<hyperswitch_masking::Secret<String>>,
+    pub card_number: Secret<String>,
+    pub card_exp_year: Option<Secret<String>>,
+    pub card_exp_month: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]

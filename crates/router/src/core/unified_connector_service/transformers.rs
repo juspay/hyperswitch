@@ -5809,7 +5809,6 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             .map(|payment_method_type| payment_method_type.into());
 
         Ok(Self {
-            connector_refund_id: "".to_string(), // Placeholder, as UCS requires either refund_id or connector_refund_id. We will use merchant_refund_id for lookup and pass an empty string for connector_refund_id.
             merchant_refund_id: Some(router_data.connector_request_reference_id.clone()),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
             refund_id: router_data.request.connector_refund_id.clone().ok_or(

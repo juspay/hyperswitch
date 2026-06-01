@@ -4,15 +4,17 @@ use api_models::{enums::FrmSuggestion, payments::ExternalVaultProxyConfirmReques
 use async_trait::async_trait;
 use common_enums;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payment_methods::{
+    PaymentMethodWithRawData, VaultPaymentMethodData,
+};
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
-use crate::core::payments::operations::PaymentMethodWithRawData;
 use crate::{
     core::{
         configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payment_methods::{transformers as pm_transformers},
+        payment_methods::{transformers as pm_transformers, transformers::PaymentMethodFetchData},
         payments::{
             helpers, operations,
             CustomerDetails, OperationSessionSetters, PaymentAddress, PaymentData,
@@ -113,12 +115,13 @@ impl<F: Send + Clone + Sync>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        payment_method_wrapper: Option<PaymentMethodWithRawData>,
+        payment_method_fetch_data: pm_transformers::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, ExternalVaultProxyConfirmRequest, PaymentData<F>>,
     > {
         let db = &*state.store;
+        let payment_method_wrapper = payment_method_fetch_data.payment_method_with_raw_data;
         let processor_merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
@@ -277,7 +280,7 @@ impl<F: Send + Clone + Sync>
             // Check if vault token data is present (repeat CIT / proxy-card path)
             let from_vault_token = wrapper.vault_payment_method_token_data.as_ref().and_then(|vault_data| {
                 match vault_data {
-                    pm_transformers::VaultPaymentMethodData::VaultCardData(vault_card) => {
+                    VaultPaymentMethodData::VaultCardData(vault_card) => {
                         let card_cvc = wrapper.raw_payment_method_data.as_ref().and_then(|_| None)
                             .or_else(|| {
                                 // CVC comes from the request CardTokenData
@@ -373,7 +376,7 @@ impl<F: Send + Clone + Sync>
         payment_attempt.payment_method = Some(request.payment_method_type);
         payment_attempt.payment_method_type = Some(request.payment_method_subtype);
 
-        let payment_method_info = payment_method_wrapper.map(|w| w.payment_method.0);
+        let payment_method_info = payment_method_wrapper.map(|w| w.payment_method);
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -454,7 +457,7 @@ impl<F: Send + Clone + Sync>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _payment_method_wrapper: Option<PaymentMethodWithRawData>,
+        _payment_method_wrapper: pm_transformers::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, ExternalVaultProxyConfirmRequest, PaymentData<F>>,
@@ -745,6 +748,7 @@ impl<F: Clone + Sync>
                         .request_extended_authorization,
                     tokenization: payment_data.payment_attempt.get_tokenization_strategy(),
                     installment_data: None,
+                    network_transaction_link_id: None,
                 },
                 storage_scheme,
                 key_store,
@@ -801,13 +805,13 @@ impl<F: Clone + Send + Sync>
         req: &ExternalVaultProxyConfirmRequest,
         platform: &domain::Platform,
         feature_config: &core_utils::FeatureConfig,
-    ) -> RouterResult<Option<PaymentMethodWithRawData>> {
+    ) -> RouterResult<PaymentMethodFetchData> {
         if !feature_config.is_payment_method_modular_allowed {
             router_env::logger::info!("Organization is not eligible for PM Modular Service, skipping fetch payment method for external vault proxy.");
-            return Ok(None);
+            return Ok(PaymentMethodFetchData::default());
         }
         let Some(payment_token) = &req.payment_token else {
-            return Ok(None);
+            return Ok(PaymentMethodFetchData::default());
         };
 
         // Extract CVC/holder name from CardTokenData if present — these will be merged
@@ -838,7 +842,7 @@ impl<F: Clone + Send + Sync>
         let Some(profile_id) = profile_id else {
             // profile_id will be resolved in get_trackers; fetch will happen there instead
             router_env::logger::info!("profile_id not available before get_trackers; PM fetch deferred to get_trackers for external vault proxy.");
-            return Ok(None);
+            return Ok(PaymentMethodFetchData::default());
         };
         router_env::logger::info!(
             "Fetching payment method from modular service (token: {}) for external vault proxy.",
@@ -853,10 +857,10 @@ impl<F: Clone + Send + Sync>
         )
         .await
         {
-            Ok(pm_info) => Ok(Some(pm_info)),
+            Ok(pm_info) => Ok(pm_transformers::PaymentMethodFetchData::from_modular(pm_info)),
             Err(err) => {
                 router_env::logger::error!(error=?err, "Failed to fetch PM from modular service for external vault proxy (pre get_trackers); will retry in get_trackers.");
-                Ok(None)
+                Ok(pm_transformers::PaymentMethodFetchData::default())
             }
         }
     }

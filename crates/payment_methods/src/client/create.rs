@@ -86,17 +86,17 @@ pub enum PaymentMethodCreateData {
 /// Tokenized card data for external vault proxy PM creation
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProxyCardDetail {
-    pub card_number: hyperswitch_masking::Secret<String>,
-    pub card_exp_month: hyperswitch_masking::Secret<String>,
-    pub card_exp_year: hyperswitch_masking::Secret<String>,
+    pub card_number: Secret<String>,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
     pub bin_number: Option<String>,
     pub last_four: Option<String>,
     pub card_issuer: Option<String>,
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_type: Option<common_enums::CardType>,
     pub card_issuing_country: Option<String>,
-    pub nick_name: Option<hyperswitch_masking::Secret<String>>,
-    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
+    pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]

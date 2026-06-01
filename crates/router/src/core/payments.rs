@@ -2739,7 +2739,7 @@ pub async fn external_vault_proxy_for_payments_operation_core<F, Req, Op, FData,
     auth_flow: services::AuthFlow,
     header_payload: HeaderPayload,
     return_raw_connector_response: Option<bool>,
-    dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    dimensions: DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -2824,6 +2824,7 @@ where
         state,
         &business_profile,
         platform.get_processor().get_key_store(),
+        &dimensions,
         &mut payment_data,
         connector_choice,
     )
@@ -2834,10 +2835,19 @@ where
     let locale = header_payload.locale.clone();
 
     let schedule_time = if should_add_task_to_process_tracker {
+        let connector_enum = connector
+            .connector
+            .id()
+            .parse::<common_enums::connector_enums::Connector>()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid connector name")?;
+        let sync_dimensions = Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_connector(connector_enum);
         payment_sync::get_sync_process_schedule_time(
             &*state.store,
-            connector.connector.id(),
-            platform.get_processor().get_account().get_id(),
+            state.superposition_service.as_ref(),
+            &sync_dimensions,
             0,
         )
         .await
@@ -3134,8 +3144,7 @@ where
     let cloned_payment_data = payment_data.clone();
 
     utils::trigger_payments_webhook(
-        platform.get_processor(),
-        platform.get_initiator(),
+        &platform,
         business_profile,
         cloned_payment_data,
         state,
@@ -3185,7 +3194,7 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Data = D>,
 {
-    let dimensions = dimension_state::Dimensions::new()
+    let dimensions = Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     let (payment_data, _req, connector_http_status_code, external_latency) =
@@ -7198,7 +7207,7 @@ where
 
     let frm_suggestion = None;
 
-    let dimensions = dimension_state::Dimensions::new()
+    let dimensions = Dimensions::new()
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
     (_, *payment_data) = operation
@@ -11108,6 +11117,7 @@ async fn get_eligible_connector_for_vault_card_proxy<
     key_store: &domain::MerchantKeyStore,
     payment_data: &mut D,
     connector_choice: T,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     business_profile: &domain::Profile,
 ) -> RouterResult<api::ConnectorData>
 where
@@ -11117,7 +11127,7 @@ where
     // Vault-card proxy flow: no recurring/NTI details, skip the MIT-specific proxy filter
     // and use standard routing eligibility analysis.
     let eligible_connector_data_list = connector_choice
-        .get_routable_connectors(state, business_profile, payment_data)
+        .get_routable_connectors(state, dimensions, business_profile, payment_data)
         .await?
         .construct_dsl_and_perform_eligibility_analysis(
             state,
@@ -11160,6 +11170,7 @@ where
                     key_store,
                     payment_data,
                     core_routing::StraightThroughAlgorithmTypeSingle(straight_through),
+                    dimensions,
                     business_profile,
                 )
                 .await?
@@ -11182,6 +11193,7 @@ where
                     key_store,
                     payment_data,
                     core_routing::DecideConnector,
+                    dimensions,
                     business_profile,
                 )
                 .await?
