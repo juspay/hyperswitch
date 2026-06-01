@@ -517,8 +517,6 @@ pub struct NmiValidateRequest {
     customer_vault: CustomerAction,
     #[serde(flatten)]
     billing_details: NmiBillingDetails,
-    #[serde(flatten)]
-    shipping_details: NmiShippingDetails,
 }
 
 #[derive(Debug, Serialize)]
@@ -1103,7 +1101,6 @@ impl TryFrom<&NmiRouterData<&SetupMandateRouterData>> for NmiValidateRequest {
             orderid: item.router_data.connector_request_reference_id.clone(),
             customer_vault: CustomerAction::AddCustomer,
             billing_details: item.get_billing_details(),
-            shipping_details: item.get_shipping_details(),
         })
     }
 }
