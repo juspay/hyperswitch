@@ -1005,6 +1005,8 @@ export const connectorDetails = {
       commonConnectorDetails.card_pm.ClientSessionReplayConfirm,
     ClientSessionUpdatePayment:
       commonConnectorDetails.card_pm.ClientSessionUpdatePayment,
+    ClientSessionMissingConfirm:
+      commonConnectorDetails.card_pm.ClientSessionMissingConfirm,
   },
   bank_transfer_pm: {
     Ach: {
