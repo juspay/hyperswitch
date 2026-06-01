@@ -57,7 +57,7 @@ use self::{payment_attempt::PaymentAttempt, payment_intent::CustomerData};
 use crate::ext_traits::OptionExt;
 #[cfg(feature = "v2")]
 use crate::{
-    address::Address, business_profile, customer, errors, merchant_connector_account,
+    address::Address, business_profile, customer, errors, mandates, merchant_connector_account,
     merchant_connector_account::MerchantConnectorAccountTypeDetails, payment_address,
     payment_method_data, payment_methods, platform, revenue_recovery, routing,
     ApiModelToDieselModelConvertor,
@@ -1330,7 +1330,7 @@ where
     pub payment_attempt: PaymentAttempt,
     pub payment_method_data: Option<payment_method_data::PaymentMethodData>,
     pub payment_address: payment_address::PaymentAddress,
-    pub mandate_data: Option<api_models::payments::MandateIds>,
+    pub mandate_data: Option<mandates::MandateIds>,
     pub payment_method: Option<payment_methods::PaymentMethod>,
     pub merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
     pub external_vault_pmd: Option<payment_method_data::ExternalVaultPaymentMethodData>,
