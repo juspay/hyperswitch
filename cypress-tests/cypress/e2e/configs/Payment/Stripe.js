@@ -1124,9 +1124,6 @@ export const connectorDetails = {
           },
         },
       },
-        },
-        billing: null,
-      },
       Response: {
         status: 200,
         body: {
