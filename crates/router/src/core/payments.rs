@@ -2573,6 +2573,8 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Data = D>,
 {
+    helpers::init_deprecated_fields_config(state.conf.deprecated_fields.clone());
+
     let eligible_routable_connectors = eligible_connectors.map(|connectors| {
         connectors
             .into_iter()

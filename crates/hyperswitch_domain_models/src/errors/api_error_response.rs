@@ -229,7 +229,20 @@ pub enum ApiErrorResponse {
         message = "{message}",
     )]
     GenericUnauthorized { message: String },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_19", message = "{message}")]
+    #[error(
+        error_type = ErrorType::InvalidRequestError,
+        code = "IR_52",
+        message = "The field '{field_name}' is deprecated and will be removed in a future version. {alternative_suggestion}",
+        extra = {
+                "field_name": field_name.clone(),
+                "alternative": alternative.clone()
+        }
+    )]
+    DeprecatedField {
+        field_name: String,
+        alternative: String,
+        alternative_suggestion: String,
+    },
     NotSupported { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_20", message = "{flow} flow not supported by the {connector} connector")]
     FlowNotSupported { flow: String, connector: String },
@@ -609,6 +622,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::InvalidJwtToken => AER::Unauthorized(ApiError::new("IR", 17, "Access forbidden, invalid JWT token was used", None)),
             Self::InvalidBasicAuth => AER::Unauthorized(ApiError::new("IR", 51, "Access forbidden, invalid Basic authentication credentials", None)),
+            Self::DeprecatedField { field_name, alternative, alternative_suggestion } => {
+                AER::BadRequest(ApiError::new("IR", 52, format!("The field '{field_name}' is deprecated and will be removed in a future version. {alternative_suggestion}"), Some(Extra {reason: Some(alternative.clone()), ..Default::default()})))
+            }
             Self::GenericUnauthorized { message } => {
                 AER::Unauthorized(ApiError::new("IR", 18, message.to_string(), None))
             },
