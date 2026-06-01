@@ -285,6 +285,7 @@ pub enum RoutableConnectors {
     Iatapay,
     Imerchantsolutions,
     Inespay,
+    Interpayments,
     Itaubank,
     Jpmorgan,
     Klarna,
@@ -445,6 +446,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Hyperpg => Ok(Self::Hyperpg),
             Connector::Iatapay => Ok(Self::Iatapay),
             Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
+            Connector::Interpayments => Ok(Self::Interpayments),
             Connector::Itaubank => Ok(Self::Itaubank),
             Connector::Jpmorgan => Ok(Self::Jpmorgan),
             Connector::Klarna => Ok(Self::Klarna),
@@ -522,7 +524,6 @@ impl TryFrom<Connector> for RoutableConnectors {
             | Connector::Juspaythreedsserver
             | Connector::Netcetera
             | Connector::Taxjar
-            | Connector::Interpayments
             | Connector::Threedsecureio
             | Connector::Vgs
             | Connector::CtpVisa
@@ -609,6 +610,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Hyperpg => Self::Hyperpg,
             RoutableConnectors::Iatapay => Self::Iatapay,
             RoutableConnectors::Imerchantsolutions => Self::Imerchantsolutions,
+            RoutableConnectors::Interpayments => Self::Interpayments,
             RoutableConnectors::Itaubank => Self::Itaubank,
             RoutableConnectors::Jpmorgan => Self::Jpmorgan,
             RoutableConnectors::Klarna => Self::Klarna,
