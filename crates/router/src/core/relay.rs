@@ -1160,7 +1160,7 @@ async fn process_unreferenced_refund(
 
     let raw_connector_response = serde_json::from_slice::<serde_json::Value>(&response_bytes)
         .ok()
-        .map(hyperswitch_masking::Secret::new);
+        .map(Secret::new);
 
     Ok((updated_relay, connector_name, raw_connector_response))
 }

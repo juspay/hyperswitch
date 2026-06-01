@@ -1,9 +1,11 @@
 use actix_web::{web, Responder};
+use common_utils::ext_traits::OptionExt;
+use error_stack::ResultExt;
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
     self as app,
-    core::{api_locking, relay},
+    core::{api_locking, errors, relay},
     services::{api, authentication as auth},
 };
 
@@ -25,7 +27,10 @@ pub async fn unreferenced_refund(
             #[cfg(feature = "v1")]
             let profile_id = auth
                 .profile
-                .get_required_value("profile_id")?
+                .get_required_value("profile_id")
+                .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "profile_id",
+                })?
                 .get_id()
                 .clone();
             #[cfg(feature = "v2")]
