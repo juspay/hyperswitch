@@ -3382,10 +3382,6 @@ pub struct PaymentMethodResponseItem {
     /// PaymentMethod Data from locker
     pub payment_method_data: Option<PaymentMethodListData>,
 
-    /// Masked bank details from PM auth services
-    #[schema(example = json!({"mask": "0000"}))]
-    pub bank: Option<MaskedBankDetails>,
-
     /// A timestamp (ISO 8601 code) that determines when the payment method was created
     #[schema(value_type = PrimitiveDateTime, example = "2023-01-18T11:04:09.922Z")]
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -3414,6 +3410,14 @@ pub struct PaymentMethodResponseItem {
     /// Whether psp_tokenization is enabled for the payment_method, this will be true when at least
     /// one multi-use token with status `Active` is available for the payment method
     pub psp_tokenization_enabled: bool,
+
+    /// The connector token details if available
+    pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
+    /// when `setup_future_usage` is set to `off_session`.
+    #[schema(value_type = Option<String>)]
+    pub network_transaction_id: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[cfg(feature = "v2")]

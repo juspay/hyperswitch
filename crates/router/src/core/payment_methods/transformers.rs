@@ -1134,17 +1134,30 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
             payment_method_data: pmd,
         });
 
-        // TODO: check how we can get this field
-        let recurring_enabled = Some(true);
-
-        let psp_tokenization_enabled = item.connector_mandate_details.and_then(|details| {
-            details.payments.map(|payments| {
-                payments.values().any(|connector_token_reference| {
-                    connector_token_reference.connector_token_status
-                        == api_enums::ConnectorTokenStatus::Active
+        let psp_tokenization_enabled =
+            item.connector_mandate_details.as_ref().and_then(|details| {
+                details.payments.as_ref().map(|payments| {
+                    payments.values().any(|connector_token_reference| {
+                        connector_token_reference.connector_token_status
+                            == api_enums::ConnectorTokenStatus::Active
+                    })
                 })
+            });
+
+        let connector_tokens = item
+            .connector_mandate_details
+            .as_ref()
+            .and_then(|details| details.payments.clone())
+            .map(|payment_details| {
+                payment_details
+                    .0
+                    .into_iter()
+                    .map(transformers::ForeignFrom::foreign_from)
+                    .collect::<Vec<_>>()
             })
-        });
+            .and_then(|tokens| (!tokens.is_empty()).then_some(tokens));
+
+        let network_transaction_id = item.network_transaction_id.clone().map(Secret::new);
 
         Ok(Self {
             id: item.id,
@@ -1158,14 +1171,15 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
             payment_method_subtype,
             created: item.created_at,
             last_used_at: item.last_used_at,
-            recurring_enabled,
+            recurring_enabled: psp_tokenization_enabled.unwrap_or(false),
             payment_method_data,
-            bank: None,
             requires_cvv: true,
             is_default: false,
             billing: payment_method_billing,
             network_tokenization: network_token_resp,
             psp_tokenization_enabled: psp_tokenization_enabled.unwrap_or(false),
+            connector_tokens,
+            network_transaction_id,
         })
     }
 }
