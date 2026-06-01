@@ -76,6 +76,8 @@ async fn update_modular_pm_and_mandate_impl<F, T>(
     resp: &types::RouterData<F, T, types::PaymentsResponseData>,
     request_payment_method_data: Option<&domain::PaymentMethodData>,
     payment_data: &mut PaymentData<F>,
+    platform: &domain::Platform,
+    initiator: Option<&domain::Initiator>,
 ) -> CustomResult<(), ::payment_methods::errors::ModularPaymentMethodError>
 where
     F: Clone + Send + Sync,
@@ -217,7 +219,7 @@ where
                             _ => None,
                         });
                     let acknowledgement_status =
-                        Some(common_enums::AcknowledgementStatus::Authenticated);
+                        Some(resp.status.acknowledgement_status_for_mod_payment_method());
 
                     let payload = UpdatePaymentMethodV1Payload {
                         payment_method_data,
@@ -253,6 +255,22 @@ where
                             }
                         };
                         payment_data.payment_attempt.payment_method_id = Some(pm_id.clone());
+
+                        // #4 - Mirror the status change in the local DB so the router's in-memory
+                        // PaymentMethodInfo stays consistent with the modular service.
+                        let _ = update_payment_method_status_and_ntid(
+                            state,
+                            platform.get_provider().get_key_store(),
+                            payment_data,
+                            resp.status,
+                            resp.response.clone(),
+                            platform.get_provider().get_account().storage_scheme,
+                            initiator,
+                        )
+                        .await
+                        .map_err(|err| {
+                            logger::error!(error=?err, "Failed to update local payment method status after modular call");
+                        });
                     } else {
                         logger::info!("No updates found for modular payment method update call");
                     }
@@ -804,7 +822,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         &self,
         state: &SessionState,
         resp: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-        _platform: &domain::Platform,
+        platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
         request_payment_method_data: Option<&domain::PaymentMethodData>,
@@ -812,10 +830,17 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
     where
         F: 'b + Clone + Send + Sync,
     {
-        update_modular_pm_and_mandate_impl(state, resp, request_payment_method_data, payment_data)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to update modular payment method and mandate")
+        update_modular_pm_and_mandate_impl(
+            state,
+            resp,
+            request_payment_method_data,
+            payment_data,
+            platform,
+            platform.get_initiator(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update modular payment method and mandate")
     }
 }
 
@@ -1112,7 +1137,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         &self,
         state: &SessionState,
         resp: &types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
-        _platform: &domain::Platform,
+        platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
         request_payment_method_data: Option<&domain::PaymentMethodData>,
@@ -1120,10 +1145,17 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     where
         F: 'b + Clone + Send + Sync,
     {
-        update_modular_pm_and_mandate_impl(state, resp, request_payment_method_data, payment_data)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to update modular payment method and mandate")
+        update_modular_pm_and_mandate_impl(
+            state,
+            resp,
+            request_payment_method_data,
+            payment_data,
+            platform,
+            platform.get_initiator(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update modular payment method and mandate")
     }
 }
 
@@ -1867,7 +1899,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         &self,
         state: &SessionState,
         resp: &types::RouterData<F, types::SetupMandateRequestData, types::PaymentsResponseData>,
-        _platform: &domain::Platform,
+        platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
         request_payment_method_data: Option<&domain::PaymentMethodData>,
@@ -1875,10 +1907,17 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     where
         F: 'b + Clone + Send + Sync,
     {
-        update_modular_pm_and_mandate_impl(state, resp, request_payment_method_data, payment_data)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to update modular payment method and mandate")
+        update_modular_pm_and_mandate_impl(
+            state,
+            resp,
+            request_payment_method_data,
+            payment_data,
+            platform,
+            platform.get_initiator(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update modular payment method and mandate")
     }
 }
 
@@ -2011,7 +2050,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         &self,
         state: &SessionState,
         resp: &types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
-        _platform: &domain::Platform,
+        platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
         request_payment_method_data: Option<&domain::PaymentMethodData>,
@@ -2019,10 +2058,17 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     where
         F: 'b + Clone + Send + Sync,
     {
-        update_modular_pm_and_mandate_impl(state, resp, request_payment_method_data, payment_data)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to update modular payment method and mandate")
+        update_modular_pm_and_mandate_impl(
+            state,
+            resp,
+            request_payment_method_data,
+            payment_data,
+            platform,
+            platform.get_initiator(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update modular payment method and mandate")
     }
 }
 

@@ -281,6 +281,40 @@ impl AttemptStatus {
             | Self::CaptureReview => false,
         }
     }
+
+    pub fn acknowledgement_status_for_mod_payment_method(self) -> AcknowledgementStatus {
+        match self {
+            Self::Charged
+            | Self::PartialCharged
+            | Self::Authorized
+            | Self::PartiallyAuthorized
+            | Self::AuthenticationSuccessful
+            | Self::PartialChargedAndChargeable => AcknowledgementStatus::Authenticated,
+            Self::Started
+            | Self::AuthenticationFailed
+            | Self::RouterDeclined
+            | Self::AuthenticationPending
+            | Self::AuthorizationFailed
+            | Self::Authorizing
+            | Self::CodInitiated
+            | Self::Voided
+            | Self::VoidedPostCharge
+            | Self::VoidInitiated
+            | Self::CaptureInitiated
+            | Self::CaptureFailed
+            | Self::VoidFailed
+            | Self::AutoRefunded
+            | Self::Unresolved
+            | Self::Pending
+            | Self::Failure
+            | Self::PaymentMethodAwaited
+            | Self::ConfirmationAwaited
+            | Self::DeviceDataCollectionPending
+            | Self::IntegrityFailure
+            | Self::Expired
+            | Self::CaptureReview => AcknowledgementStatus::Failed,
+        }
+    }
 }
 
 #[derive(
@@ -2260,10 +2294,65 @@ impl PaymentMethodStatus {
     pub fn can_transition_to(self, target: Self) -> bool {
         match self {
             Self::Processing | Self::AwaitingData | Self::Redacted => false,
-            Self::Active => false,
+            Self::Active => target == Self::Inactive,
             Self::Inactive => target == Self::Active || target == Self::New,
             Self::New => target == Self::Active || target == Self::Inactive,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_acknowledgement_status_for_mod_payment_method() {
+        assert_eq!(
+            AttemptStatus::Charged.acknowledgement_status_for_mod_payment_method(),
+            AcknowledgementStatus::Authenticated
+        );
+        assert_eq!(
+            AttemptStatus::Authorized.acknowledgement_status_for_mod_payment_method(),
+            AcknowledgementStatus::Authenticated
+        );
+        assert_eq!(
+            AttemptStatus::Failure.acknowledgement_status_for_mod_payment_method(),
+            AcknowledgementStatus::Failed
+        );
+        assert_eq!(
+            AttemptStatus::Pending.acknowledgement_status_for_mod_payment_method(),
+            AcknowledgementStatus::Failed
+        );
+        assert_eq!(
+            AttemptStatus::Voided.acknowledgement_status_for_mod_payment_method(),
+            AcknowledgementStatus::Failed
+        );
+        assert_eq!(
+            AttemptStatus::CaptureFailed.acknowledgement_status_for_mod_payment_method(),
+            AcknowledgementStatus::Failed
+        );
+        assert_eq!(
+            AttemptStatus::AuthenticationSuccessful.acknowledgement_status_for_mod_payment_method(),
+            AcknowledgementStatus::Authenticated
+        );
+    }
+
+    #[test]
+    fn test_can_transition_to() {
+        assert!(PaymentMethodStatus::New.can_transition_to(PaymentMethodStatus::Active));
+        assert!(PaymentMethodStatus::New.can_transition_to(PaymentMethodStatus::Inactive));
+        assert!(!PaymentMethodStatus::New.can_transition_to(PaymentMethodStatus::New));
+
+        assert!(PaymentMethodStatus::Inactive.can_transition_to(PaymentMethodStatus::Active));
+        assert!(PaymentMethodStatus::Inactive.can_transition_to(PaymentMethodStatus::New));
+        assert!(!PaymentMethodStatus::Inactive.can_transition_to(PaymentMethodStatus::Inactive));
+
+        assert!(PaymentMethodStatus::Active.can_transition_to(PaymentMethodStatus::Inactive));
+        assert!(!PaymentMethodStatus::Active.can_transition_to(PaymentMethodStatus::Active));
+        assert!(!PaymentMethodStatus::Active.can_transition_to(PaymentMethodStatus::New));
+
+        assert!(!PaymentMethodStatus::Processing.can_transition_to(PaymentMethodStatus::Active));
+        assert!(!PaymentMethodStatus::Redacted.can_transition_to(PaymentMethodStatus::Inactive));
     }
 }
 
