@@ -325,7 +325,4 @@ pub struct AssociatedPaymentMethods {
     /// token type for associated payment method
     pub payment_method_token: AssociatedPaymentMethodTokenType,
 
-    /// Payment method details (bin, last4, network, etc.)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub payment_method_data: Option<AssociatedPaymentMethodData>,
 }

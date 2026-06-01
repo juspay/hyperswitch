@@ -3571,7 +3571,6 @@ pub async fn list_payment_methods_for_session(
         .map(|cpm| {
             common_types::payment_methods::AssociatedPaymentMethods {
                 payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(cpm.payment_method_token.clone()),
-                payment_method_data: None,
             }
         })
         .collect();
@@ -6301,7 +6300,6 @@ pub async fn payment_methods_session_update_payment_method(
 
     tokens.as_mut().map(|tokens| tokens.insert(0, common_types::payment_methods::AssociatedPaymentMethods {
             payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(request.payment_method_token.clone()),
-                        payment_method_data: None,
         }));
 
     // Update payment method session with associated payment methods
@@ -6604,7 +6602,6 @@ pub async fn payment_methods_session_confirm(
 
     let associated_payment_methods = common_types::payment_methods::AssociatedPaymentMethods {
         payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(parent_payment_method_token),
-        payment_method_data: associated_pm_data,
     };
 
     let update_payment_method_session = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {
@@ -6700,7 +6697,7 @@ pub async fn payment_methods_session_confirm(
         (tokenization_response.flatten()),
         payment_method_response.storage_type,
         payment_method_response.card_cvc_token_storage,
-        None,
+        associated_pm_data,
         payment_method_response.network_token,
     );
 
