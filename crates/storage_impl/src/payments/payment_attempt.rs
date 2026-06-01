@@ -1056,11 +1056,11 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .convert()
                     .await
                     .change_context(errors::StorageError::EncryptionError)?;
+                let updated_payment_attempt_diesel = payment_attempt.to_storage_model();
                 let updated_attempt = PaymentAttempt::convert_back(
                     key_manager_state,
-                    payment_attempt
+                    updated_payment_attempt_diesel
                         .clone()
-                        .to_storage_model()
                         .apply_changeset(source_payment_attempt_diesel.clone()),
                     merchant_key_store.key.get_inner(),
                     merchant_key_store.merchant_id.clone().into(),
@@ -1069,14 +1069,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 .change_context(errors::StorageError::EncryptionError)
                 .attach_printable("Error while constructing domain model")?;
                 // Check for database presence as well Maybe use a read replica here ?
-                let redis_value = serde_json::to_string(
-                    &updated_attempt
-                        .clone()
-                        .convert()
-                        .await
-                        .change_context(errors::StorageError::EncryptionError)?,
-                )
-                .change_context(errors::StorageError::KVError)?;
+                let redis_value = serde_json::to_string(&updated_payment_attempt_diesel)
+                    .change_context(errors::StorageError::KVError)?;
 
                 match (
                     old_connector_transaction_id,
@@ -1138,9 +1132,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 }
 
                 let mut query_gen_conn = pg_connection_write(self).await?;
-                let drainer_query = payment_attempt
-                    .clone()
-                    .to_storage_model()
+                let drainer_query = updated_payment_attempt_diesel
                     .generate_drainer_update_query(
                         &mut query_gen_conn,
                         &source_payment_attempt_diesel,
