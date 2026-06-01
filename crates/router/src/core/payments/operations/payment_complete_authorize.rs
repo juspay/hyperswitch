@@ -149,11 +149,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let customer_acceptance: Option<CustomerAcceptance> =
             if let Some(ca) = request.customer_acceptance.clone() {
                 Some(ca)
-            } else if let Some(ca) = payment_attempt.customer_acceptance.clone().and_then(|ca| {
-                ca.parse_value::<CustomerAcceptance>("CustomerAcceptance")
-                    .ok()
-            }) {
-                Some(ca)
+            } else if let Some(ca) = payment_attempt.customer_acceptance.clone() {
+                Some(
+                    ca.parse_value::<CustomerAcceptance>("CustomerAcceptance")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to deserialize customer_acceptance from payment_attempt",
+                        )?,
+                )
             } else if let Some(pm) = payment_method_info.clone() {
                 Some(
                     pm.customer_acceptance
