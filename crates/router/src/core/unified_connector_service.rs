@@ -659,9 +659,14 @@ where
 
     let existing_metadata = payment_intent.feature_metadata.as_ref();
 
-    let mut feature_metadata = existing_metadata
-        .and_then(|metadata| serde_json::from_value::<FeatureMetadata>(metadata.clone()).ok())
-        .unwrap_or_default();
+    let mut feature_metadata = match existing_metadata {
+        Some(metadata) => serde_json::from_value::<FeatureMetadata>(metadata.clone())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to deserialize existing feature metadata while updating gateway system",
+            )?,
+        None => FeatureMetadata::default(),
+    };
 
     feature_metadata.gateway_system = Some(gateway_system);
 

@@ -22,6 +22,7 @@ payout_connector_list = "nomupay,stripe,wise,trustly"
 # base urls based on your need.
 # Note: These are not optional attributes. hyperswitch request can fail due to invalid/empty values.
 [connectors]
+absa_sanlam.base_url = "sbx"
 aci.base_url = "https://eu-test.oppwa.com/"
 adyen.base_url = "https://checkout-test.adyen.com/"
 adyen.payout_base_url = "https://pal-test.adyen.com/"
@@ -143,7 +144,6 @@ razorpay.base_url = "https://api.razorpay.com/"
 recurly.base_url = "https://v3.recurly.com"
 redsys.base_url = "https://sis-t.redsys.es:25443"
 revolv3.base_url = "https://api-sandbox.revolv3.com"
-sanlam.base_url = "sbx"
 riskified.base_url = "https://sandbox.riskified.com/api"
 santander.base_url = "https://trust-pix-h.santander.com.br/"
 santander.secondary_base_url = "https://trust-open-h.api.santander.com.br/"
@@ -1037,7 +1037,7 @@ connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 connector_list = "worldpayvantiv"
 
 [grpc_client.unified_connector_service]
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, sanlam, interpayments"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 # Merchant Advice Code Configuration
@@ -1062,3 +1062,7 @@ ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list 
 "28" = { description = "Retry after 6 days", recommended_action = "retry_after_6_days" }
 "29" = { description = "Retry after 8 days", recommended_action = "retry_after_8_days" }
 "30" = { description = "Retry after 10 days", recommended_action = "retry_after_10_days" }
+
+[micro_services.authentication_service]
+base_url = "http://localhost:8080"
+api_key = "api-key"

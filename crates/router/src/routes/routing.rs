@@ -59,12 +59,12 @@ pub async fn routing_create_config(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -100,12 +100,12 @@ pub async fn routing_create_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -113,7 +113,7 @@ pub async fn routing_create_config(
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileRoutingWrite,
-            allow_connected: false,
+            allow_connected: true,
             allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
@@ -140,7 +140,7 @@ pub async fn routing_link_config(
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             routing::link_routing_config(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 profile_id,
                 algorithm,
                 transaction_type
@@ -150,12 +150,12 @@ pub async fn routing_link_config(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -188,7 +188,7 @@ pub async fn routing_link_config(
         |state, auth: auth::AuthenticationData, wrapper, _| {
             routing::link_routing_config_under_profile(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 wrapper.profile_id,
                 wrapper.algorithm_id.routing_algorithm_id,
                 transaction_type,
@@ -197,13 +197,13 @@ pub async fn routing_link_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             },
             &auth::JWTAuthProfileFromRoute {
                 profile_id: wrapper.profile_id,
                 required_permission: Permission::MerchantRoutingWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -212,7 +212,7 @@ pub async fn routing_link_config(
         &auth::JWTAuthProfileFromRoute {
             profile_id: wrapper.profile_id,
             required_permission: Permission::MerchantRoutingWrite,
-            allow_connected: false,
+            allow_connected: true,
             allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
@@ -238,19 +238,19 @@ pub async fn routing_retrieve_config(
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             routing::retrieve_routing_algorithm_from_algorithm_id(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 profile_id,
                 algorithm_id,
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -277,7 +277,7 @@ pub async fn routing_retrieve_config(
         |state, auth: auth::AuthenticationData, algorithm_id, _| {
             routing::retrieve_routing_algorithm_from_algorithm_id(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 Some(auth.profile.get_id().clone()),
                 algorithm_id,
             )
@@ -285,12 +285,12 @@ pub async fn routing_retrieve_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -298,7 +298,7 @@ pub async fn routing_retrieve_config(
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileRoutingRead,
-            allow_connected: false,
+            allow_connected: true,
             allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
@@ -323,7 +323,7 @@ pub async fn list_routing_configs(
         |state, auth: auth::AuthenticationData, query_params, _| {
             routing::retrieve_merchant_routing_dictionary(
                 state,
-                auth.platform,
+                auth.platform.clone(),
                 None,
                 query_params.clone(),
                 transaction_type
@@ -333,12 +333,12 @@ pub async fn list_routing_configs(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -365,7 +365,7 @@ pub async fn list_routing_configs_for_profile(
         |state, auth: auth::AuthenticationData, query_params, _| {
             routing::retrieve_merchant_routing_dictionary(
                 state,
-                auth.platform,
+                auth.platform.clone(),
                 auth.profile.map(|profile| vec![profile.get_id().clone()]),
                 query_params.clone(),
                 transaction_type
@@ -375,7 +375,7 @@ pub async fn list_routing_configs_for_profile(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
@@ -408,7 +408,7 @@ pub async fn routing_unlink_config(
         |state, auth: auth::AuthenticationData, path, _| {
             routing::unlink_routing_config_under_profile(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 path,
                 transaction_type,
             )
@@ -416,13 +416,13 @@ pub async fn routing_unlink_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             },
             &auth::JWTAuthProfileFromRoute {
                 profile_id: path,
                 required_permission: Permission::MerchantRoutingWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -431,7 +431,7 @@ pub async fn routing_unlink_config(
         &auth::JWTAuthProfileFromRoute {
             profile_id: path,
             required_permission: Permission::MerchantRoutingWrite,
-            allow_connected: false,
+            allow_connected: true,
             allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
@@ -457,7 +457,7 @@ pub async fn routing_unlink_config(
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             routing::unlink_routing_config(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 payload_req.clone(),
                 profile_id,
                 transaction_type
@@ -467,12 +467,12 @@ pub async fn routing_unlink_config(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -502,7 +502,7 @@ pub async fn routing_update_default_config(
         |state, auth: auth::AuthenticationData, wrapper, _| {
             routing::update_default_fallback_routing(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 wrapper.profile_id,
                 wrapper.connectors,
             )
@@ -510,12 +510,12 @@ pub async fn routing_update_default_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -523,7 +523,7 @@ pub async fn routing_update_default_config(
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantRoutingWrite,
-            allow_connected: false,
+            allow_connected: true,
             allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
@@ -547,19 +547,19 @@ pub async fn routing_update_default_config(
         |state, auth: auth::AuthenticationData, updated_config, _| {
             routing::update_default_routing_config(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 updated_config,
                 transaction_type,
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -585,20 +585,20 @@ pub async fn routing_retrieve_default_config(
         |state, auth: auth::AuthenticationData, profile_id, _| {
             routing::retrieve_default_fallback_algorithm_for_profile(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 profile_id,
             )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             },
             &auth::JWTAuthProfileFromRoute {
                 profile_id: path,
                 required_permission: Permission::MerchantRoutingRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -607,7 +607,7 @@ pub async fn routing_retrieve_default_config(
         &auth::JWTAuthProfileFromRoute {
             profile_id: path,
             required_permission: Permission::MerchantRoutingRead,
-            allow_connected: false,
+            allow_connected: true,
             allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
@@ -632,18 +632,18 @@ pub async fn routing_retrieve_default_config(
             routing::retrieve_default_routing_config(
                 state,
                 profile_id,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 transaction_type,
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -669,19 +669,19 @@ pub async fn upsert_surcharge_decision_manager_config(
         |state, auth: auth::AuthenticationData, update_decision, _| {
             surcharge_decision_config::upsert_surcharge_decision_config(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 update_decision,
             )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantSurchargeDecisionManagerWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -689,7 +689,7 @@ pub async fn upsert_surcharge_decision_manager_config(
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantSurchargeDecisionManagerWrite,
-            allow_connected: false,
+            allow_connected: true,
             allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
@@ -709,17 +709,20 @@ pub async fn delete_surcharge_decision_manager_config(
         &req,
         (),
         |state, auth: auth::AuthenticationData, (), _| {
-            surcharge_decision_config::delete_surcharge_decision_config(state, auth.platform)
+            surcharge_decision_config::delete_surcharge_decision_config(
+                state,
+                auth.platform.get_processor().clone(),
+            )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantSurchargeDecisionManagerWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -727,7 +730,7 @@ pub async fn delete_surcharge_decision_manager_config(
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantSurchargeDecisionManagerWrite,
-            allow_connected: false,
+            allow_connected: true,
             allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
@@ -748,12 +751,15 @@ pub async fn retrieve_surcharge_decision_manager_config(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            surcharge_decision_config::retrieve_surcharge_decision_config(state, auth.platform)
+            surcharge_decision_config::retrieve_surcharge_decision_config(
+                state,
+                auth.platform.get_processor().clone(),
+            )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
@@ -788,17 +794,21 @@ pub async fn upsert_decision_manager_config(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, update_decision, _| {
-            conditional_config::upsert_conditional_config(state, auth.platform, update_decision)
+            conditional_config::upsert_conditional_config(
+                state,
+                auth.platform.get_processor().clone(),
+                update_decision,
+            )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantThreeDsDecisionManagerWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -806,7 +816,7 @@ pub async fn upsert_decision_manager_config(
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantThreeDsDecisionManagerWrite,
-            allow_connected: false,
+            allow_connected: true,
             allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
@@ -830,7 +840,11 @@ pub async fn upsert_decision_manager_config(
         |state, auth: auth::AuthenticationData, update_decision, _| {
             conditional_config::upsert_conditional_config(
                 state,
-                auth.platform.get_processor().get_key_store().clone(),
+                auth.platform
+                    .get_processor()
+                    .clone()
+                    .get_key_store()
+                    .clone(),
                 update_decision,
                 auth.profile,
             )
@@ -838,12 +852,12 @@ pub async fn upsert_decision_manager_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileThreeDsDecisionManagerWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -851,7 +865,7 @@ pub async fn upsert_decision_manager_config(
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileThreeDsDecisionManagerWrite,
-            allow_connected: false,
+            allow_connected: true,
             allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
@@ -872,17 +886,20 @@ pub async fn delete_decision_manager_config(
         &req,
         (),
         |state, auth: auth::AuthenticationData, (), _| {
-            conditional_config::delete_conditional_config(state, auth.platform)
+            conditional_config::delete_conditional_config(
+                state,
+                auth.platform.get_processor().clone(),
+            )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantThreeDsDecisionManagerWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -890,7 +907,7 @@ pub async fn delete_decision_manager_config(
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantThreeDsDecisionManagerWrite,
-            allow_connected: false,
+            allow_connected: true,
             allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
@@ -914,19 +931,23 @@ pub async fn retrieve_decision_manager_config(
         |state, auth: auth::AuthenticationData, _, _| {
             conditional_config::retrieve_conditional_config(
                 state,
-                auth.platform.get_processor().get_key_store().clone(),
+                auth.platform
+                    .get_processor()
+                    .clone()
+                    .get_key_store()
+                    .clone(),
                 auth.profile,
             )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileThreeDsDecisionManagerWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -934,7 +955,7 @@ pub async fn retrieve_decision_manager_config(
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileThreeDsDecisionManagerWrite,
-            allow_connected: false,
+            allow_connected: true,
             allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
@@ -956,12 +977,15 @@ pub async fn retrieve_decision_manager_config(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            conditional_config::retrieve_conditional_config(state, auth.platform)
+            conditional_config::retrieve_conditional_config(
+                state,
+                auth.platform.get_processor().clone(),
+            )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
@@ -1003,7 +1027,7 @@ pub async fn routing_retrieve_linked_config(
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
                 routing::retrieve_linked_routing_config(
                     state,
-                    auth.platform,
+                    auth.platform.clone(),
                     profile_id,
                     query_params,
                     transaction_type
@@ -1013,7 +1037,7 @@ pub async fn routing_retrieve_linked_config(
             },
             auth::auth_type(
                 &auth::HeaderAuth(auth::ApiKeyAuth {
-                    allow_connected_scope_operation: false,
+                    allow_connected_scope_operation: true,
                     allow_platform_self_operation: false,
                 }),
                 &auth::JWTAuthProfileFromRoute {
@@ -1037,7 +1061,7 @@ pub async fn routing_retrieve_linked_config(
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
                 routing::retrieve_linked_routing_config(
                     state,
-                    auth.platform,
+                    auth.platform.clone(),
                     profile_id,
                     query_params,
                     transaction_type
@@ -1047,7 +1071,7 @@ pub async fn routing_retrieve_linked_config(
             },
             auth::auth_type(
                 &auth::HeaderAuth(auth::ApiKeyAuth {
-                    allow_connected_scope_operation: false,
+                    allow_connected_scope_operation: true,
                     allow_platform_self_operation: false,
                 }),
                 &auth::JWTAuth {
@@ -1086,7 +1110,7 @@ pub async fn routing_retrieve_linked_config(
         |state, auth: AuthenticationData, wrapper, _| {
             routing::retrieve_routing_config_under_profile(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 wrapper.routing_query,
                 wrapper.profile_id,
                 transaction_type,
@@ -1095,13 +1119,13 @@ pub async fn routing_retrieve_linked_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             },
             &auth::JWTAuthProfileFromRoute {
                 profile_id: wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -1110,7 +1134,7 @@ pub async fn routing_retrieve_linked_config(
         &auth::JWTAuthProfileFromRoute {
             profile_id: wrapper.profile_id,
             required_permission: Permission::ProfileRoutingRead,
-            allow_connected: false,
+            allow_connected: true,
             allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
@@ -1133,19 +1157,19 @@ pub async fn routing_retrieve_default_config_for_profiles(
         |state, auth: auth::AuthenticationData, _, _| {
             routing::retrieve_default_routing_config_for_profiles(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 transaction_type,
             )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -1153,12 +1177,12 @@ pub async fn routing_retrieve_default_config_for_profiles(
         #[cfg(feature = "release")]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -1189,7 +1213,7 @@ pub async fn routing_update_default_config_for_profile(
         |state, auth: auth::AuthenticationData, wrapper, _| {
             routing::update_default_routing_config_for_profile(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 wrapper.updated_config,
                 wrapper.profile_id,
                 transaction_type,
@@ -1197,13 +1221,13 @@ pub async fn routing_update_default_config_for_profile(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: routing_payload_wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -1252,13 +1276,13 @@ pub async fn create_success_based_routing(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -1298,13 +1322,13 @@ pub async fn success_based_routing_update_configs(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: routing_payload_wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -1344,13 +1368,13 @@ pub async fn elimination_routing_update_configs(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: routing_payload_wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -1395,11 +1419,11 @@ pub async fn contract_based_routing_setup_config(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuthProfileFromRoute {
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
                 profile_id: routing_payload_wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
@@ -1433,11 +1457,11 @@ pub async fn contract_based_routing_update_configs(
         |state,
          auth: auth::AuthenticationData,
          wrapper: routing_types::ContractBasedRoutingPayloadWrapper,
-         _| async {
+         _| async move {
             Box::pin(routing::contract_based_routing_update_configs(
                 state,
                 wrapper.updated_config,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 wrapper.algorithm_id,
                 wrapper.profile_id,
             ))
@@ -1445,13 +1469,13 @@ pub async fn contract_based_routing_update_configs(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: routing_payload_wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -1500,13 +1524,13 @@ pub async fn create_elimination_routing(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -1545,20 +1569,20 @@ pub async fn set_dynamic_routing_volume_split(
          _| {
             routing::configure_dynamic_routing_volume_split(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 payload.profile_id,
                 payload.routing_info,
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: payload.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -1584,17 +1608,21 @@ pub async fn get_dynamic_routing_volume_split(
         &req,
         payload.clone(),
         |state, auth: auth::AuthenticationData, payload, _| {
-            routing::retrieve_dynamic_routing_volume_split(state, auth.platform, payload.profile_id)
+            routing::retrieve_dynamic_routing_volume_split(
+                state,
+                auth.platform.get_processor().clone(),
+                payload.profile_id,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: payload.profile_id,
                 required_permission: Permission::ProfileRoutingRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -1637,7 +1665,7 @@ pub async fn evaluate_routing_rule(
             Ok(services::ApplicationResponse::Json(euclid_response))
         },
         &auth::ApiKeyAuth {
-            allow_connected_scope_operation: false,
+            allow_connected_scope_operation: true,
             allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,
@@ -1671,7 +1699,7 @@ pub async fn migrate_routing_rules_for_profile(
             );
             let res = Box::pin(routing::migrate_rules_for_profile(
                 state,
-                platform,
+                platform.get_processor().clone(),
                 query_params,
             ))
             .await?;
@@ -1722,7 +1750,7 @@ pub async fn call_decide_gateway_open_router(
             routing::decide_gateway_open_router(state.clone(), payload)
         },
         &auth::ApiKeyAuth {
-            allow_connected_scope_operation: false,
+            allow_connected_scope_operation: true,
             allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,
@@ -1747,7 +1775,7 @@ pub async fn call_update_gateway_score_open_router(
             routing::update_gateway_score_open_router(state.clone(), payload)
         },
         &auth::ApiKeyAuth {
-            allow_connected_scope_operation: false,
+            allow_connected_scope_operation: true,
             allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,

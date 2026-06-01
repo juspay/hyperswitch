@@ -15,6 +15,7 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::ResultExt;
+use hyperswitch_domain_models::mandates;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payment_methods::PaymentMethodWithRawData;
 #[cfg(feature = "v2")]
@@ -955,13 +956,21 @@ pub fn mk_card_value2(
 }
 
 #[cfg(feature = "v2")]
-impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
-    for api::CustomerPaymentMethodResponseItem
+impl
+    transformers::ForeignTryFrom<(
+        domain::PaymentMethod,
+        String,
+        Option<id_type::GlobalPaymentMethodId>,
+    )> for api::CustomerPaymentMethodResponseItem
 {
     type Error = error_stack::Report<errors::ValidationError>;
 
     fn foreign_try_from(
-        (item, payment_token): (domain::PaymentMethod, String),
+        (item, payment_token, default_payment_method_id): (
+            domain::PaymentMethod,
+            String,
+            Option<id_type::GlobalPaymentMethodId>,
+        ),
     ) -> Result<Self, Self::Error> {
         // For payment methods that are active we should always have the payment method subtype
         let payment_method_subtype =
@@ -1029,6 +1038,9 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
         // TODO: check how we can get this field
         let recurring_enabled = true;
 
+        let is_default = default_payment_method_id.is_some()
+            && default_payment_method_id == Some(item.id.clone());
+
         Ok(Self {
             customer_id: item
                 .customer_id
@@ -1044,7 +1056,7 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
             payment_method_data,
             bank: None,
             requires_cvv: true,
-            is_default: false,
+            is_default,
             billing: payment_method_billing,
             payment_method_token: payment_token,
         })
@@ -1052,10 +1064,20 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
 }
 
 #[cfg(feature = "v2")]
-impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodResponseItem {
+impl
+    transformers::ForeignTryFrom<(
+        domain::PaymentMethod,
+        Option<id_type::GlobalPaymentMethodId>,
+    )> for PaymentMethodResponseItem
+{
     type Error = error_stack::Report<errors::ValidationError>;
 
-    fn foreign_try_from(item: domain::PaymentMethod) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        (item, default_payment_method_id): (
+            domain::PaymentMethod,
+            Option<id_type::GlobalPaymentMethodId>,
+        ),
+    ) -> Result<Self, Self::Error> {
         // For payment methods that are active we should always have the payment method subtype
         let payment_method_subtype =
             item.payment_method_subtype
@@ -1159,6 +1181,9 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
 
         let network_transaction_id = item.network_transaction_id.clone().map(Secret::new);
 
+        let is_default = default_payment_method_id.is_some()
+            && default_payment_method_id == Some(item.id.clone());
+
         Ok(Self {
             id: item.id,
             customer_id: item
@@ -1174,7 +1199,7 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
             recurring_enabled: psp_tokenization_enabled.unwrap_or(false),
             payment_method_data,
             requires_cvv: true,
-            is_default: false,
+            is_default,
             billing: payment_method_billing,
             network_tokenization: network_token_resp,
             psp_tokenization_enabled: psp_tokenization_enabled.unwrap_or(false),
@@ -1243,7 +1268,7 @@ pub fn generate_payment_method_session_response(
 
 #[cfg(feature = "v2")]
 impl transformers::ForeignFrom<api_models::payment_methods::ConnectorTokenDetails>
-    for hyperswitch_domain_models::mandates::ConnectorTokenReferenceRecord
+    for mandates::ConnectorTokenReferenceRecord
 {
     fn foreign_from(item: api_models::payment_methods::ConnectorTokenDetails) -> Self {
         let api_models::payment_methods::ConnectorTokenDetails {
@@ -1275,16 +1300,16 @@ impl transformers::ForeignFrom<api_models::payment_methods::ConnectorTokenDetail
 impl
     transformers::ForeignFrom<(
         id_type::MerchantConnectorAccountId,
-        hyperswitch_domain_models::mandates::ConnectorTokenReferenceRecord,
+        mandates::ConnectorTokenReferenceRecord,
     )> for api_models::payment_methods::ConnectorTokenDetails
 {
     fn foreign_from(
         (connector_id, mandate_reference_record): (
             id_type::MerchantConnectorAccountId,
-            hyperswitch_domain_models::mandates::ConnectorTokenReferenceRecord,
+            mandates::ConnectorTokenReferenceRecord,
         ),
     ) -> Self {
-        let hyperswitch_domain_models::mandates::ConnectorTokenReferenceRecord {
+        let mandates::ConnectorTokenReferenceRecord {
             connector_token_request_reference_id,
             original_payment_authorized_amount,
             original_payment_authorized_currency,
@@ -1417,13 +1442,13 @@ impl DomainPaymentMethodWrapper {
             .map(|connector_tokens| {
                 let payments_map: std::collections::HashMap<
                     id_type::MerchantConnectorAccountId,
-                    hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord,
+                    mandates::PaymentsMandateReferenceRecord,
                 > = connector_tokens
                     .iter()
                     .map(|token_detail| {
                         (
                             token_detail.connector_id.clone(),
-                            hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord {
+                            mandates::PaymentsMandateReferenceRecord {
                                 connector_mandate_id: token_detail.token.clone().expose(),
                                 payment_method_type: response.payment_method_type,
                                 original_payment_authorized_amount: token_detail
@@ -1449,13 +1474,13 @@ impl DomainPaymentMethodWrapper {
                     })
                     .collect();
 
-                serde_json::to_value(
-                    hyperswitch_domain_models::mandates::PaymentsMandateReference(payments_map),
-                )
+                serde_json::to_value(mandates::PaymentsMandateReference(payments_map))
             })
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to serialize connector mandate details")?;
+
+        let current_time = common_utils::date_time::now();
 
         Ok(Self(domain::PaymentMethod {
             customer_id: response.customer_id.clone(),
@@ -1474,9 +1499,7 @@ impl DomainPaymentMethodWrapper {
             created_at: response
                 .created
                 .unwrap_or_else(common_utils::date_time::now),
-            last_modified: response
-                .last_used_at
-                .unwrap_or_else(common_utils::date_time::now),
+            last_modified: current_time,
             payment_method: Some(response.payment_method),
             payment_method_type: response.payment_method_type,
             payment_method_issuer: None,
@@ -1495,7 +1518,7 @@ impl DomainPaymentMethodWrapper {
             client_secret: None,
             payment_method_billing_address: encrypted_payment_method_billing_address,
             updated_by: None,
-            version: common_enums::ApiVersion::V1, //to be updated later
+            version: common_enums::ApiVersion::V2, //to be updated later
             network_token_requestor_reference_id: None, //to be added later
             network_token_locker_id: None,
             network_token_payment_method_data: None,
@@ -1510,6 +1533,7 @@ impl DomainPaymentMethodWrapper {
             locker_fingerprint_id: None,
             network_tokenization_data: None,
             storage_type: response.storage_type,
+            compatibility_updated_at: Some(current_time),
         }))
     }
 
@@ -1541,13 +1565,13 @@ impl DomainPaymentMethodWrapper {
             .map(|connector_tokens| {
                 let payments_map: std::collections::HashMap<
                     id_type::MerchantConnectorAccountId,
-                    hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord,
+                    mandates::PaymentsMandateReferenceRecord,
                 > = connector_tokens
                     .iter()
                     .map(|token_detail| {
                         (
                             token_detail.connector_id.clone(),
-                            hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord {
+                            mandates::PaymentsMandateReferenceRecord {
                                 connector_mandate_id: token_detail.token.clone().expose(),
                                 payment_method_type: None,
                                 original_payment_authorized_amount: token_detail
@@ -1573,13 +1597,13 @@ impl DomainPaymentMethodWrapper {
                     })
                     .collect();
 
-                serde_json::to_value(
-                    hyperswitch_domain_models::mandates::PaymentsMandateReference(payments_map),
-                )
+                serde_json::to_value(mandates::PaymentsMandateReference(payments_map))
             })
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to serialize connector mandate details")?;
+
+        let current_time = common_utils::date_time::now();
 
         Ok(Self(domain::PaymentMethod {
             customer_id: response.customer_id.clone(),
@@ -1598,9 +1622,7 @@ impl DomainPaymentMethodWrapper {
             created_at: response
                 .created
                 .unwrap_or_else(common_utils::date_time::now),
-            last_modified: response
-                .last_used_at
-                .unwrap_or_else(common_utils::date_time::now),
+            last_modified: current_time,
             payment_method: response.payment_method,
             payment_method_type: response.payment_method_type,
             payment_method_issuer: None,
@@ -1619,7 +1641,7 @@ impl DomainPaymentMethodWrapper {
             client_secret: None,
             payment_method_billing_address: encrypted_payment_method_billing_address,
             updated_by: None,
-            version: common_enums::ApiVersion::V1, //to be updated later
+            version: common_enums::ApiVersion::V2, //to be updated later
             network_token_requestor_reference_id: None, //to be added later
             network_token_locker_id: None,
             network_token_payment_method_data: None,
@@ -1634,6 +1656,7 @@ impl DomainPaymentMethodWrapper {
             locker_fingerprint_id: None,
             network_tokenization_data: None,
             storage_type: response.storage_type,
+            compatibility_updated_at: Some(current_time),
         }))
     }
 }
@@ -1765,6 +1788,8 @@ impl
 impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(response: CreatePaymentMethodResponse) -> Result<Self, Self::Error> {
+        let current_time = common_utils::date_time::now();
+
         Ok(Self(domain::PaymentMethod {
             customer_id: response.customer_id,
             merchant_id: response.merchant_id,
@@ -1782,9 +1807,7 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
             created_at: response
                 .created
                 .unwrap_or_else(common_utils::date_time::now),
-            last_modified: response
-                .last_used_at
-                .unwrap_or_else(common_utils::date_time::now),
+            last_modified: current_time,
             payment_method: response.payment_method,
             payment_method_type: response.payment_method_type,
             payment_method_issuer: None,
@@ -1803,7 +1826,7 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
             client_secret: None,
             payment_method_billing_address: None, //Should be sent from PM service
             updated_by: None,
-            version: common_enums::ApiVersion::V1,
+            version: common_enums::ApiVersion::V2,
             network_token_requestor_reference_id: None, //to be added later
             network_token_locker_id: None,
             network_token_payment_method_data: None,
@@ -1814,6 +1837,7 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
             locker_fingerprint_id: None,
             network_tokenization_data: None,
             storage_type: response.storage_type,
+            compatibility_updated_at: Some(current_time),
         }))
     }
 }

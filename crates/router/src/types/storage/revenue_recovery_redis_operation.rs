@@ -4,6 +4,7 @@ use api_models::revenue_recovery_data_backfill::{self, AccountUpdateHistoryRecor
 use common_enums::enums::CardNetwork;
 use common_utils::{date_time, errors::CustomResult, id_type};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::mandates;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use redis_interface::{DelReply, SetnxReply};
 use router_env::{instrument, logger, tracing};
@@ -1217,7 +1218,7 @@ impl RedisTokenManager {
         state: &SessionState,
         customer_id: &str,
         scheduled_token: &PaymentProcessorTokenStatus,
-        mandate_data: Option<api_models::payments::MandateIds>,
+        mandate_data: Option<mandates::MandateIds>,
         payment_attempt_id: &id_type::GlobalAttemptId,
     ) -> CustomResult<AccountUpdaterAction, errors::StorageError> {
         match mandate_data {
@@ -1252,7 +1253,7 @@ impl RedisTokenManager {
 
     fn determine_account_updater_action_based_on_old_token_and_mandate_data(
         old_token: &str,
-        mandate_data: api_models::payments::MandateIds,
+        mandate_data: mandates::MandateIds,
     ) -> CustomResult<AccountUpdaterAction, errors::StorageError> {
         let new_token = mandate_data.get_connector_mandate_id();
         let account_updater_action = match new_token {
@@ -1302,8 +1303,8 @@ impl RedisTokenManager {
 }
 
 pub enum AccountUpdaterAction {
-    TokenUpdate(String, api_models::payments::UpdatedMandateDetails),
-    ExpiryUpdate(api_models::payments::UpdatedMandateDetails),
+    TokenUpdate(String, mandates::UpdatedMandateDetails),
+    ExpiryUpdate(mandates::UpdatedMandateDetails),
     ExistingToken,
     NoAction,
 }

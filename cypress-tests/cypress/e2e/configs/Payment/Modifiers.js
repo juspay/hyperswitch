@@ -197,7 +197,10 @@ const CURRENCY_MAP = {
   OnlineBankingFpx: "MYR", // Malaysian payment methods
   Interac: "CAD", // Canadian payment method
   AliPayHk: "HKD", // Hong Kong payment method
+  Affirm: "USD", // US BNPL payment method
   Mifinity: "EUR", // Mifinity wallet payment method
+  Skrill: "USD", // Skrill wallet payment method
+  PaySafeCard: "USD", // PaySafeCard gift card payment method
 };
 
 export const getCurrency = (paymentMethodType) => {

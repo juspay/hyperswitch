@@ -1,3 +1,4 @@
+use hyperswitch_domain_models::mandates;
 mod transformers;
 pub mod utils;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -248,10 +249,10 @@ pub fn make_dsl_input(
                     .mandate_type
                     .clone()
                     .map(|mandate_type| match mandate_type {
-                        hyperswitch_domain_models::mandates::MandateDataType::SingleUse(_) => {
+                        mandates::MandateDataType::SingleUse(_) => {
                             euclid_enums::MandateType::SingleUse
                         }
-                        hyperswitch_domain_models::mandates::MandateDataType::MultiUse(_) => {
+                        mandates::MandateDataType::MultiUse(_) => {
                             euclid_enums::MandateType::MultiUse
                         }
                     })
@@ -371,12 +372,8 @@ pub fn make_dsl_input(
             .as_ref()
             .and_then(|mandate_data| {
                 mandate_data.mandate_type.clone().map(|mt| match mt {
-                    hyperswitch_domain_models::mandates::MandateDataType::SingleUse(_) => {
-                        euclid_enums::MandateType::SingleUse
-                    }
-                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(_) => {
-                        euclid_enums::MandateType::MultiUse
-                    }
+                    mandates::MandateDataType::SingleUse(_) => euclid_enums::MandateType::SingleUse,
+                    mandates::MandateDataType::MultiUse(_) => euclid_enums::MandateType::MultiUse,
                 })
             }),
         payment_type: Some(
@@ -1260,6 +1257,11 @@ where
                 .first()
                 .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
 
+            routing_data.routed_through =
+                Some(first_connector.connector_data.connector_name.to_string());
+            routing_data.merchant_connector_id =
+                first_connector.connector_data.merchant_connector_id.clone();
+
             #[cfg(feature = "retry")]
             {
                 let should_do_retry = crate::core::payments::retry::config_should_call_gsm(
@@ -1300,17 +1302,6 @@ where
             }
 
             if connector_call_type.is_none() {
-                routing_data.routed_through = Some(
-                    first_connector
-                        .connector_data
-                        .connector_name
-                        .to_string()
-                        .clone(),
-                );
-
-                routing_data.merchant_connector_id =
-                    first_connector.connector_data.merchant_connector_id.clone();
-
                 crate::core::payments::helpers::override_setup_future_usage_to_on_session(
                     &*state.store,
                     payment_data,
