@@ -218,10 +218,10 @@ impl PaymentMethod {
                     .as_object_mut()
                     .map(|obj| obj.remove("payouts"));
 
-                serde_json::from_value::<mandates::PaymentsMandateReference>(mandate_details)
-                    .inspect_err(|err| {
-                        router_env::logger::error!("Failed to parse payments data: {:?}", err);
-                    })
+                diesel_models::CommonMandateReference::parse_payments_reference_with_token_fallback(
+                    mandate_details,
+                )
+                .map(mandates::PaymentsMandateReference::from)
             })
             .transpose()
             .map_err(|err| {

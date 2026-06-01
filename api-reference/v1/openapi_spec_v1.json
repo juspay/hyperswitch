@@ -16311,6 +16311,7 @@
       "Connector": {
         "type": "string",
         "enum": [
+          "absa_sanlam",
           "authipay",
           "adyenplatform",
           "stripe_billing_test",
@@ -16424,7 +16425,6 @@
           "recurly",
           "redsys",
           "revolv3",
-          "sanlam",
           "santander",
           "shift4",
           "silverflow",
@@ -36321,6 +36321,13 @@
           "propertyName": "field_type"
         }
       },
+      "PaypalCaptureMethod": {
+        "type": "string",
+        "enum": [
+          "capture",
+          "authorize"
+        ]
+      },
       "PaypalFlow": {
         "type": "string",
         "enum": [
@@ -36374,6 +36381,22 @@
           "data_user_id_token": {
             "type": "string",
             "description": "User token required for returning customer flow, used by client to initiate sdk",
+            "nullable": true
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "intent": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaypalCaptureMethod"
+              }
+            ],
             "nullable": true
           }
         }
@@ -39738,6 +39761,7 @@
         "type": "string",
         "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
+          "absa_sanlam",
           "authipay",
           "adyenplatform",
           "stripe_billing_test",
@@ -39805,6 +39829,7 @@
           "iatapay",
           "imerchantsolutions",
           "inespay",
+          "interpayments",
           "itaubank",
           "jpmorgan",
           "klarna",
@@ -39844,7 +39869,6 @@
           "redsys",
           "revolv3",
           "riskified",
-          "sanlam",
           "santander",
           "shift4",
           "signifyd",
@@ -41549,8 +41573,7 @@
             "example": "acct_1234567890",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "StripeChargeType": {
         "type": "string",
