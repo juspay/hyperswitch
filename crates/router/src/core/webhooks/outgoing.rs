@@ -88,12 +88,11 @@ pub(crate) async fn get_webhook_events(
                     .to_string(),
             })?;
 
-        let connector_name = api::enums::SurchargeConnectors::from_str(
-            &merchant_surcharge_connector.connector_name,
-        )
-        .change_context(errors::ApiErrorResponse::InvalidDataValue {
-            field_name: "connector",
-        })?;
+        let connector_name =
+            api::enums::SurchargeConnectors::from_str(&merchant_surcharge_connector.connector_name)
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "connector",
+                })?;
 
         match &webhook_resource_data {
             Some(WebhookResourceData::Payment { payment_attempt }) => {
@@ -154,9 +153,9 @@ pub(crate) async fn get_webhook_events(
                         webhook_events.push(event_data);
                     }
                 }
-            },
+            }
 
-             None => {}
+            None => {}
         }
     }
 
