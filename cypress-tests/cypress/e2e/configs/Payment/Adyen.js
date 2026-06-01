@@ -1961,6 +1961,107 @@ export const connectorDetails = {
         },
       },
     }),
+    AtomeAutoCapture: getCustomExchange({
+      Request: {
+        currency: "SGD",
+        capture_method: "automatic",
+        customer_acceptance: {
+          acceptance_type: "online",
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+        billing: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Unit 4",
+            city: "Singapore",
+            state: "Singapore",
+            zip: "018956",
+            country: "SG",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "91234567",
+            country_code: "+65",
+          },
+          email: "test@test.com",
+        },
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Unit 4",
+            city: "Singapore",
+            state: "Singapore",
+            zip: "018956",
+            country: "SG",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    Atome: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "atome",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            atome_redirect: {},
+          },
+        },
+        customer_acceptance: {
+          acceptance_type: "online",
+        },
+        billing: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Unit 4",
+            city: "Singapore",
+            state: "Singapore",
+            zip: "018956",
+            country: "SG",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "91234567",
+            country_code: "+65",
+          },
+          email: "test@test.com",
+        },
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Unit 4",
+            city: "Singapore",
+            state: "Singapore",
+            zip: "018956",
+            country: "SG",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
     AtomeManualCaptureUnsupported: getCustomExchange({
       Request: {
         currency: "SGD",
@@ -2004,6 +2105,16 @@ export const connectorDetails = {
             last_name: "Doe",
           },
         },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    AtomeManualCaptureConfirmError: getCustomExchange({
+      Request: {
         payment_method: "pay_later",
         payment_method_type: "atome",
         payment_experience: "redirect_to_url",
@@ -2012,12 +2123,47 @@ export const connectorDetails = {
             atome_redirect: {},
           },
         },
+        customer_acceptance: {
+          acceptance_type: "online",
+        },
+        billing: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Unit 4",
+            city: "Singapore",
+            state: "Singapore",
+            zip: "018956",
+            country: "SG",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "91234567",
+            country_code: "+65",
+          },
+          email: "test@test.com",
+        },
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Unit 4",
+            city: "Singapore",
+            state: "Singapore",
+            zip: "018956",
+            country: "SG",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_confirmation",
-          connector: null,
+          error: {
+            type: "invalid_request",
+            code: "IR_19",
+            reason: "manual for atome is not supported by adyen",
+          },
         },
       },
     }),

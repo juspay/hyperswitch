@@ -910,39 +910,149 @@ describe("PayLater tests", () => {
     });
   });
 
+  context("Atome PayLater - Auto Capture flow test", () => {
+    before("skip if connector does not support Atome", function () {
+      if (
+        shouldIncludeConnector(
+          globalState.get("connectorId"),
+          CONNECTOR_LISTS.INCLUDE.ATOME
+        )
+      ) {
+        this.skip();
+      }
+    });
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection -> Retrieve Payment", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["AtomeAutoCapture"];
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["Atome"];
+        cy.confirmBankRedirectCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle PayLater Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle PayLater Redirection");
+          return;
+        }
+        const expected_redirection =
+          globalState.get("baseUrl") + "/payments/completion";
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handlePayLaterRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
+      });
+
+      cy.step("Retrieve Payment after Redirection", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Payment after Redirection"
+          );
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["Atome"];
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+    });
+  });
+
   context("Atome Manual Capture - Not Supported", () => {
-    it("Create and Confirm Payment with manual capture (expect error)", () => {
-      cy.step("Create and Confirm Payment", () => {
+    before("skip if connector does not support Atome", function () {
+      if (
+        shouldIncludeConnector(
+          globalState.get("connectorId"),
+          CONNECTOR_LISTS.INCLUDE.ATOME
+        )
+      ) {
+        this.skip();
+      }
+    });
+    it("Create Payment Intent -> Confirm Payment with manual capture (expect error)", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
         ]["AtomeManualCaptureUnsupported"];
-        const apiKey = globalState.get("apiKey");
-        const baseUrl = globalState.get("baseUrl");
-        const profileId = globalState.get("profileId");
-        const customerId = globalState.get("customerId");
-
-        const requestBody = { ...fixtures.createPaymentBody };
-        for (const key in data.Request) {
-          requestBody[key] = data.Request[key];
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "manual",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
         }
-        requestBody.authentication_type = "three_ds";
-        requestBody.capture_method = "manual";
-        requestBody.profile_id = profileId;
-        requestBody.customer_id = customerId;
+      });
 
-        cy.request({
-          method: "POST",
-          url: `${baseUrl}/payments`,
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": apiKey,
-          },
-          body: requestBody,
-          failOnStatusCode: false,
-        }).then((response) => {
-          expect(response.status).to.equal(200);
-          expect(response.body.status).to.equal("requires_confirmation");
-          expect(response.body.connector).to.equal(null);
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Payment - expect manual capture not supported error", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["AtomeManualCaptureConfirmError"];
+        cy.confirmBankRedirectCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        ).then((response) => {
+          expect(response.status).to.eq(400);
+          expect(response.body.error.code).to.eq("IR_19");
+          expect(response.body.error.type).to.eq("invalid_request");
         });
       });
     });

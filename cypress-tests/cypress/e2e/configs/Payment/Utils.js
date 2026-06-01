@@ -583,6 +583,7 @@ export const CONNECTOR_LISTS = {
       "affirm",
     ],
     AFFIRM: ["stripe", "adyen"],
+    ATOME: ["adyen"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     STEP_UP_AUTH: ["cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
