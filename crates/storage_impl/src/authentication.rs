@@ -4,8 +4,7 @@ use common_utils::{
     fallback_reverse_lookup_not_found,
 };
 use diesel_models::{
-    authentication::Authentication as DieselAuthentication, kv,
-    reverse_lookup::ReverseLookupNew,
+    authentication::Authentication as DieselAuthentication, reverse_lookup::ReverseLookupNew,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -209,13 +208,12 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
                     .await
                     .change_context(errors::StorageError::EncryptionError)?;
 
-                let redis_entry = kv::TypedSql {
-                    op: kv::DBOperation::Insert {
-                        insertable: Box::new(kv::Insertable::Authentication(Box::new(
-                            authentication_to_insert,
-                        ))),
-                    },
-                };
+                let mut query_gen_conn = pg_connection_read(self).await?;
+                let drainer_query = authentication_to_insert
+                    .generate_drainer_insert_query(&mut query_gen_conn)
+                    .await
+                    .change_context(errors::StorageError::KVError)
+                    .attach_printable("Failed to generate authentication insert query")?;
 
                 let diesel_authentication =
                     <Authentication as Conversion>::convert(authentication.clone())
@@ -244,7 +242,7 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
                     KvOperation::<DieselAuthentication>::HSetNx(
                         &field,
                         &diesel_authentication,
-                        redis_entry,
+                        drainer_query,
                     ),
                     key,
                 ))
@@ -450,11 +448,6 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
             common_enums::MerchantStorageScheme::RedisKv => {
                 let key_str = key.to_string();
 
-                let current_authentication =
-                    <Authentication as Conversion>::convert(previous_state.clone())
-                        .await
-                        .change_context(errors::StorageError::EncryptionError)?;
-
                 let current_authentication_as_new = previous_state
                     .clone()
                     .construct_new()
@@ -476,20 +469,20 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
                     .encode_to_string_of_json()
                     .change_context(errors::StorageError::SerializationFailed)?;
 
-                let redis_entry = kv::TypedSql {
-                    op: kv::DBOperation::Update {
-                        updatable: Box::new(kv::Updateable::AuthenticationUpdate(Box::new(
-                            kv::AuthenticationUpdateMems {
-                                orig: current_authentication,
-                                update_data: authentication_update_internal,
-                            },
-                        ))),
-                    },
-                };
+                let mut query_gen_conn = pg_connection_read(self).await?;
+                let drainer_query = authentication_update_internal
+                    .generate_drainer_update_query(
+                        &mut query_gen_conn,
+                        merchant_id.clone(),
+                        authentication_id.clone(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::KVError)
+                    .attach_printable("Failed to generate authentication update query")?;
 
                 Box::pin(kv_wrapper::<(), _, _>(
                     self,
-                    KvOperation::<DieselAuthentication>::Hset((&field, redis_value), redis_entry),
+                    KvOperation::<DieselAuthentication>::Hset((&field, redis_value), drainer_query),
                     key,
                 ))
                 .await
