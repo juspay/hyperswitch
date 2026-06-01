@@ -19,8 +19,10 @@ describe("Client Session Validation", () => {
   });
 
   before("connector gate", function () {
-    let connectorId = globalState.get("connectorId");
-    if (!CONNECTOR_LISTS.INCLUDE.CLIENT_SESSION_VALIDATION.includes(connectorId)) {
+    const connectorId = globalState.get("connectorId");
+    if (
+      !CONNECTOR_LISTS.INCLUDE.CLIENT_SESSION_VALIDATION.includes(connectorId)
+    ) {
       this.skip();
     }
   });
