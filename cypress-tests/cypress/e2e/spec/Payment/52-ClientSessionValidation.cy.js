@@ -136,7 +136,7 @@ describe("Client Session Validation", () => {
       it("Confirm without client_session_id - legacy fallback", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["ClientSessionValidConfirm"];
+        ]["ClientSessionMissingConfirm"];
 
         cy.confirmWithSdkAuthTest(
           fixtures.confirmBody,
@@ -153,7 +153,7 @@ describe("Client Session Validation", () => {
       it("Retrieve Payment", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["ClientSessionValidConfirm"];
+        ]["ClientSessionMissingConfirm"];
 
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
       });
