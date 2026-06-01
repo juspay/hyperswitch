@@ -72,6 +72,7 @@ pub struct ConnectorAuthentication {
     pub hipay: Option<HeaderKey>,
     pub hyperpg: Option<HeaderKey>,
     pub hyperswitch_vault: Option<SignatureKey>,
+    pub hyperswitchpeach: Option<HeaderKey>,
     pub hyperwallet: Option<BodyKey>,
     pub iatapay: Option<SignatureKey>,
     pub imerchantsolutions: Option<HeaderKey>,

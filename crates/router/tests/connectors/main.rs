@@ -62,6 +62,7 @@ mod helcim;
 mod hipay;
 mod hyperpg;
 mod hyperswitch_vault;
+mod hyperswitchpeach;
 mod hyperwallet;
 mod iatapay;
 mod imerchantsolutions;

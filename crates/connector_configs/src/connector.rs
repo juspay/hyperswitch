@@ -316,6 +316,7 @@ pub struct ConnectorConfig {
     pub hyperpg: Option<ConnectorTomlConfig>,
     pub helcim: Option<ConnectorTomlConfig>,
     pub hyperswitch_vault: Option<ConnectorTomlConfig>,
+    pub hyperswitchpeach: Option<ConnectorTomlConfig>,
     pub hyperwallet: Option<ConnectorTomlConfig>,
     pub inespay: Option<ConnectorTomlConfig>,
     pub jpmorgan: Option<ConnectorTomlConfig>,

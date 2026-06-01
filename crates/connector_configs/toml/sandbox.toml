@@ -8376,3 +8376,7 @@ payment_method_type = "JCB"
 payment_method_type = "Discover"
 [[imerchantsolutions.debit]]
 payment_method_type = "UnionPay"
+
+[hyperswitchpeach]
+[hyperswitchpeach.connector_auth.HeaderKey]
+api_key = "API Key"

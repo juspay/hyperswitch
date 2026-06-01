@@ -182,6 +182,7 @@ macro_rules! default_imp_for_authorize_session_token {
 }
 
 default_imp_for_authorize_session_token!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -340,6 +341,7 @@ macro_rules! default_imp_for_payment_settlement_split_create {
 }
 
 default_imp_for_payment_settlement_split_create!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -500,6 +502,7 @@ macro_rules! default_imp_for_calculate_tax {
 }
 
 default_imp_for_calculate_tax!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -660,6 +663,7 @@ macro_rules! default_imp_for_session_update {
 }
 
 default_imp_for_session_update!(
+    connectors::Hyperswitchpeach,
     connectors::Paysafe,
     connectors::Vgs,
     connectors::Aci,
@@ -820,6 +824,7 @@ macro_rules! default_imp_for_post_session_tokens {
 }
 
 default_imp_for_post_session_tokens!(
+    connectors::Hyperswitchpeach,
     connectors::Paysafe,
     connectors::Vgs,
     connectors::Aci,
@@ -980,6 +985,7 @@ macro_rules! default_imp_for_create_order {
 }
 
 default_imp_for_create_order!(
+    connectors::Hyperswitchpeach,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1136,6 +1142,7 @@ macro_rules! default_imp_for_update_metadata {
 }
 
 default_imp_for_update_metadata!(
+    connectors::Hyperswitchpeach,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1305,6 +1312,7 @@ macro_rules! default_imp_for_cancel_post_capture {
 }
 
 default_imp_for_cancel_post_capture!(
+    connectors::Hyperswitchpeach,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1465,6 +1473,7 @@ macro_rules! default_imp_for_complete_authorize {
 }
 
 default_imp_for_complete_authorize!(
+    connectors::Hyperswitchpeach,
     connectors::Revolv3,
     connectors::Worldpaymodular,
     connectors::Silverflow,
@@ -1601,6 +1610,7 @@ macro_rules! default_imp_for_incremental_authorization {
 }
 
 default_imp_for_incremental_authorization!(
+    connectors::Hyperswitchpeach,
     connectors::Paysafe,
     connectors::Vgs,
     connectors::Aci,
@@ -1757,6 +1767,7 @@ macro_rules! default_imp_for_extend_authorization {
 }
 
 default_imp_for_extend_authorization!(
+    connectors::Hyperswitchpeach,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Affirm,
@@ -1917,6 +1928,7 @@ macro_rules! default_imp_for_create_customer {
 }
 
 default_imp_for_create_customer!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -2068,6 +2080,7 @@ macro_rules! default_imp_for_connector_redirect_response {
 }
 
 default_imp_for_connector_redirect_response!(
+    connectors::Hyperswitchpeach,
     connectors::Worldpaymodular,
     connectors::Zift,
     connectors::Paysafe,
@@ -2206,6 +2219,7 @@ macro_rules! default_imp_for_pre_authenticate_steps{
 }
 
 default_imp_for_pre_authenticate_steps!(
+    connectors::Hyperswitchpeach,
     connectors::Revolv3,
     connectors::Aci,
     connectors::Adyen,
@@ -2360,6 +2374,7 @@ macro_rules! default_imp_for_authenticate_steps{
 }
 
 default_imp_for_authenticate_steps!(
+    connectors::Hyperswitchpeach,
     connectors::Revolv3,
     connectors::Aci,
     connectors::Adyen,
@@ -2519,6 +2534,7 @@ macro_rules! default_imp_for_post_authenticate_steps{
 }
 
 default_imp_for_post_authenticate_steps!(
+    connectors::Hyperswitchpeach,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2677,6 +2693,7 @@ macro_rules! default_imp_for_pre_processing_steps{
 }
 
 default_imp_for_pre_processing_steps!(
+    connectors::Hyperswitchpeach,
     connectors::Revolv3,
     connectors::Zift,
     connectors::Trustpayments,
@@ -2823,6 +2840,7 @@ macro_rules! default_imp_for_post_processing_steps{
 }
 
 default_imp_for_post_processing_steps!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -2984,6 +3002,7 @@ macro_rules! default_imp_for_approve {
 }
 
 default_imp_for_approve!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3146,6 +3165,7 @@ macro_rules! default_imp_for_reject {
 }
 
 default_imp_for_reject!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -3308,6 +3328,7 @@ macro_rules! default_imp_for_webhook_source_verification {
 }
 
 default_imp_for_webhook_source_verification!(
+    connectors::Hyperswitchpeach,
     connectors::Trustly,
     connectors::Paysafe,
     connectors::Vgs,
@@ -3469,6 +3490,7 @@ macro_rules! default_imp_for_accept_dispute {
 }
 
 default_imp_for_accept_dispute!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
@@ -3628,6 +3650,7 @@ macro_rules! default_imp_for_submit_evidence {
 }
 
 default_imp_for_submit_evidence!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
@@ -3786,6 +3809,7 @@ macro_rules! default_imp_for_defend_dispute {
 }
 
 default_imp_for_defend_dispute!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
@@ -3946,6 +3970,7 @@ macro_rules! default_imp_for_fetch_disputes {
 }
 
 default_imp_for_fetch_disputes!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4107,6 +4132,7 @@ macro_rules! default_imp_for_dispute_sync {
 }
 
 default_imp_for_dispute_sync!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -4277,6 +4303,7 @@ macro_rules! default_imp_for_file_upload {
 }
 
 default_imp_for_file_upload!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
@@ -4428,6 +4455,7 @@ macro_rules! default_imp_for_payouts {
 }
 
 default_imp_for_payouts!(
+    connectors::Hyperswitchpeach,
     connectors::Worldpaymodular,
     connectors::Paysafe,
     connectors::Affirm,
@@ -4574,6 +4602,7 @@ macro_rules! default_imp_for_payouts_create {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
+    connectors::Hyperswitchpeach,
     connectors::Paysafe,
     connectors::Vgs,
     connectors::Aci,
@@ -4730,6 +4759,7 @@ macro_rules! default_imp_for_payouts_retrieve {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_retrieve!(
+    connectors::Hyperswitchpeach,
     connectors::Paysafe,
     connectors::Vgs,
     connectors::Aci,
@@ -4887,6 +4917,7 @@ macro_rules! default_imp_for_payouts_eligibility {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
@@ -5047,6 +5078,7 @@ macro_rules! default_imp_for_payouts_fulfill {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
+    connectors::Hyperswitchpeach,
     connectors::Worldpaymodular,
     connectors::Paysafe,
     connectors::Affirm,
@@ -5195,6 +5227,7 @@ macro_rules! default_imp_for_payouts_cancel {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
@@ -5353,6 +5386,7 @@ macro_rules! default_imp_for_payouts_quote {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -5513,6 +5547,7 @@ macro_rules! default_imp_for_payouts_recipient {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -5672,6 +5707,7 @@ macro_rules! default_imp_for_payouts_recipient_account {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient_account!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -5834,6 +5870,7 @@ macro_rules! default_imp_for_frm_sale {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -5996,6 +6033,7 @@ macro_rules! default_imp_for_frm_checkout {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -6157,6 +6195,7 @@ macro_rules! default_imp_for_frm_transaction {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -6318,6 +6357,7 @@ macro_rules! default_imp_for_frm_fulfillment {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -6480,6 +6520,7 @@ macro_rules! default_imp_for_frm_record_return {
 
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -6639,6 +6680,7 @@ macro_rules! default_imp_for_revoking_mandates {
 }
 
 default_imp_for_revoking_mandates!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -6796,6 +6838,7 @@ macro_rules! default_imp_for_uas_pre_authentication {
 }
 
 default_imp_for_uas_pre_authentication!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -6955,6 +6998,7 @@ macro_rules! default_imp_for_uas_webhook {
 }
 
 default_imp_for_uas_webhook!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -7114,6 +7158,7 @@ macro_rules! default_imp_for_uas_post_authentication {
 }
 
 default_imp_for_uas_post_authentication!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -7274,6 +7319,7 @@ macro_rules! default_imp_for_uas_authentication_confirmation {
 }
 
 default_imp_for_uas_authentication_confirmation!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -7426,6 +7472,7 @@ macro_rules! default_imp_for_connector_request_id {
     };
 }
 default_imp_for_connector_request_id!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -7580,6 +7627,7 @@ macro_rules! default_imp_for_fraud_check {
 }
 #[cfg(feature = "frm")]
 default_imp_for_fraud_check!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -7763,6 +7811,7 @@ macro_rules! default_imp_for_connector_authentication {
 }
 
 default_imp_for_connector_authentication!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -7920,6 +7969,7 @@ macro_rules! default_imp_for_uas_authentication {
     };
 }
 default_imp_for_uas_authentication!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -8072,6 +8122,7 @@ macro_rules! default_imp_for_revenue_recovery {
 }
 
 default_imp_for_revenue_recovery!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -8285,6 +8336,7 @@ macro_rules! default_imp_for_subscriptions {
 }
 
 default_imp_for_subscriptions!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -8446,6 +8498,7 @@ macro_rules! default_imp_for_billing_connector_payment_sync {
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_billing_connector_payment_sync!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -8601,6 +8654,7 @@ macro_rules! default_imp_for_revenue_recovery_record_back {
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_revenue_recovery_record_back!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyen,
@@ -8762,6 +8816,7 @@ macro_rules! default_imp_for_billing_connector_invoice_sync {
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_billing_connector_invoice_sync!(
+    connectors::Hyperswitchpeach,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -8917,6 +8972,7 @@ macro_rules! default_imp_for_external_vault {
 }
 
 default_imp_for_external_vault!(
+    connectors::Hyperswitchpeach,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -9077,6 +9133,7 @@ macro_rules! default_imp_for_external_vault_insert {
 }
 
 default_imp_for_external_vault_insert!(
+    connectors::Hyperswitchpeach,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -9236,6 +9293,7 @@ macro_rules! default_imp_for_gift_card_balance_check {
     };
 }
 default_imp_for_gift_card_balance_check!(
+    connectors::Hyperswitchpeach,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Affirm,
@@ -9396,6 +9454,7 @@ macro_rules! default_imp_for_external_vault_retrieve {
 }
 
 default_imp_for_external_vault_retrieve!(
+    connectors::Hyperswitchpeach,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -9556,6 +9615,7 @@ macro_rules! default_imp_for_external_vault_delete {
 }
 
 default_imp_for_external_vault_delete!(
+    connectors::Hyperswitchpeach,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -9718,6 +9778,7 @@ macro_rules! default_imp_for_external_vault_create {
 }
 
 default_imp_for_external_vault_create!(
+    connectors::Hyperswitchpeach,
     connectors::Hyperwallet,
     connectors::Aci,
     connectors::Adyen,
@@ -9879,6 +9940,7 @@ macro_rules! default_imp_for_connector_authentication_token {
 }
 
 default_imp_for_connector_authentication_token!(
+    connectors::Hyperswitchpeach,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -10039,6 +10101,7 @@ macro_rules! default_imp_for_external_vault_proxy_payments_create {
 }
 
 default_imp_for_external_vault_proxy_payments_create!(
+    connectors::Hyperswitchpeach,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -10201,6 +10264,7 @@ macro_rules! default_imp_for_connector_webhook_register {
 }
 
 default_imp_for_connector_webhook_register!(
+    connectors::Hyperswitchpeach,
     connectors::Vgs,
     connectors::Aci,
     connectors::Adyenplatform,
@@ -11093,6 +11157,7 @@ macro_rules! default_imp_for_generate_qr_flow{
 }
 
 default_imp_for_generate_qr_flow!(
+    connectors::Hyperswitchpeach,
     connectors::Plaid,
     connectors::Vgs,
     connectors::Aci,
@@ -11254,6 +11319,7 @@ macro_rules! default_imp_for_push_notification_flow {
 }
 
 default_imp_for_push_notification_flow!(
+    connectors::Hyperswitchpeach,
     connectors::Plaid,
     connectors::Vgs,
     connectors::Aci,
