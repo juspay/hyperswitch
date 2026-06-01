@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix16-12
+
+### Bug Fixes
+
+- **hotfix16:** Drop missing JWTAuth fields + adapt ClickHouse aggregate handlers ([#12538](https://github.com/juspay/hyperswitch/pull/12538)) ([`840fcf6`](https://github.com/juspay/hyperswitch/commit/840fcf6e7ba95b905a2b7c2f3bb097831857ff2e))
+
+**Full Changelog:** [`2026.02.02.0-hotfix16-11...2026.02.02.0-hotfix16-12`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix16-11...2026.02.02.0-hotfix16-12)
+
+- - -
+
 ## 2026.02.02.0-hotfix16-11
 
 ### Hotfix
