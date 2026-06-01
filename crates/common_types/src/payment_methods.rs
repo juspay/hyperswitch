@@ -324,5 +324,4 @@ pub enum AssociatedPaymentMethodData {
 pub struct AssociatedPaymentMethods {
     /// token type for associated payment method
     pub payment_method_token: AssociatedPaymentMethodTokenType,
-
 }
