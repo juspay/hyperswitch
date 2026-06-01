@@ -1,6 +1,9 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import getConnectorDetails, {
+  CONNECTOR_LISTS,
+} from "../../configs/Payment/Utils";
+import * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
@@ -13,6 +16,13 @@ describe("Client Session Validation", () => {
 
   after("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
+  });
+
+  before("connector gate", function () {
+    let connectorId = globalState.get("connectorId");
+    if (!CONNECTOR_LISTS.INCLUDE.CLIENT_SESSION_VALIDATION.includes(connectorId)) {
+      this.skip();
+    }
   });
 
   context("Valid Client Session - Confirm with SDK Authorization", () => {

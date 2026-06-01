@@ -633,6 +633,7 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     POLL_CONFIG: ["stripe"],
+    CLIENT_SESSION_VALIDATION: ["stripe", "adyen"],
     // Add more inclusion lists
   },
 };
