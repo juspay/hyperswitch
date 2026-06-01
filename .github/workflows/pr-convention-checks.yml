@@ -137,6 +137,8 @@ jobs:
 
     steps:
       - name: Checkout trusted base branch
+        # pull_request_target workflows must use trusted base-branch code only.
+        # The PR size script and policy are read from the base commit, not the PR head.
         uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.base.sha }}
