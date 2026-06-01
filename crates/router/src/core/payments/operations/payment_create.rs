@@ -21,7 +21,6 @@ use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::MandateDetails,
     payment_method_data::RecurringDetails as domain_recurring_details,
-    payment_methods::PaymentMethodWithRawData,
     payments::{payment_attempt::PaymentAttempt, FromRequestEncryptablePaymentIntent},
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
@@ -39,6 +38,7 @@ use crate::{
         mandate::helpers as m_helpers,
         payment_link,
         payment_methods::transformers as pm_transformers,
+        payment_methods::transformers::PaymentMethodWithRawData,
         payments::{
             self, client_session::ClientSessionManager, helpers, operations, CustomerDetails,
             OperationSessionGetters, OperationSessionSetters, PaymentAddress, PaymentData,
@@ -225,6 +225,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .and_then(|pmd| pmd.billing.clone())
             .or(payment_method_with_raw_data.as_ref().and_then(|pm| {
                 pm.payment_method
+                    .0
                     .payment_method_billing_address
                     .clone()
                     .map(|decrypted_data| decrypted_data.into_inner().expose())
@@ -625,6 +626,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .map(From::from);
         let pm_pmd_billing = payment_method_with_raw_data.as_ref().and_then(|pm| {
             pm.payment_method
+                .0
                 .payment_method_billing_address
                 .clone()
                 .map(|decrypted_data| decrypted_data.into_inner().expose())
@@ -1335,12 +1337,13 @@ impl PaymentCreate {
             &profile_id,
             payment_method_ref,
             None, // CVC token data is not passed in create api
+            false,
         )
         .await?;
         logger::info!("Payment method fetched from PM Modular Service.");
 
         utils::when(
-            pm_info.payment_method.customer_id.as_ref() != req.get_customer_id(),
+            pm_info.payment_method.0.customer_id.as_ref() != req.get_customer_id(),
             || {
                 logger::info!(
                     "Payment method id does not belong to the customer id provided in the request."

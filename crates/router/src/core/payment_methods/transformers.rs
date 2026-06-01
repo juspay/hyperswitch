@@ -15,8 +15,6 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::ResultExt;
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::payment_methods::PaymentMethodWithRawData;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{payment_method_data, sdk_auth::SdkAuthorization};
 #[cfg(feature = "v1")]
@@ -64,7 +62,7 @@ pub struct PaymentMethodFetchData {
 impl PaymentMethodFetchData {
     pub fn from_modular(payment_method_with_raw_data: PaymentMethodWithRawData) -> Self {
         Self {
-            payment_method_info: Some(payment_method_with_raw_data.payment_method.clone()),
+            payment_method_info: Some(payment_method_with_raw_data.payment_method.0.clone()),
             payment_method_with_raw_data: Some(payment_method_with_raw_data),
             token_data: None,
         }
@@ -1883,12 +1881,13 @@ pub async fn fetch_payment_method_from_modular_service(
     profile_id: &id_type::ProfileId,
     payment_method_id: &str, //Currently PM id is string in v1
     pmd_card_token: Option<domain::CardToken>,
+    fetch_raw_detail: bool,
 ) -> CustomResult<PaymentMethodWithRawData, errors::ApiErrorResponse> {
     let payment_method_fetch_req = RetrievePaymentMethodV1Request {
         payment_method_id: api_models::payment_methods::PaymentMethodId {
             payment_method_id: payment_method_id.to_owned(),
         },
-        fetch_raw_detail: true,
+        fetch_raw_detail,
         modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
     };
 
@@ -1933,7 +1932,7 @@ pub async fn fetch_payment_method_from_modular_service(
         };
 
     let pm_wrapper = PaymentMethodWithRawData {
-        payment_method: payment_method.0,
+        payment_method,
         raw_payment_method_data,
         vault_payment_method_token_data,
     };

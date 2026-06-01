@@ -7,7 +7,8 @@ use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
-use crate::core::payments::operations::PaymentMethodWithRawData;
+use crate::core::payment_methods::transformers::PaymentMethodWithRawData;
+use crate::core::payments::operations::PaymentMethodFetchData;
 use crate::{
     core::{
         configs::dimension_state,
@@ -113,7 +114,7 @@ impl<F: Send + Clone + Sync>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        payment_method_wrapper: Option<PaymentMethodWithRawData>,
+        payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, ExternalVaultProxyConfirmRequest, PaymentData<F>>,
@@ -215,60 +216,8 @@ impl<F: Send + Clone + Sync>
             ..CustomerDetails::default()
         };
 
-        // If payment_method_wrapper was already fetched (from fetch_payment_method), use it.
-        // Otherwise, if payment_token is present and no wrapper yet, fetch from modular service now.
-        let payment_method_wrapper = if payment_method_wrapper.is_none() {
-            if let Some(payment_token) = &request.payment_token {
-                // Extract CVC/holder name from CardTokenData for the retry path
-                let card_token_from_request = request
-                    .payment_method_data
-                    .payment_method_data
-                    .as_ref()
-                    .and_then(|pmd| {
-                        if let api_models::payments::ProxyPaymentMethodData::CardTokenData(
-                            ref token_data,
-                        ) = pmd
-                        {
-                            Some(domain::CardToken {
-                                card_cvc: token_data.card_cvc.clone(),
-                                card_holder_name: token_data.card_holder_name.clone(),
-                            })
-                        } else {
-                            None
-                        }
-                    });
-
-                router_env::logger::info!(
-                    "Fetching payment method from modular service for external vault proxy (token: {})",
-                    payment_token
-                );
-                match pm_transformers::fetch_payment_method_from_modular_service(
-                    state,
-                    platform,
-                    profile_id,
-                    payment_token,
-                    card_token_from_request,
-                )
-                .await
-                {
-                    Ok(pm_info) => {
-                        router_env::logger::info!("Payment method fetched from modular service for external vault proxy");
-                        Some(pm_info)
-                    }
-                    Err(err) => {
-                        router_env::logger::error!(
-                            error=?err,
-                            "Failed to fetch payment method from modular service for external vault proxy"
-                        );
-                        None
-                    }
-                }
-            } else {
-                None
-            }
-        } else {
-            payment_method_wrapper
-        };
+        // Use the payment method wrapper already resolved in fetch_payment_method.
+        let payment_method_wrapper = payment_method_fetch_data.payment_method_with_raw_data;
 
         // Derive external_vault_pmd:
         // 1. If we have a ProxyCard vault token from the modular service retrieve, build ExternalVaultCard.
@@ -801,63 +750,83 @@ impl<F: Clone + Send + Sync>
         req: &ExternalVaultProxyConfirmRequest,
         platform: &domain::Platform,
         feature_config: &core_utils::FeatureConfig,
-    ) -> RouterResult<Option<PaymentMethodWithRawData>> {
-        if !feature_config.is_payment_method_modular_allowed {
-            router_env::logger::info!("Organization is not eligible for PM Modular Service, skipping fetch payment method for external vault proxy.");
-            return Ok(None);
-        }
-        let Some(payment_token) = &req.payment_token else {
-            return Ok(None);
+    ) -> RouterResult<PaymentMethodFetchData> {
+        // Step 1: resolve the redis token to PaymentTokenData (same as v1 confirm flow)
+        let token_data = match (req.payment_token.clone(), req.payment_method_type) {
+            (Some(token), payment_method) => Some(
+                helpers::retrieve_payment_token_data(state, token, Some(payment_method)).await?,
+            ),
+            _ => None,
         };
 
-        // Extract CVC/holder name from CardTokenData if present — these will be merged
-        // with the vault tokens returned by the internal PM service.
-        let card_token_from_request = req
-            .payment_method_data
-            .payment_method_data
-            .as_ref()
-            .and_then(|pmd| {
-                if let api_models::payments::ProxyPaymentMethodData::CardTokenData(ref token_data) =
-                    pmd
-                {
-                    Some(domain::CardToken {
-                        card_cvc: token_data.card_cvc.clone(),
-                        card_holder_name: token_data.card_holder_name.clone(),
-                    })
-                } else {
-                    None
-                }
-            });
-
-        // Try to get profile_id from the platform (best-effort; may not be available yet)
-        let profile_id = platform
-            .get_processor()
-            .get_account()
-            .get_default_profile()
-            .clone();
-        let Some(profile_id) = profile_id else {
-            // profile_id will be resolved in get_trackers; fetch will happen there instead
-            router_env::logger::info!("profile_id not available before get_trackers; PM fetch deferred to get_trackers for external vault proxy.");
-            return Ok(None);
-        };
-        router_env::logger::info!(
-            "Fetching payment method from modular service (token: {}) for external vault proxy.",
-            payment_token
-        );
-        match pm_transformers::fetch_payment_method_from_modular_service(
-            state,
-            platform,
-            &profile_id,
-            payment_token,
-            card_token_from_request,
-        )
-        .await
-        {
-            Ok(pm_info) => Ok(Some(pm_info)),
-            Err(err) => {
-                router_env::logger::error!(error=?err, "Failed to fetch PM from modular service for external vault proxy (pre get_trackers); will retry in get_trackers.");
-                Ok(None)
+        // Step 2: fetch the PaymentMethod record from DB (same as v1 confirm flow)
+        let payment_method_info = match token_data.as_ref() {
+            Some(token_data) => {
+                helpers::retrieve_payment_method_from_db_with_token_data(
+                    state,
+                    platform.get_provider().get_key_store(),
+                    token_data,
+                    platform.get_processor().get_account().storage_scheme,
+                )
+                .await?
             }
+            None => None,
+        };
+
+        // Step 3: if it's a modular PM, fetch from modular service using the actual PM id from DB
+        match payment_method_info {
+            Some(payment_method)
+                if feature_config.is_modular_with_pm_version(Some(payment_method.version)) =>
+            {
+                let payment_method_id = payment_method.get_id().to_owned();
+                let profile_id = platform
+                    .get_processor()
+                    .get_account()
+                    .get_default_profile()
+                    .clone()
+                    .get_required_value("profile_id")?;
+
+                let card_token_from_request = req
+                    .payment_method_data
+                    .payment_method_data
+                    .as_ref()
+                    .and_then(|pmd| {
+                        if let api_models::payments::ProxyPaymentMethodData::CardTokenData(
+                            ref token_data,
+                        ) = pmd
+                        {
+                            Some(domain::CardToken {
+                                card_cvc: token_data.card_cvc.clone(),
+                                card_holder_name: token_data.card_holder_name.clone(),
+                            })
+                        } else {
+                            None
+                        }
+                    });
+
+                router_env::logger::info!(
+                    "Fetching payment method from modular service for external vault proxy (pm_id: {})",
+                    payment_method_id
+                );
+                let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
+                    state,
+                    platform,
+                    &profile_id,
+                    &payment_method_id,
+                    card_token_from_request,
+                    true, // fetch raw card data for external vault proxy flow
+                )
+                .await?;
+                Ok(PaymentMethodFetchData::from_modular(pm_info))
+            }
+            Some(payment_method) => {
+                Ok(PaymentMethodFetchData::from_legacy(payment_method, token_data))
+            }
+            None => Ok(PaymentMethodFetchData {
+                payment_method_info: None,
+                payment_method_with_raw_data: None,
+                token_data,
+            }),
         }
     }
 

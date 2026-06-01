@@ -61,6 +61,16 @@ pub enum PaymentMethodData {
 pub enum ExternalVaultPaymentMethodData {
     Card(Box<ExternalVaultCard>),
     VaultToken(VaultToken),
+    /// Card token data from the internal PM service — card number/expiry come from the PM
+    /// service (resolved via `payment_token`); only CVC and optional holder name are supplied.
+    CardToken(CardTokenPaymentMethodData),
+}
+
+/// Carries only the fields NOT stored in the vault for a card-token confirm flow.
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct CardTokenPaymentMethodData {
+    pub card_cvc: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -1862,6 +1872,11 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
                 // Falling back to MandatePayment as a safe no-op sentinel value.
                 Self::MandatePayment
             }
+            api_models::payments::PaymentMethodData::VaultCardToken(_) => {
+                // This variant is intercepted at the routing layer and should not reach here.
+                // Falling back to MandatePayment as a safe no-op sentinel value.
+                Self::MandatePayment
+            }
         }
     }
 }
@@ -1876,11 +1891,8 @@ impl From<api_models::payments::ProxyPaymentMethodData> for ExternalVaultPayment
                 Self::VaultToken(VaultToken::from(vault_data))
             }
             api_models::payments::ProxyPaymentMethodData::CardTokenData(token_data) => {
-                // CardTokenData means the vault card will be fetched from the internal PM service.
-                // We store a VaultToken placeholder; the real ExternalVaultCard is built in
-                // fetch_payment_method using the PM service raw data + the cvc from this token.
-                Self::VaultToken(VaultToken {
-                    card_cvc: token_data.card_cvc.unwrap_or_default(),
+                Self::CardToken(CardTokenPaymentMethodData {
+                    card_cvc: token_data.card_cvc,
                     card_holder_name: token_data.card_holder_name,
                 })
             }

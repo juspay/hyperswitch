@@ -223,7 +223,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let m_payment_method_info = prefetched_payment_method_info.or_else(|| {
             payment_method_with_raw_data
                 .as_ref()
-                .map(|payment_method_wrapper| payment_method_wrapper.payment_method.clone())
+                .map(|payment_method_wrapper| payment_method_wrapper.payment_method.0.clone())
         });
         let mandate_details_fut = tokio::spawn(
             async move {
@@ -315,6 +315,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .map(From::from);
         let pm_pmd_billing = payment_method_with_raw_data.as_ref().and_then(|pm| {
             pm.payment_method
+                .0
                 .payment_method_billing_address
                 .clone()
                 .and_then(|decrypted_data| {

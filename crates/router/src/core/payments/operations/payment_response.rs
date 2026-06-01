@@ -77,6 +77,12 @@ async fn update_modular_pm_and_mandate_impl<F, T>(
 where
     F: Clone + Send + Sync,
 {
+    logger::info!(
+        payment_id = ?payment_data.payment_attempt.payment_id,
+        payment_method = ?payment_data.payment_attempt.payment_method,
+        "[EXT_VAULT_PROXY] Entered update_modular_pm_and_mandate_impl"
+    );
+
     let is_eligible_pm = matches!(
         payment_data.payment_attempt.payment_method,
         Some(
@@ -85,6 +91,12 @@ where
                 | enums::PaymentMethod::Wallet
                 | enums::PaymentMethod::BankRedirect
         )
+    );
+
+    logger::info!(
+        payment_id = ?payment_data.payment_attempt.payment_id,
+        is_eligible_pm = ?is_eligible_pm,
+        "[EXT_VAULT_PROXY] Payment method eligibility check result"
     );
 
     if is_eligible_pm {
@@ -97,8 +109,22 @@ where
             .as_ref()
             .map(|pm_info| pm_info.get_id().clone());
 
-        match (is_volatile, payment_method_id) {
+        logger::info!(
+            payment_id = ?payment_data.payment_attempt.payment_id,
+            is_volatile = ?is_volatile,
+            payment_method_id = ?payment_method_id,
+            has_pm_info = ?payment_data.payment_method_info.is_some(),
+            "[EXT_VAULT_PROXY] Payment method volatile and ID check"
+        );
+
+        match (is_volatile, &payment_method_id) {
             (Some(false), Some(pm_id)) => {
+                logger::info!(
+                    payment_id = ?payment_data.payment_attempt.payment_id,
+                    payment_method_id = ?pm_id,
+                    "[EXT_VAULT_PROXY] Payment method is non-volatile with valid ID - proceeding with update"
+                );
+
                 let should_update = resp.status.should_update_payment_method();
 
                 let payment_method_type = payment_data
@@ -107,9 +133,11 @@ where
                     .map(|pm| pm.to_string());
 
                 logger::info!(
-                    "Payment method is {:?}; is eligible for modular update: {}",
-                    payment_method_type,
-                    should_update
+                    payment_id = ?payment_data.payment_attempt.payment_id,
+                    payment_method_type = ?payment_method_type,
+                    should_update = ?should_update,
+                    response_status = ?resp.status,
+                    "[EXT_VAULT_PROXY] Should update payment method check result"
                 );
 
                 if should_update {
@@ -213,8 +241,19 @@ where
                             )),
                             _ => None,
                         });
+
                     let acknowledgement_status =
                         Some(common_enums::AcknowledgementStatus::Authenticated);
+
+                    logger::info!(
+                        payment_id = ?payment_data.payment_attempt.payment_id,
+                        payment_method_id = ?pm_id,
+                        acknowledgement_status = ?acknowledgement_status,
+                        has_payment_method_data = ?payment_method_data.is_some(),
+                        has_connector_token = ?connector_token_details.is_some(),
+                        has_network_txn_id = ?network_transaction_id.is_some(),
+                        "[EXT_VAULT_PROXY] Setting acknowledgement_status to Authenticated"
+                    );
 
                     let payload = UpdatePaymentMethodV1Payload {
                         payment_method_data,
@@ -224,12 +263,30 @@ where
                         acknowledgement_status,
                     };
 
+                    logger::debug!(
+                        payment_id = ?payment_data.payment_attempt.payment_id,
+                        payment_method_id = ?pm_id,
+                        has_pm_data = ?payload.payment_method_data.is_some(),
+                        has_connector_token = ?payload.connector_token_details.is_some(),
+                        has_network_txn_id = ?payload.network_transaction_id.is_some(),
+                        has_ack_status = ?payload.acknowledgement_status.is_some(),
+                        "[EXT_VAULT_PROXY] Built update payload for modular PM service"
+                    );
+
                     // #3 - Execute the modular payment-method update call if there is something to be updated
                     if payload.payment_method_data.is_some()
                         || payload.connector_token_details.is_some()
                         || payload.network_transaction_id.is_some()
                         || payload.acknowledgement_status.is_some()
                     {
+                        logger::info!(
+                            payment_id = ?payment_data.payment_attempt.payment_id,
+                            payment_method_id = ?pm_id,
+                            processor_merchant_id = ?payment_data.payment_attempt.processor_merchant_id,
+                            profile_id = ?payment_data.payment_attempt.profile_id,
+                            "[EXT_VAULT_PROXY] Calling modular payment method update service"
+                        );
+
                         match call_modular_payment_method_update(
                             state,
                             &payment_data.payment_attempt.processor_merchant_id,
@@ -240,25 +297,46 @@ where
                         .await
                         {
                             Ok(_) => {
-                                logger::info!("Successfully called modular payment method update");
+                                logger::info!(
+                                    payment_id = ?payment_data.payment_attempt.payment_id,
+                                    payment_method_id = ?pm_id,
+                                    "[EXT_VAULT_PROXY] ✅ Successfully called modular payment method update - status should be Authenticated"
+                                );
                             }
                             Err(err) => {
                                 logger::error!(
-                                    "Failed to call modular payment method update: {}",
-                                    err
+                                    payment_id = ?payment_data.payment_attempt.payment_id,
+                                    payment_method_id = ?pm_id,
+                                    error = ?err,
+                                    "[EXT_VAULT_PROXY] ❌ Failed to call modular payment method update"
                                 );
                             }
                         };
                         payment_data.payment_attempt.payment_method_id = Some(pm_id.clone());
                     } else {
-                        logger::info!("No updates found for modular payment method update call");
+                        logger::warn!(
+                            payment_id = ?payment_data.payment_attempt.payment_id,
+                            payment_method_id = ?pm_id,
+                            "[EXT_VAULT_PROXY] No updates found for modular payment method update call - all fields are None"
+                        );
                     }
                 }
             }
             (_, _) => {
-                logger::info!("Payment method is not eligible for modular update");
+                logger::warn!(
+                    payment_id = ?payment_data.payment_attempt.payment_id,
+                    is_volatile = ?is_volatile,
+                    has_payment_method_id = ?payment_method_id.is_some(),
+                    "[EXT_VAULT_PROXY] Payment method is not eligible for modular update (volatile or no PM ID)"
+                );
             }
         }
+    } else {
+        logger::warn!(
+            payment_id = ?payment_data.payment_attempt.payment_id,
+            payment_method = ?payment_data.payment_attempt.payment_method,
+            "[EXT_VAULT_PROXY] Payment method type is not eligible for modular update (not Card/BankDebit/Wallet/BankRedirect)"
+        );
     }
     Ok(())
 }

@@ -5021,7 +5021,7 @@ pub async fn list_customer_payment_method(
         .unwrap_or(false);
 
     for pm in resp.into_iter() {
-        let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+        let parent_payment_method_token = format!("{}:", generate_id(consts::ID_LENGTH, "token"));
 
         let payment_method = pm
             .get_payment_method_type()
@@ -5260,7 +5260,7 @@ pub async fn get_pm_list_context(
             #[cfg(feature = "payouts")]
             bank_transfer_details: None,
             hyperswitch_token_data: is_payment_associated.then_some(
-                PaymentTokenData::temporary_generic(generate_id(consts::ID_LENGTH, "token")),
+                PaymentTokenData::temporary_generic(format!("{}:", generate_id(consts::ID_LENGTH, "token"))),
             ),
         }),
     };

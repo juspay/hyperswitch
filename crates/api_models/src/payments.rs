@@ -3325,9 +3325,11 @@ mod payment_method_data_serde {
                     | PaymentMethodData::Card(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::VaultDataCard(_)
+                    | PaymentMethodData::VaultCardToken(_)
                     | PaymentMethodData::MandatePayment
                     | PaymentMethodData::OpenBanking(_)
-                    | PaymentMethodData::Wallet(_) => {
+                    | PaymentMethodData::Wallet(_)=> {
+                    // | PaymentMethodData::VaultDataCard(_) => {
                         payment_method_data_request.serialize(serializer)
                     }
                 }
@@ -3684,6 +3686,10 @@ pub enum PaymentMethodData {
     /// When this variant is used, the payment will be routed through the external vault proxy flow.
     #[schema(title = "VaultDataCard")]
     VaultDataCard(Box<ProxyCardData>),
+    /// Vault card token — like CardToken but routes through the external vault proxy flow.
+    /// The payment_token field carries the PM token; only CVC/holder name are supplied here.
+    #[schema(title = "VaultCardToken")]
+    VaultCardToken(CardToken),
 }
 
 pub trait GetAddressFromPaymentMethodData {
@@ -3711,7 +3717,8 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             | Self::MandatePayment
             | Self::MobilePayment(_)
             | Self::NetworkToken(_)
-            | Self::VaultDataCard(_) => None,
+            | Self::VaultDataCard(_)
+            | Self::VaultCardToken(_) => None,
         }
     }
 }
@@ -3736,7 +3743,7 @@ impl PaymentMethodData {
             Self::MobilePayment(_) => Some(api_enums::PaymentMethod::MobilePayment),
             Self::NetworkToken(_) => Some(api_enums::PaymentMethod::NetworkToken),
             Self::CardToken(_) | Self::MandatePayment => None,
-            Self::VaultDataCard(_) => Some(api_enums::PaymentMethod::Card),
+            Self::VaultDataCard(_) | Self::VaultCardToken(_) => Some(api_enums::PaymentMethod::Card),
         }
     }
 }

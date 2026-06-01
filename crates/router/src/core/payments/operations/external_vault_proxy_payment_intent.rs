@@ -408,6 +408,13 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                 )
                 .await?);
             }
+            (_, Some(hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::CardToken(_)), _, Some(_)) => {
+                // CardToken variant: card number/expiry will be fetched from the PM service
+                // during fetch_payment_method using the payment_token. Nothing to do here.
+                router_env::logger::debug!(
+                    "CardToken variant: deferring PM lookup to fetch_payment_method"
+                );
+            }
             _ => {
                 router_env::logger::debug!(
                     "No payment method to create or fetch for external vault proxy payment intent"

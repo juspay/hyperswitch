@@ -3554,7 +3554,7 @@ pub async fn store_in_vault_and_generate_ppmt(
         merchant_key_store,
     )
     .await?;
-    let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+    let parent_payment_method_token = format!("{}:", generate_id(consts::ID_LENGTH, "token"));
     let key_for_hyperswitch_token = payment_attempt.get_payment_method().map(|payment_method| {
         payment_methods_handler::ParentPaymentMethodToken::create_key_for_token((
             &parent_payment_method_token,

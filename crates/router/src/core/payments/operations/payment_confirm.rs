@@ -18,7 +18,6 @@ use error_stack::{report, ResultExt};
 use futures::FutureExt;
 use hyperswitch_domain_models::{
     payment_method_data::RecurringDetails as domain_recurring_details,
-    payment_methods::PaymentMethodWithRawData,
     payments::{self as domain_payments, payment_intent::PaymentIntentUpdateFields},
     router_request_types::unified_authentication_service,
 };
@@ -44,6 +43,7 @@ use crate::{
         mandate::helpers as m_helpers,
         metrics,
         payment_methods::transformers as pm_transformers,
+        payment_methods::transformers::PaymentMethodWithRawData,
         payments::{
             self, helpers, operations,
             operations::payment_confirm::unified_authentication_service::ThreeDsMetaData,
@@ -559,6 +559,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .and_then(|pmd| pmd.billing.clone())
             .or(payment_method_with_raw_data.clone().and_then(|pm| {
                 pm.payment_method
+                    .0
                     .payment_method_billing_address
                     .clone()
                     .map(|decrypted_data| decrypted_data.into_inner().expose())
@@ -2342,12 +2343,13 @@ impl PaymentConfirm {
             &profile_id,
             payment_method_ref,
             payment_method_data,
+            false,
         )
         .await?;
         logger::info!("Payment method fetched from PM Modular Service.");
 
         utils::when(
-            pm_info.payment_method.customer_id.as_ref() != req.get_customer_id(),
+            pm_info.payment_method.0.customer_id.as_ref() != req.get_customer_id(),
             || {
                 logger::info!(
                     "Payment method id does not belong to the customer id provided in the request."

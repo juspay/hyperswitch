@@ -942,6 +942,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .network_token_payment_method_data
                 .map(|val| val.into()),
             external_vault_token_data: self.external_vault_token_data.map(|val| val.into()),
+            external_vault_source: self.external_vault_source,
             vault_type: self.vault_type,
             created_by: self.created_by.map(|created_by| created_by.to_string()),
             last_modified_by: self

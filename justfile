@@ -17,7 +17,7 @@ alias c := check
 # We cannot run --all-features because v1 and v2 are mutually exclusive features
 # Create a list of features by excluding certain features
 # redis_interface_backend: "redis-rs" (default) or "fred"
-clippy redis_interface_backend="redis-rs" *FLAGS:
+clippy redis_interface_backend="redis-rs" *FLAGS="":
     #! /usr/bin/env bash
     set -euo pipefail
 
@@ -36,7 +36,7 @@ clippy redis_interface_backend="redis-rs" *FLAGS:
     set +x
 
 # redis_interface_backend: "redis-rs" (default) or "fred"
-clippy_v2 redis_interface_backend="redis-rs" *FLAGS:
+clippy_v2 redis_interface_backend="redis-rs" *FLAGS="":
     #! /usr/bin/env bash
     set -euo pipefail
 
@@ -54,7 +54,7 @@ clippy_v2 redis_interface_backend="redis-rs" *FLAGS:
     set +x
 
 # redis_interface_backend: "redis-rs" (default) or "fred"
-check_v2 redis_interface_backend="redis-rs" *FLAGS:
+check_v2 redis_interface_backend="redis-rs" *FLAGS="":
     #! /usr/bin/env bash
     set -euo pipefail
 
@@ -72,7 +72,7 @@ check_v2 redis_interface_backend="redis-rs" *FLAGS:
     set +x
 
 # redis_interface_backend: "redis-rs" (default) or "fred"
-build_v2 redis_interface_backend="redis-rs" *FLAGS:
+build_v2 redis_interface_backend="redis-rs" *FLAGS="":
     #! /usr/bin/env bash
     set -euo pipefail
 
@@ -107,7 +107,7 @@ run_v2 redis_interface_backend="redis-rs":
     set +x
 
 # redis_interface_backend: "redis-rs" (default) or "fred"
-check redis_interface_backend="redis-rs" *FLAGS:
+check redis_interface_backend="redis-rs" *FLAGS="":
     #! /usr/bin/env bash
     set -euo pipefail
 

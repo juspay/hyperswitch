@@ -203,6 +203,7 @@ pub struct PaymentMethodNew {
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: Option<Encryption>,
     pub external_vault_token_data: Option<Encryption>,
+    pub external_vault_source: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub locker_fingerprint_id: Option<String>,
     pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,

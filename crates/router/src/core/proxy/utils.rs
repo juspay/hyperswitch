@@ -28,6 +28,7 @@ use crate::{
 };
 
 pub struct ProxyRequestWrapper(pub proxy_api_models::ProxyRequest);
+#[derive(Debug)]
 pub enum ProxyRecord {
     PaymentMethodRecord(Box<domain::PaymentMethod>),
     VolatilePaymentMethodRecord(Box<domain::PaymentMethod>),
@@ -137,7 +138,7 @@ impl ProxyRequestWrapper {
             proxy_api_models::TokenType::PaymentMethodToken => {
                 // 1. Resolve parent token (if any) -> storage type & optional token data
                 let (storage_type, card_token_data_opt) =
-                    resolve_storage_type_from_token(state, token).await?;
+                    resolve_storage_type_from_token(state, &token.to_string()).await?;
 
                 let pm_id = PaymentMethodId {
                     payment_method_id: token.clone(),
@@ -370,68 +371,150 @@ impl ProxyRecord {
     }
 }
 
-/// Fetches vault data for a single token string + token type, used in multi-token mode.
-///
-/// Strategy (multi-token):
-///  1. Try to load the value directly from **Redis** as a `serde_json::Value`.
-///  2. If Redis returns an error or a miss, fall back to loading from the **DB** (persistent).
-pub async fn get_vault_data_for_token(
+/// Intermediate result after fetching payment method from Redis or DB.
+/// Indicates whether vault data still needs to be fetched from external vault service.
+enum ProxyRecordFetchResult {
+    /// Volatile token: vault data found directly in Redis (encrypted). No PM record, no external vault call needed.
+    VaultDataDirectlyFromRedis(Value),
+    /// Volatile PM: vault data already in Redis (encrypted). Fetch it directly without calling external vault.
+    VolatileWithVaultDataInRedis(Box<domain::PaymentMethod>),
+    /// Persistent PM: vault data must be fetched from external vault service using this proxy record.
+    PersistentNeedsVaultFetch(ProxyRecord),
+}
+
+/// Fetches payment method record for a single token in multi-token mode.
+/// 
+/// Strategy:
+///  1. Try Redis first – attempt to deserialize as `PaymentMethod` struct (volatile PM).
+///     If found → return `VolatileWithVaultDataInRedis` (vault data is in Redis, no external call needed).
+///  2. On Redis miss → fall back to DB (persistent PM).
+///     Fetch from DB → return `PersistentNeedsVaultFetch` (external vault call needed).
+async fn fetch_proxy_record_for_token(
     state: &SessionState,
     platform: &domain::Platform,
     token: &str,
     token_type: &proxy_api_models::TokenType,
-) -> RouterResult<Value> {
+) -> RouterResult<ProxyRecordFetchResult> {
     let provider = platform.get_provider();
 
-    // ── 1. Try Redis – return the raw JSON value directly ────────────────────
-    let redis_result: RouterResult<Option<Value>> = async {
+    // Check if this is a temporary token (ends with :)
+    let is_temp_token = token.ends_with(':');
+    
+    // Strip the colon for processing
+    let token_without_colon = if is_temp_token {
+        token.strip_suffix(':').unwrap_or(token)
+    } else {
+        token
+    };
+
+    // Determine token type based on prefix
+    let is_payment_method_id = token_without_colon.starts_with("12345_");
+
+    if is_payment_method_id && !is_temp_token {
+        // This is a payment method ID → fetch from DB, then call vault
+        router_env::logger::info!(
+            token = %token,
+            "multi-token: detected payment method ID (starts with 12345_), fetching from DB"
+        );
+    } else if is_temp_token {
+        // This is a temporary token (ends with :) → try Redis first
+        router_env::logger::debug!(
+            token = %token,
+            token_without_colon = %token_without_colon,
+            "multi-token: detected temporary token (ends with :), trying Redis"
+        );
+
         let redis_conn = state
             .store
             .get_redis_conn()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get redis connection")?;
 
-        match redis_conn.get_key::<bytes::Bytes>(&token.into()).await {
-            Ok(resp) => {
-                let value = resp
-                    .parse_struct::<Value>("ProxyTokenValue")
+        // Use the key format: pm_token_{token}_hyperswitch for temporary tokens
+        let redis_key = format!("pm_token_{}_hyperswitch", token_without_colon);
+
+        // Temporary tokens store vault data directly as JSON in Redis (not encrypted Encryption objects)
+        match redis_conn.get_key::<bytes::Bytes>(&redis_key.clone().into()).await {
+            Ok(raw_bytes) => {
+                // Parse the JSON vault data directly
+                let vault_data: Value = raw_bytes
+                    .parse_struct("vault_data")
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Error parsing token value from Redis")?;
-                Ok(Some(value))
+                    .attach_printable("Failed to parse vault data JSON from Redis")?;
+                
+                router_env::logger::info!(
+                    token = %token,
+                    redis_key = %redis_key,
+                    "multi-token: found vault data in Redis (temporary token)"
+                );
+                
+                return Ok(ProxyRecordFetchResult::VaultDataDirectlyFromRedis(vault_data));
             }
-            // Redis miss / key not found → signal fallback
-            Err(_) => Ok(None),
+            Err(err) => {
+                router_env::logger::error!(
+                    token = %token,
+                    redis_key = %redis_key,
+                    error = ?err,
+                    "multi-token: Redis error for temporary token - token not found or expired"
+                );
+                return Err(errors::ApiErrorResponse::UnprocessableEntity {
+                    message: format!("Token '{}' is invalid or expired", token),
+                })
+                .attach_printable(format!("Temporary token not found in Redis: {:?}", err))?;
+            }
+        }
+    } else {
+        // This is a volatile token (but not temporary) → try Redis first
+        router_env::logger::debug!(
+            token = %token,
+            "multi-token: detected volatile token, trying Redis"
+        );
+
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+
+        // Use the key format: pm_token_{token}_hyperswitch for volatile tokens
+        let redis_key = format!("pm_token_{}_hyperswitch", token_without_colon);
+
+        // Volatile tokens store vault data directly as JSON in Redis (not encrypted Encryption objects)
+        match redis_conn.get_key::<bytes::Bytes>(&redis_key.clone().into()).await {
+            Ok(raw_bytes) => {
+                // Parse the JSON vault data directly
+                let vault_data: Value = raw_bytes
+                    .parse_struct("vault_data")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse vault data JSON from Redis")?;
+                
+                router_env::logger::info!(
+                    token = %token,
+                    redis_key = %redis_key,
+                    "multi-token: found vault data in Redis (volatile token)"
+                );
+                
+                return Ok(ProxyRecordFetchResult::VaultDataDirectlyFromRedis(vault_data));
+            }
+            Err(err) => {
+                router_env::logger::error!(
+                    token = %token,
+                    redis_key = %redis_key,
+                    error = ?err,
+                    "multi-token: Redis error for volatile token - token not found or expired"
+                );
+                return Err(errors::ApiErrorResponse::UnprocessableEntity {
+                    message: format!("Token '{}' is invalid or expired", token),
+                })
+                .attach_printable(format!("Volatile token not found in Redis: {:?}", err))?;
+            }
         }
     }
-    .await;
 
-    match redis_result {
-        Ok(Some(value)) => {
-            router_env::logger::info!(
-                token = %token,
-                "multi-token: loaded value from Redis"
-            );
-            return Ok(value);
-        }
-        Ok(None) => {
-            router_env::logger::info!(
-                token = %token,
-                "multi-token: Redis miss, falling back to DB"
-            );
-        }
-        Err(err) => {
-            router_env::logger::warn!(
-                token = %token,
-                error = ?err,
-                "multi-token: Redis error, falling back to DB"
-            );
-        }
-    }
-
-    // ── 2. Fallback: DB (persistent) → vault ─────────────────────────────────
+    // ── Fallback: DB (persistent PM) → will need vault fetch ─────────────────
     let proxy_record = match token_type {
         proxy_api_models::TokenType::TokenizationId => {
-            let token_id = id_type::GlobalTokenId::from_string(token)
+            let token_id = id_type::GlobalTokenId::from_string(token_without_colon)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error while converting from string to GlobalTokenId type")?;
             let tokenization_record = state
@@ -442,10 +525,9 @@ pub async fn get_vault_data_for_token(
                 .attach_printable("Error while fetching tokenization record from vault")?;
             ProxyRecord::TokenizationRecord(Box::new(tokenization_record))
         }
-        // PaymentMethodId | VolatilePaymentMethodId | PaymentMethodToken
         _ => {
             let global_pm_id = id_type::GlobalPaymentMethodId::generate_from_string(
-                token.to_string(),
+                token_without_colon.to_string(),
             )
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to generate GlobalPaymentMethodId for DB fallback")?;
@@ -470,7 +552,39 @@ pub async fn get_vault_data_for_token(
         }
     };
 
-    proxy_record.get_vault_data(state, platform.clone()).await
+    Ok(ProxyRecordFetchResult::PersistentNeedsVaultFetch(proxy_record))
+}
+
+/// Fetches complete vault data for a single token string, used in multi-token mode.
+///
+/// This is a two-phase process:
+///  1. Fetch payment method record (from Redis or DB)
+///  2. Fetch vault data based on the record type:
+///     - Volatile PM: vault data is in Redis (encrypted)
+///     - Persistent PM: vault data must be fetched from external vault service
+pub async fn get_vault_data_for_token(
+    state: &SessionState,
+    platform: &domain::Platform,
+    token: &str,
+    token_type: &proxy_api_models::TokenType,
+) -> RouterResult<Value> {
+    let fetch_result = fetch_proxy_record_for_token(state, platform, token, token_type).await?;
+
+    match fetch_result {
+        ProxyRecordFetchResult::VaultDataDirectlyFromRedis(vault_data) => {
+            // Vault data was found directly in Redis – return it
+            Ok(vault_data)
+        }
+        ProxyRecordFetchResult::VolatileWithVaultDataInRedis(volatile_pm) => {
+            // Vault data is in Redis – fetch it using the payment method record
+            let proxy_record = ProxyRecord::VolatilePaymentMethodRecord(volatile_pm);
+            proxy_record.get_vault_data(state, platform.clone()).await
+        }
+        ProxyRecordFetchResult::PersistentNeedsVaultFetch(proxy_record) => {
+            // Vault data must be fetched from external vault service
+            proxy_record.get_vault_data(state, platform.clone()).await
+        }
+    }
 }
 
 #[derive(Debug)]

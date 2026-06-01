@@ -2825,9 +2825,7 @@ pub async fn create_payment_method_proxy_card_core(
         .payment_method_data
         .populate_bin_details_for_payment_method(state)
         .await;
-    let payment_method_subtype = bin_enriched_payment_method_data
-        .payment_method_subtype
-        .or(req.payment_method_subtype);
+    let payment_method_subtype = req.payment_method_subtype;
     let additional_payment_method_data = Some(
         bin_enriched_payment_method_data
             .data
@@ -2896,7 +2894,7 @@ pub async fn create_payment_method_proxy_card_core(
         encrypted_external_vault_token_data,
         vault_type,
         platform.get_initiator(),
-        enums::PaymentMethodStatus::Inactive,
+        enums::PaymentMethodStatus::New,
     )
     .await?;
 
@@ -4895,7 +4893,7 @@ pub async fn list_customer_payment_methods_core(
         saved_payment_methods
             .into_iter()
             .map(|pm| async move {
-                let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+                let parent_payment_method_token = format!("{}:", generate_id(consts::ID_LENGTH, "token"));
 
                 // For payment methods that are active we should always have the payment method type
                 let payment_method_type = pm
@@ -6141,7 +6139,7 @@ pub async fn payment_methods_session_update_payment_method(
     match request.payment_method_token.clone() {
         None if has_cvc_only_data => {
             // Generate a new token, store CVC + card_holder_name in Redis
-            let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+            let parent_payment_method_token = format!("{}:", generate_id(consts::ID_LENGTH, "token"));
 
             let redis_token_data = storage::PaymentTokenData::temporary_card_token(
                 card_cvc,
@@ -6523,7 +6521,7 @@ pub async fn payment_methods_session_confirm(
     ))
     .await?;
 
-    let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+    let parent_payment_method_token = format!("{}:", generate_id(consts::ID_LENGTH, "token"));
 
     let token_data = get_pm_list_token_data(
         request.payment_method_type,

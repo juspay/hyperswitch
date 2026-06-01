@@ -101,6 +101,7 @@ use self::{
     operations::{BoxedOperation, Operation, PaymentResponse},
 };
 use super::{
+    configs::dimension_state,
     errors::StorageErrorExt,
     payment_methods::surcharge_decision_configs,
     routing::{transaction_type_from_payments_dsl, TransactionData},
@@ -2493,18 +2494,43 @@ where
     D: OperationSessionGetters<F> + Send + Sync,
     Op: Operation<F, R, Data = D> + Send + Sync,
 {
-    if feature_config.is_modular_with_pm_version(
-        payment_data
-            .get_payment_method_info()
-            .map(|payment_method| payment_method.version),
-    ) {
-        logger::debug!(
+    logger::info!(
+        payment_id = ?payment_data.get_payment_attempt().payment_id,
+        payment_status = ?router_data.status,
+        connector_http_status = ?router_data.connector_http_status_code,
+        "[EXT_VAULT_PROXY] Starting handle_pm_and_mandate_post_update"
+    );
+
+    let pm_version = payment_data
+        .get_payment_method_info()
+        .map(|payment_method| payment_method.version);
+    
+    // let is_modular = feature_config.is_modular_with_pm_version(pm_version);
+    let is_modular = true;
+
+    logger::info!(
+        payment_id = ?payment_data.get_payment_attempt().payment_id,
+        is_modular = ?is_modular,
+        pm_version = ?pm_version,
+        has_payment_method_info = ?payment_data.get_payment_method_info().is_some(),
+        payment_method = ?payment_data.get_payment_attempt().payment_method,
+        "[EXT_VAULT_PROXY] Feature config check result"
+    );
+
+    if is_modular {
+        logger::info!(
             payment_id = ?payment_data.get_payment_attempt().payment_id,
-            "Modular merchant detected; calling update_modular_pm_and_mandate"
+            "[EXT_VAULT_PROXY] Modular merchant detected; calling update_modular_pm_and_mandate"
         );
 
         let domain_payment_method_data =
             request_payment_method_data.map(domain::PaymentMethodData::from);
+
+        logger::debug!(
+            payment_id = ?payment_data.get_payment_attempt().payment_id,
+            has_request_pm_data = ?domain_payment_method_data.is_some(),
+            "[EXT_VAULT_PROXY] Request payment method data converted"
+        );
 
         operation
             .to_post_update_tracker()?
@@ -2517,10 +2543,15 @@ where
                 domain_payment_method_data.as_ref(),
             )
             .await?;
-    } else {
-        logger::debug!(
+
+        logger::info!(
             payment_id = ?payment_data.get_payment_attempt().payment_id,
-            "Non-modular merchant; calling save_pm_and_mandate"
+            "[EXT_VAULT_PROXY] Successfully completed update_modular_pm_and_mandate"
+        );
+    } else {
+        logger::info!(
+            payment_id = ?payment_data.get_payment_attempt().payment_id,
+            "[EXT_VAULT_PROXY] Non-modular merchant; calling save_pm_and_mandate"
         );
         operation
             .to_post_update_tracker()?
@@ -3032,6 +3063,16 @@ where
 
     let router_data_for_pm_mandate = router_data.clone();
 
+    logger::info!(
+        payment_id = ?payment_data.get_payment_attempt().payment_id,
+        payment_status = ?router_data_for_pm_mandate.status,
+        response_ok = ?router_data_for_pm_mandate.response.is_ok(),
+        has_pm_info = ?payment_data.get_payment_method_info().is_some(),
+        payment_method = ?payment_data.get_payment_attempt().payment_method,
+        has_request_pm_data = ?req.get_payment_method_data().is_some(),
+        "[EXT_VAULT_PROXY] About to call handle_pm_and_mandate_post_update"
+    );
+
     handle_pm_and_mandate_post_update(
         state,
         operation.as_ref(),
@@ -3043,6 +3084,11 @@ where
         &feature_config,
     )
     .await?;
+
+    logger::info!(
+        payment_id = ?payment_data.get_payment_attempt().payment_id,
+        "[EXT_VAULT_PROXY] Successfully completed handle_pm_and_mandate_post_update"
+    );
 
     let mut payment_data = operation
         .to_post_update_tracker()?
@@ -9808,6 +9854,7 @@ impl PaymentEligibilityData {
                 profile_id,
                 payment_token.clone().expose().as_str(),
                 None, // CVC token data is not passed in create api
+                false,
             )
             .await
             .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)

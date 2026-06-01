@@ -1702,6 +1702,12 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
             ))
             .into())
         }
+        hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::CardToken(_) => {
+            Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                        "CardToken variant cannot be sent to UCS directly — card data must be resolved first: {payment_method_type:?}"
+            ))
+            .into())
+        }
     }
 }
 
