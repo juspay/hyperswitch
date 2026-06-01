@@ -5512,7 +5512,9 @@ Cypress.Commands.add(
   (globalState, paymentMethodType, expectedRedirection) => {
     const DISPLAY_ONLY_VOUCHERS = ["boleto", "oxxo", "alfamart", "indomaret"];
     if (DISPLAY_ONLY_VOUCHERS.includes(paymentMethodType)) {
-      cy.log(`Skipping cy.visit() for display-only voucher: ${paymentMethodType}`);
+      cy.log(
+        `Skipping cy.visit() for display-only voucher: ${paymentMethodType}`
+      );
       return;
     }
 
