@@ -9404,50 +9404,47 @@ Cypress.Commands.add("retrieveNonExistentPaymentLinkTest", (globalState) => {
  *
  * @param {Object} globalState - The global state object
  */
-Cypress.Commands.add(
-  "fetchPaymentResponseHashConfig",
-  (globalState) => {
-    const merchantId = globalState.get("merchantId");
-    const apiKey = globalState.get("adminApiKey");
-    const baseUrl = globalState.get("baseUrl");
-    const url = `${baseUrl}/accounts/${merchantId}`;
+Cypress.Commands.add("fetchPaymentResponseHashConfig", (globalState) => {
+  const merchantId = globalState.get("merchantId");
+  const apiKey = globalState.get("adminApiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const url = `${baseUrl}/accounts/${merchantId}`;
 
-    cy.request({
-      method: "GET",
-      url,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": apiKey,
-      },
-      failOnStatusCode: false,
-    }).then((response) => {
-      if (!response || response.status !== 200) {
-        cy.task("cli_log", "Failed to fetch account config - skipping spec");
-        return;
-      }
+  cy.request({
+    method: "GET",
+    url,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    if (!response || response.status !== 200) {
+      cy.task("cli_log", "Failed to fetch account config - skipping spec");
+      return;
+    }
 
-      const enablePaymentResponseHash =
-        response.body.enable_payment_response_hash;
-      const paymentResponseHashKey = response.body.payment_response_hash_key;
+    const enablePaymentResponseHash =
+      response.body.enable_payment_response_hash;
+    const paymentResponseHashKey = response.body.payment_response_hash_key;
 
-      if (!enablePaymentResponseHash) {
-        cy.task(
-          "cli_log",
-          "enable_payment_response_hash is false/absent - skipping spec"
-        );
-        return;
-      }
-
-      globalState.set("paymentResponseHashKey", paymentResponseHashKey);
-      globalState.set("enablePaymentResponseHash", enablePaymentResponseHash);
-
+    if (!enablePaymentResponseHash) {
       cy.task(
         "cli_log",
-        `Account config verified - enable_payment_response_hash: true, key length: ${paymentResponseHashKey.length}`
+        "enable_payment_response_hash is false/absent - skipping spec"
       );
-    });
-  }
-);
+      return;
+    }
+
+    globalState.set("paymentResponseHashKey", paymentResponseHashKey);
+    globalState.set("enablePaymentResponseHash", enablePaymentResponseHash);
+
+    cy.task(
+      "cli_log",
+      `Account config verified - enable_payment_response_hash: true, key length: ${paymentResponseHashKey.length}`
+    );
+  });
+});
 
 /**
  * Verifies that the payment response hash feature is properly configured on the merchant account.
@@ -9498,9 +9495,8 @@ Cypress.Commands.add("verifyRedirectSignature", (globalState) => {
   const signature = urlObj.searchParams.get("signature");
   const signatureAlgorithm = urlObj.searchParams.get("signature_algorithm");
 
-  expect(signature, "signature should exist in redirect URL").to.be.a(
-    "string"
-  ).and.not.be.empty;
+  expect(signature, "signature should exist in redirect URL").to.be.a("string")
+    .and.not.be.empty;
   expect(
     signatureAlgorithm,
     "signature_algorithm should be a supported HMAC algorithm"
@@ -9542,9 +9538,8 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
   const signature = urlObj.searchParams.get("signature");
   const signatureAlgorithm = urlObj.searchParams.get("signature_algorithm");
 
-  expect(signature, "signature should exist in redirect URL").to.be.a(
-    "string"
-  ).and.not.be.empty;
+  expect(signature, "signature should exist in redirect URL").to.be.a("string")
+    .and.not.be.empty;
   expect(
     signatureAlgorithm,
     "signature_algorithm should be a supported HMAC algorithm"
@@ -9561,9 +9556,7 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
   });
 
   signatureParams.sort((a, b) => a[0].localeCompare(b[0]));
-  const signingPayload = signatureParams
-    .map(([k, v]) => `${k}=${v}`)
-    .join("&");
+  const signingPayload = signatureParams.map(([k, v]) => `${k}=${v}`).join("&");
   const algorithm = resolveAlgorithm(signatureAlgorithm);
 
   cy.task("computeHmac", {
@@ -9571,8 +9564,8 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
     message: signingPayload,
     algorithm,
   }).then((computedSignature) => {
-    expect(computedSignature, "HMAC computation should not return null").to
-      .not.be.null;
+    expect(computedSignature, "HMAC computation should not return null").to.not
+      .be.null;
 
     expect(
       computedSignature,
