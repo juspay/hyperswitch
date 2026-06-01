@@ -33,7 +33,7 @@ pub async fn relay(
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            allow_connected_scope_operation: false,
+            allow_connected_scope_operation: true,
             allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
@@ -71,7 +71,7 @@ pub async fn relay_retrieve(
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            allow_connected_scope_operation: false,
+            allow_connected_scope_operation: true,
             allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,

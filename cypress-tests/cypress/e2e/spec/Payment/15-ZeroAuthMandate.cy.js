@@ -5,10 +5,28 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 let globalState;
 
 describe("Card - SingleUse Mandates flow test", () => {
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
+  before("seed global state", function () {
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+
+        // Skip running test against a connector that is added in the exclude list
+        if (
+          utils.shouldExcludeConnector(
+            globalState.get("connectorId"),
+            utils.CONNECTOR_LISTS.EXCLUDE.MANDATE_ID_TEST
+          )
+        ) {
+          skip = true;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
   });
 
   after("flush global state", () => {

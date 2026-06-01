@@ -1,3 +1,4 @@
+use hyperswitch_domain_models::mandates;
 pub mod access_token;
 #[cfg(feature = "v2")]
 mod backward_compat;
@@ -657,7 +658,7 @@ pub async fn retrieve_payment_method_with_token(
     _card_token_data: Option<&domain::CardToken>,
     _customer: &Option<domain::Customer>,
     _storage_scheme: common_enums::enums::MerchantStorageScheme,
-    _mandate_id: Option<api_models::payments::MandateIds>,
+    _mandate_id: Option<mandates::MandateIds>,
     _payment_method_info: Option<domain::PaymentMethod>,
     _business_profile: &domain::Profile,
 ) -> RouterResult<storage::PaymentMethodDataWithId> {
@@ -675,7 +676,7 @@ pub async fn retrieve_payment_method_with_token(
     payment_attempt: &PaymentAttempt,
     card_token_data: Option<&domain::CardToken>,
     storage_scheme: common_enums::enums::MerchantStorageScheme,
-    mandate_id: Option<api_models::payments::MandateIds>,
+    mandate_id: Option<mandates::MandateIds>,
     payment_method_info: Option<domain::PaymentMethod>,
     business_profile: &domain::Profile,
     should_retry_with_pan: bool,
@@ -3639,8 +3640,13 @@ pub async fn get_token_data_for_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-    let token_data_response =
-        generate_token_data_response(&state, request, profile, &payment_method).await?;
+    let token_data_response = Box::pin(generate_token_data_response(
+        &state,
+        request,
+        profile,
+        &payment_method,
+    ))
+    .await?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         token_data_response,
@@ -3920,6 +3926,7 @@ pub async fn create_payment_method_for_intent(
                 customer_details: None,
                 network_tokenization_data: None,
                 auxiliary_fingerprint_id,
+                compatibility_updated_at: None,
             },
             storage_scheme,
         )
@@ -4009,6 +4016,7 @@ pub async fn construct_payment_method_object(
         customer_details: None,
         network_tokenization_data: None,
         auxiliary_fingerprint_id: None,
+        compatibility_updated_at: None,
     })
 }
 
@@ -4055,7 +4063,7 @@ pub async fn create_payment_method_for_confirm(
                 connector_mandate_details: None,
                 customer_acceptance: None,
                 client_secret: None,
-                status,
+                status: enums::PaymentMethodStatus::New,
                 network_transaction_id: None,
                 network_transaction_link_id: None,
                 created_at: current_time,
@@ -4076,6 +4084,7 @@ pub async fn create_payment_method_for_confirm(
                 customer_details: None,
                 network_tokenization_data: None,
                 auxiliary_fingerprint_id: None,
+                compatibility_updated_at: None,
             },
             storage_scheme,
         )
@@ -4206,13 +4215,10 @@ fn convert_from_saved_payment_method_data(
 fn create_connector_token_details_update(
     token_details: payment_methods::ConnectorTokenDetails,
     payment_method: &domain::PaymentMethod,
-) -> hyperswitch_domain_models::mandates::CommonMandateReference {
+) -> mandates::CommonMandateReference {
     let connector_id = token_details.connector_id.clone();
 
-    let reference_record =
-        hyperswitch_domain_models::mandates::ConnectorTokenReferenceRecord::foreign_from(
-            token_details,
-        );
+    let reference_record = mandates::ConnectorTokenReferenceRecord::foreign_from(token_details);
 
     let connector_token_details = payment_method.connector_mandate_details.clone();
 
@@ -4227,10 +4233,8 @@ fn create_connector_token_details_update(
             let reference_record_hash_map =
                 std::collections::HashMap::from([(connector_id, reference_record)]);
             let payments_mandate_reference =
-                hyperswitch_domain_models::mandates::PaymentsTokenReference(
-                    reference_record_hash_map,
-                );
-            hyperswitch_domain_models::mandates::CommonMandateReference {
+                mandates::PaymentsTokenReference(reference_record_hash_map);
+            mandates::CommonMandateReference {
                 payments: Some(payments_mandate_reference),
                 payouts: None,
             }
@@ -5208,8 +5212,7 @@ pub async fn retrieve_payment_method(
     let raw_payment_method_data = raw_payment_method_fetch_access
         .get_raw_payment_method_data(&state, &platform, &profile, &payment_method, storage_type)
         .await
-        .attach_printable("Failed to get raw payment method data")?
-        .and_then(|data| data.convert_to_raw_payment_method_data());
+        .attach_printable("Failed to get raw payment method data")?;
 
     let raw_network_token_details = raw_payment_method_fetch_access
         .get_raw_network_token_data(&state, &platform, &profile, &payment_method, storage_type)
@@ -5481,11 +5484,29 @@ impl RawPaymentMethodFetchAccess {
         profile: &domain::Profile,
         payment_method: &domain::PaymentMethod,
         storage_type: common_enums::StorageType,
-    ) -> RouterResult<Option<hyperswitch_domain_models::vault::PaymentMethodVaultingData>> {
+    ) -> RouterResult<Option<payment_methods::RawPaymentMethodData>> {
         match self {
             Self::Denied => {
                 logger::debug!("Raw payment method fetch access denied");
-                Ok(None)
+                // When access is denied, check if the payment method has external vault token data.
+                // If present, return it as a ProxyCard so non-PCI-compliant merchants can still
+                // receive a tokenized card reference in the retrieve response.
+                let proxy_card_data = payment_method
+                    .external_vault_token_data
+                    .clone()
+                    .map(|enc| enc.into_inner());
+                match proxy_card_data {
+                    Some(external_vault_token_data) => {
+                        Ok(Some(payment_methods::RawPaymentMethodData::ProxyCard(
+                            payment_methods::RawProxyCardDataResponse {
+                                card_number: external_vault_token_data.tokenized_card_number,
+                                card_exp_year: None,
+                                card_exp_month: None,
+                            },
+                        )))
+                    }
+                    None => Ok(None),
+                }
             }
 
             Self::Allowed => {
@@ -5510,14 +5531,15 @@ impl RawPaymentMethodFetchAccess {
                     .attach_printable("Failed to retrieve payment method from vault")?
                     .data;
 
-                    let data = vault_data
+                    let payment_method_vault_data = vault_data
                         .populated_payment_methods_data_and_get_payment_method_vaulting_data(
                             payment_method.payment_method_data.as_ref(),
                         )
                         .attach_printable(
                             "Failed to get card details for payment method vaulting data",
-                        )?;
-                    Ok(Some(data))
+                        )?
+                        .convert_to_raw_payment_method_data();
+                    Ok(payment_method_vault_data)
                 }
             }
         }
