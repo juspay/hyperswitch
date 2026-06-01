@@ -481,9 +481,9 @@ describe("Wallet tests", () => {
         }
       });
 
-      cy.step("Handle AliPay QR redirection", () => {
+      cy.step("Handle AliPay QR code", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Handle AliPay QR redirection");
+          cy.task("cli_log", "Skipping step: Handle AliPay QR code");
           return;
         }
         cy.handleGlobepayQRRedirection(globalState);
