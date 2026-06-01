@@ -1,4 +1,6 @@
+mod bind_params;
 mod entity_type;
+mod pg_type_metadata;
 
 use async_bb8_diesel::AsyncConnection;
 use common_utils::pii;
@@ -54,65 +56,6 @@ pub struct SerializableQuery {
 pub enum DatabaseOperation {
     Insert,
     Update,
-}
-
-mod bind_params {
-    use base64::Engine;
-    use common_utils::consts::BASE64_ENGINE;
-    use hyperswitch_masking::{PeekInterface, Secret};
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
-    use super::SecretBinaryData;
-
-    pub fn serialize<S: Serializer>(
-        binds: &[Option<SecretBinaryData>],
-        s: S,
-    ) -> Result<S::Ok, S::Error> {
-        let encoded: Vec<Option<String>> = binds
-            .iter()
-            .map(|b| b.as_ref().map(|bytes| BASE64_ENGINE.encode(bytes.peek())))
-            .collect();
-        encoded.serialize(s)
-    }
-
-    pub fn deserialize<'de, D: Deserializer<'de>>(
-        d: D,
-    ) -> Result<Vec<Option<SecretBinaryData>>, D::Error> {
-        let encoded: Vec<Option<String>> = Vec::deserialize(d)?;
-        encoded
-            .into_iter()
-            .map(|b| {
-                b.map(|s| {
-                    BASE64_ENGINE
-                        .decode(&s)
-                        .map(Secret::new)
-                        .map_err(serde::de::Error::custom)
-                })
-                .transpose()
-            })
-            .collect()
-    }
-}
-
-mod pg_type_metadata {
-    use diesel::pg::PgTypeMetadata;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
-    pub fn serialize<S: Serializer>(metadata: &[PgTypeMetadata], s: S) -> Result<S::Ok, S::Error> {
-        let pairs: Vec<(u32, u32)> = metadata
-            .iter()
-            .map(|m| (m.oid().unwrap_or(0), m.array_oid().unwrap_or(0)))
-            .collect();
-        pairs.serialize(s)
-    }
-
-    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<PgTypeMetadata>, D::Error> {
-        let pairs: Vec<(u32, u32)> = Vec::deserialize(d)?;
-        Ok(pairs
-            .into_iter()
-            .map(|(oid, array_oid)| PgTypeMetadata::from_result(Ok((oid, array_oid))))
-            .collect())
-    }
 }
 
 impl SerializableQuery {
