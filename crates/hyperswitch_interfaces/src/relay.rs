@@ -5,6 +5,7 @@ use bytes::Bytes;
 use common_utils::request::Request;
 use hyperswitch_domain_models::router_data::{AccessToken, ConnectorAuthType};
 use hyperswitch_masking::Secret;
+
 use crate::errors::ConnectorError;
 
 /// All data required to build a relay request

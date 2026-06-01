@@ -296,7 +296,10 @@ pub async fn get_access_token_for_relay(
     processor: &domain::Processor,
     relay_id: &common_utils::id_type::RelayId,
 ) -> RouterResult<Option<types::AccessToken>> {
-    let merchant_connector_id = merchant_connector_account.get_id().get_string_repr().to_string();
+    let merchant_connector_id = merchant_connector_account
+        .get_id()
+        .get_string_repr()
+        .to_string();
 
     let access_token_key = common_utils::access_token::get_default_access_token_key(
         merchant_id,

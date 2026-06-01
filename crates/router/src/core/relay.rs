@@ -8,7 +8,6 @@ use common_utils::{
     self, fp_utils,
     id_type::{self, GenerateId},
 };
-use hyperswitch_masking::Secret;
 use error_stack::ResultExt;
 use hyperswitch_connectors::connector_relay::RelayConnectors;
 use hyperswitch_domain_models::relay;
@@ -16,6 +15,7 @@ use hyperswitch_interfaces::{
     api_client::call_connector_api,
     relay::{ConnectorRelayIntegration, UnreferencedRefundRouterData},
 };
+use hyperswitch_masking::Secret;
 
 use super::errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt};
 use crate::{
@@ -1200,7 +1200,6 @@ pub async fn relay_unreferenced_refund(
     profile_id: id_type::ProfileId,
     request: api_models::unreferenced_refund::UnreferencedRefundRequest,
 ) -> RouterResponse<api_models::unreferenced_refund::UnreferencedRefundResponse> {
-
     let connector_resource_id = request
         .connector_resource_id
         .clone()
