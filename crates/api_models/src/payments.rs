@@ -2021,6 +2021,7 @@ impl RequestSurchargeDetails {
 #[derive(
     Debug,
     serde::Serialize,
+    serde::Deserialize,
     Clone,
     PartialEq,
     ToSchema,
@@ -2278,6 +2279,7 @@ pub struct PaymentAttemptRevenueRecoveryData {
     Default,
     Debug,
     serde::Serialize,
+    serde::Deserialize,
     Clone,
     PartialEq,
     ToSchema,
@@ -7270,6 +7272,7 @@ pub struct ReceiverDetails {
     Debug,
     PartialEq,
     serde::Serialize,
+    serde::Deserialize,
     ToSchema,
     router_derive::PolymorphicSchema,
     SmithyModel,
@@ -7861,7 +7864,7 @@ pub struct PaymentsResponse {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaymentMethodTokenizationDetails {
     /// The unique identifier for the payment method
@@ -8808,7 +8811,7 @@ pub struct PaymentStartRedirectionParams {
 }
 
 /// Details of external authentication
-#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ExternalAuthenticationDetailsResponse {
     /// Authentication Type - Challenge / Frictionless
@@ -9065,7 +9068,7 @@ pub struct RecoveryPaymentListResponse {
     pub data: Vec<RecoveryPaymentsListResponseItem>,
 }
 
-#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema, SmithyModel)]
+#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct IncrementalAuthorizationResponse {
     /// The unique identifier of authorization
@@ -12410,7 +12413,7 @@ pub struct RetrievePaymentLinkRequest {
     pub client_secret: Option<String>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, PartialEq, ToSchema)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
 pub struct PaymentLinkResponse {
     /// URL for rendering the open payment link
     pub link: String,

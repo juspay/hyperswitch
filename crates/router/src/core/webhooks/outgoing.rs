@@ -99,7 +99,7 @@ pub(crate) async fn get_webhook_events(
             Some(WebhookResourceData::Payment { payment_attempt }) => {
                 if matches!(
                     primary_event_type,
-                    common_enums::EventType::SurchargePaymentSucceeded
+                    common_enums::EventType::PaymentSucceeded
                 ) {
                     if let Some(external_surcharge_details) =
                         &payment_attempt.external_surcharge_details
@@ -140,7 +140,7 @@ pub(crate) async fn get_webhook_events(
             Some(WebhookResourceData::Refund { payment_attempt }) => {
                 if matches!(
                     primary_event_type,
-                    enums::EventType::SurchargeRefundSucceeded
+                    enums::EventType::RefundSucceeded
                 ) {
                     if let Some(external_surcharge_details) =
                         &payment_attempt.external_surcharge_details
@@ -540,7 +540,7 @@ impl types::WebhookTrigger for types::ConnectorWebhook {
         provider_merchant_id: common_utils::id_type::MerchantId,
         processor_merchant_id: common_utils::id_type::MerchantId,
         event: domain::Event,
-        _request_content: OutgoingWebhookRequestContent,
+        request_content: OutgoingWebhookRequestContent,
         delivery_attempt: enums::WebhookDeliveryAttempt,
         content: Option<api::OutgoingWebhookContent>,
         process_tracker: Option<storage::ProcessTracker>,
@@ -557,7 +557,7 @@ impl types::WebhookTrigger for types::ConnectorWebhook {
             provider_merchant_id.clone(),
             event.clone(),
             delivery_attempt,
-            content.clone(),
+            request_content,
             process_tracker,
         )
         .await;
@@ -582,7 +582,7 @@ async fn trigger_webhook_to_connector(
     provider_merchant_id: common_utils::id_type::MerchantId,
     event: domain::Event,
     delivery_attempt: enums::WebhookDeliveryAttempt,
-    content: Option<api::OutgoingWebhookContent>,
+    request_content: OutgoingWebhookRequestContent,
     process_tracker: Option<storage::ProcessTracker>,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     let merchant_connector_id = process_tracker
@@ -628,7 +628,7 @@ async fn trigger_webhook_to_connector(
     let response = crate::core::unified_connector_service::call_unified_connector_service_for_notify_connector(
             &state,
             &event,
-            content,
+            request_content,
             &provider_merchant_id,
             business_profile.get_id(),
             MerchantConnectorAccountType::DbVal(Box::new(mca)),

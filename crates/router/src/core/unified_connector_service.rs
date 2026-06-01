@@ -18,6 +18,7 @@ use external_services::grpc_client::{
     unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
     LineageIds,
 };
+use common_utils::ext_traits::StringExt;
 use hyperswitch_connectors::utils::CardData;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::merchant_connector_account::{
@@ -60,6 +61,7 @@ use crate::{
         transformers::{ForeignFrom, ForeignTryFrom},
         UcsPaymentAuthorizeResponseData, UcsPaymentSetupRecurringResponseData,
         UcsRecurringPaymentChargeResponseData,
+        api::webhook_events::OutgoingWebhookRequestContent,
     },
 };
 
@@ -3127,11 +3129,18 @@ pub async fn call_unified_connector_service_for_surcharge_calculate(
     .attach_printable("Failed to parse UCS surcharge calculate response")
 }
 
-fn extract_surcharge_content_from_request(
-    request_content: &Option<api_models::webhooks::OutgoingWebhookContent>,
+fn extract_notify_connector_content_from_request(
+    request_content: OutgoingWebhookRequestContent,
 ) -> CustomResult<payments_grpc::NotifyConnectorContent, errors::ApiErrorResponse> {
-    match request_content {
-        Some(api_models::webhooks::OutgoingWebhookContent::SurchargeDetails(details)) => {
+    let webhook: api_models::webhooks::OutgoingWebhook = request_content
+            .body
+            .peek()
+            .parse_struct("OutgoingWebhook")
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .attach_printable("Failed to parse OutgoingWebhook from webhook request content")?;
+
+    match webhook.content {
+        api_models::webhooks::OutgoingWebhookContent::SurchargeDetails(details) => {
             Ok(payments_grpc::NotifyConnectorContent {
                 content: Some(
                     payments_grpc::notify_connector_content::Content::SurchargeContent(
@@ -3157,7 +3166,7 @@ fn extract_surcharge_content_from_request(
 pub async fn call_unified_connector_service_for_notify_connector(
     state: &SessionState,
     event: &Event,
-    content: Option<api_models::webhooks::OutgoingWebhookContent>,
+    request_content: OutgoingWebhookRequestContent,
     merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
     merchant_connector_account: MerchantConnectorAccountType,
@@ -3191,7 +3200,7 @@ pub async fn call_unified_connector_service_for_notify_connector(
         merchant_id: merchant_id.get_string_repr().to_owned(),
         event_id: event.event_id.clone(),
         event_type: notify_event_type.into(),
-        content: Some(extract_surcharge_content_from_request(&content)?),
+        content: Some(extract_notify_connector_content_from_request(request_content)?),
         timestamp: event.created_at.assume_utc().unix_timestamp(),
     };
 

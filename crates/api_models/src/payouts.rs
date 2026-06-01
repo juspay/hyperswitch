@@ -677,7 +677,7 @@ pub struct ApplePayDecrypt {
     pub card_network: Option<CardNetwork>,
 }
 
-#[derive(Debug, ToSchema, Clone, Serialize, router_derive::PolymorphicSchema)]
+#[derive(Debug, ToSchema, Clone, Serialize, Deserialize, router_derive::PolymorphicSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PayoutCreateResponse {
     /// Unique identifier for the payout. This ensures idempotency for multiple payouts
@@ -898,7 +898,7 @@ pub enum PayoutMethodDataResponse {
 }
 
 #[derive(
-    Default, Debug, serde::Serialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema,
+    Default, Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema,
 )]
 pub struct PayoutAttemptResponse {
     /// Unique identifier for the attempt
@@ -1145,7 +1145,7 @@ pub struct PayoutListFiltersV2 {
     pub payout_method: Vec<common_enums::PayoutType>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PayoutLinkResponse {
     pub payout_link_id: String,
     #[schema(value_type = String)]

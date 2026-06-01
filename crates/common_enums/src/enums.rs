@@ -11021,6 +11021,7 @@ impl From<IntentStatus> for InvoiceStatus {
     Clone,
     Copy,
     serde::Serialize,
+    serde::Deserialize,
     strum::EnumString,
     strum::Display,
     strum::EnumIter,
