@@ -3789,7 +3789,7 @@ fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, Connect
         (
             enums::PaymentMethodType::EftDebitOrder,
             connectors(vec![(
-                Connector::Sanlam,
+                Connector::AbsaSanlam,
                 RequiredFieldFinal {
                     mandate: HashMap::new(),
                     non_mandate: HashMap::new(),
