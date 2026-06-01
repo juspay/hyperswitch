@@ -50,7 +50,7 @@ impl Relay {
             connector_id: relay_request.connector_id.clone(),
             profile_id: profile_id.clone(),
             merchant_id: merchant_id.clone(),
-            relay_type: relay_request.relay_type.into(),
+            relay_type: relay_request.relay_type,
             request_data: relay_request.data.clone().map(From::from),
             status: common_enums::RelayStatus::Created,
             connector_reference_id: None,

@@ -286,6 +286,7 @@ pub async fn add_access_token<
 /// Reads the Redis cache first. On a cache miss, calls UCS via the
 /// `create_server_authentication_token` gRPC method to generate a fresh token, caches it,
 /// and returns it.
+#[allow(clippy::too_many_arguments)]
 pub async fn get_access_token_for_relay(
     state: &SessionState,
     connector_name: &str,
@@ -340,6 +341,7 @@ pub async fn get_access_token_for_relay(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn fetch_access_token_from_ucs(
     state: &SessionState,
     connector_name: &str,
@@ -406,18 +408,18 @@ async fn fetch_access_token_from_ucs(
         .create_access_token(create_request, connector_auth_metadata, grpc_headers)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("UCS create_access_token gRPC call failed for relay")?;
+        .attach_printable("UCS create_access_token gRPC call failed")?;
 
     let (access_token_result, _status_code) =
         unified_connector_service::handle_unified_connector_service_response_for_create_access_token(
             response.into_inner(),
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to parse UCS access token response for relay")?;
+        .attach_printable("Failed to parse UCS access token response")?;
 
     let access_token = access_token_result.map_err(|err| {
         error_stack::Report::new(errors::ApiErrorResponse::InternalServerError).attach_printable(
-            format!("UCS returned error for relay access token generation: {err:?}"),
+            format!("UCS returned error for access token generation: {err:?}"),
         )
     })?;
 
@@ -434,7 +436,7 @@ async fn fetch_access_token_from_ucs(
         .set_access_token(access_token_key, modified_token.clone())
         .await
         .map_err(|cache_err| {
-            logger::error!(error = ?cache_err, "Failed to cache relay access token — proceeding anyway");
+            logger::error!(error = ?cache_err, "Failed to cache access token — proceeding anyway");
         })
         .ok();
 

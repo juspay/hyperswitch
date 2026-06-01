@@ -72,7 +72,7 @@ pub trait ConnectorRelayIntegration {
     ) -> error_stack::Result<UnreferencedRefundResponse, ConnectorError> {
         Ok(UnreferencedRefundResponse {
             connector_refund_id: None,
-            refund_status: common_enums::RefundStatus::Failure,
+            refund_status: common_enums::RefundStatus::Pending,
             error_code: Some(status_code.to_string()),
             error_message: Some(format!("Server error: HTTP {status_code}")),
             raw_response: None,
@@ -86,12 +86,10 @@ pub trait ConnectorRelayIntegration {
         response: Bytes,
         status_code: u16,
     ) -> error_stack::Result<UnreferencedRefundResponse, ConnectorError> {
-        if status_code >= 500 {
-            self.get_relay_5xx_error_response(status_code)
-        } else if status_code >= 400 {
-            self.get_relay_error_response(response, status_code)
-        } else {
-            self.handle_relay_success_response(response)
+        match status_code {
+            500..=599 => self.get_relay_5xx_error_response(status_code),
+            400..=499 => self.get_relay_error_response(response, status_code),
+            _ => self.handle_relay_success_response(response),
         }
     }
 }

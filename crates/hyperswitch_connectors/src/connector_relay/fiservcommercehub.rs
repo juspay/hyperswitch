@@ -289,9 +289,11 @@ impl Fiservcommercehub {
             expiration_month.len(),
             expiration_year.len(),
         );
-        if let Some(ref name) = name_on_card {
-            encryption_block_fields.push_str(&format!(",card.nameOnCard:{}", name.len()));
-        }
+        name_on_card.as_ref().map(|name| {
+            encryption_block_fields.push_str(
+                &format!(",card.nameOnCard:{}", name.len())
+            );
+        });
 
         Ok(EncryptionData {
             key_id,

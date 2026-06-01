@@ -1,5 +1,7 @@
 use std::marker::PhantomData;
 
+use bytes::Bytes;
+
 use api_models::relay as relay_api_models;
 use async_trait::async_trait;
 use common_enums::RelayStatus;
@@ -1067,22 +1069,23 @@ async fn process_unreferenced_refund(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to build relay request")?;
 
-    let api_response = call_connector_api(state, connector_request, "relay_unreferenced_refund")
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to call connector API for unreferenced refund")?;
+    let api_response =
+        call_connector_api(state, connector_request, "relay_unreferenced_refund").await;
 
     let (response_bytes, relay_update) = match api_response {
         Ok(resp) => {
-            let status = resp.status_code;
-            let bytes = resp.response;
+            let (status, bytes) = match resp {
+                Ok(r) => (r.status_code, r.response),
+                Err(r) => (r.status_code, r.response),
+            };
             let connector_resp = relay_connector
                 .handle_relay_response(bytes.clone(), status)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to handle relay response")?;
+            let relay_status = RelayStatus::from(connector_resp.refund_status);
             let relay_update = relay::RelayUpdate::UnreferencedRefundUpdate {
                 connector_reference_id: connector_resp.connector_refund_id,
-                status: RelayStatus::from(connector_resp.refund_status),
+                status: relay_status,
                 error_code: connector_resp.error_code,
                 error_message: connector_resp.error_message,
                 response_data: connector_resp
@@ -1091,15 +1094,21 @@ async fn process_unreferenced_refund(
             };
             (bytes, relay_update)
         }
-        Err(resp) => {
-            let status = resp.status_code;
-            let bytes = resp.response;
-            let relay_update = relay::RelayUpdate::ErrorUpdate {
-                error_code: "CONNECTOR_ERROR".to_string(),
-                error_message: format!("Connector returned HTTP {status}"),
-                status: RelayStatus::Failure,
+        Err(err) => {
+            let (error_code, error_message) = if err.current_context().is_upstream_timeout() {
+                (
+                    hyperswitch_interfaces::consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
+                    hyperswitch_interfaces::consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
+                )
+            } else {
+                ("CONNECTOR_UNREACHABLE".to_string(), err.to_string())
             };
-            (bytes, relay_update)
+            let relay_update = relay::RelayUpdate::ErrorUpdate {
+                error_code,
+                error_message,
+                status: RelayStatus::Pending,
+            };
+            (Bytes::new(), relay_update)
         }
     };
 
