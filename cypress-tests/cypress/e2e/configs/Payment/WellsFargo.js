@@ -648,10 +648,16 @@ export const connectorDetails = {
   },
   bank_debit_pm: {
     PaymentIntent: (paymentMethodType) => {
-      const currencyMap = { Sepa: "EUR", Ach: "USD", Becs: "AUD", Bacs: "GBP" };
+      if (paymentMethodType !== "Ach") {
+        return {
+          Configs: {
+            TRIGGER_SKIP: true,
+          },
+        };
+      }
       return {
         Request: {
-          currency: currencyMap[paymentMethodType] || "USD",
+          currency: "USD",
           setup_future_usage: "off_session",
         },
         Response: {
