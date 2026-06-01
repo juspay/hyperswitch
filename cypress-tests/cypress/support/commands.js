@@ -9402,6 +9402,8 @@ Cypress.Commands.add("retrieveNonExistentPaymentLinkTest", (globalState) => {
  * Fetches merchant account config and stores payment response hash settings in globalState.
  * Also skips the suite if enable_payment_response_hash is false/absent.
  *
+ * @param {Object} globalState - The global state object
+ */
 Cypress.Commands.add(
   "fetchPaymentResponseHashConfig",
   (globalState) => {
