@@ -1,7 +1,8 @@
+use hyperswitch_domain_models::mandates::MandateReferenceId;
 pub mod request;
 pub mod response;
 use api_models::{
-    payments::{MandateReferenceId, PaymentIdType},
+    payments::PaymentIdType,
     webhooks::{IncomingWebhookEvent, RefundIdType},
 };
 use base64::Engine;
