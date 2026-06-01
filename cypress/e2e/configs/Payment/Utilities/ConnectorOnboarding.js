@@ -7,8 +7,8 @@ export const connectorDetails = {
   ConnectorOnboarding: {
     ActionUrl: {
       Request: {
-        connector_id: "paypal",
-        merchant_id: null, // Will be filled from globalState
+        connector: "paypal",
+        return_url: "http://localhost:8080/onboarding/callback",
         onboarding_type: "oauth",
       },
       Response: {
@@ -21,8 +21,7 @@ export const connectorDetails = {
     },
     Sync: {
       Request: {
-        connector_id: "paypal",
-        merchant_id: null,
+        connector: "paypal",
       },
       Response: {
         status: 200,
@@ -34,8 +33,7 @@ export const connectorDetails = {
     },
     ResetTrackingId: {
       Request: {
-        connector_id: "paypal",
-        merchant_id: null,
+        connector: "paypal",
       },
       Response: {
         status: 200,
