@@ -1,5 +1,4 @@
 pub use common_enums::enums::CallConnectorAction;
-#[cfg(feature = "v2")]
 use common_utils::id_type;
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
@@ -93,7 +92,7 @@ async fn call_internal_pm_session_create_for_vault(
     state: &SessionState,
     platform: &domain::Platform,
     profile: &domain::Profile,
-    customer_id: Option<String>,
+    customer_id: Option<&id_type::CustomerId>,
 ) -> RouterResult<Option<api::VaultDetails>> {
     use common_utils::request::Headers;
     use payment_methods::client::{
@@ -131,7 +130,7 @@ async fn call_internal_pm_session_create_for_vault(
     );
 
     let request = CreatePaymentMethodSessionV1Request {
-        customer_id,
+        customer_id:customer_id.cloned(),
         modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
         storage_type: common_enums::StorageType::Persistent,
     };
@@ -194,7 +193,7 @@ where
     if is_external_vault_sdk_enabled {
         let customer_id = customer
             .as_ref()
-            .map(|c| c.get_id().get_string_repr().to_string());
+            .map(|c| c.get_id());
 
         let vault_details =
             call_internal_pm_session_create_for_vault(state, platform, profile, customer_id)

@@ -1,6 +1,7 @@
 //! Payment method session create flow types and models.
 
-use common_utils::request::{Method, RequestContent};
+use common_utils::{id_type, request::{Method, RequestContent}};
+
 use hyperswitch_interfaces::micro_service::MicroserviceClientError;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -13,7 +14,7 @@ pub struct CreatePaymentMethodSession;
 #[derive(Debug)]
 pub struct CreatePaymentMethodSessionV1Request {
     /// Customer id for which the session is created (v2 global customer id as string).
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     /// Prefix that forms part of the URL path (e.g. "v2").
     pub modular_service_prefix: String,
     /// Storage type for the session.
@@ -24,7 +25,7 @@ pub struct CreatePaymentMethodSessionV1Request {
 #[derive(Debug, Clone, Serialize)]
 pub struct ModularPMSessionCreateRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub storage_type: common_enums::StorageType,
 }
 
@@ -56,7 +57,7 @@ impl From<VaultSessionDetailsResponse> for api_models::payments::VaultSessionDet
     fn from(resp: VaultSessionDetailsResponse) -> Self {
         match resp {
             VaultSessionDetailsResponse::Vgs(vgs) => {
-                api_models::payments::VaultSessionDetails::Vgs(
+                Self::Vgs(
                     api_models::payments::VgsSessionDetails {
                         external_vault_id: vgs.external_vault_id,
                         sdk_env: vgs.sdk_env,
@@ -64,7 +65,7 @@ impl From<VaultSessionDetailsResponse> for api_models::payments::VaultSessionDet
                 )
             }
             VaultSessionDetailsResponse::HyperswitchVault(hsv) => {
-                api_models::payments::VaultSessionDetails::HyperswitchVault(
+                Self::HyperswitchVault(
                     api_models::payments::HyperswitchVaultSessionDetails {
                         payment_method_session_id: hsv.payment_method_session_id,
                         client_secret: hsv.client_secret,
@@ -85,7 +86,7 @@ pub struct ModularPMSessionCreateResponse {
     /// The client secret for this session.
     pub client_secret: Option<Secret<String>>,
     /// The customer ID associated with this session.
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     /// The pre-computed SDK authorization string (base64-encoded).
     pub sdk_authorization: Option<String>,
     /// External vault session details returned by the PM service when an external vault is
@@ -98,7 +99,7 @@ pub struct ModularPMSessionCreateResponse {
 pub struct CreatePaymentMethodSessionResponse {
     pub id: String,
     pub client_secret: Option<Secret<String>>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<id_type::CustomerId>,
     pub sdk_authorization: Option<String>,
     pub external_vault_details: Option<api_models::payments::VaultSessionDetails>,
 }
