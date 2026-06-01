@@ -26,7 +26,7 @@ function load_policy() {
   metric="$(jq -r '.metric // "changed_lines"' <<< "${policy_json}")"
   threshold="$(jq -r '.threshold // empty' <<< "${policy_json}")"
   bypass_label="$(jq -r '.bypass.label // empty' <<< "${policy_json}")"
-  approving_team="$(jq -r '.bypass.approving_team // empty' <<< "${policy_json}")"
+  label_actor_team="$(jq -r '.bypass.label_actor_team // empty' <<< "${policy_json}")"
   target_authors="$(jq -r '.target_authors[]? | ascii_downcase' <<< "${policy_json}")"
 }
 
@@ -94,58 +94,47 @@ function has_bypass_label() {
     --jq '.labels[].name' | grep --fixed-strings --line-regexp --quiet "${bypass_label}"
 }
 
-function is_user_team_member() {
-  local username="${1}"
-  local team_slug="${2}"
-  local org_name="${REPOSITORY%%/*}"
-
+function latest_bypass_label_actor() {
   gh api \
     --header "Accept: application/vnd.github+json" \
     --header "X-GitHub-Api-Version: 2022-11-28" \
-    "/orgs/${org_name}/teams/${team_slug}/memberships/${username}" \
-    >/dev/null 2>&1
+    --paginate \
+    "/repos/${REPOSITORY}/issues/${PR_NUMBER}/timeline" \
+    | jq --raw-output --arg label "${bypass_label}" '.[] | select(.event == "labeled" and .label.name == $label) | .actor.login' \
+    | tail -n 1
 }
 
-function has_current_admin_approval() {
-  [[ -n "${approving_team}" ]] || return 1
+function is_active_team_member() {
+  local username="${1}"
+  local team_slug="${2}"
+  local org_name="${REPOSITORY%%/*}"
+  local membership_state
 
-  local head_sha
-  head_sha="$(gh api \
+  membership_state="$(gh api \
     --header "Accept: application/vnd.github+json" \
     --header "X-GitHub-Api-Version: 2022-11-28" \
-    "/repos/${REPOSITORY}/pulls/${PR_NUMBER}" \
-    --jq '.head.sha')"
+    "/orgs/${org_name}/teams/${team_slug}/memberships/${username}" \
+    --jq '.state' 2>/dev/null || true)"
 
-  local approved_reviewers
-  approved_reviewers="$(gh api \
-    --header "Accept: application/vnd.github+json" \
-    --header "X-GitHub-Api-Version: 2022-11-28" \
-    --paginate \
-    "/repos/${REPOSITORY}/pulls/${PR_NUMBER}/reviews" \
-    --jq '.[] | select(.user.login != null and (.state == "APPROVED" or .state == "CHANGES_REQUESTED" or .state == "DISMISSED")) | [.submitted_at, .user.login, .state, .commit_id] | @tsv' \
-    | sort \
-    | awk -F '\t' -v head_sha="${head_sha}" '{ state[$2] = $3; commit[$2] = $4 } END { for (user in state) if (state[user] == "APPROVED" && commit[user] == head_sha) print user }')"
-
-  while IFS= read -r reviewer; do
-    [[ -z "${reviewer}" ]] && continue
-    if is_user_team_member "${reviewer}" "${approving_team}"; then
-      return 0
-    fi
-  done <<< "${approved_reviewers}"
-
-  return 1
+  [[ "${membership_state}" == "active" ]]
 }
 
 function find_bypass_reason() {
   bypass_reason=""
 
-  if has_bypass_label; then
+  if ! has_bypass_label; then
+    return 1
+  fi
+
+  if [[ -z "${label_actor_team}" ]]; then
     bypass_reason="label '${bypass_label}'"
     return 0
   fi
 
-  if has_current_admin_approval; then
-    bypass_reason="current approval from '${approving_team}'"
+  local label_actor
+  label_actor="$(latest_bypass_label_actor)"
+  if [[ -n "${label_actor}" ]] && is_active_team_member "${label_actor}" "${label_actor_team}"; then
+    bypass_reason="label '${bypass_label}' applied by '${label_actor}' from '${label_actor_team}'"
     return 0
   fi
 
@@ -153,20 +142,11 @@ function find_bypass_reason() {
 }
 
 function bypass_instructions() {
-  local message=""
-
-  if [[ -n "${bypass_label}" ]]; then
-    message=" Add label '${bypass_label}'"
+  if [[ -n "${bypass_label}" && -n "${label_actor_team}" ]]; then
+    printf " Add label '%s' by a member of '%s'" "${bypass_label}" "${label_actor_team}"
+  elif [[ -n "${bypass_label}" ]]; then
+    printf " Add label '%s'" "${bypass_label}"
   fi
-  if [[ -n "${approving_team}" ]]; then
-    if [[ -n "${message}" ]]; then
-      message+=" or get a current APPROVED review from '${approving_team}'"
-    else
-      message=" Get a current APPROVED review from '${approving_team}'"
-    fi
-  fi
-
-  printf '%s' "${message}"
 }
 
 load_policy

@@ -17,8 +17,7 @@ threshold: 1000
 target_authors: []
 
 bypass:
-  # Adding this label lets an oversized PR pass.
+  # Adding this label lets an oversized PR pass when the label was applied by
+  # a member of label_actor_team.
   label: pr-size/bypass
-
-  # An APPROVED review from a member of this GitHub team also lets an oversized PR pass.
-  approving_team: hyperswitch-admins
+  label_actor_team: hyperswitch-admins
