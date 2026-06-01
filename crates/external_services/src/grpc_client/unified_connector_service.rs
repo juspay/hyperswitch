@@ -1170,6 +1170,7 @@ pub fn build_unified_connector_service_grpc_headers(
         merchant_reference_id,
         resource_id,
         shadow_mode,
+        proxy_name,
         config_override,
     } = grpc_headers;
 
@@ -1283,6 +1284,13 @@ pub fn build_unified_connector_service_grpc_headers(
                 common_utils_consts::X_UNIFIED_CONNECTOR_SERVICE_MODE,
                 &shadow_mode.to_string(),
             )?,
+        );
+    }
+
+    if let Some(proxy_name) = proxy_name {
+        metadata.append(
+            common_utils_consts::X_PROXY_NAME,
+            parse(common_utils_consts::X_PROXY_NAME, proxy_name)?,
         );
     }
 
