@@ -1,4 +1,5 @@
 use async_bb8_diesel::AsyncConnection;
+use common_utils::pii;
 use diesel::{
     associations::HasTable,
     debug_query,
@@ -19,20 +20,7 @@ use router_env::logger;
 
 use crate::errors;
 
-/// Masking strategy for binary data or raw bytes
-#[derive(Debug)]
-pub enum BinaryDataStrategy {}
-
-impl<T> hyperswitch_masking::Strategy<T> for BinaryDataStrategy
-where
-    T: AsRef<[u8]>,
-{
-    fn fmt(value: &T, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(fmt, "*** Binary data ({} bytes) ***", value.as_ref().len())
-    }
-}
-
-type SecretBinaryData = Secret<Vec<u8>, BinaryDataStrategy>;
+type SecretBinaryData = Secret<Vec<u8>, pii::BinaryDataStrategy>;
 
 /// The SQL query and its bind parameters, in a (de)serialization-friendly representation
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
