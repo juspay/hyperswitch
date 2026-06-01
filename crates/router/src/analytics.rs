@@ -756,7 +756,12 @@ pub mod routes {
             &req,
             payload,
             |state, auth: AuthenticationData, req, _| async move {
-                let auth_info = auth.platform.to_merchant_level_auth_info();
+                let org_id = auth.platform.get_processor().get_account().get_org_id();
+                let merchant_id = auth.platform.get_processor().get_account().get_id();
+                let auth_info = AuthInfo::MerchantLevel {
+                    org_id: org_id.clone(),
+                    merchant_ids: vec![merchant_id.clone()],
+                };
                 let status_with_count = state
                     .pool
                     .get_intent_status_with_count(&auth_info, &req)
@@ -768,8 +773,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantPaymentRead,
-                allow_connected: true,
-                allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -789,6 +792,8 @@ pub mod routes {
             &req,
             payload,
             |state, auth: AuthenticationData, req, _| async move {
+                let org_id = auth.platform.get_processor().get_account().get_org_id();
+                let merchant_id = auth.platform.get_processor().get_account().get_id();
                 #[cfg(feature = "v1")]
                 let profile_id = auth
                     .profile
@@ -798,7 +803,11 @@ pub mod routes {
                     .clone();
                 #[cfg(feature = "v2")]
                 let profile_id = auth.profile.get_id().clone();
-                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
+                let auth_info = AuthInfo::ProfileLevel {
+                    org_id: org_id.clone(),
+                    merchant_id: merchant_id.clone(),
+                    profile_ids: vec![profile_id],
+                };
                 let status_with_count = state
                     .pool
                     .get_intent_status_with_count(&auth_info, &req)
@@ -810,8 +819,6 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfilePaymentRead,
-                allow_connected: true,
-                allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
         ))
