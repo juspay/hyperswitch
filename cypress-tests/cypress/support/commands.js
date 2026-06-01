@@ -9657,6 +9657,119 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
   });
 });
 
+Cypress.Commands.add(
+  "confirmCallForHashTest",
+  (confirmBody, data, confirm, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+
+    const apiKey = globalState.get("publishableKey");
+    const baseUrl = globalState.get("baseUrl");
+    const configInfo = execConfig(validateConfig(configs));
+    const paymentIntentID = globalState.get("paymentID");
+    const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
+    const url = `${baseUrl}/payments/${paymentIntentID}/confirm`;
+
+    if (confirmBody.split_payments) {
+      delete confirmBody.split_payments;
+    }
+
+    confirmBody.client_secret = globalState.get("clientSecret");
+    confirmBody.confirm = confirm;
+    confirmBody.profile_id = profileId;
+
+    for (const key in reqData) {
+      if (key !== "split_payments") {
+        confirmBody[key] = reqData[key];
+      }
+    }
+
+    if (!reqData?.setup_future_usage && confirmBody.setup_future_usage) {
+      delete confirmBody.setup_future_usage;
+    }
+
+    if (reqData?.split_payments && isStripeConnect(globalState)) {
+      confirmBody.split_payments = reqData.split_payments;
+    }
+
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    };
+
+    cy.request({
+      method: "POST",
+      url,
+      headers,
+      failOnStatusCode: false,
+      body: confirmBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          if (response.body.next_action?.redirect_to_url) {
+            globalState.set(
+              "nextActionUrl",
+              response.body.next_action.redirect_to_url
+            );
+          }
+          globalState.set("paymentID", paymentIntentID);
+          updateConnectorState(globalState, response.body.connector);
+          globalState.set(
+            "connectorTransactionID",
+            response.body.connector_transaction_id
+          );
+          globalState.set("paymentIntentStatus", response.body.status);
+
+          const expectedConnector = getOriginalConnectorName(
+            globalState.get("connectorId")
+          );
+          expect(response.body.connector, "connector").to.equal(
+            expectedConnector
+          );
+          expect(paymentIntentID, "payment_id").to.equal(
+            response.body.payment_id
+          );
+
+          if (
+            response.body.authentication_type === "three_ds" &&
+            response.body.next_action
+          ) {
+            if (response.body.next_action.type === "invoke_ddc") {
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action.ddc_data.iframe_url
+              );
+            } else if (
+              response.body.next_action.type === "redirect_inside_popup"
+            ) {
+              globalState.set("nextActionType", "redirect_inside_popup");
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action.popup_url
+              );
+            } else {
+              globalState.set(
+                "nextActionUrl",
+                response.body.next_action.redirect_to_url
+              );
+            }
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
 // ============================================
 // Forex Rates Commands
 // ============================================

@@ -36,7 +36,7 @@ function setup3DSPayment(gs, options = {}) {
     "3DSAutoCapture"
   ];
 
-  cy.confirmCallTest(fixtures.confirmBody, confirmData, true, gs);
+  cy.confirmCallForHashTest(fixtures.confirmBody, confirmData, true, gs);
 
   if (!utils.should_continue_further(confirmData)) {
     shouldContinue = false;
@@ -63,10 +63,7 @@ function setup3DSPayment(gs, options = {}) {
             res.body.status === "requires_customer_action" &&
             res.body.next_action?.redirect_to_url
           ) {
-            gs.set(
-              "nextActionUrl",
-              res.body.next_action.redirect_to_url
-            );
+            gs.set("nextActionUrl", res.body.next_action.redirect_to_url);
             cy.task(
               "cli_log",
               `setup3DSPayment: extracted redirect URL from GET /payments: ${res.body.next_action.redirect_to_url.substring(0, 120)}...`
@@ -149,7 +146,12 @@ describe("Card - Payment Response Hash flow test", () => {
           "card_pm"
         ]["No3DSAutoCapture"];
 
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+        cy.confirmCallForHashTest(
+          fixtures.confirmBody,
+          data,
+          true,
+          globalState
+        );
 
         if (!utils.should_continue_further(data)) {
           stepContinue = false;
