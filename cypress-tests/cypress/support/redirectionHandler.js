@@ -407,14 +407,23 @@ function payLaterRedirection(
             if (paymentMethodType === "atome") {
               // Atome redirects to sandbox-gateway.apaylater.net
               cy.url().then((url) => {
-                if (url.includes("apaylater.net")) {
-                  cy.log(
-                    "Successfully navigated to Atome page - verified redirection"
-                  );
-                } else {
-                  cy.log(
-                    `Warning: URL (${url}) does not contain expected Atome indicators`
-                  );
+                try {
+                  const urlObj = new URL(url);
+                  const hostname = urlObj.hostname;
+                  if (
+                    hostname === "apaylater.net" ||
+                    hostname.endsWith(".apaylater.net")
+                  ) {
+                    cy.log(
+                      "Successfully navigated to Atome page - verified redirection"
+                    );
+                  } else {
+                    cy.log(
+                      `Warning: URL (${url}) does not contain expected Atome indicators`
+                    );
+                  }
+                } catch {
+                  cy.log(`Warning: Could not parse URL: ${url}`);
                 }
               });
             } else {
