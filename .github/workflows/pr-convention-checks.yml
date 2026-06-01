@@ -136,6 +136,8 @@ jobs:
     name: Verify PR size policy
     if: ${{ github.event_name == 'pull_request_target' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout trusted base branch
