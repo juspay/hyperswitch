@@ -6278,10 +6278,7 @@ async fn store_cvc_as_payment_token_in_redis(
 #[cfg(feature = "v2")]
 fn extract_card_cvc_and_holder_name(
     payment_method_data: Option<&payment_methods::PaymentMethodUpdateData>,
-) -> (
-    Option<Secret<String>>,
-    Option<Secret<String>>,
-) {
+) -> (Option<Secret<String>>, Option<Secret<String>>) {
     match payment_method_data {
         Some(payment_methods::PaymentMethodUpdateData::Card(card_update)) => (
             card_update.card_cvc.clone(),
