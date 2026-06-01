@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix16-11
+
+### Hotfix
+
+- **2026.02.02.0-hotfix16-11:** Webhook scope + JWT auth for list payment methods ([#12523](https://github.com/juspay/hyperswitch/pull/12523)) ([`7ca88e2`](https://github.com/juspay/hyperswitch/commit/7ca88e20c48d3352d67724455c71035a107187b7))
+
+**Full Changelog:** [`2026.02.02.0-hotfix16-10...2026.02.02.0-hotfix16-11`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix16-10...2026.02.02.0-hotfix16-11)
+
+- - -
+
 ## 2026.02.02.0-hotfix16-10
 
 ### Bug Fixes
