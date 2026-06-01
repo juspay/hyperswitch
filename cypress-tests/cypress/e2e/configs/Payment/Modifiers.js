@@ -59,7 +59,7 @@ const getDefaultExchange = () => ({
     status: 501,
     body: {
       error: {
-        type: "invalid_request",
+        error_type: "invalid_request",
         message: `Selected payment method through ${connectorName} is not implemented`,
         code: "IR_00",
       },
@@ -75,7 +75,7 @@ const getUnsupportedExchange = () => ({
     status: 400,
     body: {
       error: {
-        type: "invalid_request",
+        error_type: "invalid_request",
         message: `Payment method type not supported`,
         code: "IR_19",
       },
