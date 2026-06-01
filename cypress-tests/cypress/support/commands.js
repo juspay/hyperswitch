@@ -5249,7 +5249,9 @@ Cypress.Commands.add("handleGlobepayQRRedirection", (globalState) => {
     "nextActionUrl should be a data URI containing a QR code image"
   ).to.match(/^data:/);
 
-  cy.log("Globepay inline QR code verified via data URI — no redirect expected");
+  cy.log(
+    "Globepay inline QR code verified via data URI — no redirect expected"
+  );
 });
 
 /**
