@@ -581,6 +581,7 @@ export const CONNECTOR_LISTS = {
     PAY_LATER: [
       "klarna",
       "adyen",
+      "atome",
       "aci",
       "stripe",
       "airwallex",
