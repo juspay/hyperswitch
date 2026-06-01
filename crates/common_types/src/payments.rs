@@ -75,7 +75,6 @@ impl_to_sql_from_sql_json!(SplitPaymentsRequest);
     SmithyModel,
 )]
 #[diesel(sql_type = Jsonb)]
-#[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// Fee information for Split Payments to be charged on the payment being collected for Stripe
 pub struct StripeSplitPaymentRequest {
@@ -356,7 +355,6 @@ pub type DecisionManagerResponse = DecisionManagerRecord;
     SmithyModel,
 )]
 #[diesel(sql_type = Jsonb)]
-#[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct StripeChargeResponseData {
     /// Identifier for charge created for the payment

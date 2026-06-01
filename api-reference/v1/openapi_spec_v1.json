@@ -8780,6 +8780,12 @@
             "type": "string",
             "description": "[9 digits] Routing number - used in USA for identifying a specific bank.",
             "example": "110000000"
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe",
+            "nullable": true
           }
         }
       },
@@ -8821,6 +8827,12 @@
             "type": "string",
             "description": "Bank city",
             "example": "California",
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe",
             "nullable": true
           }
         }
@@ -11435,6 +11447,12 @@
             "type": "string",
             "description": "[6 digits] Sort Code - used in UK and Ireland for identifying a bank and it's branches.",
             "example": "98-76-54"
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe",
+            "nullable": true
           }
         }
       },
@@ -11474,6 +11492,12 @@
             "type": "string",
             "description": "Bank city",
             "example": "California",
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe",
             "nullable": true
           }
         }
@@ -16287,6 +16311,7 @@
       "Connector": {
         "type": "string",
         "enum": [
+          "absa_sanlam",
           "authipay",
           "adyenplatform",
           "stripe_billing_test",
@@ -16400,7 +16425,6 @@
           "recurly",
           "redsys",
           "revolv3",
-          "sanlam",
           "santander",
           "shift4",
           "silverflow",
@@ -35631,6 +35655,10 @@
           "merchant_id": {
             "type": "string",
             "nullable": true
+          },
+          "expand_attempts": {
+            "type": "boolean",
+            "nullable": true
           }
         }
       },
@@ -35657,6 +35685,13 @@
           "merchant_id": {
             "type": "string",
             "description": "The identifier for the Merchant Account.",
+            "nullable": true
+          },
+          "expand_attempts": {
+            "type": "boolean",
+            "description": "Set to true to get the list of attempts along with payout details, no further action required",
+            "default": false,
+            "example": true,
             "nullable": true
           }
         }
@@ -36286,6 +36321,13 @@
           "propertyName": "field_type"
         }
       },
+      "PaypalCaptureMethod": {
+        "type": "string",
+        "enum": [
+          "capture",
+          "authorize"
+        ]
+      },
       "PaypalFlow": {
         "type": "string",
         "enum": [
@@ -36339,6 +36381,22 @@
           "data_user_id_token": {
             "type": "string",
             "description": "User token required for returning customer flow, used by client to initiate sdk",
+            "nullable": true
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "intent": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaypalCaptureMethod"
+              }
+            ],
             "nullable": true
           }
         }
@@ -36557,7 +36615,7 @@
           {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PixAutomaticoPushDetails"
+                "$ref": "#/components/schemas/PixAutomaticoPushData"
               },
               {
                 "type": "object",
@@ -36574,36 +36632,53 @@
                 }
               }
             ]
-          }
-        ],
-        "discriminator": {
-          "propertyName": "type"
-        }
-      },
-      "PixAutomaticoCitData": {
-        "type": "object",
-        "description": "Data for Santander Pix Automatico CIT (Customer Initiated Transaction) - used during mandate setup",
-        "properties": {
-          "contract_id": {
-            "type": "string",
-            "description": "Contract ID to identify the recurring payment contract",
-            "example": "pm_16503867",
-            "nullable": true
           },
-          "retry_policy": {
-            "type": "boolean",
-            "description": "Enable retry policy for failed payments (maps to PERMITE_3R_7D if true)",
-            "example": true,
-            "nullable": true
-          },
-          "mandate_details": {
+          {
             "allOf": [
               {
-                "$ref": "#/components/schemas/SantanderMandateDetails"
+                "$ref": "#/components/schemas/PixAutomaticoQrData"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "pix_automatico_qr"
+                    ]
+                  }
+                }
               }
-            ],
-            "nullable": true
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixAutomaticoMitData"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "pix_automatico_mit"
+                    ]
+                  }
+                }
+              }
+            ]
           }
+        ],
+        "description": "Represents the specific data for Santander Pix Automatico (recurring PIX payments)\nSplit into CIT (Customer Initiated Transaction) and MIT (Merchant Initiated Transaction) variants",
+        "discriminator": {
+          "propertyName": "type"
         }
       },
       "PixAutomaticoMitData": {
@@ -36655,8 +36730,9 @@
           }
         }
       },
-      "PixAutomaticoPushDetails": {
+      "PixAutomaticoPushData": {
         "type": "object",
+        "description": "Data for PixAutomaticoPush Payment Method Type CIT (Customer Initiated Transaction) - used during mandate setup",
         "required": [
           "time"
         ],
@@ -36667,6 +36743,40 @@
             "description": "Time in seconds until which the push notification is valid",
             "example": 3600,
             "minimum": 0
+          },
+          "retry_policy": {
+            "type": "boolean",
+            "description": "Enable retry policy for failed payments (maps to PERMITE_3R_7D if true)",
+            "example": true,
+            "nullable": true
+          },
+          "mandate_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderMandateDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PixAutomaticoQrData": {
+        "type": "object",
+        "description": "Data for PixAutomaticoQr Payment Method Type CIT (Customer Initiated Transaction) - used during mandate setup + non 0$ mandate setup",
+        "properties": {
+          "retry_policy": {
+            "type": "boolean",
+            "description": "Enable retry policy for failed payments (maps to PERMITE_3R_7D if true)",
+            "example": true,
+            "nullable": true
+          },
+          "mandate_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderMandateDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -39651,6 +39761,7 @@
         "type": "string",
         "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
+          "absa_sanlam",
           "authipay",
           "adyenplatform",
           "stripe_billing_test",
@@ -39718,6 +39829,7 @@
           "iatapay",
           "imerchantsolutions",
           "inespay",
+          "interpayments",
           "itaubank",
           "jpmorgan",
           "klarna",
@@ -39757,7 +39869,6 @@
           "redsys",
           "revolv3",
           "riskified",
-          "sanlam",
           "santander",
           "shift4",
           "signifyd",
@@ -40397,14 +40508,6 @@
               }
             ],
             "nullable": true
-          },
-          "pix_automatico": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/SantanderPixAutomaticoData"
-              }
-            ],
-            "nullable": true
           }
         }
       },
@@ -40421,10 +40524,18 @@
       "SantanderMandateDetails": {
         "type": "object",
         "properties": {
-          "amount": {
+          "fixed_recurring_amount": {
             "type": "integer",
             "format": "int64",
-            "description": "Maximum amount for each recurring charge",
+            "description": "Fixed amount for each recurring charge in minor units (e.g., cents). If not provided, the mandate will allow variable amounts.",
+            "example": 6540,
+            "nullable": true,
+            "minimum": 0
+          },
+          "min_recurring_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Minimum amount for each recurring charge in minor units (e.g., cents). If not provided, there will be no minimum limit on the amount.",
             "example": 6540,
             "nullable": true,
             "minimum": 0
@@ -40484,33 +40595,6 @@
             "description": "A generic vector of discount tiers"
           }
         }
-      },
-      "SantanderPixAutomaticoData": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "cit"
-            ],
-            "properties": {
-              "cit": {
-                "$ref": "#/components/schemas/PixAutomaticoCitData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "mit"
-            ],
-            "properties": {
-              "mit": {
-                "$ref": "#/components/schemas/PixAutomaticoMitData"
-              }
-            }
-          }
-        ],
-        "description": "Represents the specific data for Santander Pix Automatico (recurring PIX payments)\nSplit into CIT (Customer Initiated Transaction) and MIT (Merchant Initiated Transaction) variants"
       },
       "SantanderPixAutomaticoReceiverDetails": {
         "type": "object",
@@ -40767,6 +40851,12 @@
             "type": "string",
             "description": "[8 / 11 digits] Bank Identifier Code (bic) / Swift Code - used in many countries for identifying a bank and it's branches",
             "example": "HSBCGB2LXXX"
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe",
+            "nullable": true
           }
         }
       },
@@ -40806,6 +40896,12 @@
             "type": "string",
             "description": "[8 / 11 digits] Bank Identifier Code (bic) / Swift Code - used in many countries for identifying a bank and it's branches",
             "example": "HSBCGB2LXXX",
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe",
             "nullable": true
           }
         }
@@ -41477,8 +41573,7 @@
             "example": "acct_1234567890",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "StripeChargeType": {
         "type": "string",
@@ -41515,8 +41610,7 @@
             "example": "acct_1234567890",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "StripeSplitRefundRequest": {
         "type": "object",

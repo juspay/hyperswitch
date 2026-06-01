@@ -420,11 +420,7 @@ pub async fn run_payment_method_modular_backward_compat_backfill(
     #[cfg(feature = "v2")]
     let payment_method_id = id_type::GlobalPaymentMethodId::generate_from_string(
         tracking_data.payment_method_id.clone(),
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable(
-        "Failed to parse payment method id for modular backward compatibility backfill",
-    )?;
+    );
 
     let payment_method = db
         .find_payment_method(

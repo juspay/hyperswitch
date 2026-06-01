@@ -1,6 +1,6 @@
 use crate::{
     errors::{CustomResult, ValidationError},
-    generate_id_with_default_len, generate_id_with_default_len_with_profile_id,
+    generate_id_with_default_len,
     id_type::{AlphaNumericId, LengthId},
 };
 
@@ -40,11 +40,8 @@ impl PaymentId {
     }
 
     /// Generate a client id for the payment id
-    pub fn generate_client_secret(&self, profile_id: &str) -> String {
-        generate_id_with_default_len_with_profile_id(
-            &format!("{}_secret", self.get_string_repr()),
-            profile_id,
-        )
+    pub fn generate_client_secret(&self) -> String {
+        generate_id_with_default_len(&format!("{}_secret", self.get_string_repr()))
     }
 
     /// Generate a key for pm_auth
