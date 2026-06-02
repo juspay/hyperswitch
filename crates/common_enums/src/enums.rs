@@ -2267,6 +2267,118 @@ impl PaymentMethodStatus {
     }
 }
 
+#[cfg(test)]
+mod payment_method_status_tests {
+    use super::*;
+
+    #[test]
+    fn test_failure_maps_to_inactive() {
+        assert_eq!(
+            PaymentMethodStatus::from(AttemptStatus::Failure),
+            PaymentMethodStatus::Inactive
+        );
+    }
+
+    #[test]
+    fn test_expired_maps_to_inactive() {
+        assert_eq!(
+            PaymentMethodStatus::from(AttemptStatus::Expired),
+            PaymentMethodStatus::Inactive
+        );
+    }
+
+    #[test]
+    fn test_capture_failed_maps_to_inactive() {
+        assert_eq!(
+            PaymentMethodStatus::from(AttemptStatus::CaptureFailed),
+            PaymentMethodStatus::Inactive
+        );
+    }
+
+    #[test]
+    fn test_void_failed_maps_to_inactive() {
+        assert_eq!(
+            PaymentMethodStatus::from(AttemptStatus::VoidFailed),
+            PaymentMethodStatus::Inactive
+        );
+    }
+
+    #[test]
+    fn test_authentication_failed_maps_to_inactive() {
+        assert_eq!(
+            PaymentMethodStatus::from(AttemptStatus::AuthenticationFailed),
+            PaymentMethodStatus::Inactive
+        );
+    }
+
+    #[test]
+    fn test_authorization_failed_maps_to_inactive() {
+        assert_eq!(
+            PaymentMethodStatus::from(AttemptStatus::AuthorizationFailed),
+            PaymentMethodStatus::Inactive
+        );
+    }
+
+    #[test]
+    fn test_charged_maps_to_active() {
+        assert_eq!(
+            PaymentMethodStatus::from(AttemptStatus::Charged),
+            PaymentMethodStatus::Active
+        );
+    }
+
+    #[test]
+    fn test_authorized_maps_to_active() {
+        assert_eq!(
+            PaymentMethodStatus::from(AttemptStatus::Authorized),
+            PaymentMethodStatus::Active
+        );
+    }
+
+    #[test]
+    fn test_started_maps_to_inactive() {
+        // Started is transient, maps to Inactive per existing logic
+        assert_eq!(
+            PaymentMethodStatus::from(AttemptStatus::Started),
+            PaymentMethodStatus::Inactive
+        );
+    }
+
+    #[test]
+    fn test_pending_maps_to_inactive() {
+        assert_eq!(
+            PaymentMethodStatus::from(AttemptStatus::Pending),
+            PaymentMethodStatus::Inactive
+        );
+    }
+
+    #[test]
+    fn test_capture_review_maps_to_inactive() {
+        assert_eq!(
+            PaymentMethodStatus::from(AttemptStatus::CaptureReview),
+            PaymentMethodStatus::Inactive
+        );
+    }
+
+    #[test]
+    fn test_voided_maps_to_inactive() {
+        assert_eq!(
+            PaymentMethodStatus::from(AttemptStatus::Voided),
+            PaymentMethodStatus::Inactive
+        );
+    }
+
+    #[test]
+    fn test_can_transition_from_inactive_to_active() {
+        assert!(PaymentMethodStatus::Inactive.can_transition_to(PaymentMethodStatus::Active));
+    }
+
+    #[test]
+    fn test_cannot_transition_from_active_to_inactive() {
+        assert!(!PaymentMethodStatus::Active.can_transition_to(PaymentMethodStatus::Inactive));
+    }
+}
+
 /// To indicate the type of payment experience that the customer would go through
 #[derive(
     Eq,

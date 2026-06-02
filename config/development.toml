@@ -78,8 +78,8 @@ common_merchant_identifier = "COMMON MERCHANT IDENTIFIER"
 applepay_endpoint = "DOMAIN SPECIFIC ENDPOINT"
 
 [locker]
-host = "http://127.0.0.1:3000"
-mock_locker = true
+host = "http://127.0.0.1:3009"
+mock_locker = false
 locker_enabled = true
 ttl_for_storage_in_secs = 220752000
 
@@ -91,8 +91,47 @@ redis_lock_timeout_in_seconds = 100
 redis_ttl_in_seconds = 172800
 
 [jwekey]
-vault_encryption_key = ""
-vault_private_key = ""
+vault_encryption_key = """
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAs9V+ReIHGwY8BpoIoDWO
+QGvBXoa7yk445dDJ6Jgiih9xwKX9hlSgwotCI8KmedoVI4ac+0AVHLk8mW80BjZx
+EN/XvimeeXknD5BRmF14fxeutZLMeRfNDX+Hm0gBwmls82FJx0FO09QrI5nCy3wI
+k7XbJGVz5yz1ZQlZ9hpJI8j50HBC8cv4je4R9gcfY4YPwH2VmzkzHk92ryTCApFa
+EO9H+Okz8WMU3WyPwjuOChSGsujeUZF0A6L+bA6DUKdWT1ilkqHXKXl0UWH2yN+q
+xjQsCp4/l2lioUFChyltMxNACR5euSG93pJpfC9SOeRevixOWaclTPTuV9BokLXJ
+UQIDAQAB
+-----END PUBLIC KEY-----
+"""
+vault_private_key = """
+-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC0t95ewDoZaeo2
+S4MP+7kgy4XKNGftsHRZJEHq/Qwt3jlLtMCsxGI8XzAv1mjorCwcSvyMc3cvItcR
+6rPJwuBoQDFuEhZAL5AFbyzYm2XcEgI6IE4RvD4xggEgDb3549r0TScSduiPEeIl
+ZB9B5+rMsLzdDfxpDsOUQ9C+GkmCCyVv/cC5BnC3PVz4WqbiIRRm5jsHw/bWqyTy
+L/IzRF4V2ya6aQdTWbOXCnz3sNNzT0Aa5McCXsjlhWCoeVkGh+qRMdCjSSXVFxEF
+OoKNGwoyt67rDTHZQyAVxEFCbKNwm8IoxHnSqT6AeNrQnXjIw5qs/tf3OLkAid50
+/jvydx0RAgMBAAECggEAB6QxLsY3xrCR7tULUAsTqUF10SadYOFp0AWelGw5/jwD
+5fG5Bm0g3r7jI5iwM6tpC5K3okw1FU0GtUscakr3UG0rceUpo/Hm5/XrGmcau98W
+kUThrDIOmqsNt2BhYK476UHUZb1ZqMgHrQ9SW4fuB5TvDXVMj5goWK3z5v/nTQxv
+leLcUOuTvB9BANCH/hx6cQMvcyCgHJC8I1iex4vnWDNYfdFRN9NhOniCyjJmmM6b
+h0urJtWl2EbuvRkD9PCuiCtPzJJi0li2V1J6awGFGpid4Nk3cZB40fib5097xil3
+8kkrcswwMGNktVdW4FVnskIqu34y4qrrQHkbR5pQCQKBgQDsXJ31vnH+v8tx/CKj
+S83I7SopIOqncuH7wH5AvyE2ihYvEwv0ExtVLH7B82GFixU3bZVXrEMH51IttJSF
+bl2V2lO0L3wqIjKfPh9HNzldXBwiJdk68mTjN2LgsVy38jdOTv9ayJosHX5UkxnK
+U4lCRjGPoVMdwOcW5ozA/M+cKQKBgQDDu7iNdiw5jKc+tgGA+FVAyIM5bG/PziF7
+UEWDwXdzbXNmbUj0tKtrfYruyfQS5BXV7CVfJXEnwzNTGT0UiuJhSrz+0f1JC+7m
+nR/OOR8/p/I9kXL82JR1ewTzJgOo9z1C5lWtH+rh+Mdb/SSxhnFMP/fcD71cz6ot
+baNO5cGWqQKBgHg0uhjqnCsE+8CijDMkMCoJg7GbDfvPD2LriMoA6jFElPen5iJh
+PTtZ/7U/w88Y5tdjodoOv6BbYo3gEtCxSmMVwBAZPjpnXftiqqGbUk9Ksvwi55F1
+CR4NYvoG+bKLOtlWj8Np1g6tiTwV+73MMjhEXpw/XXf6TQx2gAr+B8/RAoGAFJh8
+IuZ8YNHcB00/e0KmNdrjc/dlDIi0HTWlGugQmaS6r9xwAM/B+d2L8PRvKk21vnzK
+sehOr9BqZiQRuUej6njiyi1uaXFIAhwmbJy2HQyfALt9Tf28IWCAdNVbLTxWxeNW
+wJDLNlvnHlbUtZlf8pYIjq9ZTZrMXVtcA8FJTYECgYEAkv25Dcgp4FhjRbXqbgo9
+NQrY/A0qatwUvACnhmT+OCPhMYbcBqitV6WN4GSeRP6x44jYM9YmkludtieFIWPf
+n0rG930afFq0eiIg4x30/PzvUdBIrhMNU5LExdhLLwiIr0cH8B74EoIJEHp95wPV
+KJagwNEAxEVbZHPjqrXN5mY=
+-----END PRIVATE KEY-----
+"""
 tunnel_private_key = ""
 
 [connectors.supported]
@@ -1534,7 +1573,7 @@ proxy_connector_http_status_code = false    # If enabled, the http status code o
 connector_list = "worldpayvantiv"
 
 [internal_merchant_id_profile_id_auth]
-enabled = false
+enabled = true
 internal_api_key = "test_internal_api_key"
 
 [internal_services]
@@ -1545,7 +1584,7 @@ endpoint = "http://localhost:8081" # Superposition service endpoint
 token = "123456" # Superposition token
 org_id = "localorg" # Organization ID in Superposition
 workspace_id = "dev" # Workspace ID in Superposition
-polling_interval = 300 # Polling interval in seconds for configuration updates
+polling_interval = 2 # Polling interval in seconds for configuration updates
 # request_timeout =   # Request timeout in seconds for Superposition API calls (optional, default: none)
 backup_file_path = "./config/superposition_seed.toml" # Path to a local file for fallback configuration. Used when the Superposition HTTP service is unavailable. If set, the client will fall back to reading configuration from this file instead of failing completely. This ensures graceful degradation during network outages or service disruptions.
 
@@ -1574,7 +1613,7 @@ backup_file_path = "./config/superposition_seed.toml" # Path to a local file for
 
 [micro_services]
 payment_methods_base_url = "http://localhost:8082"
-payment_methods_prefix = "v2"
+payment_methods_prefix = "v1"
 use_legacy_locker = false
 
 [micro_services.authentication_service]

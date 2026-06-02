@@ -3375,7 +3375,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
         payment_data.mandate_data = mandate_data_updated;
 
         if let Some(payment_method) = &payment_data.payment_method {
-            match attempt_status {
+            let pm_update_status = match attempt_status {
                 common_enums::AttemptStatus::AuthenticationFailed
                 | common_enums::AttemptStatus::RouterDeclined
                 | common_enums::AttemptStatus::AuthorizationFailed
@@ -3389,7 +3389,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 | common_enums::AttemptStatus::Pending
                 | common_enums::AttemptStatus::Failure
                 | common_enums::AttemptStatus::Expired
-                | common_enums::AttemptStatus::CaptureReview => (),
+                | common_enums::AttemptStatus::CaptureReview => Some(enums::PaymentMethodStatus::Inactive),
 
                 common_enums::AttemptStatus::Started
                 | common_enums::AttemptStatus::AuthenticationPending
@@ -3405,22 +3405,21 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 | common_enums::AttemptStatus::PaymentMethodAwaited
                 | common_enums::AttemptStatus::ConfirmationAwaited
                 | common_enums::AttemptStatus::DeviceDataCollectionPending
-                | common_enums::AttemptStatus::IntegrityFailure => {
-                    let pm_update_status = enums::PaymentMethodStatus::Active;
+                | common_enums::AttemptStatus::IntegrityFailure => Some(enums::PaymentMethodStatus::Active),
+            };
 
-                    // payment_methods microservice call
-                    payment_methods::update_payment_method_status_internal(
-                        state,
-                        processor.get_key_store(),
-                        processor.get_account().storage_scheme,
-                        pm_update_status,
-                        payment_method.get_id(),
-                        initiator,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to update payment method status")?;
-                }
+            if let Some(pm_update_status) = pm_update_status {
+                payment_methods::update_payment_method_status_internal(
+                    state,
+                    processor.get_key_store(),
+                    processor.get_account().storage_scheme,
+                    pm_update_status,
+                    payment_method.get_id(),
+                    initiator,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update payment method status")?;
             }
         }
 
