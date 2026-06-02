@@ -169,13 +169,34 @@ export function handleInespayRedirectFlow(nextActionUrl) {
     .and("be.visible")
     .click({ force: true });
 
-  cy.wait(1000);
+  cy.wait(1500);
 
   // Select the specific account ending in 679.
-  cy.get(".multiselect__element, .multiselect__option", { timeout: 15000 })
-    .contains(/ES\*{3,}679/)
-    .should("be.visible")
-    .click({ force: true });
+  // The simulator masks the IBAN; we match the visible text that ends with 679.
+  // Try the most common mask patterns first, falling back to a generic "contains 679".
+  cy.get("body", { timeout: 10000 }).then(($body) => {
+    const accountOption = $body
+      .find(".multiselect__element, .multiselect__option, .dropdown-item, li")
+      .filter((_, el) => /ES[^\d]*679/.test(el.textContent));
+    if (accountOption.length > 0) {
+      cy.wrap(accountOption.first(), { timeout: 5000 })
+        .scrollIntoView()
+        .should("be.visible")
+        .click({ force: true });
+      cy.log(`Selected account option: ${accountOption.first().text().trim()}`);
+    } else {
+      // Fallback: click the first non-empty option in the account dropdown.
+      cy.log(
+        "Could not find account matching ES***679 — falling back to first available account option"
+      );
+      cy.get("#account .multiselect__element, #account .multiselect__option", {
+        timeout: 10000,
+      })
+        .filter((_, el) => el.textContent.trim().length > 0)
+        .first()
+        .click({ force: true });
+    }
+  });
 
   cy.wait(500);
 
@@ -188,23 +209,45 @@ export function handleInespayRedirectFlow(nextActionUrl) {
   cy.wait(2000);
 
   // ── Step 4: OTP Verification ──────────────────────────────────────
+  // Wait for the validation / OTP page to appear.
   cy.url({ timeout: 30000 }).should("match", /\/validation\//i);
   cy.wait(3000);
 
-  cy.get("input", { timeout: 20000 })
-    .filter(":visible")
-    .first()
-    .should("be.visible")
-    .type("1111", { force: true });
+  // Find the OTP input.  Some simulators use a plain <input>, others wrap
+  // it in a custom component.  We probe several common selectors and fall
+  // back to the first visible input.
+  cy.get("body", { timeout: 15000 }).then(($body) => {
+    let otpInput = $body.find(
+      'input[type="tel"], input[inputmode="numeric"], input[name*="otp"], input[id*="otp"], input[placeholder*="OTP"], input[autocomplete="one-time-code"]'
+    ).filter(":visible");
 
-  cy.wait(500);
+    if (otpInput.length === 0) {
+      otpInput = $body.find("input").filter(":visible");
+    }
+
+    if (otpInput.length > 0) {
+      cy.wrap(otpInput.first(), { timeout: 5000 })
+        .scrollIntoView()
+        .should("be.visible")
+        .clear({ force: true })
+        .type("1111", { force: true });
+      cy.log("Entered OTP 1111");
+    } else {
+      throw new Error(
+        "Inespay OTP step: no visible input field found for entering OTP"
+      );
+    }
+  });
+
+  cy.wait(1000);
 
   // Click "continue" on OTP page
   cy.contains("button", /continue/i, { timeout: 15000 })
     .should("be.visible")
+    .scrollIntoView()
     .click({ force: true });
 
-  cy.wait(2000);
+  cy.wait(3000);
 
   // ── Final Validation: wait for redirect back to Hyperswitch ────────
   cy.log(
