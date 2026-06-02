@@ -1005,8 +1005,10 @@ impl UnifiedConnectorServiceClient {
         let mut request = tonic::Request::new(payout_create_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        let metadata = build_unified_connector_service_grpc_headers_for_payouts(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
 
         *request.metadata_mut() = metadata;
 
@@ -1078,8 +1080,10 @@ impl UnifiedConnectorServiceClient {
         let mut request = tonic::Request::new(payout_transfer_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        let metadata = build_unified_connector_service_grpc_headers_for_payouts(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
 
         *request.metadata_mut() = metadata;
 
@@ -1114,8 +1118,10 @@ impl UnifiedConnectorServiceClient {
         let mut request = tonic::Request::new(payout_get_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        let metadata = build_unified_connector_service_grpc_headers_for_payouts(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
 
         *request.metadata_mut() = metadata;
 
@@ -1150,8 +1156,10 @@ impl UnifiedConnectorServiceClient {
         let mut request = tonic::Request::new(payout_void_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        let metadata = build_unified_connector_service_grpc_headers_for_payouts(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
 
         *request.metadata_mut() = metadata;
 
@@ -1186,8 +1194,10 @@ impl UnifiedConnectorServiceClient {
         let mut request = tonic::Request::new(payout_stage_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        let metadata = build_unified_connector_service_grpc_headers_for_payouts(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
 
         *request.metadata_mut() = metadata;
 
@@ -1223,8 +1233,10 @@ impl UnifiedConnectorServiceClient {
         let mut request = tonic::Request::new(payout_create_recipient_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        let metadata = build_unified_connector_service_grpc_headers_for_payouts(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
 
         *request.metadata_mut() = metadata;
 
@@ -1260,8 +1272,10 @@ impl UnifiedConnectorServiceClient {
         let mut request = tonic::Request::new(payout_enroll_disburse_account_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        let metadata = build_unified_connector_service_grpc_headers_for_payouts(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
 
         *request.metadata_mut() = metadata;
 
@@ -1291,6 +1305,25 @@ pub fn build_unified_connector_service_grpc_headers(
     meta: ConnectorAuthMetadata,
     grpc_headers: GrpcHeadersUcs,
 ) -> Result<MetadataMap, UnifiedConnectorServiceError> {
+    build_grpc_headers_internal(meta, grpc_headers, consts::UCS_HEADER_CONNECTOR)
+}
+
+/// Build the gRPC Headers for Unified Connector Service Payout Request
+/// Uses `x-payout-connector` instead of `x-connector` so the UCS server can
+/// route payout traffic via a separate `PayoutConnectorEnum` without affecting
+/// payment flows.
+pub fn build_unified_connector_service_grpc_headers_for_payouts(
+    meta: ConnectorAuthMetadata,
+    grpc_headers: GrpcHeadersUcs,
+) -> Result<MetadataMap, UnifiedConnectorServiceError> {
+    build_grpc_headers_internal(meta, grpc_headers, consts::UCS_HEADER_PAYOUT_CONNECTOR)
+}
+
+fn build_grpc_headers_internal(
+    meta: ConnectorAuthMetadata,
+    grpc_headers: GrpcHeadersUcs,
+    connector_header_key: &'static str,
+) -> Result<MetadataMap, UnifiedConnectorServiceError> {
     // Destructure grpc_headers to ensure all fields are handled
     let GrpcHeadersUcs {
         tenant_id,
@@ -1313,7 +1346,7 @@ pub fn build_unified_connector_service_grpc_headers(
         };
 
     metadata.append(
-        consts::UCS_HEADER_CONNECTOR,
+        connector_header_key,
         parse("connector", &meta.connector_name)?,
     );
     metadata.append(
