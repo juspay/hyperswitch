@@ -1593,7 +1593,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
-          payment_method_status: "inactive",
+          payment_method_status: null,
         },
       },
     }),
@@ -1626,7 +1626,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
-          payment_method_status: "inactive",
+          payment_method_status: null,
         },
       },
     }),
@@ -1659,7 +1659,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
-          payment_method_status: "inactive",
+          payment_method_status: null,
         },
       },
     }),
@@ -1692,7 +1692,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
-          payment_method_status: "inactive",
+          payment_method_status: null,
         },
       },
     }),
@@ -1725,7 +1725,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
-          payment_method_status: "inactive",
+          payment_method_status: null,
         },
       },
     }),
@@ -1761,7 +1761,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
-          payment_method_status: "inactive",
+          payment_method_status: null,
         },
       },
     }),
@@ -1794,7 +1794,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
-          payment_method_status: "inactive",
+          payment_method_status: null,
         },
       },
     }),
@@ -1827,7 +1827,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
-          payment_method_status: "inactive",
+          payment_method_status: null,
         },
       },
     }),
