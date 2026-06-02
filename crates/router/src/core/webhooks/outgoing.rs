@@ -4,6 +4,7 @@ use api_models::{
     webhook_events::{OutgoingWebhookRequestContent, OutgoingWebhookResponseContent},
     webhooks,
 };
+use common_enums::SurchargeEventMapper;
 use common_utils::{
     ext_traits::{Encode, StringExt},
     request::RequestContent,
@@ -66,100 +67,89 @@ pub(crate) async fn get_webhook_events(
     };
     webhook_events.push(event_data);
 
-    let surcharge_connector_id = provider_profile
+    if let Some(surcharge_connector_id) = provider_profile
         .surcharge_connector_details
         .as_ref()
-        .and_then(|surcharge_connector_details| {
-            surcharge_connector_details.surcharge_connector_id.clone()
-        });
-
-    if let Some(merchant_surcharge_connector_id) = surcharge_connector_id {
-        let merchant_surcharge_connector = state
-            .store
-            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                platform.get_provider().get_account().get_id(),
-                &merchant_surcharge_connector_id,
-                platform.get_provider().get_key_store(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: merchant_surcharge_connector_id
-                    .get_string_repr()
-                    .to_string(),
-            })?;
-
-        let connector_name =
-            api::enums::SurchargeConnectors::from_str(&merchant_surcharge_connector.connector_name)
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "connector",
-                })?;
-
-        match &webhook_resource_data {
-            Some(WebhookResourceData::Payment { payment_attempt }) => {
-                if connector_name.should_notify_connector(primary_event_type) {
-                    if let Some(external_surcharge_details) =
-                        &payment_attempt.external_surcharge_details
-                    {
-                        let event_content = api_models::payments::ResponseSurchargeDetails {
-                            surcharge_amount: external_surcharge_details
-                                .external_surcharge_amount
-                                .clone(),
-                            external_surcharge_id: external_surcharge_details
-                                .external_surcharge_id
-                                .clone(),
-                            payment_id: payment_attempt.payment_id.clone(),
-                            attempt_id: payment_attempt.attempt_id.clone(),
-                        };
-
-                        let event_data = utils::WebhookPayload {
-                            event_type: enums::EventType::SurchargePaymentSucceeded,
-                            event_content: api::OutgoingWebhookContent::SurchargeDetails(Box::new(
-                                event_content,
-                            )),
-                            recipient_data: utils::WebhookRecipientData::Connector {
-                                merchant_connector_id: merchant_surcharge_connector_id,
-                            },
-                        };
-                        webhook_events.push(event_data);
-                    }
-                }
+        .and_then(|details| details.surcharge_connector_id.clone())
+    {
+        match get_surcharge_webhook_event(
+            state,
+            platform,
+            primary_event_type,
+            webhook_resource_data,
+            surcharge_connector_id,
+        )
+        .await
+        {
+            Ok(Some(event_data)) => webhook_events.push(event_data),
+            Ok(None) => {
+                logger::debug!(
+                    "No surcharge webhook event generated for primary event type {}",
+                    primary_event_type
+                );
             }
-
-            Some(WebhookResourceData::Refund { payment_attempt }) => {
-                if connector_name.should_notify_connector(primary_event_type) {
-                    if let Some(external_surcharge_details) =
-                        &payment_attempt.external_surcharge_details
-                    {
-                        let event_content = api_models::payments::ResponseSurchargeDetails {
-                            surcharge_amount: external_surcharge_details
-                                .external_surcharge_amount
-                                .clone(),
-                            external_surcharge_id: external_surcharge_details
-                                .external_surcharge_id
-                                .clone(),
-                            payment_id: payment_attempt.payment_id.clone(),
-                            attempt_id: payment_attempt.attempt_id.clone(),
-                        };
-
-                        let event_data = utils::WebhookPayload {
-                            event_type: enums::EventType::SurchargeRefundSucceeded,
-                            event_content: api::OutgoingWebhookContent::SurchargeDetails(Box::new(
-                                event_content,
-                            )),
-                            recipient_data: utils::WebhookRecipientData::Connector {
-                                merchant_connector_id: merchant_surcharge_connector_id,
-                            },
-                        };
-                        webhook_events.push(event_data);
-                    }
-                }
+            Err(error) => {
+                logger::error!(
+                    ?error,
+                    "Failed to fetch surcharge connector or build surcharge webhook event"
+                );
             }
-
-            None => {}
         }
     }
 
     Ok(webhook_events)
+}
+
+/// Fetches surcharge connector and builds surcharge webhook event if applicable.
+async fn get_surcharge_webhook_event(
+    state: &SessionState,
+    platform: domain::Platform,
+    primary_event_type: enums::EventType,
+    webhook_resource_data: Option<WebhookResourceData>,
+    merchant_surcharge_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+) -> CustomResult<Option<utils::WebhookPayload>, errors::ApiErrorResponse> {
+    let merchant_surcharge_connector = state
+        .store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            platform.get_provider().get_account().get_id(),
+            &merchant_surcharge_connector_id,
+            platform.get_provider().get_key_store(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_surcharge_connector_id
+                .get_string_repr()
+                .to_string(),
+        })?;
+
+    let connector_name = api::enums::SurchargeConnectors::from_str(
+        &merchant_surcharge_connector.connector_name,
+    )
+    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+        field_name: "connector",
+    })?;
+
+    let surcharge_event = match primary_event_type.to_surcharge_event() {
+        Some(event) => event,
+        None => return Ok(None),
+    };
+
+    if !connector_name.should_notify_connector(primary_event_type) {
+        return Ok(None);
+    }
+
+    let resource = match webhook_resource_data {
+        Some(r) => r,
+        None => return Ok(None),
+    };
+
+    let payment_attempt = resource.get_payment_attempt();
+
+    Ok(utils::WebhookPayload::build_surcharge_payload(
+        surcharge_event,
+        payment_attempt,
+        merchant_surcharge_connector_id,
+    ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -221,7 +211,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
                 "Failed to insert event and spawn webhook delivery for event type {}",
                 event_type
             );
-        })?;
+        });
     }
 
     Ok(())

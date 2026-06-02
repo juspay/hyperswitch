@@ -1919,6 +1919,22 @@ pub enum EventType {
     SurchargeRefundSucceeded,
 }
 
+/// Maps primary payment/refund events to their corresponding surcharge events
+pub trait SurchargeEventMapper {
+    /// Returns the surcharge event type corresponding to this primary event
+    fn to_surcharge_event(&self) -> Option<EventType>;
+}
+
+impl SurchargeEventMapper for EventType {
+    fn to_surcharge_event(&self) -> Option<EventType> {
+        match self {
+            EventType::PaymentSucceeded => Some(EventType::SurchargePaymentSucceeded),
+            EventType::RefundSucceeded => Some(EventType::SurchargeRefundSucceeded),
+            _ => None,
+        }
+    }
+}
+
 #[derive(
     Clone,
     Copy,

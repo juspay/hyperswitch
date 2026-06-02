@@ -229,12 +229,12 @@ pub enum SurchargeConnectors {
 }
 
 impl SurchargeConnectors {
-    pub fn should_notify_connector(&self, event_type: EventType) -> bool {
-        match event_type {
-            EventType::SurchargePaymentSucceeded => {
+    pub fn should_notify_connector(&self, primary_event: EventType) -> bool {
+        match primary_event {
+            EventType::PaymentSucceeded => {
                 matches!(self, Self::Interpayments)
             }
-            EventType::SurchargeRefundSucceeded => {
+            EventType::RefundSucceeded => {
                 matches!(self, Self::Interpayments)
             }
             _ => false,
