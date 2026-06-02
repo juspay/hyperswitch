@@ -1195,12 +1195,14 @@ impl
             payment_method_subtype,
             created: item.created_at,
             last_used_at: item.last_used_at,
-            recurring_enabled: Some(psp_tokenization_enabled.unwrap_or(false)),
+            recurring_enabled,
             payment_method_data,
             requires_cvv: true,
             is_default,
             billing: payment_method_billing,
             network_tokenization: network_token_resp,
+            connector_tokens,
+            network_transaction_id,
         })
     }
 }
