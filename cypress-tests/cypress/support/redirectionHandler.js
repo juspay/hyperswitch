@@ -205,9 +205,11 @@ export function handleInespayRedirectFlow(nextActionUrl) {
   // it in a custom component.  We probe several common selectors and fall
   // back to the first visible input.
   cy.get("body", { timeout: 15000 }).then(($body) => {
-    let otpInput = $body.find(
-      'input[type="tel"], input[inputmode="numeric"], input[name*="otp"], input[id*="otp"], input[placeholder*="OTP"], input[autocomplete="one-time-code"]'
-    ).filter(":visible");
+    let otpInput = $body
+      .find(
+        'input[type="tel"], input[inputmode="numeric"], input[name*="otp"], input[id*="otp"], input[placeholder*="OTP"], input[autocomplete="one-time-code"]'
+      )
+      .filter(":visible");
 
     if (otpInput.length === 0) {
       otpInput = $body.find("input").filter(":visible");
