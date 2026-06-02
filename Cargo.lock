@@ -8086,6 +8086,7 @@ dependencies = [
  "storage_impl",
  "strum 0.26.3",
  "subscriptions",
+ "superposition_sdk",
  "tera",
  "test_utils",
  "thiserror 1.0.69",
