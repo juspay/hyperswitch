@@ -53,7 +53,8 @@ describe("[Payout] Entity Type", () => {
         ]["sepa_bank_transfer"][key];
 
         cy.createConfirmPayoutTest(payoutBody, data, true, true, globalState);
-        if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payout-call-test", () => {
