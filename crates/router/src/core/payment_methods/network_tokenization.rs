@@ -149,6 +149,7 @@ pub async fn mk_tokenization_req(
         card_data: Secret::new(jwt),
         order_data,
         should_send_token: true,
+        key_id: Secret::new(key_id.clone()),
     };
     let masked_request_body = api_payload
         .masked_serialize()
@@ -318,6 +319,7 @@ pub async fn generate_network_token(
         card_data: Secret::new(jwt),
         order_data,
         should_send_token: true,
+        key_id: Secret::new(key_id.clone()),
     };
     let masked_request_body = api_payload
         .masked_serialize()
