@@ -235,6 +235,7 @@ impl WebhookDeliveryResponse for NotifyConnectorResponseData {
 /// - [`ConnectorWebhook`]: reserved for delivering connector-facing webhooks
 #[async_trait::async_trait]
 pub(crate) trait WebhookTrigger: Send + Sync {
+    #[allow(clippy::too_many_arguments)]
     async fn trigger_and_raise(
         &self,
         state: SessionState,

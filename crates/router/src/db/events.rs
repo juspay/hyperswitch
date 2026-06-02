@@ -169,6 +169,7 @@ where
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError>;
 
+    #[allow(clippy::too_many_arguments)]
     async fn count_initial_events_by_initiator_merchant_id_constraints(
         &self,
         initiator_merchant_id: &common_utils::id_type::MerchantId,
