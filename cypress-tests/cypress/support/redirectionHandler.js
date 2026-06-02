@@ -3120,5 +3120,3 @@ export function handleGlobepayQRRedirection(nextActionUrl) {
     "Globepay inline QR code verified via data URI — no redirect expected"
   );
 }
-
-
