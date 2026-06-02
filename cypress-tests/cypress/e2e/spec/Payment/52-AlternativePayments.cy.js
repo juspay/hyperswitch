@@ -15,11 +15,11 @@ describe("Airwallex Alternative Payments", () => {
       .then((state) => {
         globalState = new State(state);
         const connector = globalState.get("connectorId");
-        const airwallexLists = [
-          CONNECTOR_LISTS.INCLUDE.AIRWALLEX_WALLET,
-          CONNECTOR_LISTS.INCLUDE.AIRWALLEX_PAYLATER,
+        const inclusionLists = [
+          CONNECTOR_LISTS.INCLUDE.WALLET_PM,
+          CONNECTOR_LISTS.INCLUDE.PAYLATER_PM,
         ];
-        const shouldRun = airwallexLists.some((list) =>
+        const shouldRun = inclusionLists.some((list) =>
           list.includes(connector)
         );
         if (!shouldRun) {
