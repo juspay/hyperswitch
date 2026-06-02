@@ -530,7 +530,7 @@ export const CONNECTOR_LISTS = {
       "paypal",
       "stripe",
     ],
-    BANK_DEBIT: ["adyen", "novalnet", "payload"], // payload verified as working
+    BANK_DEBIT: ["adyen", "novalnet", "payload", "wellsfargo"], // payload verified as working
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
     BANK_REDIRECT_MANDATE: ["adyen"],
     BLUECODE_WALLET: ["calida"],
@@ -577,6 +577,7 @@ export const CONNECTOR_LISTS = {
     AFFIRM_PAY_LATER: ["affirm"],
     EXTEND_AUTHORIZATION: ["adyen", "paypal"],
     GIFT_CARD: ["adyen"],
+    VOUCHER: ["adyen"],
     RELAY_OPERATIONS: ["bankofamerica"],
     PAY_LATER: [
       "klarna",
