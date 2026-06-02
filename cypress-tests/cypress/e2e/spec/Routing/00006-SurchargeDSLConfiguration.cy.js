@@ -16,6 +16,22 @@ describe("Surcharge DSL Configuration Test", () => {
       });
   });
 
+  beforeEach(function () {
+    // Surcharge DSL endpoints require JWT auth in release builds (integ/sandbox).
+    // Skip these tests on environments where api-key auth is not accepted.
+    const baseUrl = globalState.get("baseUrl") || "";
+    if (
+      baseUrl.includes("integ") ||
+      baseUrl.includes("sandbox") ||
+      baseUrl.includes("prod")
+    ) {
+      cy.log(
+        "SKIPPED: Surcharge DSL tests require JWT authentication on this environment (release build)."
+      );
+      this.skip();
+    }
+  });
+
   afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
@@ -31,7 +47,7 @@ describe("Surcharge DSL Configuration Test", () => {
         merchant_surcharge_configs: {},
         algorithm: {
           defaultSelection: {
-            surchargeDetails: {
+            surcharge_details: {
               surcharge: {
                 type: "rate",
                 value: {
@@ -87,7 +103,7 @@ describe("Surcharge DSL Configuration Test", () => {
         merchant_surcharge_configs: {},
         algorithm: {
           defaultSelection: {
-            surchargeDetails: {
+            surcharge_details: {
               surcharge: {
                 type: "fixed",
                 value: {
@@ -136,7 +152,7 @@ describe("Surcharge DSL Configuration Test", () => {
         },
         algorithm: {
           defaultSelection: {
-            surchargeDetails: {
+            surcharge_details: {
               surcharge: {
                 type: "rate",
                 value: {
@@ -149,13 +165,14 @@ describe("Surcharge DSL Configuration Test", () => {
             {
               name: "Card Rule",
               connectorSelection: {
-                surchargeDetails: {
+                surcharge_details: {
                   surcharge: {
                     type: "rate",
                     value: {
                       percentage: 3.0,
                     },
                   },
+                  tax_on_surcharge: null,
                 },
               },
               statements: [
@@ -178,13 +195,14 @@ describe("Surcharge DSL Configuration Test", () => {
             {
               name: "PayPal Rule",
               connectorSelection: {
-                surchargeDetails: {
+                surcharge_details: {
                   surcharge: {
                     type: "fixed",
                     value: {
                       amount: 200,
                     },
                   },
+                  tax_on_surcharge: null,
                 },
               },
               statements: [

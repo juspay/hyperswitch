@@ -5520,7 +5520,7 @@ Cypress.Commands.add(
             .to.have.property("modified_at")
             .that.is.a("number");
           expect(response.body)
-            .to.have.property("merchantSurchargeConfigs")
+            .to.have.property("merchant_surcharge_configs")
             .that.is.an("object");
 
           for (const key in resData.body) {
@@ -5530,7 +5530,7 @@ Cypress.Commands.add(
           if (response.body.algorithm) {
             expect(response.body.algorithm).to.have.property("metadata");
             expect(response.body.algorithm.defaultSelection).to.have.property(
-              "surchargeDetails"
+              "surcharge_details"
             );
             expect(response.body.algorithm.rules).to.be.an("array");
           }
@@ -5651,7 +5651,7 @@ Cypress.Commands.add("retrieveSurchargeDSLConfig", (data, globalState) => {
           .to.have.property("modified_at")
           .that.is.a("number");
         expect(response.body)
-          .to.have.property("merchantSurchargeConfigs")
+          .to.have.property("merchant_surcharge_configs")
           .that.is.an("object");
         for (const key in resData.body) {
           if (key === "name" || key === "algorithm") continue;
@@ -5659,7 +5659,7 @@ Cypress.Commands.add("retrieveSurchargeDSLConfig", (data, globalState) => {
         }
         if (response.body.algorithm) {
           expect(response.body.algorithm).to.have.property("metadata");
-          expect(response.body.algorithm.default_selection).to.have.property(
+          expect(response.body.algorithm.defaultSelection).to.have.property(
             "surcharge_details"
           );
           expect(response.body.algorithm.rules).to.be.an("array");
