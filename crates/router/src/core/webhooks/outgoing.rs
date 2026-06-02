@@ -592,22 +592,29 @@ async fn trigger_webhook_to_connector(
 
     let connector_name = mca.connector_name.clone();
 
-    let response = crate::core::unified_connector_service::call_unified_connector_service_for_notify_connector(
-            &state,
+    let (notify_request, connector_auth_metadata, notify_event_type) =
+        crate::core::unified_connector_service::build_notify_connector_request(
             &event,
             request_content,
             &provider_merchant_id,
-            business_profile.get_id(),
             MerchantConnectorAccountType::DbVal(Box::new(mca)),
-            connector_name
+            connector_name,
+        ).change_context(errors::WebhooksFlowError::WebhookRequestConstructionFailed)?;
+
+    let response = crate::core::unified_connector_service::call_unified_connector_service_for_notify_connector(
+            &state,
+            &event,
+            connector_auth_metadata,
+            notify_request,
+            notify_event_type,
+            &provider_merchant_id,
+            business_profile.get_id(),
         )
         .await;
 
     match delivery_attempt {
         enums::WebhookDeliveryAttempt::InitialAttempt => match response {
-            Err(error) => {
-                let client_error =
-                    error.change_context(errors::ApiClientError::InternalServerErrorReceived);
+            Err(client_error) => {
                 api_client_error_handler(
                     state.clone(),
                     merchant_key_store.clone(),
@@ -672,13 +679,13 @@ async fn trigger_webhook_to_connector(
                 .change_context(errors::WebhooksFlowError::OutgoingWebhookRetrySchedulingFailed)
                 .attach_printable("`process_tracker` is unavailable in automatic retry flow")?;
             match response {
-                Err(error) => {
+                Err(client_error) => {
                     api_client_error_handler(
                         state.clone(),
                         merchant_key_store.clone(),
                         &business_profile.merchant_id,
                         &event.event_id,
-                        error.change_context(errors::ApiClientError::InternalServerErrorReceived),
+                        client_error,
                         delivery_attempt,
                         ScheduleWebhookRetry::WithProcessTracker(Box::new(process_tracker)),
                     )
@@ -724,13 +731,13 @@ async fn trigger_webhook_to_connector(
             }
         }
         enums::WebhookDeliveryAttempt::ManualRetry => match response {
-            Err(error) => {
+            Err(client_error) => {
                 api_client_error_handler(
                     state.clone(),
                     merchant_key_store.clone(),
                     &business_profile.merchant_id,
                     &event.event_id,
-                    error.change_context(errors::ApiClientError::InternalServerErrorReceived),
+                    client_error,
                     delivery_attempt,
                     ScheduleWebhookRetry::NoSchedule,
                 )
@@ -1353,15 +1360,15 @@ async fn api_client_error_handler(
         state.clone(),
         merchant_key_store,
         event_id,
-        "Unable to send request to merchant server".to_string(),
+        "Unable to send request to merchant/connector server".to_string(),
     )
     .await?;
 
-    let error = client_error.change_context(errors::WebhooksFlowError::CallToMerchantFailed);
+    let error = client_error.change_context(errors::WebhooksFlowError::WebhookCallFailed);
     logger::error!(
         ?error,
         ?delivery_attempt,
-        "An error occurred when sending webhook to merchant"
+        "An error occurred when sending webhook to merchant/connector"
     );
 
     if let ScheduleWebhookRetry::WithProcessTracker(process_tracker) = schedule_webhook_retry {

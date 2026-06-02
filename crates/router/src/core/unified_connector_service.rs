@@ -3159,29 +3159,27 @@ fn extract_notify_connector_content_from_request(
     }
 }
 
-/// Execute a notify connector call via UCS EventService.NotifyConnector.
-///
-/// This sends event notifications (e.g. surcharge payment succeeded) to the
-/// unified connector service so that downstream connectors can act on them.
-/// It does not go through the full RouterData machinery.
 #[cfg(all(feature = "oltp", feature = "v1"))]
 #[instrument(skip_all, fields(connector_name))]
-pub async fn call_unified_connector_service_for_notify_connector(
-    state: &SessionState,
+pub fn build_notify_connector_request(
     event: &Event,
     request_content: OutgoingWebhookRequestContent,
     merchant_id: &id_type::MerchantId,
-    profile_id: &id_type::ProfileId,
     merchant_connector_account: MerchantConnectorAccountType,
     connector_name: String,
-) -> RouterResult<hyperswitch_domain_models::router_response_types::NotifyConnectorResponseData> {
-    let connector_auth_metadata = build_unified_connector_service_auth_metadata(
-        merchant_connector_account,
-        &merchant_id,
-        connector_name.clone(),
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to build UCS auth metadata for surcharge calculate")?;
+) -> RouterResult<(
+    payments_grpc::NotifyConnectorRequest,
+    ConnectorAuthMetadata,
+    payments_grpc::NotifyEventType,
+)> {
+    let connector_auth_metadata: ConnectorAuthMetadata =
+        build_unified_connector_service_auth_metadata(
+            merchant_connector_account,
+            &merchant_id,
+            connector_name.clone(),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to build UCS auth metadata for surcharge calculate")?;
 
     let notify_event_type = match event.event_type {
         api_models::enums::EventType::SurchargePaymentSucceeded => {
@@ -3199,17 +3197,40 @@ pub async fn call_unified_connector_service_for_notify_connector(
     };
 
     // Build NotifyConnectorRequest
-    let notify_request = payments_grpc::NotifyConnectorRequest {
-        merchant_id: merchant_id.get_string_repr().to_owned(),
-        event_id: event.event_id.clone(),
-        event_type: notify_event_type.into(),
-        content: Some(extract_notify_connector_content_from_request(
-            request_content,
-        )?),
-        timestamp: event.created_at.assume_utc().unix_timestamp(),
-    };
+    Ok((
+        payments_grpc::NotifyConnectorRequest {
+            merchant_id: merchant_id.get_string_repr().to_owned(),
+            event_id: event.event_id.clone(),
+            event_type: notify_event_type.into(),
+            content: Some(extract_notify_connector_content_from_request(
+                request_content,
+            )?),
+            timestamp: event.created_at.assume_utc().unix_timestamp(),
+        },
+        connector_auth_metadata,
+        notify_event_type,
+    ))
+}
 
-    // Build gRPC headers
+/// Execute a notify connector call via UCS EventService.NotifyConnector.
+///
+/// This sends event notifications (e.g. surcharge payment succeeded) to the
+/// unified connector service so that downstream connectors can act on them.
+/// It does not go through the full RouterData machinery.
+#[cfg(all(feature = "oltp", feature = "v1"))]
+#[instrument(skip_all, fields(connector_name))]
+pub async fn call_unified_connector_service_for_notify_connector(
+    state: &SessionState,
+    event: &Event,
+    connector_auth_metadata: ConnectorAuthMetadata,
+    notify_request: payments_grpc::NotifyConnectorRequest,
+    notify_event_type: payments_grpc::NotifyEventType,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+) -> CustomResult<
+    hyperswitch_domain_models::router_response_types::NotifyConnectorResponseData,
+    errors::ApiClientError,
+> {
     let lineage_ids = LineageIds::new(merchant_id.clone(), profile_id.clone());
     let merchant_reference_id = id_type::PaymentReferenceId::from_str(&event.primary_object_id)
         .inspect_err(
@@ -3226,24 +3247,25 @@ pub async fn call_unified_connector_service_for_notify_connector(
         .resource_id(None);
 
     let grpc_headers = grpc_header_builder.build();
-    let ucs_client = get_ucs_client(state)?;
+    let ucs_client =
+        get_ucs_client(state).change_context(errors::ApiClientError::ClientConstructionFailed)?;
 
     let response = ucs_client
         .notify_connector(
             notify_request,
             connector_auth_metadata,
             grpc_headers,
-            notify_event_type,
+            notify_event_type.into(),
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiClientError::UnexpectedServerResponse)
         .attach_printable("UCS notify_connector gRPC call failed")?;
 
     let notify_connector_response_data =
         hyperswitch_domain_models::router_response_types::NotifyConnectorResponseData::foreign_try_from(
             response.into_inner(),
         )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiClientError::ResponseDecodingFailed)
         .attach_printable("Failed to parse UCS notify_connector response")?;
 
     Ok(notify_connector_response_data)
