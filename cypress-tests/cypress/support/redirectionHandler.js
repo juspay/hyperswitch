@@ -58,9 +58,9 @@ export function handleInespayRedirectFlow(nextActionUrl) {
 
   // ── Step 0: Click "close" button to dismiss any modal ───────────────
   cy.get("body", { timeout: 15000 }).then(($body) => {
-    const closeBtn = $body.find("button").filter((_, btn) =>
-      /close/i.test(btn.textContent.trim())
-    );
+    const closeBtn = $body
+      .find("button")
+      .filter((_, btn) => /close/i.test(btn.textContent.trim()));
     if (closeBtn.length > 0) {
       cy.wrap(closeBtn.first(), { timeout: 5000 })
         .should("be.visible")
@@ -250,9 +250,7 @@ export function handleInespayRedirectFlow(nextActionUrl) {
   cy.wait(3000);
 
   // ── Final Validation: wait for redirect back to Hyperswitch ────────
-  cy.log(
-    "Waiting for redirect back to Hyperswitch after OTP submission..."
-  );
+  cy.log("Waiting for redirect back to Hyperswitch after OTP submission...");
   cy.url({ timeout: 90000 }).should((url) => {
     const isBack =
       /localhost/i.test(url) ||
