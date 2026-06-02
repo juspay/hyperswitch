@@ -1,0 +1,663 @@
+import { customerAcceptance } from "./Commons";
+import { getCustomExchange } from "./Modifiers";
+const TIMEOUT = 5000;
+
+const successfulNo3DSCardDetails = {
+  card_number: "4470330769941000",
+  card_exp_month: "01",
+  card_exp_year: "27",
+  card_holder_name: "AUTHORISED",
+  card_cvc: "123",
+};
+
+const failurefulNo3DSCardDetails = {
+  card_number: "4488282659650110",
+  card_exp_month: "01",
+  card_exp_year: "27",
+  card_holder_name: "AUTHORISED",
+  card_cvc: "123",
+};
+
+// Vantiv certification test card for partial authorization (Table 2.1.10)
+// Returns PartiallyApproved (response code 010) at 80% of requested amount
+const partialAuthCardDetails = {
+  card_number: "4457010140000141",
+  card_exp_month: "09",
+  card_exp_year: "27",
+  card_holder_name: "AUTHORISED",
+  card_cvc: "123",
+};
+
+const singleUseMandateData = {
+  customer_acceptance: customerAcceptance,
+  mandate_type: {
+    single_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
+};
+
+const multiUseMandateData = {
+  customer_acceptance: customerAcceptance,
+  mandate_type: {
+    multi_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
+};
+
+const successfulThreeDSTestCardDetails = {
+  card_number: "4242424242424242",
+  card_exp_month: "01",
+  card_exp_year: "27",
+  card_holder_name: "Joseph",
+  card_cvc: "123",
+};
+
+export const connectorDetails = {
+  card_pm: {
+    PaymentIntent: {
+      Request: {
+        currency: "USD",
+        amount: 5000,
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentIntentWithShippingCost: {
+      Request: {
+        currency: "USD",
+        amount: 5000,
+        shipping_cost: 50,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          amount: 5000,
+          shipping_cost: 50,
+        },
+      },
+    },
+    PaymentConfirmWithShippingCost: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+          shipping_cost: 50,
+          amount: 5000,
+          net_amount: 5050,
+        },
+      },
+    },
+    "3DSManualCapture": getCustomExchange({
+      Request: {
+        amount: 5000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+    }),
+    "3DSAutoCapture": getCustomExchange({
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
+      Request: {
+        payment_method: "card",
+        amount: 5000,
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+    }),
+    No3DSManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
+      Request: {
+        description: "Test description",
+        payment_method: "card",
+        amount: 5000,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    No3DSAutoCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
+      Request: {
+        payment_method: "card",
+        amount: 5000,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    Capture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
+      Request: {
+        amount_to_capture: 5000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+          amount: 5000,
+        },
+      },
+    },
+    PartialCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
+      Request: {
+        amount_to_capture: 2000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+          amount: 5000,
+        },
+      },
+    },
+    Void: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "cancelled",
+        },
+      },
+    },
+    MITAutoCapture: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    ZeroAuthMandate: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_id: "cus_76452543",
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    ZeroAuthPaymentIntent: {
+      Request: {
+        amount: 0,
+        setup_future_usage: "off_session",
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    ZeroAuthConfirmPayment: {
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    SaveCardUseNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        amount: 5000,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        setup_future_usage: "on_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    SaveCardUseNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        amount: 5000,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        setup_future_usage: "on_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    VoidAfterConfirm: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+          amount: 5000,
+        },
+      },
+    },
+    manualPaymentPartialRefund: {
+      Request: {
+        amount: 2000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    manualPaymentRefund: {
+      Request: {
+        amount: 5000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    MandateMultiUseNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MandateSingleUseNo3DSAutoCapture: {
+      //Skipping this test as Worldpayvantiv does not support mandates and however setup future usage is downgraded to on_session
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MandateMultiUseNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    MandateSingleUseNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    Refund: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
+      Request: {
+        amount: 5000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    SyncRefund: {
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    PartialRefund: {
+      Request: {
+        amount: 2000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    SaveCardUseNo3DSAutoCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    SaveCardConfirmAutoCaptureOffSession: {
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    SaveCardUseNo3DSManualCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    SaveCardConfirmManualCaptureOffSession: {
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          connector_mandate_id: null,
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: failurefulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "Insufficient Funds",
+        },
+      },
+    },
+    // Worldpayvantiv does not support L2/L3 data processing in test environment
+    // Requires special credential configuration that is not available in sandbox
+    L2L3Data: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    PaymentIntentOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        authentication_type: "no_three_ds",
+        customer_acceptance: null,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    PartialAuth: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: partialAuthCardDetails,
+        },
+        amount: 5000,
+        enable_partial_authorization: true,
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "partially_captured",
+          amount: 5000,
+          amount_received: 4000,
+        },
+      },
+    },
+  },
+};
