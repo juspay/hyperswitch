@@ -171,10 +171,6 @@ impl BackwardCompatWorkflowBuilder<BackwardContextLoaded> {
 }
 
 impl BackwardCompatWorkflowBuilder<BackwardPaymentMethodLoaded> {
-    fn is_complete(&self) -> bool {
-        self.payment_method().compatibility_updated_at == Some(self.payment_method().last_modified)
-    }
-
     fn should_skip(&self) -> bool {
         self.payment_method().version == common_enums::ApiVersion::V1
             && self.payment_method().compatibility_updated_at
@@ -819,13 +815,7 @@ pub async fn run_payment_method_modular_backward_compat_backfill(
         )?;
     let workflow = workflow.load_payment_method(payment_method);
 
-    if workflow.is_complete() {
-        logger::info!(
-            process_id=%process_id,
-            payment_method_id=%workflow.tracking_data().payment_method_id,
-            "Skipping modular backward compatibility backfill because compatibility timestamp is current"
-        );
-    } else if workflow.should_skip() {
+    if workflow.should_skip() {
         logger::info!(
             process_id=%process_id,
             payment_method_id=%workflow.tracking_data().payment_method_id,
