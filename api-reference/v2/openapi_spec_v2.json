@@ -11147,6 +11147,7 @@
       "Connector": {
         "type": "string",
         "enum": [
+          "absa_sanlam",
           "authipay",
           "adyenplatform",
           "stripe_billing_test",
@@ -11260,7 +11261,6 @@
           "recurly",
           "redsys",
           "revolv3",
-          "sanlam",
           "santander",
           "shift4",
           "silverflow",
@@ -26570,6 +26570,12 @@
             "description": "Individual taxpayer identification number",
             "example": "000123456",
             "nullable": true
+          },
+          "ispb": {
+            "type": "string",
+            "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
+            "example": "60701190",
+            "nullable": true
           }
         }
       },
@@ -26809,6 +26815,12 @@
             "type": "string",
             "description": "String formatted QR code for pix payout",
             "example": "00020126580014br.gov.bcb.pix0114000123456785204000053039865802BR5925John Doe6009Sao Paulo61080540900062070503***63041D3D"
+          },
+          "ispb": {
+            "type": "string",
+            "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
+            "example": "60701190",
+            "nullable": true
           }
         }
       },
@@ -28008,8 +28020,41 @@
                 "$ref": "#/components/schemas/BankDebitDetail"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "proxy_card"
+            ],
+            "properties": {
+              "proxy_card": {
+                "$ref": "#/components/schemas/RawProxyCardDataResponse"
+              }
+            }
           }
         ]
+      },
+      "RawProxyCardDataResponse": {
+        "type": "object",
+        "required": [
+          "card_number"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "example": "4111111145551142"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "example": "25",
+            "nullable": true
+          },
+          "card_exp_month": {
+            "type": "string",
+            "example": "10",
+            "nullable": true
+          }
+        }
       },
       "RealTimePaymentData": {
         "oneOf": [
@@ -29189,6 +29234,7 @@
         "type": "string",
         "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
+          "absa_sanlam",
           "authipay",
           "adyenplatform",
           "stripe_billing_test",
@@ -29296,7 +29342,6 @@
           "redsys",
           "revolv3",
           "riskified",
-          "sanlam",
           "santander",
           "shift4",
           "signifyd",

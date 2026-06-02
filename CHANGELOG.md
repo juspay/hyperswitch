@@ -4,6 +4,31 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.02.0
+
+### Features
+
+- **core:** Added Payout Connector Header for UCS call ([#12453](https://github.com/juspay/hyperswitch/pull/12453)) ([`1b34aa2`](https://github.com/juspay/hyperswitch/commit/1b34aa2a50437197b3091ba4b8f16242917088fa))
+- **payment-methods:** Retrieve external vault tokens in the retrieve response ([#12437](https://github.com/juspay/hyperswitch/pull/12437)) ([`7aad849`](https://github.com/juspay/hyperswitch/commit/7aad84927f483da64580a1efc7acc390ac98a38e))
+- **payout:** Collect ispb in pix bank transfer payout ([#12268](https://github.com/juspay/hyperswitch/pull/12268)) ([`f538f9f`](https://github.com/juspay/hyperswitch/commit/f538f9fcca8c8b0f748b6bf7d933cf19ce68f0d5))
+
+### Bug Fixes
+
+- **cypress:** Fix bluesnap card ([#12525](https://github.com/juspay/hyperswitch/pull/12525)) ([`a705691`](https://github.com/juspay/hyperswitch/commit/a705691a0e8d2833aaa5bd11bac98192d92483fd))
+- **webhooks:** Build events indexes concurrently and allow profile update ([#12463](https://github.com/juspay/hyperswitch/pull/12463)) ([`7ca98a9`](https://github.com/juspay/hyperswitch/commit/7ca98a94b0638b714569a3d3345e424202637a5d))
+
+### Testing
+
+- **cypress:** Add Forex Rates coverage for platform ([#12415](https://github.com/juspay/hyperswitch/pull/12415)) ([`2b5e12b`](https://github.com/juspay/hyperswitch/commit/2b5e12bf674d41c6774d41931ca8259cf7aca46a))
+
+### Miscellaneous Tasks
+
+- Change Sanlam connector name to AbsaSanlam ([#12460](https://github.com/juspay/hyperswitch/pull/12460)) ([`70e8497`](https://github.com/juspay/hyperswitch/commit/70e8497bf7068c2643f70c8c7806b4d93de7432a))
+
+**Full Changelog:** [`2026.06.01.0...2026.06.02.0`](https://github.com/juspay/hyperswitch/compare/2026.06.01.0...2026.06.02.0)
+
+- - -
+
 ## 2026.06.01.0
 
 ### Features
