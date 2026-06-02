@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
-use common_utils::ext_traits::AsyncExt;
+use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::mandates;
 use router_derive::PaymentOperation;
@@ -144,16 +144,32 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             None,
         ))
         .await?;
+
+        // Priority: request > payment_attempt > payment_method_info
+        // If payment_method_info is present but customer_acceptance is missing/invalid, return an error
         let customer_acceptance: Option<CustomerAcceptance> =
-            request.customer_acceptance.clone().or(payment_method_info
-                .clone()
-                .map(|pm| {
+            if let Some(ca) = request.customer_acceptance.clone() {
+                Some(ca)
+            } else if let Some(ca) = payment_attempt.customer_acceptance.clone() {
+                Some(
+                    ca.parse_value::<CustomerAcceptance>("CustomerAcceptance")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to deserialize customer_acceptance from payment_attempt",
+                        )?,
+                )
+            } else if let Some(pm) = payment_method_info.clone() {
+                Some(
                     pm.customer_acceptance
                         .parse_value::<CustomerAcceptance>("CustomerAcceptance")
-                })
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to deserialize to CustomerAcceptance")?);
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to deserialize customer_acceptance from payment_method_info",
+                        )?,
+                )
+            } else {
+                None
+            };
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
         if let Some(payment_method) = payment_method {
