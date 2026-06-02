@@ -1629,8 +1629,11 @@ impl PaymentAttemptInterface for KafkaStore {
     }
 
     #[cfg(feature = "v1")]
-    async fn update_payment_attempt_with_attempt_id(
+    async fn update_payment_attempt_with_payment_id_processor_merchant_id_attempt_id(
         &self,
+        payment_id: &id_type::PaymentId,
+        processor_merchant_id: &id_type::MerchantId,
+        attempt_id: &str,
         this: storage::PaymentAttempt,
         payment_attempt: storage::PaymentAttemptUpdate,
         storage_scheme: MerchantStorageScheme,
@@ -1638,7 +1641,10 @@ impl PaymentAttemptInterface for KafkaStore {
     ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
         let mut attempt = self
             .diesel_store
-            .update_payment_attempt_with_attempt_id(
+            .update_payment_attempt_with_payment_id_processor_merchant_id_attempt_id(
+                payment_id,
+                processor_merchant_id,
+                attempt_id,
                 this.clone(),
                 payment_attempt.clone(),
                 storage_scheme,

@@ -12151,7 +12151,10 @@ pub async fn payments_manual_update(
     };
     let updated_payment_attempt = state
         .store
-        .update_payment_attempt_with_attempt_id(
+        .update_payment_attempt_with_payment_id_processor_merchant_id_attempt_id(
+            &payment_attempt.payment_id,
+            &payment_attempt.processor_merchant_id,
+            &payment_attempt.attempt_id,
             payment_attempt.clone(),
             attempt_update,
             merchant_account.storage_scheme,
@@ -12279,9 +12282,15 @@ pub async fn payments_manual_status_update(
         updated_by: merchant_account.storage_scheme.to_string(),
     };
 
+    let pa_payment_id = payment_attempt.payment_id.clone();
+    let pa_processor_merchant_id = payment_attempt.processor_merchant_id.clone();
+    let pa_attempt_id = payment_attempt.attempt_id.clone();
     let updated_payment_attempt = state
         .store
-        .update_payment_attempt_with_attempt_id(
+        .update_payment_attempt_with_payment_id_processor_merchant_id_attempt_id(
+            &pa_payment_id,
+            &pa_processor_merchant_id,
+            &pa_attempt_id,
             payment_attempt,
             attempt_update,
             merchant_account.storage_scheme,

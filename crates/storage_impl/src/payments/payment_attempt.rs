@@ -112,8 +112,11 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
 
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
-    async fn update_payment_attempt_with_attempt_id(
+    async fn update_payment_attempt_with_payment_id_processor_merchant_id_attempt_id(
         &self,
+        _payment_id: &common_utils::id_type::PaymentId,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
+        _attempt_id: &str,
         this: PaymentAttempt,
         payment_attempt: PaymentAttemptUpdate,
         _storage_scheme: MerchantStorageScheme,
@@ -1017,18 +1020,21 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
 
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
-    async fn update_payment_attempt_with_attempt_id(
+    async fn update_payment_attempt_with_payment_id_processor_merchant_id_attempt_id(
         &self,
+        payment_id: &common_utils::id_type::PaymentId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        attempt_id: &str,
         this: PaymentAttempt,
         payment_attempt: PaymentAttemptUpdate,
         storage_scheme: MerchantStorageScheme,
         merchant_key_store: &MerchantKeyStore,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
         let key = PartitionKey::MerchantIdPaymentId {
-            merchant_id: &this.processor_merchant_id,
-            payment_id: &this.payment_id,
+            merchant_id: processor_merchant_id,
+            payment_id,
         };
-        let field = format!("pa_{}", this.attempt_id);
+        let field = format!("pa_{}", attempt_id);
         let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPaymentAttempt>(
             self,
             storage_scheme,
@@ -1038,7 +1044,10 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
-                    .update_payment_attempt_with_attempt_id(
+                    .update_payment_attempt_with_payment_id_processor_merchant_id_attempt_id(
+                        payment_id,
+                        processor_merchant_id,
+                        attempt_id,
                         this,
                         payment_attempt,
                         storage_scheme,

@@ -1727,7 +1727,7 @@ pub async fn get_payment_attempt_from_object_reference_id(
             .await
             .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound),
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::PaymentAttemptId(ref id)) => db
-            .find_payment_attempt_by_attempt_id_processor_merchant_id(
+            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 id,
                 processor.get_account().get_id(),
                 processor.get_account().storage_scheme,

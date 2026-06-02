@@ -451,7 +451,10 @@ where
             error_message: Some(Some(error_message.clone())),
             updated_by: processor.get_account().storage_scheme.to_string(),
         };
-        db.update_payment_attempt_with_attempt_id(
+        db.update_payment_attempt_with_payment_id_processor_merchant_id_attempt_id(
+            &payment_data.payment_attempt.payment_id,
+            &payment_data.payment_attempt.processor_merchant_id,
+            &payment_data.payment_attempt.attempt_id,
             payment_data.payment_attempt.clone(),
             attempt_update,
             processor.get_account().storage_scheme,

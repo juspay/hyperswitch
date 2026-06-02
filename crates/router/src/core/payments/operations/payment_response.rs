@@ -728,20 +728,28 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                             };
 
                         #[cfg(feature = "v1")]
-                        let respond = state
+                        let respond = {
+                            let pa_payment_id = payment_attempt.payment_id.clone();
+                            let pa_processor_merchant_id = payment_attempt.processor_merchant_id.clone();
+                            let pa_attempt_id = payment_attempt.attempt_id.clone();
+                            state
                             .store
-                            .update_payment_attempt_with_attempt_id(
+                            .update_payment_attempt_with_payment_id_processor_merchant_id_attempt_id(
+                                &pa_payment_id,
+                                &pa_processor_merchant_id,
+                                &pa_attempt_id,
                                 payment_attempt,
                                 payment_attempt_update,
                                 cloned_platform.get_processor().get_account().storage_scheme,
                                 cloned_platform.get_processor().get_key_store(),
                             )
-                            .await;
+                            .await
+                        };
 
                         #[cfg(feature = "v2")]
                         let respond = state
                             .store
-                            .update_payment_attempt_with_attempt_id(
+                            .update_payment_attempt(
                                 &(&state).into(),
                                 &key_store.clone(),
                                 payment_attempt,
@@ -895,7 +903,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
             {
                 payment_data.payment_attempt = state
                     .store
-                    .update_payment_attempt_with_attempt_id(
+                    .update_payment_attempt_with_payment_id_processor_merchant_id_attempt_id(
+                        &payment_data.payment_attempt.payment_id,
+                        &payment_data.payment_attempt.processor_merchant_id,
+                        &payment_data.payment_attempt.attempt_id,
                         payment_data.payment_attempt.clone(),
                         payment_attempt_update,
                         processor.get_account().storage_scheme,
@@ -909,7 +920,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
             {
                 payment_data.payment_attempt = state
                     .store
-                    .update_payment_attempt_with_attempt_id(
+                    .update_payment_attempt(
                         &state.into(),
                         processor.get_key_store(),
                         payment_data.payment_attempt.clone(),
@@ -1324,7 +1335,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTo
                         connector_metadata,
                     };
                 let updated_payment_attempt = m_db
-                    .update_payment_attempt_with_attempt_id(
+                    .update_payment_attempt_with_payment_id_processor_merchant_id_attempt_id(
+                        &payment_data.payment_attempt.payment_id,
+                        &payment_data.payment_attempt.processor_merchant_id,
+                        &payment_data.payment_attempt.attempt_id,
                         payment_data.payment_attempt.clone(),
                         payment_attempt_update,
                         processor.get_account().storage_scheme,
@@ -2770,15 +2784,23 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             Box::pin(async move {
                 Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(
                     match m_payment_attempt_update {
-                        Some(payment_attempt_update) => m_db
-                            .update_payment_attempt_with_attempt_id(
+                        Some(payment_attempt_update) => {
+                            let m_payment_id = m_payment_attempt.payment_id.clone();
+                            let m_processor_merchant_id = m_payment_attempt.processor_merchant_id.clone();
+                            let m_attempt_id = m_payment_attempt.attempt_id.clone();
+                            m_db
+                            .update_payment_attempt_with_payment_id_processor_merchant_id_attempt_id(
+                                &m_payment_id,
+                                &m_processor_merchant_id,
+                                &m_attempt_id,
                                 m_payment_attempt,
                                 payment_attempt_update,
                                 m_storage_scheme,
                                 &m_key_store,
                             )
                             .await
-                            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+                            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?
+                        }
                         None => m_payment_attempt,
                     },
                 )
