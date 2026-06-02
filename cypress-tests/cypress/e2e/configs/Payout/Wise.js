@@ -246,7 +246,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "requires_confirmation",
+            status: "initiated",
             payout_type: "bank",
             entity_type: "Company",
           },
@@ -270,7 +270,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "requires_confirmation",
+            status: "initiated",
             payout_type: "bank",
             entity_type: "Individual",
           },
@@ -295,7 +295,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "requires_confirmation",
+            status: "initiated",
             payout_type: "bank",
             entity_type: "Individual",
           },
@@ -347,7 +347,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "requires_confirmation",
+            status: "initiated",
             payout_type: "bank",
             entity_type: "NaturalPerson",
           },
@@ -372,7 +372,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "requires_confirmation",
+            status: "initiated",
             payout_type: "bank",
             entity_type: "NonProfit",
           },
@@ -397,7 +397,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "requires_confirmation",
+            status: "initiated",
             payout_type: "bank",
             entity_type: "Personal",
           },
@@ -422,7 +422,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "requires_confirmation",
+            status: "initiated",
             payout_type: "bank",
             entity_type: "PublicSector",
           },
