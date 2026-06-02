@@ -38389,6 +38389,48 @@
           }
         }
       },
+      "RecipientCardData": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "example": "4000000000009995"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "example": "03"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "example": "30"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "example": "John Doe",
+            "nullable": true
+          }
+        }
+      },
+      "RecipientPaymentMethodData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/RecipientCardData"
+              }
+            }
+          }
+        ]
+      },
       "RecommendedAction": {
         "type": "string",
         "enum": [
@@ -39039,6 +39081,17 @@
                 "$ref": "#/components/schemas/RelayVoidRequestData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "unreferenced_refund"
+            ],
+            "properties": {
+              "unreferenced_refund": {
+                "$ref": "#/components/schemas/RelayUnreferencedRefundData"
+              }
+            }
           }
         ]
       },
@@ -39216,8 +39269,34 @@
           "refund",
           "capture",
           "incremental_authorization",
-          "void"
+          "void",
+          "unreferenced_refund"
         ]
+      },
+      "RelayUnreferencedRefundData": {
+        "type": "object",
+        "required": [
+          "amount",
+          "currency",
+          "customer_id",
+          "recipient_payment_method_data"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "example": 6540
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "customer_id": {
+            "type": "string"
+          },
+          "recipient_payment_method_data": {
+            "$ref": "#/components/schemas/RecipientPaymentMethodData"
+          }
+        }
       },
       "RelayVoidRequestData": {
         "type": "object",
