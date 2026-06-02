@@ -1156,8 +1156,7 @@ impl
             payment_method_data: pmd,
         });
 
-        let psp_tokenization_enabled =
-            item.connector_mandate_details.as_ref().and_then(|details| {
+        let recurring_enabled = item.connector_mandate_details.as_ref().and_then(|details| {
                 details.payments.as_ref().map(|payments| {
                     payments.values().any(|connector_token_reference| {
                         connector_token_reference.connector_token_status
@@ -1202,9 +1201,6 @@ impl
             is_default,
             billing: payment_method_billing,
             network_tokenization: network_token_resp,
-            psp_tokenization_enabled: psp_tokenization_enabled.unwrap_or(false),
-            connector_tokens,
-            network_transaction_id,
         })
     }
 }
@@ -1247,7 +1243,6 @@ pub fn generate_payment_method_session_response(
             .billing
             .map(|address| address.into_inner())
             .map(From::from),
-        psp_tokenization: payment_method_session.psp_tokenization,
         network_tokenization: payment_method_session.network_tokenization,
         tokenization_data: payment_method_session.tokenization_data,
         expires_at: payment_method_session.expires_at,
