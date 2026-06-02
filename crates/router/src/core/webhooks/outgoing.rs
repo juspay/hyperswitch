@@ -629,7 +629,7 @@ async fn trigger_webhook_to_connector(
                 )
                 .await?;
 
-                if (200..300).contains(&status_code) {
+                if status_code >= 200 && status_code < 300 {
                     mark_surcharge_sale_as_notified(
                         &state,
                         &event,
@@ -694,7 +694,7 @@ async fn trigger_webhook_to_connector(
                     )
                     .await?;
 
-                    if (200..300).contains(&status_code) {
+                    if status_code >= 200 && status_code < 300 {
                         update_overall_delivery_status_in_storage(
                             state.clone(),
                             merchant_key_store.clone(),
@@ -746,7 +746,7 @@ async fn trigger_webhook_to_connector(
                 )
                 .await?;
 
-                if !(200..300).contains(&status_code) {
+                if !(status_code >= 200 && status_code < 300) {
                     error_response_handler(
                         state,
                         &business_profile.merchant_id,
