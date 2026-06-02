@@ -1915,7 +1915,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          refund_type: "instant",
         },
       },
     }),
@@ -1928,7 +1927,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "pending",
-          refund_type: "scheduled",
         },
       },
     }),

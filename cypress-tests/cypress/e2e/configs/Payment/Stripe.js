@@ -407,7 +407,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          refund_type: "instant",
           card_type: null,
           card_network: null,
           card_issuer: null,
@@ -424,7 +423,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "pending",
-          refund_type: "scheduled",
           card_type: null,
           card_network: null,
           card_issuer: null,
