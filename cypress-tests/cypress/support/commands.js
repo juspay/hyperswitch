@@ -35,7 +35,7 @@ import getConnectorDetails, {
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
-import { handleRedirection } from "./redirectionHandler";
+import { handleRedirection, handleInespayRedirectFlow } from "./redirectionHandler";
 
 // In MITM replay mode (MOCK_SERVER=true) there is no live browser redirection
 // to drive. Cypress.env may return a boolean or a string, hence String().
@@ -5255,154 +5255,14 @@ Cypress.Commands.add("handleGlobepayQRRedirection", (globalState) => {
 });
 
 /**
- * Automate the Inespay SEPA simulator redirect flow.
- * Navigates the Inespay simulator UI: contract/account selection + OTP.
+ * Thin wrapper: delegate Inespay redirect flow to redirectionHandler.js.
+ * Keeps the Cypress command registration here while the implementation lives
+ * in redirectionHandler.js (per PR reviewer feedback).
  */
 Cypress.Commands.add("handleInespayRedirectFlow", (globalState) => {
   const nextActionUrl = globalState.get("nextActionUrl");
   expect(nextActionUrl, "nextActionUrl should be present").to.be.a("string");
-
-  // Suppress uncaught exceptions from the simulator page
-  cy.on("uncaught:exception", () => false);
-
-  // Set up intercepts BEFORE the visit so we can wait for the XHRs
-  cy.intercept("GET", "**/contracts-list/**").as("contractsList");
-  cy.intercept("GET", "**/accounts-list**").as("accountsList");
-
-  // Visit the Inespay simulator page
-  cy.visit(nextActionUrl, { failOnStatusCode: false });
-
-  // Wait for the simulator page to load (not a 4xx/5xx error page)
-  cy.get("body", { timeout: 30000 }).should("be.visible");
-
-  // Wait for the simulator to load and dismiss any overlay.
-  cy.url({ timeout: 60000 }).should("match", /\/(accounts|authorize)/);
-  cy.get(".multiselect, .modal, form", { timeout: 30000 }).should("exist");
-  cy.wait(1000);
-
-  // Dismiss any overlay/modal that may be covering the multiselect
-  cy.get("body").then(($body) => {
-    if (
-      $body.find(".modal").length > 0 ||
-      $body.find(".modal-background").length > 0
-    ) {
-      const allButtons = $body.find("button");
-      let dismissed = false;
-      allButtons.each((_, btn) => {
-        if (!dismissed && /close/i.test(btn.textContent)) {
-          cy.wrap(btn).click({ force: true });
-          dismissed = true;
-        }
-      });
-      if (!dismissed) {
-        cy.get(".modal-background, .modal-close")
-          .first()
-          .click({ force: true });
-      }
-      cy.wait(800);
-    }
-  });
-
-  // Conditional: the simulator may auto-select SIMULADOR and skip login.
-  cy.url().then((url) => {
-    if (/\/accounts\//i.test(url)) {
-      cy.log(
-        "Already on accounts/contract page — skipping SIMULADOR selection and login"
-      );
-    } else {
-      // Step 1: Simulator Selection — open first multiselect, choose SIMULADOR, click continue
-      cy.get(".multiselect", { timeout: 15000 })
-        .first()
-        .should("exist")
-        .find(
-          ".multiselect__placeholder, .multiselect__single, .body-feature-input-placeholder"
-        )
-        .first()
-        .click({ force: true });
-      cy.wait(500);
-      cy.get(".multiselect__element", { timeout: 15000 })
-        .contains(/simulador/i)
-        .click({ force: true });
-      cy.contains("button", /continue/i, { timeout: 10000 }).click({
-        force: true,
-      });
-
-      // Step 2: Login Step — enter credentials and submit
-      cy.get('input[type="text"], input:not([type="password"])', {
-        timeout: 15000,
-      })
-        .first()
-        .should("be.visible")
-        .clear()
-        .type("user1");
-      cy.get('input[type="password"]', { timeout: 10000 })
-        .should("be.visible")
-        .first()
-        .clear()
-        .type("1234");
-      cy.contains("button", /access/i, { timeout: 10000 })
-        .should("be.visible")
-        .click();
-    }
-  });
-
-  // Step 3a: Contract & Account Selection
-  cy.url({ timeout: 30000 }).should("match", /\/accounts\//i);
-  cy.wait("@contractsList", { timeout: 15000 });
-  cy.wait(1000);
-
-  cy.get("#contracts .multiselect", { timeout: 5000 }).should("exist");
-  cy.get("#contracts .multiselect").click({ force: true });
-  cy.wait(500);
-
-  cy.get(".multiselect__element", { timeout: 10000 })
-    .contains(/contract\s*1/i)
-    .click({ force: true });
-
-  cy.wait("@accountsList", { timeout: 15000 });
-  cy.wait(500);
-
-  cy.get("#account .multiselect").click({ force: true });
-  cy.wait(500);
-
-  cy.get(".multiselect__option", { timeout: 10000 })
-    .first()
-    .click({ force: true });
-  cy.wait(500);
-
-  // Step 3c: Click confirm button
-  cy.contains("button", /confirm/i, { timeout: 15000 })
-    .and("not.be.disabled")
-    .click({ force: true });
-
-  // Step 4: OTP Verification
-  cy.url({ timeout: 20000 }).should("match", /\/validation\//i);
-  cy.wait(3000);
-
-  cy.get("input", { timeout: 20000 })
-    .filter(":visible")
-    .first()
-    .type("1111", { force: true });
-
-  cy.contains("button", /confirm/i, { timeout: 10000 }).click({
-    force: true,
-  });
-
-  // Step 5: Wait for redirect back to Hyperswitch
-  cy.log("Waiting for redirect back to Hyperswitch...");
-  cy.url({ timeout: 60000 }).should((url) => {
-    const isBack =
-      /localhost/i.test(url) ||
-      /status=(succeeded|success|completed)/i.test(url) ||
-      /payment_status=(succeeded|success|completed)/i.test(url) ||
-      /payment_id=/i.test(url);
-    expect(isBack, `Expected redirect back to localhost, got: ${url}`).to.be
-      .true;
-  });
-
-  cy.log(
-    "Inespay simulator redirect flow completed successfully — final payment status will be validated by Retrieve Payment step"
-  );
+  handleInespayRedirectFlow(nextActionUrl);
 });
 
 Cypress.Commands.add(
