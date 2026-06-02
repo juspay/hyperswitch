@@ -228,7 +228,7 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
             });
             let agnostic_mit =
                 self.is_connector_agnostic_mit_enabled && pm.network_transaction_id.is_some();
-            let recurring_enabled = Some(agnostic_mit || has_active_connector_token);
+            let recurring_enabled = agnostic_mit || has_active_connector_token;
 
             // requires_cvv mirrors the legacy logic (cards.rs list_customer_payment_method):
             // CVV is skipped when this is an off-session payment and the PM has a usable
@@ -252,17 +252,22 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
             // Build the client-facing response item.
             let payment_method_data = pm.payment_method_data.and_then(|d| d.into());
 
-            customer_payment_methods.push(CustomerPaymentMethodForClient {
-                payment_token,
-                payment_method: pm.payment_method_type,
-                payment_method_type: Some(pm.payment_method_subtype),
-                default_payment_method_set: pm.is_default,
-                requires_cvv,
-                recurring_enabled,
-                created: Some(pm.created),
-                last_used_at: Some(pm.last_used_at),
-                payment_method_data,
-            });
+            // Mirror the legacy `list_customer_payment_method` filter: skip PMs where
+            // CVV is not required (off-session + has tokens → CVV skipped) AND no
+            // active mandate exists. Such PMs are unusable and should not be surfaced.
+            if requires_cvv || recurring_enabled {
+                customer_payment_methods.push(CustomerPaymentMethodForClient {
+                    payment_token,
+                    payment_method: pm.payment_method_type,
+                    payment_method_type: Some(pm.payment_method_subtype),
+                    default_payment_method_set: pm.is_default,
+                    requires_cvv,
+                    recurring_enabled: Some(recurring_enabled),
+                    created: Some(pm.created),
+                    last_used_at: Some(pm.last_used_at),
+                    payment_method_data,
+                });
+            }
         }
 
         Ok(customer_payment_methods)
