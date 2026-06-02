@@ -27275,8 +27275,7 @@
             "type": "string",
             "description": "Identifier for the reseller's account where the funds were transferred"
           }
-        },
-        "additionalProperties": false
+        }
       },
       "StripeChargeType": {
         "type": "string",
