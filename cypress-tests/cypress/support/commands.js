@@ -9487,7 +9487,7 @@ Cypress.Commands.add("assertPaymentResponseHashEnabled", (globalState) => {
 });
 
 Cypress.Commands.add("verifyRedirectSignature", (globalState) => {
-  const redirectUrl = globalState.get("nextActionUrl");
+  const redirectUrl = globalState.get("redirectReturnUrl") || globalState.get("nextActionUrl");
 
   if (!redirectUrl) {
     cy.task(
@@ -9530,7 +9530,7 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
     "payment_response_hash_key should exist in global state"
   ).to.be.a("string").and.not.be.empty;
 
-  const redirectUrl = globalState.get("nextActionUrl");
+  const redirectUrl = globalState.get("redirectReturnUrl") || globalState.get("nextActionUrl");
 
   if (!redirectUrl) {
     cy.task(
@@ -9654,6 +9654,34 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
         );
       });
     });
+  });
+});
+
+Cypress.Commands.add("captureRedirectReturnUrl", (globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  const paymentId = globalState.get("paymentID");
+  const merchantId = globalState.get("merchantId");
+  let connectorId = globalState.get("connectorId");
+  if (connectorId === "stripeconnect") connectorId = "stripe";
+  const url = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/response/${connectorId}`;
+  cy.request({
+    method: "GET",
+    url,
+    followRedirect: false,
+    failOnStatusCode: false,
+  }).then((response) => {
+    if (response.status === 302 && response.headers.location) {
+      globalState.set("redirectReturnUrl", response.headers.location);
+      cy.task(
+        "cli_log",
+        "captureRedirectReturnUrl: captured redirect return URL with signature"
+      );
+    } else {
+      cy.task(
+        "cli_log",
+        `captureRedirectReturnUrl: unexpected status ${response.status}, no Location header`
+      );
+    }
   });
 });
 

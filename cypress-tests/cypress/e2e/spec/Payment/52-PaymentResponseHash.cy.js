@@ -43,40 +43,7 @@ function setup3DSPayment(gs, options = {}) {
   }
 
   if (shouldContinue) {
-    cy.then(() => {
-      const existingUrl = gs.get("nextActionUrl");
-      if (!existingUrl) {
-        const paymentId = gs.get("paymentID");
-        const baseUrl = gs.get("baseUrl");
-        const apiKey = gs.get("apiKey");
-        cy.request({
-          method: "GET",
-          url: `${baseUrl}/payments/${paymentId}`,
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": apiKey,
-          },
-          failOnStatusCode: false,
-        }).then((res) => {
-          if (
-            res.status === 200 &&
-            res.body.status === "requires_customer_action" &&
-            res.body.next_action?.redirect_to_url
-          ) {
-            gs.set("nextActionUrl", res.body.next_action.redirect_to_url);
-            cy.task(
-              "cli_log",
-              `setup3DSPayment: extracted redirect URL from GET /payments: ${res.body.next_action.redirect_to_url.substring(0, 120)}...`
-            );
-          }
-        });
-      } else {
-        cy.task(
-          "cli_log",
-          `setup3DSPayment: nextActionUrl already set from confirm response: ${existingUrl.substring(0, 120)}...`
-        );
-      }
-    });
+    cy.captureRedirectReturnUrl(gs);
   }
 
   if (includeRedirection && shouldContinue) {
