@@ -6258,7 +6258,7 @@ pub async fn payment_methods_session_retrieve(
 
 /// Stores `card_cvc` and `card_holder_name` as a `TemporaryCardToken` in Redis under `token`.
 #[cfg(feature = "v2")]
-async fn store_cvc_as_payment_token_in_redis(
+async fn store_cvc_and_card_holder_name_as_payment_token_in_redis(
     state: &SessionState,
     token: &str,
     card_cvc: Option<Secret<String>>,
@@ -6367,14 +6367,14 @@ pub async fn payment_methods_session_update_payment_method(
     // If only CVC/holder name are provided (no payment_method_token), this is a
     // temporary card token flow: store CVC in Redis and return a new token.
     // If a token is provided, re-use it (update the CVC stored under that token).
-    let has_cvc_only_data = card_cvc.is_some() || card_holder_name.is_some();
+    let has_cvc_and_card_holder_name_only_data = card_cvc.is_some() || card_holder_name.is_some();
 
     match request.payment_method_token.clone() {
-        None if has_cvc_only_data => {
+        None if has_cvc_and_card_holder_name_only_data => {
             // Generate a new token, store CVC + card_holder_name in Redis
             let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
 
-            store_cvc_as_payment_token_in_redis(
+            store_cvc_and_card_holder_name_as_payment_token_in_redis(
                 &state,
                 &parent_payment_method_token,
                 card_cvc,
@@ -6433,8 +6433,8 @@ pub async fn payment_methods_session_update_payment_method(
                 })?;
 
             // If CVC is present, refresh the TemporaryCardToken in Redis under the same token
-            if has_cvc_only_data {
-                store_cvc_as_payment_token_in_redis(&state, &pm_token, card_cvc, card_holder_name)
+            if has_cvc_and_card_holder_name_only_data {
+                store_cvc_and_card_holder_name_as_payment_token_in_redis(&state, &pm_token, card_cvc, card_holder_name)
                     .await?;
             }
 
@@ -6464,7 +6464,7 @@ pub async fn payment_methods_session_update_payment_method(
             .await?;
 
             let update_request =
-                DomainPaymentMethodUpdate::from(request.payment_method_update_request.clone());
+                DomainPaymentMethodUpdate::from(request.payment_method_update_request);
 
             let (update_response, _updated_payment_method) = Box::pin(update_payment_method_core(
                 &state,
