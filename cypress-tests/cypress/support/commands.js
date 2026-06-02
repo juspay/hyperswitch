@@ -9663,8 +9663,7 @@ Cypress.Commands.add("captureRedirectReturnUrl", (globalState) => {
   const baseUrl = globalState.get("baseUrl");
   const paymentId = globalState.get("paymentID");
   const merchantId = globalState.get("merchantId");
-  let connectorId = globalState.get("connectorId");
-  if (connectorId === "stripeconnect") connectorId = "stripe";
+  const connectorId = getOriginalConnectorName(globalState.get("connectorId"));
   const url = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/response/${connectorId}`;
   cy.request({
     method: "GET",
