@@ -599,7 +599,8 @@ async fn trigger_webhook_to_connector(
             &provider_merchant_id,
             MerchantConnectorAccountType::DbVal(Box::new(mca)),
             connector_name,
-        ).change_context(errors::WebhooksFlowError::WebhookRequestConstructionFailed)?;
+        )
+        .change_context(errors::WebhooksFlowError::WebhookRequestConstructionFailed)?;
 
     let response = crate::core::unified_connector_service::call_unified_connector_service_for_notify_connector(
             &state,

@@ -164,7 +164,7 @@ pub enum WebhooksFlowError {
     #[error("Webhook API call failed")]
     WebhookCallFailed,
     #[error("Webhook request construction failed")]
-    WebhookRequestConstructionFailed
+    WebhookRequestConstructionFailed,
 }
 
 impl WebhooksFlowError {
