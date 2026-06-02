@@ -1,6 +1,7 @@
 use api_models::{webhook_events, webhooks};
 use common_utils::{crypto::SignMessage, ext_traits::Encode};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::router_response_types::NotifyConnectorResponseData;
 use hyperswitch_masking::Secret;
 use serde::Serialize;
 
@@ -142,6 +143,86 @@ impl WebhookResponse {
             status_code: Some(status_code.as_u16()),
             error_message: None,
         }
+    }
+}
+
+/// Unified interface for webhook delivery responses from different sources.
+///
+/// Implemented for [`reqwest::Response`] (merchant webhook path) and
+/// [`NotifyConnectorResponseData`] (UCS connector notification path).
+#[async_trait::async_trait]
+pub(crate) trait WebhookDeliveryResponse: Send {
+    fn status(&self) -> u16;
+    fn is_success(&self) -> bool;
+    fn get_response_headers(&self) -> Vec<(String, Secret<String>)>;
+    async fn get_response_body(self) -> Secret<String>;
+}
+
+#[async_trait::async_trait]
+impl WebhookDeliveryResponse for reqwest::Response {
+    fn status(&self) -> u16 {
+        self.status().as_u16()
+    }
+
+    fn is_success(&self) -> bool {
+        self.status().is_success()
+    }
+
+    fn get_response_headers(&self) -> Vec<(String, Secret<String>)> {
+        self.headers()
+        .iter()
+        .map(|(name, value)| {
+            (
+                name.as_str().to_owned(),
+                value
+                    .to_str()
+                    .map(|s| Secret::from(String::from(s)))
+                    .unwrap_or_else(|error| {
+                        logger::warn!(
+                            "Response header {} contains non-UTF-8 characters: {error:?}",
+                            name.as_str()
+                        );
+                        Secret::from(String::from("Non-UTF-8 header value"))
+                    }),
+            )
+        })
+        .collect::<Vec<_>>()
+    }
+
+    async fn get_response_body(self) -> Secret<String> {
+        self
+        .text()
+        .await
+        .map(Secret::from)
+        .unwrap_or_else(|error| {
+            logger::warn!("Response contains non-UTF-8 characters: {error:?}");
+            Secret::from(String::from("Non-UTF-8 response body"))
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl WebhookDeliveryResponse for NotifyConnectorResponseData {
+    fn status(&self) -> u16 {
+        self.status_code
+    }
+
+    fn is_success(&self) -> bool {
+        self.status_code >= 200 && self.status_code < 300
+    }
+
+    fn get_response_headers(&self) -> Vec<(String, Secret<String>)> {
+        vec![]
+    }
+
+    async fn get_response_body(self) -> Secret<String> {
+        Secret::from(
+            serde_json::to_string(&self)
+                .unwrap_or_else(|error| {
+                    logger::warn!("Failed to serialize response: {error:?}");
+                    String::from("Failed to serialize response")
+                }),
+        )
     }
 }
 
