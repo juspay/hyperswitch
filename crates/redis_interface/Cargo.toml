@@ -18,6 +18,7 @@ error-stack = "0.4.1"
 futures = "0.3"
 serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "1.0.69"
+time = { version = "0.3.41", features = ["std"] }
 tokio = "1.48.0"
 tokio-stream = { version = "0.1.17", features = ["sync"] }
 tracing = { workspace = true }
@@ -32,6 +33,7 @@ fred = { version = "8.0.6", optional = true, features = [
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext"] }
+router_env = { version = "0.1.0", path = "../router_env", default-features = false }
 
 [dev-dependencies]
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }

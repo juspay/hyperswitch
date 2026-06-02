@@ -7,7 +7,12 @@ pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
 
 pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
 
-/// Creates a Redis connection pool for the specified Redis settings
+/// Creates a Redis connection pool for the specified Redis settings.
+///
+/// This standalone helper is only used in places that don't ship
+/// `ExternalServiceCall` events (e.g. one-off utilities), so the pool is wired
+/// with a no-op emitter.
+///
 /// # Panics
 ///
 /// Panics if failed to create a redis pool
@@ -15,9 +20,12 @@ pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
 pub async fn redis_connection(
     redis: &redis_interface::RedisSettings,
 ) -> redis_interface::RedisConnectionPool {
-    redis_interface::RedisConnectionPool::new(redis)
-        .await
-        .expect("Failed to create Redis Connection Pool")
+    redis_interface::RedisConnectionPool::new(
+        redis,
+        std::sync::Arc::new(common_utils::external_service::NoOpEventEmitter),
+    )
+    .await
+    .expect("Failed to create Redis Connection Pool")
 }
 
 pub async fn pg_connection_read<T: crate::DatabaseStore>(

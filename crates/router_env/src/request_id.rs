@@ -384,9 +384,10 @@ where
         // Store request ID for extraction in handlers
         request.extensions_mut().insert(request_id.clone());
 
+        let request_id_string = request_id.as_str().to_string();
         let fut = self.service.call(request);
 
-        Box::pin(async move {
+        Box::pin(crate::request_context::scope(request_id_string, async move {
             // Log incoming request IDs for correlation
             if let Some(upstream_request_id) = incoming_request_id {
                 tracing::debug!(
@@ -402,7 +403,7 @@ where
             response.headers_mut().insert(header_name, header_value);
 
             Ok(response)
-        })
+        }))
     }
 }
 

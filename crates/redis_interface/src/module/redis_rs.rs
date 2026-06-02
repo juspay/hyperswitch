@@ -357,12 +357,18 @@ pub struct RedisConnectionPool {
     pub subscriber: Arc<SubscriberClient>,
     pub publisher: Arc<PublisherClient>,
     pub is_redis_available: Arc<atomic::AtomicBool>,
+    pub(crate) event_emitter: Arc<dyn common_utils::external_service::ExternalServiceEventEmitter>,
 }
 
 impl RedisConnectionPool {
-    /// Create a new Redis connection
+    /// Create a new Redis connection.
+    ///
+    /// `event_emitter` is invoked for every Redis call this pool makes. Pass
+    /// `Arc::new(common_utils::external_service::NoOpEventEmitter)` to disable
+    /// emission (drainer, tests, or when the events flag is off).
     pub async fn new(
         conf: &crate::types::RedisSettings,
+        event_emitter: Arc<dyn common_utils::external_service::ExternalServiceEventEmitter>,
     ) -> CustomResult<Self, crate::errors::RedisError> {
         let (pool, subscriber, publisher) = match conf.cluster_enabled {
             true => {
@@ -488,7 +494,20 @@ impl RedisConnectionPool {
             subscriber,
             publisher,
             key_prefix: String::default(),
+            event_emitter,
         })
+    }
+
+    /// Test-only constructor that wires a no-op event emitter.
+    #[cfg(test)]
+    pub async fn new_for_test(
+        conf: &crate::types::RedisSettings,
+    ) -> CustomResult<Self, crate::errors::RedisError> {
+        Self::new(
+            conf,
+            Arc::new(common_utils::external_service::NoOpEventEmitter),
+        )
+        .await
     }
 
     pub fn clone(&self, key_prefix: &str) -> Self {
@@ -499,6 +518,7 @@ impl RedisConnectionPool {
             subscriber: Arc::clone(&self.subscriber),
             publisher: Arc::clone(&self.publisher),
             is_redis_available: Arc::clone(&self.is_redis_available),
+            event_emitter: Arc::clone(&self.event_emitter),
         }
     }
 
