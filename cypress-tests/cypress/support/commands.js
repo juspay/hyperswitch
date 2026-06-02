@@ -9487,7 +9487,8 @@ Cypress.Commands.add("assertPaymentResponseHashEnabled", (globalState) => {
 });
 
 Cypress.Commands.add("verifyRedirectSignature", (globalState) => {
-  const redirectUrl = globalState.get("redirectReturnUrl") || globalState.get("nextActionUrl");
+  const redirectUrl =
+    globalState.get("redirectReturnUrl") || globalState.get("nextActionUrl");
 
   if (!redirectUrl) {
     cy.task(
@@ -9530,7 +9531,8 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
     "payment_response_hash_key should exist in global state"
   ).to.be.a("string").and.not.be.empty;
 
-  const redirectUrl = globalState.get("redirectReturnUrl") || globalState.get("nextActionUrl");
+  const redirectUrl =
+    globalState.get("redirectReturnUrl") || globalState.get("nextActionUrl");
 
   if (!redirectUrl) {
     cy.task(
