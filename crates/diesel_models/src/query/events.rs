@@ -88,6 +88,7 @@ impl Event {
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         primary_object_id: &str,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
@@ -95,7 +96,12 @@ impl Event {
                 .nullable()
                 .eq(dsl::initial_attempt_id) // Filter initial attempts only
                 .and(dsl::merchant_id.eq(merchant_id.to_owned()))
-                .and(dsl::primary_object_id.eq(primary_object_id.to_owned())),
+                .and(dsl::primary_object_id.eq(primary_object_id.to_owned()))
+                .and(
+                    dsl::recipient
+                        .eq(event_recipient.map(|r| r.to_string()))
+                        .or(dsl::recipient.is_null()),
+                ),
             None,
             None,
             Some(dsl::created_at.desc()),
@@ -134,6 +140,7 @@ impl Event {
         offset: Option<i64>,
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<Vec<Self>> {
         let mut query = Self::table()
             .filter(
@@ -153,6 +160,7 @@ impl Event {
             offset,
             event_types,
             is_delivered,
+            event_recipient,
         );
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
@@ -167,12 +175,18 @@ impl Event {
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         initial_attempt_id: &str,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::initial_attempt_id.eq(initial_attempt_id.to_owned())),
+                .and(dsl::initial_attempt_id.eq(initial_attempt_id.to_owned()))
+                .and(
+                    dsl::recipient
+                        .eq(event_recipient.map(|r| r.to_string()))
+                        .or(dsl::recipient.is_null()),
+                ),
             None,
             None,
             Some(dsl::created_at.desc()),
@@ -185,6 +199,7 @@ impl Event {
         initiator_merchant_id: &common_utils::id_type::MerchantId,
         primary_object_id: &str,
         profile_id: Option<common_utils::id_type::ProfileId>,
+        recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<Vec<Self>> {
         // Fallback on merchant_id for rows with NULL initiator_merchant_id to
         // handle events created during staggered rollout by older code. This
@@ -206,6 +221,10 @@ impl Event {
             )
             .order(dsl::created_at.desc())
             .into_boxed();
+
+        if let Some(recipient) = recipient {
+            query = query.filter(dsl::recipient.eq(recipient.to_string()));
+        }
 
         if let Some(profile_id) = profile_id {
             query = query.filter(dsl::business_profile_id.eq(profile_id));
@@ -231,6 +250,7 @@ impl Event {
         offset: Option<i64>,
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<Vec<Self>> {
         // Fallback on merchant_id for rows with NULL initiator_merchant_id to
         // handle events created during staggered rollout by older code. This
@@ -260,6 +280,7 @@ impl Event {
             offset,
             event_types,
             is_delivered,
+            event_recipient,
         );
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
@@ -274,6 +295,7 @@ impl Event {
         conn: &PgPooledConn,
         initial_attempt_id: &str,
         initiator_merchant_id: &common_utils::id_type::MerchantId,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<Vec<Self>> {
         // Fallback on merchant_id for rows with NULL initiator_merchant_id to
         // handle events created during staggered rollout by older code.
@@ -287,6 +309,11 @@ impl Event {
                         .or(dsl::initiator_merchant_id
                             .is_null()
                             .and(dsl::merchant_id.eq(initiator_merchant_id.to_owned()))),
+                )
+                .and(
+                    dsl::recipient
+                        .eq(event_recipient.map(|r| r.to_string()))
+                        .or(dsl::recipient.is_null()),
                 ),
             None,
             None,
@@ -299,6 +326,7 @@ impl Event {
         conn: &PgPooledConn,
         profile_id: &common_utils::id_type::ProfileId,
         primary_object_id: &str,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
@@ -306,7 +334,12 @@ impl Event {
                 .nullable()
                 .eq(dsl::initial_attempt_id) // Filter initial attempts only
                 .and(dsl::business_profile_id.eq(profile_id.to_owned()))
-                .and(dsl::primary_object_id.eq(primary_object_id.to_owned())),
+                .and(dsl::primary_object_id.eq(primary_object_id.to_owned()))
+                .and(
+                    dsl::recipient
+                        .eq(event_recipient.map(|r| r.to_string()))
+                        .or(dsl::recipient.is_null()),
+                ),
             None,
             None,
             Some(dsl::created_at.desc()),
@@ -345,6 +378,7 @@ impl Event {
         offset: Option<i64>,
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<Vec<Self>> {
         let mut query = Self::table()
             .filter(
@@ -364,6 +398,7 @@ impl Event {
             offset,
             event_types,
             is_delivered,
+            event_recipient,
         );
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
@@ -438,6 +473,7 @@ impl Event {
         offset: Option<i64>,
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> T
     where
         T: diesel::query_dsl::methods::LimitDsl<Output = T>
@@ -460,6 +496,10 @@ impl Event {
         >,
         T: diesel::query_dsl::methods::FilterDsl<
             diesel::dsl::Eq<dsl::is_overall_delivery_successful, bool>,
+            Output = T,
+        >,
+        T: diesel::query_dsl::methods::FilterDsl<
+            diesel::dsl::Eq<dsl::recipient, String>,
             Output = T,
         >,
     {
@@ -487,6 +527,10 @@ impl Event {
             query = query.filter(dsl::is_overall_delivery_successful.eq(is_delivered));
         }
 
+        if let Some(recipient) = event_recipient {
+            query = query.filter(dsl::recipient.eq(recipient.to_string()));
+        }
+
         query
     }
 
@@ -498,6 +542,7 @@ impl Event {
         created_before: time::PrimitiveDateTime,
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<i64> {
         let mut query = Self::table()
             .count()
@@ -517,6 +562,7 @@ impl Event {
             None,
             event_types,
             is_delivered,
+            event_recipient,
         );
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
@@ -537,6 +583,7 @@ impl Event {
         created_before: time::PrimitiveDateTime,
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<i64> {
         let mut query = Self::table()
             .count()
@@ -556,6 +603,7 @@ impl Event {
             None,
             event_types,
             is_delivered,
+            event_recipient,
         );
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
@@ -577,6 +625,7 @@ impl Event {
         created_before: time::PrimitiveDateTime,
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<i64> {
         // Fallback on merchant_id for rows with NULL initiator_merchant_id to
         // handle events created during staggered rollout by older code. This
@@ -606,6 +655,7 @@ impl Event {
             None,
             event_types,
             is_delivered,
+            event_recipient,
         );
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
