@@ -595,7 +595,6 @@ export const CONNECTOR_LISTS = {
       "worldpay",
       "worldpayvantiv",
     ],
-    BANK_REDIRECT_MANDATE: ["globalpay"],
     // Add more inclusion lists
   },
 };
