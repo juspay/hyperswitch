@@ -629,6 +629,9 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             PaymentMethodData::PayLater(_paylater_data) => {
                 item.router_data.request.router_return_url.clone()
             }
+            PaymentMethodData::BankTransfer(_banktransfer_data) => {
+                item.router_data.request.router_return_url.clone()
+            }
             _ => request.complete_authorize_url.clone(),
         };
 
@@ -713,7 +716,7 @@ fn get_banktransfer_details(
     banktransfer_data: &BankTransferData,
     item: &AirwallexRouterData<&types::PaymentsAuthorizeRouterData>,
 ) -> Result<AirwallexPaymentMethod, errors::ConnectorError> {
-    let _bank_transfer_details = match banktransfer_data {
+    let bank_transfer_details = match banktransfer_data {
         BankTransferData::IndonesianBankTransfer { bank_name } => {
             AirwallexPaymentMethod::BankTransfer(AirwallexBankTransferData::IndonesianBankTransfer(
                 IndonesianBankTransferData {
@@ -747,10 +750,7 @@ fn get_banktransfer_details(
             utils::get_unimplemented_payment_method_error_message("airwallex"),
         ))?,
     };
-    let not_implemented = Err(errors::ConnectorError::NotImplemented(
-        utils::get_unimplemented_payment_method_error_message("airwallex"),
-    ))?;
-    Ok(not_implemented)
+    Ok(bank_transfer_details)
 }
 
 fn get_paylater_details(
