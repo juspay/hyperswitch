@@ -312,20 +312,26 @@ impl WebhookPayload {
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
         merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     ) -> Option<Self> {
-        payment_attempt.external_surcharge_details.as_ref().map( |external_surcharge_details| {
-        let event_content = api_models::payments::ResponseSurchargeDetails {
-            surcharge_amount: external_surcharge_details.external_surcharge_amount.clone(),
-            external_surcharge_id: external_surcharge_details.external_surcharge_id.clone(),
-            payment_id: payment_attempt.payment_id.clone(),
-            attempt_id: payment_attempt.attempt_id.clone(),
-        };
-        Self {
-            event_type: surcharge_event,
-            event_content: api::OutgoingWebhookContent::SurchargeDetails(Box::new(event_content)),
-            recipient_data: WebhookRecipientData::Connector {
-                merchant_connector_id,
-            },
-        }})
+        payment_attempt
+            .external_surcharge_details
+            .as_ref()
+            .map(|external_surcharge_details| {
+                let event_content = api_models::payments::ResponseSurchargeDetails {
+                    surcharge_amount: external_surcharge_details.external_surcharge_amount.clone(),
+                    external_surcharge_id: external_surcharge_details.external_surcharge_id.clone(),
+                    payment_id: payment_attempt.payment_id.clone(),
+                    attempt_id: payment_attempt.attempt_id.clone(),
+                };
+                Self {
+                    event_type: surcharge_event,
+                    event_content: api::OutgoingWebhookContent::SurchargeDetails(Box::new(
+                        event_content,
+                    )),
+                    recipient_data: WebhookRecipientData::Connector {
+                        merchant_connector_id,
+                    },
+                }
+            })
     }
 }
 

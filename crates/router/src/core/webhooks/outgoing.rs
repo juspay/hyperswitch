@@ -122,12 +122,11 @@ async fn get_surcharge_webhook_event(
                 .to_string(),
         })?;
 
-    let connector_name = api::enums::SurchargeConnectors::from_str(
-        &merchant_surcharge_connector.connector_name,
-    )
-    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-        field_name: "connector",
-    })?;
+    let connector_name =
+        api::enums::SurchargeConnectors::from_str(&merchant_surcharge_connector.connector_name)
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "connector",
+            })?;
 
     let surcharge_event = match primary_event_type.to_surcharge_event() {
         Some(event) => event,
