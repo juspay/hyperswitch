@@ -84,6 +84,16 @@ const getMandateData = (currency) => ({
   },
 });
 
+const onlineCustomerAcceptance = {
+  acceptance_type: "online",
+  accepted_at: "2025-05-07T09:30:52.779Z",
+  online: {
+    ip_address: "103.23.45.1",
+    user_agent:
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:138.0) Gecko/20100101 Firefox/138.0",
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -2766,10 +2776,6 @@ export const connectorDetails = {
       };
     },
     Sepa: {
-      Configs: {
-        // TRIGGER_SKIP: Adyen requires mandate_data for SEPA bank debit — use MandateSingleUseSepa instead
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "sepa",
@@ -2781,6 +2787,22 @@ export const connectorDetails = {
             },
           },
         },
+        mandate_data: {
+          customer_acceptance: onlineCustomerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 1000,
+              currency: "EUR",
+              start_date: "2023-04-21T00:00:00Z",
+              end_date: "2023-05-21T00:00:00Z",
+              metadata: {
+                frequency: "13",
+              },
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: onlineCustomerAcceptance,
         billing: {
           address: {
             line1: "1467",
@@ -2794,7 +2816,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
         },
-        customer_acceptance: customerAcceptance,
+        payment_type: "new_mandate",
       },
       Response: {
         status: 200,
@@ -2817,16 +2839,21 @@ export const connectorDetails = {
           },
         },
         mandate_data: {
-          customer_acceptance: customerAcceptance,
+          customer_acceptance: onlineCustomerAcceptance,
           mandate_type: {
-            single_use: {
-              amount: 6540,
+            multi_use: {
+              amount: 1000,
               currency: "EUR",
+              start_date: "2023-04-21T00:00:00Z",
+              end_date: "2023-05-21T00:00:00Z",
+              metadata: {
+                frequency: "13",
+              },
             },
           },
         },
         setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
+        customer_acceptance: onlineCustomerAcceptance,
         billing: {
           address: {
             line1: "1467",
@@ -2892,13 +2919,18 @@ export const connectorDetails = {
             last_name: "Doe",
           },
         },
-        customer_acceptance: customerAcceptance,
+        customer_acceptance: onlineCustomerAcceptance,
         mandate_data: {
-          customer_acceptance: customerAcceptance,
+          customer_acceptance: onlineCustomerAcceptance,
           mandate_type: {
             multi_use: {
               amount: 8000,
               currency: "USD",
+              start_date: "2023-04-21T00:00:00Z",
+              end_date: "2023-05-21T00:00:00Z",
+              metadata: {
+                frequency: "13",
+              },
             },
           },
         },
@@ -2937,13 +2969,18 @@ export const connectorDetails = {
             last_name: "Doe",
           },
         },
-        customer_acceptance: customerAcceptance,
+        customer_acceptance: onlineCustomerAcceptance,
         mandate_data: {
-          customer_acceptance: customerAcceptance,
+          customer_acceptance: onlineCustomerAcceptance,
           mandate_type: {
             multi_use: {
               amount: 8000,
               currency: "GBP",
+              start_date: "2023-04-21T00:00:00Z",
+              end_date: "2023-05-21T00:00:00Z",
+              metadata: {
+                frequency: "13",
+              },
             },
           },
         },
@@ -2971,16 +3008,21 @@ export const connectorDetails = {
           },
         },
         mandate_data: {
-          customer_acceptance: customerAcceptance,
+          customer_acceptance: onlineCustomerAcceptance,
           mandate_type: {
-            single_use: {
-              amount: 6540,
+            multi_use: {
+              amount: 1000,
               currency: "GBP",
+              start_date: "2023-04-21T00:00:00Z",
+              end_date: "2023-05-21T00:00:00Z",
+              metadata: {
+                frequency: "13",
+              },
             },
           },
         },
         setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
+        customer_acceptance: onlineCustomerAcceptance,
         billing: {
           address: {
             line1: "1467",
@@ -3033,7 +3075,7 @@ export const connectorDetails = {
           },
         },
         currency: "AUD",
-        customer_acceptance: customerAcceptance,
+        customer_acceptance: onlineCustomerAcceptance,
         setup_future_usage: "off_session",
       },
       Response: {

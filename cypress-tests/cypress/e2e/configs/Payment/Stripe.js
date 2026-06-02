@@ -57,6 +57,16 @@ const multiUseMandateData = {
   },
 };
 
+const onlineCustomerAcceptance = {
+  acceptance_type: "online",
+  accepted_at: "2025-05-07T09:30:52.779Z",
+  online: {
+    ip_address: "103.23.45.1",
+    user_agent:
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:138.0) Gecko/20100101 Firefox/138.0",
+  },
+};
+
 const payment_method_data_3ds = {
   card: {
     last4: "3155",
@@ -1437,8 +1447,6 @@ export const connectorDetails = {
     },
     Sepa: {
       Configs: {
-        // TRIGGER_SKIP: Stripe requires mandate_data for all SEPA bank debit payments — use MandateSingleUseSepa instead
-        TRIGGER_SKIP: true,
         CONNECTOR_CREDENTIAL: {
           value: "connector_5",
         },
@@ -1455,6 +1463,22 @@ export const connectorDetails = {
             },
           },
         },
+        mandate_data: {
+          customer_acceptance: onlineCustomerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 1000,
+              currency: "EUR",
+              start_date: "2023-04-21T00:00:00Z",
+              end_date: "2023-05-21T00:00:00Z",
+              metadata: {
+                frequency: "13",
+              },
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: onlineCustomerAcceptance,
         billing: {
           address: {
             first_name: "Test",
@@ -1463,6 +1487,7 @@ export const connectorDetails = {
           },
           email: "test@example.com",
         },
+        payment_type: "new_mandate",
       },
       Response: {
         status: 200,
@@ -1473,8 +1498,6 @@ export const connectorDetails = {
     },
     Becs: {
       Configs: {
-        // TRIGGER_SKIP: Stripe requires mandate_data for all BECS bank debit payments — use MandateSingleUseBecs instead
-        TRIGGER_SKIP: true,
         CONNECTOR_CREDENTIAL: {
           value: "connector_4",
         },
@@ -1492,6 +1515,22 @@ export const connectorDetails = {
             },
           },
         },
+        mandate_data: {
+          customer_acceptance: onlineCustomerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 1000,
+              currency: "AUD",
+              start_date: "2023-04-21T00:00:00Z",
+              end_date: "2023-05-21T00:00:00Z",
+              metadata: {
+                frequency: "13",
+              },
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: onlineCustomerAcceptance,
         billing: {
           address: {
             first_name: "Test",
@@ -1502,6 +1541,7 @@ export const connectorDetails = {
           },
           email: "test@example.com",
         },
+        payment_type: "new_mandate",
       },
       Response: {
         status: 200,
@@ -1577,7 +1617,6 @@ export const connectorDetails = {
         CONNECTOR_CREDENTIAL: {
           value: "connector_1",
         },
-        // TRIGGER_SKIP: ACH bank debit returns HTTP 500 from Stripe server (high severity bug)
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -1594,16 +1633,21 @@ export const connectorDetails = {
           },
         },
         mandate_data: {
-          customer_acceptance: customerAcceptance,
+          customer_acceptance: onlineCustomerAcceptance,
           mandate_type: {
-            single_use: {
+            multi_use: {
               amount: 1000,
               currency: "USD",
+              start_date: "2023-04-21T00:00:00Z",
+              end_date: "2023-05-21T00:00:00Z",
+              metadata: {
+                frequency: "13",
+              },
             },
           },
         },
         setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
+        customer_acceptance: onlineCustomerAcceptance,
         billing: {
           address: {
             country: "US",
@@ -1624,7 +1668,6 @@ export const connectorDetails = {
         CONNECTOR_CREDENTIAL: {
           value: "connector_3",
         },
-        // TRIGGER_SKIP: BACS requires Stripe account configuration that does not allow passing mandate_data directly
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -1641,16 +1684,21 @@ export const connectorDetails = {
           },
         },
         mandate_data: {
-          customer_acceptance: customerAcceptance,
+          customer_acceptance: onlineCustomerAcceptance,
           mandate_type: {
-            single_use: {
+            multi_use: {
               amount: 1000,
               currency: "GBP",
+              start_date: "2023-04-21T00:00:00Z",
+              end_date: "2023-05-21T00:00:00Z",
+              metadata: {
+                frequency: "13",
+              },
             },
           },
         },
         setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
+        customer_acceptance: onlineCustomerAcceptance,
         billing: {
           address: {
             country: "GB",
@@ -1686,16 +1734,21 @@ export const connectorDetails = {
           },
         },
         mandate_data: {
-          customer_acceptance: customerAcceptance,
+          customer_acceptance: onlineCustomerAcceptance,
           mandate_type: {
-            single_use: {
+            multi_use: {
               amount: 1000,
               currency: "EUR",
+              start_date: "2023-04-21T00:00:00Z",
+              end_date: "2023-05-21T00:00:00Z",
+              metadata: {
+                frequency: "13",
+              },
             },
           },
         },
         setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
+        customer_acceptance: onlineCustomerAcceptance,
         billing: {
           address: {
             first_name: "Test",
@@ -1734,16 +1787,21 @@ export const connectorDetails = {
           },
         },
         mandate_data: {
-          customer_acceptance: customerAcceptance,
+          customer_acceptance: onlineCustomerAcceptance,
           mandate_type: {
-            single_use: {
+            multi_use: {
               amount: 1000,
               currency: "AUD",
+              start_date: "2023-04-21T00:00:00Z",
+              end_date: "2023-05-21T00:00:00Z",
+              metadata: {
+                frequency: "13",
+              },
             },
           },
         },
         setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
+        customer_acceptance: onlineCustomerAcceptance,
         billing: {
           address: {
             first_name: "Test",
