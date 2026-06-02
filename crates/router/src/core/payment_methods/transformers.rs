@@ -1157,13 +1157,13 @@ impl
         });
 
         let recurring_enabled = item.connector_mandate_details.as_ref().and_then(|details| {
-                details.payments.as_ref().map(|payments| {
-                    payments.values().any(|connector_token_reference| {
-                        connector_token_reference.connector_token_status
-                            == api_enums::ConnectorTokenStatus::Active
-                    })
+            details.payments.as_ref().map(|payments| {
+                payments.values().any(|connector_token_reference| {
+                    connector_token_reference.connector_token_status
+                        == api_enums::ConnectorTokenStatus::Active
                 })
-            });
+            })
+        });
 
         let connector_tokens = item
             .connector_mandate_details
