@@ -171,16 +171,16 @@ export function handleInespayRedirectFlow(nextActionUrl) {
 
   cy.wait(1500);
 
-  // Select the specific account ending in 674.
-  // The simulator masks the IBAN; we match the visible text that ends with 674.
+  // Select the specific account ending in 0674.
+  // The simulator masks the IBAN as ES****************0674.
   // We search for the option text inside the open dropdown list.
   cy.get(".multiselect__option", { timeout: 15000 })
-    .contains(/ES[^\d]*674/)
+    .contains(/ES\*+0674/)
     .scrollIntoView()
     .should("be.visible")
     .click({ force: true });
 
-  cy.log("Selected account ending in 674");
+  cy.log("Selected account ending in 0674");
 
   cy.wait(500);
 
