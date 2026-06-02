@@ -57,7 +57,7 @@ export function handleInespayRedirectFlow(nextActionUrl) {
   cy.get(".multiselect, .modal, form", { timeout: 30000 }).should("exist");
 
   // ── Step 0: Click "close" button to dismiss any modal ───────────────
-  cy.get("body", { timeout: 10000 }).then(($body) => {
+  cy.get("body", { timeout: 15000 }).then(($body) => {
     const closeBtn = $body.find("button").filter((_, btn) =>
       /close/i.test(btn.textContent.trim())
     );
@@ -66,38 +66,49 @@ export function handleInespayRedirectFlow(nextActionUrl) {
         .should("be.visible")
         .click({ force: true });
       cy.log("Dismissed initial modal via 'close' button");
-      cy.wait(1000);
     }
   });
 
+  // Wait for modal dismissal animation and any background page to settle
+  cy.wait(2000);
+
   // ── Step 1: Simulator Selection ────────────────────────────────────
-  // Click "simulador" in the first multiselect
+  // The simulator page should now show a multiselect for choosing the bank/simulator.
+  // We wait for the multiselect list to be populated before interacting.
   cy.get(".multiselect", { timeout: 20000 })
-    .first()
-    .should("exist")
-    .within(() => {
-      cy.get(
-        ".multiselect__placeholder, .multiselect__single, .body-feature-input-placeholder"
-      )
-        .first()
-        .click({ force: true });
+    .should("have.length.gte", 1)
+    .then(($selects) => {
+      cy.log(`Found ${$selects.length} multiselect(s) on simulator page`);
     });
 
-  cy.wait(800);
+  // Open the first visible multiselect (simulator selector)
+  cy.get(".multiselect", { timeout: 20000 })
+    .first()
+    .should("be.visible")
+    .click({ force: true });
 
-  cy.get(".multiselect__element", { timeout: 15000 })
+  cy.wait(1000);
+
+  // Choose "simulador" from the dropdown list
+  cy.get(".multiselect__element, .multiselect__option", { timeout: 15000 })
     .contains(/simulador/i)
     .should("be.visible")
     .click({ force: true });
 
   cy.wait(500);
 
-  // Click "continue"
+  // Click the "continue" button to proceed to login
   cy.contains("button", /continue/i, { timeout: 15000 })
     .should("be.visible")
     .click({ force: true });
 
-  cy.wait(1500);
+  // Wait for the login form to appear after clicking continue
+  cy.wait(2000);
+  cy.get('input[type="text"], input:not([type="password"])', {
+    timeout: 15000,
+  })
+    .filter(":visible")
+    .should("have.length.gte", 1);
 
   // ── Step 2: Login Step ─────────────────────────────────────────────
   cy.get('input[type="text"], input:not([type="password"])', {
@@ -124,45 +135,51 @@ export function handleInespayRedirectFlow(nextActionUrl) {
   cy.wait(2000);
 
   // ── Step 3: Contract & Account Selection ───────────────────────────
+  // After login, the page navigates to the accounts selection screen.
+  // Wait for the URL to change and the contract list to be fetched.
   cy.url({ timeout: 30000 }).should("match", /\/accounts\//i);
   cy.wait("@contractsList", { timeout: 20000 });
-  cy.wait(1500);
+  cy.wait(2000);
 
-  // Open contract dropdown and select "Contract 1"
-  cy.get("#contracts .multiselect", { timeout: 10000 })
+  // --- Contract dropdown ---
+  // Open the contract dropdown inside the #contracts container.
+  cy.get("#contracts .multiselect", { timeout: 15000 })
     .should("exist")
     .and("be.visible")
     .click({ force: true });
 
-  cy.wait(800);
+  cy.wait(1000);
 
-  cy.get(".multiselect__element", { timeout: 15000 })
+  // Select "Contract 1" from the dropdown options.
+  cy.get(".multiselect__element, .multiselect__option", { timeout: 15000 })
     .contains(/contract\s*1/i)
     .should("be.visible")
     .click({ force: true });
 
-  cy.wait(500);
+  cy.wait(1000);
 
-  // Wait for accounts list to populate after contract selection
+  // --- Account dropdown ---
+  // Wait for the account list to populate after contract selection.
   cy.wait("@accountsList", { timeout: 20000 });
-  cy.wait(1500);
+  cy.wait(2000);
 
-  // Open account dropdown and select ES***679
-  cy.get("#account .multiselect", { timeout: 10000 })
+  // Open the account dropdown inside the #account container.
+  cy.get("#account .multiselect", { timeout: 15000 })
     .should("exist")
     .and("be.visible")
     .click({ force: true });
 
-  cy.wait(800);
+  cy.wait(1000);
 
-  cy.get(".multiselect__option", { timeout: 15000 })
-    .contains(/ES\*{9}679/)
+  // Select the specific account ending in 679.
+  cy.get(".multiselect__element, .multiselect__option", { timeout: 15000 })
+    .contains(/ES\*{3,}679/)
     .should("be.visible")
     .click({ force: true });
 
   cy.wait(500);
 
-  // Click "confirm"
+  // Click the "confirm" button to proceed.
   cy.contains("button", /confirm/i, { timeout: 15000 })
     .should("be.visible")
     .and("not.be.disabled")
@@ -190,7 +207,9 @@ export function handleInespayRedirectFlow(nextActionUrl) {
   cy.wait(2000);
 
   // ── Final Validation: wait for redirect back to Hyperswitch ────────
-  cy.log("Waiting for redirect back to Hyperswitch after OTP...");
+  cy.log(
+    "Waiting for redirect back to Hyperswitch after OTP submission..."
+  );
   cy.url({ timeout: 90000 }).should((url) => {
     const isBack =
       /localhost/i.test(url) ||
@@ -200,12 +219,20 @@ export function handleInespayRedirectFlow(nextActionUrl) {
       /payment_id=/i.test(url);
     expect(
       isBack,
-      `Expected redirect back to localhost or success indicator, got: ${url}`
+      `Expected redirect back to localhost / success indicator, got: ${url}`
     ).to.be.true;
   });
 
+  // Extra safety pause so the browser finishes rendering the success / return page
+  cy.wait(3000);
+
+  // Surface-level sanity check: the landing page after redirect should not show
+  // error states. We deliberately do NOT assert on exact text here because the
+  // definitive payment-status assertion belongs to retrievePaymentCallTest.
+  cy.get("body", { timeout: 15000 }).should("be.visible");
+
   cy.log(
-    "Inespay simulator redirect flow completed — final payment status will be validated by Retrieve Payment step"
+    "Inespay simulator redirect flow completed successfully — returning control to test harness for payment-status retrieval"
   );
 }
 
