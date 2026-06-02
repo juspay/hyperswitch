@@ -41,29 +41,6 @@ describe("Airwallex Alternative Payments", () => {
   context("PayPal Wallet Redirect flow", () => {
     let shouldContinue = true;
 
-    before("seed global state", function () {
-      let skip = false;
-
-      cy.task("getGlobalState")
-        .then((state) => {
-          globalState = new State(state);
-          const connector = globalState.get("connectorId");
-          if (
-            shouldIncludeConnector(
-              connector,
-              CONNECTOR_LISTS.INCLUDE.AIRWALLEX_WALLET
-            )
-          ) {
-            skip = true;
-          }
-        })
-        .then(() => {
-          if (skip) {
-            this.skip();
-          }
-        });
-    });
-
     beforeEach(function () {
       if (!shouldContinue) {
         this.skip();
@@ -136,29 +113,6 @@ describe("Airwallex Alternative Payments", () => {
 
   context("Skrill Wallet Redirect flow", () => {
     let shouldContinue = true;
-
-    before("seed global state", function () {
-      let skip = false;
-
-      cy.task("getGlobalState")
-        .then((state) => {
-          globalState = new State(state);
-          const connector = globalState.get("connectorId");
-          if (
-            shouldIncludeConnector(
-              connector,
-              CONNECTOR_LISTS.INCLUDE.AIRWALLEX_WALLET
-            )
-          ) {
-            skip = true;
-          }
-        })
-        .then(() => {
-          if (skip) {
-            this.skip();
-          }
-        });
-    });
 
     beforeEach(function () {
       if (!shouldContinue) {
@@ -234,29 +188,6 @@ describe("Airwallex Alternative Payments", () => {
   context("Klarna PayLater Auto Capture flow", () => {
     let shouldContinue = true;
 
-    before("seed global state", function () {
-      let skip = false;
-
-      cy.task("getGlobalState")
-        .then((state) => {
-          globalState = new State(state);
-          const connector = globalState.get("connectorId");
-          if (
-            shouldIncludeConnector(
-              connector,
-              CONNECTOR_LISTS.INCLUDE.AIRWALLEX_PAYLATER
-            )
-          ) {
-            skip = true;
-          }
-        })
-        .then(() => {
-          if (skip) {
-            this.skip();
-          }
-        });
-    });
-
     beforeEach(function () {
       if (!shouldContinue) {
         this.skip();
@@ -323,29 +254,6 @@ describe("Airwallex Alternative Payments", () => {
 
   context("Atome PayLater Auto Capture flow", () => {
     let shouldContinue = true;
-
-    before("seed global state", function () {
-      let skip = false;
-
-      cy.task("getGlobalState")
-        .then((state) => {
-          globalState = new State(state);
-          const connector = globalState.get("connectorId");
-          if (
-            shouldIncludeConnector(
-              connector,
-              CONNECTOR_LISTS.INCLUDE.AIRWALLEX_PAYLATER
-            )
-          ) {
-            skip = true;
-          }
-        })
-        .then(() => {
-          if (skip) {
-            this.skip();
-          }
-        });
-    });
 
     beforeEach(function () {
       if (!shouldContinue) {
