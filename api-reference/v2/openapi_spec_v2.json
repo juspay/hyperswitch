@@ -21563,14 +21563,6 @@
             ],
             "nullable": true
           },
-          "psp_tokenization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PspTokenization"
-              }
-            ],
-            "nullable": true
-          },
           "network_tokenization": {
             "allOf": [
               {
@@ -22528,8 +22520,7 @@
           "payment_method_subtype",
           "created",
           "requires_cvv",
-          "is_default",
-          "psp_tokenization_enabled"
+          "is_default"
         ],
         "properties": {
           "id": {
@@ -22609,10 +22600,6 @@
               }
             ],
             "nullable": true
-          },
-          "psp_tokenization_enabled": {
-            "type": "boolean",
-            "description": "Whether psp_tokenization is enabled for the payment_method, this will be true when at least\none multi-use token with status `Active` is available for the payment method"
           }
         }
       },
@@ -22699,14 +22686,6 @@
             "description": "The return url to which the customer should be redirected to after adding the payment method",
             "nullable": true
           },
-          "psp_tokenization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PspTokenization"
-              }
-            ],
-            "nullable": true
-          },
           "network_tokenization": {
             "allOf": [
               {
@@ -22762,14 +22741,6 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Address"
-              }
-            ],
-            "nullable": true
-          },
-          "psp_tokenization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PspTokenization"
               }
             ],
             "nullable": true
@@ -23164,14 +23135,6 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Address"
-              }
-            ],
-            "nullable": true
-          },
-          "psp_tokenization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PspTokenization"
               }
             ],
             "nullable": true
@@ -26570,6 +26533,12 @@
             "description": "Individual taxpayer identification number",
             "example": "000123456",
             "nullable": true
+          },
+          "ispb": {
+            "type": "string",
+            "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
+            "example": "60701190",
+            "nullable": true
           }
         }
       },
@@ -26809,6 +26778,12 @@
             "type": "string",
             "description": "String formatted QR code for pix payout",
             "example": "00020126580014br.gov.bcb.pix0114000123456785204000053039865802BR5925John Doe6009Sao Paulo61080540900062070503***63041D3D"
+          },
+          "ispb": {
+            "type": "string",
+            "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
+            "example": "60701190",
+            "nullable": true
           }
         }
       },
