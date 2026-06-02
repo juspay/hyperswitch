@@ -197,23 +197,16 @@ export function handleInespayRedirectFlow(nextActionUrl) {
   cy.url({ timeout: 30000 }).should("match", /\/validation\//i);
   cy.wait(3000);
 
-  // Find the OTP input using Cypress-native retry so the element is waited for.
-  // Some simulators render a tel/numeric input; if that is not present we fall
-  // back to the first visible plain <input>.
-  cy.get("body", { timeout: 15000 }).then(($body) => {
-    if ($body.find('input[type="tel"]:visible').length) {
-      cy.get('input[type="tel"]:visible').first().clear().type("1111");
-    } else if ($body.find('input[inputmode="numeric"]:visible').length) {
-      cy.get('input[inputmode="numeric"]:visible').first().clear().type("1111");
-    } else if ($body.find("input:visible").length) {
-      cy.get("input:visible").first().clear().type("1111");
-    } else {
-      throw new Error(
-        "Inespay OTP step: no visible input field found for entering OTP"
-      );
-    }
-    cy.log("Entered OTP 1111");
-  });
+  // Find the OTP input using pure Cypress retry — no jQuery body-find.
+  // The page may render the input dynamically; Cypress will retry until
+  // at least one visible <input> appears, then clear and type.
+  cy.get("input:visible", { timeout: 15000 })
+    .first()
+    .should("be.visible")
+    .clear({ force: true })
+    .type("1111", { force: true });
+
+  cy.log("Entered OTP 1111");
 
   cy.wait(1000);
 
