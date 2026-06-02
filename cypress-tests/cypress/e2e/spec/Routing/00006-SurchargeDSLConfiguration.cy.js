@@ -193,7 +193,7 @@ describe("Surcharge DSL Configuration Test", () => {
               ],
             },
             {
-              name: "PayPal Rule",
+              name: "Pay Later Rule",
               connectorSelection: {
                 surcharge_details: {
                   surcharge: {
@@ -213,7 +213,7 @@ describe("Surcharge DSL Configuration Test", () => {
                       comparison: "equal",
                       value: {
                         type: "enum_variant",
-                        value: "paypal",
+                        value: "pay_later",
                       },
                       metadata: {},
                     },

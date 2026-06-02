@@ -287,7 +287,7 @@ export const connectorDetails = {
               ],
             },
             {
-              name: "PayPal Rule",
+              name: "Pay Later Rule",
               connectorSelection: {
                 surcharge_details: {
                   surcharge: {
@@ -307,7 +307,7 @@ export const connectorDetails = {
                       comparison: "equal",
                       value: {
                         type: "enum_variant",
-                        value: "paypal",
+                        value: "pay_later",
                       },
                       metadata: {},
                     },
