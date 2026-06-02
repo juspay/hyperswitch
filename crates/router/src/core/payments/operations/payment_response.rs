@@ -3389,7 +3389,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 | common_enums::AttemptStatus::Pending
                 | common_enums::AttemptStatus::Failure
                 | common_enums::AttemptStatus::Expired
-                | common_enums::AttemptStatus::CaptureReview => Some(enums::PaymentMethodStatus::Inactive),
+                | common_enums::AttemptStatus::CaptureReview => {
+                    Some(enums::PaymentMethodStatus::Inactive)
+                }
 
                 common_enums::AttemptStatus::Started
                 | common_enums::AttemptStatus::AuthenticationPending
@@ -3405,7 +3407,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 | common_enums::AttemptStatus::PaymentMethodAwaited
                 | common_enums::AttemptStatus::ConfirmationAwaited
                 | common_enums::AttemptStatus::DeviceDataCollectionPending
-                | common_enums::AttemptStatus::IntegrityFailure => Some(enums::PaymentMethodStatus::Active),
+                | common_enums::AttemptStatus::IntegrityFailure => {
+                    Some(enums::PaymentMethodStatus::Active)
+                }
             };
 
             if let Some(pm_update_status) = pm_update_status {
