@@ -879,7 +879,7 @@ pub enum CardType {
 // when the customer is on_session again, the cvc can be collected from the customer
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
+// #[serde(deny_unknown_fields)]
 pub struct CardDetail {
     /// Card Number
     #[schema(value_type = String,example = "4111111145551142")]
@@ -1198,12 +1198,26 @@ pub struct RawCardWithNTDetails {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct RawProxyCardDataResponse {
+    #[schema(value_type = String, example = "4111111145551142")]
+    pub card_number: hyperswitch_masking::Secret<String>,
+
+    #[schema(value_type = Option<String>, example = "25")]
+    pub card_exp_year: Option<hyperswitch_masking::Secret<String>>,
+
+    #[schema(value_type = Option<String>, example = "10")]
+    pub card_exp_month: Option<hyperswitch_masking::Secret<String>>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub enum RawPaymentMethodData {
     Card(CardDetail),
     CardWithNT(RawCardWithNTDetails),
     BankDebit(BankDebitDetail),
+    ProxyCard(RawProxyCardDataResponse),
 }
 
 #[cfg(feature = "v1")]

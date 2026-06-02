@@ -571,6 +571,8 @@ pub enum Flow {
     ListOrgForUser,
     /// List Merchants for user in org
     ListMerchantsForUserInOrg,
+    /// Get merchant account details for the user (product_type, merchant_account_type)
+    GetUserMerchantDetails,
     /// List Profile for user in org and merchant
     ListProfileForUserInOrgAndMerchant,
     /// List Users in Org
@@ -645,6 +647,8 @@ pub enum Flow {
     Relay,
     /// Relay retrieve flow
     RelayRetrieve,
+    /// Relay unreferenced refund flow
+    RelayUnreferencedRefund,
     /// Card tokenization flow
     TokenizeCard,
     /// Card tokenization using payment method flow
