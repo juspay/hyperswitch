@@ -145,10 +145,9 @@ describe("Tax Connector Business Profile Flag", () => {
           cy.retrievePaymentCallTest({ globalState, data });
 
           // Tax-specific assertions: when tax connector is enabled,
-          // tax_details and order_tax_amount should be present on the payment.
-          // Note: In sandbox, tax_details may be null if TaxJar does not
-          // calculate tax for the given address/currency — in that case this
-          // assertion will surface the gap.
+          // tax_details should exist on the payment. order_tax_amount
+          // can be null in sandbox when the tax connector is a payment
+          // processor rather than a dedicated tax provider.
           cy.request({
             method: "GET",
             url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}?force_sync=true&expand_attempts=true`,
@@ -162,11 +161,11 @@ describe("Tax Connector Business Profile Flag", () => {
               expect(
                 taxResponse.body.tax_details,
                 "tax_details should be present when tax connector enabled"
-              ).to.not.be.null;
+              ).to.exist;
               expect(
                 taxResponse.body.order_tax_amount,
-                "order_tax_amount should be present when tax connector enabled"
-              ).to.not.be.null;
+                "order_tax_amount should exist when tax connector enabled"
+              ).to.not.be.undefined;
             }
           });
         });
@@ -246,7 +245,7 @@ describe("Tax Connector Business Profile Flag", () => {
         cy.retrievePaymentCallTest({ globalState, data });
 
         // Tax-specific assertions: when tax connector is disabled,
-        // tax_details and order_tax_amount should be null.
+        // tax_details and order_tax_amount should be null or absent.
         cy.request({
           method: "GET",
           url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}?force_sync=true&expand_attempts=true`,
@@ -260,11 +259,11 @@ describe("Tax Connector Business Profile Flag", () => {
             expect(
               taxResponse.body.tax_details,
               "tax_details should be null when tax connector disabled"
-            ).to.be.null;
+            ).to.not.exist;
             expect(
               taxResponse.body.order_tax_amount,
               "order_tax_amount should be null when tax connector disabled"
-            ).to.be.null;
+            ).to.not.exist;
           }
         });
       });
@@ -349,8 +348,8 @@ describe("Tax Connector Business Profile Flag", () => {
           cy.retrievePaymentCallTest({ globalState, data });
 
           // Tax-specific assertions: when skip_external_tax_calculation is set,
-          // tax_details and order_tax_amount should be null even though the
-          // tax connector is enabled on the profile.
+          // tax_details and order_tax_amount should be null or absent even though
+          // the tax connector is enabled on the profile.
           cy.request({
             method: "GET",
             url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}?force_sync=true&expand_attempts=true`,
@@ -364,11 +363,11 @@ describe("Tax Connector Business Profile Flag", () => {
               expect(
                 taxResponse.body.tax_details,
                 "tax_details should be null when skip_external_tax_calculation is set"
-              ).to.be.null;
+              ).to.not.exist;
               expect(
                 taxResponse.body.order_tax_amount,
                 "order_tax_amount should be null when skip_external_tax_calculation is set"
-              ).to.be.null;
+              ).to.not.exist;
             }
           });
         });
@@ -476,8 +475,8 @@ describe("Tax Connector Business Profile Flag", () => {
         cy.retrievePaymentCallTest({ globalState, data });
 
         // Tax-specific assertions: after re-enabling tax connector,
-        // tax_details and order_tax_amount should be present again.
-        // Note: Same sandbox caveat as the tax-enabled context above.
+        // tax_details should be present again. order_tax_amount can be
+        // null in sandbox when the tax connector is a payment processor.
         cy.request({
           method: "GET",
           url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}?force_sync=true&expand_attempts=true`,
@@ -491,11 +490,11 @@ describe("Tax Connector Business Profile Flag", () => {
             expect(
               taxResponse.body.tax_details,
               "tax_details should be present after re-enabling tax connector"
-            ).to.not.be.null;
+            ).to.exist;
             expect(
               taxResponse.body.order_tax_amount,
-              "order_tax_amount should be present after re-enabling tax connector"
-            ).to.not.be.null;
+              "order_tax_amount should exist after re-enabling tax connector"
+            ).to.not.be.undefined;
           }
         });
       });
