@@ -2343,11 +2343,6 @@ Cypress.Commands.add(
       Response: resData,
     } = data || {};
 
-    if (configs.TRIGGER_SKIP) {
-      cy.log("Skipping createPaymentIntentTest due to TRIGGER_SKIP");
-      return;
-    }
-
     if (
       !createPaymentBody ||
       typeof createPaymentBody !== "object" ||
@@ -2697,11 +2692,6 @@ Cypress.Commands.add(
       Request: reqData,
       Response: resData,
     } = data || {};
-
-    if (configs.TRIGGER_SKIP) {
-      cy.log("Skipping confirmCallTest due to TRIGGER_SKIP");
-      return;
-    }
 
     const apiKey = globalState.get("publishableKey");
     const baseUrl = globalState.get("baseUrl");
@@ -3481,11 +3471,6 @@ Cypress.Commands.add(
       Request: reqData,
       Response: resData,
     } = data || {};
-
-    if (configs.TRIGGER_SKIP) {
-      cy.log("Skipping createConfirmPaymentTest due to TRIGGER_SKIP");
-      return;
-    }
 
     const configInfo = execConfig(validateConfig(configs));
     const merchant_connector_id = globalState.get(
@@ -4282,11 +4267,6 @@ Cypress.Commands.add(
       Response: resData,
     } = data || {};
 
-    if (configs.TRIGGER_SKIP) {
-      cy.log("Skipping refundCallTest due to TRIGGER_SKIP");
-      return;
-    }
-
     const payment_id = globalState.get("paymentID");
 
     // we only need this to set the delay. We don't need the return value
@@ -4338,12 +4318,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "syncRefundCallTest",
   (data, globalState, connectedMerchantId) => {
-    const { Configs: configs = {}, Response: resData } = data || {};
-
-    if (configs.TRIGGER_SKIP) {
-      cy.log("Skipping syncRefundCallTest due to TRIGGER_SKIP");
-      return;
-    }
+    const { Response: resData } = data || {};
 
     const refundId = globalState.get("refundId");
 
