@@ -173,30 +173,18 @@ export function handleInespayRedirectFlow(nextActionUrl) {
 
   // Select the specific account ending in 679.
   // The simulator masks the IBAN; we match the visible text that ends with 679.
-  // Try the most common mask patterns first, falling back to a generic "contains 679".
-  cy.get("body", { timeout: 10000 }).then(($body) => {
-    const accountOption = $body
-      .find(".multiselect__element, .multiselect__option, .dropdown-item, li")
-      .filter((_, el) => /ES[^\d]*679/.test(el.textContent));
-    if (accountOption.length > 0) {
-      cy.wrap(accountOption.first(), { timeout: 5000 })
-        .scrollIntoView()
-        .should("be.visible")
-        .click({ force: true });
-      cy.log(`Selected account option: ${accountOption.first().text().trim()}`);
-    } else {
-      // Fallback: click the first non-empty option in the account dropdown.
-      cy.log(
-        "Could not find account matching ES***679 — falling back to first available account option"
-      );
-      cy.get("#account .multiselect__element, #account .multiselect__option", {
-        timeout: 10000,
-      })
-        .filter((_, el) => el.textContent.trim().length > 0)
-        .first()
-        .click({ force: true });
-    }
-  });
+  // Options are rendered inside the multiselect dropdown list, so we search
+  // within the open dropdown and click the matching Cypress-wrapped element.
+  cy.get(".multiselect__content-wrapper, .multiselect__element, .multiselect__option", {
+    timeout: 15000,
+  })
+    .filter((_, el) => /ES[^\d]*679/.test(el.textContent))
+    .first()
+    .scrollIntoView()
+    .should("be.visible")
+    .click({ force: true });
+
+  cy.log("Selected account ending in 679");
 
   cy.wait(500);
 
@@ -241,8 +229,8 @@ export function handleInespayRedirectFlow(nextActionUrl) {
 
   cy.wait(1000);
 
-  // Click "continue" on OTP page
-  cy.contains("button", /continue/i, { timeout: 15000 })
+  // Click "confirm" on OTP page (the Inespay simulator uses "confirm" here, not "continue")
+  cy.contains("button", /confirm/i, { timeout: 15000 })
     .should("be.visible")
     .scrollIntoView()
     .click({ force: true });
