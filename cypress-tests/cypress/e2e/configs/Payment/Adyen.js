@@ -1832,6 +1832,9 @@ export const connectorDetails = {
       },
     }),
     PaypalWalletMITAutoCapture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "paypal",
@@ -1849,6 +1852,9 @@ export const connectorDetails = {
       },
     }),
     KakaoPayWalletMITAutoCapture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "kakao_pay",
@@ -1866,6 +1872,9 @@ export const connectorDetails = {
       },
     }),
     GcashWalletMITAutoCapture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "gcash",
@@ -1883,6 +1892,9 @@ export const connectorDetails = {
       },
     }),
     MomoWalletMITAutoCapture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "momo",
@@ -1900,6 +1912,9 @@ export const connectorDetails = {
       },
     }),
     TwintWalletMITAutoCapture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "twint",
@@ -1934,6 +1949,9 @@ export const connectorDetails = {
       },
     }),
     DanaWalletMITAutoCapture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "dana",
@@ -1951,6 +1969,9 @@ export const connectorDetails = {
       },
     }),
     GoPayWalletMITAutoCapture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "go_pay",
