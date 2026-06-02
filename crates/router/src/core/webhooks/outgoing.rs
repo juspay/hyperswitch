@@ -24,7 +24,7 @@ use router_env::{
     tracing::{self, Instrument},
 };
 
-use super::{types, utils, MERCHANT_ID};
+use super::{types, utils, MERCHANT_CONNECTOR_ACCOUNT_ID, MERCHANT_ID};
 #[cfg(feature = "stripe")]
 use crate::compatibility::stripe::webhooks as stripe_webhooks;
 use crate::{
@@ -612,6 +612,12 @@ async fn trigger_webhook_to_connector(
             business_profile.get_id(),
         )
         .await;
+
+    metrics::WEBHOOK_OUTGOING_COUNT.add(
+        1,
+        router_env::metric_attributes!((MERCHANT_CONNECTOR_ACCOUNT_ID, merchant_connector_id)),
+    );
+    logger::debug!(outgoing_webhook_response=?response);
 
     match delivery_attempt {
         enums::WebhookDeliveryAttempt::InitialAttempt => match response {

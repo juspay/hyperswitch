@@ -155,6 +155,7 @@ pub(crate) trait WebhookDeliveryResponse: Send {
     fn status(&self) -> u16;
     fn is_success(&self) -> bool;
     fn get_response_headers(&self) -> Vec<(String, Secret<String>)>;
+    fn get_error_message(&self) -> Option<String>;
     async fn get_response_body(self) -> Secret<String>;
 }
 
@@ -195,6 +196,10 @@ impl WebhookDeliveryResponse for reqwest::Response {
             Secret::from(String::from("Non-UTF-8 response body"))
         })
     }
+
+    fn get_error_message(&self) -> Option<String> {
+        None
+    }
 }
 
 #[async_trait::async_trait]
@@ -209,6 +214,10 @@ impl WebhookDeliveryResponse for NotifyConnectorResponseData {
 
     fn get_response_headers(&self) -> Vec<(String, Secret<String>)> {
         vec![]
+    }
+
+    fn get_error_message(&self) -> Option<String> {
+        self.error_message.clone()
     }
 
     async fn get_response_body(self) -> Secret<String> {
