@@ -276,6 +276,15 @@ pub trait PaymentMethodsController {
         initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> errors::PmResponse<api_models::payment_methods::CustomerDefaultPaymentMethodResponse>;
 
+    #[cfg(feature = "v2")]
+    async fn set_default_payment_method(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        customer_id: &id_type::GlobalCustomerId,
+        payment_method_id: &id_type::GlobalPaymentMethodId,
+        initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
+    ) -> errors::PmResponse<api_models::payment_methods::CustomerDefaultPaymentMethodResponse>;
+
     #[cfg(feature = "v1")]
     async fn add_payment_method_status_update_task(
         &self,

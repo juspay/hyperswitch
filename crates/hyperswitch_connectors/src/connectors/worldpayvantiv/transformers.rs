@@ -5,6 +5,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    mandates,
     payment_method_data::PaymentMethodData,
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
@@ -396,6 +397,36 @@ pub enum OrderSource {
 pub struct TokenizationData {
     cnp_token: Secret<String>,
     exp_date: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayvantivMandateMetadata {
+    pub network_transaction_id: Option<Secret<String>>,
+}
+
+impl WorldpayvantivMandateMetadata {
+    fn create_mandate_reference(
+        token_data: &TokenResponse,
+        network_transaction_id: Option<Secret<String>>,
+    ) -> Option<MandateReference> {
+        let mandate_metadata = network_transaction_id.map(|ntid| {
+            let metadata = Self {
+                network_transaction_id: Some(ntid),
+            };
+            serde_json::to_value(&metadata)
+                .ok()
+                .map(pii::SecretSerdeValue::new)
+                .unwrap_or_else(|| pii::SecretSerdeValue::new(serde_json::Value::Null))
+        });
+
+        Some(MandateReference {
+            connector_mandate_id: Some(token_data.cnp_token.peek().clone()),
+            payment_method_id: None,
+            mandate_metadata,
+            connector_mandate_request_reference_id: None,
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -1082,29 +1113,40 @@ fn get_processing_info(
             .as_ref()
             .and_then(|mandate| mandate.mandate_reference_id.clone())
         {
-            Some(api_models::payments::MandateReferenceId::NetworkMandateId(
-                network_transaction_id,
-            )) => Ok(VantivMandateDetail {
-                processing_type: Some(VantivProcessingType::MerchantInitiatedCOF),
-                network_transaction_id: Some(network_transaction_id.network_transaction_id.into()),
-                token: None,
-            }),
-            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
+            Some(mandates::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
+                Ok(VantivMandateDetail {
+                    processing_type: Some(VantivProcessingType::MerchantInitiatedCOF),
+                    network_transaction_id: Some(
+                        network_transaction_id.network_transaction_id.into(),
+                    ),
+                    token: None,
+                })
+            }
+            Some(mandates::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
+                let network_transaction_id =
+                    mandate_data
+                        .get_mandate_metadata()
+                        .as_ref()
+                        .and_then(|metadata| {
+                            serde_json::from_value::<WorldpayvantivMandateMetadata>(
+                                metadata.peek().clone(),
+                            )
+                            .ok()
+                            .and_then(|meta| meta.network_transaction_id)
+                        });
+
                 let card_mandate_data = request.get_card_mandate_info()?;
+                let exp_date = card_mandate_data.get_expiry_date_as_mmyy()?;
+
                 Ok(VantivMandateDetail {
                     processing_type: None,
-                    network_transaction_id: None,
+                    network_transaction_id,
                     token: Some(TokenizationData {
                         cnp_token: mandate_data
                             .get_connector_mandate_id()
                             .ok_or(errors::ConnectorError::MissingConnectorMandateID)?
                             .into(),
-                        exp_date: format!(
-                            "{}{}",
-                            card_mandate_data.card_exp_month.peek(),
-                            card_mandate_data.card_exp_year.peek()
-                        )
-                        .into(),
+                        exp_date,
                     }),
                 })
             }
@@ -1948,14 +1990,24 @@ impl<F>
                         } else {
                             sale_response
                                 .token_response
-                                .clone()
-                                .map(MandateReference::from)
+                                .as_ref()
+                                .and_then(|token_data| {
+                                    WorldpayvantivMandateMetadata::create_mandate_reference(
+                                        token_data,
+                                        sale_response.network_transaction_id.clone(),
+                                    )
+                                })
                         }
                     }
                     false => sale_response
                         .token_response
-                        .clone()
-                        .map(MandateReference::from)
+                        .as_ref()
+                        .and_then(|token_data| {
+                            WorldpayvantivMandateMetadata::create_mandate_reference(
+                                token_data,
+                                sale_response.network_transaction_id.clone(),
+                            )
+                        })
                 };
 
 
@@ -2107,7 +2159,15 @@ impl<F>
                     };
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
-                    let mandate_reference_data = auth_response.token_response.clone().map(MandateReference::from);
+                    let mandate_reference_data = auth_response
+                        .token_response
+                        .as_ref()
+                        .and_then(|token_data| {
+                            WorldpayvantivMandateMetadata::create_mandate_reference(
+                                token_data,
+                                auth_response.network_transaction_id.clone(),
+                            )
+                        });
                     let connector_response = auth_response.fraud_result.as_ref().map(get_connector_response);
 
                     Ok(Self {
@@ -2242,10 +2302,16 @@ impl<F>
                             .encode_to_value()
                             .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
                     );
-                    let mandate_reference_data = auth_response
-                        .token_response
-                        .clone()
-                        .map(MandateReference::from);
+                    let mandate_reference_data =
+                        auth_response
+                            .token_response
+                            .as_ref()
+                            .and_then(|token_data| {
+                                WorldpayvantivMandateMetadata::create_mandate_reference(
+                                    token_data,
+                                    auth_response.network_transaction_id.clone(),
+                                )
+                            });
                     let connector_response = auth_response
                         .fraud_result
                         .as_ref()
@@ -2307,7 +2373,7 @@ impl From<TokenResponse> for MandateReference {
     }
 }
 
-impl From<&AccountUpdaterCardTokenInfo> for api_models::payments::UpdatedMandateDetails {
+impl From<&AccountUpdaterCardTokenInfo> for mandates::UpdatedMandateDetails {
     fn from(token_data: &AccountUpdaterCardTokenInfo) -> Self {
         let card_exp_month = token_data
             .exp_date
@@ -2349,7 +2415,7 @@ impl From<WorldpayvativCardType> for common_enums::CardNetwork {
 
 impl From<AccountUpdaterCardTokenInfo> for MandateReference {
     fn from(token_data: AccountUpdaterCardTokenInfo) -> Self {
-        let mandate_metadata = api_models::payments::UpdatedMandateDetails::from(&token_data);
+        let mandate_metadata = mandates::UpdatedMandateDetails::from(&token_data);
 
         let mandate_metadata_json = serde_json::to_value(&mandate_metadata)
             .inspect_err(|_| {

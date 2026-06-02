@@ -2141,6 +2141,7 @@ mod tests {
             whole_connector_response: None,
             payment_channel: None,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             enable_partial_authorization: None,
             is_overcapture_enabled: None,
             enable_overcapture: None,
@@ -2155,6 +2156,8 @@ mod tests {
             installment_data: None,
             state_metadata: None,
             connector_response_metadata: None,
+            connector_customer_id: None,
+            sender_payment_instrument_id: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));
@@ -2178,7 +2181,7 @@ mod tests {
                     )
                     .await
                     .map_err(|e| format!("resolve_webhook_recipient failed: {e}"))?;
-                webhooks_core::create_event_and_trigger_outgoing_webhook(
+                Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                     state_clone,
                     cloned_platform,
                     event_type,
@@ -2188,7 +2191,7 @@ mod tests {
                     content_clone,
                     primary_object_created_at,
                     webhook_recipient,
-                )
+                ))
                 .await
                 .map_err(|e| format!("create_event_and_trigger_outgoing_webhook failed: {e}"))
             });

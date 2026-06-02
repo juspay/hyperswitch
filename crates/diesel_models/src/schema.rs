@@ -942,6 +942,8 @@ diesel::table! {
         updated_by -> Nullable<Varchar>,
         #[max_length = 2048]
         customer_user_agent_extended -> Nullable<Varchar>,
+        #[max_length = 255]
+        network_transaction_link_id -> Nullable<Varchar>,
     }
 }
 
@@ -1207,6 +1209,8 @@ diesel::table! {
         external_surcharge_details -> Nullable<Jsonb>,
         #[max_length = 255]
         network_transaction_link_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        sender_payment_instrument_id -> Nullable<Varchar>,
     }
 }
 
@@ -1319,6 +1323,8 @@ diesel::table! {
         partner_merchant_identifier_details -> Nullable<Jsonb>,
         state_metadata -> Nullable<Jsonb>,
         installment_options -> Nullable<Jsonb>,
+        #[max_length = 64]
+        profile_acquirer_id -> Nullable<Varchar>,
     }
 }
 
@@ -1434,6 +1440,7 @@ diesel::table! {
         payment_method_subtype -> Nullable<Varchar>,
         #[max_length = 255]
         network_transaction_link_id -> Nullable<Varchar>,
+        compatibility_updated_at -> Nullable<Timestamp>,
     }
 }
 
@@ -1666,6 +1673,10 @@ diesel::table! {
         created_at -> Timestamp,
         modified_at -> Timestamp,
         response_data -> Nullable<Jsonb>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
@@ -1741,6 +1752,10 @@ diesel::table! {
         algorithm_for -> TransactionType,
         #[max_length = 64]
         decision_engine_routing_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 

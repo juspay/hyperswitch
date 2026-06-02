@@ -476,6 +476,15 @@ impl ForeignFrom<AuthenticationUpdate> for diesel_models::authentication::Authen
                 trans_status,
                 authentication_status,
             },
+            AuthenticationUpdate::AcquirerDetailsUpdate {
+                acquirer_bin,
+                acquirer_merchant_id,
+                acquirer_country_code,
+            } => Self::AcquirerDetailsUpdate {
+                acquirer_bin,
+                acquirer_merchant_id,
+                acquirer_country_code,
+            },
         }
     }
 }

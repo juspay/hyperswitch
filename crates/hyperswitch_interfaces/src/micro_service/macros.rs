@@ -111,7 +111,7 @@ macro_rules! impl_microservice_flow {
                 &self,
                 request: Self::V2Request,
             ) -> Option<common_utils::request::RequestContent> {
-                $body_fn(self, request)
+                ($body_fn)(self, request)
             }
             )?
 
@@ -120,7 +120,7 @@ macro_rules! impl_microservice_flow {
                 &self,
                 request: &Self::V1Request,
             ) -> Vec<(&'static str, String)> {
-                $path_params_fn(self, request)
+                ($path_params_fn)(self, request)
             }
             )?
 
@@ -129,7 +129,7 @@ macro_rules! impl_microservice_flow {
                 &self,
                 request: &Self::V1Request,
             ) -> Vec<(&'static str, String)> {
-                $query_params_fn(self, request)
+                ($query_params_fn)(self, request)
             }
             )?
         }
