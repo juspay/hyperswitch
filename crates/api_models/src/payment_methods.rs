@@ -153,10 +153,6 @@ pub struct PaymentMethodCreate {
     #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
 
-    /// The tokenization type to be applied
-    #[schema(value_type = Option<PspTokenization>)]
-    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
-
     /// The network tokenization configuration if applicable
     #[schema(value_type = Option<NetworkTokenization>)]
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
@@ -542,15 +538,6 @@ impl PaymentMethodCreate {
             }
             _ => false,
         }
-    }
-    pub fn get_tokenize_connector_id(
-        &self,
-    ) -> Result<id_type::MerchantConnectorAccountId, error_stack::Report<errors::ValidationError>>
-    {
-        self.psp_tokenization
-            .clone()
-            .get_required_value("psp_tokenization")
-            .map(|psp| psp.connector_id)
     }
 }
 
@@ -3441,10 +3428,6 @@ pub struct PaymentMethodResponseItem {
 
     ///The network token details for the payment method
     pub network_tokenization: Option<NetworkTokenResponse>,
-
-    /// Whether psp_tokenization is enabled for the payment_method, this will be true when at least
-    /// one multi-use token with status `Active` is available for the payment method
-    pub psp_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -4411,10 +4394,6 @@ pub struct PaymentMethodSessionRequest {
     #[schema(value_type = Option<String>)]
     pub return_url: Option<common_utils::types::Url>,
 
-    /// The tokenization type to be applied
-    #[schema(value_type = Option<PspTokenization>)]
-    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
-
     /// The network tokenization configuration if applicable
     #[schema(value_type = Option<NetworkTokenization>)]
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
@@ -4442,10 +4421,6 @@ pub struct PaymentMethodsSessionUpdateRequest {
     /// The billing address details of the customer. This will also be used for any new payment methods added during the session
     #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
-
-    /// The tokenization type to be applied
-    #[schema(value_type = Option<PspTokenization>)]
-    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
 
     /// The network tokenization configuration if applicable
     #[schema(value_type = Option<NetworkTokenization>)]
@@ -4539,10 +4514,6 @@ pub struct PaymentMethodSessionResponse {
     #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
 
-    /// The tokenization type to be applied
-    #[schema(value_type = Option<PspTokenization>)]
-    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
-
     /// The network tokenization configuration if applicable
     #[schema(value_type = Option<NetworkTokenization>)]
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
@@ -4592,7 +4563,6 @@ pub struct PaymentMethodSessionResponse {
 
     /// payment method data to be sent in session response
     #[schema(value_type = Option<PaymentMethodResponseData>)]
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_data: Option<PaymentMethodResponseData>,
 
     /// SDK authorization token for client SDK usage
