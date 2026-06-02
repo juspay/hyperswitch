@@ -292,4 +292,58 @@ export const connectorDetails = {
       },
     },
   },
+  bank_debit_pm: {
+    PaymentIntent: (paymentMethodType) => {
+      const currencyMap = { Sepa: "EUR" };
+      return {
+        Request: {
+          currency: currencyMap[paymentMethodType] || "USD",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+    Sepa: {
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE10010000000000001032",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            country: "DE",
+            first_name: "venkatakarthik",
+            last_name: "Account",
+          },
+          email: "test@example.com",
+        },
+        currency: "EUR",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+        },
+      },
+    },
+    SepaRetrieve: {
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+        },
+      },
+    },
+  },
 };
