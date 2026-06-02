@@ -1,4 +1,4 @@
-import { customerAcceptance } from "./Commons";
+import { customerAcceptance, standardBillingAddress } from "./Commons";
 
 // Test card details for Fiserv SnapPay
 const successfulNo3DSCardDetails = {
@@ -919,6 +919,27 @@ export const connectorDetails = {
           payment_method: "card",
           payment_method_data: payment_method_data_no3ds,
           connector: "fiserv",
+        },
+      },
+    },
+  },
+  wallet_pm: {
+    PaypalRedirect: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+        billing: standardBillingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
         },
       },
     },
