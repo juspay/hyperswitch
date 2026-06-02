@@ -550,6 +550,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::AmountDetailsUpdate,
         api_models::payments::SessionToken,
         api_models::payments::VaultSessionDetails,
+        api_models::payments::VaultDetails,
+        api_models::payments::InternalVaultSessionDetails,
         api_models::payments::VgsSessionDetails,
         api_models::payments::HyperswitchVaultSessionDetails,
         api_models::payments::ApplePaySessionResponse,
