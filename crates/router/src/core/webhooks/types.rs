@@ -170,31 +170,27 @@ impl WebhookDeliveryResponse for reqwest::Response {
 
     fn get_response_headers(&self) -> Vec<(String, Secret<String>)> {
         self.headers()
-        .iter()
-        .map(|(name, value)| {
-            (
-                name.as_str().to_owned(),
-                value
-                    .to_str()
-                    .map(|s| Secret::from(String::from(s)))
-                    .unwrap_or_else(|error| {
-                        logger::warn!(
-                            "Response header {} contains non-UTF-8 characters: {error:?}",
-                            name.as_str()
-                        );
-                        Secret::from(String::from("Non-UTF-8 header value"))
-                    }),
-            )
-        })
-        .collect::<Vec<_>>()
+            .iter()
+            .map(|(name, value)| {
+                (
+                    name.as_str().to_owned(),
+                    value
+                        .to_str()
+                        .map(|s| Secret::from(String::from(s)))
+                        .unwrap_or_else(|error| {
+                            logger::warn!(
+                                "Response header {} contains non-UTF-8 characters: {error:?}",
+                                name.as_str()
+                            );
+                            Secret::from(String::from("Non-UTF-8 header value"))
+                        }),
+                )
+            })
+            .collect::<Vec<_>>()
     }
 
     async fn get_response_body(self) -> Secret<String> {
-        self
-        .text()
-        .await
-        .map(Secret::from)
-        .unwrap_or_else(|error| {
+        self.text().await.map(Secret::from).unwrap_or_else(|error| {
             logger::warn!("Response contains non-UTF-8 characters: {error:?}");
             Secret::from(String::from("Non-UTF-8 response body"))
         })
@@ -216,13 +212,10 @@ impl WebhookDeliveryResponse for NotifyConnectorResponseData {
     }
 
     async fn get_response_body(self) -> Secret<String> {
-        Secret::from(
-            serde_json::to_string(&self)
-                .unwrap_or_else(|error| {
-                    logger::warn!("Failed to serialize response: {error:?}");
-                    String::from("Failed to serialize response")
-                }),
-        )
+        Secret::from(serde_json::to_string(&self).unwrap_or_else(|error| {
+            logger::warn!("Failed to serialize response: {error:?}");
+            String::from("Failed to serialize response")
+        }))
     }
 }
 
