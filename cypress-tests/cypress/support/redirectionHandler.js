@@ -173,13 +173,9 @@ export function handleInespayRedirectFlow(nextActionUrl) {
 
   // Select the specific account ending in 679.
   // The simulator masks the IBAN; we match the visible text that ends with 679.
-  // Options are rendered inside the multiselect dropdown list, so we search
-  // within the open dropdown and click the matching Cypress-wrapped element.
-  cy.get(".multiselect__content-wrapper, .multiselect__element, .multiselect__option", {
-    timeout: 15000,
-  })
-    .filter((_, el) => /ES[^\d]*679/.test(el.textContent))
-    .first()
+  // We search for the option text inside the open dropdown list.
+  cy.get(".multiselect__option", { timeout: 15000 })
+    .contains(/ES[^\d]*679/)
     .scrollIntoView()
     .should("be.visible")
     .click({ force: true });
@@ -201,32 +197,22 @@ export function handleInespayRedirectFlow(nextActionUrl) {
   cy.url({ timeout: 30000 }).should("match", /\/validation\//i);
   cy.wait(3000);
 
-  // Find the OTP input.  Some simulators use a plain <input>, others wrap
-  // it in a custom component.  We probe several common selectors and fall
-  // back to the first visible input.
+  // Find the OTP input using Cypress-native retry so the element is waited for.
+  // Some simulators render a tel/numeric input; if that is not present we fall
+  // back to the first visible plain <input>.
   cy.get("body", { timeout: 15000 }).then(($body) => {
-    let otpInput = $body
-      .find(
-        'input[type="tel"], input[inputmode="numeric"], input[name*="otp"], input[id*="otp"], input[placeholder*="OTP"], input[autocomplete="one-time-code"]'
-      )
-      .filter(":visible");
-
-    if (otpInput.length === 0) {
-      otpInput = $body.find("input").filter(":visible");
-    }
-
-    if (otpInput.length > 0) {
-      cy.wrap(otpInput.first(), { timeout: 5000 })
-        .scrollIntoView()
-        .should("be.visible")
-        .clear({ force: true })
-        .type("1111", { force: true });
-      cy.log("Entered OTP 1111");
+    if ($body.find('input[type="tel"]:visible').length) {
+      cy.get('input[type="tel"]:visible').first().clear().type("1111");
+    } else if ($body.find('input[inputmode="numeric"]:visible').length) {
+      cy.get('input[inputmode="numeric"]:visible').first().clear().type("1111");
+    } else if ($body.find("input:visible").length) {
+      cy.get("input:visible").first().clear().type("1111");
     } else {
       throw new Error(
         "Inespay OTP step: no visible input field found for entering OTP"
       );
     }
+    cy.log("Entered OTP 1111");
   });
 
   cy.wait(1000);
