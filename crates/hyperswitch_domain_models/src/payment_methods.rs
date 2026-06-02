@@ -98,6 +98,7 @@ pub struct PaymentMethod {
     pub locker_fingerprint_id: Option<String>,
     pub network_tokenization_data: OptionalEncryptableValue,
     pub storage_type: Option<common_enums::StorageType>,
+    pub compatibility_updated_at: Option<PrimitiveDateTime>,
 }
 
 #[cfg(feature = "v2")]
@@ -149,6 +150,7 @@ pub struct PaymentMethod {
     #[encrypt(ty = Value)]
     pub network_tokenization_data:
         Option<Encryptable<PaymentMethodNetworkTokenizationDataDomainType>>,
+    pub compatibility_updated_at: Option<PrimitiveDateTime>,
 }
 
 impl PaymentMethod {
@@ -216,10 +218,10 @@ impl PaymentMethod {
                     .as_object_mut()
                     .map(|obj| obj.remove("payouts"));
 
-                serde_json::from_value::<mandates::PaymentsMandateReference>(mandate_details)
-                    .inspect_err(|err| {
-                        router_env::logger::error!("Failed to parse payments data: {:?}", err);
-                    })
+                diesel_models::CommonMandateReference::parse_payments_reference_with_token_fallback(
+                    mandate_details,
+                )
+                .map(mandates::PaymentsMandateReference::from)
             })
             .transpose()
             .map_err(|err| {
@@ -503,6 +505,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             payment_method_type_v2: None,
             payment_method_subtype: None,
             id: None,
+            compatibility_updated_at: self.compatibility_updated_at,
         })
     }
 
@@ -615,6 +618,24 @@ impl super::behaviour::Conversion for PaymentMethod {
             item.vault_type,
             item.external_vault_source,
         ))?;
+        let payment_method_subtype =
+            item.payment_method_subtype
+                .and_then(|payment_method_subtype| {
+                    if payment_method_subtype.eq_ignore_ascii_case("card") {
+                        None
+                    } else {
+                        payment_method_subtype
+                            .parse::<storage_enums::PaymentMethodType>()
+                            .map_err(|error| {
+                                logger::warn!(
+                                    ?error,
+                                    payment_method_subtype,
+                                    "Failed to parse payment_method_subtype compatibility field"
+                                );
+                            })
+                            .ok()
+                    }
+                });
 
         // Construct the domain type
         // Storage always has customer_id, wrap in Some for domain
@@ -634,8 +655,8 @@ impl super::behaviour::Conversion for PaymentMethod {
             direct_debit_token: item.direct_debit_token,
             created_at: item.created_at,
             last_modified: item.last_modified,
-            payment_method: item.payment_method,
-            payment_method_type: item.payment_method_type,
+            payment_method: item.payment_method.or(item.payment_method_type_v2),
+            payment_method_type: item.payment_method_type.or(payment_method_subtype),
             payment_method_issuer: item.payment_method_issuer,
             payment_method_issuer_code: item.payment_method_issuer_code,
             metadata: item.metadata,
@@ -665,6 +686,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             locker_fingerprint_id: item.locker_fingerprint_id,
             network_tokenization_data,
             storage_type: None,
+            compatibility_updated_at: item.compatibility_updated_at,
         })
     }
 
@@ -721,6 +743,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             locker_fingerprint_id: self.locker_fingerprint_id,
             network_tokenization_data: self.network_tokenization_data.map(|val| val.into()),
             id: None,
+            compatibility_updated_at: self.compatibility_updated_at,
         })
     }
 }
@@ -739,6 +762,8 @@ impl super::behaviour::Conversion for PaymentMethod {
             payment_method_id: Some(payment_method_id),
             created_at: self.created_at,
             last_modified: self.last_modified,
+            payment_method: None,
+            payment_method_type: None,
             payment_method_type_v2: self.payment_method_type,
             payment_method_subtype: self.payment_method_subtype,
             payment_method_data: self.payment_method_data.map(|val| val.into()),
@@ -771,6 +796,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_details: self.customer_details.map(|val| val.into()),
             network_tokenization_data: self.network_tokenization_data.map(|val| val.into()),
             auxiliary_fingerprint_id: self.auxiliary_fingerprint_id,
+            compatibility_updated_at: self.compatibility_updated_at,
         })
     }
 
@@ -915,6 +941,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 customer_details,
                 network_tokenization_data,
                 auxiliary_fingerprint_id: storage_model.auxiliary_fingerprint_id,
+                compatibility_updated_at: storage_model.compatibility_updated_at,
             })
         }
         .await
@@ -932,6 +959,8 @@ impl super::behaviour::Conversion for PaymentMethod {
             payment_method_id: Some(payment_method_id),
             created_at: self.created_at,
             last_modified: self.last_modified,
+            payment_method: None,
+            payment_method_type: None,
             payment_method_type_v2: self.payment_method_type,
             payment_method_subtype: self.payment_method_subtype,
             payment_method_data: self.payment_method_data.map(|val| val.into()),
@@ -962,6 +991,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .map(|last_modified_by| last_modified_by.to_string()),
             customer_details: self.customer_details.map(|val| val.into()),
             auxiliary_fingerprint_id: self.auxiliary_fingerprint_id,
+            compatibility_updated_at: self.compatibility_updated_at,
         })
     }
 }
@@ -1755,6 +1785,7 @@ mod tests {
             locker_fingerprint_id: None,
             network_tokenization_data: None,
             storage_type: None,
+            compatibility_updated_at: Some(common_utils::date_time::now()),
         };
         payment_method.clone()
     }

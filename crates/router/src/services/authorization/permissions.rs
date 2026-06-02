@@ -124,14 +124,14 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<
         (Resource::Payout, _) => Some("Payouts"),
         (Resource::ApiKey, _) => Some("Api Keys"),
         (Resource::Connector, _) => {
-            Some("Payment Processors, Payout Processors, Fraud & Risk Managers")
+            Some("Payment Processors, Payout Processors, 3ds Authenticators, Fraud & Risk Managers, PM Auth Processor,Tax Processors, Billing Processors, Vault Processors")
         }
         (Resource::Routing, _) => Some("Routing"),
         (Resource::Subscription, _) => Some("Subscription"),
         (Resource::RevenueRecovery, _) => Some("Revenue Recovery"),
         (Resource::ThreeDsDecisionManager, _) => Some("3DS Decision Manager"),
         (Resource::SurchargeDecisionManager, _) => Some("Surcharge Decision Manager"),
-        (Resource::Analytics, _) => Some("Analytics"),
+        (Resource::Analytics, _) => Some("Insights, Payments, Refunds, Authentication, Routing"),
         (Resource::Report, _) => Some("Operation Reports"),
         (Resource::User, _) => Some("Users"),
         (Resource::WebhookEvent, _) => Some("Webhook Events"),

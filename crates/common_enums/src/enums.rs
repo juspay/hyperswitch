@@ -2468,11 +2468,19 @@ pub enum PaymentMethodType {
 }
 
 impl PaymentMethodType {
-    pub fn should_check_for_customer_saved_payment_method_type(self) -> bool {
-        matches!(
-            self,
-            Self::ApplePay | Self::GooglePay | Self::SamsungPay | Self::Paypal | Self::Klarna
-        )
+    pub fn should_check_for_customer_saved_payment_method_type(
+        self,
+        is_apple_pay_decrypt: bool,
+    ) -> bool {
+        if is_apple_pay_decrypt {
+            // return false if the payment method is Apple Pay and the decryption is successful, else exhibit the existing behaviour
+            !matches!(self, Self::ApplePay)
+        } else {
+            matches!(
+                self,
+                Self::ApplePay | Self::GooglePay | Self::SamsungPay | Self::Paypal | Self::Klarna
+            )
+        }
     }
     pub fn to_display_name(&self) -> String {
         let display_name = match self {
@@ -3089,6 +3097,7 @@ pub enum RelayType {
     Capture,
     IncrementalAuthorization,
     Void,
+    UnreferencedRefund,
 }
 
 #[derive(
@@ -10735,6 +10744,7 @@ pub enum ProcessTrackerRunner {
     AttachPayoutAccountWorkflow,
     PaymentMethodStatusUpdateWorkflow,
     PaymentMethodModularForwardCompatWorkflow,
+    PaymentMethodModularBackwardCompatWorkflow,
     PassiveRecoveryWorkflow,
     ProcessDisputeWorkflow,
     DisputeListWorkflow,

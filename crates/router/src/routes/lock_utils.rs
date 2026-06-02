@@ -171,6 +171,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetExtendedCardInfo
             | Flow::PaymentsCompleteAuthorize
             | Flow::PaymentsManualUpdate
+            | Flow::PaymentsManualStatusUpdate
             | Flow::SessionUpdateTaxCalculation
             | Flow::PaymentsConfirmIntent
             | Flow::PaymentsCreateIntent
@@ -207,7 +208,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RefundsFilters
             | Flow::RefundsAggregate
             | Flow::RefundsManualUpdate => Self::Refunds,
-            Flow::Relay | Flow::RelayRetrieve => Self::Relay,
+            Flow::Relay | Flow::RelayRetrieve | Flow::RelayUnreferencedRefund => Self::Relay,
             Flow::FrmFulfillment
             | Flow::IncomingWebhookReceive
             | Flow::IncomingRelayWebhookReceive
@@ -304,6 +305,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::OidcToken
             | Flow::ListOrgForUser
             | Flow::ListMerchantsForUserInOrg
+            | Flow::GetUserMerchantDetails
             | Flow::ListProfileForUserInOrgAndMerchant
             | Flow::ListInvitationsForUser
             | Flow::AuthSelect

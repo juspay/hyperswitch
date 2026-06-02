@@ -612,6 +612,10 @@ diesel::table! {
         delivery_attempt -> Nullable<WebhookDeliveryAttempt>,
         metadata -> Nullable<Jsonb>,
         is_overall_delivery_successful -> Nullable<Bool>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        initiator_merchant_id -> Nullable<Varchar>,
     }
 }
 
@@ -950,6 +954,8 @@ diesel::table! {
         updated_by -> Nullable<Varchar>,
         #[max_length = 2048]
         customer_user_agent_extended -> Nullable<Varchar>,
+        #[max_length = 255]
+        network_transaction_link_id -> Nullable<Varchar>,
     }
 }
 
@@ -1144,6 +1150,8 @@ diesel::table! {
         external_surcharge_details -> Nullable<Jsonb>,
         #[max_length = 255]
         network_transaction_link_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        sender_payment_instrument_id -> Nullable<Varchar>,
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
@@ -1250,6 +1258,8 @@ diesel::table! {
         state_metadata -> Nullable<Jsonb>,
         installment_options -> Nullable<Jsonb>,
         #[max_length = 64]
+        profile_acquirer_id -> Nullable<Varchar>,
+        #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,
         shipping_address -> Nullable<Bytea>,
@@ -1326,6 +1336,9 @@ diesel::table! {
         payment_method_id -> Nullable<Varchar>,
         created_at -> Timestamp,
         last_modified -> Timestamp,
+        payment_method -> Nullable<Varchar>,
+        #[max_length = 64]
+        payment_method_type -> Nullable<Varchar>,
         payment_method_data -> Nullable<Bytea>,
         #[max_length = 64]
         locker_id -> Nullable<Varchar>,
@@ -1367,6 +1380,7 @@ diesel::table! {
         payment_method_subtype -> Nullable<Varchar>,
         #[max_length = 255]
         network_transaction_link_id -> Nullable<Varchar>,
+        compatibility_updated_at -> Nullable<Timestamp>,
         external_vault_token_data -> Nullable<Bytea>,
         #[max_length = 64]
         auxiliary_fingerprint_id -> Nullable<Varchar>,
@@ -1595,6 +1609,10 @@ diesel::table! {
         created_at -> Timestamp,
         modified_at -> Timestamp,
         response_data -> Nullable<Jsonb>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
@@ -1670,6 +1688,10 @@ diesel::table! {
         algorithm_for -> TransactionType,
         #[max_length = 64]
         decision_engine_routing_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 

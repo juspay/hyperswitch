@@ -4,7 +4,7 @@ use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{
     associations::HasTable,
     query_dsl::methods::{DistinctDsl, FilterDsl, SelectDsl},
-    BoolExpressionMethods, ExpressionMethods,
+    BoolExpressionMethods, ExpressionMethods, Table,
 };
 use error_stack::{report, ResultExt};
 
@@ -57,12 +57,20 @@ impl PayoutAttempt {
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         payout_id: &common_utils::id_type::PayoutId,
-    ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::payout_id.eq(payout_id.to_owned())),
+            None,
+            None,
+            None,
         )
         .await
     }
