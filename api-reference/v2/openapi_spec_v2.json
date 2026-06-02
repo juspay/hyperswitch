@@ -10328,8 +10328,7 @@
             "description": "The CVC number for the card\nThis is optional in case the card needs to be vaulted",
             "example": "242"
           }
-        },
-        "additionalProperties": false
+        }
       },
       "CardDetailFromLocker": {
         "type": "object",
@@ -11170,6 +11169,7 @@
       "Connector": {
         "type": "string",
         "enum": [
+          "absa_sanlam",
           "authipay",
           "adyenplatform",
           "stripe_billing_test",
@@ -11283,7 +11283,6 @@
           "recurly",
           "redsys",
           "revolv3",
-          "sanlam",
           "santander",
           "shift4",
           "silverflow",
@@ -21586,14 +21585,6 @@
             ],
             "nullable": true
           },
-          "psp_tokenization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PspTokenization"
-              }
-            ],
-            "nullable": true
-          },
           "network_tokenization": {
             "allOf": [
               {
@@ -22551,8 +22542,7 @@
           "payment_method_subtype",
           "created",
           "requires_cvv",
-          "is_default",
-          "psp_tokenization_enabled"
+          "is_default"
         ],
         "properties": {
           "id": {
@@ -22632,10 +22622,6 @@
               }
             ],
             "nullable": true
-          },
-          "psp_tokenization_enabled": {
-            "type": "boolean",
-            "description": "Whether psp_tokenization is enabled for the payment_method, this will be true when at least\none multi-use token with status `Active` is available for the payment method"
           }
         }
       },
@@ -22722,14 +22708,6 @@
             "description": "The return url to which the customer should be redirected to after adding the payment method",
             "nullable": true
           },
-          "psp_tokenization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PspTokenization"
-              }
-            ],
-            "nullable": true
-          },
           "network_tokenization": {
             "allOf": [
               {
@@ -22785,14 +22763,6 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Address"
-              }
-            ],
-            "nullable": true
-          },
-          "psp_tokenization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PspTokenization"
               }
             ],
             "nullable": true
@@ -23187,14 +23157,6 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Address"
-              }
-            ],
-            "nullable": true
-          },
-          "psp_tokenization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PspTokenization"
               }
             ],
             "nullable": true
@@ -26342,6 +26304,13 @@
           "propertyName": "field_type"
         }
       },
+      "PaypalCaptureMethod": {
+        "type": "string",
+        "enum": [
+          "capture",
+          "authorize"
+        ]
+      },
       "PaypalFlow": {
         "type": "string",
         "enum": [
@@ -26395,6 +26364,22 @@
           "data_user_id_token": {
             "type": "string",
             "description": "User token required for returning customer flow, used by client to initiate sdk",
+            "nullable": true
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "intent": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaypalCaptureMethod"
+              }
+            ],
             "nullable": true
           }
         }
@@ -26569,6 +26554,12 @@
             "type": "string",
             "description": "Individual taxpayer identification number",
             "example": "000123456",
+            "nullable": true
+          },
+          "ispb": {
+            "type": "string",
+            "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
+            "example": "60701190",
             "nullable": true
           }
         }
@@ -26809,6 +26800,12 @@
             "type": "string",
             "description": "String formatted QR code for pix payout",
             "example": "00020126580014br.gov.bcb.pix0114000123456785204000053039865802BR5925John Doe6009Sao Paulo61080540900062070503***63041D3D"
+          },
+          "ispb": {
+            "type": "string",
+            "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
+            "example": "60701190",
+            "nullable": true
           }
         }
       },
@@ -28008,8 +28005,41 @@
                 "$ref": "#/components/schemas/BankDebitDetail"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "proxy_card"
+            ],
+            "properties": {
+              "proxy_card": {
+                "$ref": "#/components/schemas/RawProxyCardDataResponse"
+              }
+            }
           }
         ]
+      },
+      "RawProxyCardDataResponse": {
+        "type": "object",
+        "required": [
+          "card_number"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "example": "4111111145551142"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "example": "25",
+            "nullable": true
+          },
+          "card_exp_month": {
+            "type": "string",
+            "example": "10",
+            "nullable": true
+          }
+        }
       },
       "RealTimePaymentData": {
         "oneOf": [
@@ -29189,6 +29219,7 @@
         "type": "string",
         "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
+          "absa_sanlam",
           "authipay",
           "adyenplatform",
           "stripe_billing_test",
@@ -29256,6 +29287,7 @@
           "iatapay",
           "imerchantsolutions",
           "inespay",
+          "interpayments",
           "itaubank",
           "jpmorgan",
           "klarna",
@@ -29295,7 +29327,6 @@
           "redsys",
           "revolv3",
           "riskified",
-          "sanlam",
           "santander",
           "shift4",
           "signifyd",
@@ -30965,8 +30996,7 @@
             "example": "acct_1234567890",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "StripeChargeType": {
         "type": "string",

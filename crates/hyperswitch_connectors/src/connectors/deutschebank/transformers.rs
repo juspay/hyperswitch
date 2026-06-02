@@ -5,6 +5,7 @@ use common_enums::{enums, PaymentMethod};
 use common_utils::{ext_traits::ValueExt, pii::Email, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    mandates,
     payment_method_data::{BankDebitData, PaymentMethodData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -285,7 +286,7 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
                     .into()),
                 }
             }
-            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
+            Some(mandates::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
                 let mandate_metadata: DeutschebankMandateMetadata = mandate_data
                     .get_mandate_metadata()
                     .ok_or(errors::ConnectorError::MissingConnectorMandateMetadata)?
@@ -309,9 +310,9 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
                     },
                 }))
             }
-            Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
-            | Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
-            | Some(api_models::payments::MandateReferenceId::CardWithLimitedData) => {
+            Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
+            | Some(mandates::MandateReferenceId::NetworkMandateId(_))
+            | Some(mandates::MandateReferenceId::CardWithLimitedData) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("deutschebank"),
                 )

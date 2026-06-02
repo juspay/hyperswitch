@@ -197,7 +197,20 @@ const CURRENCY_MAP = {
   OnlineBankingFpx: "MYR", // Malaysian payment methods
   Interac: "CAD", // Canadian payment method
   AliPayHk: "HKD", // Hong Kong payment method
+  Affirm: "USD", // US BNPL payment method
   Mifinity: "EUR", // Mifinity wallet payment method
+
+  // Voucher payment methods
+  Boleto: "BRL",
+  Oxxo: "MXN",
+  Alfamart: "IDR",
+  Indomaret: "IDR",
+  SevenEleven: "JPY",
+  Lawson: "JPY",
+  MiniStop: "JPY",
+  FamilyMart: "JPY",
+  Seicomart: "JPY",
+  PayEasy: "JPY",
   Skrill: "USD", // Skrill wallet payment method
   PaySafeCard: "USD", // PaySafeCard gift card payment method
 };
