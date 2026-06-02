@@ -35,7 +35,11 @@ import getConnectorDetails, {
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
-import { handleRedirection, handleInespayRedirectFlow } from "./redirectionHandler";
+import {
+  handleGlobepayQRRedirection as handleGlobepayQR,
+  handleInespayRedirectFlow,
+  handleRedirection,
+} from "./redirectionHandler";
 
 // In MITM replay mode (MOCK_SERVER=true) there is no live browser redirection
 // to drive. Cypress.env may return a boolean or a string, hence String().
@@ -5233,25 +5237,11 @@ Cypress.Commands.add(
 
 /**
  * Verify Globepay QR-code nextActionUrl (inline base64 data URI).
- * Used by WeChatPay and AliPay wallet flows where the connector returns
- * a data: URI instead of a redirect URL.
+ * Thin wrapper — actual logic lives in redirectionHandler.js.
  */
 Cypress.Commands.add("handleGlobepayQRRedirection", (globalState) => {
   const nextActionUrl = globalState.get("nextActionUrl");
-
-  expect(
-    nextActionUrl,
-    "nextActionUrl should be present after Globepay wallet confirm"
-  ).to.be.a("string");
-
-  expect(
-    nextActionUrl,
-    "nextActionUrl should be a data URI containing a QR code image"
-  ).to.match(/^data:/);
-
-  cy.log(
-    "Globepay inline QR code verified via data URI — no redirect expected"
-  );
+  handleGlobepayQR(nextActionUrl);
 });
 
 /**

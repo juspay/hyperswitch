@@ -3072,3 +3072,26 @@ function handleFlow(
     }
   });
 }
+
+/**
+ * Verify Globepay QR-code nextActionUrl (inline base64 data URI).
+ * Used by WeChatPay and AliPay wallet flows where the connector returns
+ * a data: URI instead of a redirect URL.
+ */
+export function handleGlobepayQRRedirection(nextActionUrl) {
+  expect(
+    nextActionUrl,
+    "nextActionUrl should be present after Globepay wallet confirm"
+  ).to.be.a("string");
+
+  expect(
+    nextActionUrl,
+    "nextActionUrl should be a data URI containing a QR code image"
+  ).to.match(/^data:/);
+
+  cy.log(
+    "Globepay inline QR code verified via data URI — no redirect expected"
+  );
+}
+
+
