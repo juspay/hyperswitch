@@ -58,9 +58,9 @@ export function handleInespayRedirectFlow(nextActionUrl) {
 
   // ── Step 0: Click "close" button to dismiss any modal ───────────────
   cy.get("body", { timeout: 10000 }).then(($body) => {
-    const closeBtn = $body.find("button").filter((_, btn) =>
-      /close/i.test(btn.textContent.trim())
-    );
+    const closeBtn = $body
+      .find("button")
+      .filter((_, btn) => /close/i.test(btn.textContent.trim()));
     if (closeBtn.length > 0) {
       cy.wrap(closeBtn.first(), { timeout: 5000 })
         .should("be.visible")
@@ -3093,5 +3093,3 @@ export function handleGlobepayQRRedirection(nextActionUrl) {
     "Globepay inline QR code verified via data URI — no redirect expected"
   );
 }
-
-
