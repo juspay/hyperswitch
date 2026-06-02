@@ -6523,6 +6523,8 @@ pub async fn payment_methods_session_confirm(
             .await?;
     };
 
+    let associated_pm_data = payment_method_response.payment_method_data.clone();
+
     let associated_payment_methods = common_types::payment_methods::AssociatedPaymentMethods {
         payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(parent_payment_method_token),
     };
@@ -6580,7 +6582,7 @@ pub async fn payment_methods_session_confirm(
         (tokenization_response.flatten()),
         payment_method_response.storage_type,
         payment_method_response.card_cvc_token_storage,
-        None,
+        associated_pm_data,
         payment_method_response.network_token,
     );
 
