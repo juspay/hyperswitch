@@ -461,6 +461,7 @@ impl Event {
         .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn apply_filters<T>(
         mut query: T,
         profile_id: Option<common_utils::id_type::ProfileId>,
@@ -534,6 +535,7 @@ impl Event {
         query
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn count_initial_attempts_by_constraints(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -617,6 +619,7 @@ impl Event {
         .attach_printable("Error counting events by profile_id constraints")
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn count_initial_attempts_by_initiator_merchant_id_constraints(
         conn: &PgPooledConn,
         initiator_merchant_id: &common_utils::id_type::MerchantId,

@@ -317,7 +317,7 @@ impl WebhookPayload {
             .as_ref()
             .map(|external_surcharge_details| {
                 let event_content = api_models::payments::ResponseSurchargeDetails {
-                    surcharge_amount: external_surcharge_details.external_surcharge_amount.clone(),
+                    surcharge_amount: external_surcharge_details.external_surcharge_amount,
                     external_surcharge_id: external_surcharge_details.external_surcharge_id.clone(),
                     payment_id: payment_attempt.payment_id.clone(),
                     attempt_id: payment_attempt.attempt_id.clone(),
@@ -346,8 +346,8 @@ pub(crate) enum WebhookRecipientData {
 impl WebhookRecipientData {
     pub fn get_event_recipient(&self) -> common_enums::EventRecipient {
         match self {
-            WebhookRecipientData::Merchant => common_enums::EventRecipient::Merchant,
-            WebhookRecipientData::Connector { .. } => common_enums::EventRecipient::Connector,
+            Self::Merchant => common_enums::EventRecipient::Merchant,
+            Self::Connector { .. } => common_enums::EventRecipient::Connector,
         }
     }
 }

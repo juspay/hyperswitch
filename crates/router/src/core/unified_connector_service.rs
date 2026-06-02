@@ -3175,7 +3175,7 @@ pub fn build_notify_connector_request(
     let connector_auth_metadata: ConnectorAuthMetadata =
         build_unified_connector_service_auth_metadata(
             merchant_connector_account,
-            &merchant_id,
+            merchant_id,
             connector_name.clone(),
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3255,7 +3255,7 @@ pub async fn call_unified_connector_service_for_notify_connector(
             notify_request,
             connector_auth_metadata,
             grpc_headers,
-            notify_event_type.into(),
+            notify_event_type,
         )
         .await
         .change_context(errors::ApiClientError::UnexpectedServerResponse)

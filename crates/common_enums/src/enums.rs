@@ -1926,10 +1926,10 @@ pub trait SurchargeEventMapper {
 }
 
 impl SurchargeEventMapper for EventType {
-    fn to_surcharge_event(&self) -> Option<EventType> {
+    fn to_surcharge_event(&self) -> Option<Self> {
         match self {
-            EventType::PaymentSucceeded => Some(EventType::SurchargePaymentSucceeded),
-            EventType::RefundSucceeded => Some(EventType::SurchargeRefundSucceeded),
+            Self::PaymentSucceeded => Some(Self::SurchargePaymentSucceeded),
+            Self::RefundSucceeded => Some(Self::SurchargeRefundSucceeded),
             _ => None,
         }
     }

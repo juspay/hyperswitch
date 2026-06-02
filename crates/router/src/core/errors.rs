@@ -149,6 +149,8 @@ pub enum WebhooksFlowError {
     CallToMerchantFailed,
     #[error("Webhook not received by merchant")]
     NotReceivedByMerchant,
+    #[error("Webhook not received by receipt")]
+    NotReceivedByReceipt,
     #[error("Dispute webhook status validation failed")]
     DisputeWebhookValidationFailed,
     #[error("Outgoing webhook body encoding failed")]
@@ -185,7 +187,8 @@ impl WebhooksFlowError {
             | Self::OutgoingWebhookProcessTrackerTaskUpdateFailed
             | Self::OutgoingWebhookRetrySchedulingFailed
             | Self::IdGenerationFailed
-            | Self::WebhookCallFailed => true,
+            | Self::WebhookCallFailed
+            | Self::NotReceivedByReceipt => true,
         }
     }
 }

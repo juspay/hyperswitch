@@ -190,6 +190,7 @@ where
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<i64, errors::StorageError>;
 
+    #[allow(clippy::too_many_arguments)]
     async fn count_initial_events_by_constraints(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -753,6 +754,7 @@ impl EventInterface for Store {
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn count_initial_events_by_initiator_merchant_id_constraints(
         &self,
         initiator_merchant_id: &common_utils::id_type::MerchantId,
@@ -1337,7 +1339,7 @@ impl EventInterface for MockDb {
                 && (event.created_at <= created_before)
                 && (event_types.is_empty() || event_types.contains(&event.event_type))
                 && (event.is_overall_delivery_successful == is_delivered)
-                && (event_recipient.is_none() || event_recipient == event.recipient.clone());
+                && (event_recipient.is_none() || event_recipient == event.recipient);
             check
         });
 
@@ -1374,7 +1376,7 @@ impl EventInterface for MockDb {
                 && (event.created_at <= created_before)
                 && (event_types.is_empty() || event_types.contains(&event.event_type))
                 && (event.is_overall_delivery_successful == is_delivered)
-                && (event_recipient.is_none() || event_recipient == event.recipient.clone());
+                && (event_recipient.is_none() || event_recipient == event.recipient);
 
             check
         });
@@ -1441,7 +1443,7 @@ impl EventInterface for MockDb {
                         && event.merchant_id.as_ref() == Some(initiator_merchant_id));
                 event.initial_attempt_id.as_deref() == Some(initial_attempt_id)
                     && matches_initiator
-                    && (event_recipient.is_none() || event_recipient == event.recipient.clone())
+                    && (event_recipient.is_none() || event_recipient == event.recipient)
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -1568,7 +1570,7 @@ impl EventInterface for MockDb {
                 && (event.created_at <= created_before)
                 && (event_types.is_empty() || event_types.contains(&event.event_type))
                 && (event.is_overall_delivery_successful == is_delivered)
-                && (event_recipient.is_none() || event_recipient == event.recipient.clone());
+                && (event_recipient.is_none() || event_recipient == event.recipient);
 
             check
         });
@@ -1580,6 +1582,7 @@ impl EventInterface for MockDb {
             .attach_printable("Failed to convert usize to i64")
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn count_initial_events_by_initiator_merchant_id_constraints(
         &self,
         initiator_merchant_id: &common_utils::id_type::MerchantId,
@@ -1605,7 +1608,7 @@ impl EventInterface for MockDb {
                 && (event.created_at <= created_before)
                 && (event_types.is_empty() || event_types.contains(&event.event_type))
                 && (event.is_overall_delivery_successful == is_delivered)
-                && (event_recipient.is_none() || event_recipient == event.recipient.clone());
+                && (event_recipient.is_none() || event_recipient == event.recipient);
 
             check
         });
