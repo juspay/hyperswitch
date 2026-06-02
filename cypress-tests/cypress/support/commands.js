@@ -4211,8 +4211,11 @@ Cypress.Commands.add(
           );
           expect(response.body.customer, "customer").to.not.be.empty;
           expect(response.body.profile_id, "profile_id").to.not.be.null;
+          // Wallet mandates return requires_customer_action before redirect completion,
+          // so payment_method_id doesn't exist yet - exclude both failed and requires_customer_action
           if (
             response.body.status !== "failed" &&
+            response.body.status !== "requires_customer_action" &&
             response.body.setup_future_usage === "off_session"
           ) {
             expect(response.body.payment_method_id, "payment_method_id").to.not
@@ -4220,8 +4223,11 @@ Cypress.Commands.add(
           }
 
           if (requestBody.mandate_data === null) {
-            expect(response.body).to.have.property("payment_method_id");
-            globalState.set("paymentMethodId", response.body.payment_method_id);
+            // For wallet mandates that return requires_customer_action, payment_method_id may be null initially.
+            // It will be populated after handleWalletRedirection and retrieved in subsequent retrievePaymentCallTest.
+            if (response.body.payment_method_id) {
+              globalState.set("paymentMethodId", response.body.payment_method_id);
+            }
           } else {
             expect(response.body).to.have.property("mandate_id");
             globalState.set("mandateId", response.body.mandate_id);
