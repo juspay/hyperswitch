@@ -286,11 +286,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .attach_printable("Error converting connector_metadata to Value")?
             .or(payment_intent.connector_metadata);
 
-        payment_intent.feature_metadata = request
-            .get_feature_metadata_as_value()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error converting feature_metadata to Value")?
-            .or(payment_intent.feature_metadata);
+        // payment_intent.feature_metadata = request
+        //     .get_feature_metadata_as_value()
+        //     .change_context(errors::ApiErrorResponse::InternalServerError)
+        //     .attach_printable("Error converting feature_metadata to Value")?
+        //     .or(payment_intent.feature_metadata);
+
+        println!("Payment Intent from get_trackers: {:?}", payment_intent);
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
         payment_intent.frm_metadata = request.frm_metadata.clone().or(payment_intent.frm_metadata);
         payment_intent.psd2_sca_exemption_type = request
@@ -594,6 +596,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             external_authentication_data: None,
             client_session_id: None,
             vault_session_details: None,
+            request_payload: crate::core::payments::request_payload_context::get_request_payload(),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -1089,6 +1092,40 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 
         let shipping_cost = payment_data.payment_intent.shipping_cost;
 
+        // Deserialize request_payload to PaymentsRequest for comparison
+        let request_payments = payment_data
+            .request_payload
+            .as_ref()
+            .map(|payload| {
+                payload
+                    .clone()
+                    .parse_value::<api_models::payments::PaymentsRequest>("PaymentsRequest")
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse request payload")?;
+
+        let payment_intent_feature_metadata = payment_data
+            .payment_intent
+            .get_optional_feature_metadata()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse payment intent feature metadata")?;
+
+        let feature_metadata = match (
+            request_payments.and_then(|req| req.feature_metadata),
+            payment_intent_feature_metadata,
+        ) {
+            (Some(request_meta), intent_meta) => Some(request_meta.merge(intent_meta)),
+            (None, intent_meta) => intent_meta,
+        };
+
+        let feature_metadata_value = feature_metadata
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to serialize feature metadata")?;
+
         payment_data.payment_intent = state
             .store
             .update_payment_intent(
@@ -1129,10 +1166,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         .is_iframe_redirection_enabled,
                     is_confirm_operation: false, // this is not a confirm operation
                     payment_channel: payment_data.payment_intent.payment_channel,
-                    feature_metadata: payment_data
-                        .payment_intent
-                        .feature_metadata
-                        .clone()
+                    feature_metadata: feature_metadata_value
                         .map(hyperswitch_masking::Secret::new),
                     tax_status: payment_data.payment_intent.tax_status,
                     discount_amount: payment_data.payment_intent.discount_amount,

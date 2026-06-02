@@ -283,10 +283,13 @@ pub struct PaymentsUpdateMetadataData {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentsUpdatePostConfirmData {
-    // add connector intent metadata, address, amount, currency etc
+    // add amount, billing full name
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
     pub connector_attempt_metadata: Option<serde_json::Value>,
     pub connector_transaction_id: String,
+    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    pub metadata: Option<serde_json::Value>,
+    pub customer_document_details: Option<api_models::customers::CustomerDocumentDetails>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

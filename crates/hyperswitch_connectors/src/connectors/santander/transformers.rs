@@ -1878,17 +1878,20 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderBoletoPaymentReq
             .boleto
             .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
 
-        let due_date = Some(
-            value
-                .request
-                .feature_metadata
-                .as_ref()
-                .and_then(|fm| fm.boleto_additional_details.as_ref())
-                .and_then(|details| details.due_date)
-                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                    field_name: "feature_metadata.boleto_additional_details.due_date",
-                })?,
-        );
+        println!("Feature Metadata from connectors crate: {:?}", value.request.feature_metadata);
+
+        let due_date = value
+            .request
+            .feature_metadata
+            .as_ref()
+            .and_then(|fm| fm.boleto_additional_details.as_ref())
+            .and_then(|details| details.due_date);
+
+        let due_date_str = due_date
+            .map(|dt| format_as_date_only(Some(dt)))
+            .transpose()?;
+        
+        println!("covenant code from MCA: {:?}", boleto_mca_metadata.covenant_code);
 
         let covenant_code = value.request.feature_metadata.clone().and_then(|data| {
             data.get_optional_boleto_covenant_code()
@@ -1899,7 +1902,7 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderBoletoPaymentReq
             bank_number: Some(value.connector_request_reference_id.clone()),
             covenant_code,
             environment: None,
-            due_date: Some(format_as_date_only(due_date)?),
+            due_date: due_date_str,
             nsu_code: None,
             nsu_date: None,
             client_number: None,
@@ -1937,11 +1940,6 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderPixQRPaymentRequ
     fn try_from(value: &PaymentsUpdatePostConfirmRouterData) -> Result<Self, Self::Error> {
         match value.payment_method_type {
             Some(common_enums::PaymentMethodType::Pix) => {
-                let santander_mca_metadata =
-                    SantanderMetadataObject::try_from(&value.connector_meta_data)?;
-                let pix_mca_metadata = santander_mca_metadata
-                    .pix
-                    .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
                 let calendar = match &value
                     .request
                     .feature_metadata
@@ -1978,8 +1976,7 @@ impl TryFrom<&PaymentsUpdatePostConfirmRouterData> for SantanderPixQRPaymentRequ
                     .request
                     .feature_metadata
                     .clone()
-                    .and_then(|data| data.get_pix_key_and_value().1)
-                    .or(Some(pix_mca_metadata.pix_key_value.clone()));
+                    .and_then(|data| data.get_pix_key_and_value().1);
 
                 Ok(Self {
                     calendario: calendar,

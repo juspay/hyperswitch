@@ -17,6 +17,8 @@ pub mod tokenization;
 pub mod transformers;
 pub mod types;
 pub mod vault_session;
+pub mod request_payload_helpers;
+pub mod request_payload_context;
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
 use std::{
@@ -8728,6 +8730,9 @@ where
     pub is_l2_l3_enabled: bool,
     pub external_authentication_data: Option<api_models::payments::ExternalThreeDsData>,
     pub client_session_id: Option<id_type::ClientSessionId>,
+    /// Optional: Original request payload from the route handler
+    /// Stored as generic serde_json::Value to support multiple request types
+    pub request_payload: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -12542,6 +12547,18 @@ pub async fn payments_submit_eligibility(
             sdk_next_action,
         },
     ))
+}
+
+impl<F: Clone> PaymentData<F> {
+    /// Set the request_payload field with a serialized JSON value
+    pub fn set_request_payload(&mut self, payload: Option<serde_json::Value>) {
+        self.request_payload = payload;
+    }
+
+    /// Get the request_payload field
+    pub fn get_request_payload(&self) -> Option<&serde_json::Value> {
+        self.request_payload.as_ref()
+    }
 }
 
 pub trait PaymentMethodChecker<F> {

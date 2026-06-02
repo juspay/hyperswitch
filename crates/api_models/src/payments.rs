@@ -1520,7 +1520,7 @@ pub struct PaymentsRequest {
 
     /// Indicates whether the `payment_id` was provided by the merchant
     /// This value is inferred internally based on the request
-    #[serde(skip_deserializing)]
+    #[serde(default)]
     #[remove_in(PaymentsUpdateRequest, PaymentsCreateRequest, PaymentsConfirmRequest)]
     pub is_payment_id_from_merchant: bool,
 
@@ -3252,6 +3252,9 @@ mod payment_method_data_serde {
 
         match deserialize_to_inner {
             __Inner::OptionalPaymentMethod(value) => {
+                if value.is_null() {
+                    return Ok(None);
+                }
                 let parsed_value = serde_json::from_value::<__InnerPaymentMethodData>(value)
                     .map_err(|serde_json_error| de::Error::custom(serde_json_error.to_string()))?;
 
@@ -10043,6 +10046,19 @@ impl ConnectorMetadata {
                 })
         })
     }
+
+    pub fn compare_with_request_payload(
+        &self,
+        request_connector_metadata: Option<&ConnectorMetadata>,
+    ) -> Option<ConnectorMetadata> {
+        request_connector_metadata.and_then(|req_metadata| {
+            if req_metadata != self {
+                Some(req_metadata.clone())
+            } else {
+                None
+            }
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -11667,6 +11683,21 @@ pub struct FeatureMetadata {
 
 #[cfg(feature = "v1")]
 impl FeatureMetadata {
+    /// Compare with request payload feature metadata and return the one from request if different
+    /// Returns None if not present in request payload
+    pub fn compare_with_request_payload(
+        &self,
+        request_feature_metadata: Option<&Self>,
+    ) -> Option<Self> {
+        request_feature_metadata.and_then(|req_metadata| {
+            if req_metadata != self {
+                Some(req_metadata.clone())
+            } else {
+                None
+            }
+        })
+    }
+
     /// Helper to extract the optional covenant_code from boleto details
     pub fn get_optional_boleto_covenant_code(&self) -> Option<Secret<String>> {
         self.boleto_additional_details

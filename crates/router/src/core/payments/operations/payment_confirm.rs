@@ -941,6 +941,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             external_authentication_data: request.three_ds_data.clone(),
             client_session_id: None,
             vault_session_details: None,
+            request_payload: crate::core::payments::request_payload_context::get_request_payload(),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

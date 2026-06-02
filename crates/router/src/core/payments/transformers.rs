@@ -144,6 +144,7 @@ where
         state,
         customer_data: customer_details,
         customer_id: payment_data.payment_intent.customer_id.clone(),
+        request_payload: None,
     };
 
     let connector_mandate_request_reference_id = payment_data
@@ -1770,6 +1771,7 @@ where
         state,
         customer_data: customer_details.clone(),
         customer_id: payment_data.payment_intent.customer_id.clone(),
+        request_payload: None,
     };
 
     let customer_id = payment_data.payment_intent.customer_id.clone();
@@ -2089,6 +2091,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         state,
         customer_data: customer_details,
         customer_id: payment_data.payment_intent.customer_id.clone(),
+        request_payload: None,
     };
 
     let customer_id = payment_data.payment_intent.customer_id.clone();
@@ -4773,6 +4776,7 @@ where
     state: &'a SessionState,
     customer_data: Option<CustomerData>,
     customer_id: Option<common_utils::id_type::CustomerId>,
+    pub request_payload: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v2")]
@@ -5790,11 +5794,79 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdatePo
             payment_data.payment_attempt.merchant_connector_id.clone(),
         )?;
 
-        let feature_metadata = payment_data
+        let payment_data_feature_metadata = payment_data
             .get_payment_intent()
             .get_optional_feature_metadata()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse feature metadata")?;
+
+        let request_payments = additional_data
+            .request_payload
+            .as_ref()
+            .map(|payload| {
+                payload
+                    .clone()
+                    .parse_value::<api_models::payments::PaymentsRequest>("PaymentsRequest")
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse request payload")?;
+
+        let feature_metadata = match (
+            payment_data_feature_metadata,
+            request_payments.and_then(|req| req.feature_metadata),
+        ) {
+            (Some(stored), req_meta) => stored.compare_with_request_payload(req_meta.as_ref()),
+            (None, req_meta) => req_meta,
+        };
+
+        let billing_descriptor = match (
+            payment_data.payment_intent.get_billing_descriptor(),
+            request_payments.as_ref().and_then(|req| req.billing_descriptor.clone()),
+        ) {
+            (Some(stored_val), Some(req_val)) => {
+                if req_val != stored_val {
+                    Some(req_val)
+                } else {
+                    None
+                }
+            }
+            (None, Some(req_val)) => Some(req_val),
+            _ => None,
+        };
+
+        let metadata = match (
+            payment_data.payment_intent.metadata.clone(),
+            request_payments.as_ref().and_then(|req| req.metadata.clone()),
+        ) {
+            (Some(stored_val), Some(req_val)) => {
+                if req_val != stored_val {
+                    Some(req_val)
+                } else {
+                    None
+                }
+            }
+            (None, Some(req_val)) => Some(req_val),
+            _ => None,
+        };
+
+        let customer_document_details = match (
+            payment_data.payment_intent.customer_document_details.clone(),
+            request_payments
+                .as_ref()
+                .and_then(|req| req.customer.as_ref())
+                .and_then(|c| c.document_details.clone()),
+        ) {
+            (Some(stored_val), Some(req_val)) => {
+                if req_val != stored_val {
+                    Some(req_val)
+                } else {
+                    None
+                }
+            }
+            (None, Some(req_val)) => Some(req_val),
+            _ => None,
+        };
 
         Ok(Self {
             feature_metadata,
@@ -5803,6 +5875,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdatePo
                 .connector_transaction_id(&payment_data.payment_attempt)?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             connector_attempt_metadata: payment_data.payment_attempt.connector_metadata.clone(),
+            billing_descriptor,
+            metadata,
+            customer_document_details,
         })
     }
 }
@@ -7341,6 +7416,7 @@ pub async fn construct_payment_router_data_for_update_post_confirm<'a>(
         state,
         customer_data: customer_details,
         customer_id: payment_data.payment_intent.customer_id.clone(),
+        request_payload: payment_data.request_payload,
     };
 
     let customer_id = payment_data.payment_intent.customer_id.clone();
@@ -7450,6 +7526,7 @@ pub async fn construct_payment_router_data_for_update_post_confirm<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
