@@ -148,20 +148,17 @@ impl TryFrom<&ConnectorAuthType> for AciAuthType {
 }
 
 #[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum StandingInstructionReason {
-    #[serde(rename = "RESUBMISSION")]
     Resubmission,
-    #[serde(rename = "DELAYED_CHARGES")]
     DelayedCharges,
-    #[serde(rename = "NO_SHOW")]
     NoShow,
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum AciTestMode {
-    #[serde(rename = "EXTERNAL")]
     External,
-    #[serde(rename = "INTERNAL")]
     Internal,
 }
 
@@ -669,11 +666,9 @@ impl
                     billing_country: Some(item.router_data.get_billing_country()?),
                     merchant_customer_id: Some(Secret::new(item.router_data.get_customer_id()?)),
                     merchant_transaction_id: Some(Secret::new(
-                        item.router_data
-                            .connector_request_reference_id
-                            .chars()
-                            .take(16)
-                            .collect(),
+                        format_aci_merchant_transaction_id(
+                            &item.router_data.connector_request_reference_id,
+                        ),
                     )),
                     customer_email: None,
                 }))
@@ -695,6 +690,22 @@ impl
         };
         Ok(payment_data)
     }
+}
+
+/// Normalise a reference into a wire-valid ACI `merchantTransactionId`.
+///
+/// ACI enforces two constraints on this field that Hyperswitch references can
+/// violate: a hard 16-character maximum, and no underscores (Hyperswitch IDs
+/// such as `pay_...` are underscore-delimited). We strip underscores first so
+/// the truncation budget isn't spent on characters ACI would reject, then take
+/// the first 16 characters.
+///
+/// NOTE: this is intentionally lossy — for references longer than 16 chars the
+/// value sent to ACI will differ from `connector_request_reference_id`. The
+/// untruncated reference still lives on the payment attempt; do not treat this
+/// field as a reconciliation key across PSP / merchant / Hyperswitch.
+fn format_aci_merchant_transaction_id(id: &str) -> String {
+    id.chars().filter(|c| *c != '_').take(16).collect()
 }
 
 fn get_aci_payment_brand(
@@ -1561,9 +1572,10 @@ fn get_common_payment_fields(
         })
         .unwrap_or_default();
 
-    // ACI acquirers enforce a 16-character max on merchantTransactionId. Prefer the
-    // merchant-supplied order reference when available; fall back to Hyperswitch's
-    // connector_request_reference_id so this field is always populated.
+    // Prefer the merchant-supplied order reference when available; fall back to
+    // Hyperswitch's connector_request_reference_id so this field is always
+    // populated. format_aci_merchant_transaction_id enforces ACI's 16-char max
+    // and strips underscores (see its docs for the reconciliation caveat).
     let merchant_transaction_id = {
         let id = item
             .router_data
@@ -1571,7 +1583,7 @@ fn get_common_payment_fields(
             .merchant_order_reference_id
             .as_deref()
             .unwrap_or(item.router_data.connector_request_reference_id.as_str());
-        Some(id.chars().take(16).collect::<String>())
+        Some(format_aci_merchant_transaction_id(id))
     };
 
     // Build customParameters: merchant metadata first, then fixed debug fields
@@ -1862,11 +1874,6 @@ impl FromStr for AciPaymentStatus {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct AciRiskScore {
-    pub score: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciThreeDSecureResponse {
     pub eci: Option<String>,
@@ -1912,9 +1919,6 @@ pub struct AciPaymentsResponse {
     result_details: Option<AciResponseResultDetails>,
     /// Masked card details returned in the response
     card: Option<AciResponseCardDetails>,
-    /// Risk score from ACI
-    #[serde(skip_serializing)]
-    risk: Option<AciRiskScore>,
     /// 3DS authentication data from ACI
     #[serde(rename = "threeDSecure")]
     #[serde(skip_serializing)]
@@ -2057,7 +2061,9 @@ pub struct AciErrorResponse {
 pub struct AciRedirectionData {
     pub method: Option<Method>,
     pub parameters: Vec<Parameters>,
-    pub url: Url,
+    // Absent on 3DS challenge responses, where the redirect target lives inside
+    // the first precondition (`preconditions[0].url`) instead of at the top level.
+    pub url: Option<Url>,
     pub preconditions: Option<Vec<PreconditionData>>,
 }
 
@@ -2228,30 +2234,44 @@ where
     fn try_from(
         item: ResponseRouterData<F, AciPaymentsResponse, Req, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = item.response.redirect.map(|data| {
+        let redirection_data = item.response.redirect.and_then(|data| {
             let mut form_fields = std::collections::HashMap::<_, _>::from_iter(
                 data.parameters
                     .iter()
                     .map(|parameter| (parameter.name.clone(), parameter.value.clone())),
             );
 
-            if let Some(preconditions) = data.preconditions {
-                if let Some(first_precondition) = preconditions.first() {
-                    for param in &first_precondition.parameters {
-                        form_fields.insert(param.name.clone(), param.value.clone());
-                    }
+            // Bank redirects carry url/method/parameters at the top level; 3DS
+            // challenge responses instead nest them inside the first precondition.
+            let first_precondition = data
+                .preconditions
+                .as_ref()
+                .and_then(|preconditions| preconditions.first());
+
+            if let Some(first_precondition) = first_precondition {
+                for param in &first_precondition.parameters {
+                    form_fields.insert(param.name.clone(), param.value.clone());
                 }
             }
 
+            // Prefer the top-level redirect target; fall back to the precondition's.
+            // Without a url on either there is nothing to redirect to, so skip it.
+            let endpoint = data
+                .url
+                .as_ref()
+                .or_else(|| first_precondition.map(|precondition| &precondition.url))?
+                .to_string();
+
             // If method is Get, parameters are appended to URL
             // If method is post, we http Post the method to URL
-            RedirectForm::Form {
-                endpoint: data.url.to_string(),
-                // Handles method for Bank redirects currently.
-                // 3DS response have method within preconditions. That would require replacing below line with a function.
-                method: data.method.unwrap_or(Method::Post),
+            Some(RedirectForm::Form {
+                endpoint,
+                method: data
+                    .method
+                    .or_else(|| first_precondition.and_then(|precondition| precondition.method))
+                    .unwrap_or(Method::Post),
                 form_fields,
-            }
+            })
         });
 
         // Parse connector transaction IDs for RRN, CITI (network_txn_id), and auth_code
@@ -2912,7 +2932,7 @@ pub struct AciStandaloneThreeDsRequest {
     /// Amount (optional for NPA flows).
     #[serde(rename = "amount")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub amount: Option<String>,
+    pub amount: Option<StringMajorUnit>,
     /// Currency (optional for NPA flows).
     #[serde(rename = "currency")]
     #[serde(skip_serializing_if = "Option::is_none")]
