@@ -345,6 +345,7 @@ pub enum RoutableConnectors {
     Tokenio,
     // Tsys,
     Tsys,
+    TsysXml,
     // UnifiedAuthenticationService,
     // Vgs
     Volt,
@@ -494,6 +495,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Trustpay => Ok(Self::Trustpay),
             Connector::Trustpayments => Ok(Self::Trustpayments),
             Connector::Tsys => Ok(Self::Tsys),
+            Connector::TsysXml => Ok(Self::TsysXml),
             Connector::Volt => Ok(Self::Volt),
             Connector::Wellsfargo => Ok(Self::Wellsfargo),
             Connector::Wise => Ok(Self::Wise),
@@ -663,6 +665,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Trustpayments => Self::Trustpayments,
             // RoutableConnectors::Tokenio => Self::Tokenio,
             RoutableConnectors::Tsys => Self::Tsys,
+            RoutableConnectors::TsysXml => Self::TsysXml,
             RoutableConnectors::Volt => Self::Volt,
             RoutableConnectors::Wellsfargo => Self::Wellsfargo,
             RoutableConnectors::Wise => Self::Wise,

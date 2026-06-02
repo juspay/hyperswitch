@@ -6,8 +6,24 @@ use router::{
     routes::metrics,
 };
 
-#[tokio::main]
-async fn main() -> ApplicationResult<()> {
+// 256 MiB per worker stack. Default 2 MiB overflows on deeply nested generic
+// dispatch paths for UCS-only connectors (tsys_xml /payments).
+// Actix worker threads pick up `RUST_MIN_STACK` from the environment — see
+// scripts/start-router.sh for the launch wrapper that exports it.
+const WORKER_STACK_SIZE: usize = 256 * 1024 * 1024;
+
+fn main() -> ApplicationResult<()> {
+    #[allow(clippy::expect_used)]
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .thread_stack_size(WORKER_STACK_SIZE)
+        .build()
+        .expect("Failed to build tokio runtime");
+
+    runtime.block_on(async_main())
+}
+
+async fn async_main() -> ApplicationResult<()> {
     // get commandline config before initializing config
     let cmd_line = <CmdLineConf as clap::Parser>::parse();
 

@@ -14,7 +14,7 @@ use common_utils::{
     ext_traits::Encode,
     types::{self, AmountConvertor, MinorUnit, StringMajorUnitForConnector},
 };
-use diesel_models::enums as storage_enums;
+use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
 use hyperswitch_domain_models::{
@@ -61,6 +61,75 @@ use crate::{
 const UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES: i64 = 5;
 const UPI_POLL_DELAY_IN_SECS: u16 = 5;
 const UPI_POLL_FREQUENCY: u16 = 60;
+
+fn build_ucs_order_details(
+    order_details: Option<&Vec<OrderDetailsWithAmount>>,
+) -> Vec<payments_grpc::OrderDetailsWithAmount> {
+    order_details
+        .map(|details| {
+            details
+                .iter()
+                .map(|detail| payments_grpc::OrderDetailsWithAmount {
+                    product_name: detail.product_name.clone(),
+                    quantity: u32::from(detail.quantity),
+                    amount: detail.amount.get_amount_as_i64(),
+                    tax_rate: detail.tax_rate,
+                    total_tax_amount: detail
+                        .total_tax_amount
+                        .map(|amount| amount.get_amount_as_i64()),
+                    requires_shipping: detail.requires_shipping,
+                    product_img_link: detail.product_img_link.clone(),
+                    product_id: detail.product_id.clone(),
+                    category: detail.category.clone(),
+                    sub_category: detail.sub_category.clone(),
+                    brand: detail.brand.clone(),
+                    description: detail.description.clone(),
+                    unit_of_measure: detail.unit_of_measure.clone(),
+                    product_type: None,
+                    product_tax_code: detail.product_tax_code.clone(),
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn build_ucs_l2_l3_data(
+    order_details: &[payments_grpc::OrderDetailsWithAmount],
+    merchant_order_reference_id: Option<String>,
+    shipping_cost: Option<MinorUnit>,
+    duty_amount: Option<MinorUnit>,
+    order_tax_amount: Option<MinorUnit>,
+) -> Option<payments_grpc::L2l3Data> {
+    let order_info = (!order_details.is_empty()
+        || merchant_order_reference_id.is_some()
+        || shipping_cost.is_some()
+        || duty_amount.is_some())
+    .then_some(payments_grpc::OrderInfo {
+        order_date: None,
+        order_details: order_details.to_vec(),
+        merchant_order_reference_id,
+        discount_amount: None,
+        shipping_cost: shipping_cost.map(|amount| amount.get_amount_as_i64()),
+        duty_amount: duty_amount.map(|amount| amount.get_amount_as_i64()),
+    });
+
+    let tax_info = order_tax_amount.map(|tax| payments_grpc::TaxInfo {
+        tax_status: None,
+        customer_tax_registration_id: None,
+        merchant_tax_registration_id: None,
+        shipping_amount_tax: None,
+        order_tax_amount: Some(tax.get_amount_as_i64()),
+    });
+
+    if order_info.is_none() && tax_info.is_none() {
+        None
+    } else {
+        Some(payments_grpc::L2l3Data {
+            order_info,
+            tax_info,
+        })
+    }
+}
 
 pub fn build_upi_wait_screen_data(
 ) -> Result<serde_json::Value, error_stack::Report<UnifiedConnectorServiceError>> {
@@ -247,7 +316,17 @@ impl
             .access_token
             .as_ref()
             .map(ConnectorState::foreign_from);
-
+        let order_details = build_ucs_order_details(router_data.request.order_details.as_ref());
+        let l2_l3_data = build_ucs_l2_l3_data(
+            &order_details,
+            router_data.request.merchant_order_reference_id.clone(),
+            router_data.request.shipping_cost,
+            router_data
+                .l2_l3_data
+                .as_ref()
+                .and_then(|data| data.get_duty_amount()),
+            router_data.request.order_tax_amount,
+        );
         Ok(Self {
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -327,7 +406,7 @@ impl
                 .billing_descriptor
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
-            order_details: vec![],
+            order_details,
             enable_partial_authorization: router_data
                 .request
                 .enable_partial_authorization
@@ -354,7 +433,7 @@ impl
                 .tokenization
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
-            l2_l3_data: None,
+            l2_l3_data,
             merchant_request_id: None,
         })
     }
@@ -1345,7 +1424,17 @@ impl
             .access_token
             .as_ref()
             .map(ConnectorState::foreign_from);
-
+        let order_details = build_ucs_order_details(router_data.request.order_details.as_ref());
+        let l2_l3_data = build_ucs_l2_l3_data(
+            &order_details,
+            router_data.request.merchant_order_reference_id.clone(),
+            router_data.request.shipping_cost,
+            router_data
+                .l2_l3_data
+                .as_ref()
+                .and_then(|data| data.get_duty_amount()),
+            router_data.request.order_tax_amount,
+        );
         Ok(Self {
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -1424,7 +1513,7 @@ impl
                 .billing_descriptor
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
-            order_details: vec![],
+            order_details,
             connector_feature_data: None,
             enable_partial_authorization: router_data
                 .request
@@ -1452,7 +1541,7 @@ impl
             redirection_response: None,
             continue_redirection_url: None,
             connector_order_id: None,
-            l2_l3_data: None,
+            l2_l3_data,
             merchant_request_id: None,
         })
     }

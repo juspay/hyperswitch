@@ -5297,6 +5297,42 @@ api_secret="Developer Id"
 [tsys.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[tsys_xml]
+[[tsys_xml.credit]]
+  payment_method_type = "Mastercard"
+[[tsys_xml.credit]]
+  payment_method_type = "Visa"
+[[tsys_xml.credit]]
+  payment_method_type = "AmericanExpress"
+[[tsys_xml.credit]]
+  payment_method_type = "JCB"
+[[tsys_xml.credit]]
+  payment_method_type = "DinersClub"
+[[tsys_xml.credit]]
+  payment_method_type = "Discover"
+[[tsys_xml.credit]]
+  payment_method_type = "UnionPay"
+[[tsys_xml.debit]]
+  payment_method_type = "Mastercard"
+[[tsys_xml.debit]]
+  payment_method_type = "Visa"
+[[tsys_xml.debit]]
+  payment_method_type = "AmericanExpress"
+[[tsys_xml.debit]]
+  payment_method_type = "JCB"
+[[tsys_xml.debit]]
+  payment_method_type = "DinersClub"
+[[tsys_xml.debit]]
+  payment_method_type = "Discover"
+[[tsys_xml.debit]]
+  payment_method_type = "UnionPay"
+[tsys_xml.connector_auth.SignatureKey]
+api_key="Device Id"
+key1="Transaction Key"
+api_secret="Developer Id"
+[tsys_xml.connector_webhook_details]
+merchant_secret="Source verification key"
+
 [volt]
 [[volt.bank_redirect]]
   payment_method_type = "open_banking_uk"

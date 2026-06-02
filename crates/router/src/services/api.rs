@@ -158,10 +158,6 @@ pub enum AuthFlow {
 }
 
 #[allow(clippy::too_many_arguments)]
-#[instrument(
-    skip(request, payload, state, func, api_auth, incoming_request_header),
-    fields(merchant_id)
-)]
 pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut, E, OErr>(
     flow: &'a impl router_env::types::FlowMetric,
     state: web::Data<AppState>,
@@ -182,19 +178,23 @@ where
     OErr: ResponseError + error_stack::Context + Serialize,
     errors::ApiErrorResponse: ErrorSwitch<OErr>,
 {
+    logger::info!(tag = "server_wrap_util:start");
     let request_id = RequestId::extract(request)
         .await
         .attach_printable("Unable to extract request id from request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
+    logger::info!(tag = "server_wrap_util:request_id_extracted");
 
     let mut app_state = state.get_ref().clone();
 
     let start_instant = Instant::now();
-    let serialized_request = hyperswitch_masking::masked_serialize(&payload)
-        .attach_printable("Failed to serialize json request")
-        .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
+    let serialized_request = serde_json::json!({
+        "request_logging": "disabled_for_tsys_xml_stack_overflow_debug"
+    });
+    logger::info!(tag = "server_wrap_util:request_serialized");
 
     let mut event_type = payload.get_api_event_type();
+    logger::info!(tag = "server_wrap_util:event_type_extracted");
     let tenant_id = if !state.conf.multitenancy.enabled {
         common_utils::id_type::TenantId::try_from_string(DEFAULT_TENANT.to_owned())
             .attach_printable("Unable to get default tenant id")
@@ -227,6 +227,7 @@ where
                 .switch(),
             )?
     };
+    logger::info!(tag = "server_wrap_util:tenant_resolved");
     let locale = utils::get_locale_from_header(&incoming_request_header.clone());
     let mut session_state =
         Arc::new(app_state.clone()).get_session_state(&tenant_id, Some(locale), || {
@@ -235,8 +236,10 @@ where
             }
             .switch()
         })?;
+    logger::info!(tag = "server_wrap_util:session_state_resolved");
     session_state.add_request_id(request_id.clone());
     let mut request_state = session_state.get_req_state();
+    logger::info!(tag = "server_wrap_util:req_state_resolved");
 
     request_state.event_context.record_info(request_id.clone());
     request_state
@@ -253,6 +256,7 @@ where
         .authenticate_and_fetch(request.headers(), &session_state)
         .await
         .switch()?;
+    logger::info!(tag = "server_wrap_util:auth_complete");
 
     request_state.event_context.record_info(auth_type.clone());
 
@@ -271,13 +275,16 @@ where
             .perform_locking_action(&session_state, merchant_id.to_owned())
             .await
             .switch()?;
+        logger::info!(tag = "server_wrap_util:lock_acquired");
         let res = func(session_state.clone(), auth_out, payload, request_state)
             .await
             .switch();
+        logger::info!(tag = "server_wrap_util:handler_complete");
         lock_action
             .free_lock_action(&session_state, merchant_id.to_owned())
             .await
             .switch()?;
+        logger::info!(tag = "server_wrap_util:lock_released");
         res
     };
     let request_duration = Instant::now()
@@ -370,10 +377,6 @@ where
     output
 }
 
-#[instrument(
-    skip(request, state, func, api_auth, payload),
-    fields(request_method, request_url_path, status_code)
-)]
 pub async fn server_wrap<'a, T, U, Q, F, Fut, E>(
     flow: impl router_env::types::FlowMetric,
     state: web::Data<AppState>,
@@ -417,8 +420,9 @@ where
     let start_instant = Instant::now();
 
     logger::info!(
-        tag = ?Tag::BeginRequest, payload = ?payload,
-    headers = ?incoming_header_to_log);
+        tag = ?Tag::BeginRequest,
+        headers = ?incoming_header_to_log
+    );
 
     let server_wrap_util_res = server_wrap_util(
         &flow,
