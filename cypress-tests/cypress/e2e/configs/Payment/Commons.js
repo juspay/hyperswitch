@@ -3174,12 +3174,12 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 401,
+        status: 400,
         body: {
           error: {
             type: "invalid_request",
-            message: "API key not provided or invalid API key used",
-            code: "IR_01",
+            message: "The provided client_secret has expired",
+            code: "IR_08",
           },
         },
       },

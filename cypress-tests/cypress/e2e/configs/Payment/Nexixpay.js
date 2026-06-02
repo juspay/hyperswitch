@@ -665,8 +665,10 @@ export const connectorDetails = {
         billing: billingAddress,
       },
       Response: {
-        status: 400,
-        body: no3DSNotSupportedResponseBody,
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
       },
     },
     ClientSessionMissingConfirm: {
@@ -681,8 +683,10 @@ export const connectorDetails = {
         billing: billingAddress,
       },
       Response: {
-        status: 400,
-        body: no3DSNotSupportedResponseBody,
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
       },
     },
   },
