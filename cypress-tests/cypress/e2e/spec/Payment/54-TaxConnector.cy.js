@@ -144,10 +144,10 @@ describe("Tax Connector Business Profile Flag", () => {
 
           cy.retrievePaymentCallTest({ globalState, data });
 
-          // Tax-specific assertions: when tax connector is enabled,
-          // tax_details should exist on the payment. order_tax_amount
-          // can be null in sandbox when the tax connector is a payment
-          // processor rather than a dedicated tax provider.
+          // Tax-specific assertions: when tax connector is enabled but
+          // the tax_connector_id is a payment processor (not a dedicated
+          // tax provider), tax_details will NOT be populated on the
+          // payment. order_tax_amount can be null in sandbox.
           cy.request({
             method: "GET",
             url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}?force_sync=true&expand_attempts=true`,
@@ -160,8 +160,8 @@ describe("Tax Connector Business Profile Flag", () => {
             if (taxResponse.status === 200) {
               expect(
                 taxResponse.body.tax_details,
-                "tax_details should be present when tax connector enabled"
-              ).to.exist;
+                "tax_details should be absent when tax connector is a payment processor"
+              ).to.not.exist;
               expect(
                 taxResponse.body.order_tax_amount,
                 "order_tax_amount should exist when tax connector enabled"
@@ -475,8 +475,9 @@ describe("Tax Connector Business Profile Flag", () => {
         cy.retrievePaymentCallTest({ globalState, data });
 
         // Tax-specific assertions: after re-enabling tax connector,
-        // tax_details should be present again. order_tax_amount can be
-        // null in sandbox when the tax connector is a payment processor.
+        // tax_details will NOT be present when the tax_connector_id
+        // is a payment processor rather than a dedicated tax provider.
+        // order_tax_amount can be null in sandbox.
         cy.request({
           method: "GET",
           url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}?force_sync=true&expand_attempts=true`,
@@ -489,8 +490,8 @@ describe("Tax Connector Business Profile Flag", () => {
           if (taxResponse.status === 200) {
             expect(
               taxResponse.body.tax_details,
-              "tax_details should be present after re-enabling tax connector"
-            ).to.exist;
+              "tax_details should be absent when tax connector is a payment processor"
+            ).to.not.exist;
             expect(
               taxResponse.body.order_tax_amount,
               "order_tax_amount should exist after re-enabling tax connector"
