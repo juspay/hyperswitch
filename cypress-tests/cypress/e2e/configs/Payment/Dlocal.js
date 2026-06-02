@@ -2,6 +2,7 @@ import {
   customerAcceptance,
   multiUseMandateData,
   singleUseMandateData,
+  getCustomExchange,
 } from "./Commons";
 const mockBillingDetails = {
   address: {
@@ -90,6 +91,87 @@ const payment_method_data_3ds_address = {
   billing: mockBillingDetails,
 };
 export const connectorDetails = {
+  voucher_pm: {
+    PaymentIntent: (paymentMethodType) => {
+      return {
+        Request: {
+          currency: "MXN",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+    Oxxo: {
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "oxxo",
+        payment_method_data: {
+          voucher: {
+            oxxo: null,
+          },
+        },
+        billing: {
+          address: {
+            line1: "123 Test Street",
+            city: "Mexico City",
+            state: "CDMX",
+            zip: "01000",
+            country: "MX",
+            first_name: "Test",
+            last_name: "Customer",
+          },
+          email: "test@example.com",
+        },
+        currency: "MXN",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method: "voucher",
+          payment_method_type: "oxxo",
+        },
+      },
+    },
+    OxxoInvalidFormat: getCustomExchange({
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "oxxo",
+        payment_method_data: {
+          voucher: {
+            oxxo: "oxxo",
+          },
+        },
+        billing: {
+          address: {
+            line1: "123 Test Street",
+            city: "Mexico City",
+            state: "CDMX",
+            zip: "01000",
+            country: "MX",
+            first_name: "Test",
+            last_name: "Customer",
+          },
+          email: "test@example.com",
+        },
+        currency: "MXN",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: 'invalid type: string "oxxo", expected unit',
+            code: "IR_06",
+          },
+        },
+      },
+    }),
+  },
   card_pm: {
     No3DSFailPayment: {
       Request: {
