@@ -175,9 +175,12 @@ export function handleInespayRedirectFlow(nextActionUrl) {
   // The simulator masks the IBAN; we match the visible text that ends with 679.
   // Options are rendered inside the multiselect dropdown list, so we search
   // within the open dropdown and click the matching Cypress-wrapped element.
-  cy.get(".multiselect__content-wrapper, .multiselect__element, .multiselect__option", {
-    timeout: 15000,
-  })
+  cy.get(
+    ".multiselect__content-wrapper, .multiselect__element, .multiselect__option",
+    {
+      timeout: 15000,
+    }
+  )
     .filter((_, el) => /ES[^\d]*679/.test(el.textContent))
     .first()
     .scrollIntoView()
