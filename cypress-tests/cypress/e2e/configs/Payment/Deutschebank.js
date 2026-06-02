@@ -1,8 +1,4 @@
-import {
-  customerAcceptance,
-  singleUseMandateData,
-  multiUseMandateData,
-} from "./Commons";
+import { customerAcceptance } from "./Commons";
 import { getIframeRedirectionConfig } from "./Modifiers";
 
 const successful3DSCardDetails = {
@@ -298,7 +294,7 @@ export const connectorDetails = {
   },
   bank_debit_pm: {
     PaymentIntent: (paymentMethodType) => {
-      const currencyMap = { Sepa: "EUR", Ach: "USD", Becs: "AUD", Bacs: "GBP" };
+      const currencyMap = { Sepa: "EUR" };
       return {
         Request: {
           currency: currencyMap[paymentMethodType] || "USD",
@@ -318,7 +314,7 @@ export const connectorDetails = {
         payment_method_data: {
           bank_debit: {
             sepa_bank_debit: {
-              iban: "DE89370400440532013000",
+              iban: "DE10010000000000001032",
               bank_account_holder_name: "Test Account",
             },
           },
@@ -346,93 +342,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-        },
-      },
-    },
-    MandateSingleUseNo3DSAutoCapture: {
-      Configs: {
-        // DeutscheBank sandbox returns mandate state as PendingApproval/Failed
-        // without mandate_id, causing framework-level assertion failure
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "bank_debit",
-        payment_method_type: "sepa",
-        payment_method_data: {
-          bank_debit: {
-            sepa_bank_debit: {
-              iban: "DE89370400440532013000",
-              bank_account_holder_name: "Test Account",
-            },
-          },
-        },
-        billing: {
-          address: {
-            country: "DE",
-            first_name: "venkatakarthik",
-            last_name: "Account",
-          },
-          email: "test@example.com",
-        },
-        currency: "EUR",
-        mandate_data: singleUseMandateData,
-        setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    MandateMultiUseNo3DSAutoCapture: {
-      Configs: {
-        // DeutscheBank sandbox returns mandate state as PendingApproval/Failed
-        // without mandate_id, causing framework-level assertion failure
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "bank_debit",
-        payment_method_type: "sepa",
-        payment_method_data: {
-          bank_debit: {
-            sepa_bank_debit: {
-              iban: "DE89370400440532013000",
-              bank_account_holder_name: "Test Account",
-            },
-          },
-        },
-        billing: {
-          address: {
-            country: "DE",
-            first_name: "venkatakarthik",
-            last_name: "Account",
-          },
-          email: "test@example.com",
-        },
-        currency: "EUR",
-        mandate_data: multiUseMandateData,
-        setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    MITAutoCapture: {
-      Configs: {
-        // Skipped because CIT mandate flow is skipped due to sandbox limitation
-        TRIGGER_SKIP: true,
-      },
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
         },
       },
     },
