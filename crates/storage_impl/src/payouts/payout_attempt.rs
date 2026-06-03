@@ -57,10 +57,10 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
             }
             MerchantStorageScheme::RedisKv => {
                 let merchant_id = new_payout_attempt.merchant_id.clone();
-                let payout_attempt_id = new_payout_attempt.payout_id.clone();
-                let key = PartitionKey::MerchantIdPayoutAttemptId {
+                let payout_id = new_payout_attempt.payout_id.clone();
+                let key = PartitionKey::MerchantIdPayoutId {
                     merchant_id: &merchant_id,
-                    payout_attempt_id: payout_attempt_id.get_string_repr(),
+                    payout_id: &payout_id,
                 };
                 let key_str = key.to_string();
                 let created_attempt = PayoutAttempt {
@@ -157,9 +157,9 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
         payouts: &Payouts,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
-        let key = PartitionKey::MerchantIdPayoutAttemptId {
+        let key = PartitionKey::MerchantIdPayoutId {
             merchant_id: &this.merchant_id,
-            payout_attempt_id: this.payout_id.get_string_repr(),
+            payout_id: &this.payout_id,
         };
         let field = format!("poa_{}", this.payout_attempt_id);
         let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPayoutAttempt>(
