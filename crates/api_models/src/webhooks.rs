@@ -487,7 +487,7 @@ pub enum OutgoingWebhookContent {
     SurchargeDetails(Box<payments::ResponseSurchargeDetails>),
 }
 
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", content = "object", rename_all = "snake_case")]
 #[cfg(feature = "v2")]
 pub enum OutgoingWebhookContent {
