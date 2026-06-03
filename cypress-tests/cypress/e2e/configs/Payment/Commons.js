@@ -1759,6 +1759,17 @@ export const connectorDetails = {
         },
       },
     }),
+    CancelPostCapture: getCustomExchange({
+      Request: {
+        cancellation_reason: "requested_by_customer",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "partially_captured",
+        },
+      },
+    }),
     Refund: getCustomExchange({
       Request: {
         amount: 6000,

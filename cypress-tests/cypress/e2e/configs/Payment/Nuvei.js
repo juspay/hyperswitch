@@ -288,6 +288,26 @@ export const connectorDetails = {
         },
       },
     },
+    CancelPostCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
+      Request: {
+        cancellation_reason: "requested_by_customer",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "partially_captured",
+          amount: 10000,
+          amount_capturable: 0,
+          amount_received: 5000,
+        },
+      },
+    },
     // Refund payment
     Refund: {
       Configs: {

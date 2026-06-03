@@ -3927,6 +3927,58 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "cancelPostCaptureCallTest",
+  (requestBody, data, globalState, connectedMerchantId) => {
+    const {
+      Configs: configs = {},
+      Response: resData,
+      Request: reqData,
+    } = data || {};
+
+    const configInfo = execConfig(validateConfig(configs));
+    const payment_id = globalState.get("paymentID");
+    const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
+
+    requestBody.profile_id = profile_id;
+
+    for (const key in reqData) {
+      requestBody[key] = reqData[key];
+    }
+
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+
+    if (connectedMerchantId) {
+      headers["x-connected-merchant-id"] = connectedMerchantId;
+    }
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/${payment_id}/cancel_post_capture`,
+      headers,
+      failOnStatusCode: false,
+      body: requestBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        if (response.status === 200) {
+          for (const key in resData.body) {
+            expect(resData.body[key]).to.equal(response.body[key]);
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
   "retrievePaymentCallTest",
   ({
     globalState,
