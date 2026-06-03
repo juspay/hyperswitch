@@ -6012,17 +6012,21 @@ pub async fn payment_methods_session_create(
     let key_manager_state = &(&state).into();
     let provider = platform.get_provider();
 
-    if let (Some(customer_id)) = &request.customer_id {
-        db.find_customer_by_global_id_merchant_id(
-            customer_id,
-            platform.get_provider().get_account().get_id(),
-            platform.get_provider().get_key_store(),
-            platform.get_provider().get_account().storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
-        .attach_printable("Customer not found for the payment method")?;
-    }
+    let customer = if let Some(customer_id) = &request.customer_id {
+        let customer = db
+            .find_customer_by_global_id_merchant_id(
+                customer_id,
+                platform.get_provider().get_account().get_id(),
+                platform.get_provider().get_key_store(),
+                platform.get_provider().get_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+            .attach_printable("Customer not found for the payment method")?;
+        Some(customer)
+    } else {
+        None
+    };
 
     let payment_methods_session_id =
         id_type::GlobalPaymentMethodSessionId::generate(&state.conf.cell_information.id)
@@ -6091,6 +6095,18 @@ pub async fn payment_methods_session_create(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to insert payment methods session in db")?;
 
+    let external_vault_details = payments_core::vault_session::fetch_external_vault_details(
+        &state, &platform, &profile, &customer,
+    )
+    .await
+    .unwrap_or_else(|err| {
+        router_env::logger::warn!(
+            ?err,
+            "Failed to fetch external vault details for payment method session"
+        );
+        None
+    });
+
     let sdk_authorization = Option::<hyperswitch_domain_models::sdk_auth::SdkAuthorization>::from(
         hyperswitch_domain_models::sdk_auth::SdkAuthorizationContext {
             platform,
@@ -6111,6 +6127,7 @@ pub async fn payment_methods_session_create(
         None,
         None,
         None,
+        external_vault_details,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -6180,6 +6197,7 @@ pub async fn payment_methods_session_update(
         None,
         None,
         None,
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -6238,6 +6256,7 @@ pub async fn payment_methods_session_retrieve(
         expiry.map(|time| {
             payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(time)
         }),
+        None,
         None,
         None,
     );
@@ -6341,6 +6360,7 @@ pub async fn payment_methods_session_update_payment_method(
         updated_payment_method_session.storage_type,
         update_response.card_cvc_token_storage,
         update_response.payment_method_data.clone(),
+        None,
         None,
     );
 
@@ -6584,6 +6604,7 @@ pub async fn payment_methods_session_confirm(
         payment_method_response.card_cvc_token_storage,
         associated_pm_data,
         payment_method_response.network_token,
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(
