@@ -1159,15 +1159,6 @@ impl
         // TODO: check how we can get this field
         let recurring_enabled = Some(true);
 
-        let psp_tokenization_enabled = item.connector_mandate_details.and_then(|details| {
-            details.payments.map(|payments| {
-                payments.values().any(|connector_token_reference| {
-                    connector_token_reference.connector_token_status
-                        == api_enums::ConnectorTokenStatus::Active
-                })
-            })
-        });
-
         let is_default = default_payment_method_id.is_some()
             && default_payment_method_id == Some(item.id.clone());
 
@@ -1190,7 +1181,6 @@ impl
             is_default,
             billing: payment_method_billing,
             network_tokenization: network_token_resp,
-            psp_tokenization_enabled: psp_tokenization_enabled.unwrap_or(false),
         })
     }
 }
@@ -1207,6 +1197,7 @@ pub fn generate_payment_method_session_response(
     card_cvc_token_storage: Option<api_models::payment_methods::CardCVCTokenStorageDetails>,
     payment_method_data: Option<api_models::payment_methods::PaymentMethodResponseData>,
     network_tokenization_response: Option<api_models::payment_methods::NetworkTokenResponse>,
+    external_vault_details: Option<api_models::payments::VaultSessionDetails>,
 ) -> api_models::payment_methods::PaymentMethodSessionResponse {
     let next_action = associated_payment
         .as_ref()
@@ -1233,7 +1224,6 @@ pub fn generate_payment_method_session_response(
             .billing
             .map(|address| address.into_inner())
             .map(From::from),
-        psp_tokenization: payment_method_session.psp_tokenization,
         network_tokenization: payment_method_session.network_tokenization,
         tokenization_data: payment_method_session.tokenization_data,
         expires_at: payment_method_session.expires_at,
@@ -1249,6 +1239,7 @@ pub fn generate_payment_method_session_response(
         sdk_authorization,
         keep_alive: payment_method_session.keep_alive,
         network_tokenization_data: network_tokenization_response,
+        external_vault_details,
     }
 }
 
