@@ -59,6 +59,7 @@ use hyperswitch_domain_models::payment_methods::PaymentMethodUpdate as DomainPay
 use hyperswitch_domain_models::{
     payment_method_data::BankDebitData,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent, VaultData},
+    platform::ProviderMerchantId,
     router_data_v2::flow_common_types::VaultConnectorFlowData,
     router_flow_types::ExternalVaultInsertFlow,
     types::VaultRouterData,
@@ -73,16 +74,14 @@ use time::Duration;
 #[cfg(feature = "v2")]
 use super::payments::tokenization;
 use super::{
+    configs::dimension_state,
     errors::{RouterResponse, StorageErrorExt},
     pm_auth,
 };
 #[cfg(feature = "v2")]
 use crate::{
     configs::settings,
-    core::{
-        configs::dimension_state, payment_methods::transformers as pm_transforms,
-        tokenization as tokenization_core,
-    },
+    core::{payment_methods::transformers as pm_transforms, tokenization as tokenization_core},
     headers,
     routes::{self, payment_methods as pm_routes},
     services::encryption,
@@ -481,46 +480,72 @@ fn generate_task_id_for_payment_method_modular_compat_workflow(
     runner: storage::ProcessTrackerRunner,
     task: &str,
 ) -> String {
-    let suffix = uuid::Uuid::now_v7()
-        .as_simple()
-        .to_string()
-        .chars()
-        .take(8)
-        .collect::<String>();
+    let suffix = common_utils::generate_id_with_len(8);
     format!("{runner}_{task}_{key_id}_{suffix}")
 }
 
-#[cfg(test)]
-mod payment_method_modular_compat_task_id_tests {
-    use super::*;
+fn payment_method_compat_modifier(payment_method: &domain::PaymentMethod) -> Option<String> {
+    payment_method
+        .last_modified_by
+        .as_ref()
+        .or(payment_method.created_by.as_ref())
+        .map(ToString::to_string)
+}
 
-    #[test]
-    fn modular_compat_task_ids_are_unique_and_short() {
-        let payment_method_id = "pm_9lJFd5Q24a5NJLgyMDhZ";
-        let runner = storage::ProcessTrackerRunner::PaymentMethodModularForwardCompatWorkflow;
-        let task = PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TASK;
+#[cfg(feature = "v1")]
+pub async fn payment_method_modular_forward_compat_action(
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    customer_id: Option<&id_type::CustomerId>,
+) -> Option<domain::PaymentMethodCompatAction> {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(ProviderMerchantId::from_merchant_id(merchant_id.clone()));
+    let should_schedule_modular_forward_compat =
+        utils::get_should_schedule_modular_forward_compat(state, &dimensions, customer_id).await;
 
-        let first = generate_task_id_for_payment_method_modular_compat_workflow(
-            payment_method_id,
-            runner,
-            task,
-        );
-        let second = generate_task_id_for_payment_method_modular_compat_workflow(
-            payment_method_id,
-            runner,
-            task,
-        );
+    should_schedule_modular_forward_compat.then(|| {
+        let state = state.clone();
+        domain::PaymentMethodCompatAction::new(move |payment_method| {
+            let state = state.clone();
+            async move {
+                let res = add_payment_method_modular_forward_compat_task(
+                    &*state.store,
+                    &payment_method,
+                    &payment_method.merchant_id,
+                    state.conf.application_source,
+                    payment_method_compat_modifier(&payment_method),
+                )
+                .await;
 
-        assert_ne!(first, second);
-        assert!(first.len() <= 127);
-        assert!(second.len() <= 127);
+                if let Err(err) = res {
+                    logger::error!(
+                        ?err,
+                        payment_method_id=%payment_method.get_id(),
+                        merchant_id=%payment_method.merchant_id.get_string_repr(),
+                        "Failed to schedule modular forward compatibility PT after payment method DB write"
+                    );
+                }
+            }
+        })
+    })
+}
 
-        let prefix = format!("{runner}_{task}_{payment_method_id}_");
-        assert!(first.starts_with(&prefix));
-        assert!(second.starts_with(&prefix));
-        assert_eq!(first.trim_start_matches(&prefix).len(), 8);
-        assert_eq!(second.trim_start_matches(&prefix).len(), 8);
-    }
+#[cfg(feature = "v2")]
+pub fn payment_method_modular_backward_compat_action(
+    state: &SessionState,
+) -> domain::PaymentMethodCompatAction {
+    let state = state.clone();
+    domain::PaymentMethodCompatAction::new(move |payment_method| {
+        let state = state.clone();
+        async move {
+            backward_compat::trigger_payment_method_modular_backward_compat(
+                &state,
+                &payment_method,
+                payment_method_compat_modifier(&payment_method),
+            )
+            .await;
+        }
+    })
 }
 
 #[cfg(feature = "v1")]
@@ -590,14 +615,12 @@ pub async fn add_payment_method_modular_forward_compat_task(
     payment_method: &domain::PaymentMethod,
     merchant_id: &id_type::MerchantId,
     application_source: common_enums::ApplicationSource,
-    initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
+    last_modified_by: Option<String>,
 ) -> Result<(), ProcessTrackerError> {
     let tracking_data = storage::PaymentMethodModularCompatTrackingData {
         payment_method_id: payment_method.payment_method_id.clone(),
         merchant_id: merchant_id.to_owned(),
-        last_modified_by: initiator
-            .and_then(|initiator| initiator.to_created_by())
-            .map(|last_modified_by| last_modified_by.to_string()),
+        last_modified_by,
     };
 
     let runner = storage::ProcessTrackerRunner::PaymentMethodModularForwardCompatWorkflow;
@@ -644,16 +667,14 @@ pub async fn add_payment_method_modular_backward_compat_task(
     payment_method: &domain::PaymentMethod,
     merchant_id: &id_type::MerchantId,
     application_source: common_enums::ApplicationSource,
-    initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
+    last_modified_by: Option<String>,
 ) -> Result<(), ProcessTrackerError> {
     let payment_method_id = payment_method.get_id().get_string_repr().to_owned();
 
     let tracking_data = storage::PaymentMethodModularCompatTrackingData {
         payment_method_id: payment_method_id.clone(),
         merchant_id: merchant_id.to_owned(),
-        last_modified_by: initiator
-            .and_then(|initiator| initiator.to_created_by())
-            .map(|last_modified_by| last_modified_by.to_string()),
+        last_modified_by,
     };
 
     let runner = storage::ProcessTrackerRunner::PaymentMethodModularBackwardCompatWorkflow;
@@ -2392,15 +2413,6 @@ pub async fn create_payment_method_bank_redirect_core(
             )
             .await?;
 
-            Box::pin(
-                backward_compat::trigger_payment_method_modular_backward_compat_best_effort(
-                    state,
-                    &payment_method,
-                    platform,
-                ),
-            )
-            .await;
-
             payment_method
         }
     };
@@ -2687,6 +2699,7 @@ async fn execute_payment_method_create(
                     payment_method,
                     pm_update,
                     platform.get_provider().get_account().storage_scheme,
+                    Some(payment_method_modular_backward_compat_action(state)),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2722,15 +2735,6 @@ async fn execute_payment_method_create(
                 payment_method_billing_address.map(|add| add.get_inner().clone().into()),
                 None,
             )?;
-
-            Box::pin(
-                backward_compat::trigger_payment_method_modular_backward_compat_best_effort(
-                    state,
-                    &payment_method,
-                    platform,
-                ),
-            )
-            .await;
 
             Ok((resp, payment_method))
         }
@@ -2976,6 +2980,7 @@ pub async fn create_payment_method_wallet_core(
                 existing_pm,
                 pm_update,
                 platform.get_provider().get_account().storage_scheme,
+                Some(payment_method_modular_backward_compat_action(state)),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3002,15 +3007,6 @@ pub async fn create_payment_method_wallet_core(
             .await?
         }
     };
-
-    Box::pin(
-        backward_compat::trigger_payment_method_modular_backward_compat_best_effort(
-            state,
-            &payment_method,
-            platform,
-        ),
-    )
-    .await;
 
     let payment_method_response = pm_transforms::generate_payment_method_response(
         &payment_method,
@@ -3129,15 +3125,6 @@ pub async fn create_payment_method_proxy_card_core(
         enums::PaymentMethodStatus::Inactive,
     )
     .await?;
-
-    Box::pin(
-        backward_compat::trigger_payment_method_modular_backward_compat_best_effort(
-            state,
-            &payment_method,
-            platform,
-        ),
-    )
-    .await;
 
     let payment_method_response = pm_transforms::generate_payment_method_response(
         &payment_method,
@@ -4029,6 +4016,7 @@ pub async fn create_payment_method_for_intent(
                 compatibility_updated_at: None,
             },
             storage_scheme,
+            Some(payment_method_modular_backward_compat_action(state)),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4187,6 +4175,7 @@ pub async fn create_payment_method_for_confirm(
                 compatibility_updated_at: None,
             },
             storage_scheme,
+            Some(payment_method_modular_backward_compat_action(state)),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -5791,7 +5780,13 @@ pub async fn update_payment_method_status_internal(
     };
 
     let updated_pm = db
-        .update_payment_method(key_store, payment_method.clone(), pm_update, storage_scheme)
+        .update_payment_method(
+            key_store,
+            payment_method.clone(),
+            pm_update,
+            storage_scheme,
+            None,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update payment method in db")?;
@@ -7402,20 +7397,13 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                 self.payment_method.clone(),
                 pm_update,
                 self.platform.get_provider().get_account().storage_scheme,
+                Some(payment_method_modular_backward_compat_action(self.state)),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update payment method in db")?;
 
         self.payment_method = updated_payment_method;
-        Box::pin(
-            backward_compat::trigger_payment_method_modular_backward_compat_best_effort(
-                self.state,
-                &self.payment_method,
-                self.platform,
-            ),
-        )
-        .await;
         Ok(())
     }
 

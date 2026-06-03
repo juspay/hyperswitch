@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
 
 #[cfg(feature = "v2")]
 use api_models::payment_methods::PaymentMethodsData;
@@ -1249,6 +1249,7 @@ pub trait PaymentMethodInterface {
         key_store: &MerchantKeyStore,
         payment_method: PaymentMethod,
         storage_scheme: MerchantStorageScheme,
+        compat_action: Option<PaymentMethodCompatAction>,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
     async fn update_payment_method(
@@ -1257,6 +1258,7 @@ pub trait PaymentMethodInterface {
         payment_method: PaymentMethod,
         payment_method_update: StoragePaymentMethodUpdate,
         storage_scheme: MerchantStorageScheme,
+        compat_action: Option<PaymentMethodCompatAction>,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
     #[cfg(feature = "v2")]
@@ -1280,6 +1282,27 @@ pub trait PaymentMethodInterface {
         merchant_id: &id_type::MerchantId,
         payment_method_id: &str,
     ) -> CustomResult<PaymentMethod, Self::Error>;
+}
+
+type PaymentMethodCompatFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
+type PaymentMethodCompatFn = dyn Fn(PaymentMethod) -> PaymentMethodCompatFuture + Send + Sync;
+
+pub struct PaymentMethodCompatAction(Arc<PaymentMethodCompatFn>);
+
+impl PaymentMethodCompatAction {
+    pub fn new<F, Fut>(action: F) -> Self
+    where
+        F: Fn(PaymentMethod) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = ()> + Send + 'static,
+    {
+        Self(Arc::new(move |payment_method| {
+            Box::pin(action(payment_method))
+        }))
+    }
+
+    pub async fn execute(&self, payment_method: PaymentMethod) {
+        self.0(payment_method).await;
+    }
 }
 
 #[cfg(feature = "v2")]

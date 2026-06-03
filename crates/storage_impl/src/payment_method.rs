@@ -22,7 +22,9 @@ use hyperswitch_domain_models::platform::Initiator;
 use hyperswitch_domain_models::{
     behaviour::Conversion,
     merchant_key_store::MerchantKeyStore,
-    payment_methods::{PaymentMethod as DomainPaymentMethod, PaymentMethodInterface},
+    payment_methods::{
+        PaymentMethod as DomainPaymentMethod, PaymentMethodCompatAction, PaymentMethodInterface,
+    },
 };
 use router_env::{instrument, tracing};
 
@@ -153,9 +155,10 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         key_store: &MerchantKeyStore,
         payment_method: DomainPaymentMethod,
         storage_scheme: MerchantStorageScheme,
+        compat_action: Option<PaymentMethodCompatAction>,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         self.router_store
-            .insert_payment_method(key_store, payment_method, storage_scheme)
+            .insert_payment_method(key_store, payment_method, storage_scheme, compat_action)
             .await
     }
 
@@ -166,6 +169,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         key_store: &MerchantKeyStore,
         payment_method: DomainPaymentMethod,
         storage_scheme: MerchantStorageScheme,
+        compat_action: Option<PaymentMethodCompatAction>,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let conn = pg_connection_write(self).await?;
         let mut payment_method_new = payment_method
@@ -185,20 +189,27 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             reverse_lookups.push(format!("payment_method_locker_{locker_id}"))
         }
         let payment_method = (&payment_method_new.clone()).into();
-        self.insert_resource(
-            key_store,
-            storage_scheme,
-            payment_method_new.clone().insert(&conn),
-            payment_method,
-            InsertResourceParams {
-                insertable: kv::Insertable::PaymentMethod(Box::new(payment_method_new.clone())),
-                reverse_lookups,
-                key,
-                identifier,
-                resource_type: "payment_method",
-            },
-        )
-        .await
+        let payment_method = self
+            .insert_resource(
+                key_store,
+                storage_scheme,
+                payment_method_new.clone().insert(&conn),
+                payment_method,
+                InsertResourceParams {
+                    insertable: kv::Insertable::PaymentMethod(Box::new(payment_method_new.clone())),
+                    reverse_lookups,
+                    key,
+                    identifier,
+                    resource_type: "payment_method",
+                },
+            )
+            .await?;
+
+        if let Some(compat_action) = compat_action {
+            compat_action.execute(payment_method.clone()).await;
+        }
+
+        Ok(payment_method)
     }
 
     #[cfg(feature = "v1")]
@@ -209,6 +220,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         payment_method: DomainPaymentMethod,
         payment_method_update: PaymentMethodUpdate,
         storage_scheme: MerchantStorageScheme,
+        compat_action: Option<PaymentMethodCompatAction>,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_method = Conversion::convert(payment_method)
             .await
@@ -225,7 +237,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         let p_update: PaymentMethodUpdateInternal =
             payment_method_update.convert_to_payment_method_update(storage_scheme);
         let updated_payment_method = p_update.clone().apply_changeset(payment_method.clone());
-        Box::pin(
+        let payment_method = Box::pin(
             self.update_resource(
                 key_store,
                 storage_scheme,
@@ -248,7 +260,13 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
                 },
             ),
         )
-        .await
+        .await?;
+
+        if let Some(compat_action) = compat_action {
+            compat_action.execute(payment_method.clone()).await;
+        }
+
+        Ok(payment_method)
     }
 
     #[cfg(feature = "v2")]
@@ -259,6 +277,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         payment_method: DomainPaymentMethod,
         payment_method_update: PaymentMethodUpdate,
         storage_scheme: MerchantStorageScheme,
+        compat_action: Option<PaymentMethodCompatAction>,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         self.router_store
             .update_payment_method(
@@ -266,6 +285,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
                 payment_method,
                 payment_method_update,
                 storage_scheme,
+                compat_action,
             )
             .await
     }
@@ -574,6 +594,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         payment_method: DomainPaymentMethod,
         _storage_scheme: MerchantStorageScheme,
+        compat_action: Option<PaymentMethodCompatAction>,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_method_new = payment_method
             .construct_new()
@@ -581,8 +602,15 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
             .change_context(errors::StorageError::DecryptionError)?;
 
         let conn = pg_connection_write(self).await?;
-        self.call_database(key_store, payment_method_new.insert(&conn))
-            .await
+        let payment_method = self
+            .call_database(key_store, payment_method_new.insert(&conn))
+            .await?;
+
+        if let Some(compat_action) = compat_action {
+            compat_action.execute(payment_method.clone()).await;
+        }
+
+        Ok(payment_method)
     }
 
     #[cfg(feature = "v1")]
@@ -593,17 +621,25 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         payment_method: DomainPaymentMethod,
         payment_method_update: PaymentMethodUpdate,
         _storage_scheme: MerchantStorageScheme,
+        compat_action: Option<PaymentMethodCompatAction>,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_method = Conversion::convert(payment_method)
             .await
             .change_context(errors::StorageError::DecryptionError)?;
 
         let conn = pg_connection_write(self).await?;
-        self.call_database(
-            key_store,
-            payment_method.update_with_payment_method_id(&conn, payment_method_update.into()),
-        )
-        .await
+        let payment_method = self
+            .call_database(
+                key_store,
+                payment_method.update_with_payment_method_id(&conn, payment_method_update.into()),
+            )
+            .await?;
+
+        if let Some(compat_action) = compat_action {
+            compat_action.execute(payment_method.clone()).await;
+        }
+
+        Ok(payment_method)
     }
 
     #[cfg(feature = "v2")]
@@ -614,16 +650,24 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         payment_method: DomainPaymentMethod,
         payment_method_update: PaymentMethodUpdate,
         _storage_scheme: MerchantStorageScheme,
+        compat_action: Option<PaymentMethodCompatAction>,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_method = Conversion::convert(payment_method)
             .await
             .change_context(errors::StorageError::DecryptionError)?;
         let conn = pg_connection_write(self).await?;
-        self.call_database(
-            key_store,
-            payment_method.update_with_id(&conn, payment_method_update.into()),
-        )
-        .await
+        let payment_method = self
+            .call_database(
+                key_store,
+                payment_method.update_with_id(&conn, payment_method_update.into()),
+            )
+            .await?;
+
+        if let Some(compat_action) = compat_action {
+            compat_action.execute(payment_method.clone()).await;
+        }
+
+        Ok(payment_method)
     }
 
     #[cfg(feature = "v1")]
@@ -931,6 +975,7 @@ impl PaymentMethodInterface for MockDb {
         _key_store: &MerchantKeyStore,
         payment_method: DomainPaymentMethod,
         _storage_scheme: MerchantStorageScheme,
+        compat_action: Option<PaymentMethodCompatAction>,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let mut payment_methods = self.payment_methods.lock().await;
 
@@ -939,6 +984,9 @@ impl PaymentMethodInterface for MockDb {
             .change_context(errors::StorageError::DecryptionError)?;
 
         payment_methods.push(pm);
+        if let Some(compat_action) = compat_action {
+            compat_action.execute(payment_method.clone()).await;
+        }
         Ok(payment_method)
     }
 
@@ -1104,6 +1152,7 @@ impl PaymentMethodInterface for MockDb {
         payment_method: DomainPaymentMethod,
         payment_method_update: PaymentMethodUpdate,
         _storage_scheme: MerchantStorageScheme,
+        compat_action: Option<PaymentMethodCompatAction>,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_method_updated = PaymentMethodUpdateInternal::from(payment_method_update)
             .apply_changeset(
@@ -1111,14 +1160,21 @@ impl PaymentMethodInterface for MockDb {
                     .await
                     .change_context(errors::StorageError::EncryptionError)?,
             );
-        self.update_resource::<PaymentMethod, _>(
-            key_store,
-            self.payment_methods.lock().await,
-            payment_method_updated,
-            |pm| pm.get_id() == payment_method.get_id(),
-            "cannot update payment method".to_string(),
-        )
-        .await
+        let payment_method = self
+            .update_resource::<PaymentMethod, _>(
+                key_store,
+                self.payment_methods.lock().await,
+                payment_method_updated,
+                |pm| pm.get_id() == payment_method.get_id(),
+                "cannot update payment method".to_string(),
+            )
+            .await?;
+
+        if let Some(compat_action) = compat_action {
+            compat_action.execute(payment_method.clone()).await;
+        }
+
+        Ok(payment_method)
     }
 
     #[cfg(feature = "v2")]

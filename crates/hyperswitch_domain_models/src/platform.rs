@@ -37,6 +37,10 @@ impl Provider {
 pub struct ProviderMerchantId(common_utils::id_type::MerchantId);
 
 impl ProviderMerchantId {
+    pub fn from_merchant_id(id: common_utils::id_type::MerchantId) -> Self {
+        Self(id)
+    }
+
     pub fn inner(&self) -> &common_utils::id_type::MerchantId {
         &self.0
     }

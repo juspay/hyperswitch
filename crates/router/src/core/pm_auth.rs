@@ -584,12 +584,14 @@ async fn store_in_db(
 ) -> RouterResult<()> {
     let update_entries_futures = update_entries
         .into_iter()
-        .map(|(pm, pm_update)| db.update_payment_method(key_store, pm, pm_update, storage_scheme))
+        .map(|(pm, pm_update)| {
+            db.update_payment_method(key_store, pm, pm_update, storage_scheme, None)
+        })
         .collect::<Vec<_>>();
 
     let new_entries_futures = new_entries
         .into_iter()
-        .map(|pm_new| db.insert_payment_method(key_store, pm_new, storage_scheme))
+        .map(|pm_new| db.insert_payment_method(key_store, pm_new, storage_scheme, None))
         .collect::<Vec<_>>();
 
     let update_futures = futures::future::join_all(update_entries_futures);

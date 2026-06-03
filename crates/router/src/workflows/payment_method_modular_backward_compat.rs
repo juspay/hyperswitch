@@ -173,8 +173,6 @@ impl BackwardCompatWorkflowBuilder<BackwardContextLoaded> {
 impl BackwardCompatWorkflowBuilder<BackwardPaymentMethodLoaded> {
     fn should_skip(&self) -> bool {
         self.payment_method().version == common_enums::ApiVersion::V1
-            && self.payment_method().compatibility_updated_at
-                != Some(self.payment_method().last_modified)
     }
 
     fn prepare_db_compat(mut self) -> BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared> {

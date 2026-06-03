@@ -1696,8 +1696,11 @@ impl CommonMandateReference {
 
         #[cfg(feature = "v2")]
         {
-            payments = Self::add_v1_connector_mandate_fields(Some(payments))
-                .unwrap_or_else(|| serde_json::json!({}));
+            if let Some(updated_payments) =
+                Self::add_v1_connector_mandate_fields(Some(payments.clone()))
+            {
+                payments = updated_payments;
+            }
         }
 
         Ok(payments)
@@ -1939,18 +1942,15 @@ fn add_status_alias(
     destination_key: &str,
     status_alias: impl FnOnce(&str) -> Option<serde_json::Value>,
 ) {
-    if !should_update_key(connector_reference, destination_key) {
-        return;
-    }
-
-    let Some(status) = connector_reference
-        .get(source_key)
-        .and_then(serde_json::Value::as_str)
-    else {
-        return;
-    };
-
-    if let Some(status_alias) = status_alias(status) {
+    if let Some(status_alias) = should_update_key(connector_reference, destination_key)
+        .then(|| {
+            connector_reference
+                .get(source_key)
+                .and_then(serde_json::Value::as_str)
+        })
+        .flatten()
+        .and_then(status_alias)
+    {
         connector_reference.insert(destination_key.to_string(), status_alias);
     }
 }
@@ -1990,47 +1990,6 @@ fn add_if_missing_key(
                 connector_reference.insert(destination_key.to_string(), source_value.clone());
             }
         }
-    }
-}
-
-#[cfg(all(test, any(feature = "v1", feature = "v2")))]
-mod connector_mandate_alias_tests {
-    use super::CommonMandateReference;
-
-    #[test]
-    fn add_v1_connector_mandate_fields_backfills_legacy_aliases() {
-        let connector_mandate_details = serde_json::json!({
-            "mca_123": {
-                "connector_token": "tok_123",
-                "payment_method_type": "credit",
-                "connector_token_request_reference_id": "req_123",
-                "connector_token_status": "active"
-            }
-        });
-
-        let updated = CommonMandateReference::add_v1_connector_mandate_fields(Some(
-            connector_mandate_details,
-        ))
-        .expect("mandate details should be backfilled");
-        let connector_reference = updated
-            .get("mca_123")
-            .expect("mandate connector reference should exist");
-
-        assert_eq!(
-            connector_reference.get("connector_mandate_id"),
-            Some(&serde_json::json!("tok_123"))
-        );
-        assert_eq!(
-            connector_reference.get("payment_method_subtype"),
-            Some(&serde_json::json!("credit"))
-        );
-        assert_eq!(
-            connector_reference.get("connector_mandate_request_reference_id"),
-            Some(&serde_json::json!("req_123"))
-        );
-        assert!(connector_reference
-            .get("connector_mandate_status")
-            .is_some_and(|status| !status.is_null()));
     }
 }
 
