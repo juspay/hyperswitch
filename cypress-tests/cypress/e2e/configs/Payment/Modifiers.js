@@ -218,8 +218,10 @@ const CURRENCY_MAP = {
   Skrill: "USD", // Skrill wallet payment method
   PaySafeCard: "USD", // PaySafeCard gift card payment method
 
+  // Wallet redirect and mandate payment methods
+  PaypalRedirect: "USD",
+
   // Wallet mandate payment methods
-  PaypalRedirect: "EUR",
   KakaoPay: "KRW",
   Gcash: "PHP",
   Momo: "VND",
