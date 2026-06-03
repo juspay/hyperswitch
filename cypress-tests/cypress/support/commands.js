@@ -9754,3 +9754,48 @@ Cypress.Commands.add(
     });
   }
 );
+
+Cypress.Commands.add("paymentUpdateClientAuthTest", (globalState, data) => {
+  const { Configs: configs = {} } = data;
+  execConfig(validateConfig(configs));
+
+  const apiKey = globalState.get("publishableKey") || globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const paymentId = globalState.get("paymentID") || globalState.get("paymentId");
+
+  const connectorId = globalState.get("connectorId");
+  const requestBody = data.Request;
+
+  cy.request({
+    method: "POST",
+    url: `${baseUrl}/payments/${paymentId}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    body: requestBody,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      const expectedStatus = data.Response?.status || 200;
+      expect(response.status).to.eq(expectedStatus);
+
+      if (response.status === 200) {
+        expect(response.body).to.have.property("payment_id", paymentId);
+        expect(response.body).to.have.property("status");
+
+        if (data.Response?.body?.status) {
+          expect(response.body.status).to.equal(data.Response.body.status);
+        }
+
+        if (data.Response?.body?.payment_method_data) {
+          expect(response.body.payment_method_data).to.deep.equal(
+            data.Response.body.payment_method_data
+          );
+        }
+      }
+    });
+  });
+});

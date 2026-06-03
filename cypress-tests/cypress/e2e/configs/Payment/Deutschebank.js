@@ -291,5 +291,22 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentUpdateClientAuth: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successful3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_confirmation",
+          payment_method_data: paymentMethodData3DSResponse,
+        },
+      },
+    },
   },
 };
