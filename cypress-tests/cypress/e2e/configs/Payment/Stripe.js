@@ -1456,4 +1456,219 @@ export const connectorDetails = {
       type: "string",
     },
   },
+  wallet_pm: {
+    PaymentIntent: (walletType) => {
+      const currencyMap = {
+        AliPay: "USD",
+        AmazonPay: "USD",
+        Cashapp: "USD",
+        RevolutPay: "EUR",
+        WeChatPay: "USD",
+      };
+      return {
+        Request: {
+          currency: currencyMap[walletType] || "USD",
+          amount: 1000,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+    AliPay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "alipay",
+        payment_method_data: {
+          wallet: {
+            alipay: {},
+          },
+        },
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    AmazonPay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "amazon_pay",
+        payment_method_data: {
+          wallet: {
+            amazon_pay: {},
+          },
+        },
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    AmazonPayMandate: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "amazon_pay",
+        payment_method_data: {
+          wallet: {
+            amazon_pay: {},
+          },
+        },
+        currency: "USD",
+        mandate_data: {
+          customer_acceptance: {
+            acceptance_type: "offline",
+            accepted_at: "1963-05-03T04:07:52.723Z",
+            online: {
+              ip_address: "in sit",
+              user_agent: "amet irure esse sunt",
+            },
+          },
+          mandate_type: {
+            single_use: {
+              amount: 1000,
+              currency: "USD",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Cashapp: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "cashapp",
+        payment_method_data: {
+          wallet: {
+            cashapp: {},
+          },
+        },
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    CashappMandate: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "cashapp",
+        payment_method_data: {
+          wallet: {
+            cashapp: {},
+          },
+        },
+        currency: "USD",
+        mandate_data: {
+          customer_acceptance: {
+            acceptance_type: "offline",
+            accepted_at: "1963-05-03T04:07:52.723Z",
+            online: {
+              ip_address: "in sit",
+              user_agent: "amet irure esse sunt",
+            },
+          },
+          mandate_type: {
+            single_use: {
+              amount: 1000,
+              currency: "USD",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    RevolutPay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "revolut_pay",
+        payment_method_data: {
+          wallet: {
+            revolut_pay: {},
+          },
+        },
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    RevolutPayMandate: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "revolut_pay",
+        payment_method_data: {
+          wallet: {
+            revolut_pay: {},
+          },
+        },
+        currency: "EUR",
+        mandate_data: {
+          customer_acceptance: {
+            acceptance_type: "offline",
+            accepted_at: "1963-05-03T04:07:52.723Z",
+            online: {
+              ip_address: "in sit",
+              user_agent: "amet irure esse sunt",
+            },
+          },
+          mandate_type: {
+            single_use: {
+              amount: 1000,
+              currency: "EUR",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    WeChatPay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "we_chat_pay",
+        payment_method_data: {
+          wallet: {
+            we_chat_pay: {},
+          },
+        },
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+  },
 };
