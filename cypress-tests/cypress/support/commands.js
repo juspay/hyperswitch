@@ -5267,7 +5267,7 @@ Cypress.Commands.add(
         "cli_log",
         `Skipping wallet redirection: null hostname in redirect URL for ${paymentMethodType} (nextActionUrl=${nextActionUrl})`
       );
->>>>>>> ab8d28d13b (test(cypress): add wallet mandate coverage for adyen)
+
       return;
     }
 
