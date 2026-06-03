@@ -1215,6 +1215,7 @@ function bankRedirectRedirection(
                 );
                 verifyUrl = false;
                 break;
+
               // The 'ideal' case is handled outside handleFlow
               default:
                 throw new Error(
@@ -1625,7 +1626,16 @@ function bankRedirectRedirection(
             break;
 
           case "multisafepay":
-            if (["sofort", "eps", "mbway"].includes(paymentMethodType)) {
+            if (
+              [
+                "sofort",
+                "eps",
+                "mb_way",
+                "ali_pay",
+                "paypal",
+                "we_chat_pay",
+              ].includes(paymentMethodType)
+            ) {
               // Multisafe pay has CSRF blocking cannot actually test redirection flow via cypress
               // cy.get(".btn-msp-success").click();
 
