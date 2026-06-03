@@ -242,6 +242,7 @@ export const connectorDetails = {
           },
           billing: billing,
           entity_type: "Company",
+          recurring: true,
         },
         Response: {
           status: 200,
@@ -266,6 +267,7 @@ export const connectorDetails = {
             },
           },
           billing: billing,
+          recurring: true,
         },
         Response: {
           status: 200,
@@ -291,6 +293,7 @@ export const connectorDetails = {
           },
           billing: billing,
           entity_type: "Individual",
+          recurring: true,
         },
         Response: {
           status: 200,
@@ -316,12 +319,12 @@ export const connectorDetails = {
           },
           billing: billing,
           entity_type: "InvalidType",
+          recurring: true,
         },
         Response: {
           status: 400,
           body: {
             error: {
-              type: "invalid_request",
               message: "Json deserialize error: unknown variant `InvalidType`",
               code: "IR_06",
             },
@@ -343,6 +346,7 @@ export const connectorDetails = {
           },
           billing: billing,
           entity_type: "NaturalPerson",
+          recurring: true,
         },
         Response: {
           status: 200,
@@ -368,6 +372,7 @@ export const connectorDetails = {
           },
           billing: billing,
           entity_type: "NonProfit",
+          recurring: true,
         },
         Response: {
           status: 200,
@@ -393,6 +398,7 @@ export const connectorDetails = {
           },
           billing: billing,
           entity_type: "Personal",
+          recurring: true,
         },
         Response: {
           status: 200,
@@ -418,6 +424,7 @@ export const connectorDetails = {
           },
           billing: billing,
           entity_type: "PublicSector",
+          recurring: true,
         },
         Response: {
           status: 200,
