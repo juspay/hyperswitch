@@ -11748,6 +11748,6 @@ default_imp_for_pre_authorize_void!(
     connectors::Imerchantsolutions,
     connectors::Interpayments,
     connectors::Revolv3,
-    connectors::Sanlam,
+    connectors::AbsaSanlam,
     connectors::Trustly
 );
