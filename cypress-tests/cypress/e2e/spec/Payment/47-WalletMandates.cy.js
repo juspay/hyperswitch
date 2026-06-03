@@ -12,28 +12,19 @@ describe("Wallet Mandate tests", () => {
   let shouldContinue = true;
 
   before("seed global state", function () {
-    let skip = false;
-
-    cy.task("getGlobalState")
-      .then((state) => {
-        globalState = new State(state);
-        const connector = globalState.get("connectorId");
-
-        if (
-          shouldIncludeConnector(
-            connector,
-            CONNECTOR_LISTS.INCLUDE.ADYEN_WALLET_MANDATE
-          )
-        ) {
-          skip = true;
-          return;
-        }
-      })
-      .then(() => {
-        if (skip) {
-          this.skip();
-        }
-      });
+    cy.task("getGlobalState").then((state) => {
+      globalState = new State(state);
+      const connector = globalState.get("connectorId");
+      if (
+        shouldIncludeConnector(
+          connector,
+          CONNECTOR_LISTS.INCLUDE.ADYEN_WALLET_MANDATE
+        )
+      ) {
+        shouldContinue = false;
+        this.skip();
+      }
+    });
   });
 
   afterEach("flush global state", () => {
