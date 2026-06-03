@@ -1269,6 +1269,17 @@ pub fn build_unified_connector_service_payment_method(
             }
         }
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(wallet_data) => {
+            // If a payment instrument token was returned from the tokenize step (e.g. Finix
+            // PI...), use it directly for the authorize rather than re-sending the raw wallet
+            // data.  This mirrors the same check in the Card branch above.
+            if let Some(PaymentMethodToken::Token(token)) = payment_method_token {
+                let token_payment_method = payments_grpc::TokenPaymentMethodType {
+                    token: Some(token.clone()),
+                };
+                return Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Token(token_payment_method)),
+                });
+            }
             match wallet_data {
                 hyperswitch_domain_models::payment_method_data::WalletData::Mifinity(
                     mifinity_data,
