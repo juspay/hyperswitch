@@ -532,7 +532,7 @@ export const CONNECTOR_LISTS = {
     ],
     BANK_DEBIT: ["adyen", "novalnet", "payload"], // payload verified as working
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
-    BANK_REDIRECT_MANDATE: ["adyen"],
+    BANK_REDIRECT_MANDATE: ["adyen", "stripe"],
     BLUECODE_WALLET: ["calida"],
     ALIPAY_HK_WALLET: ["adyen"],
     PAYPAL_WALLET: ["novalnet", "paypal"],

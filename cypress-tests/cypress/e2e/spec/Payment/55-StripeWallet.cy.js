@@ -71,8 +71,13 @@ describe("Stripe AliPay Wallet tests", () => {
         "wallet_pm"
       ]["AliPay"];
 
+      const confirmBodyNoBilling = JSON.parse(
+        JSON.stringify(fixtures.confirmBody)
+      );
+      delete confirmBodyNoBilling.billing;
+
       cy.confirmBankRedirectCallTest(
-        fixtures.confirmBody,
+        confirmBodyNoBilling,
         data,
         true,
         globalState
@@ -158,8 +163,13 @@ describe("Stripe CashApp Wallet tests", () => {
         "wallet_pm"
       ]["CashAppAuto"];
 
+      const confirmBodyNoBilling = JSON.parse(
+        JSON.stringify(fixtures.confirmBody)
+      );
+      delete confirmBodyNoBilling.billing;
+
       cy.confirmBankRedirectCallTest(
-        fixtures.confirmBody,
+        confirmBodyNoBilling,
         data,
         true,
         globalState
@@ -214,8 +224,13 @@ describe("Stripe CashApp Wallet tests", () => {
         "wallet_pm"
       ]["CashAppManual"];
 
+      const confirmBodyNoBilling = JSON.parse(
+        JSON.stringify(fixtures.confirmBody)
+      );
+      delete confirmBodyNoBilling.billing;
+
       cy.confirmBankRedirectCallTest(
-        fixtures.confirmBody,
+        confirmBodyNoBilling,
         data,
         true,
         globalState

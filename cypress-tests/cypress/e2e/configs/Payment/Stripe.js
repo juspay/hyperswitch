@@ -1283,6 +1283,54 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
+      MandateSingleUseAutoCapture: {
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "ideal",
+          payment_method_data: {
+            bank_redirect: {
+              ideal: {
+                bank_name: "ing",
+              },
+            },
+          },
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
+              country: "NL",
+              first_name: "joseph",
+              last_name: "Doe",
+            },
+            phone: {
+              number: "9123456789",
+              country_code: "+91",
+            },
+          },
+          currency: "EUR",
+          customer_acceptance: customerAcceptance,
+          mandate_data: {
+            customer_acceptance: customerAcceptance,
+            mandate_type: {
+              single_use: {
+                amount: 6540,
+                currency: "EUR",
+              },
+            },
+          },
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+      },
     },
     Giropay: {
       Request: {
@@ -1395,6 +1443,84 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    },
+    Sofort: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "sofort",
+        payment_method_data: {
+          bank_redirect: {
+            sofort: {
+              country: "DE",
+              preferred_language: "en",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      MandateSingleUseAutoCapture: {
+        Request: {
+          payment_method: "bank_redirect",
+          payment_method_type: "sofort",
+          payment_method_data: {
+            bank_redirect: {
+              sofort: {
+                country: "DE",
+                preferred_language: "en",
+              },
+            },
+          },
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
+              country: "DE",
+              first_name: "joseph",
+              last_name: "Doe",
+            },
+          },
+          currency: "EUR",
+          customer_acceptance: customerAcceptance,
+          mandate_data: {
+            customer_acceptance: customerAcceptance,
+            mandate_type: {
+              single_use: {
+                amount: 6540,
+                currency: "EUR",
+              },
+            },
+          },
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
         },
       },
     },
