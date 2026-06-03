@@ -280,20 +280,6 @@ export const connectorDetails = {
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        billing: {
-          address: {
-            city: "KADIMA-ZORAN",
-            country: "US",
-            state: "New York",
-            first_name: "john",
-            last_name: "doe",
-            zip: "10001",
-            line1: "123",
-            line2: "Main Street",
-            line3: "Apt 4B",
-            origin_zip: "10001"
-          }
-        }
       },
       Response: {
         status: 200,
