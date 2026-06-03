@@ -1,10 +1,11 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, {
-  CONNECTOR_LISTS,
   shouldIncludeConnector,
   should_continue_further,
 } from "../../configs/Payment/Utils";
+
+const WALLET_MANDATE_CONNECTORS = ["adyen"];
 
 let globalState;
 
@@ -17,29 +18,13 @@ describe("Wallet Mandate tests", () => {
         globalState = new State(state);
         const connector = globalState.get("connectorId");
 
-        cy.log(
-          `[WalletMandates] connectorId="${connector}"`
-        );
-        cy.log(
-          `[WalletMandates] ADYEN_WALLET_MANDATE list=${JSON.stringify(
-            CONNECTOR_LISTS.INCLUDE.ADYEN_WALLET_MANDATE
-          )}`
-        );
-
         if (
           shouldIncludeConnector(
             connector,
-            CONNECTOR_LISTS.INCLUDE.ADYEN_WALLET_MANDATE
+            WALLET_MANDATE_CONNECTORS
           )
         ) {
-          cy.log(
-            `[WalletMandates] SKIP — connector "${connector}" is NOT in ADYEN_WALLET_MANDATE`
-          );
           skip = true;
-        } else {
-          cy.log(
-            `[WalletMandates] RUN — connector "${connector}" IS in ADYEN_WALLET_MANDATE`
-          );
         }
       })
       .then(() => {
