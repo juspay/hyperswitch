@@ -172,6 +172,7 @@ pub enum AttemptStatus {
     DeviceDataCollectionPending,
     IntegrityFailure,
     Expired,
+    CaptureReview,
 }
 
 impl AttemptStatus {
@@ -204,7 +205,8 @@ impl AttemptStatus {
             | Self::ConfirmationAwaited
             | Self::DeviceDataCollectionPending
             | Self::IntegrityFailure
-            | Self::VoidedPostCharge => false,
+            | Self::VoidedPostCharge
+            | Self::CaptureReview => false,
         }
     }
 
@@ -237,7 +239,8 @@ impl AttemptStatus {
             | Self::PaymentMethodAwaited
             | Self::ConfirmationAwaited
             | Self::DeviceDataCollectionPending
-            | Self::IntegrityFailure => false,
+            | Self::IntegrityFailure
+            | Self::CaptureReview => false,
         }
     }
 
@@ -274,7 +277,8 @@ impl AttemptStatus {
             | Self::ConfirmationAwaited
             | Self::DeviceDataCollectionPending
             | Self::IntegrityFailure
-            | Self::Expired => false,
+            | Self::Expired
+            | Self::CaptureReview => false,
         }
     }
 }
@@ -778,6 +782,8 @@ pub enum ConnectorType {
     AuthenticationProcessor,
     /// Tax Calculation Processor
     TaxProcessor,
+    /// Surcharge Calculation Processor
+    SurchargeProcessor,
     /// Represents billing processors that handle subscription management, invoicing,
     /// and recurring payments. Examples include Chargebee, Recurly, and Stripe Billing.
     BillingProcessor,
@@ -801,9 +807,19 @@ pub enum CallConnectorAction {
         error_code: Option<String>,
         error_message: Option<String>,
     },
-    HandleResponse(Vec<u8>),
+    HandleResponse {
+        resource_object: Vec<u8>,
+        event_type: Option<IncomingWebhookEventType>,
+    },
     UCSConsumeResponse(Vec<u8>),
     HandleResponseWithoutBuildRequest,
+}
+
+/// For denoting the webhook event type in CallConnectorAction,
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum IncomingWebhookEventType {
+    PaymentIntentCaptureFailure,
+    Other,
 }
 
 /// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
@@ -1984,6 +2000,11 @@ pub enum IntentStatus {
     Conflicted,
     /// The payment expired before it could be captured.
     Expired,
+    /// The payment has been marked for manual review due to anomalous response from the connector.
+    /// This can occur when a capture fails after the payment was initially marked as successful
+    /// (e.g., Adyen CAPTURE_FAILED webhook after successful CAPTURE).
+    /// The merchant can explicitly resolve this status via the API or a webhook from the connector can update the status
+    Review,
 }
 
 impl IntentStatus {
@@ -2005,7 +2026,8 @@ impl IntentStatus {
             | Self::PartiallyCapturedAndCapturable
             | Self::PartiallyAuthorizedAndRequiresCapture
             | Self::Conflicted
-            | Self::PartiallyCapturedAndProcessing => false,
+            | Self::PartiallyCapturedAndProcessing
+            | Self::Review => false,
         }
     }
 
@@ -2021,7 +2043,7 @@ impl IntentStatus {
             | Self::Cancelled
             | Self::CancelledPostCapture
             |  Self::PartiallyCaptured
-            |  Self::RequiresCapture | Self::Conflicted | Self::Expired=> false,
+            |  Self::RequiresCapture | Self::Conflicted | Self::Expired | Self::Review => false,
             Self::Processing
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
@@ -2225,7 +2247,8 @@ impl From<AttemptStatus> for PaymentMethodStatus {
             | AttemptStatus::ConfirmationAwaited
             | AttemptStatus::DeviceDataCollectionPending
             | AttemptStatus::IntegrityFailure
-            | AttemptStatus::Expired => Self::Inactive,
+            | AttemptStatus::Expired
+            | AttemptStatus::CaptureReview => Self::Inactive,
             AttemptStatus::Charged | AttemptStatus::Authorized => Self::Active,
         }
     }
@@ -2445,11 +2468,19 @@ pub enum PaymentMethodType {
 }
 
 impl PaymentMethodType {
-    pub fn should_check_for_customer_saved_payment_method_type(self) -> bool {
-        matches!(
-            self,
-            Self::ApplePay | Self::GooglePay | Self::SamsungPay | Self::Paypal | Self::Klarna
-        )
+    pub fn should_check_for_customer_saved_payment_method_type(
+        self,
+        is_apple_pay_decrypt: bool,
+    ) -> bool {
+        if is_apple_pay_decrypt {
+            // return false if the payment method is Apple Pay and the decryption is successful, else exhibit the existing behaviour
+            !matches!(self, Self::ApplePay)
+        } else {
+            matches!(
+                self,
+                Self::ApplePay | Self::GooglePay | Self::SamsungPay | Self::Paypal | Self::Klarna
+            )
+        }
     }
     pub fn to_display_name(&self) -> String {
         let display_name = match self {
@@ -3037,7 +3068,8 @@ impl RelayStatus {
             | AttemptStatus::Authorizing
             | AttemptStatus::CaptureInitiated
             | AttemptStatus::AuthenticationPending
-            | AttemptStatus::Started => Self::Pending,
+            | AttemptStatus::Started
+            | AttemptStatus::CaptureReview => Self::Pending,
             AttemptStatus::Voided | AttemptStatus::VoidedPostCharge => Self::Success,
         }
     }
@@ -3065,6 +3097,7 @@ pub enum RelayType {
     Capture,
     IncrementalAuthorization,
     Void,
+    UnreferencedRefund,
 }
 
 #[derive(
@@ -10189,7 +10222,8 @@ impl From<AttemptStatus> for RelayStatus {
             | AttemptStatus::Authorizing
             | AttemptStatus::CaptureInitiated
             | AttemptStatus::AuthenticationPending
-            | AttemptStatus::Started => Self::Pending,
+            | AttemptStatus::Started
+            | AttemptStatus::CaptureReview => Self::Pending,
             AttemptStatus::Charged
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable => Self::Success,
@@ -10455,6 +10489,7 @@ pub enum HyperswitchConnectorCategory {
     AuthenticationProvider,
     FraudAndRiskManagementProvider,
     TaxCalculationProvider,
+    SurchargeCalculationProvider,
     RevenueGrowthManagementPlatform,
 }
 
@@ -10711,6 +10746,7 @@ pub enum ProcessTrackerRunner {
     AttachPayoutAccountWorkflow,
     PaymentMethodStatusUpdateWorkflow,
     PaymentMethodModularForwardCompatWorkflow,
+    PaymentMethodModularBackwardCompatWorkflow,
     PassiveRecoveryWorkflow,
     ProcessDisputeWorkflow,
     DisputeListWorkflow,
@@ -10918,7 +10954,8 @@ impl From<IntentStatus> for InvoiceStatus {
             | IntentStatus::Processing
             | IntentStatus::RequiresCustomerAction
             | IntentStatus::RequiresConfirmation
-            | IntentStatus::RequiresPaymentMethod => Self::PaymentPending,
+            | IntentStatus::RequiresPaymentMethod
+            | IntentStatus::Review => Self::PaymentPending,
             IntentStatus::RequiresMerchantAction => Self::ManualReview,
             IntentStatus::Cancelled | IntentStatus::CancelledPostCapture => Self::PaymentCanceled,
             IntentStatus::Expired => Self::PaymentPendingTimeout,

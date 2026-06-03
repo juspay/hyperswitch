@@ -195,3 +195,18 @@ pub struct AuthenticationInfo {
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_enums::CountryAlpha2>,
 }
+
+#[cfg(feature = "v1")]
+impl From<api_models::authentication::AuthenticationEligibilityRequest> for AuthenticationInfo {
+    fn from(req: api_models::authentication::AuthenticationEligibilityRequest) -> Self {
+        Self {
+            billing_address: req.billing.map(address::Address::from),
+            shipping_address: req.shipping.map(address::Address::from),
+            browser_info: req.browser_information.map(BrowserInformation::from),
+            email: req.email,
+            device_details: None,
+            merchant_category_code: None,
+            merchant_country_code: None,
+        }
+    }
+}

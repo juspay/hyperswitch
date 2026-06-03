@@ -194,6 +194,7 @@ hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 # base urls based on your need.
 # Note: These are not optional attributes. hyperswitch request can fail due to invalid/empty values.
 [connectors]
+absa_sanlam.base_url = "dev"
 aci.base_url = "https://eu-test.oppwa.com/"
 adyen.base_url = "https://checkout-test.adyen.com/"
 adyen.payout_base_url = "https://pal-test.adyen.com/"
@@ -267,6 +268,7 @@ hipay.third_base_url = "https://stage-api-gateway.hipay.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 imerchantsolutions.base_url = "https://imerchantsolutions.com/api"
 inespay.base_url = "https://apiflow.inespay.com/san/v21"
+interpayments.base_url = "https://api-test.interpayments.com/v1"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br/"
 jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
 juspaythreedsserver.base_url = "http://localhost:8000"
@@ -316,7 +318,6 @@ razorpay.base_url = "https://api.razorpay.com/"
 recurly.base_url = "https://v3.recurly.com"
 redsys.base_url = "https://sis-t.redsys.es:25443"
 revolv3.base_url = "https://api-sandbox.revolv3.com"
-sanlam.base_url = "dev"
 riskified.base_url = "https://sandbox.riskified.com/api"
 santander.base_url = "https://trust-pix-h.santander.com.br/"
 santander.secondary_base_url = "https://trust-open-h.api.santander.com.br/"
@@ -738,7 +739,7 @@ debit = { currency = "INR,USD,GBP,EUR" }
 open_banking = { currency = "GBP,EUR" }
 
 [payout_method_filters.truelayer]
-open_banking_uk = { currency = "GBP,EUR,PLN" }
+open_banking = { currency = "GBP,EUR,PLN" }
 
 [payout_method_filters.trustly]
 trustly = { currency = "BGN,GBP,EUR,PLN,CZK,DKK,HRK,HUF,NOK,PLN,RON,SEK" }
@@ -1184,6 +1185,7 @@ enabled = true                      # Switch to enable or disable PayPal onboard
 
 [events]
 source = "logs" # The event sink to push events supports kafka or logs (stdout)
+emit_external_service_call_events = false # Enable external service call event emission
 
 [events.kafka]
 brokers = []                             # Kafka broker urls for bootstrapping the client
@@ -1201,6 +1203,7 @@ consolidated_events_topic = "topic"      # Kafka topic to be used for Consolidat
 authentication_analytics_topic = "topic" # Kafka topic to be used for Authentication events
 routing_logs_topic = "topic"             # Kafka topic to be used for Routing events
 revenue_recovery_topic = "topic"         # Kafka topic to be used for revenue recovery events
+external_service_call_topic = "topic"   # Kafka topic to be used for external service call events
 
 # File storage configuration
 [file_storage]
@@ -1296,6 +1299,7 @@ delete_token_url= ""          # base url to delete token from token service
 check_token_status_url= ""    # base url to check token status from token service
 webhook_source_verification_key= "" # webhook source verification key to verify the webhook payload from token service
 check_tokenize_eligibility_url="" # base url to check tokenization eligibility from token service
+fetch_altid_url= ""           # base url to fetch Alt-ID and cryptogram for guest checkout tokenization
 
 [network_tokenization_supported_connectors]
 connector_list = "adyen,cybersource,peachpayments,trustpay" # Supported connectors for network tokenization
@@ -1335,7 +1339,7 @@ url = "http://localhost:8080"           # Open Router URL
 [grpc_client.unified_connector_service]
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, sanlam"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [grpc_client.recovery_decider_client] # Revenue recovery client base url

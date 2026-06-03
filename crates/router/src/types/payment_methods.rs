@@ -54,6 +54,14 @@ pub struct AddVaultRequest<D> {
     pub ttl: i64,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AddCompatVaultRequest<D> {
+    pub entity_id: id_type::CustomerId,
+    pub vault_id: domain::VaultId,
+    pub data: D,
+    pub ttl: i64,
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultRequest<D> {
@@ -160,6 +168,12 @@ pub struct VaultRetrieveRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct GenericVaultRetrieveRequest {
+    pub entity_id: id_type::CustomerId,
+    pub vault_id: domain::VaultId,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultRetrieveResponse {
     pub data: hyperswitch_domain_models::vault::PaymentMethodVaultingData,
 }
@@ -222,6 +236,7 @@ pub struct ApiPayload {
     pub card_data: Secret<String>, //encrypted card data
     pub order_data: OrderData,
     pub should_send_token: bool,
+    pub key_id: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]

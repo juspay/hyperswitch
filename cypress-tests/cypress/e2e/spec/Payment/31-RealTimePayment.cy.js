@@ -11,7 +11,7 @@ describe("Real Time Payment", () => {
     });
   });
 
-  after("flush global state", () => {
+  afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
@@ -57,6 +57,14 @@ describe("Real Time Payment", () => {
       );
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("Retrieve Payment", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "real_time_payment_pm"
+      ]["DuitNow"];
+
+      cy.retrievePaymentCallTest({ globalState, data });
     });
   });
 });
