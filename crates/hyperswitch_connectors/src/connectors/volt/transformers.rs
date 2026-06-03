@@ -133,7 +133,7 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                         Some(OpenBankingUk { transaction_type }),
                         None,
                     )),
-                    BankRedirectData::OpenBanking {} => {
+                    BankRedirectData::OpenBanking { .. } => {
                         if matches!(currency, common_enums::Currency::GBP) {
                             Ok((
                                 PaymentSystem::OpenBankingUk,

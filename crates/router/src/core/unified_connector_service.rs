@@ -35,7 +35,7 @@ use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, ClassicReward,
-    CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse,
+    CryptoCurrency, EVoucher, PaymentServiceAuthorizeResponse,
 };
 
 #[cfg(feature = "v2")]
@@ -885,10 +885,25 @@ pub fn build_unified_connector_service_payment_method(
                     payment_method: Some(PaymentMethod::OpenBankingUk(open_banking_uk)),
                 })
             }
-            hyperswitch_domain_models::payment_method_data::BankRedirectData::OpenBanking {} =>
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::OpenBanking {
+                account_number,
+                sort_code,
+                iban,
+                account_holder_name,
+                additional_details
+            } => {
+                let open_banking = payments_grpc::OpenBanking {
+                    account_number: account_number.map(|v| v.expose().into()),
+                    sort_code: sort_code.map(|v| v.expose().into()),
+                    iban: iban.map(|v| v.expose().into()),
+                    account_holder_name: account_holder_name.map(|v| v.expose().into()),
+                    additional_details: additional_details.and_then(|v| serde_json::to_string(&v).ok()),
+                };
+
                 Ok(payments_grpc::PaymentMethod {
-                        payment_method: Some(PaymentMethod::OpenBanking(OpenBanking {})),
-                    }),
+                    payment_method: Some(PaymentMethod::OpenBanking(open_banking)),
+                })
+            }
             hyperswitch_domain_models::payment_method_data::BankRedirectData::Ideal { bank_name } => {
                 let ideal = payments_grpc::Ideal {
                     bank_name: bank_name.map(payments_grpc::BankNames::foreign_try_from)
