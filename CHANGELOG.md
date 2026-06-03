@@ -4,6 +4,48 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.03.0
+
+### Features
+
+- **core:** Map tonic gRPC status codes from UCS to appropriate HTTP status codes instead of blanket 5xx ([#11844](https://github.com/juspay/hyperswitch/pull/11844)) ([`3a65596`](https://github.com/juspay/hyperswitch/commit/3a6559660b514af5e78617c7507e66c03be70185))
+
+### Bug Fixes
+
+- **core:** Fix customer acceptance lookup and next action priority order in complete authorize ([#12510](https://github.com/juspay/hyperswitch/pull/12510)) ([`7e03c2e`](https://github.com/juspay/hyperswitch/commit/7e03c2e8bf8786249bd187003ea5ce0d23bfdfeb))
+
+### Refactors
+
+- **payment-methods:**
+  - Update session confirm response with payment methods data for a pm token ([#12484](https://github.com/juspay/hyperswitch/pull/12484)) ([`3db9736`](https://github.com/juspay/hyperswitch/commit/3db97366b6760cd0a145bce215f7a2119ed9587e))
+  - Update session tokens response with internal and external vault config ([#12479](https://github.com/juspay/hyperswitch/pull/12479)) ([`f4e7dcc`](https://github.com/juspay/hyperswitch/commit/f4e7dcc9b3133c48e13f6ee52f26e8ab015225fb))
+- **payment_methods:** Remove `psp_tokenization` from API request and response structs ([#12461](https://github.com/juspay/hyperswitch/pull/12461)) ([`47724b1`](https://github.com/juspay/hyperswitch/commit/47724b1d420d85c43ad87694821dd26735902e05))
+
+### Testing
+
+- **cypress:**
+  - Add Voucher payment coverage for adyen ([#12362](https://github.com/juspay/hyperswitch/pull/12362)) ([`f83a44a`](https://github.com/juspay/hyperswitch/commit/f83a44aef26cb6143c5fc3cb25632139964022d6))
+  - Add ACH bank debit coverage for wells fargo ([#12447](https://github.com/juspay/hyperswitch/pull/12447)) ([`b502543`](https://github.com/juspay/hyperswitch/commit/b502543de34fdaa0e541153213ff373311ecc180))
+  - Add Rapyd connector config for card credit and debit payments ([#12367](https://github.com/juspay/hyperswitch/pull/12367)) ([`5bec616`](https://github.com/juspay/hyperswitch/commit/5bec616f502759c96984ecb59cccf2cc2c9ae9f2))
+
+**Full Changelog:** [`2026.06.02.1...2026.06.03.0`](https://github.com/juspay/hyperswitch/compare/2026.06.02.1...2026.06.03.0)
+
+- - -
+
+## 2026.06.02.1
+
+### Features
+
+- **relay:** Add unreferenced refund API support for FiservCommerceHub ([#12469](https://github.com/juspay/hyperswitch/pull/12469)) ([`b340e6e`](https://github.com/juspay/hyperswitch/commit/b340e6e94b30f314967d359c4e1768b1e4909ad1))
+
+### Bug Fixes
+
+- **Core:** Send key_id In The Payload To Euler For Network Tokenization ([#11910](https://github.com/juspay/hyperswitch/pull/11910)) ([`16115b3`](https://github.com/juspay/hyperswitch/commit/16115b35bc0f6053e7c83a6143ae07200537b603))
+
+**Full Changelog:** [`2026.06.02.0...2026.06.02.1`](https://github.com/juspay/hyperswitch/compare/2026.06.02.0...2026.06.02.1)
+
+- - -
+
 ## 2026.06.02.0
 
 ### Features
