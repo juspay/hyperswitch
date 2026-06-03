@@ -286,7 +286,8 @@ export const connectorDetails = {
         body: {
           status: "failed",
           error_code: "10001",
-          error_message: "Order creation failure due to problematic input. & There is a mismatch between the Credit Card American Express and Security Code. ",
+          error_message:
+            "Order creation failure due to problematic input. & There is a mismatch between the Credit Card American Express and Security Code. ",
         },
       },
     },
