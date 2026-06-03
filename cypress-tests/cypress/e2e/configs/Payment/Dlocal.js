@@ -2,8 +2,8 @@ import {
   customerAcceptance,
   multiUseMandateData,
   singleUseMandateData,
-  getCustomExchange,
 } from "./Commons";
+import { getCustomExchange } from "./Modifiers";
 const mockBillingDetails = {
   address: {
     line1: "Servidao B-1",
