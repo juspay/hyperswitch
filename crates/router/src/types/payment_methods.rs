@@ -54,6 +54,15 @@ pub struct AddVaultRequest<D> {
     pub ttl: i64,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AddVaultRequestNew<D> {
+    pub entity_id: id_type::MerchantId,
+    pub vault_id: domain::VaultId,
+    pub data: D,
+    pub ttl: i64,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddCompatVaultRequest<D> {
     pub entity_id: id_type::CustomerId,
@@ -88,6 +97,14 @@ pub struct AddVaultResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct InternalAddVaultResponse {
     pub entity_id: Option<hyperswitch_domain_models::vault::V1VaultEntityId>,
+    pub vault_id: domain::VaultId,
+    pub fingerprint_id: Option<String>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct InternalAddVaultResponseNew {
+    pub entity_id: Option<id_type::MerchantId>,
     pub vault_id: domain::VaultId,
     pub fingerprint_id: Option<String>,
 }
@@ -157,6 +174,13 @@ pub struct SavedPMLPaymentsInfo {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultRetrieveRequest {
     pub entity_id: hyperswitch_domain_models::vault::V1VaultEntityId,
+    pub vault_id: domain::VaultId,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VaultRetrieveRequestNew {
+    pub entity_id: id_type::MerchantId,
     pub vault_id: domain::VaultId,
 }
 
