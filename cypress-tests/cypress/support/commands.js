@@ -2479,8 +2479,8 @@ Cypress.Commands.add(
             !createPaymentBody.payment_method_data &&
             !response.body.payment_method_data
           ) {
-            expect(response.body.payment_method_data, "payment_method_data").to.be
-              .null;
+            expect(response.body.payment_method_data, "payment_method_data").to
+              .be.null;
           }
           expect(response.body.merchant_connector_id, "merchant_connector_id")
             .to.be.null;
