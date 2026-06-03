@@ -1672,31 +1672,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderVoidResponse, T, PaymentsRespo
     }
 }
 
-impl TryFrom<&PaymentsCancelRouterData> for SantanderPaymentsCancelRequest {
-    type Error = Error;
-
-    fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        let santander_mca_metadata = SantanderMetadataObject::try_from(&item.connector_meta_data)?;
-
-        match item.payment_method {
-            enums::PaymentMethod::BankTransfer => {
-                let pix_req = SantanderPixCancelRequest::try_from(item)?;
-                Ok(Self::PixQR(pix_req))
-            }
-            enums::PaymentMethod::Voucher => {
-                let boleto_req =
-                    SantanderBoletoCancelRequest::try_from((item, santander_mca_metadata))?;
-                Ok(Self::Boleto(boleto_req))
-            }
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: format!("Cancellation for Payment method {}", item.payment_method),
-                connector: "Santander",
-            }
-            .into()),
-        }
-    }
-}
-
 impl TryFrom<(&PaymentsCancelRouterData, SantanderMetadataObject)>
     for SantanderBoletoCancelRequest
 {
@@ -1741,8 +1716,12 @@ impl TryFrom<&PaymentsPreAuthorizeCancelRouterData> for SantanderPaymentsCancelR
                     SantanderBoletoCancelRequest::try_from((item, santander_mca_metadata))?;
                 Ok(Self::Boleto(boleto_req))
             }
-            _ => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "payment_method",
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: format!(
+                    "Pre-authorization Cancel for Payment method {}",
+                    item.payment_method
+                ),
+                connector: "Santander",
             }
             .into()),
         }
