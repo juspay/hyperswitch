@@ -52,7 +52,7 @@ describe("[Payout] Entity Type", () => {
           "bank_transfer_pm"
         ]["sepa_bank_transfer"][key];
 
-        cy.createConfirmPayoutTest(payoutBody, data, true, true, globalState);
+        cy.createConfirmPayoutTest(payoutBody, data, true, false, globalState);
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
       });
@@ -79,7 +79,7 @@ describe("[Payout] Entity Type", () => {
 
       delete payoutBody.entity_type;
 
-      cy.createConfirmPayoutTest(payoutBody, data, true, true, globalState);
+      cy.createConfirmPayoutTest(payoutBody, data, true, false, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
