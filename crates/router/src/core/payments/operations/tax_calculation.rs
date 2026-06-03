@@ -1,9 +1,10 @@
 use std::marker::PhantomData;
 
-use api_models::{enums::FrmSuggestion, payments::MandateTransactionType};
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::mandates::MandateTransactionType;
 use hyperswitch_masking::PeekInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};

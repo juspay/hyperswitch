@@ -153,10 +153,6 @@ pub struct PaymentMethodCreate {
     #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
 
-    /// The tokenization type to be applied
-    #[schema(value_type = Option<PspTokenization>)]
-    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
-
     /// The network tokenization configuration if applicable
     #[schema(value_type = Option<NetworkTokenization>)]
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
@@ -543,15 +539,6 @@ impl PaymentMethodCreate {
             _ => false,
         }
     }
-    pub fn get_tokenize_connector_id(
-        &self,
-    ) -> Result<id_type::MerchantConnectorAccountId, error_stack::Report<errors::ValidationError>>
-    {
-        self.psp_tokenization
-            .clone()
-            .get_required_value("psp_tokenization")
-            .map(|psp| psp.connector_id)
-    }
 }
 
 #[cfg(feature = "v1")]
@@ -879,7 +866,7 @@ pub enum CardType {
 // when the customer is on_session again, the cvc can be collected from the customer
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(deny_unknown_fields)]
+// #[serde(deny_unknown_fields)]
 pub struct CardDetail {
     /// Card Number
     #[schema(value_type = String,example = "4111111145551142")]
@@ -1198,12 +1185,26 @@ pub struct RawCardWithNTDetails {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct RawProxyCardDataResponse {
+    #[schema(value_type = String, example = "4111111145551142")]
+    pub card_number: hyperswitch_masking::Secret<String>,
+
+    #[schema(value_type = Option<String>, example = "25")]
+    pub card_exp_year: Option<hyperswitch_masking::Secret<String>>,
+
+    #[schema(value_type = Option<String>, example = "10")]
+    pub card_exp_month: Option<hyperswitch_masking::Secret<String>>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub enum RawPaymentMethodData {
     Card(CardDetail),
     CardWithNT(RawCardWithNTDetails),
     BankDebit(BankDebitDetail),
+    ProxyCard(RawProxyCardDataResponse),
 }
 
 #[cfg(feature = "v1")]
@@ -3427,10 +3428,6 @@ pub struct PaymentMethodResponseItem {
 
     ///The network token details for the payment method
     pub network_tokenization: Option<NetworkTokenResponse>,
-
-    /// Whether psp_tokenization is enabled for the payment_method, this will be true when at least
-    /// one multi-use token with status `Active` is available for the payment method
-    pub psp_tokenization_enabled: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -4397,10 +4394,6 @@ pub struct PaymentMethodSessionRequest {
     #[schema(value_type = Option<String>)]
     pub return_url: Option<common_utils::types::Url>,
 
-    /// The tokenization type to be applied
-    #[schema(value_type = Option<PspTokenization>)]
-    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
-
     /// The network tokenization configuration if applicable
     #[schema(value_type = Option<NetworkTokenization>)]
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
@@ -4428,10 +4421,6 @@ pub struct PaymentMethodsSessionUpdateRequest {
     /// The billing address details of the customer. This will also be used for any new payment methods added during the session
     #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
-
-    /// The tokenization type to be applied
-    #[schema(value_type = Option<PspTokenization>)]
-    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
 
     /// The network tokenization configuration if applicable
     #[schema(value_type = Option<NetworkTokenization>)]
@@ -4525,10 +4514,6 @@ pub struct PaymentMethodSessionResponse {
     #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
 
-    /// The tokenization type to be applied
-    #[schema(value_type = Option<PspTokenization>)]
-    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
-
     /// The network tokenization configuration if applicable
     #[schema(value_type = Option<NetworkTokenization>)]
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
@@ -4578,7 +4563,6 @@ pub struct PaymentMethodSessionResponse {
 
     /// payment method data to be sent in session response
     #[schema(value_type = Option<PaymentMethodResponseData>)]
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_data: Option<PaymentMethodResponseData>,
 
     /// SDK authorization token for client SDK usage
@@ -4592,6 +4576,10 @@ pub struct PaymentMethodSessionResponse {
 
     /// Network token details if available
     pub network_tokenization_data: Option<NetworkTokenResponse>,
+
+    /// External vault session details if external vault is enabled for the profile
+    #[schema(value_type = Option<VaultSessionDetails>)]
+    pub external_vault_details: Option<payments::VaultSessionDetails>,
 }
 
 #[cfg(feature = "v2")]

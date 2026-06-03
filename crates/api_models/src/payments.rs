@@ -2362,197 +2362,6 @@ pub struct VerifyRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq, Copy)]
-#[serde(rename_all = "snake_case")]
-pub enum MandateTransactionType {
-    NewMandateTransaction,
-    RecurringMandateTransaction,
-}
-
-#[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
-pub struct MandateIds {
-    pub mandate_id: Option<String>,
-    pub mandate_reference_id: Option<MandateReferenceId>,
-}
-
-impl MandateIds {
-    pub fn is_network_transaction_id_flow(&self) -> bool {
-        matches!(
-            self.mandate_reference_id,
-            Some(MandateReferenceId::NetworkMandateId(_))
-        )
-    }
-
-    pub fn get_connector_mandate_id(&self) -> Option<String> {
-        match &self.mandate_reference_id {
-            Some(MandateReferenceId::ConnectorMandateId(data)) => data.connector_mandate_id.clone(),
-            _ => None,
-        }
-    }
-
-    pub fn get_connector_mandate_metadata(&self) -> Option<pii::SecretSerdeValue> {
-        match &self.mandate_reference_id {
-            Some(MandateReferenceId::ConnectorMandateId(data)) => data.mandate_metadata.clone(),
-            _ => None,
-        }
-    }
-
-    pub fn get_updated_mandate_details_of_connector_mandate_id(
-        &self,
-    ) -> Option<UpdatedMandateDetails> {
-        match &self.mandate_reference_id {
-            Some(MandateReferenceId::ConnectorMandateId(data)) => {
-                data.updated_mandate_details.clone()
-            }
-            _ => None,
-        }
-    }
-}
-
-#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
-pub enum MandateReferenceId {
-    ConnectorMandateId(ConnectorMandateReferenceId), // mandate_id send by connector
-    NetworkMandateId(NetworkMandateIdRef), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns along with card data
-    NetworkTokenWithNTI(NetworkTokenWithNTIRef), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns along with network token data
-    CardWithLimitedData, // indicates the recurring transaction is done by card data only
-}
-
-/// Scheme-level identifiers for PSP-agnostic MIT flows (raw card path).
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
-pub struct NetworkMandateIdRef {
-    pub network_transaction_id: String,
-    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
-    /// when `setup_future_usage` is set to `off_session`.
-    pub transaction_link_id: Option<String>,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
-pub struct NetworkTokenWithNTIRef {
-    pub network_transaction_id: String,
-    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
-    /// when `setup_future_usage` is set to `off_session`.
-    pub transaction_link_id: Option<String>,
-    pub token_exp_month: Option<Secret<String>>,
-    pub token_exp_year: Option<Secret<String>>,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
-pub struct ConnectorMandateReferenceId {
-    connector_mandate_id: Option<String>,
-    payment_method_id: Option<String>,
-    update_history: Option<Vec<UpdateHistory>>,
-    mandate_metadata: Option<pii::SecretSerdeValue>,
-    connector_mandate_request_reference_id: Option<String>,
-    updated_mandate_details: Option<UpdatedMandateDetails>,
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq)]
-pub struct UpdatedMandateDetails {
-    pub card_network: Option<common_enums::CardNetwork>,
-    pub card_exp_month: Option<Secret<String>>,
-    pub card_exp_year: Option<Secret<String>>,
-    pub card_isin: Option<String>,
-}
-
-impl From<AdditionalCardInfo> for UpdatedMandateDetails {
-    fn from(card_info: AdditionalCardInfo) -> Self {
-        Self {
-            card_network: card_info.card_network,
-            card_exp_month: card_info.card_exp_month,
-            card_exp_year: card_info.card_exp_year,
-            card_isin: card_info.card_isin,
-        }
-    }
-}
-
-impl From<&UpdatedMandateDetails> for AdditionalCardInfo {
-    fn from(card_info: &UpdatedMandateDetails) -> Self {
-        Self {
-            card_network: card_info.card_network.clone(),
-            card_exp_month: card_info.card_exp_month.clone(),
-            card_exp_year: card_info.card_exp_year.clone(),
-            card_isin: card_info.card_isin.clone(),
-            card_issuer: None,
-            card_type: None,
-            card_issuing_country: None,
-            card_issuing_country_code: None,
-            bank_code: None,
-            last4: None,
-            card_extended_bin: None,
-            card_holder_name: None,
-            payment_checks: None,
-            authentication_data: None,
-            is_regulated: None,
-            signature_network: None,
-            auth_code: None,
-        }
-    }
-}
-
-impl ConnectorMandateReferenceId {
-    pub fn new(
-        connector_mandate_id: Option<String>,
-        payment_method_id: Option<String>,
-        update_history: Option<Vec<UpdateHistory>>,
-        mandate_metadata: Option<pii::SecretSerdeValue>,
-        connector_mandate_request_reference_id: Option<String>,
-        updated_mandate_details: Option<UpdatedMandateDetails>,
-    ) -> Self {
-        Self {
-            connector_mandate_id,
-            payment_method_id,
-            update_history,
-            mandate_metadata,
-            connector_mandate_request_reference_id,
-            updated_mandate_details,
-        }
-    }
-
-    pub fn get_connector_mandate_id(&self) -> Option<String> {
-        self.connector_mandate_id.clone()
-    }
-    pub fn get_payment_method_id(&self) -> Option<String> {
-        self.payment_method_id.clone()
-    }
-    pub fn get_mandate_metadata(&self) -> Option<pii::SecretSerdeValue> {
-        self.mandate_metadata.clone()
-    }
-    pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
-        self.connector_mandate_request_reference_id.clone()
-    }
-
-    pub fn update(
-        &mut self,
-        connector_mandate_id: Option<String>,
-        payment_method_id: Option<String>,
-        update_history: Option<Vec<UpdateHistory>>,
-        mandate_metadata: Option<pii::SecretSerdeValue>,
-        connector_mandate_request_reference_id: Option<String>,
-    ) {
-        self.connector_mandate_id = connector_mandate_id.or(self.connector_mandate_id.clone());
-        self.payment_method_id = payment_method_id.or(self.payment_method_id.clone());
-        self.update_history = update_history.or(self.update_history.clone());
-        self.mandate_metadata = mandate_metadata.or(self.mandate_metadata.clone());
-        self.connector_mandate_request_reference_id = connector_mandate_request_reference_id
-            .or(self.connector_mandate_request_reference_id.clone());
-    }
-}
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq)]
-pub struct UpdateHistory {
-    pub connector_mandate_id: Option<String>,
-    pub payment_method_id: String,
-    pub original_payment_id: Option<id_type::PaymentId>,
-}
-
-impl MandateIds {
-    pub fn new(mandate_id: String) -> Self {
-        Self {
-            mandate_id: Some(mandate_id),
-            mandate_reference_id: None,
-        }
-    }
-}
-
 /// Passing this object during payments creates a mandate. The mandate_type sub object is passed by the server.
 // The fields on this struct are optional, as we want to allow the merchant to provide partial
 // information about creating mandates
@@ -10323,6 +10132,24 @@ pub enum SessionToken {
     NoSessionTokenReceived,
 }
 
+/// Top-level vault details returned in the session-tokens response.
+/// For v1: contains both internal vault (SDK authorization) and external vault details.
+/// For v2: contains only external vault details.
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct VaultDetails {
+    /// Internal vault details containing the SDK authorization token (v1 only)
+    pub internal_vault: Option<InternalVaultSessionDetails>,
+    /// External vault details (e.g. VGS or Hyperswitch Vault)
+    pub external_vault_details: Option<VaultSessionDetails>,
+}
+
+/// Internal vault details for SDK authorization
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct InternalVaultSessionDetails {
+    /// Base64-encoded SDK authorization token for the internal vault session
+    pub sdk_authorization: String,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum VaultSessionDetails {
@@ -10581,6 +10408,28 @@ pub enum PaypalFlow {
     Checkout,
 }
 
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PaypalCaptureMethod {
+    Capture,
+    Authorize,
+}
+
+impl From<common_enums::CaptureMethod> for PaypalCaptureMethod {
+    fn from(from: common_enums::CaptureMethod) -> Self {
+        match from {
+            common_enums::CaptureMethod::SequentialAutomatic
+            | common_enums::CaptureMethod::Automatic => Self::Capture,
+            common_enums::CaptureMethod::Manual
+            | common_enums::CaptureMethod::ManualMultiple
+            | common_enums::CaptureMethod::Scheduled => Self::Authorize,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaypalTransactionInfo {
     /// Paypal flow type
@@ -10615,6 +10464,14 @@ pub struct PaypalSessionTokenResponse {
     pub transaction_info: Option<PaypalTransactionInfo>,
     /// User token required for returning customer flow, used by client to initiate sdk
     pub data_user_id_token: Option<String>,
+    /// Transaction currency code
+    #[schema(example = "USD", value_type = Option<Currency>)]
+    #[smithy(value_type = "Option<Currency>")]
+    pub currency: Option<common_enums::Currency>,
+    /// PayPal capture method
+    #[schema(value_type = Option<PaypalCaptureMethod>)]
+    #[smithy(value_type = "Option<PaypalCaptureMethod>")]
+    pub intent: Option<PaypalCaptureMethod>,
 }
 
 #[derive(
@@ -10701,6 +10558,7 @@ pub enum ApplePaySessionResponse {
     ThirdPartySdk(ThirdPartySdkSessionResponse),
     ///  We get this session response, when there is no involvement of third party sdk
     /// This is the common response most of the times
+    #[smithy(value_type = "smithy.api#Document")]
     NoThirdPartySdk(serde_json::Value),
     /// This is for the empty session response
     #[smithy(value_type = "smithy.api#Unit")]
@@ -11050,8 +10908,8 @@ pub struct PaymentsSessionResponse {
     pub client_secret: Secret<String, pii::ClientSecret>,
     /// The list of session token object
     pub session_token: Vec<SessionToken>,
-    /// External vault session details
-    pub vault_details: Option<VaultSessionDetails>,
+    /// Vault details containing internal vault (SDK auth) and external vault info
+    pub vault_details: Option<VaultDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -11063,7 +10921,7 @@ pub struct PaymentsSessionResponse {
     /// The list of session token object
     pub session_token: Vec<SessionToken>,
     /// External vault session details
-    pub vault_details: Option<VaultSessionDetails>,
+    pub vault_details: Option<VaultDetails>,
 }
 
 #[cfg(feature = "v1")]

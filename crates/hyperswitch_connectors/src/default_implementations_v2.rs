@@ -368,6 +368,7 @@ default_imp_for_new_connector_integration_payment!(
     connectors::Vgs,
     connectors::Airwallex,
     connectors::Amazonpay,
+    connectors::AbsaSanlam,
     connectors::Adyenplatform,
     connectors::Affirm,
     connectors::Authipay,
@@ -472,7 +473,6 @@ default_imp_for_new_connector_integration_payment!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -529,6 +529,7 @@ macro_rules! default_imp_for_new_connector_integration_refund {
 default_imp_for_new_connector_integration_refund!(
     connectors::Hyperwallet,
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -636,7 +637,6 @@ default_imp_for_new_connector_integration_refund!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -687,6 +687,7 @@ macro_rules! default_imp_for_new_connector_integration_connector_authentication_
 
 default_imp_for_new_connector_integration_connector_authentication_token!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -789,7 +790,6 @@ default_imp_for_new_connector_integration_connector_authentication_token!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -839,6 +839,7 @@ macro_rules! default_imp_for_new_connector_integration_connector_access_token {
 
 default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -947,7 +948,6 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -1004,6 +1004,7 @@ macro_rules! default_imp_for_new_connector_integration_accept_dispute {
 
 default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1111,7 +1112,6 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -1166,6 +1166,7 @@ macro_rules! default_imp_for_new_connector_integration_fetch_disputes {
 }
 
 default_imp_for_new_connector_integration_fetch_disputes!(
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1275,7 +1276,6 @@ default_imp_for_new_connector_integration_fetch_disputes!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -1331,6 +1331,7 @@ macro_rules! default_imp_for_new_connector_integration_dispute_sync {
 }
 
 default_imp_for_new_connector_integration_dispute_sync!(
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1440,7 +1441,6 @@ default_imp_for_new_connector_integration_dispute_sync!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -1497,6 +1497,7 @@ macro_rules! default_imp_for_new_connector_integration_defend_dispute {
 
 default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1605,7 +1606,6 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -1661,6 +1661,7 @@ macro_rules! default_imp_for_new_connector_integration_submit_evidence {
 
 default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1768,7 +1769,6 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -1834,6 +1834,7 @@ macro_rules! default_imp_for_new_connector_integration_file_upload {
 
 default_imp_for_new_connector_integration_file_upload!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1942,7 +1943,6 @@ default_imp_for_new_connector_integration_file_upload!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -2000,6 +2000,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_create {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_create!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2108,7 +2109,6 @@ default_imp_for_new_connector_integration_payouts_create!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -2166,6 +2166,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_eligibility {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2274,7 +2275,6 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -2332,6 +2332,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_fulfill {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2440,7 +2441,6 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -2498,6 +2498,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_cancel {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2606,7 +2607,6 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -2664,6 +2664,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_quote {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2772,7 +2773,6 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -2830,6 +2830,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2938,7 +2939,6 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -2996,6 +2996,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_sync {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -3104,7 +3105,6 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -3162,6 +3162,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient_account
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -3270,7 +3271,6 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -3326,6 +3326,7 @@ macro_rules! default_imp_for_new_connector_integration_webhook_source_verificati
 
 default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -3434,7 +3435,6 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -3492,6 +3492,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_sale {
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_sale!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -3600,7 +3601,6 @@ default_imp_for_new_connector_integration_frm_sale!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -3658,6 +3658,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_checkout {
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -3766,7 +3767,6 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -3824,6 +3824,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_transaction {
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -3932,7 +3933,6 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -3990,6 +3990,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_fulfillment {
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -4098,7 +4099,6 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -4156,6 +4156,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_record_return {
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -4264,7 +4265,6 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -4320,6 +4320,7 @@ macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
 default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Paysafe,
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -4426,7 +4427,6 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -4475,6 +4475,7 @@ macro_rules! default_imp_for_new_connector_integration_frm {
 
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm!(
+    connectors::AbsaSanlam,
     connectors::Imerchantsolutions,
     connectors::Loonio,
     connectors::Gigadat,
@@ -4559,7 +4560,6 @@ default_imp_for_new_connector_integration_frm!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -4638,6 +4638,7 @@ macro_rules! default_imp_for_new_connector_integration_connector_authentication 
 }
 
 default_imp_for_new_connector_integration_connector_authentication!(
+    connectors::AbsaSanlam,
     connectors::Imerchantsolutions,
     connectors::Loonio,
     connectors::Gigadat,
@@ -4720,7 +4721,6 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -4790,6 +4790,7 @@ macro_rules! default_imp_for_new_connector_integration_revenue_recovery {
 }
 
 default_imp_for_new_connector_integration_revenue_recovery!(
+    connectors::AbsaSanlam,
     connectors::Imerchantsolutions,
     connectors::Loonio,
     connectors::Gigadat,
@@ -4873,7 +4874,6 @@ default_imp_for_new_connector_integration_revenue_recovery!(
     connectors::Razorpay,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -4952,6 +4952,7 @@ macro_rules! default_imp_for_new_connector_integration_external_vault {
 }
 
 default_imp_for_new_connector_integration_external_vault!(
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -5061,7 +5062,6 @@ default_imp_for_new_connector_integration_external_vault!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -5116,6 +5116,7 @@ macro_rules! default_imp_for_new_connector_integration_external_vault_proxy {
 }
 
 default_imp_for_new_connector_integration_external_vault_proxy!(
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -5224,7 +5225,6 @@ default_imp_for_new_connector_integration_external_vault_proxy!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -5283,6 +5283,7 @@ macro_rules! default_imp_for_new_connector_integration_webhook_register {
 
 default_imp_for_new_connector_integration_webhook_register!(
     connectors::Trustly,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -5391,7 +5392,6 @@ default_imp_for_new_connector_integration_webhook_register!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,

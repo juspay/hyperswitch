@@ -124,13 +124,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
                     hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card_detail);
 
                 // Step 5: Upsert the card into generic locker via direct AddVault call.
-                let entity_id = hyperswitch_domain_models::vault::V1VaultEntityId::new(
-                    key_store.merchant_id.clone(),
-                    customer_id.clone(),
-                );
-
-                let payload = pm_types::AddVaultRequest {
-                    entity_id,
+                let payload = pm_types::AddCompatVaultRequest {
+                    entity_id: customer_id.clone(),
                     vault_id: crate::types::domain::VaultId::generate(card_reference),
                     data: &pmd,
                     ttl: state.conf.locker.ttl_for_storage_in_secs,
