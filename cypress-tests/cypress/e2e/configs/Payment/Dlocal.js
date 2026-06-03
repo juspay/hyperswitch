@@ -167,7 +167,6 @@ export const connectorDetails = {
         status: 400,
         body: {
           error: {
-            type: "invalid_request",
             message: 'invalid type: string "oxxo", expected unit',
             code: "IR_06",
           },
