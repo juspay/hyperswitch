@@ -739,12 +739,12 @@ pub async fn list_subscriptions(
         .await
         .attach_printable("subscriptions: failed to list subscriptions by profile id")?;
 
-    let mut subscriptions_response = Vec::new();
+    let mut subscriptions_resonse = Vec::new();
     for subscription in subscriptions {
         let response = SubscriptionWithHandler::to_subscription_response(&subscription, None, None)
             .attach_printable("subscriptions: failed to convert subscription entry to response")?;
-        subscriptions_response.push(response);
+        subscriptions_resonse.push(response);
     }
 
-    Ok(ApplicationResponse::Json(subscriptions_response))
+    Ok(ApplicationResponse::Json(subscriptions_resonse))
 }

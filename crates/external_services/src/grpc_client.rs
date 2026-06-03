@@ -172,7 +172,7 @@ pub struct GrpcHeadersUcs {
     config_override: Option<String>,
 }
 
-/// Type alias for GrpcHeaders builder in initial stage
+/// Type aliase for GrpcHeaders builder in initial stage
 pub type GrpcHeadersUcsBuilderInitial = GrpcHeadersUcsBuilder<(
     (String,),
     (Option<RequestId>,),
@@ -183,7 +183,7 @@ pub type GrpcHeadersUcsBuilderInitial = GrpcHeadersUcsBuilder<(
     (Option<bool>,),
     (Option<String>,),
 )>;
-/// Type alias for GrpcHeaders builder in intermediate stage
+/// Type aliase for GrpcHeaders builder in intermediate stage
 pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
     (String,),
     (Option<RequestId>,),
