@@ -1423,13 +1423,8 @@ export const connectorDetails = {
         Becs: { value: "connector_4" },
         Bacs: { value: "connector_3" },
       };
-      const skipPaymentMethods = ["Ach", "Bacs"];
       return {
         Configs: {
-          // TRIGGER_SKIP: ACH returns HTTP 500 (server bug); BACS blocked by Stripe account config
-          ...(skipPaymentMethods.includes(paymentMethodType) && {
-            TRIGGER_SKIP: true,
-          }),
           CONNECTOR_CREDENTIAL: credentialMap[paymentMethodType] || {
             value: "connector_5",
           },
@@ -1551,10 +1546,6 @@ export const connectorDetails = {
       },
     },
     Ach: {
-      Configs: {
-        // TRIGGER_SKIP: ACH bank debit returns HTTP 500 from Stripe server (high severity bug)
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "ach",
@@ -1570,9 +1561,23 @@ export const connectorDetails = {
         billing: {
           address: {
             country: "US",
+            first_name: "Test",
+            last_name: "Account",
           },
           email: "test@example.com",
         },
+        mandate_data: {
+          customer_acceptance: onlineCustomerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 6000,
+              currency: "USD",
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: onlineCustomerAcceptance,
+        payment_type: "new_mandate",
       },
       Response: {
         status: 200,
@@ -1583,8 +1588,9 @@ export const connectorDetails = {
     },
     Bacs: {
       Configs: {
-        // TRIGGER_SKIP: BACS requires Stripe account configuration that does not allow passing mandate_data directly
-        TRIGGER_SKIP: true,
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_3",
+        },
       },
       Request: {
         payment_method: "bank_debit",
@@ -1600,7 +1606,12 @@ export const connectorDetails = {
         },
         billing: {
           address: {
+            line1: "1 Oxford Street",
+            city: "London",
+            zip: "SW1A 1AA",
             country: "GB",
+            first_name: "Test",
+            last_name: "Account",
           },
           email: "test@example.com",
         },
@@ -1617,7 +1628,6 @@ export const connectorDetails = {
         CONNECTOR_CREDENTIAL: {
           value: "connector_1",
         },
-        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "bank_debit",
@@ -1638,11 +1648,6 @@ export const connectorDetails = {
             multi_use: {
               amount: 1000,
               currency: "USD",
-              start_date: "2023-04-21T00:00:00Z",
-              end_date: "2023-05-21T00:00:00Z",
-              metadata: {
-                frequency: "13",
-              },
             },
           },
         },
@@ -1651,6 +1656,8 @@ export const connectorDetails = {
         billing: {
           address: {
             country: "US",
+            first_name: "Test",
+            last_name: "Account",
           },
           email: "test@example.com",
         },
@@ -1668,7 +1675,6 @@ export const connectorDetails = {
         CONNECTOR_CREDENTIAL: {
           value: "connector_3",
         },
-        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "bank_debit",
@@ -1689,11 +1695,6 @@ export const connectorDetails = {
             multi_use: {
               amount: 1000,
               currency: "GBP",
-              start_date: "2023-04-21T00:00:00Z",
-              end_date: "2023-05-21T00:00:00Z",
-              metadata: {
-                frequency: "13",
-              },
             },
           },
         },
@@ -1701,7 +1702,12 @@ export const connectorDetails = {
         customer_acceptance: onlineCustomerAcceptance,
         billing: {
           address: {
+            line1: "1 Oxford Street",
+            city: "London",
+            zip: "SW1A 1AA",
             country: "GB",
+            first_name: "Test",
+            last_name: "Account",
           },
           email: "test@example.com",
         },
@@ -1864,8 +1870,6 @@ export const connectorDetails = {
         CONNECTOR_CREDENTIAL: {
           value: "connector_1",
         },
-        // TRIGGER_SKIP: ACH bank debit returns HTTP 500 from Stripe server (high severity bug)
-        TRIGGER_SKIP: true,
       },
       Request: {
         off_session: true,
@@ -1884,8 +1888,6 @@ export const connectorDetails = {
         CONNECTOR_CREDENTIAL: {
           value: "connector_3",
         },
-        // TRIGGER_SKIP: BACS requires Stripe account configuration that does not allow passing mandate_data directly
-        TRIGGER_SKIP: true,
       },
       Request: {
         off_session: true,

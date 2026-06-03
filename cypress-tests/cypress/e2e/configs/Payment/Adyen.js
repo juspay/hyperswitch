@@ -2776,9 +2776,6 @@ export const connectorDetails = {
       };
     },
     Sepa: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "sepa",
@@ -2803,12 +2800,23 @@ export const connectorDetails = {
             last_name: "Doe",
           },
         },
-        customer_acceptance: customerAcceptance,
+        mandate_data: {
+          customer_acceptance: onlineCustomerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 8000,
+              currency: "EUR",
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: onlineCustomerAcceptance,
+        payment_type: "new_mandate",
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
         },
       },
     },
@@ -2976,9 +2984,6 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseBacs: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "bacs",
