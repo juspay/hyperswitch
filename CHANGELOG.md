@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.25.0-hotfix6
+
+### Bug Fixes
+
+- **core:** Fix customer acceptance lookup and next action priority order in complete authorize ([#12551](https://github.com/juspay/hyperswitch/pull/12551)) ([`7f3846f`](https://github.com/juspay/hyperswitch/commit/7f3846fb062fb00086727a09e55ed2c4347c375f))
+
+### Refactors
+
+- **authentication:** Logged error for acquirer details if not found in default bucket ([#12560](https://github.com/juspay/hyperswitch/pull/12560)) ([`cbc11f5`](https://github.com/juspay/hyperswitch/commit/cbc11f52af36d6ccffe0d8674db2738f451497d5))
+
+**Full Changelog:** [`2026.05.25.0-hotfix5...2026.05.25.0-hotfix6`](https://github.com/juspay/hyperswitch/compare/2026.05.25.0-hotfix5...2026.05.25.0-hotfix6)
+
+- - -
+
 ## 2026.05.25.0-hotfix5
 
 ### Bug Fixes
