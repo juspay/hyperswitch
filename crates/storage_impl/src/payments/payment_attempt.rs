@@ -1,6 +1,6 @@
-use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
 #[cfg(feature = "v1")]
-use common_utils::{fallback_reverse_lookup_not_found, types::ConnectorTransactionId};
+use common_utils::fallback_reverse_lookup_not_found;
+use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
 use diesel_models::{
     enums::{
         MandateAmountData as DieselMandateAmountData, MandateDataType as DieselMandateType,
