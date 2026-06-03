@@ -67,10 +67,13 @@ export const connectorDetails = {
         amount_to_capture: 6000,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "succeeded",
-          amount_received: 6000,
+          error: {
+            type: "invalid_request",
+            message: "This Payment could not be captured because it has a payment.status of requires_customer_action. The expected state is requires_capture, partially_captured_and_capturable, processing",
+            code: "IR_14",
+          },
         },
       },
     },
@@ -79,10 +82,13 @@ export const connectorDetails = {
         amount: 6000,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "succeeded",
-          amount: 6000,
+          error: {
+            type: "invalid_request",
+            message: "Selected payment method through affirm is not implemented",
+            code: "IR_00",
+          },
         },
       },
     },
@@ -91,10 +97,13 @@ export const connectorDetails = {
         amount: 2000,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "succeeded",
-          amount: 2000,
+          error: {
+            type: "invalid_request",
+            message: "Selected payment method through affirm is not implemented",
+            code: "IR_00",
+          },
         },
       },
     },
