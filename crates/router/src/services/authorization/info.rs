@@ -43,10 +43,12 @@ fn get_group_description(group: PermissionGroup) -> Option<&'static str> {
         PermissionGroup::UsersManage => Some("Manage and invite Users to the Team"),
         PermissionGroup::AccountView => Some("View Merchant Details"),
         PermissionGroup::AccountManage => Some("Create, modify and delete Merchant Details like api keys, webhooks, etc"),
-        PermissionGroup::WebhooksView => None, // Hidden until backfill ships
-        PermissionGroup::WebhooksManage => None, // Hidden until backfill ships
-        PermissionGroup::ApiKeysView => None, // Hidden until backfill ships
-        PermissionGroup::ApiKeysManage => None, // Hidden until backfill ships
+        // `None` omits these from the authorization-info response; hidden until the role backfill
+        // grants the groups to existing roles, then add descriptions.
+        PermissionGroup::WebhooksView => None,
+        PermissionGroup::WebhooksManage => None,
+        PermissionGroup::ApiKeysView => None,
+        PermissionGroup::ApiKeysManage => None,
         PermissionGroup::ThemeView => Some("View Themes"),
         PermissionGroup::ThemeManage => Some("Manage Themes"),
         PermissionGroup::InternalManage => None, // Internal group, no user-facing description
@@ -69,8 +71,10 @@ pub fn get_parent_group_description(group: ParentGroup) -> Option<&'static str> 
         ParentGroup::Analytics => Some("View Analytics"),
         ParentGroup::Users =>  Some("Manage and invite Users to the Team"),
         ParentGroup::Account => Some("Create, modify and delete Merchant Details like api keys, webhooks, etc"),
-        ParentGroup::Webhook => None, // Hidden until backfill ships
-        ParentGroup::ApiKeys => None, // Hidden until backfill ships
+        // Hidden from the authorization-info response (`None` is filtered out) until the role
+        // backfill grants these groups to existing roles; add descriptions once that ships.
+        ParentGroup::Webhook => None,
+        ParentGroup::ApiKeys => None,
         ParentGroup::Theme => Some("Manage and view themes for the organization"),
         ParentGroup::Internal => None, // Internal group, no user-facing description
         ParentGroup::ReconSources => Some("Recon ingestion and transformation pipelines"),
