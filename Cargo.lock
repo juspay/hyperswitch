@@ -4619,6 +4619,7 @@ dependencies = [
  "hyperswitch_domain_models",
  "hyperswitch_masking",
  "mime 0.3.17",
+ "prost 0.14.3",
  "reqwest 0.11.27",
  "router_env",
  "rust-grpc-client",
@@ -4628,6 +4629,7 @@ dependencies = [
  "thiserror 1.0.69",
  "time 0.3.41",
  "tokio 1.48.0",
+ "tonic 0.14.5",
  "url 2.5.4",
 ]
 
