@@ -39,10 +39,10 @@ const multiUseMandateData = {
 
 const failedNo3DSCardDetails = {
   card_number: "378282246310005",
-  card_exp_month: "05",
-  card_exp_year: "29",
+  card_exp_month: "01",
+  card_exp_year: "30",
   card_holder_name: "joseph Doe",
-  card_cvc: "1234",
+  card_cvc: "123",
 };
 
 export const connectorDetails = {
@@ -280,14 +280,27 @@ export const connectorDetails = {
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        billing: {
+          address: {
+            city: "KADIMA-ZORAN",
+            country: "US",
+            state: "New York",
+            first_name: "john",
+            last_name: "doe",
+            zip: "10001",
+            line1: "123",
+            line2: "Main Street",
+            line3: "Apt 4B",
+            origin_zip: "10001"
+          }
+        }
       },
       Response: {
         status: 200,
         body: {
           status: "failed",
-          error_code: "14002",
-          error_message:
-            "Transaction failed  because of payment processing failure.: DECLINE - Default BlueSnapTestProcessor [DECLINE] message",
+          error_code: "10001",
+          error_message: "Order creation failure due to problematic input. & There is a mismatch between the Credit Card American Express and Security Code. ",
         },
       },
     },
