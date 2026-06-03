@@ -258,7 +258,12 @@ export const connectorDetails = {
         description: "Test Payout Link Bank Transfer",
         payout_link_config: {
           test_mode: true,
-          enabled_payment_methods: ["bank_transfer"],
+          enabled_payment_methods: [
+            {
+              payment_method: "bank_transfer",
+              payment_method_types: ["sepa_bank_transfer"],
+            },
+          ],
         },
       },
       Response: {
