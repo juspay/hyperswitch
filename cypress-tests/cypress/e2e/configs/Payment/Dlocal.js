@@ -129,11 +129,14 @@ export const connectorDetails = {
         currency: "MXN",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
-          payment_method: "voucher",
-          payment_method_type: "oxxo",
+          error: {
+            type: "invalid_request",
+            message:
+              "Missing required param: customer.document_details.document_number",
+            code: "IR_04",
+          },
         },
       },
     },
