@@ -140,7 +140,7 @@ export const connectorDetails = {
         },
       },
     },
-    OxxoInvalidFormat: getCustomExchange({
+    OxxoInvalidFormat: {
       Request: {
         payment_method: "voucher",
         payment_method_type: "oxxo",
@@ -172,7 +172,7 @@ export const connectorDetails = {
           },
         },
       },
-    }),
+    },
   },
   card_pm: {
     No3DSFailPayment: {
