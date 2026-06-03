@@ -494,7 +494,7 @@ describe("PayLater tests", () => {
         }
         const syncRefundData = getConnectorDetails(
           globalState.get("connectorId")
-        )["SyncRefund"];
+        )["pay_later_pm"]["SyncRefund"];
         cy.syncRefundCallTest(syncRefundData, globalState);
       });
     });
@@ -611,7 +611,7 @@ describe("PayLater tests", () => {
         }
         const partialRefundData = getConnectorDetails(
           globalState.get("connectorId")
-        )["PartialRefund"];
+        )["pay_later_pm"]["PartialRefund"];
         cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState);
         if (!utils.should_continue_further(partialRefundData)) {
           shouldContinue = false;
@@ -625,7 +625,7 @@ describe("PayLater tests", () => {
         }
         const syncRefundData = getConnectorDetails(
           globalState.get("connectorId")
-        )["SyncRefund"];
+        )["pay_later_pm"]["SyncRefund"];
         cy.syncRefundCallTest(syncRefundData, globalState);
       });
     });
