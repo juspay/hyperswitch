@@ -9,32 +9,48 @@ import getConnectorDetails, {
 let globalState;
 
 describe("Wallet Mandate tests", () => {
-  let shouldContinue = true;
-
   before("seed global state", function () {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-      const connector = globalState.get("connectorId");
-      if (
-        shouldIncludeConnector(
-          connector,
-          CONNECTOR_LISTS.INCLUDE.ADYEN_WALLET_MANDATE
-        )
-      ) {
-        shouldContinue = false;
-        this.skip();
-      }
-    });
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+        const connector = globalState.get("connectorId");
+
+        cy.log(
+          `[WalletMandates] connectorId="${connector}"`
+        );
+        cy.log(
+          `[WalletMandates] ADYEN_WALLET_MANDATE list=${JSON.stringify(
+            CONNECTOR_LISTS.INCLUDE.ADYEN_WALLET_MANDATE
+          )}`
+        );
+
+        if (
+          shouldIncludeConnector(
+            connector,
+            CONNECTOR_LISTS.INCLUDE.ADYEN_WALLET_MANDATE
+          )
+        ) {
+          cy.log(
+            `[WalletMandates] SKIP — connector "${connector}" is NOT in ADYEN_WALLET_MANDATE`
+          );
+          skip = true;
+        } else {
+          cy.log(
+            `[WalletMandates] RUN — connector "${connector}" IS in ADYEN_WALLET_MANDATE`
+          );
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
   });
 
   afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
-  });
-
-  beforeEach(function () {
-    if (!shouldContinue) {
-      this.skip();
-    }
   });
 
   context("PayPal Wallet Mandate CIT and MIT flow test", () => {
