@@ -1173,7 +1173,7 @@ pub async fn authentication_eligibility_core(
             let bucket_id = authentication.profile_acquirer_id.as_ref();
 
             let acquirer_details = match bucket_id {
-                Some(acquirer_id) => business_profile
+                Some(acquirer_id) => Some(business_profile
                     .get_acquirer_details_for_profile_acquirer(acquirer_id, card_network.clone())
                     .ok_or_else(|| {
                         error_stack::report!(ApiErrorResponse::GenericNotFoundError {
@@ -1186,17 +1186,13 @@ pub async fn authentication_eligibility_core(
                         .attach_printable(
                             "The requested profile acquirer bucket does not contain the required card network configuration",
                         )
-                    })?,
+                    })?),
+                // Ignoring this error as merchant can also configure acquirer details on authentication connector side as well.
                 None => business_profile
-                    .get_default_acquirer_details_from_network(card_network)
+                    .get_default_acquirer_details_from_network(card_network.clone())
                     .ok_or_else(|| {
-                        error_stack::report!(ApiErrorResponse::GenericNotFoundError {
-                            message: "Default Profile Acquirer configuration not found".to_string(),
-                        })
-                        .attach_printable(
-                            "No default acquirer configuration was found for the given card network",
-                        )
-                    })?,
+                        router_env::logger::error!("Default Acquirer configuration not found for network {}", card_network)
+                    }).ok(),
             };
 
             // If we resolved acquirer details from a bucket, persist them to the authentication record.
@@ -1204,9 +1200,9 @@ pub async fn authentication_eligibility_core(
             db.update_authentication_by_merchant_id_authentication_id(
                 authentication.clone(),
                 hyperswitch_domain_models::authentication::AuthenticationUpdate::AcquirerDetailsUpdate {
-                    acquirer_bin: acquirer_details.acquirer_bin.clone(),
-                    acquirer_merchant_id: acquirer_details.acquirer_assigned_merchant_id.clone(),
-                    acquirer_country_code: acquirer_details.acquirer_country_code.clone(),
+                    acquirer_bin: acquirer_details.as_ref().and_then(|d| d.acquirer_bin.clone()),
+                    acquirer_merchant_id: acquirer_details.as_ref().and_then(|d| d.acquirer_assigned_merchant_id.clone()),
+                    acquirer_country_code: acquirer_details.as_ref().and_then(|d| d.acquirer_country_code.clone()),
                 },
                 platform.get_processor().get_key_store(),
                 key_manager_state_ref,
@@ -1216,10 +1212,18 @@ pub async fn authentication_eligibility_core(
             .attach_printable("Failed to persist resolved acquirer details to authentication record")?;
 
             (
-                acquirer_details.acquirer_bin.clone(),
-                acquirer_details.acquirer_assigned_merchant_id.clone(),
-                acquirer_details.acquirer_country_code.clone(),
-                acquirer_details.merchant_name.clone(),
+                acquirer_details
+                    .as_ref()
+                    .and_then(|d| d.acquirer_bin.clone()),
+                acquirer_details
+                    .as_ref()
+                    .and_then(|d| d.acquirer_assigned_merchant_id.clone()),
+                acquirer_details
+                    .as_ref()
+                    .and_then(|d| d.acquirer_country_code.clone()),
+                acquirer_details
+                    .as_ref()
+                    .and_then(|d| d.merchant_name.clone()),
             )
         } else {
             (
