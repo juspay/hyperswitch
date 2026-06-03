@@ -1727,7 +1727,7 @@ pub async fn get_payment_attempt_from_object_reference_id(
             .await
             .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound),
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::PaymentAttemptId(ref id)) => db
-            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+            .find_payment_attempt_by_attempt_id_processor_merchant_id(
                 id,
                 processor.get_account().get_id(),
                 processor.get_account().storage_scheme,
@@ -2771,15 +2771,18 @@ async fn update_connector_mandate_details(
                             };
 
                         state
-                            .store
-                            .update_payment_attempt_with_attempt_id(
-                                payment_attempt.clone(),
-                                attempt_update,
-                                platform.get_processor().get_account().storage_scheme,
-                                platform.get_processor().get_key_store(),
-                            )
-                            .await
-                            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                        .store
+                        .update_payment_attempt_with_payment_id_processor_merchant_id_attempt_id(
+                            &payment_attempt.payment_id,
+                            &payment_attempt.processor_merchant_id,
+                            &payment_attempt.attempt_id,
+                            payment_attempt.clone(),
+                            attempt_update,
+                            platform.get_processor().get_account().storage_scheme,
+                            platform.get_processor().get_key_store(),
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
                         insert_mandate_details(
                             &payment_attempt,
