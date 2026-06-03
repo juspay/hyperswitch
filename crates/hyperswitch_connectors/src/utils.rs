@@ -6933,6 +6933,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                     Self::MandiriVaBankTransfer
                 }
                 payment_method_data::BankTransferData::Pix { .. } => Self::Pix,
+                payment_method_data::BankTransferData::PixEmv { .. } => Self::PixEmv,
                 payment_method_data::BankTransferData::PixAutomaticoPush { .. } => {
                     Self::PixAutomaticoPush
                 }
