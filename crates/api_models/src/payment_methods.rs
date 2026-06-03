@@ -4563,7 +4563,6 @@ pub struct PaymentMethodSessionResponse {
 
     /// payment method data to be sent in session response
     #[schema(value_type = Option<PaymentMethodResponseData>)]
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_data: Option<PaymentMethodResponseData>,
 
     /// SDK authorization token for client SDK usage
@@ -4577,6 +4576,10 @@ pub struct PaymentMethodSessionResponse {
 
     /// Network token details if available
     pub network_tokenization_data: Option<NetworkTokenResponse>,
+
+    /// External vault session details if external vault is enabled for the profile
+    #[schema(value_type = Option<VaultSessionDetails>)]
+    pub external_vault_details: Option<payments::VaultSessionDetails>,
 }
 
 #[cfg(feature = "v2")]
