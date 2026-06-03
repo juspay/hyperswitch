@@ -198,6 +198,10 @@ const CURRENCY_MAP = {
   Interac: "CAD", // Canadian payment method
   AliPayHk: "HKD", // Hong Kong payment method
   Affirm: "USD", // US BNPL payment method
+  AliPay: "CNY", // Default ISO-4217 currency; MultiSafepay sandbox overrides to EUR (see Multisafepay.js::wallet_pm.PaymentIntent)
+  WeChatPay: "CNY", // Default ISO-4217 currency; MultiSafepay sandbox overrides to EUR (see Multisafepay.js::wallet_pm.PaymentIntent)
+  Paypal: "EUR",
+  MbWay: "EUR",
   Mifinity: "EUR", // Mifinity wallet payment method
 
   // Voucher payment methods
