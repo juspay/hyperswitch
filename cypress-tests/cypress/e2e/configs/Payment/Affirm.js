@@ -75,9 +75,6 @@ export const connectorDetails = {
       },
     },
     Refund: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 6000,
       },
@@ -89,9 +86,6 @@ export const connectorDetails = {
       },
     },
     PartialRefund: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 2000,
       },
@@ -103,9 +97,6 @@ export const connectorDetails = {
       },
     },
     SyncRefund: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Response: {
         status: 200,
         body: {
