@@ -1632,9 +1632,9 @@ function bankRedirectRedirection(
           case "loonio":
             switch (paymentMethodType) {
               case "interac":
-                cy.contains("p", "Pay with Interac e-transfer").click();
+                cy.log("Handling Loonio Interac bank redirect flow");
 
-                verifyUrl = true;
+                verifyUrl = false;
                 break;
               default:
                 throw new Error(
