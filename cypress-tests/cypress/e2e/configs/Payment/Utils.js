@@ -253,6 +253,22 @@ export function getValueByKey(jsonObject, key, keyNumber = 0) {
           };
         }
       }
+
+      // Fallback: if keyNumber is out of bounds, use the first available entry
+      if (keyNumber >= keys.length && keys.length > 0) {
+        const firstItem = data[key][keys[0]];
+        if (
+          Object.prototype.hasOwnProperty.call(
+            firstItem,
+            "connector_account_details"
+          )
+        ) {
+          return {
+            authDetails: firstItem,
+            stateUpdate: handleMultipleConnectors(keys),
+          };
+        }
+      }
     }
     return {
       authDetails: data[key],
