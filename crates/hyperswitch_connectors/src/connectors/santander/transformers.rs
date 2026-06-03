@@ -1688,8 +1688,9 @@ impl TryFrom<&PaymentsCancelRouterData> for SantanderPaymentsCancelRequest {
                     SantanderBoletoCancelRequest::try_from((item, santander_mca_metadata))?;
                 Ok(Self::Boleto(boleto_req))
             }
-            _ => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "payment_method",
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: format!("Cancellation for Payment method {}", item.payment_method),
+                connector: "Santander",
             }
             .into()),
         }
