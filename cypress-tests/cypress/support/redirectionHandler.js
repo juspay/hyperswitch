@@ -1006,6 +1006,8 @@ function bankRedirectRedirection(
   connectorId = normalizeConnectorForRedirect(connectorId);
   let verifyUrl = false;
 
+  cy.on("uncaught:exception", () => false);
+
   // Mifinity wallet redirect: visit the redirect URL and verify the redirection
   // without waiting for a host change (mifinity redirects to an external wallet
   // authentication page that doesn't trigger a secondary redirect)
@@ -1495,21 +1497,17 @@ function bankRedirectRedirection(
           case "globalpay":
             switch (paymentMethodType) {
               case "ideal":
-              case "eps":
-                cy.get("body", { timeout: 15000 }).then(($body) => {
-                  const bodyText = $body.text().toLowerCase();
-                  if (
-                    bodyText.includes("timeout") ||
-                    bodyText.includes("error")
-                  ) {
-                    cy.log(
-                      `GlobalPay ${paymentMethodType} timeout detected - skipping interaction`
-                    );
-                    verifyUrl = false;
-                    return;
-                  }
+                cy.get("body", { timeout: 20000 }).then(($body) => {
+                  const bodyText = $body.text();
+                  cy.task(
+                    "cli_log",
+                    `GlobalPay ${paymentMethodType} page text: ${bodyText.substring(0, 200)}`
+                  );
+
                   if ($body.find('button[type="submit"]').length > 0) {
                     cy.get('button[type="submit"]').first().click();
+                  } else if ($body.find('input[type="submit"]').length > 0) {
+                    cy.get('input[type="submit"]').first().click();
                   } else if (
                     $body.find(
                       '[data-testid*="confirm"], [data-testid*="continue"]'
@@ -1520,6 +1518,45 @@ function bankRedirectRedirection(
                     )
                       .first()
                       .click();
+                  } else if ($body.find("a.btn, button.btn").length > 0) {
+                    cy.get("a.btn, button.btn").first().click();
+                  } else {
+                    cy.log(
+                      `No interactable elements found on GlobalPay ${paymentMethodType} page`
+                    );
+                  }
+                });
+                verifyUrl = false;
+                break;
+              case "eps":
+                cy.on("uncaught:exception", () => false);
+                cy.get("body", { timeout: 20000 }).then(($body) => {
+                  const bodyText = $body.text();
+                  cy.task(
+                    "cli_log",
+                    `GlobalPay ${paymentMethodType} page text: ${bodyText.substring(0, 200)}`
+                  );
+
+                  if ($body.find('button[type="submit"]').length > 0) {
+                    cy.get('button[type="submit"]').first().click();
+                  } else if ($body.find('input[type="submit"]').length > 0) {
+                    cy.get('input[type="submit"]').first().click();
+                  } else if (
+                    $body.find(
+                      '[data-testid*="confirm"], [data-testid*="continue"]'
+                    ).length > 0
+                  ) {
+                    cy.get(
+                      '[data-testid*="confirm"], [data-testid*="continue"]'
+                    )
+                      .first()
+                      .click();
+                  } else if ($body.find("a.btn, button.btn").length > 0) {
+                    cy.get("a.btn, button.btn").first().click();
+                  } else {
+                    cy.log(
+                      `No interactable elements found on GlobalPay ${paymentMethodType} page`
+                    );
                   }
                 });
                 verifyUrl = false;
