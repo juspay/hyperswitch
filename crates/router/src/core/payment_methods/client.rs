@@ -236,7 +236,7 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
             let requires_cvv = if self.is_connector_agnostic_mit_enabled {
                 requires_cvv_base
                     && !(self.off_session_payment_flag
-                        && (has_active_connector_token || pm.connector_tokens.is_some()))
+                        && (pm.connector_tokens.is_some() || pm.network_transaction_id.is_some()))
             } else {
                 requires_cvv_base
                     && !(self.off_session_payment_flag && pm.connector_tokens.is_some())
