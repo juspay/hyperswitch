@@ -1,8 +1,6 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import getConnectorDetails, {
-  CONNECTOR_LISTS,
-} from "../../configs/Payment/Utils";
+import getConnectorDetails from "../../configs/Payment/Utils";
 import * as utils from "../../configs/Payment/Utils";
 
 let globalState;
@@ -15,14 +13,7 @@ describe("Airwallex Alternative Payments", () => {
       .then((state) => {
         globalState = new State(state);
         const connector = globalState.get("connectorId");
-        const inclusionLists = [
-          CONNECTOR_LISTS.INCLUDE.WALLET_PM,
-          CONNECTOR_LISTS.INCLUDE.PAYLATER_PM,
-        ];
-        const shouldRun = inclusionLists.some((list) =>
-          list.includes(connector)
-        );
-        if (!shouldRun) {
+        if (connector !== "airwallex") {
           skip = true;
         }
       })
