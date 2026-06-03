@@ -321,7 +321,7 @@ export const connectorDetails = {
           status: 400,
           body: {
             error: {
-              error_type: "invalid_request",
+              type: "invalid_request",
               message: "Json deserialize error: unknown variant `InvalidType`",
               code: "IR_06",
             },
