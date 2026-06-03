@@ -16311,6 +16311,7 @@
       "Connector": {
         "type": "string",
         "enum": [
+          "absa_sanlam",
           "authipay",
           "adyenplatform",
           "stripe_billing_test",
@@ -16424,7 +16425,6 @@
           "recurly",
           "redsys",
           "revolv3",
-          "sanlam",
           "santander",
           "shift4",
           "silverflow",
@@ -23069,6 +23069,19 @@
           }
         },
         "additionalProperties": false
+      },
+      "InternalVaultSessionDetails": {
+        "type": "object",
+        "description": "Internal vault details for SDK authorization",
+        "required": [
+          "sdk_authorization"
+        ],
+        "properties": {
+          "sdk_authorization": {
+            "type": "string",
+            "description": "Base64-encoded SDK authorization token for the internal vault session"
+          }
+        }
       },
       "Invoice": {
         "type": "object",
@@ -33969,7 +33982,7 @@
           "vault_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/VaultSessionDetails"
+                "$ref": "#/components/schemas/VaultDetails"
               }
             ],
             "nullable": true
@@ -36581,6 +36594,12 @@
             "description": "Individual taxpayer identification number",
             "example": "000123456",
             "nullable": true
+          },
+          "ispb": {
+            "type": "string",
+            "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
+            "example": "60701190",
+            "nullable": true
           }
         }
       },
@@ -36820,6 +36839,12 @@
             "type": "string",
             "description": "String formatted QR code for pix payout",
             "example": "00020126580014br.gov.bcb.pix0114000123456785204000053039865802BR5925John Doe6009Sao Paulo61080540900062070503***63041D3D"
+          },
+          "ispb": {
+            "type": "string",
+            "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
+            "example": "60701190",
+            "nullable": true
           }
         }
       },
@@ -38377,6 +38402,48 @@
           }
         }
       },
+      "RecipientCardData": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "example": "4000000000009995"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "example": "03"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "example": "30"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "example": "John Doe",
+            "nullable": true
+          }
+        }
+      },
+      "RecipientPaymentMethodData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/RecipientCardData"
+              }
+            }
+          }
+        ]
+      },
       "RecommendedAction": {
         "type": "string",
         "enum": [
@@ -39027,6 +39094,17 @@
                 "$ref": "#/components/schemas/RelayVoidRequestData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "unreferenced_refund"
+            ],
+            "properties": {
+              "unreferenced_refund": {
+                "$ref": "#/components/schemas/RelayUnreferencedRefundData"
+              }
+            }
           }
         ]
       },
@@ -39204,8 +39282,34 @@
           "refund",
           "capture",
           "incremental_authorization",
-          "void"
+          "void",
+          "unreferenced_refund"
         ]
+      },
+      "RelayUnreferencedRefundData": {
+        "type": "object",
+        "required": [
+          "amount",
+          "currency",
+          "customer_id",
+          "recipient_payment_method_data"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "example": 6540
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "customer_id": {
+            "type": "string"
+          },
+          "recipient_payment_method_data": {
+            "$ref": "#/components/schemas/RecipientPaymentMethodData"
+          }
+        }
       },
       "RelayVoidRequestData": {
         "type": "object",
@@ -39761,6 +39865,7 @@
         "type": "string",
         "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
+          "absa_sanlam",
           "authipay",
           "adyenplatform",
           "stripe_billing_test",
@@ -39868,7 +39973,6 @@
           "redsys",
           "revolv3",
           "riskified",
-          "sanlam",
           "santander",
           "shift4",
           "signifyd",
@@ -41573,8 +41677,7 @@
             "example": "acct_1234567890",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "StripeChargeType": {
         "type": "string",
@@ -43138,6 +43241,28 @@
         "description": "Represents a value in the DSL",
         "discriminator": {
           "propertyName": "type"
+        }
+      },
+      "VaultDetails": {
+        "type": "object",
+        "description": "Top-level vault details returned in the session-tokens response.\nFor v1: contains both internal vault (SDK authorization) and external vault details.\nFor v2: contains only external vault details.",
+        "properties": {
+          "internal_vault": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InternalVaultSessionDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "external_vault_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultSessionDetails"
+              }
+            ],
+            "nullable": true
+          }
         }
       },
       "VaultSdk": {
