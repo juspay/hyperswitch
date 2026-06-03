@@ -67,15 +67,14 @@ async fn schedule_payment_method_modular_backward_compat_task_best_effort(
     }
 }
 
-async fn trigger_payment_method_modular_backward_compat_with_context(
+pub(super) async fn trigger_payment_method_modular_backward_compat(
     state: &SessionState,
     payment_method: &domain::PaymentMethod,
-    merchant_id: &id_type::MerchantId,
-    provider_merchant_id: ProviderMerchantId,
     last_modified_by: Option<String>,
 ) {
-    let dimensions =
-        dimension_state::Dimensions::new().with_provider_merchant_id(provider_merchant_id);
+    let merchant_id = &payment_method.merchant_id;
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(ProviderMerchantId::from_merchant_id(merchant_id.clone()));
     let should_trigger_backwards_compatibility_inline =
         utils::get_should_trigger_backwards_compatibility_inline(state, &dimensions, None).await;
 
@@ -143,19 +142,4 @@ async fn trigger_payment_method_modular_backward_compat_with_context(
             );
         }
     }
-}
-
-pub(super) async fn trigger_payment_method_modular_backward_compat(
-    state: &SessionState,
-    payment_method: &domain::PaymentMethod,
-    last_modified_by: Option<String>,
-) {
-    trigger_payment_method_modular_backward_compat_with_context(
-        state,
-        payment_method,
-        &payment_method.merchant_id,
-        ProviderMerchantId::from_merchant_id(payment_method.merchant_id.clone()),
-        last_modified_by,
-    )
-    .await;
 }

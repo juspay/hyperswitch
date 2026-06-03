@@ -1785,17 +1785,16 @@ impl PaymentMethodsController for PmCards<'_> {
                         )
                         .await;
 
-                        let _updated_payment_method = db
-                            .update_payment_method(
-                                self.provider.get_key_store(),
-                                existing_pm,
-                                pm_update,
-                                self.provider.get_account().storage_scheme,
-                                compat_action,
-                            )
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed to add payment method in db")?;
+                        db.update_payment_method(
+                            self.provider.get_key_store(),
+                            existing_pm,
+                            pm_update,
+                            self.provider.get_account().storage_scheme,
+                            compat_action,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to add payment method in db")?;
 
                         resp.client_secret = client_secret;
                     }
@@ -2051,17 +2050,16 @@ pub async fn add_payment_method_data(
                         )
                         .await;
 
-                        let _updated_payment_method = db
-                            .update_payment_method(
-                                provider.get_key_store(),
-                                payment_method,
-                                pm_update,
-                                provider.get_account().storage_scheme,
-                                compat_action,
-                            )
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed to add payment method in db")?;
+                        db.update_payment_method(
+                            provider.get_key_store(),
+                            payment_method,
+                            pm_update,
+                            provider.get_account().storage_scheme,
+                            compat_action,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to add payment method in db")?;
 
                         cards
                             .get_or_insert_payment_method(
@@ -2146,17 +2144,16 @@ pub async fn add_payment_method_data(
                         )
                         .await;
 
-                        let _updated_payment_method = db
-                            .update_payment_method(
-                                provider.get_key_store(),
-                                payment_method,
-                                pm_update,
-                                provider.get_account().storage_scheme,
-                                compat_action,
-                            )
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed to add payment method in db")?;
+                        db.update_payment_method(
+                            provider.get_key_store(),
+                            payment_method,
+                            pm_update,
+                            provider.get_account().storage_scheme,
+                            compat_action,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to add payment method in db")?;
 
                         if customer.default_payment_method_id.is_none() {
                             let _ = cards
@@ -2431,17 +2428,16 @@ pub async fn update_customer_payment_method(
             )
             .await;
 
-            let _updated_payment_method = db
-                .update_payment_method(
-                    provider.get_key_store(),
-                    pm.clone(),
-                    pm_update,
-                    provider.get_account().storage_scheme,
-                    compat_action,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to update payment method in db")?;
+            db.update_payment_method(
+                provider.get_key_store(),
+                pm.clone(),
+                pm_update,
+                provider.get_account().storage_scheme,
+                compat_action,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update payment method in db")?;
 
             api::CustomerPaymentMethodUpdateResponse {
                 merchant_id: add_card_resp.merchant_id,
