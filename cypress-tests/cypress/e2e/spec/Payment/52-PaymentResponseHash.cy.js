@@ -1,58 +1,9 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import { setup3DSPayment } from "../../../utils/paymentHelpers";
 
 let globalState;
-
-function setup3DSPayment(gs, options = {}) {
-  const { includeRedirection = true } = options;
-  let shouldContinue = true;
-
-  const data = getConnectorDetails(gs.get("connectorId"))["card_pm"][
-    "PaymentIntent"
-  ];
-
-  cy.createPaymentIntentTest(
-    fixtures.createPaymentBody,
-    data,
-    "three_ds",
-    "automatic",
-    gs
-  );
-
-  if (!utils.should_continue_further(data)) {
-    shouldContinue = false;
-  }
-
-  if (!shouldContinue) {
-    cy.task("cli_log", "setup3DSPayment: stopping after createPaymentIntent");
-    gs.set("_setup3DSContinue", false);
-    return;
-  }
-
-  cy.paymentMethodsCallTest(gs);
-
-  const confirmData = getConnectorDetails(gs.get("connectorId"))["card_pm"][
-    "3DSAutoCapture"
-  ];
-
-  cy.confirmCallForHashTest(fixtures.confirmBody, confirmData, true, gs);
-
-  if (!utils.should_continue_further(confirmData)) {
-    shouldContinue = false;
-  }
-
-  if (shouldContinue) {
-    cy.captureRedirectReturnUrl(gs);
-  }
-
-  if (includeRedirection && shouldContinue) {
-    const expected_redirection = fixtures.confirmBody["return_url"];
-    cy.handleRedirection(gs, expected_redirection);
-  }
-
-  gs.set("_setup3DSContinue", shouldContinue);
-}
 
 describe("Card - Payment Response Hash flow test", () => {
   let shouldContinue = true;
@@ -141,13 +92,14 @@ describe("Card - Payment Response Hash flow test", () => {
         }
 
         cy.assertPaymentResponseHashEnabled(globalState);
+        cy.verifyPaymentResponseHashInBody(globalState);
       });
     });
   });
 
   context("3DS Auto-Capture - Verify Redirect Signature", () => {
     it("setup 3DS -> verify redirect signature", () => {
-      setup3DSPayment(globalState, { includeRedirection: false });
+      setup3DSPayment(globalState, { includeRedirection: false, fixtures });
 
       cy.step("verify redirect signature", () => {
         if (!globalState.get("_setup3DSContinue")) {
@@ -162,7 +114,7 @@ describe("Card - Payment Response Hash flow test", () => {
 
   context("3DS Auto-Capture - Compute and Verify Redirect Signature", () => {
     it("setup 3DS -> compute HMAC and compare with redirect signature", () => {
-      setup3DSPayment(globalState, { includeRedirection: false });
+      setup3DSPayment(globalState, { includeRedirection: false, fixtures });
 
       cy.step("compute and verify redirect signature", () => {
         if (!globalState.get("_setup3DSContinue")) {
@@ -180,7 +132,7 @@ describe("Card - Payment Response Hash flow test", () => {
 
   context("3DS Auto-Capture - Failure Scenarios for Invalid Signatures", () => {
     it("setup 3DS -> compute HMAC -> verify tampered and wrong-key signatures fail", () => {
-      setup3DSPayment(globalState, { includeRedirection: false });
+      setup3DSPayment(globalState, { includeRedirection: false, fixtures });
 
       cy.step("compute and verify redirect signature", () => {
         if (!globalState.get("_setup3DSContinue")) {
