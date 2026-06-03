@@ -123,7 +123,6 @@ impl ConnectorCommon for AbsaSanlam {
     }
 }
 
-
 impl ConnectorValidation for AbsaSanlam {
     fn validate_psync_reference_id(
         &self,
