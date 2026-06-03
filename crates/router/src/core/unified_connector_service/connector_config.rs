@@ -521,8 +521,8 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         merchant_id: Option<Secret<String>>,
     },
-    /// Sanlam connector configuration
-    Sanlam {
+    /// AbsaSanlam connector configuration
+    AbsaSanlam {
         api_key: Secret<String>,
         merchant_id: String,
     },
@@ -1437,12 +1437,12 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Imerchantsolutions requires HeaderKey auth type")),
             },
-            Connector::Sanlam => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Sanlam {
+            Connector::AbsaSanlam => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::AbsaSanlam {
                     api_key: api_key.clone(),
                     merchant_id: key1.peek().clone(),
                 }),
-                _ => Err(err("Sanlam requires BodyKey auth type")),
+                _ => Err(err("AbsaSanlam requires BodyKey auth type")),
             },
             Connector::Interpayments => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Interpayments {

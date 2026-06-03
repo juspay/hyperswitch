@@ -5787,6 +5787,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
             merchant_request_id: None,
+            connector_order_id: None,
         })
     }
 }
@@ -5855,6 +5856,7 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             payment_method_type,
             connector_feature_data: None,
             merchant_request_id: None,
+            connector_order_id: None,
         })
     }
 }
@@ -6326,6 +6328,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
+            description: router_data.description.clone(),
         })
     }
 }
@@ -6443,6 +6446,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
+            description: router_data.description.clone(),
         })
     }
 }
@@ -7011,7 +7015,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixBankTransfer>
             bank_branch: item.bank_branch.clone(),
             bank_account_number: item.bank_account_number.clone(),
             tax_id: item.tax_id.clone(),
-            ispb: None,
+            ispb: item.ispb.clone().map(Secret::new),
         })
     }
 }
@@ -7030,7 +7034,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixAccountBankTransfer>
             bank_branch: item.bank_branch.clone(),
             bank_account_number: Some(item.bank_account_number.clone()),
             tax_id: item.tax_id.clone(),
-            ispb: None,
+            ispb: item.ispb.clone().map(Secret::new),
         })
     }
 }
