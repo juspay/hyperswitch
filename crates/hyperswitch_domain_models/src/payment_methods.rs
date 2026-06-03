@@ -992,6 +992,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_details: self.customer_details.map(|val| val.into()),
             auxiliary_fingerprint_id: self.auxiliary_fingerprint_id,
             compatibility_updated_at: self.compatibility_updated_at,
+            external_vault_source: self.external_vault_source,
         })
     }
 }

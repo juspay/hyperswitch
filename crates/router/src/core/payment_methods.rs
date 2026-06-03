@@ -2955,10 +2955,19 @@ pub async fn create_payment_method_proxy_card_core(
 
     let key_manager_state = &(state).into();
 
-    let external_vault_source = profile
-        .external_vault_connector_details
-        .clone()
-        .map(|details| details.vault_connector_id);
+    // A proxy card is, by definition, vaulted in an external vault, so the external vault
+    // connector must be configured on the profile. Fetch it from the profile and require it —
+    // otherwise the payment method would be persisted with a `None` external vault source.
+    let external_vault_source = Some(
+        profile
+            .external_vault_connector_details
+            .clone()
+            .map(|details| details.vault_connector_id)
+            .ok_or_else(|| report!(errors::ApiErrorResponse::InternalServerError))
+            .attach_printable(
+                "external_vault_connector_details must be configured on the profile to create a proxy card payment method",
+            )?,
+    );
 
     let bin_enriched_payment_method_data = req
         .payment_method_data
