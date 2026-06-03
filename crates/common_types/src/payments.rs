@@ -75,7 +75,6 @@ impl_to_sql_from_sql_json!(SplitPaymentsRequest);
     SmithyModel,
 )]
 #[diesel(sql_type = Jsonb)]
-#[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// Fee information for Split Payments to be charged on the payment being collected for Stripe
 pub struct StripeSplitPaymentRequest {
@@ -356,7 +355,6 @@ pub type DecisionManagerResponse = DecisionManagerRecord;
     SmithyModel,
 )]
 #[diesel(sql_type = Jsonb)]
-#[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct StripeChargeResponseData {
     /// Identifier for charge created for the payment
@@ -1252,6 +1250,12 @@ pub struct NetworkTransactionIdAndDecryptedWalletTokenDetails {
     #[smithy(value_type = "String")]
     pub network_transaction_id: Secret<String>,
 
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub transaction_link_id: Option<String>,
+
     /// ECI indicator of the card
     pub eci: Option<String>,
 
@@ -1564,3 +1568,26 @@ pub enum TokenSource {
     /// Apple Pay
     ApplePay,
 }
+
+/// External surcharge details from InterPayments (stored as JSONB)
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    Eq,
+    ToSchema,
+    PartialEq,
+    serde::Serialize,
+    diesel::AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct ExternalSurchargeDetails {
+    /// sTxId from InterPayments (the last one received before confirm)
+    pub external_surcharge_id: String,
+    /// Surcharge amount in minor units
+    pub external_surcharge_amount: MinorUnit,
+    /// Whether /v1/ch/sale has been successfully called
+    pub sale_notified: bool,
+}
+
+impl_to_sql_from_sql_json!(ExternalSurchargeDetails);

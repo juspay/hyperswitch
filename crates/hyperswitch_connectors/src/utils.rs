@@ -267,6 +267,24 @@ pub struct CardMandateInfo {
     pub card_exp_year: Secret<String>,
 }
 
+impl CardMandateInfo {
+    pub fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.card_exp_year.peek();
+        let year_2_digit = if year.len() == 4 {
+            year.get(2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string()
+        } else if year.len() == 2 {
+            year.to_string()
+        } else {
+            return Err(errors::ConnectorError::RequestEncodingFailed);
+        };
+        let month = self.card_exp_month.peek();
+        let month_str = format!("{:0>2}", month);
+        Ok(Secret::new(format!("{}{}", month_str, year_2_digit)))
+    }
+}
+
 impl TryFrom<payment_method_data::GooglePayWalletData> for GooglePayWalletData {
     type Error = common_utils::errors::ValidationError;
 
@@ -488,7 +506,8 @@ pub(crate) fn is_successful_terminal_status(status: AttemptStatus) -> bool {
         | AttemptStatus::DeviceDataCollectionPending
         | AttemptStatus::IntegrityFailure
         | AttemptStatus::VoidFailed
-        | AttemptStatus::Expired => false,
+        | AttemptStatus::Expired
+        | AttemptStatus::CaptureReview => false,
     }
 }
 
@@ -521,7 +540,8 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
         | AttemptStatus::ConfirmationAwaited
         | AttemptStatus::DeviceDataCollectionPending
         | AttemptStatus::IntegrityFailure
-        | AttemptStatus::PartiallyAuthorized => false,
+        | AttemptStatus::PartiallyAuthorized
+        | AttemptStatus::CaptureReview => false,
     }
 }
 
@@ -557,6 +577,7 @@ pub trait RouterData {
     fn get_billing_city(&self) -> Result<String, Error>;
     fn get_billing_email(&self) -> Result<Email, Error>;
     fn get_billing_phone_number(&self) -> Result<Secret<String>, Error>;
+    fn get_billing_phone_number_without_plus(&self) -> Result<Secret<String>, Error>;
     fn to_connector_meta<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned;
@@ -909,6 +930,11 @@ impl<Flow, Request, Response> RouterData
             .map(|phone_details| phone_details.get_number_with_country_code())
             .transpose()?
             .ok_or_else(missing_field_err("payment_method_data.billing.phone"))
+    }
+
+    fn get_billing_phone_number_without_plus(&self) -> Result<Secret<String>, Error> {
+        self.get_billing_phone_number()
+            .map(|phone| Secret::new(phone.peek().trim_start_matches('+').to_string()))
     }
 
     fn get_optional_billing_line1(&self) -> Option<Secret<String>> {
@@ -2276,7 +2302,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn is_mit_payment(&self) -> bool;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
-    fn get_connector_mandate_data(&self) -> Option<payments::ConnectorMandateReferenceId>;
+    fn get_connector_mandate_data(&self) -> Option<mandates::ConnectorMandateReferenceId>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
     fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error>;
@@ -2351,12 +2377,12 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_))
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
-                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                Some(mandates::MandateReferenceId::NetworkMandateId(_))
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
                 | None => None,
             })
     }
@@ -2403,16 +2429,16 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             .ok_or_else(missing_field_err("connector_mandate_id"))
     }
 
-    fn get_connector_mandate_data(&self) -> Option<payments::ConnectorMandateReferenceId> {
+    fn get_connector_mandate_data(&self) -> Option<mandates::ConnectorMandateReferenceId> {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     Some(connector_mandate_ids.clone())
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_))
-                | Some(payments::MandateReferenceId::CardWithLimitedData)
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                Some(mandates::MandateReferenceId::NetworkMandateId(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
                 | None => None,
             })
     }
@@ -2514,13 +2540,13 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.get_connector_mandate_request_reference_id()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_))
-                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                Some(mandates::MandateReferenceId::NetworkMandateId(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
                 | None
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
             .ok_or_else(missing_field_err("connector_mandate_request_reference_id"))
     }
@@ -2532,12 +2558,12 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
-                    Some(network_transaction_id.clone())
+                Some(mandates::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
+                    Some(network_transaction_id.network_transaction_id.clone())
                 }
-                Some(payments::MandateReferenceId::ConnectorMandateId(_))
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
-                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                Some(mandates::MandateReferenceId::ConnectorMandateId(_))
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
                 | None => None,
             })
     }
@@ -2664,12 +2690,12 @@ impl PaymentsSyncRequestData for PaymentsSyncData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_))
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
-                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                Some(mandates::MandateReferenceId::NetworkMandateId(_))
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
                 | None => None,
             })
     }
@@ -2927,13 +2953,13 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.get_connector_mandate_request_reference_id()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_))
-                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                Some(mandates::MandateReferenceId::NetworkMandateId(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
                 | None
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
             .ok_or_else(missing_field_err("connector_mandate_request_reference_id"))
     }
@@ -2955,13 +2981,13 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_))
-                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                Some(mandates::MandateReferenceId::NetworkMandateId(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
                 | None
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
     }
 }
@@ -3173,13 +3199,13 @@ impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_))
-                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                Some(mandates::MandateReferenceId::NetworkMandateId(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
                 | None
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
     }
     fn is_customer_initiated_mandate_payment(&self) -> bool {
@@ -7628,6 +7654,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         authorized_amount: data.authorized_amount,
         customer_document_details: data.customer_document_details.clone(),
         feature_data: data.feature_data.clone(),
+        sender_payment_instrument_id: None,
     }
 }
 
@@ -7729,7 +7756,8 @@ impl FrmTransactionRouterDataRequest for FrmTransactionRouterData {
             | AttemptStatus::Pending
             | AttemptStatus::PaymentMethodAwaited
             | AttemptStatus::ConfirmationAwaited
-            | AttemptStatus::DeviceDataCollectionPending => None,
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::CaptureReview => None,
         }
     }
 }

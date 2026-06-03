@@ -1,5 +1,6 @@
 use std::{borrow::Cow, str::FromStr, time::Instant};
 
+use actix_web::ResponseError;
 use api_models::admin;
 #[cfg(feature = "v2")]
 use base64::Engine;
@@ -10,7 +11,11 @@ use common_enums::{
 #[cfg(feature = "v2")]
 use common_utils::consts::BASE64_ENGINE;
 use common_utils::{
-    errors::CustomResult, ext_traits::ValueExt, id_type, request::Method, ucs_types,
+    errors::{CustomResult, ErrorSwitch},
+    ext_traits::ValueExt,
+    id_type,
+    request::Method,
+    ucs_types,
 };
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
@@ -64,6 +69,7 @@ use crate::{
 
 pub mod connector_config;
 pub mod transformers;
+
 /// Returns Apple Pay data from payment method token when it has decrypt data,
 /// otherwise returns the original payment data.
 fn get_apple_pay_payment_data(
@@ -345,7 +351,7 @@ where
             }
             CallConnectorAction::Avoid
             | CallConnectorAction::Trigger
-            | CallConnectorAction::HandleResponse(_)
+            | CallConnectorAction::HandleResponse { .. }
             | CallConnectorAction::HandleResponseWithoutBuildRequest
             | CallConnectorAction::StatusUpdate { .. } => {
                 router_env::logger::debug!("UCS is disabled, using Direct gateway");
@@ -363,7 +369,7 @@ where
                     ExecutionPath::UnifiedConnectorService,
                 )
             }
-            CallConnectorAction::HandleResponse(_) => {
+            CallConnectorAction::HandleResponse { .. } => {
                 router_env::logger::info!(
                     "CallConnectorAction HandleResponse received, using Direct gateway"
                 );
@@ -659,9 +665,14 @@ where
 
     let existing_metadata = payment_intent.feature_metadata.as_ref();
 
-    let mut feature_metadata = existing_metadata
-        .and_then(|metadata| serde_json::from_value::<FeatureMetadata>(metadata.clone()).ok())
-        .unwrap_or_default();
+    let mut feature_metadata = match existing_metadata {
+        Some(metadata) => serde_json::from_value::<FeatureMetadata>(metadata.clone())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to deserialize existing feature metadata while updating gateway system",
+            )?,
+        None => FeatureMetadata::default(),
+    };
 
     feature_metadata.gateway_system = Some(gateway_system);
 
@@ -1268,7 +1279,7 @@ pub fn build_unified_connector_service_payment_method(
                 hyperswitch_domain_models::payment_method_data::WalletData::Mifinity(
                     mifinity_data,
                 ) => Ok(payments_grpc::PaymentMethod {
-                    payment_method: Some(PaymentMethod::Mifinity(payments_grpc::MifinityWallet {
+                    payment_method: Some(PaymentMethod::MifinityRedirect(payments_grpc::MifinityRedirectWallet {
                         date_of_birth: Some(mifinity_data.date_of_birth.peek().to_string().into()),
                         language_preference: mifinity_data.language_preference,
                     })),
@@ -1287,7 +1298,7 @@ pub fn build_unified_connector_service_payment_method(
                         )?;
 
                     Ok(payments_grpc::PaymentMethod {
-                        payment_method: Some(PaymentMethod::ApplePay(payments_grpc::AppleWallet {
+                        payment_method: Some(PaymentMethod::ApplePaySdk(payments_grpc::AppleWallet {
                             payment_data: Some(payments_grpc::apple_wallet::PaymentData {
                                 payment_data: Some(payment_data),
                             }),
@@ -1314,7 +1325,7 @@ pub fn build_unified_connector_service_payment_method(
                         )?;
 
                     Ok(payments_grpc::PaymentMethod {
-                        payment_method: Some(PaymentMethod::GooglePay(payments_grpc::GoogleWallet {
+                        payment_method: Some(PaymentMethod::GooglePaySdk(payments_grpc::GoogleWallet {
                             r#type: google_pay_wallet_data.pm_type,
                             description: google_pay_wallet_data.description,
                             info: Some(payments_grpc::google_wallet::PaymentMethodInfo {
@@ -1402,8 +1413,8 @@ pub fn build_unified_connector_service_payment_method(
                     )),
                 }),
                 hyperswitch_domain_models::payment_method_data::WalletData::BluecodeRedirect {} => Ok(payments_grpc::PaymentMethod {
-                    payment_method: Some(PaymentMethod::Bluecode(
-                        payments_grpc::Bluecode {  }
+                    payment_method: Some(PaymentMethod::BluecodeRedirect(
+                        payments_grpc::BluecodeRedirectWallet {  }
                     )),
                 }),
                 hyperswitch_domain_models::payment_method_data::WalletData::PaypalRedirect(
@@ -1418,7 +1429,7 @@ pub fn build_unified_connector_service_payment_method(
                 hyperswitch_domain_models::payment_method_data::WalletData::Paze(paze_data) => {
                     let paze_wallet_data = get_paze_wallet_data(&paze_data, payment_method_token)?;
                     Ok(payments_grpc::PaymentMethod {
-                        payment_method: Some(PaymentMethod::Paze(payments_grpc::PazeWallet {
+                        payment_method: Some(PaymentMethod::PazeSdk(payments_grpc::PazeWallet {
                             paze_data: Some(paze_wallet_data),
                         })),
                     })
@@ -2584,7 +2595,11 @@ where
                 "error": error.to_string(),
                 "error_type": "ucs_call_failed"
             });
-            (500, Some(error_body), Err(error))
+            (
+                error.current_context().status_code().as_u16(),
+                Some(error_body),
+                Err(error),
+            )
         }
     };
 
@@ -2728,7 +2743,11 @@ where
                 "error": error.to_string(),
                 "error_type": "ucs_call_failed"
             });
-            (500, Some(error_body), Err(error))
+            (
+                error.current_context().http_status(),
+                Some(error_body),
+                Err(error),
+            )
         }
     };
 
@@ -2817,7 +2836,7 @@ where
     let result = handler(grpc_request, grpc_header).await;
     let external_latency = start_time.elapsed().as_millis();
 
-    let router_result = match result {
+    match result {
         Ok(grpc_response) => {
             let grpc_response_body = hyperswitch_masking::masked_serialize(&grpc_response)
                 .unwrap_or_else(|error| {
@@ -2844,9 +2863,7 @@ where
             );
             Err(error)
         }
-    };
-
-    router_result
+    }
 }
 
 // ============================================================================
@@ -2918,13 +2935,51 @@ pub async fn call_unified_connector_service_for_refund_execute(
         ucs_refund_request,
         grpc_header_builder,
         execution_mode,
-        |router_data, grpc_request, grpc_headers| async move {
+        |mut router_data, grpc_request, grpc_headers| async move {
             // Call UCS payment_refund method
-            let response = ucs_client
+            let response = match ucs_client
                 .payment_refund(grpc_request, connector_auth_metadata, grpc_headers)
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("UCS refund execution failed")?;
+            {
+                Ok(resp) => resp,
+                Err(report) => {
+                    if let UnifiedConnectorServiceError::ConnectorError(inner) =
+                        report.current_context()
+                    {
+                        let (code, message, status_code, reason, connector,
+                             network_decline_code, network_advice_code, network_error_message) = (
+                            &inner.code, &inner.message, inner.status_code, &inner.reason,
+                            &inner.connector, &inner.network_decline_code,
+                            &inner.network_advice_code, &inner.network_error_message,
+                        );
+                        logger::info!(
+                            "Connector error via UCS for refund execute (connector {}, status {}): {} - {}",
+                            connector,
+                            status_code,
+                            code,
+                            message
+                        );
+                        router_data.response = Err(ErrorResponse {
+                            code: code.clone(),
+                            message: message.clone(),
+                            reason: reason.clone(),
+                            status_code,
+                            attempt_status: None,
+                            connector_transaction_id: None,
+                            connector_response_reference_id: None,
+                            network_decline_code: network_decline_code.clone(),
+                            network_advice_code: network_advice_code.clone(),
+                            network_error_message: network_error_message.clone(),
+                            connector_metadata: None,
+                        });
+                        return Ok((router_data, (), payments_grpc::RefundResponse::default()));
+                    }
+                    let api_error = report.current_context().switch();
+                    return Err(report
+                        .change_context(api_error)
+                        .attach_printable("UCS refund execution failed"));
+                }
+            };
 
             let grpc_response = response.into_inner();
 
@@ -2934,11 +2989,10 @@ pub async fn call_unified_connector_service_for_refund_execute(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to transform UCS refund response")?;
 
-            let mut updated_router_data = router_data;
-            updated_router_data.response = refund_response_data;
-            updated_router_data.connector_http_status_code = Some(status_code);
+            router_data.response = refund_response_data;
+            router_data.connector_http_status_code = Some(status_code);
 
-            Ok((updated_router_data, (), grpc_response))
+            Ok((router_data, (), grpc_response))
         },
     ))
     .await
@@ -3011,13 +3065,51 @@ pub async fn call_unified_connector_service_for_refund_sync(
         ucs_refund_sync_request,
         grpc_header_builder,
         execution_mode,
-        |router_data, grpc_request, grpc_headers| async move {
+        |mut router_data, grpc_request, grpc_headers| async move {
             // Call UCS refund_sync method
-            let response = ucs_client
+            let response = match ucs_client
                 .refund_get(grpc_request, connector_auth_metadata, grpc_headers)
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("UCS refund sync execution failed")?;
+            {
+                Ok(resp) => resp,
+                Err(report) => {
+                    if let UnifiedConnectorServiceError::ConnectorError(inner) =
+                        report.current_context()
+                    {
+                        let (code, message, status_code, reason, connector,
+                             network_decline_code, network_advice_code, network_error_message) = (
+                            &inner.code, &inner.message, inner.status_code, &inner.reason,
+                            &inner.connector, &inner.network_decline_code,
+                            &inner.network_advice_code, &inner.network_error_message,
+                        );
+                        logger::info!(
+                            "Connector error via UCS for refund sync (connector {}, status {}): {} - {}",
+                            connector,
+                            status_code,
+                            code,
+                            message
+                        );
+                        router_data.response = Err(ErrorResponse {
+                            code: code.clone(),
+                            message: message.clone(),
+                            reason: reason.clone(),
+                            status_code,
+                            attempt_status: None,
+                            connector_transaction_id: None,
+                            connector_response_reference_id: None,
+                            network_decline_code: network_decline_code.clone(),
+                            network_advice_code: network_advice_code.clone(),
+                            network_error_message: network_error_message.clone(),
+                            connector_metadata: None,
+                        });
+                        return Ok((router_data, (), payments_grpc::RefundResponse::default()));
+                    }
+                    let api_error = report.current_context().switch();
+                    return Err(report
+                        .change_context(api_error)
+                        .attach_printable("UCS refund sync execution failed"));
+                }
+            };
 
             let grpc_response = response.into_inner();
 
@@ -3027,11 +3119,10 @@ pub async fn call_unified_connector_service_for_refund_sync(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to transform UCS refund get response")?;
 
-            let mut updated_router_data = router_data;
-            updated_router_data.response = refund_response_data;
-            updated_router_data.connector_http_status_code = Some(status_code);
+            router_data.response = refund_response_data;
+            router_data.connector_http_status_code = Some(status_code);
 
-            Ok((updated_router_data, (), grpc_response))
+            Ok((router_data, (), grpc_response))
         },
     ))
     .await

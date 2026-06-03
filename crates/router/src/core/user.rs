@@ -5,7 +5,7 @@ use std::{
 
 use api_models::{
     payments::RedirectionResponse,
-    user::{self as user_api, InviteMultipleUserResponse, NameIdUnit},
+    user::{self as user_api, InviteMultipleUserResponse, NameIdUnit, UserMerchantDetailsResponse},
 };
 use common_enums::{connector_enums, EntityType, MerchantProductType, UserAuthType};
 use common_utils::{
@@ -425,6 +425,31 @@ pub async fn connect_account(
             .map(|e| e.change_context(UserErrors::InternalServerError))
             .unwrap_or(UserErrors::InternalServerError.into()))
     }
+}
+
+pub async fn get_user_merchant_details(
+    state: SessionState,
+    user_from_token: auth::UserFromToken,
+) -> UserResponse<UserMerchantDetailsResponse> {
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            &user_from_token.merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id(&user_from_token.merchant_id, &key_store)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::Json(UserMerchantDetailsResponse {
+        product_type: merchant_account.product_type,
+        merchant_account_type: merchant_account.merchant_account_type,
+    }))
 }
 
 pub async fn signout(

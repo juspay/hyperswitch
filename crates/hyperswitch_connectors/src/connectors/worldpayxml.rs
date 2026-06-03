@@ -6,7 +6,7 @@ use base64::Engine;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
-    request::{Method, Request, RequestBuilder, RequestContent},
+    request::{Method, Request, RequestBuilder, RequestContent, XmlConfig},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
@@ -276,15 +276,20 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
                     worldpayxml::PaymentService::try_from(&connector_router_data)?;
                 router_env::logger::info!(raw_connector_request=?connector_req_object);
 
-                let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
-                    &connector_req_object,
-                    worldpayxml::worldpayxml_constants::XML_VERSION,
-                    Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
-                    None,
-                    Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
-                )?;
-
-                Ok(RequestContent::RawBytes(connector_req))
+                let xml_config = XmlConfig {
+                    xml_version: worldpayxml::worldpayxml_constants::XML_VERSION.to_string(),
+                    xml_encoding: Some(
+                        worldpayxml::worldpayxml_constants::XML_ENCODING.to_string(),
+                    ),
+                    xml_standalone: None,
+                    xml_doc_type: Some(
+                        worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string(),
+                    ),
+                };
+                Ok(RequestContent::Xml(
+                    Box::new(connector_req_object),
+                    Some(xml_config),
+                ))
             }
             _ => Err(errors::ConnectorError::FlowNotSupported {
                 flow: "Setup Mandate flow is not implemented for this payment method".to_string(),
@@ -384,14 +389,18 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let connector_req_object = worldpayxml::PaymentService::try_from(&connector_router_data)?;
         router_env::logger::info!(raw_connector_request=?connector_req_object);
 
-        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
-            &connector_req_object,
-            worldpayxml::worldpayxml_constants::XML_VERSION,
-            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
-            None,
-            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
-        )?;
-        Ok(RequestContent::RawBytes(connector_req))
+        let xml_config = XmlConfig {
+            xml_version: worldpayxml::worldpayxml_constants::XML_VERSION.to_string(),
+            xml_encoding: Some(worldpayxml::worldpayxml_constants::XML_ENCODING.to_string()),
+            xml_standalone: None,
+            xml_doc_type: Some(
+                worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string(),
+            ),
+        };
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -475,14 +484,18 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req_object = worldpayxml::PaymentService::try_from(req)?;
         router_env::logger::info!(raw_connector_request=?connector_req_object);
-        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
-            &connector_req_object,
-            worldpayxml::worldpayxml_constants::XML_VERSION,
-            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
-            None,
-            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
-        )?;
-        Ok(RequestContent::RawBytes(connector_req))
+        let xml_config = XmlConfig {
+            xml_version: worldpayxml::worldpayxml_constants::XML_VERSION.to_string(),
+            xml_encoding: Some(worldpayxml::worldpayxml_constants::XML_ENCODING.to_string()),
+            xml_standalone: None,
+            xml_doc_type: Some(
+                worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string(),
+            ),
+        };
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -574,14 +587,18 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         let connector_req_object = worldpayxml::PaymentService::try_from(&connector_router_data)?;
         router_env::logger::info!(raw_connector_request=?connector_req_object);
 
-        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
-            &connector_req_object,
-            worldpayxml::worldpayxml_constants::XML_VERSION,
-            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
-            None,
-            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
-        )?;
-        Ok(RequestContent::RawBytes(connector_req))
+        let xml_config = XmlConfig {
+            xml_version: worldpayxml::worldpayxml_constants::XML_VERSION.to_string(),
+            xml_encoding: Some(worldpayxml::worldpayxml_constants::XML_ENCODING.to_string()),
+            xml_standalone: None,
+            xml_doc_type: Some(
+                worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string(),
+            ),
+        };
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -660,14 +677,18 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
         let connector_req_object = worldpayxml::PaymentService::try_from(req)?;
         router_env::logger::info!(raw_connector_request=?connector_req_object);
 
-        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
-            &connector_req_object,
-            worldpayxml::worldpayxml_constants::XML_VERSION,
-            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
-            None,
-            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
-        )?;
-        Ok(RequestContent::RawBytes(connector_req))
+        let xml_config = XmlConfig {
+            xml_version: worldpayxml::worldpayxml_constants::XML_VERSION.to_string(),
+            xml_encoding: Some(worldpayxml::worldpayxml_constants::XML_ENCODING.to_string()),
+            xml_standalone: None,
+            xml_doc_type: Some(
+                worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string(),
+            ),
+        };
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -748,14 +769,18 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
         let connector_router_data = worldpayxml::WorldpayxmlRouterData::from((refund_amount, req));
         let connector_req_object = worldpayxml::PaymentService::try_from(&connector_router_data)?;
         router_env::logger::info!(raw_connector_request=?connector_req_object);
-        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
-            &connector_req_object,
-            worldpayxml::worldpayxml_constants::XML_VERSION,
-            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
-            None,
-            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
-        )?;
-        Ok(RequestContent::RawBytes(connector_req))
+        let xml_config = XmlConfig {
+            xml_version: worldpayxml::worldpayxml_constants::XML_VERSION.to_string(),
+            xml_encoding: Some(worldpayxml::worldpayxml_constants::XML_ENCODING.to_string()),
+            xml_standalone: None,
+            xml_doc_type: Some(
+                worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string(),
+            ),
+        };
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -833,14 +858,18 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayx
         let connector_req_object = worldpayxml::PaymentService::try_from(req)?;
         router_env::logger::info!(raw_connector_request=?connector_req_object);
 
-        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
-            &connector_req_object,
-            worldpayxml::worldpayxml_constants::XML_VERSION,
-            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
-            None,
-            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
-        )?;
-        Ok(RequestContent::RawBytes(connector_req))
+        let xml_config = XmlConfig {
+            xml_version: worldpayxml::worldpayxml_constants::XML_VERSION.to_string(),
+            xml_encoding: Some(worldpayxml::worldpayxml_constants::XML_ENCODING.to_string()),
+            xml_standalone: None,
+            xml_doc_type: Some(
+                worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string(),
+            ),
+        };
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -957,14 +986,18 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
 
         let connector_req_object = worldpayxml::PaymentService::try_from(connector_router_data)?;
         router_env::logger::info!(raw_connector_request=?connector_req_object);
-        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
-            &connector_req_object,
-            worldpayxml::worldpayxml_constants::XML_VERSION,
-            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
-            None,
-            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
-        )?;
-        Ok(RequestContent::RawBytes(connector_req))
+        let xml_config = XmlConfig {
+            xml_version: worldpayxml::worldpayxml_constants::XML_VERSION.to_string(),
+            xml_encoding: Some(worldpayxml::worldpayxml_constants::XML_ENCODING.to_string()),
+            xml_standalone: None,
+            xml_doc_type: Some(
+                worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string(),
+            ),
+        };
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -1066,14 +1099,18 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for World
 
         let connector_req_object = worldpayxml::PaymentService::try_from(&connector_router_data)?;
 
-        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
-            &connector_req_object,
-            worldpayxml::worldpayxml_constants::XML_VERSION,
-            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
-            None,
-            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
-        )?;
-        Ok(RequestContent::RawBytes(connector_req))
+        let xml_config = XmlConfig {
+            xml_version: worldpayxml::worldpayxml_constants::XML_VERSION.to_string(),
+            xml_encoding: Some(worldpayxml::worldpayxml_constants::XML_ENCODING.to_string()),
+            xml_standalone: None,
+            xml_doc_type: Some(
+                worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string(),
+            ),
+        };
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -1160,14 +1197,18 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Worldpay
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req_object = worldpayxml::PaymentService::try_from(req)?;
-        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
-            &connector_req_object,
-            worldpayxml::worldpayxml_constants::XML_VERSION,
-            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
-            None,
-            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
-        )?;
-        Ok(RequestContent::RawBytes(connector_req))
+        let xml_config = XmlConfig {
+            xml_version: worldpayxml::worldpayxml_constants::XML_VERSION.to_string(),
+            xml_encoding: Some(worldpayxml::worldpayxml_constants::XML_ENCODING.to_string()),
+            xml_standalone: None,
+            xml_doc_type: Some(
+                worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string(),
+            ),
+        };
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -1253,15 +1294,18 @@ impl ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData> for Worldp
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req_object = worldpayxml::PaymentService::try_from(req)?;
 
-        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
-            &connector_req_object,
-            worldpayxml::worldpayxml_constants::XML_VERSION,
-            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
-            None,
-            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
-        )?;
-
-        Ok(RequestContent::RawBytes(connector_req))
+        let xml_config = XmlConfig {
+            xml_version: worldpayxml::worldpayxml_constants::XML_VERSION.to_string(),
+            xml_encoding: Some(worldpayxml::worldpayxml_constants::XML_ENCODING.to_string()),
+            xml_standalone: None,
+            xml_doc_type: Some(
+                worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string(),
+            ),
+        };
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
