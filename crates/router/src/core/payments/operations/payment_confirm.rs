@@ -2882,6 +2882,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_intent
                             .profile_acquirer_id
                             .clone(),
+                        surcharge_strategy: payment_data.payment_intent.surcharge_strategy,
                     })),
                     &m_key_store,
                     storage_scheme,

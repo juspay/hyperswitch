@@ -902,6 +902,8 @@ pub struct PaymentIntent {
     pub is_payment_id_from_merchant: Option<bool>,
     /// Denotes whether merchant requested for partial authorization to be enabled for this payment.
     pub enable_partial_authorization: primitive_wrappers::EnablePartialAuthorizationBool,
+    /// Denotes the surcharge strategy for this payment.
+    pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
 #[cfg(feature = "v2")]
@@ -1110,6 +1112,7 @@ impl PaymentIntent {
                 .enable_partial_authorization
                 .unwrap_or(false.into()),
             profile_acquirer_id: None,
+            surcharge_strategy: None,
         })
     }
 

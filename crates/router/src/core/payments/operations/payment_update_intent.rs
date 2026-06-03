@@ -398,6 +398,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 active_attempts_group_id: intent.active_attempts_group_id,
                 active_attempt_id_type: Some(intent.active_attempt_id_type),
                 profile_acquirer_id: intent.profile_acquirer_id,
+                surcharge_strategy: intent.surcharge_strategy,
             }));
 
         let new_payment_intent = db

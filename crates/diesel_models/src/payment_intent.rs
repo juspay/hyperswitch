@@ -89,6 +89,7 @@ pub struct PaymentIntent {
     pub state_metadata: Option<PaymentIntentStateMetadata>,
     pub installment_options: Option<common_types::payments::InstallmentOptions>,
     pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+    pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -418,6 +419,7 @@ pub struct PaymentIntentNew {
     pub state_metadata: Option<PaymentIntentStateMetadata>,
     pub installment_options: Option<common_types::payments::InstallmentOptions>,
     pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+    pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
 #[cfg(feature = "v1")]
@@ -654,6 +656,7 @@ pub struct PaymentIntentUpdateFields {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub payment_channel: Option<Option<common_enums::PaymentChannel>>,
     pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+    pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
 #[cfg(feature = "v1")]
@@ -750,6 +753,7 @@ pub struct PaymentIntentUpdateInternal {
     pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
     pub state_metadata: Option<PaymentIntentStateMetadata>,
     pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+    pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
 #[cfg(feature = "v2")]
@@ -798,6 +802,7 @@ impl PaymentIntentUpdateInternal {
             enable_partial_authorization,
             state_metadata,
             profile_acquirer_id,
+            surcharge_strategy,
         } = self;
 
         PaymentIntent {
@@ -845,6 +850,7 @@ impl PaymentIntentUpdateInternal {
             request_external_three_ds_authentication: request_external_three_ds_authentication
                 .or(source.request_external_three_ds_authentication),
             profile_acquirer_id: profile_acquirer_id.or(source.profile_acquirer_id),
+            surcharge_strategy: surcharge_strategy.or(source.surcharge_strategy),
             updated_by,
             force_3ds_challenge: force_3ds_challenge.or(source.force_3ds_challenge),
             is_iframe_redirection_enabled: is_iframe_redirection_enabled

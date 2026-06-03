@@ -261,6 +261,7 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             is_payment_id_from_merchant,
             enable_partial_authorization,
             profile_acquirer_id: _,
+            surcharge_strategy: _,
         } = intent;
 
         Self {
