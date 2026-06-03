@@ -8489,19 +8489,24 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                         })?;
 
                     let resolved = match profile_acquirer_id {
-                        Some(id) => business_profile
+                        Some(id) => Some(business_profile
                             .get_acquirer_details_for_profile_acquirer(id, network.clone())
                             .ok_or(errors::ApiErrorResponse::PreconditionFailed {
                                 message: format!("Acquirer configuration not found for network {:?} in bucket {:?}", network, id),
-                            })?,
+                            })?),
+                        // Ignoring this error as merchant can also configure acquirer details on authentication connector side as well.
                         None => business_profile
                             .get_default_acquirer_details_from_network(network.clone())
-                            .ok_or(errors::ApiErrorResponse::PreconditionFailed {
-                                message: format!("Acquirer configuration not found for network {:?} in default bucket", network),
-                            })?,
+                            .ok_or_else(|| {
+                                logger::error!(
+                                    "Acquirer configuration not found for network {:?}",
+                                    network
+                                )
+                            })
+                            .ok(),
                     };
 
-                    Some(authentication::types::AcquirerDetails {
+                    resolved.map(|resolved| authentication::types::AcquirerDetails {
                         acquirer_bin: resolved.acquirer_bin.unwrap_or_default(),
                         acquirer_merchant_id: resolved.acquirer_assigned_merchant_id.unwrap_or_default(),
                         acquirer_country_code: resolved.acquirer_country_code,
