@@ -26,7 +26,7 @@ use diesel_models::schema_v2::{
     payment_intent::dsl as pi_dsl,
 };
 use diesel_models::{
-    enums::MerchantStorageScheme, kv, payment_intent::PaymentIntent as DieselPaymentIntent,
+    enums::MerchantStorageScheme, payment_intent::PaymentIntent as DieselPaymentIntent,
 };
 use error_stack::ResultExt;
 #[cfg(all(feature = "v1", feature = "olap"))]
@@ -99,26 +99,25 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     .await
                     .change_context(StorageError::EncryptionError)?;
 
-                let redis_entry = kv::TypedSql {
-                    op: kv::DBOperation::Insert {
-                        insertable: Box::new(kv::Insertable::PaymentIntent(Box::new(
-                            new_payment_intent,
-                        ))),
-                    },
-                };
-
                 let diesel_payment_intent = payment_intent
                     .clone()
                     .convert()
                     .await
                     .change_context(StorageError::EncryptionError)?;
 
+                let mut query_gen_conn = pg_connection_write(self).await?;
+                let drainer_query = new_payment_intent
+                    .generate_drainer_insert_query(&mut query_gen_conn)
+                    .await
+                    .change_context(StorageError::KVError)
+                    .attach_printable("Failed to generate payment intent insert query")?;
+
                 match Box::pin(kv_wrapper::<DieselPaymentIntent, _, _>(
                     self,
                     KvOperation::<DieselPaymentIntent>::HSetNx(
                         &field,
                         &diesel_payment_intent,
-                        redis_entry,
+                        drainer_query,
                     ),
                     key,
                 ))
@@ -164,14 +163,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     .await
                     .change_context(StorageError::EncryptionError)?;
 
-                let redis_entry = kv::TypedSql {
-                    op: kv::DBOperation::Insert {
-                        insertable: Box::new(kv::Insertable::PaymentIntent(Box::new(
-                            new_payment_intent,
-                        ))),
-                    },
-                };
-
                 let diesel_payment_intent = payment_intent
                     .clone()
                     .convert()
@@ -194,12 +185,19 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                         .await?;
                 }
 
+                let mut query_gen_conn = pg_connection_write(self).await?;
+                let drainer_query = new_payment_intent
+                    .generate_drainer_insert_query(&mut query_gen_conn)
+                    .await
+                    .change_context(StorageError::KVError)
+                    .attach_printable("Failed to generate payment intent insert query")?;
+
                 match Box::pin(kv_wrapper::<DieselPaymentIntent, _, _>(
                     self,
                     KvOperation::<DieselPaymentIntent>::HSetNx(
                         &field,
                         &diesel_payment_intent,
-                        redis_entry,
+                        drainer_query,
                     ),
                     key,
                 ))
@@ -289,20 +287,20 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     .encode_to_string_of_json()
                     .change_context(StorageError::SerializationFailed)?;
 
-                let redis_entry = kv::TypedSql {
-                    op: kv::DBOperation::Update {
-                        updatable: Box::new(kv::Updateable::PaymentIntentUpdate(Box::new(
-                            kv::PaymentIntentUpdateMems {
-                                orig: origin_diesel_intent,
-                                update_data: diesel_intent_update,
-                            },
-                        ))),
-                    },
-                };
+                let mut query_gen_conn = pg_connection_write(self).await?;
+                let drainer_query = diesel_intent_update
+                    .generate_drainer_update_query(
+                        &mut query_gen_conn,
+                        origin_diesel_intent.payment_id.clone(),
+                        origin_diesel_intent.processor_merchant_id.clone(),
+                    )
+                    .await
+                    .change_context(StorageError::KVError)
+                    .attach_printable("Failed to generate payment intent update query")?;
 
                 Box::pin(kv_wrapper::<(), _, _>(
                     self,
-                    KvOperation::<DieselPaymentIntent>::Hset((&field, redis_value), redis_entry),
+                    KvOperation::<DieselPaymentIntent>::Hset((&field, redis_value), drainer_query),
                     key,
                 ))
                 .await
@@ -368,20 +366,19 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     .encode_to_string_of_json()
                     .change_context(StorageError::SerializationFailed)?;
 
-                let redis_entry = kv::TypedSql {
-                    op: kv::DBOperation::Update {
-                        updatable: Box::new(kv::Updateable::PaymentIntentUpdate(Box::new(
-                            kv::PaymentIntentUpdateMems {
-                                orig: origin_diesel_intent,
-                                update_data: diesel_intent_update,
-                            },
-                        ))),
-                    },
-                };
+                let mut query_gen_conn = pg_connection_write(self).await?;
+                let drainer_query = diesel_intent_update
+                    .generate_drainer_update_query(
+                        &mut query_gen_conn,
+                        origin_diesel_intent.id.clone(),
+                    )
+                    .await
+                    .change_context(StorageError::KVError)
+                    .attach_printable("Failed to generate payment intent update query")?;
 
                 Box::pin(kv_wrapper::<(), _, _>(
                     self,
-                    KvOperation::<DieselPaymentIntent>::Hset((&field, redis_value), redis_entry),
+                    KvOperation::<DieselPaymentIntent>::Hset((&field, redis_value), drainer_query),
                     key,
                 ))
                 .await
@@ -1030,10 +1027,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .map(|join_result| join_result.change_context(StorageError::DecryptionError))
         })
         .map_err(|er| {
-            StorageError::DatabaseError(
-                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
-                    .attach_printable("Error filtering payment records"),
-            )
+            error_stack::report!(StorageError::from(er))
+                .attach_printable("Error filtering payment records")
         })?
         .await
     }
@@ -1094,11 +1089,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         )
         .await
         .map_err(|er| {
-            StorageError::DatabaseError(
-                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
-                    .attach_printable("Error filtering payment records"),
-            )
-            .into()
+            error_stack::report!(StorageError::from(er))
+                .attach_printable("Error filtering payment records")
         })
     }
 
@@ -1327,10 +1319,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             })
             .await
             .map_err(|er| {
-                StorageError::DatabaseError(
-                    error_stack::report!(diesel_models::errors::DatabaseError::from(er))
-                        .attach_printable("Error filtering payment records"),
-                )
+                error_stack::report!(StorageError::from(er))
+                    .attach_printable("Error filtering payment records")
             })?
     }
 
@@ -1640,11 +1630,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         )
         .await
         .map_err(|er| {
-            StorageError::DatabaseError(
-                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
-                    .attach_printable("Error filtering payment records"),
-            )
-            .into()
+            error_stack::report!(StorageError::from(er))
+                .attach_printable("Error filtering payment records")
         })
     }
 
@@ -1727,11 +1714,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         )
         .await
         .map_err(|er| {
-            StorageError::DatabaseError(
-                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
-                    .attach_printable("Error filtering payment records"),
-            )
-            .into()
+            error_stack::report!(StorageError::from(er))
+                .attach_printable("Error filtering payment records")
         })
     }
 }
