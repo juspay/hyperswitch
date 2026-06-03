@@ -189,7 +189,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             reverse_lookups.push(format!("payment_method_locker_{locker_id}"))
         }
         let payment_method = (&payment_method_new.clone()).into();
-        let payment_method = self
+        let payment_method: DomainPaymentMethod = self
             .insert_resource(
                 key_store,
                 storage_scheme,
@@ -237,7 +237,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         let p_update: PaymentMethodUpdateInternal =
             payment_method_update.convert_to_payment_method_update(storage_scheme);
         let updated_payment_method = p_update.clone().apply_changeset(payment_method.clone());
-        let payment_method = Box::pin(
+        let payment_method: DomainPaymentMethod = Box::pin(
             self.update_resource(
                 key_store,
                 storage_scheme,
@@ -602,7 +602,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
             .change_context(errors::StorageError::DecryptionError)?;
 
         let conn = pg_connection_write(self).await?;
-        let payment_method = self
+        let payment_method: DomainPaymentMethod = self
             .call_database(key_store, payment_method_new.insert(&conn))
             .await?;
 
@@ -628,7 +628,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
             .change_context(errors::StorageError::DecryptionError)?;
 
         let conn = pg_connection_write(self).await?;
-        let payment_method = self
+        let payment_method: DomainPaymentMethod = self
             .call_database(
                 key_store,
                 payment_method.update_with_payment_method_id(&conn, payment_method_update.into()),
@@ -656,7 +656,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
             .await
             .change_context(errors::StorageError::DecryptionError)?;
         let conn = pg_connection_write(self).await?;
-        let payment_method = self
+        let payment_method: DomainPaymentMethod = self
             .call_database(
                 key_store,
                 payment_method.update_with_id(&conn, payment_method_update.into()),
@@ -1160,7 +1160,7 @@ impl PaymentMethodInterface for MockDb {
                     .await
                     .change_context(errors::StorageError::EncryptionError)?,
             );
-        let payment_method = self
+        let payment_method: DomainPaymentMethod = self
             .update_resource::<PaymentMethod, _>(
                 key_store,
                 self.payment_methods.lock().await,

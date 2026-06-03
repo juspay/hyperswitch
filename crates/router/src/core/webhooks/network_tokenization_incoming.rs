@@ -379,6 +379,7 @@ pub async fn handle_metadata_update(
                 payment_method.clone(),
                 pm_update,
                 platform.get_processor().get_account().storage_scheme,
+                None,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

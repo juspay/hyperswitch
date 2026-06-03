@@ -2139,12 +2139,20 @@ pub async fn add_payment_method_data(
                             network_tokenization_data: None, // setting it to None as write path will be introduced in a later PR
                         };
 
+                        let compat_action = super::payment_method_modular_forward_compat_action(
+                            &state,
+                            &payment_method.merchant_id,
+                            payment_method.customer_id.as_ref(),
+                        )
+                        .await;
+
                         let _updated_payment_method = db
                             .update_payment_method(
                                 provider.get_key_store(),
                                 payment_method,
                                 pm_update,
                                 provider.get_account().storage_scheme,
+                                compat_action,
                             )
                             .await
                             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2185,6 +2193,7 @@ pub async fn add_payment_method_data(
                         payment_method,
                         pm_update,
                         provider.get_account().storage_scheme,
+                        None,
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2504,12 +2513,20 @@ pub async fn update_customer_payment_method(
                 .map(|last_modified_by| last_modified_by.to_string()),
         };
 
+        let compat_action = super::payment_method_modular_forward_compat_action(
+            &state,
+            &pm.merchant_id,
+            pm.customer_id.as_ref(),
+        )
+        .await;
+
         let pm = db
             .update_payment_method(
                 provider.get_key_store(),
                 pm,
                 pm_update,
                 provider.get_account().storage_scheme,
+                compat_action,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -5925,6 +5942,7 @@ pub async fn update_last_used_at(
             payment_method.clone(),
             update_last_used,
             storage_scheme,
+            None,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

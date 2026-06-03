@@ -2752,6 +2752,7 @@ async fn execute_payment_method_create(
                 payment_method,
                 pm_update,
                 platform.get_provider().get_account().storage_scheme,
+                None,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -5975,6 +5976,7 @@ pub async fn delete_payment_method_by_record(
         payment_method.clone(),
         pm_update,
         platform.get_provider().get_account().storage_scheme,
+        None,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)

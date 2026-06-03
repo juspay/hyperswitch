@@ -451,6 +451,7 @@ impl ForwardCompatWorkflowBuilder<ForwardLockerCompatApplied> {
             payment_method.clone(),
             pm_update,
             self.merchant_account().storage_scheme,
+            None,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

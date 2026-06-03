@@ -299,6 +299,7 @@ impl BackwardCompatWorkflowBuilder<BackwardLockerCompatApplied> {
                 payment_method,
                 pm_update,
                 merchant_account.storage_scheme,
+                None,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -511,6 +512,7 @@ impl BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared> {
                         older_payment_method,
                         pm_update,
                         storage_scheme,
+                        None,
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -740,6 +742,7 @@ impl BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared> {
                         older_payment_method,
                         pm_update,
                         platform.get_provider().get_account().storage_scheme,
+                        None,
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)

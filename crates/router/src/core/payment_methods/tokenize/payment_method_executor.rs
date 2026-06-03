@@ -414,6 +414,13 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
                 .map(|last_modified_by| last_modified_by.to_string()),
             network_tokenization_data: None,
         };
+        let compat_action =
+            crate::core::payment_methods::payment_method_modular_forward_compat_action(
+                self.state,
+                &payment_method.merchant_id,
+                payment_method.customer_id.as_ref(),
+            )
+            .await;
         self.state
             .store
             .update_payment_method(
@@ -421,6 +428,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
                 payment_method,
                 payment_method_update,
                 self.merchant_account.storage_scheme,
+                compat_action,
             )
             .await
             .inspect_err(|err| logger::info!("Error updating payment method: {:?}", err))
