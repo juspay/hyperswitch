@@ -209,7 +209,7 @@ describe("Wallet tests", () => {
   });
 
   context("Mifinity Create and Confirm flow test", () => {
-    const shouldContinue = true;
+    let shouldContinue = true;
 
     before("seed global state", function () {
       let skip = false;
@@ -243,8 +243,6 @@ describe("Wallet tests", () => {
     });
 
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Wallet Redirection -> Retrieve Payment", () => {
-      let shouldContinue = true;
-
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "wallet_pm"
@@ -311,6 +309,333 @@ describe("Wallet tests", () => {
           "wallet_pm"
         ]["Mifinity"];
         cy.retrievePaymentCallTest({ globalState, data });
+      });
+    });
+  });
+
+  context("AliPay Create and Confirm flow test", () => {
+    let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.ALIPAY_WALLET
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Wallet Redirection -> Retrieve Payment", () => {
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["PaymentIntent"]("AliPay");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+        if (!should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["AliPay"];
+        cy.confirmBankRedirectCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle Wallet Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle Wallet Redirection");
+          return;
+        }
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleBankRedirectRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["AliPay"];
+        cy.retrievePaymentCallTest({
+          globalState,
+          data,
+          expectedIntentStatus: "requires_customer_action",
+        });
+      });
+    });
+  });
+
+  context("WeChatPay Create and Confirm flow test", () => {
+    let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.WECHATPAY_WALLET
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Wallet Redirection -> Retrieve Payment", () => {
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["PaymentIntent"]("WeChatPay");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+        if (!should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["WeChatPay"];
+        cy.confirmBankRedirectCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle Wallet Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle Wallet Redirection");
+          return;
+        }
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleBankRedirectRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["WeChatPay"];
+        cy.retrievePaymentCallTest({
+          globalState,
+          data,
+          expectedIntentStatus: "requires_customer_action",
+        });
+      });
+    });
+  });
+
+  context("MbWay Create and Confirm flow test", () => {
+    let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.MBWAY_WALLET
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Wallet Redirection -> Retrieve Payment", () => {
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["PaymentIntent"]("MbWay");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+        if (!should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["MbWay"];
+        cy.confirmBankRedirectCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle Wallet Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle Wallet Redirection");
+          return;
+        }
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleBankRedirectRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["MbWay"];
+        cy.retrievePaymentCallTest({
+          globalState,
+          data,
+          expectedIntentStatus: "requires_customer_action",
+        });
       });
     });
   });
@@ -431,6 +756,10 @@ describe("PayPal Wallet tests", () => {
           const connector = globalState.get("connectorId");
 
           if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.PAYPAL_WALLET
+            ) ||
             shouldIncludeConnector(
               connector,
               CONNECTOR_LISTS.INCLUDE.PAYPAL_MANDATE
@@ -614,41 +943,41 @@ describe("Skrill Wallet tests", () => {
   });
 });
 
-describe("Stripe Wallet tests", () => {
-  before("seed global state", function () {
-    let skip = false;
-
-    cy.task("getGlobalState")
-      .then((state) => {
-        globalState = new State(state);
-        const connector = globalState.get("connectorId");
-
-        if (
-          shouldIncludeConnector(
-            connector,
-            CONNECTOR_LISTS.INCLUDE.STRIPE_WALLET
-          )
-        ) {
-          skip = true;
-          return;
-        }
-      })
-      .then(() => {
-        if (skip) {
-          cy.log(
-            "Skipping Stripe wallet tests — connector not in STRIPE_WALLET list"
-          );
-          this.skip();
-        }
-      });
-  });
-
+describe("Stripe AliPay Wallet tests", () => {
   afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
   context("Stripe AliPay Create and Confirm flow test", () => {
     let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.WALLET_ALIPAY
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            cy.log(
+              "Skipping Stripe AliPay wallet tests — connector not in WALLET_ALIPAY list"
+            );
+            this.skip();
+          }
+        });
+    });
 
     beforeEach(function () {
       if (!shouldContinue) {
@@ -720,8 +1049,111 @@ describe("Stripe Wallet tests", () => {
     });
   });
 
+  context("Stripe AliPay - Invalid Currency error test", () => {
+    let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.WALLET_ALIPAY
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("confirm-alipay-with-invalid-currency-should-fail", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["AliPayInvalidCurrency"];
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("Confirm AliPay with invalid currency", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["AliPayInvalidCurrency"];
+
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        data,
+        true,
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+  });
+});
+
+describe("Stripe AmazonPay Wallet tests", () => {
+  afterEach("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
+
   context("Stripe AmazonPay Create and Confirm flow test", () => {
     let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.WALLET_AMAZONPAY
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            cy.log(
+              "Skipping Stripe AmazonPay wallet tests — connector not in WALLET_AMAZONPAY list"
+            );
+            this.skip();
+          }
+        });
+    });
 
     beforeEach(function () {
       if (!shouldContinue) {
@@ -796,6 +1228,31 @@ describe("Stripe Wallet tests", () => {
   context("Stripe AmazonPay Mandate Create and Confirm flow test", () => {
     let shouldContinue = true;
 
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.WALLET_AMAZONPAY
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
     beforeEach(function () {
       if (!shouldContinue) {
         this.skip();
@@ -866,8 +1323,111 @@ describe("Stripe Wallet tests", () => {
     });
   });
 
+  context("Stripe AmazonPay - Invalid Currency error test", () => {
+    let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.WALLET_AMAZONPAY
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("confirm-amazonpay-with-invalid-currency-should-fail", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["AmazonPayInvalidCurrency"];
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("Confirm AmazonPay with invalid currency", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["AmazonPayInvalidCurrency"];
+
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        data,
+        true,
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+  });
+});
+
+describe("Stripe Cashapp Wallet tests", () => {
+  afterEach("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
+
   context("Stripe Cashapp Create and Confirm flow test", () => {
     let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.WALLET_CASHAPP
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            cy.log(
+              "Skipping Stripe Cashapp wallet tests — connector not in WALLET_CASHAPP list"
+            );
+            this.skip();
+          }
+        });
+    });
 
     beforeEach(function () {
       if (!shouldContinue) {
@@ -942,6 +1502,31 @@ describe("Stripe Wallet tests", () => {
   context("Stripe Cashapp Mandate Create and Confirm flow test", () => {
     let shouldContinue = true;
 
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.WALLET_CASHAPP
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
     beforeEach(function () {
       if (!shouldContinue) {
         this.skip();
@@ -1012,8 +1597,111 @@ describe("Stripe Wallet tests", () => {
     });
   });
 
+  context("Stripe Cashapp - Invalid Currency error test", () => {
+    let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.WALLET_CASHAPP
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("confirm-cashapp-with-invalid-currency-should-fail", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["CashappInvalidCurrency"];
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("Confirm Cashapp with invalid currency", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["CashappInvalidCurrency"];
+
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        data,
+        true,
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+  });
+});
+
+describe("Stripe RevolutPay Wallet tests", () => {
+  afterEach("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
+
   context("Stripe RevolutPay Create and Confirm flow test", () => {
     let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.WALLET_REVOLUTPAY
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            cy.log(
+              "Skipping Stripe RevolutPay wallet tests — connector not in WALLET_REVOLUTPAY list"
+            );
+            this.skip();
+          }
+        });
+    });
 
     beforeEach(function () {
       if (!shouldContinue) {
@@ -1088,6 +1776,31 @@ describe("Stripe Wallet tests", () => {
   context("Stripe RevolutPay Mandate Create and Confirm flow test", () => {
     let shouldContinue = true;
 
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.WALLET_REVOLUTPAY
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
     beforeEach(function () {
       if (!shouldContinue) {
         this.skip();
@@ -1158,8 +1871,111 @@ describe("Stripe Wallet tests", () => {
     });
   });
 
+  context("Stripe RevolutPay - Invalid Currency error test", () => {
+    let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.WALLET_REVOLUTPAY
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("confirm-revolutpay-with-invalid-currency-should-fail", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["RevolutPayInvalidCurrency"];
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("Confirm RevolutPay with invalid currency", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["RevolutPayInvalidCurrency"];
+
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        data,
+        true,
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+  });
+});
+
+describe("Stripe WeChatPay Wallet tests", () => {
+  afterEach("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
+
   context("Stripe WeChatPay Create and Confirm flow test", () => {
     let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.WALLET_WECHATPAY
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            cy.log(
+              "Skipping Stripe WeChatPay wallet tests — connector not in WALLET_WECHATPAY list"
+            );
+            this.skip();
+          }
+        });
+    });
 
     beforeEach(function () {
       if (!shouldContinue) {
@@ -1228,6 +2044,75 @@ describe("Stripe Wallet tests", () => {
         data,
         expectedIntentStatus: "requires_customer_action",
       });
+    });
+  });
+
+  context("Stripe WeChatPay - Invalid Currency error test", () => {
+    let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.WALLET_WECHATPAY
+            )
+          ) {
+            skip = true;
+            return;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("confirm-wechatpay-with-invalid-currency-should-fail", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["WeChatPayInvalidCurrency"];
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = should_continue_further(data);
+    });
+
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("Confirm WeChatPay with invalid currency", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["WeChatPayInvalidCurrency"];
+
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        data,
+        true,
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = should_continue_further(data);
     });
   });
 });

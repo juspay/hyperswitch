@@ -59,6 +59,7 @@ import { connectorDetails as paysafeConnectorDetails } from "./Paysafe.js";
 import { connectorDetails as payuConnectorDetails } from "./Payu.js";
 import { connectorDetails as peachpaymentsConnectorDetails } from "./Peachpayments.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
+import { connectorDetails as rapydConnectorDetails } from "./Rapyd.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
 import { connectorDetails as silverflowConnectorDetails } from "./Silverflow.js";
@@ -135,6 +136,7 @@ const connectorDetails = {
   payu: payuConnectorDetails,
   peachpayments: peachpaymentsConnectorDetails,
   powertranz: powertranzConnectorDetails,
+  rapyd: rapydConnectorDetails,
   redsys: redsysConnectorDetails,
   shift4: shift4ConnectorDetails,
   silverflow: silverflowConnectorDetails,
@@ -144,7 +146,6 @@ const connectorDetails = {
   stripeconnect: stripeconnectConnectorDetails,
   trustpay: trustpayConnectorDetails,
   tesouro: tesouroConnectorDetails,
-  trustpayments: trustpaymentsConnectorDetails,
   tsys: tsysConnectorDetails,
   volt: voltConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
@@ -531,11 +532,12 @@ export const CONNECTOR_LISTS = {
       "stripe",
     ],
     BANK_DEBIT: ["adyen", "novalnet", "payload"], // payload verified as working
+    BANK_DEBIT: ["adyen", "novalnet", "payload", "wellsfargo"],
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
     BANK_REDIRECT_MANDATE: ["adyen"],
     BLUECODE_WALLET: ["calida"],
     ALIPAY_HK_WALLET: ["adyen"],
-    PAYPAL_WALLET: ["novalnet", "paypal"],
+    PAYPAL_WALLET: ["novalnet", "paypal", "multisafepay"],
     MIFINITY_WALLET: ["mifinity"],
     SKRILL_WALLET: ["paysafe"],
     PAYSAFECARD_GIFT_CARD: ["paysafe"],
@@ -578,7 +580,11 @@ export const CONNECTOR_LISTS = {
     EXTEND_AUTHORIZATION: ["adyen", "paypal"],
     GIFT_CARD: ["adyen"],
     RELAY_OPERATIONS: ["bankofamerica"],
-    STRIPE_WALLET: ["stripe"],
+    WALLET_ALIPAY: ["stripe"],
+    WALLET_AMAZONPAY: ["stripe"],
+    WALLET_CASHAPP: ["stripe"],
+    WALLET_REVOLUTPAY: ["stripe"],
+    WALLET_WECHATPAY: ["stripe"],
     PAY_LATER: [
       "klarna",
       "adyen",

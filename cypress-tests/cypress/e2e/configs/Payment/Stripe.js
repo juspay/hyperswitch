@@ -1670,5 +1670,110 @@ export const connectorDetails = {
         },
       },
     },
+    AliPayInvalidCurrency: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "alipay",
+        payment_method_data: {
+          wallet: {
+            alipay: {},
+          },
+        },
+        currency: "INR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "payment_method_not_available",
+          error_message:
+            "AliPay is not available in the selected region/currency",
+        },
+      },
+    },
+    AmazonPayInvalidCurrency: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "amazon_pay",
+        payment_method_data: {
+          wallet: {
+            amazon_pay: {},
+          },
+        },
+        currency: "INR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "payment_method_not_available",
+          error_message:
+            "AmazonPay is not available in the selected region/currency",
+        },
+      },
+    },
+    CashappInvalidCurrency: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "cashapp",
+        payment_method_data: {
+          wallet: {
+            cashapp: {},
+          },
+        },
+        currency: "INR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "payment_method_not_available",
+          error_message:
+            "Cashapp is not available in the selected region/currency",
+        },
+      },
+    },
+    RevolutPayInvalidCurrency: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "revolut_pay",
+        payment_method_data: {
+          wallet: {
+            revolut_pay: {},
+          },
+        },
+        currency: "INR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "payment_method_not_available",
+          error_message:
+            "RevolutPay is not available in the selected region/currency",
+        },
+      },
+    },
+    WeChatPayInvalidCurrency: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "we_chat_pay",
+        payment_method_data: {
+          wallet: {
+            we_chat_pay: {},
+          },
+        },
+        currency: "INR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "payment_method_not_available",
+          error_message:
+            "WeChatPay is not available in the selected region/currency",
+        },
+      },
+    },
   },
 };
