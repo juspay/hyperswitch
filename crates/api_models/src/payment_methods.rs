@@ -4438,9 +4438,10 @@ pub struct PaymentMethodsSessionUpdateRequest {
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodSessionUpdateSavedPaymentMethod {
-    /// The payment method token associated with the payment method session
-    #[schema(value_type = String, example = "token_9wcXDRVkfEtLEsSnYKgQ")]
-    pub payment_method_token: String,
+    /// The payment method token associated with the payment method session.
+    /// If not provided, a new token will be generated.
+    #[schema(value_type = Option<String>, example = "token_9wcXDRVkfEtLEsSnYKgQ")]
+    pub payment_method_token: Option<String>,
     /// The update request for the payment method update
     #[serde(flatten)]
     pub payment_method_update_request: PaymentMethodUpdate,
