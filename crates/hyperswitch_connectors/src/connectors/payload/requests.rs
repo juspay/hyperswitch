@@ -92,6 +92,12 @@ pub struct PayloadMandateRequestData {
     pub status: Option<responses::PayloadPaymentStatus>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub processing_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub descriptor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attrs: Option<serde_json::Value>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Eq, PartialEq)]

@@ -407,6 +407,10 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &PayloadRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        let description = item.router_data.description.clone();
+        let billing_descriptor = item.router_data.request.billing_descriptor.as_ref();
+        let metadata = item.router_data.request.metadata.as_ref();
+
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::BankDebit(BankDebitData::AchBankDebit { .. })
             | PaymentMethodData::Card(_) => {
@@ -423,9 +427,9 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                     is_mandate,
                     item.router_data.connector_customer.clone(),
                     item.router_data.is_three_ds(),
-                    item.router_data.request.metadata.as_ref(),
-                    item.router_data.description.clone(),
-                    item.router_data.request.billing_descriptor.as_ref(),
+                    metadata,
+                    description,
+                    billing_descriptor,
                 )?;
 
                 Ok(Self::PaymentRequest(Box::new(payment_request)))
@@ -452,6 +456,9 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                         ),
                         status,
                         processing_id,
+                        description,
+                        descriptor: get_description_from_billing_descriptor(billing_descriptor),
+                        attrs: get_filtered_metadata(metadata),
                     },
                 )))
             }
