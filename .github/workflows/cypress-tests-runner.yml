@@ -34,6 +34,9 @@ env:
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
   DEBUG: cypress:cli
   RUST_MIN_STACK: 11534336
+  # Emit router logs as structured JSON in CI so events can be grouped by
+  # request id and analysed (or fed to tooling) instead of parsing pretty text.
+  ROUTER__LOG__CONSOLE__LOG_FORMAT: json
 
 jobs:
   formatter:
@@ -304,7 +307,7 @@ jobs:
         shell: bash
         run: |
           echo "CYPRESS_CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/.github/test/creds.json" >> $GITHUB_ENV
-          echo "SERVER_LOG_PATH=${{ github.workspace }}/server-logs.txt" >> $GITHUB_ENV
+          echo "SERVER_LOG_PATH=${{ github.workspace }}/server-logs.log" >> $GITHUB_ENV
 
       - name: Fetch keys
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -375,7 +378,7 @@ jobs:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
           # Apply seeded Superposition config quickly in CI (default is 300s).
           ROUTER__SUPERPOSITION__POLLING_INTERVAL: 10
-          SERVER_LOG_PATH: ${{ github.workspace }}/server-logs.txt
+          SERVER_LOG_PATH: ${{ github.workspace }}/server-logs.log
         run: |
           # Start the server in the background
 
@@ -410,7 +413,7 @@ jobs:
           kill "${{ env.PID }}"
 
       - name: Upload server logs on failure
-        if: env.RUN_TESTS == 'true' && failure()
+        if: env.RUN_TESTS == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.batch.server_logs_artifact }}
@@ -591,7 +594,7 @@ jobs:
         shell: bash
         run: |
           echo "CYPRESS_CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/.github/test/creds.json" >> $GITHUB_ENV
-          echo "SERVER_LOG_PATH=${{ github.workspace }}/server-logs.txt" >> $GITHUB_ENV
+          echo "SERVER_LOG_PATH=${{ github.workspace }}/server-logs.log" >> $GITHUB_ENV
 
       - name: Fetch keys
         env:
@@ -644,7 +647,7 @@ jobs:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
           # Apply seeded Superposition config quickly in CI (default is 300s).
           ROUTER__SUPERPOSITION__POLLING_INTERVAL: 10
-          SERVER_LOG_PATH: ${{ github.workspace }}/server-logs.txt
+          SERVER_LOG_PATH: ${{ github.workspace }}/server-logs.log
         run: |
           # Start the server in the background
 
@@ -857,7 +860,7 @@ jobs:
         shell: bash
         run: |
           echo "CYPRESS_CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/.github/test/creds.json" >> $GITHUB_ENV
-          echo "SERVER_LOG_PATH=${{ github.workspace }}/server-logs.txt" >> $GITHUB_ENV
+          echo "SERVER_LOG_PATH=${{ github.workspace }}/server-logs.log" >> $GITHUB_ENV
 
       - name: Fetch keys
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1040,7 +1043,7 @@ jobs:
           ROUTER__PROXY__MITM_ENABLED: "true"
           ROUTER__TRACE_HEADER__ID_REUSE_STRATEGY: "use_incoming"
           ROUTER__SERVER__WORKERS: 4
-          SERVER_LOG_PATH: ${{ github.workspace }}/server-logs.txt
+          SERVER_LOG_PATH: ${{ github.workspace }}/server-logs.log
         shell: bash
         run: |
           MITM_CERT=$(sed 's/$/\\r\\n/' "$HOME/.mitmproxy/mitmproxy-ca-cert.pem" | tr -d '\n')
@@ -1293,7 +1296,7 @@ jobs:
         shell: bash
         run: |
           echo "CYPRESS_CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/.github/test/creds.json" >> $GITHUB_ENV
-          echo "SERVER_LOG_PATH=${{ github.workspace }}/server-logs.txt" >> $GITHUB_ENV
+          echo "SERVER_LOG_PATH=${{ github.workspace }}/server-logs.log" >> $GITHUB_ENV
 
       - name: Fetch keys
         env:
