@@ -2900,8 +2900,7 @@ where
         .merchant_connector_id
         .is_none()
     {
-        payment_data
-            .set_merchant_connector_id_in_attempt(merchant_connector_account.get_mca_id());
+        payment_data.set_merchant_connector_id_in_attempt(merchant_connector_account.get_mca_id());
     }
 
     // Fetch the external vault MCA from business_profile
@@ -2976,10 +2975,15 @@ where
         ExecutionPath::Direct => ExecutionMode::NotApplicable,
     };
 
-    update_gateway_system_in_feature_metadata(&mut payment_data, match execution_path {
-        ExecutionPath::UnifiedConnectorService => GatewaySystem::UnifiedConnectorService,
-        ExecutionPath::ShadowUnifiedConnectorService | ExecutionPath::Direct => GatewaySystem::Direct,
-    })?;
+    update_gateway_system_in_feature_metadata(
+        &mut payment_data,
+        match execution_path {
+            ExecutionPath::UnifiedConnectorService => GatewaySystem::UnifiedConnectorService,
+            ExecutionPath::ShadowUnifiedConnectorService | ExecutionPath::Direct => {
+                GatewaySystem::Direct
+            }
+        },
+    )?;
 
     // Update trackers before calling connector
     (_, payment_data) = operation
@@ -3032,17 +3036,14 @@ where
                 )
                 .await?;
 
-            let should_continue_further =
-                access_token::update_router_data_with_access_token_result(
-                    &add_access_token_result,
-                    &mut router_data,
-                    &call_connector_action,
-                );
+            let should_continue_further = access_token::update_router_data_with_access_token_result(
+                &add_access_token_result,
+                &mut router_data,
+                &call_connector_action,
+            );
 
             let gateway_ctx = gateway_context::RouterGatewayContext {
-                creds_identifier: payment_data
-                    .get_creds_identifier()
-                    .map(|id| id.to_string()),
+                creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
                 processor: platform.get_processor().clone(),
                 header_payload: header_payload.clone(),
                 lineage_ids,
@@ -11200,7 +11201,7 @@ where
                     payment_data,
                     core_routing::StraightThroughAlgorithmTypeSingle(straight_through),
                     dimensions,
-                business_profile,
+                    business_profile,
                 )
                 .await?
             }
@@ -11223,7 +11224,7 @@ where
                     payment_data,
                     core_routing::DecideConnector,
                     dimensions,
-                business_profile,
+                    business_profile,
                 )
                 .await?
             }
@@ -13798,9 +13799,7 @@ pub trait OperationSessionGetters<F> {
     #[cfg(feature = "v1")]
     fn get_external_vault_pmd(
         &self,
-    ) -> Option<
-        &hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
-    >;
+    ) -> Option<&hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData>;
 }
 
 pub trait OperationSessionSetters<F> {
@@ -14070,9 +14069,8 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
 
     fn get_external_vault_pmd(
         &self,
-    ) -> Option<
-        &hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
-    > {
+    ) -> Option<&hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData>
+    {
         self.external_vault_pmd.as_ref()
     }
 }

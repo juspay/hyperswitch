@@ -70,7 +70,7 @@ pub enum WalletPaymentMethodData {
     ApplePay(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
     GooglePay(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
     PayPal(Box<payments::PaypalRedirection>),
-} 
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -280,13 +280,10 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
     }
 }
 
-impl
-    From<hyperswitch_domain_models::payment_method_data::ExternalVaultCard>
+impl From<hyperswitch_domain_models::payment_method_data::ExternalVaultCard>
     for PaymentMethodCreateData
 {
-    fn from(
-        vault_card: hyperswitch_domain_models::payment_method_data::ExternalVaultCard,
-    ) -> Self {
+    fn from(vault_card: hyperswitch_domain_models::payment_method_data::ExternalVaultCard) -> Self {
         Self::ProxyCard(ProxyCardDetail {
             card_number: vault_card.card_number,
             card_exp_month: vault_card.card_exp_month,

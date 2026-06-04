@@ -7,8 +7,8 @@ use common_enums::{
     connector_enums::Connector, AttemptStatus, CallConnectorAction, ConnectorIntegrationType,
     ExecutionMode, ExecutionPath, GatewaySystem, PaymentMethodType, UcsAvailability,
 };
-use common_utils::consts::BASE64_ENGINE;
 use common_utils::{
+    consts::BASE64_ENGINE,
     errors::{CustomResult, ErrorSwitch},
     ext_traits::ValueExt,
     id_type,
@@ -24,8 +24,8 @@ use external_services::grpc_client::{
 use hyperswitch_connectors::utils::CardData;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails;
-use hyperswitch_domain_models::merchant_connector_account::ExternalVaultConnectorMetadata;
 use hyperswitch_domain_models::{
+    merchant_connector_account::ExternalVaultConnectorMetadata,
     platform::Processor,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::refunds,
@@ -40,7 +40,6 @@ use unified_connector_service_client::payments::{
     CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse,
 };
 
-use crate::types::api::enums as api_enums;
 use crate::{
     consts,
     core::{
@@ -57,6 +56,7 @@ use crate::{
     events::connector_api_logs::ConnectorEvent,
     routes::SessionState,
     types::{
+        api::enums as api_enums,
         transformers::{ForeignFrom, ForeignTryFrom},
         UcsPaymentAuthorizeResponseData, UcsPaymentSetupRecurringResponseData,
         UcsRecurringPaymentChargeResponseData,
@@ -1871,8 +1871,8 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata_v1(
         .ok_or(UnifiedConnectorServiceError::InvalidConnectorName)
         .attach_printable("Connector name not found in MerchantConnectorAccountType")?;
 
-    let external_vault_connector =
-        api_enums::VaultConnectors::try_from(connector_name.clone()).map_err(|err| {
+    let external_vault_connector = api_enums::VaultConnectors::try_from(connector_name.clone())
+        .map_err(|err| {
             error_stack::report!(UnifiedConnectorServiceError::InvalidConnectorName)
                 .attach_printable(format!("Failed to parse Vault connector: {err}"))
         })?;

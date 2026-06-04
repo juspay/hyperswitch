@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use async_trait::async_trait;
 use common_enums as enums;
 use common_utils::{id_type, ucs_types};
@@ -8,7 +10,6 @@ use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse, payments as domain_payments,
 };
-use std::str::FromStr;
 use hyperswitch_interfaces::api::gateway;
 use hyperswitch_masking::ExposeInterface;
 use unified_connector_service_client::payments as payments_grpc;

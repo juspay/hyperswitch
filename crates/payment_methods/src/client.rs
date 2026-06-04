@@ -22,10 +22,6 @@ use common_utils::request::Headers;
 pub use create::{CreatePaymentMethod, CreatePaymentMethodV1Request};
 pub use delete::{DeletePaymentMethod, DeletePaymentMethodV1Request};
 use hyperswitch_interfaces::micro_service::MicroserviceClient;
-pub use session::{
-    CreatePaymentMethodSession, CreatePaymentMethodSessionResponse,
-    CreatePaymentMethodSessionV1Request,
-};
 #[cfg(feature = "v1")]
 pub use retrieve::{RetrievePaymentMethod, RetrievePaymentMethodV1Request};
 use router_env::RequestIdentifier;

@@ -1,10 +1,8 @@
 pub use common_enums::enums::CallConnectorAction;
 use common_utils::id_type;
-use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use common_utils::id_type;
-#[cfg(feature = "v1")]
-use hyperswitch_masking::{ExposeInterface, Mask};
+use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 pub use hyperswitch_domain_models::payments::PaymentIntentData;
 pub use hyperswitch_domain_models::{
@@ -20,6 +18,8 @@ pub use hyperswitch_domain_models::{
 use hyperswitch_interfaces::api::Connector as ConnectorTrait;
 #[cfg(feature = "v2")]
 use hyperswitch_interfaces::connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2};
+#[cfg(feature = "v1")]
+use hyperswitch_masking::{ExposeInterface, Mask};
 #[cfg(feature = "v1")]
 use hyperswitch_masking::{ExposeInterface, Mask};
 use router_env::env::Env;
