@@ -218,7 +218,7 @@ describe("Card - Refund Type (instant/scheduled) flow - No 3DS", () => {
         }
         const syncRefundData = getConnectorDetails(
           globalState.get("connectorId")
-        )["card_pm"]["SyncRefund"];
+        )["card_pm"]["SyncRefundScheduled"];
         const newData = {
           ...syncRefundData,
           Response: syncRefundData.ResponseCustom || syncRefundData.Response,
@@ -367,7 +367,7 @@ describe("Card - Refund Type (instant/scheduled) flow - No 3DS", () => {
           }
           const syncRefundData = getConnectorDetails(
             globalState.get("connectorId")
-          )["card_pm"]["SyncRefund"];
+          )["card_pm"]["SyncRefundScheduled"];
           const newData = {
             ...syncRefundData,
             Response: syncRefundData.ResponseCustom || syncRefundData.Response,

@@ -1582,6 +1582,7 @@ export const connectorDetails = {
       },
     }),
     SyncRefund: getCustomExchange({}),
+    SyncRefundScheduled: getCustomExchange({}),
   },
   real_time_payment_pm: {
     PaymentIntent: getCustomExchange({
@@ -2045,6 +2046,7 @@ export const connectorDetails = {
       },
     }),
     SyncRefund: getCustomExchange({}),
+    SyncRefundScheduled: getCustomExchange({}),
     RefundInstant: getCustomExchange({
       Request: {
         amount: 6000,

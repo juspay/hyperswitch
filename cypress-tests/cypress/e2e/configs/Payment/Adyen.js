@@ -417,6 +417,14 @@ export const connectorDetails = {
         },
       },
     },
+    SyncRefundScheduled: {
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
     RefundInstant: {
       Request: {
         amount: 6000,
