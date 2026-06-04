@@ -246,7 +246,6 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "requires_fulfillment",
             payout_type: "bank",
           },
         },
@@ -269,7 +268,6 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "requires_fulfillment",
             payout_type: "bank",
           },
         },
@@ -293,7 +291,6 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "requires_fulfillment",
             payout_type: "bank",
           },
         },
@@ -343,7 +340,6 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "requires_fulfillment",
             payout_type: "bank",
           },
         },
@@ -367,7 +363,6 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "requires_fulfillment",
             payout_type: "bank",
           },
         },
@@ -391,7 +386,6 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "requires_fulfillment",
             payout_type: "bank",
           },
         },
@@ -415,7 +409,6 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "requires_fulfillment",
             payout_type: "bank",
           },
         },
