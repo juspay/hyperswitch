@@ -1581,10 +1581,14 @@ impl ConnectorSpecifications for Worldpayxml {
                             hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(
                                 ref google_pay_data,
                             ),
-                        ) if let GpayTokenizationData::Decrypted(ref token) =
-                            google_pay_data.tokenization_data =>
-                        {
-                            !(token.cryptogram.is_some() && token.eci_indicator.is_some())
+                        ) => {
+                            if let GpayTokenizationData::Decrypted(ref token) =
+                                google_pay_data.tokenization_data
+                            {
+                                !(token.cryptogram.is_some() && token.eci_indicator.is_some())
+                            } else {
+                                false
+                            }
                         }
                         _ => false,
                     }

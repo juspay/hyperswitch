@@ -824,13 +824,21 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<bytes::Bytes>>
 
         let bin = match &item.data.request.payment_method_data {
             PaymentMethodData::Card(ref card_info) => card_info.card_number.get_card_isin(),
-            PaymentMethodData::Wallet(WalletData::GooglePay(ref gpay_decrypt_data))
-                if let GpayTokenizationData::Decrypted(ref gpay_decrypt_data) =
-                    gpay_decrypt_data.tokenization_data =>
-            {
-                gpay_decrypt_data
-                    .application_primary_account_number
-                    .get_card_isin()
+            PaymentMethodData::Wallet(WalletData::GooglePay(ref gpay_decrypt_data)) => {
+                match gpay_decrypt_data.tokenization_data {
+                    GpayTokenizationData::Decrypted(ref gpay_decrypt_data) => gpay_decrypt_data
+                        .application_primary_account_number
+                        .get_card_isin(),
+                    GpayTokenizationData::Encrypted(_) => {
+                        return Err(errors::ConnectorError::NotSupported {
+                            message:
+                                "PreAuthenticate flow is not supported for this payment method"
+                                    .to_string(),
+                            connector: "WorldpayWPG",
+                        }
+                        .into())
+                    }
+                }
             }
             _ => {
                 return Err(errors::ConnectorError::NotSupported {
