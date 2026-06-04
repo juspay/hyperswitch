@@ -31,8 +31,71 @@ pub type UnifiedConnectorServiceResult<T> = CustomResult<T, UnifiedConnectorServ
 pub struct UnifiedConnectorServiceClient {
     /// The Unified Connector Service Client
     pub client: PaymentServiceClient<tonic::transport::Channel>,
+    /// Raw channel used for UCS methods that may not be present in the pinned generated client yet.
+    pub refund_service_channel: tonic::transport::Channel,
     /// The Refund Service Client
     pub refund_client: RefundServiceClient<tonic::transport::Channel>,
+}
+
+/// Compatibility request for RefundService.Reverse until the pinned UCS client
+/// crate exposes the generated type.
+#[allow(missing_docs)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RefundServiceReverseRequest {
+    #[prost(string, optional, tag = "1")]
+    pub merchant_refund_id: Option<String>,
+    #[prost(string, tag = "2")]
+    pub connector_transaction_id: String,
+    #[prost(string, tag = "3")]
+    pub connector_refund_id: String,
+    #[prost(string, optional, tag = "4")]
+    pub cancellation_reason: Option<String>,
+    #[prost(message, optional, tag = "5")]
+    pub browser_info: Option<payments_grpc::BrowserInformation>,
+    #[prost(message, optional, tag = "6")]
+    pub refund_metadata: Option<Secret<String>>,
+    #[prost(message, optional, tag = "7")]
+    pub state: Option<RefundReverseConnectorState>,
+    #[prost(bool, optional, tag = "8")]
+    pub test_mode: Option<bool>,
+    #[prost(enumeration = "payments_grpc::PaymentMethodType", optional, tag = "9")]
+    pub payment_method_type: Option<i32>,
+    #[prost(message, optional, tag = "10")]
+    pub connector_feature_data: Option<Secret<String>>,
+    #[prost(string, optional, tag = "11")]
+    pub merchant_request_id: Option<String>,
+    #[prost(string, optional, tag = "12")]
+    pub connector_order_id: Option<String>,
+}
+
+#[allow(missing_docs)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RefundReverseConnectorState {
+    #[prost(message, optional, tag = "1")]
+    pub access_token: Option<payments_grpc::AccessToken>,
+    #[prost(string, optional, tag = "2")]
+    pub connector_customer_id: Option<String>,
+    #[prost(message, optional, tag = "3")]
+    pub state_metadata: Option<Secret<String>>,
+}
+
+#[allow(missing_docs)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RefundReverseResponse {
+    #[prost(string, optional, tag = "1")]
+    pub merchant_refund_id: Option<String>,
+    #[prost(string, tag = "2")]
+    pub connector_refund_id: String,
+    #[prost(int32, tag = "3")]
+    pub status: i32,
+    #[prost(uint32, tag = "5")]
+    pub status_code: u32,
+    #[prost(message, optional, tag = "20")]
+    pub state: Option<RefundReverseConnectorState>,
+    #[prost(message, optional, tag = "21")]
+    pub raw_connector_response: Option<Secret<String>>,
+    #[prost(message, optional, tag = "22")]
+    pub raw_connector_request: Option<Secret<String>>,
 }
 
 /// Contains the Unified Connector Service Client config
@@ -124,23 +187,34 @@ impl UnifiedConnectorServiceClient {
 
                 let refund_client_result = timeout(
                     Duration::from_secs(unified_connector_service_client_config.connection_timeout),
-                    RefundServiceClient::connect(uri),
+                    RefundServiceClient::connect(uri.clone()),
                 )
                 .await;
 
-                match (payment_client_result, refund_client_result) {
-                    (Ok(Ok(client)), Ok(Ok(refund_client))) => {
+                let refund_service_channel_result = timeout(
+                    Duration::from_secs(unified_connector_service_client_config.connection_timeout),
+                    tonic::transport::Channel::builder(uri.clone()).connect(),
+                )
+                .await;
+
+                match (
+                    payment_client_result,
+                    refund_client_result,
+                    refund_service_channel_result,
+                ) {
+                    (Ok(Ok(client)), Ok(Ok(refund_client)), Ok(Ok(refund_service_channel))) => {
                         logger::info!("Successfully connected to Unified Connector Service");
                         Some(Self {
                             client,
+                            refund_service_channel,
                             refund_client,
                         })
                     }
-                    (Ok(Err(err)), _) | (_, Ok(Err(err))) => {
+                    (Ok(Err(err)), _, _) | (_, Ok(Err(err)), _) | (_, _, Ok(Err(err))) => {
                         logger::error!(error = ?err, "Failed to connect to Unified Connector Service");
                         None
                     }
-                    (Err(err), _) | (_, Err(err)) => {
+                    (Err(err), _, _) | (_, Err(err), _) | (_, _, Err(err)) => {
                         logger::error!(error = ?err, "Connection to Unified Connector Service timed out");
                         None
                     }
@@ -758,6 +832,48 @@ impl UnifiedConnectorServiceClient {
                     method="refund_sync",
                     connector_name=?connector_name,
                     "UCS refund sync gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs Refund Reverse/Void
+    pub async fn refund_reverse(
+        &self,
+        refund_reverse_request: RefundServiceReverseRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<RefundReverseResponse>> {
+        let mut request = tonic::Request::new(refund_reverse_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        let mut grpc = tonic::client::Grpc::new(self.refund_service_channel.clone());
+        grpc.ready()
+            .await
+            .change_context(UnifiedConnectorServiceError::RefundSyncFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="refund_reverse",
+                    connector_name=?connector_name,
+                    "UCS refund reverse gRPC client not ready"
+                )
+            })?;
+
+        let path =
+            tonic::codegen::http::uri::PathAndQuery::from_static("/ucs.v2.RefundService/Reverse");
+        grpc.unary(request, path, tonic_prost::ProstCodec::default())
+            .await
+            .change_context(UnifiedConnectorServiceError::RefundSyncFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="refund_reverse",
+                    connector_name=?connector_name,
+                    "UCS refund reverse gRPC call failed"
                 )
             })
     }
