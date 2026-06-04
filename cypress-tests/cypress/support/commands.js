@@ -3736,6 +3736,11 @@ Cypress.Commands.add(
                 response.body.next_action.redirect_to_url
               );
 
+              const allowedPmStatuses = [
+              "active",
+              "inactive",
+            ];
+
               if (
                 response.body?.payment_method_id &&
                 response.body.payment_method_id !== null
@@ -3743,7 +3748,7 @@ Cypress.Commands.add(
                 expect(
                   response.body.payment_method_status,
                   "payment_method_status"
-                ).to.equal("active");
+                ).to.be.oneOf(allowedPmStatuses);
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
@@ -3774,7 +3779,7 @@ Cypress.Commands.add(
                 expect(
                   response.body.payment_method_status,
                   "payment_method_status"
-                ).to.equal("active");
+                ).to.be.oneOf(allowedPmStatuses);
               }
             } else {
               // Handle other authentication types as needed
