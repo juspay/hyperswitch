@@ -4830,11 +4830,13 @@ Cypress.Commands.add("verifyAchMicrodepositCallTest", (globalState) => {
         cy.visit(hostedUrl);
         // Stripe uses p-CodePuncher-controllingInput which has opacity:0 — use force:true
         // Append {enter} to submit the form since the button lacks type="submit"
+        // eslint-disable-next-line cypress/no-force
         cy.get("input.p-CodePuncher-controllingInput").type("11AA{enter}", {
           force: true,
         });
         // Wait for Stripe's internal verify_microdeposits fetch to complete before
         // Cypress moves on — the fetch is async and fires after the {enter} keypress
+        // eslint-disable-next-line cypress/no-unnecessary-waiting
         cy.wait(5000);
       }
     );
