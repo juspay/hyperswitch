@@ -3,7 +3,7 @@ use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use super::generics;
 use crate::{
     address::{Address, AddressNew, AddressUpdateInternal},
-    errors,
+    errors, kv,
     schema::address::dsl,
     PgPooledConn, StorageResult,
 };
@@ -11,6 +11,13 @@ use crate::{
 impl AddressNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Address> {
         generics::generic_insert(conn, self).await
+    }
+
+    pub async fn generate_drainer_insert_query(
+        self,
+        conn: &mut PgPooledConn,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_insert_query(conn, self).await
     }
 }
 
@@ -137,6 +144,21 @@ impl Address {
         generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             address_id.to_owned(),
+        )
+        .await
+    }
+}
+
+impl AddressUpdateInternal {
+    pub async fn generate_drainer_update_query(
+        self,
+        conn: &mut PgPooledConn,
+        address_id: String,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_update_query_with_predicate::<<Address as HasTable>::Table, _, _>(
+            conn,
+            dsl::address_id.eq(address_id),
+            self,
         )
         .await
     }
