@@ -147,7 +147,7 @@ pub async fn retrieve_dispute(
                     id: payment_attempt.profile_id.get_string_repr().to_owned(),
                 })?;
 
-            update_dispute_data(
+            Box::pin(update_dispute_data(
                 &state,
                 platform.clone(),
                 business_profile,
@@ -155,7 +155,7 @@ pub async fn retrieve_dispute(
                 dispute_sync_response,
                 payment_attempt,
                 dispute.connector.as_str(),
-            )
+            ))
             .await
             .attach_printable("Dispute update failed")?
         } else {
@@ -571,7 +571,7 @@ pub async fn submit_evidence(
 
 pub async fn attach_evidence(
     state: SessionState,
-    processor: domain::Processor,
+    platform: domain::Platform,
     profile_id: Option<common_utils::id_type::ProfileId>,
     attach_evidence_request: api::AttachEvidenceRequest,
 ) -> RouterResponse<files_api_models::CreateFileResponse> {
@@ -583,7 +583,7 @@ pub async fn attach_evidence(
         .ok_or(errors::ApiErrorResponse::MissingDisputeId)?;
     let dispute = db
         .find_dispute_by_processor_merchant_id_dispute_id(
-            processor.get_account().get_id(),
+            platform.get_processor().get_account().get_id(),
             &dispute_id,
         )
         .await
@@ -606,7 +606,7 @@ pub async fn attach_evidence(
     )?;
     let create_file_response = Box::pin(files::files_create_core(
         state.clone(),
-        processor,
+        platform,
         attach_evidence_request.create_file_request,
     ))
     .await?;
@@ -855,11 +855,23 @@ pub async fn fetch_disputes_from_connector(
         .await;
 
         if payment_attempt.is_ok() {
+            let payment_id = payment_attempt
+                .as_ref()
+                .ok()
+                .map(|pa| pa.payment_id.clone());
+            let connector_enum = connector_name
+                .parse::<common_enums::connector_enums::Connector>()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Invalid connector name")?;
+            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+                .with_connector(connector_enum);
             let schedule_time = process_dispute::get_sync_process_schedule_time(
                 &*state.store,
-                &connector_name,
-                platform.get_processor().get_account().get_id(),
+                state.superposition_service.as_ref(),
+                &dimensions,
                 0,
+                payment_id.as_ref(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -924,16 +936,24 @@ pub async fn update_dispute_data(
     let disputes_response: dispute_models::DisputeResponse = dispute_object.clone().foreign_into();
     let event_type: storage_enums::EventType = dispute_details.dispute_status.into();
 
+    let webhook_recipient = webhooks::utils::resolve_webhook_recipient_from_created_by(
+        state,
+        &platform,
+        &business_profile,
+        payment_attempt.created_by.as_ref(),
+    )
+    .await?;
+
     Box::pin(webhooks::create_event_and_trigger_outgoing_webhook(
         state.clone(),
-        platform.get_processor().clone(),
-        business_profile,
+        platform.clone(),
         event_type,
         storage_enums::EventClass::Disputes,
         dispute_object.dispute_id.clone(),
         storage_enums::EventObjectType::DisputeDetails,
         api::OutgoingWebhookContent::DisputeDetails(Box::new(disputes_response.clone())),
         Some(dispute_object.created_at),
+        webhook_recipient,
     ))
     .await?;
     Ok(disputes_response)

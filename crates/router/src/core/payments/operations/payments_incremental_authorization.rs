@@ -1,13 +1,11 @@
 use std::marker::PhantomData;
 
-use api_models::{
-    enums::FrmSuggestion,
-    payments::{MandateTransactionType, PaymentsIncrementalAuthorizationRequest},
-};
+use api_models::{enums::FrmSuggestion, payments::PaymentsIncrementalAuthorizationRequest};
 use async_trait::async_trait;
 use common_utils::errors::CustomResult;
 use diesel_models::authorization::AuthorizationNew;
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::mandates::MandateTransactionType;
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -51,7 +49,7 @@ impl<F: Send + Clone + Sync>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
+        _payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<
         operations::GetTrackerResponse<
@@ -394,6 +392,7 @@ impl<F: Clone + Send + Sync>
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut payments::PaymentData<F>,
         _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {

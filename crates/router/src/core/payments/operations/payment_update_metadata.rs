@@ -1,9 +1,10 @@
 use std::marker::PhantomData;
 
-use api_models::{enums::FrmSuggestion, payments::MandateTransactionType};
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::mandates;
 use hyperswitch_masking::ExposeInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -45,7 +46,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
+        _payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsUpdateMetadataRequest, PaymentData<F>>,
@@ -217,7 +218,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsUpdateMetadataRequest, Payme
         _provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
-        _mandate_type: Option<MandateTransactionType>,
+        _mandate_type: Option<mandates::MandateTransactionType>,
     ) -> errors::CustomResult<
         (
             PaymentUpdateMetadataOperation<'a, F>,
@@ -260,6 +261,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsUpdateMetadataRequest, Payme
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
     ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {

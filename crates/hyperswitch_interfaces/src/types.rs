@@ -10,12 +10,12 @@ use hyperswitch_domain_models::{
         mandate_revoke::MandateRevoke,
         merchant_connector_webhook_management::ConnectorWebhookRegister,
         payments::{
-            Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
-            CreateConnectorCustomer, CreateOrder, ExtendAuthorization, GenerateQr,
-            IncrementalAuthorization, InitPayment, PSync, PaymentMethodToken, PostCaptureVoid,
-            PostCaptureVoidSync, PostProcessing, PostSessionTokens, PreProcessing,
-            PushNotification, SdkSessionUpdate, Session, SettlementSplitCreate, SetupMandate,
-            UpdateMetadata, Void,
+            Authorize, AuthorizeSessionToken, Balance, CalculateSurcharge, CalculateTax, Capture,
+            CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer,
+            CreateOrder, ExtendAuthorization, GenerateQr, IncrementalAuthorization, InitPayment,
+            PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens,
+            PreProcessing, PushNotification, SdkSessionUpdate, Session, SettlementSplitCreate,
+            SetupMandate, UpdateMetadata, Void, PostCaptureVoidSync,
         },
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, InvoiceRecordBack},
@@ -56,14 +56,15 @@ use hyperswitch_domain_models::{
         FetchDisputesRequestData, GenerateQrRequestData, GiftCardBalanceCheckRequestData,
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
-        PaymentsCancelPostCaptureSyncData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
-        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PushNotificationRequestData,
-        RefundsData, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
-        SettlementSplitRequestData, SetupMandateRequestData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
+        PaymentsCaptureData, PaymentsCompleteRefundSurchrgeData, PaymentsCompleteSurchargeData,
+        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSurchargeCalculationData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, PushNotificationRequestData, RefundsData,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
+        SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
+        VaultRequestData, VerifyWebhookSourceRequestData, PaymentsCancelPostCaptureSyncData,
     },
     router_response_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
@@ -76,11 +77,12 @@ use hyperswitch_domain_models::{
             GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
             SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
-        AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
+        AcceptDisputeResponse, CompleteRefundSurchrgeResponseData, CompleteSurchargeResponseData,
+        DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
         GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
         RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
-        VerifyWebhookSourceResponseData,
+        SurchargeCalculationResponseData, TaxCalculationResponseData, UploadFileResponse,
+        VaultResponseData, VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -119,6 +121,24 @@ pub type PaymentsAuthorizeType =
 /// Type alias for `ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>`
 pub type PaymentsTaxCalculationType =
     dyn ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>;
+/// Type alias for `ConnectorIntegration<CalculateSurcharge, PaymentsSurchargeCalculationData, SurchargeCalculationResponseData>`
+pub type SurchargeCalculationType = dyn ConnectorIntegration<
+    CalculateSurcharge,
+    PaymentsSurchargeCalculationData,
+    SurchargeCalculationResponseData,
+>;
+/// Type alias for `ConnectorIntegration<CompleteSurcharge, PaymentsCompleteSurchargeData, CompleteSurchargeResponseData>`
+pub type CompleteSurchargeType = dyn ConnectorIntegration<
+    CompleteSurcharge,
+    PaymentsCompleteSurchargeData,
+    CompleteSurchargeResponseData,
+>;
+/// Type alias for `ConnectorIntegration<CompleteRefundSurchrge, PaymentsCompleteRefundSurchrgeData, CompleteRefundSurchrgeResponseData>`
+pub type CompleteRefundSurchrgeType = dyn ConnectorIntegration<
+    CompleteRefundSurchrge,
+    PaymentsCompleteRefundSurchrgeData,
+    CompleteRefundSurchrgeResponseData,
+>;
 /// Type alias for `ConnectorIntegration<PostSessionTokens, PaymentsPostSessionTokensData, PaymentsResponseData>`
 pub type PaymentsPostSessionTokensType = dyn ConnectorIntegration<
     PostSessionTokens,

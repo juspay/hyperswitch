@@ -10,6 +10,8 @@ use hyperswitch_domain_models::{
 use hyperswitch_masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface, RedisStore};
 mod address;
+pub mod authentication;
+pub mod behaviour;
 pub mod business_profile;
 pub mod callback_mapper;
 pub mod card_issuer;
@@ -69,6 +71,11 @@ impl<T: DatabaseStore> RouterStore<T> {
         self.key_manager_state
             .as_ref()
             .ok_or_else(|| StorageError::DecryptionError)
+    }
+    pub fn update_key_manager_request_id(&mut self, request_id: String) {
+        if let Some(ref mut km_state) = self.key_manager_state {
+            km_state.request_id = Some(request_id);
+        }
     }
 }
 

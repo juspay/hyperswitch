@@ -1,12 +1,14 @@
 //! Create payment method flow types and dummy models.
-use api_models::payments;
+use api_models::{payment_methods::BankRedirectDetail, payments};
 use cards::CardNumber;
 use common_utils::{
     id_type, pii,
     request::{Method, RequestContent},
     types::MinorUnit,
 };
-use hyperswitch_domain_models::payment_method_data::{BankDebitData, PaymentMethodData};
+use hyperswitch_domain_models::payment_method_data::{
+    BankDebitData, BankRedirectData, PaymentMethodData,
+};
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -40,7 +42,6 @@ pub struct ModularPMCreateRequest {
     pub customer_id: id_type::CustomerId, // Payment method data will be saved when customer acceptance is given, hence customer id will always be present
     pub payment_method_data: PaymentMethodCreateData,
     pub billing: Option<payments::Address>,
-    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub storage_type: Option<common_enums::StorageType>,
 }
@@ -75,6 +76,7 @@ pub enum PaymentMethodCreateData {
     Card(CardDetail),
     BankDebit(BankDebitDetail),
     Wallet(WalletPaymentMethodData),
+    BankRedirect(BankRedirectDetail),
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -175,6 +177,24 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                     ),
                 }),
             },
+            PaymentMethodData::BankRedirect(bank_redirect) => match bank_redirect {
+                BankRedirectData::BancontactCard {
+                    card_number: _,
+                    card_exp_month: _,
+                    card_exp_year: _,
+                    card_holder_name: _,
+                } => {
+                    let bank_redirect_detail = BankRedirectDetail::BancontactCard {};
+                    Ok(Self::BankRedirect(bank_redirect_detail))
+                }
+                _ => Err(MicroserviceClientError {
+                    operation: "CreatePaymentMethodV1Request to ModularPMCreateRequest".to_string(),
+                    kind: MicroserviceClientErrorKind::InvalidRequest(
+                        "Only BancontactCard bank redirect is supported for modular PM creation"
+                            .to_string(),
+                    ),
+                }),
+            },
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(apple_pay) => {
                     let wallet_info = api_models::payment_methods::PaymentMethodDataWalletInfo {
@@ -257,7 +277,6 @@ impl TryFrom<&CreatePaymentMethodV1Request> for ModularPMCreateRequest {
                 .billing
                 .as_ref()
                 .map(|billing| billing.clone().into()),
-            psp_tokenization: None,
             network_tokenization: request.network_tokenization.clone(),
             storage_type: request.storage_type,
         })

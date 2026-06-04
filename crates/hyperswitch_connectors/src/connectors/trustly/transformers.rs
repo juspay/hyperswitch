@@ -154,6 +154,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TrustlyPaymentsResponse, T, PaymentsRes
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -564,7 +565,10 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for RegisterAccountRe
                 BankTransfer::Sepa(_)
                 | BankTransfer::Ach(_)
                 | BankTransfer::Bacs(_)
-                | BankTransfer::Pix(_) => Err(ConnectorError::NotImplemented(
+                | BankTransfer::Pix(_)
+                | BankTransfer::PixKey(_)
+                | BankTransfer::PixEmv(_)
+                | BankTransfer::OpenBanking(_) => Err(ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("Trustly"),
                 ))?,
             },
@@ -745,7 +749,10 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for AccountPayoutRequ
                 BankTransfer::Sepa(_)
                 | BankTransfer::Ach(_)
                 | BankTransfer::Bacs(_)
-                | BankTransfer::Pix(_) => Err(ConnectorError::NotImplemented(
+                | BankTransfer::Pix(_)
+                | BankTransfer::PixKey(_)
+                | BankTransfer::PixEmv(_)
+                | BankTransfer::OpenBanking(_) => Err(ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("Trustly"),
                 ))?,
             },
@@ -1080,15 +1087,15 @@ pub struct TrustlyWebhookData {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TrustlyWebhookAttributes {
-    pub bank: Secret<String>,
-    pub city: Secret<String>,
-    pub name: Secret<String>,
-    pub address: Secret<String>,
-    pub zipcode: Secret<String>,
-    pub personid: Secret<String>,
-    pub descriptor: String,
-    pub lastdigits: String,
-    pub clearinghouse: String,
+    pub bank: Option<Secret<String>>,
+    pub city: Option<Secret<String>>,
+    pub name: Option<Secret<String>>,
+    pub address: Option<Secret<String>>,
+    pub zipcode: Option<Secret<String>>,
+    pub personid: Option<Secret<String>>,
+    pub descriptor: Option<String>,
+    pub lastdigits: Option<String>,
+    pub clearinghouse: Option<String>,
 }
 
 pub fn is_payment_webhook_event(webhook_method: TrustlyWebhookMethod, message_id: String) -> bool {
