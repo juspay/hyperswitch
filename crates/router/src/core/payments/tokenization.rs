@@ -285,7 +285,6 @@ where
                         &customer_id.clone(),
                         billing_name,
                         payment_method_billing_address,
-                        save_payment_method_data.payment_method_token.clone(),
                     )
                     .await?;
                 let payment_methods_data =
@@ -2147,7 +2146,6 @@ async fn generate_network_token_and_update_payment_method(
                 &customer_id.clone(),
                 billing_name,
                 payment_method_billing_address,
-                None,
             )
             .await?;
 

@@ -3,6 +3,7 @@ use api_models::payments::PaymentConnectorInvokeDDCMetadata;
 use api_models::payouts::{ApplePayDecrypt, CardPayout, GooglePayDecrypt};
 use base64::Engine;
 use common_enums::enums;
+use common_types::payments::GpayTokenizationData;
 #[cfg(feature = "payouts")]
 use common_utils::pii;
 use common_utils::types::StringMinorUnit;
@@ -910,7 +911,6 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentDetails {
 fn build_google_pay_payment_details(
     gpay_data: &GooglePayWalletData,
     capture_method: Option<enums::CaptureMethod>,
-    payment_method_token: Option<PaymentMethodToken>,
     session: Option<Session>,
     is_cit_mandate_payment: bool,
     mit_category: Option<common_enums::MitCategory>,
@@ -932,65 +932,57 @@ fn build_google_pay_payment_details(
     } else {
         Some(Action::Sale)
     };
+    let payment_method = match gpay_data.tokenization_data {
+        GpayTokenizationData::Decrypted(ref gpay_decrypt_data) => {
+            // If cryptogram is present, use EMVCO token SSL; otherwise fallback to CardSSL
+            if let Some(cryptogram) = &gpay_decrypt_data.cryptogram {
+                PaymentMethod::EmvcoTokenSSL(EmvcoTokenData {
+                    token_type: EmvcoTokenType::Googlepay,
+                    token_number: gpay_decrypt_data.application_primary_account_number.clone(),
+                    expiry_date: ExpiryDate {
+                        date: Date {
+                            month: gpay_decrypt_data.card_exp_month.clone(),
+                            year: gpay_decrypt_data
+                                .get_four_digit_expiry_year()
+                                .change_context(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "gpay expiry year",
+                                })?,
+                        },
+                    },
+                    card_holder_name: customer_name.clone(),
+                    cryptogram: Some(cryptogram.clone()),
+                    eci_indicator: gpay_decrypt_data.eci_indicator.clone(),
+                })
+            } else {
+                // Fallback to CardSSL when cryptogram is not available
+                PaymentMethod::CardSSL(CardSSL {
+                    card_number: gpay_decrypt_data.application_primary_account_number.clone(),
+                    expiry_date: ExpiryDate {
+                        date: Date {
+                            month: gpay_decrypt_data.card_exp_month.clone(),
+                            year: gpay_decrypt_data
+                                .get_four_digit_expiry_year()
+                                .change_context(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "gpay expiry year",
+                                })?,
+                        },
+                    },
+                    card_holder_name: customer_name.clone(),
+                    cvc: None,
+                })
+            }
+        }
 
-    let payment_method = if let Some(PaymentMethodToken::GooglePayDecrypt(gpay_decrypt_data)) =
-        payment_method_token
-    {
-        // If cryptogram is present, use EMVCO token SSL; otherwise fallback to CardSSL
-        if let Some(cryptogram) = &gpay_decrypt_data.cryptogram {
-            // if true {
-            PaymentMethod::EmvcoTokenSSL(EmvcoTokenData {
-                token_type: EmvcoTokenType::Googlepay,
-                token_number: gpay_decrypt_data.application_primary_account_number.clone(),
-                expiry_date: ExpiryDate {
-                    date: Date {
-                        month: gpay_decrypt_data.card_exp_month.clone(),
-                        year: gpay_decrypt_data
-                            .get_four_digit_expiry_year()
-                            .change_context(errors::ConnectorError::MissingRequiredField {
-                                field_name: "gpay expiry year",
-                            })?,
-                    },
-                },
-                card_holder_name: customer_name.clone(),
-                cryptogram: Some(cryptogram.clone()),
-                eci_indicator: gpay_decrypt_data.eci_indicator.clone(),
-            })
-        } else {
-            // Fallback to CardSSL when cryptogram is not available
-            PaymentMethod::CardSSL(CardSSL {
-                card_number: gpay_decrypt_data.application_primary_account_number.clone(),
-                expiry_date: ExpiryDate {
-                    date: Date {
-                        month: gpay_decrypt_data.card_exp_month.clone(),
-                        year: gpay_decrypt_data
-                            .get_four_digit_expiry_year()
-                            .change_context(errors::ConnectorError::MissingRequiredField {
-                                field_name: "gpay expiry year",
-                            })?,
-                    },
-                },
-                card_holder_name: customer_name.clone(),
-                cvc: None,
+        GpayTokenizationData::Encrypted(ref token_string) => {
+            let parsed_token = serde_json::from_str::<GooglePayData>(&token_string.token)
+                .change_context(errors::ConnectorError::ParsingFailed)?;
+
+            PaymentMethod::PayWithGoogleSSL(GooglePayData {
+                protocol_version: parsed_token.protocol_version,
+                signature: parsed_token.signature,
+                signed_message: parsed_token.signed_message.clone(),
             })
         }
-    } else {
-        let token_string = gpay_data
-            .tokenization_data
-            .get_encrypted_google_pay_token()
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "gpay wallet_token",
-            })?
-            .to_owned();
-
-        let parsed_token = serde_json::from_str::<GooglePayData>(&token_string)
-            .change_context(errors::ConnectorError::ParsingFailed)?;
-
-        PaymentMethod::PayWithGoogleSSL(GooglePayData {
-            protocol_version: parsed_token.protocol_version,
-            signature: parsed_token.signature,
-            signed_message: parsed_token.signed_message.clone(),
-        })
     };
 
     Ok(PaymentDetails {
@@ -1001,27 +993,14 @@ fn build_google_pay_payment_details(
     })
 }
 
-impl
-    TryFrom<(
-        &GooglePayWalletData,
-        PaymentsAuthorizeData,
-        Option<PaymentMethodToken>,
-        Option<Session>,
-    )> for PaymentDetails
-{
+impl TryFrom<(&GooglePayWalletData, PaymentsAuthorizeData, Option<Session>)> for PaymentDetails {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (gpay_data, item, payment_method_token, session): (
-            &GooglePayWalletData,
-            PaymentsAuthorizeData,
-            Option<PaymentMethodToken>,
-            Option<Session>,
-        ),
+        (gpay_data, item, session): (&GooglePayWalletData, PaymentsAuthorizeData, Option<Session>),
     ) -> Result<Self, Self::Error> {
         build_google_pay_payment_details(
             gpay_data,
             item.capture_method,
-            payment_method_token,
             session,
             item.is_cit_mandate_payment(),
             item.mit_category,
@@ -1034,27 +1013,26 @@ impl
     TryFrom<(
         &GooglePayWalletData,
         CompleteAuthorizeData,
-        Option<PaymentMethodToken>,
         Option<Session>,
+        Option<Secret<String>>, //customer name
     )> for PaymentDetails
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (gpay_data, item, payment_method_token, session): (
+        (gpay_data, item, session, customer_name): (
             &GooglePayWalletData,
             CompleteAuthorizeData,
-            Option<PaymentMethodToken>,
             Option<Session>,
+            Option<Secret<String>>,
         ),
     ) -> Result<Self, Self::Error> {
         build_google_pay_payment_details(
             gpay_data,
             item.capture_method,
-            payment_method_token,
             session,
             item.is_cit_mandate_payment(),
             None,
-            None,
+            customer_name,
         )
     }
 }
@@ -1389,7 +1367,6 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
                 WalletData::GooglePay(google_pay_data) => PaymentDetails::try_from((
                     &google_pay_data,
                     item.router_data.request.clone(),
-                    item.router_data.payment_method_token.clone(),
                     session,
                 ))?,
                 WalletData::ApplePay(apple_pay_data) => PaymentDetails::try_from((
@@ -2334,32 +2311,21 @@ impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for Pa
                 .router_data
                 .get_optional_shipping()
                 .and_then(get_address_details);
-
-            println!(
-                "Payment method data xmla: {:?} {:?}",
-                serde_json::to_string(&item.router_data.request.payment_method_data.clone())
-                    .unwrap(),
-                serde_json::to_string(&item.router_data.payment_method_token.clone()).unwrap()
-            );
+            let customer_name = item.router_data.get_billing_full_name()?;
             let payment_details = match item.router_data.request.payment_method_data.clone() {
                 Some(PaymentMethodData::Card(req_card)) => PaymentDetails::try_from((
                     &req_card,
                     item.router_data.request.capture_method,
                     session,
                 ))?,
-                Some(PaymentMethodData::Wallet(wallet_data)) => match wallet_data {
-                    WalletData::GooglePay(google_pay_data) => PaymentDetails::try_from((
+                Some(PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data))) => {
+                    PaymentDetails::try_from((
                         &google_pay_data,
                         item.router_data.request.clone(),
-                        item.router_data.payment_method_token.clone(),
                         session,
-                    ))?,
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        connector_utils::get_unimplemented_payment_method_error_message(
-                            "Worldpayxml",
-                        ),
-                    ))?,
-                },
+                        Some(customer_name),
+                    ))?
+                }
                 _ => Err(errors::ConnectorError::NotImplemented(
                     connector_utils::get_unimplemented_payment_method_error_message("Worldpayxml"),
                 ))?,

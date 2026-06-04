@@ -3,6 +3,7 @@ pub mod transformers;
 use std::sync::LazyLock;
 
 use base64::Engine;
+use common_types::payments::GpayTokenizationData;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -65,9 +66,7 @@ use transformers as worldpayxml;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{
-        self, ForeignTryFrom, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-    },
+    utils::{self, ForeignTryFrom, PaymentsCompleteAuthorizeRequestData},
 };
 
 #[derive(Clone)]
@@ -1574,17 +1573,21 @@ impl ConnectorSpecifications for Worldpayxml {
                 request_data,
                 auth_type,
             } => {
-                // add payment method token also
+                // Googlepay would require 3ds if cryptogram is not present which indicates it is Fpan
                 auth_type == common_enums::AuthenticationType::ThreeDs
-                    && matches!(
-                    request_data.payment_method_data,
-                    PaymentMethodData::Card(_)
-                        | PaymentMethodData::Wallet(
+                    && match request_data.payment_method_data {
+                        PaymentMethodData::Card(_) => true,
+                        PaymentMethodData::Wallet(
                             hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(
-                                _
-                            )
-                        )
-                )
+                                ref google_pay_data,
+                            ),
+                        ) if let GpayTokenizationData::Decrypted(ref token) =
+                            google_pay_data.tokenization_data =>
+                        {
+                            !(token.cryptogram.is_some() && token.eci_indicator.is_some())
+                        }
+                        _ => false,
+                    }
             }
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
