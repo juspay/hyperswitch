@@ -955,586 +955,586 @@ context("Skrill - Create and Confirm flow test", () => {
   });
 });
 
-  context("Stripe AliPay Create and Confirm flow test", () => {
-    let shouldContinue = true;
+context("Stripe AliPay Create and Confirm flow test", () => {
+  let shouldContinue = true;
 
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
-
-    it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["PaymentIntent"]("AliPay");
-
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("payment_methods-call-test", () => {
-      cy.paymentMethodsCallTest(globalState);
-    });
-
-    it("Confirm AliPay redirect", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["AliPay"];
-
-      cy.confirmBankRedirectCallTest(
-        fixtures.confirmBody,
-        data,
-        true,
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("Handle wallet redirection", () => {
-      const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
-      const nextActionUrl = globalState.get("nextActionUrl");
-
-      expect(
-        nextActionUrl,
-        "nextActionUrl should be defined before handling wallet redirection"
-      ).to.be.a("string");
-
-      cy.handleWalletRedirection(
-        globalState,
-        payment_method_type,
-        expected_redirection
-      );
-    });
-
-    it("Sync payment status", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["AliPay"];
-
-      cy.retrievePaymentCallTest({
-        globalState,
-        data,
-        expectedIntentStatus: "requires_customer_action",
-      });
-    });
+  beforeEach(function () {
+    if (!shouldContinue) {
+      this.skip();
+    }
   });
 
-  context("Stripe AmazonPay Create and Confirm flow test", () => {
-    let shouldContinue = true;
+  it("create-payment-call-test", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["PaymentIntent"]("AliPay");
 
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
-
-    it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["PaymentIntent"]("AmazonPay");
-
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("payment_methods-call-test", () => {
-      cy.paymentMethodsCallTest(globalState);
-    });
-
-    it("Confirm AmazonPay redirect", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["AmazonPay"];
-
-      cy.confirmBankRedirectCallTest(
-        fixtures.confirmBody,
-        data,
-        true,
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("Handle wallet redirection", () => {
-      const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
-      const nextActionUrl = globalState.get("nextActionUrl");
-
-      expect(
-        nextActionUrl,
-        "nextActionUrl should be defined before handling wallet redirection"
-      ).to.be.a("string");
-
-      cy.handleWalletRedirection(
-        globalState,
-        payment_method_type,
-        expected_redirection
-      );
-    });
-
-    it("Sync payment status", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["AmazonPay"];
-
-      cy.retrievePaymentCallTest({
-        globalState,
-        data,
-        expectedIntentStatus: "requires_customer_action",
-      });
-    });
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      data,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
+    if (shouldContinue) shouldContinue = should_continue_further(data);
   });
 
-  context("Stripe AmazonPay Mandate Create and Confirm flow test", () => {
-    let shouldContinue = true;
-
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
-
-    it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["PaymentIntent"]("AmazonPay");
-
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("payment_methods-call-test", () => {
-      cy.paymentMethodsCallTest(globalState);
-    });
-
-    it("Confirm AmazonPay mandate redirect", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["AmazonPayMandate"];
-
-      cy.confirmBankRedirectCallTest(
-        fixtures.confirmBody,
-        data,
-        true,
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("Handle wallet redirection", () => {
-      const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
-      const nextActionUrl = globalState.get("nextActionUrl");
-
-      expect(
-        nextActionUrl,
-        "nextActionUrl should be defined before handling wallet redirection"
-      ).to.be.a("string");
-
-      cy.handleWalletRedirection(
-        globalState,
-        payment_method_type,
-        expected_redirection
-      );
-    });
-
-    it("Sync payment status", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["AmazonPayMandate"];
-
-      cy.retrievePaymentCallTest({
-        globalState,
-        data,
-        expectedIntentStatus: "requires_customer_action",
-      });
-    });
+  it("payment_methods-call-test", () => {
+    cy.paymentMethodsCallTest(globalState);
   });
 
-  context("Stripe Cashapp Create and Confirm flow test", () => {
-    let shouldContinue = true;
+  it("Confirm AliPay redirect", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["AliPay"];
 
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
+    cy.confirmBankRedirectCallTest(
+      fixtures.confirmBody,
+      data,
+      true,
+      globalState
+    );
 
-    it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["PaymentIntent"]("Cashapp");
-
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("payment_methods-call-test", () => {
-      cy.paymentMethodsCallTest(globalState);
-    });
-
-    it("Confirm Cashapp redirect", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["Cashapp"];
-
-      cy.confirmBankRedirectCallTest(
-        fixtures.confirmBody,
-        data,
-        true,
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("Handle wallet redirection", () => {
-      const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
-      const nextActionUrl = globalState.get("nextActionUrl");
-
-      expect(
-        nextActionUrl,
-        "nextActionUrl should be defined before handling wallet redirection"
-      ).to.be.a("string");
-
-      cy.handleWalletRedirection(
-        globalState,
-        payment_method_type,
-        expected_redirection
-      );
-    });
-
-    it("Sync payment status", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["Cashapp"];
-
-      cy.retrievePaymentCallTest({
-        globalState,
-        data,
-        expectedIntentStatus: "requires_customer_action",
-      });
-    });
+    if (shouldContinue) shouldContinue = should_continue_further(data);
   });
 
-  context("Stripe Cashapp Mandate Create and Confirm flow test", () => {
-    let shouldContinue = true;
+  it("Handle wallet redirection", () => {
+    const expected_redirection = fixtures.confirmBody["return_url"];
+    const payment_method_type = globalState.get("paymentMethodType");
+    const nextActionUrl = globalState.get("nextActionUrl");
 
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
+    expect(
+      nextActionUrl,
+      "nextActionUrl should be defined before handling wallet redirection"
+    ).to.be.a("string");
 
-    it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["PaymentIntent"]("Cashapp");
-
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("payment_methods-call-test", () => {
-      cy.paymentMethodsCallTest(globalState);
-    });
-
-    it("Confirm Cashapp mandate redirect", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["CashappMandate"];
-
-      cy.confirmBankRedirectCallTest(
-        fixtures.confirmBody,
-        data,
-        true,
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("Handle wallet redirection", () => {
-      const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
-      const nextActionUrl = globalState.get("nextActionUrl");
-
-      expect(
-        nextActionUrl,
-        "nextActionUrl should be defined before handling wallet redirection"
-      ).to.be.a("string");
-
-      cy.handleWalletRedirection(
-        globalState,
-        payment_method_type,
-        expected_redirection
-      );
-    });
-
-    it("Sync payment status", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["CashappMandate"];
-
-      cy.retrievePaymentCallTest({
-        globalState,
-        data,
-        expectedIntentStatus: "requires_customer_action",
-      });
-    });
+    cy.handleWalletRedirection(
+      globalState,
+      payment_method_type,
+      expected_redirection
+    );
   });
 
-  context("Stripe RevolutPay Create and Confirm flow test", () => {
-    let shouldContinue = true;
+  it("Sync payment status", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["AliPay"];
 
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
-
-    it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["PaymentIntent"]("RevolutPay");
-
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("payment_methods-call-test", () => {
-      cy.paymentMethodsCallTest(globalState);
-    });
-
-    it("Confirm RevolutPay redirect", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["RevolutPay"];
-
-      cy.confirmBankRedirectCallTest(
-        fixtures.confirmBody,
-        data,
-        true,
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("Handle wallet redirection", () => {
-      const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
-      const nextActionUrl = globalState.get("nextActionUrl");
-
-      expect(
-        nextActionUrl,
-        "nextActionUrl should be defined before handling wallet redirection"
-      ).to.be.a("string");
-
-      cy.handleWalletRedirection(
-        globalState,
-        payment_method_type,
-        expected_redirection
-      );
-    });
-
-    it("Sync payment status", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["RevolutPay"];
-
-      cy.retrievePaymentCallTest({
-        globalState,
-        data,
-        expectedIntentStatus: "requires_customer_action",
-      });
+    cy.retrievePaymentCallTest({
+      globalState,
+      data,
+      expectedIntentStatus: "requires_customer_action",
     });
   });
+});
 
-  context("Stripe RevolutPay Mandate Create and Confirm flow test", () => {
-    let shouldContinue = true;
+context("Stripe AmazonPay Create and Confirm flow test", () => {
+  let shouldContinue = true;
 
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
-
-    it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["PaymentIntent"]("RevolutPay");
-
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("payment_methods-call-test", () => {
-      cy.paymentMethodsCallTest(globalState);
-    });
-
-    it("Confirm RevolutPay mandate redirect", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["RevolutPayMandate"];
-
-      cy.confirmBankRedirectCallTest(
-        fixtures.confirmBody,
-        data,
-        true,
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("Handle wallet redirection", () => {
-      const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
-      const nextActionUrl = globalState.get("nextActionUrl");
-
-      expect(
-        nextActionUrl,
-        "nextActionUrl should be defined before handling wallet redirection"
-      ).to.be.a("string");
-
-      cy.handleWalletRedirection(
-        globalState,
-        payment_method_type,
-        expected_redirection
-      );
-    });
-
-    it("Sync payment status", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["RevolutPayMandate"];
-
-      cy.retrievePaymentCallTest({
-        globalState,
-        data,
-        expectedIntentStatus: "requires_customer_action",
-      });
-    });
+  beforeEach(function () {
+    if (!shouldContinue) {
+      this.skip();
+    }
   });
 
-  context("Stripe WeChatPay Create and Confirm flow test", () => {
-    let shouldContinue = true;
+  it("create-payment-call-test", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["PaymentIntent"]("AmazonPay");
 
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      data,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
+    if (shouldContinue) shouldContinue = should_continue_further(data);
+  });
 
-    it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["PaymentIntent"]("WeChatPay");
+  it("payment_methods-call-test", () => {
+    cy.paymentMethodsCallTest(globalState);
+  });
 
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
+  it("Confirm AmazonPay redirect", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["AmazonPay"];
 
-    it("payment_methods-call-test", () => {
-      cy.paymentMethodsCallTest(globalState);
-    });
+    cy.confirmBankRedirectCallTest(
+      fixtures.confirmBody,
+      data,
+      true,
+      globalState
+    );
 
-    it("Confirm WeChatPay redirect", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["WeChatPay"];
+    if (shouldContinue) shouldContinue = should_continue_further(data);
+  });
 
-      cy.confirmBankRedirectCallTest(
-        fixtures.confirmBody,
-        data,
-        true,
-        globalState
-      );
+  it("Handle wallet redirection", () => {
+    const expected_redirection = fixtures.confirmBody["return_url"];
+    const payment_method_type = globalState.get("paymentMethodType");
+    const nextActionUrl = globalState.get("nextActionUrl");
 
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
+    expect(
+      nextActionUrl,
+      "nextActionUrl should be defined before handling wallet redirection"
+    ).to.be.a("string");
 
-    it("Handle wallet redirection", () => {
-      const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
-      const nextActionUrl = globalState.get("nextActionUrl");
+    cy.handleWalletRedirection(
+      globalState,
+      payment_method_type,
+      expected_redirection
+    );
+  });
 
-      expect(
-        nextActionUrl,
-        "nextActionUrl should be defined before handling wallet redirection"
-      ).to.be.a("string");
+  it("Sync payment status", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["AmazonPay"];
 
-      cy.handleWalletRedirection(
-        globalState,
-        payment_method_type,
-        expected_redirection
-      );
-    });
-
-    it("Sync payment status", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["WeChatPay"];
-
-      cy.retrievePaymentCallTest({
-        globalState,
-        data,
-        expectedIntentStatus: "requires_customer_action",
-      });
+    cy.retrievePaymentCallTest({
+      globalState,
+      data,
+      expectedIntentStatus: "requires_customer_action",
     });
   });
+});
+
+context("Stripe AmazonPay Mandate Create and Confirm flow test", () => {
+  let shouldContinue = true;
+
+  beforeEach(function () {
+    if (!shouldContinue) {
+      this.skip();
+    }
+  });
+
+  it("create-payment-call-test", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["PaymentIntent"]("AmazonPay");
+
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      data,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
+    if (shouldContinue) shouldContinue = should_continue_further(data);
+  });
+
+  it("payment_methods-call-test", () => {
+    cy.paymentMethodsCallTest(globalState);
+  });
+
+  it("Confirm AmazonPay mandate redirect", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["AmazonPayMandate"];
+
+    cy.confirmBankRedirectCallTest(
+      fixtures.confirmBody,
+      data,
+      true,
+      globalState
+    );
+
+    if (shouldContinue) shouldContinue = should_continue_further(data);
+  });
+
+  it("Handle wallet redirection", () => {
+    const expected_redirection = fixtures.confirmBody["return_url"];
+    const payment_method_type = globalState.get("paymentMethodType");
+    const nextActionUrl = globalState.get("nextActionUrl");
+
+    expect(
+      nextActionUrl,
+      "nextActionUrl should be defined before handling wallet redirection"
+    ).to.be.a("string");
+
+    cy.handleWalletRedirection(
+      globalState,
+      payment_method_type,
+      expected_redirection
+    );
+  });
+
+  it("Sync payment status", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["AmazonPayMandate"];
+
+    cy.retrievePaymentCallTest({
+      globalState,
+      data,
+      expectedIntentStatus: "requires_customer_action",
+    });
+  });
+});
+
+context("Stripe Cashapp Create and Confirm flow test", () => {
+  let shouldContinue = true;
+
+  beforeEach(function () {
+    if (!shouldContinue) {
+      this.skip();
+    }
+  });
+
+  it("create-payment-call-test", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["PaymentIntent"]("Cashapp");
+
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      data,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
+    if (shouldContinue) shouldContinue = should_continue_further(data);
+  });
+
+  it("payment_methods-call-test", () => {
+    cy.paymentMethodsCallTest(globalState);
+  });
+
+  it("Confirm Cashapp redirect", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["Cashapp"];
+
+    cy.confirmBankRedirectCallTest(
+      fixtures.confirmBody,
+      data,
+      true,
+      globalState
+    );
+
+    if (shouldContinue) shouldContinue = should_continue_further(data);
+  });
+
+  it("Handle wallet redirection", () => {
+    const expected_redirection = fixtures.confirmBody["return_url"];
+    const payment_method_type = globalState.get("paymentMethodType");
+    const nextActionUrl = globalState.get("nextActionUrl");
+
+    expect(
+      nextActionUrl,
+      "nextActionUrl should be defined before handling wallet redirection"
+    ).to.be.a("string");
+
+    cy.handleWalletRedirection(
+      globalState,
+      payment_method_type,
+      expected_redirection
+    );
+  });
+
+  it("Sync payment status", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["Cashapp"];
+
+    cy.retrievePaymentCallTest({
+      globalState,
+      data,
+      expectedIntentStatus: "requires_customer_action",
+    });
+  });
+});
+
+context("Stripe Cashapp Mandate Create and Confirm flow test", () => {
+  let shouldContinue = true;
+
+  beforeEach(function () {
+    if (!shouldContinue) {
+      this.skip();
+    }
+  });
+
+  it("create-payment-call-test", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["PaymentIntent"]("Cashapp");
+
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      data,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
+    if (shouldContinue) shouldContinue = should_continue_further(data);
+  });
+
+  it("payment_methods-call-test", () => {
+    cy.paymentMethodsCallTest(globalState);
+  });
+
+  it("Confirm Cashapp mandate redirect", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["CashappMandate"];
+
+    cy.confirmBankRedirectCallTest(
+      fixtures.confirmBody,
+      data,
+      true,
+      globalState
+    );
+
+    if (shouldContinue) shouldContinue = should_continue_further(data);
+  });
+
+  it("Handle wallet redirection", () => {
+    const expected_redirection = fixtures.confirmBody["return_url"];
+    const payment_method_type = globalState.get("paymentMethodType");
+    const nextActionUrl = globalState.get("nextActionUrl");
+
+    expect(
+      nextActionUrl,
+      "nextActionUrl should be defined before handling wallet redirection"
+    ).to.be.a("string");
+
+    cy.handleWalletRedirection(
+      globalState,
+      payment_method_type,
+      expected_redirection
+    );
+  });
+
+  it("Sync payment status", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["CashappMandate"];
+
+    cy.retrievePaymentCallTest({
+      globalState,
+      data,
+      expectedIntentStatus: "requires_customer_action",
+    });
+  });
+});
+
+context("Stripe RevolutPay Create and Confirm flow test", () => {
+  let shouldContinue = true;
+
+  beforeEach(function () {
+    if (!shouldContinue) {
+      this.skip();
+    }
+  });
+
+  it("create-payment-call-test", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["PaymentIntent"]("RevolutPay");
+
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      data,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
+    if (shouldContinue) shouldContinue = should_continue_further(data);
+  });
+
+  it("payment_methods-call-test", () => {
+    cy.paymentMethodsCallTest(globalState);
+  });
+
+  it("Confirm RevolutPay redirect", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["RevolutPay"];
+
+    cy.confirmBankRedirectCallTest(
+      fixtures.confirmBody,
+      data,
+      true,
+      globalState
+    );
+
+    if (shouldContinue) shouldContinue = should_continue_further(data);
+  });
+
+  it("Handle wallet redirection", () => {
+    const expected_redirection = fixtures.confirmBody["return_url"];
+    const payment_method_type = globalState.get("paymentMethodType");
+    const nextActionUrl = globalState.get("nextActionUrl");
+
+    expect(
+      nextActionUrl,
+      "nextActionUrl should be defined before handling wallet redirection"
+    ).to.be.a("string");
+
+    cy.handleWalletRedirection(
+      globalState,
+      payment_method_type,
+      expected_redirection
+    );
+  });
+
+  it("Sync payment status", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["RevolutPay"];
+
+    cy.retrievePaymentCallTest({
+      globalState,
+      data,
+      expectedIntentStatus: "requires_customer_action",
+    });
+  });
+});
+
+context("Stripe RevolutPay Mandate Create and Confirm flow test", () => {
+  let shouldContinue = true;
+
+  beforeEach(function () {
+    if (!shouldContinue) {
+      this.skip();
+    }
+  });
+
+  it("create-payment-call-test", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["PaymentIntent"]("RevolutPay");
+
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      data,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
+    if (shouldContinue) shouldContinue = should_continue_further(data);
+  });
+
+  it("payment_methods-call-test", () => {
+    cy.paymentMethodsCallTest(globalState);
+  });
+
+  it("Confirm RevolutPay mandate redirect", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["RevolutPayMandate"];
+
+    cy.confirmBankRedirectCallTest(
+      fixtures.confirmBody,
+      data,
+      true,
+      globalState
+    );
+
+    if (shouldContinue) shouldContinue = should_continue_further(data);
+  });
+
+  it("Handle wallet redirection", () => {
+    const expected_redirection = fixtures.confirmBody["return_url"];
+    const payment_method_type = globalState.get("paymentMethodType");
+    const nextActionUrl = globalState.get("nextActionUrl");
+
+    expect(
+      nextActionUrl,
+      "nextActionUrl should be defined before handling wallet redirection"
+    ).to.be.a("string");
+
+    cy.handleWalletRedirection(
+      globalState,
+      payment_method_type,
+      expected_redirection
+    );
+  });
+
+  it("Sync payment status", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["RevolutPayMandate"];
+
+    cy.retrievePaymentCallTest({
+      globalState,
+      data,
+      expectedIntentStatus: "requires_customer_action",
+    });
+  });
+});
+
+context("Stripe WeChatPay Create and Confirm flow test", () => {
+  let shouldContinue = true;
+
+  beforeEach(function () {
+    if (!shouldContinue) {
+      this.skip();
+    }
+  });
+
+  it("create-payment-call-test", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["PaymentIntent"]("WeChatPay");
+
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      data,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
+    if (shouldContinue) shouldContinue = should_continue_further(data);
+  });
+
+  it("payment_methods-call-test", () => {
+    cy.paymentMethodsCallTest(globalState);
+  });
+
+  it("Confirm WeChatPay redirect", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["WeChatPay"];
+
+    cy.confirmBankRedirectCallTest(
+      fixtures.confirmBody,
+      data,
+      true,
+      globalState
+    );
+
+    if (shouldContinue) shouldContinue = should_continue_further(data);
+  });
+
+  it("Handle wallet redirection", () => {
+    const expected_redirection = fixtures.confirmBody["return_url"];
+    const payment_method_type = globalState.get("paymentMethodType");
+    const nextActionUrl = globalState.get("nextActionUrl");
+
+    expect(
+      nextActionUrl,
+      "nextActionUrl should be defined before handling wallet redirection"
+    ).to.be.a("string");
+
+    cy.handleWalletRedirection(
+      globalState,
+      payment_method_type,
+      expected_redirection
+    );
+  });
+
+  it("Sync payment status", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "wallet_pm"
+    ]["WeChatPay"];
+
+    cy.retrievePaymentCallTest({
+      globalState,
+      data,
+      expectedIntentStatus: "requires_customer_action",
+    });
+  });
+});
