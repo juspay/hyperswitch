@@ -275,11 +275,9 @@ pub enum AssociatedPaymentMethodTokenType {
     PaymentMethodSessionToken(String),
 }
 
-
 /// Details of associated payment methods for Payment Methods Session
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AssociatedPaymentMethods {
     /// token type for associated payment method
     pub payment_method_token: AssociatedPaymentMethodTokenType,
-
 }
