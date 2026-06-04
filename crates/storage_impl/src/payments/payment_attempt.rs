@@ -1056,12 +1056,13 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .convert()
                     .await
                     .change_context(errors::StorageError::EncryptionError)?;
-                let updated_payment_attempt_diesel = payment_attempt.to_storage_model();
+                let payment_attempt_update_diesel = payment_attempt.to_storage_model();
+                let updated_payment_attempt_diesel = payment_attempt_update_diesel
+                    .clone()
+                    .apply_changeset(source_payment_attempt_diesel.clone());
                 let updated_attempt = PaymentAttempt::convert_back(
                     key_manager_state,
-                    updated_payment_attempt_diesel
-                        .clone()
-                        .apply_changeset(source_payment_attempt_diesel.clone()),
+                    updated_payment_attempt_diesel.clone(),
                     merchant_key_store.key.get_inner(),
                     merchant_key_store.merchant_id.clone().into(),
                 )
@@ -1132,7 +1133,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 }
 
                 let mut query_gen_conn = pg_connection_write(self).await?;
-                let drainer_query = updated_payment_attempt_diesel
+                let drainer_query = payment_attempt_update_diesel
                     .generate_drainer_update_query(
                         &mut query_gen_conn,
                         &source_payment_attempt_diesel,
