@@ -413,7 +413,7 @@ jobs:
           kill "${{ env.PID }}"
 
       - name: Upload server logs on failure
-        if: env.RUN_TESTS == 'true'
+        if: env.RUN_TESTS == 'true' && failure()
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.batch.server_logs_artifact }}
