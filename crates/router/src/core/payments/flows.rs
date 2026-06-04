@@ -335,8 +335,8 @@ pub trait Feature<F, T> {
         _state: &SessionState,
         _header_payload: &domain_payments::HeaderPayload,
         _lineage_ids: grpc_client::LineageIds,
-        _merchant_connector_account: &'a crate::core::payments::helpers::MerchantConnectorAccountType,
-        _external_vault_merchant_connector_account: &'a crate::core::payments::helpers::MerchantConnectorAccountType,
+        _merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
+        _external_vault_merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
         _processor: &domain::Processor,
         _unified_connector_service_execution_mode: common_enums::ExecutionMode,
     ) -> RouterResult<()>

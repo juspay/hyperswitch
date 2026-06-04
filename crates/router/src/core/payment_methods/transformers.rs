@@ -2077,6 +2077,7 @@ pub async fn create_payment_method_in_modular_service(
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn create_proxy_card_payment_method_in_modular_service(
     state: &routes::SessionState,
     provider_merchant_id: &id_type::MerchantId,

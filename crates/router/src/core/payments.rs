@@ -2834,7 +2834,7 @@ where
 
     let locale = header_payload.locale.clone();
 
-    let schedule_time = if should_add_task_to_process_tracker {
+    let _schedule_time = if should_add_task_to_process_tracker {
         let connector_enum = connector
             .connector
             .id()

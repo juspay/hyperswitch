@@ -6673,7 +6673,6 @@ pub async fn payment_methods_session_confirm(
 
     let associated_payment_methods = common_types::payment_methods::AssociatedPaymentMethods {
         payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(parent_payment_method_token),
-        payment_method_data: associated_pm_data,
     };
 
     let update_payment_method_session = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {

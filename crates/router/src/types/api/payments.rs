@@ -17,7 +17,7 @@ pub use api_models::{
     payments::{
         Address, AddressDetails, Amount, ApplepayPaymentMethod, AuthenticationForStartResponse,
         Card, CryptoData, CustomerDetails, CustomerDetailsResponse, HyperswitchVaultSessionDetails,
-        InternalVaultDetails, InternalVaultSessionDetails, MandateAmountData, MandateData,
+        InternalVaultSessionDetails, MandateAmountData, MandateData,
         MandateType, MandateValidationFields, NextActionType, OpenBankingSessionToken,
         PayLaterData, PaymentIdType, PaymentListConstraints, PaymentListFilters,
         PaymentListFiltersV2, PaymentMethodData, PaymentMethodDataRequest,

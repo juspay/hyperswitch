@@ -851,8 +851,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
 
     let email = customer_details
         .as_ref()
-        .and_then(|cd| cd.email.clone())
-        .map(pii::Email::from);
+        .and_then(|cd| cd.email.clone());
 
     let customer_id = payment_data.payment_intent.customer_id.clone();
 
@@ -889,7 +888,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
         enrolled_for_3ds: true,
         related_transaction_id: None,
         payment_method_type: payment_data.payment_attempt.payment_method_type,
-        router_return_url: router_return_url,
+        router_return_url,
         webhook_url,
         complete_authorize_url,
         customer_id: customer_id.clone(),
@@ -922,7 +921,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
         .and_then(|detail| detail.get_connector_mandate_request_reference_id());
 
     let router_data = types::RouterData {
-        flow: std::marker::PhantomData,
+        flow: PhantomData,
         merchant_id: processor.get_account().get_id().clone(),
         customer_id,
         tenant_id: state.tenant.tenant_id.clone(),
@@ -964,7 +963,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
             .map(|info| info.status),
         payment_method_token: payment_data
             .pm_token
-            .map(|token| types::PaymentMethodToken::Token(hyperswitch_masking::Secret::new(token))),
+            .map(|token| types::PaymentMethodToken::Token(Secret::new(token))),
         connector_customer: core_utils::get_connector_customer_id(
             &state.conf,
             connector_id,

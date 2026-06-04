@@ -18,7 +18,6 @@ use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
-        mandate,
         payments::{
             self, access_token, customers, gateway::context as gateway_context, helpers,
             session_token, tokenization, transformers, PaymentData,
@@ -30,9 +29,8 @@ use crate::{
     services::{self, api::ConnectorValidation},
     types::{
         self, api, domain,
-        transformers::{ForeignFrom, ForeignTryFrom},
+        transformers::ForeignTryFrom,
     },
-    utils::OptionExt,
 };
 
 #[cfg(feature = "v1")]
@@ -514,8 +512,8 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         state: &SessionState,
         header_payload: &domain_payments::HeaderPayload,
         lineage_ids: grpc_client::LineageIds,
-        merchant_connector_account: &'a crate::core::payments::helpers::MerchantConnectorAccountType,
-        external_vault_merchant_connector_account: &'a crate::core::payments::helpers::MerchantConnectorAccountType,
+        merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
+        external_vault_merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
         processor: &domain::Processor,
         unified_connector_service_execution_mode: enums::ExecutionMode,
     ) -> RouterResult<()> {
