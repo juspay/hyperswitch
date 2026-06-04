@@ -180,15 +180,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                             card_network: payment_data.payment_attempt.extract_card_network(),
                         };
 
-                    let pa_payment_id = payment_data.payment_attempt.payment_id.clone();
-                    let pa_processor_merchant_id =
-                        payment_data.payment_attempt.processor_merchant_id.clone();
-                    let pa_attempt_id = payment_data.payment_attempt.attempt_id.clone();
                     payment_data.payment_attempt = db
-                        .update_payment_attempt_with_payment_id_processor_merchant_id_attempt_id(
-                            &pa_payment_id,
-                            &pa_processor_merchant_id,
-                            &pa_attempt_id,
+                        .update_payment_attempt_with_attempt_id(
                             payment_data.payment_attempt,
                             payment_attempt_update,
                             merchant_account.storage_scheme,

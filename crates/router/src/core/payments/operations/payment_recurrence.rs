@@ -594,14 +594,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let cloned_key_store = key_store.clone();
         let payment_attempt_fut = tokio::spawn(
             async move {
-                let m_pa_payment_id = m_payment_data_payment_attempt.payment_id.clone();
-                let m_pa_processor_merchant_id =
-                    m_payment_data_payment_attempt.processor_merchant_id.clone();
-                let m_pa_attempt_id = m_payment_data_payment_attempt.attempt_id.clone();
-                m_db.update_payment_attempt_with_payment_id_processor_merchant_id_attempt_id(
-                    &m_pa_payment_id,
-                    &m_pa_processor_merchant_id,
-                    &m_pa_attempt_id,
+                m_db.update_payment_attempt_with_attempt_id(
                     m_payment_data_payment_attempt,
                     storage::PaymentAttemptUpdate::RecurrenceUpdate {
                         status: attempt_status,

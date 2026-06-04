@@ -645,10 +645,7 @@ where
             };
 
             #[cfg(feature = "v1")]
-            db.update_payment_attempt_with_payment_id_processor_merchant_id_attempt_id(
-                &payment_data.get_payment_attempt().payment_id,
-                &payment_data.get_payment_attempt().processor_merchant_id,
-                &payment_data.get_payment_attempt().attempt_id,
+            db.update_payment_attempt_with_attempt_id(
                 payment_data.get_payment_attempt().clone(),
                 payment_attempt_update,
                 storage_scheme,
@@ -658,7 +655,7 @@ where
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
             #[cfg(feature = "v2")]
-            db.update_payment_attempt(
+            db.update_payment_attempt_with_attempt_id(
                 key_manager_state,
                 key_store,
                 payment_data.get_payment_attempt().clone(),
@@ -720,10 +717,7 @@ where
             };
 
             #[cfg(feature = "v1")]
-            db.update_payment_attempt_with_payment_id_processor_merchant_id_attempt_id(
-                &payment_data.get_payment_attempt().payment_id,
-                &payment_data.get_payment_attempt().processor_merchant_id,
-                &payment_data.get_payment_attempt().attempt_id,
+            db.update_payment_attempt_with_attempt_id(
                 payment_data.get_payment_attempt().clone(),
                 payment_attempt_update,
                 storage_scheme,
@@ -733,7 +727,7 @@ where
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
             #[cfg(feature = "v2")]
-            db.update_payment_attempt(
+            db.update_payment_attempt_with_attempt_id(
                 key_manager_state,
                 key_store,
                 payment_data.get_payment_attempt().clone(),

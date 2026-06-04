@@ -592,10 +592,7 @@ where
 
             #[cfg(feature = "v1")]
             let payment_attempt = db
-                .update_payment_attempt_with_payment_id_processor_merchant_id_attempt_id(
-                    &payment_data.get_payment_attempt().payment_id,
-                    &payment_data.get_payment_attempt().processor_merchant_id,
-                    &payment_data.get_payment_attempt().attempt_id,
+                .update_payment_attempt_with_attempt_id(
                     payment_data.get_payment_attempt().clone(),
                     payment_attempt_update,
                     frm_data.merchant_account.storage_scheme,
@@ -606,7 +603,7 @@ where
 
             #[cfg(feature = "v2")]
             let payment_attempt = db
-                .update_payment_attempt(
+                .update_payment_attempt_with_attempt_id(
                     key_manager_state,
                     key_store,
                     payment_data.get_payment_attempt().clone(),

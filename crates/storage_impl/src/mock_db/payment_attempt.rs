@@ -273,11 +273,8 @@ impl PaymentAttemptInterface for MockDb {
     #[cfg(feature = "v1")]
     // safety: only used for testing
     #[allow(clippy::unwrap_used)]
-    async fn update_payment_attempt_with_payment_id_processor_merchant_id_attempt_id(
+    async fn update_payment_attempt_with_attempt_id(
         &self,
-        _payment_id: &common_utils::id_type::PaymentId,
-        _processor_merchant_id: &common_utils::id_type::MerchantId,
-        _attempt_id: &str,
         this: PaymentAttempt,
         payment_attempt: PaymentAttemptUpdate,
         _storage_scheme: storage_enums::MerchantStorageScheme,

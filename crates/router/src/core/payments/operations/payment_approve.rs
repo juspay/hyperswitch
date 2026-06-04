@@ -266,10 +266,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCaptureReque
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         state
             .store
-            .update_payment_attempt_with_payment_id_processor_merchant_id_attempt_id(
-                &payment_data.payment_attempt.payment_id,
-                &payment_data.payment_attempt.processor_merchant_id,
-                &payment_data.payment_attempt.attempt_id,
+            .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt.clone(),
                 storage::PaymentAttemptUpdate::StatusUpdate {
                     status: payment_data.payment_attempt.status,

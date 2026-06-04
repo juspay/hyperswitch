@@ -318,15 +318,8 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCa
                 .map(|multiple_capture_data| multiple_capture_data.get_captures_count())
                 .transpose()?;
             let amount_to_capture = payment_data.payment_attempt.amount_to_capture;
-            let pa_payment_id = payment_data.payment_attempt.payment_id.clone();
-            let pa_processor_merchant_id =
-                payment_data.payment_attempt.processor_merchant_id.clone();
-            let pa_attempt_id = payment_data.payment_attempt.attempt_id.clone();
             db.store
-                .update_payment_attempt_with_payment_id_processor_merchant_id_attempt_id(
-                    &pa_payment_id,
-                    &pa_processor_merchant_id,
-                    &pa_attempt_id,
+                .update_payment_attempt_with_attempt_id(
                     payment_data.payment_attempt,
                     storage::PaymentAttemptUpdate::CaptureUpdate {
                         amount_to_capture,

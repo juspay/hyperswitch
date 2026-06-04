@@ -92,12 +92,8 @@ pub trait PaymentAttemptInterface {
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
-    #[allow(clippy::too_many_arguments)]
-    async fn update_payment_attempt_with_payment_id_processor_merchant_id_attempt_id(
+    async fn update_payment_attempt_with_attempt_id(
         &self,
-        payment_id: &id_type::PaymentId,
-        processor_merchant_id: &id_type::MerchantId,
-        attempt_id: &str,
         this: PaymentAttempt,
         payment_attempt: PaymentAttemptUpdate,
         storage_scheme: storage_enums::MerchantStorageScheme,

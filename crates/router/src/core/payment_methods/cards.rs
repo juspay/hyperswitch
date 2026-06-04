@@ -3887,10 +3887,7 @@ pub async fn build_merchant_enabled_pms_context(
 
         state
             .store
-            .update_payment_attempt_with_payment_id_processor_merchant_id_attempt_id(
-                &payment_attempt.payment_id,
-                &payment_attempt.processor_merchant_id,
-                &payment_attempt.attempt_id,
+            .update_payment_attempt_with_attempt_id(
                 (*payment_attempt).clone(),
                 attempt_update,
                 platform.get_provider().get_account().storage_scheme,
