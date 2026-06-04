@@ -6335,17 +6335,13 @@ pub async fn payment_methods_session_update_payment_method(
             // Generate a new token, store CVC + card_holder_name in Redis
             let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
 
-            let redis_token_data = storage::PaymentTokenData::temporary_card_token(
-                card_cvc,
-                card_holder_name,
-            );
+            let redis_token_data =
+                storage::PaymentTokenData::temporary_card_token(card_cvc, card_holder_name);
 
             let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
-            pm_routes::ParentPaymentMethodToken::create_key_for_token(
-                &parent_payment_method_token,
-            )
-            .insert(intent_fulfillment_time, redis_token_data, &state)
-            .await?;
+            pm_routes::ParentPaymentMethodToken::create_key_for_token(&parent_payment_method_token)
+                .insert(intent_fulfillment_time, redis_token_data, &state)
+                .await?;
 
             let associated_payment_methods =
                 common_types::payment_methods::AssociatedPaymentMethods {
@@ -6407,12 +6403,9 @@ pub async fn payment_methods_session_update_payment_method(
 
             // If CVC is present, refresh the TemporaryCardToken in Redis under the same token
             if has_cvc_only_data {
-                let redis_token_data = storage::PaymentTokenData::temporary_card_token(
-                    card_cvc,
-                    card_holder_name,
-                );
-                let intent_fulfillment_time =
-                    common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
+                let redis_token_data =
+                    storage::PaymentTokenData::temporary_card_token(card_cvc, card_holder_name);
+                let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
                 pm_routes::ParentPaymentMethodToken::create_key_for_token(&pm_token)
                     .insert(intent_fulfillment_time, redis_token_data, &state)
                     .await?;
@@ -6482,18 +6475,18 @@ pub async fn payment_methods_session_update_payment_method(
             .await
             .attach_printable("Failed to update saved payment method")?;
 
-    let response = transformers::generate_payment_method_session_response(
-        updated_payment_method_session.clone(),
-        Secret::new("CLIENT_SECRET_REDACTED".to_string()),
-        None, // sdk_authorization is not returned for non-create flows
-        None, // TODO: send associated payments response based on the expandable param
-        None,
-        updated_payment_method_session.storage_type,
-        update_response.card_cvc_token_storage,
-        update_response.payment_method_data.clone(),
-        None,
-        None,
-    );
+            let response = transformers::generate_payment_method_session_response(
+                updated_payment_method_session.clone(),
+                Secret::new("CLIENT_SECRET_REDACTED".to_string()),
+                None, // sdk_authorization is not returned for non-create flows
+                None, // TODO: send associated payments response based on the expandable param
+                None,
+                updated_payment_method_session.storage_type,
+                update_response.card_cvc_token_storage,
+                update_response.payment_method_data.clone(),
+                None,
+                None,
+            );
 
             Ok(services::ApplicationResponse::Json(response))
         }

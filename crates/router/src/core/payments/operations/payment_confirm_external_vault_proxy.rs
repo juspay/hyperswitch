@@ -213,7 +213,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
 
         // `payment_method` / `payment_method_type` are optional on the confirm request but
         // required for the external vault proxy flow so the routing engine can match connectors.
-        let payment_method = request.payment_method.get_required_value("payment_method")?;
+        let payment_method = request
+            .payment_method
+            .get_required_value("payment_method")?;
         let payment_method_subtype = request
             .payment_method_type
             .get_required_value("payment_method_type")?;
@@ -363,15 +365,15 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                     payment_method_id: payment_data.payment_attempt.payment_method_id.clone(),
                     client_source: None,
                     client_version: None,
-                    customer_acceptance: payment_data
-                        .payment_attempt
-                        .customer_acceptance
-                        .clone(),
+                    customer_acceptance: payment_data.payment_attempt.customer_acceptance.clone(),
                     net_amount:
                         hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
                             payment_data.payment_attempt.net_amount.get_order_amount(),
                             payment_data.payment_intent.shipping_cost,
-                            payment_data.payment_attempt.net_amount.get_order_tax_amount(),
+                            payment_data
+                                .payment_attempt
+                                .net_amount
+                                .get_order_tax_amount(),
                             None,
                             None,
                             payment_data
@@ -523,7 +525,9 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
         .await
         {
             Ok(mut pm_info) => {
-                router_env::logger::info!("Proxy card payment method created in modular service successfully");
+                router_env::logger::info!(
+                    "Proxy card payment method created in modular service successfully"
+                );
                 // The payment method is created in the modular (V2) payment method service.
                 // Mark it as such so the post-payment acknowledgement path
                 // (`handle_pm_and_mandate_post_update` -> `should_use_modular_pm_path`) is taken

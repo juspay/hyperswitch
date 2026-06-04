@@ -817,12 +817,11 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
     ));
 
     let router_return_url = Some(helpers::create_redirect_url(
-            &state.base_url,
-            attempt,
-            connector_id,
-            payment_data.creds_identifier.as_deref(),
-        ));
-
+        &state.base_url,
+        attempt,
+        connector_id,
+        payment_data.creds_identifier.as_deref(),
+    ));
 
     let amount = payment_data.payment_attempt.get_total_amount();
 
@@ -875,7 +874,10 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
         capture_method: payment_data.payment_attempt.capture_method,
         amount: amount.get_amount_as_i64(),
         minor_amount: amount,
-        order_tax_amount: payment_data.payment_attempt.net_amount.get_order_tax_amount(),
+        order_tax_amount: payment_data
+            .payment_attempt
+            .net_amount
+            .get_order_tax_amount(),
         currency: payment_data.currency,
         browser_info,
         email,

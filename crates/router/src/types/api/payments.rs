@@ -1,14 +1,14 @@
-#[cfg(feature = "v2")]
-pub use api_models::payments::{
-    PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentsConfirmIntentRequest,
-    PaymentsCreateIntentRequest, PaymentsIntentResponse, PaymentsUpdateIntentRequest,
-    RecoveryPaymentsCreate,
-};
 #[cfg(feature = "v1")]
 pub use api_models::payments::{
     ExternalVaultProxyConfirmRequest, PaymentListFilterConstraints, PaymentListResponse,
     PaymentListResponseV2, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials,
     PaymentsEligibilityRequest,
+};
+#[cfg(feature = "v2")]
+pub use api_models::payments::{
+    PaymentAttemptListRequest, PaymentAttemptListResponse, PaymentsConfirmIntentRequest,
+    PaymentsCreateIntentRequest, PaymentsIntentResponse, PaymentsUpdateIntentRequest,
+    RecoveryPaymentsCreate,
 };
 pub use api_models::{
     feature_matrix::{
@@ -17,25 +17,25 @@ pub use api_models::{
     payments::{
         Address, AddressDetails, Amount, ApplepayPaymentMethod, AuthenticationForStartResponse,
         Card, CryptoData, CustomerDetails, CustomerDetailsResponse, HyperswitchVaultSessionDetails,
-        InternalVaultSessionDetails, MandateAmountData, MandateData, MandateType,
-        MandateValidationFields, NextActionType, OpenBankingSessionToken, PayLaterData,
-        PaymentIdType, PaymentListConstraints, PaymentListFilters, PaymentListFiltersV2,
-        PaymentMethodData, PaymentMethodDataRequest, ProxyPaymentMethodDataRequest, ProxyPaymentMethodData, PaymentMethodDataResponse, PaymentOp,
-        PaymentsAggregateResponse, PaymentsApproveRequest, PaymentsCancelPostCaptureRequest,
-        PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
-        PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
-        PaymentsExtendAuthorizationRequest, PaymentsExternalAuthenticationRequest,
-        PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
-        PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse,
-        PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRejectRequest,
-        PaymentsRequest, PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest,
-        PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
-        PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse, PgRedirectResponse,
-        PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VaultDetails,
-        VaultSessionDetails, VerifyRequest, VerifyResponse, VgsSessionDetails, WalletData,
+        InternalVaultDetails, InternalVaultSessionDetails, MandateAmountData, MandateData,
+        MandateType, MandateValidationFields, NextActionType, OpenBankingSessionToken,
+        PayLaterData, PaymentIdType, PaymentListConstraints, PaymentListFilters,
+        PaymentListFiltersV2, PaymentMethodData, PaymentMethodDataRequest,
+        PaymentMethodDataResponse, PaymentOp, PaymentsAggregateResponse, PaymentsApproveRequest,
+        PaymentsCancelPostCaptureRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
+        PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
+        PaymentsDynamicTaxCalculationResponse, PaymentsExtendAuthorizationRequest,
+        PaymentsExternalAuthenticationRequest, PaymentsIncrementalAuthorizationRequest,
+        PaymentsManualUpdateRequest, PaymentsPostSessionTokensRequest,
+        PaymentsPostSessionTokensResponse, PaymentsRedirectRequest, PaymentsRedirectionResponse,
+        PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
+        PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
+        PaymentsStartRequest, PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse,
+        PgRedirectResponse, PhoneDetails, ProxyPaymentMethodData, ProxyPaymentMethodDataRequest,
+        RedirectionResponse, SessionToken, UrlDetails, VaultDetails, VaultSessionDetails,
+        VerifyRequest, VerifyResponse, VgsSessionDetails, WalletData,
     },
 };
-pub use api_models::payments::{InternalVaultDetails, VaultDetails};
 pub use common_types::payments::{AcceptanceType, CustomerAcceptance, OnlineMandate};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::mandates;

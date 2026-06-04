@@ -3593,9 +3593,7 @@ impl
         &'b self,
         state: &'b SessionState,
         processor: &domain::Processor,
-        payment_data: PaymentData<
-            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
-        >,
+        payment_data: PaymentData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>,
         router_data: types::RouterData<
             hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
             types::ExternalVaultProxyPaymentsData,
@@ -3605,11 +3603,8 @@ impl
         #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
             RoutableConnectorChoice,
         >,
-        #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-        business_profile: &domain::Profile,
-    ) -> RouterResult<
-        PaymentData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>,
-    >
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+    ) -> RouterResult<PaymentData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>>
     where
         hyperswitch_domain_models::router_flow_types::ExternalVaultProxy: 'b + Send + Sync,
     {
