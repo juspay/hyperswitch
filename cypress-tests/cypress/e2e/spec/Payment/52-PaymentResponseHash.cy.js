@@ -91,7 +91,9 @@ describe("Card - Payment Response Hash flow test", () => {
           return;
         }
 
+        // Verify payment response hash is enabled in business profile config
         cy.assertPaymentResponseHashEnabled(globalState);
+        // Verify payment response hash fields are present in the actual payment response body
         cy.verifyPaymentResponseHashInBody(globalState);
       });
     });
@@ -99,6 +101,10 @@ describe("Card - Payment Response Hash flow test", () => {
 
   context("3DS Auto-Capture - Verify Redirect Signature", () => {
     it("setup 3DS -> verify redirect signature", () => {
+      // Setup 3DS payment flow without redirection to test signature verification
+      // globalState: shared state object for test data persistence
+      // includeRedirection: false - skips the actual browser redirection to focus on signature validation
+      // fixtures: test data fixtures for payment setup
       setup3DSPayment(globalState, { includeRedirection: false, fixtures });
 
       cy.step("verify redirect signature", () => {
@@ -114,6 +120,10 @@ describe("Card - Payment Response Hash flow test", () => {
 
   context("3DS Auto-Capture - Compute and Verify Redirect Signature", () => {
     it("setup 3DS -> compute HMAC and compare with redirect signature", () => {
+      // Setup 3DS payment flow to test HMAC computation and signature comparison
+      // globalState: shared state object for test data persistence
+      // includeRedirection: false - skips browser redirection to focus on HMAC computation logic
+      // fixtures: test data fixtures for payment setup
       setup3DSPayment(globalState, { includeRedirection: false, fixtures });
 
       cy.step("compute and verify redirect signature", () => {
@@ -132,6 +142,10 @@ describe("Card - Payment Response Hash flow test", () => {
 
   context("3DS Auto-Capture - Failure Scenarios for Invalid Signatures", () => {
     it("setup 3DS -> compute HMAC -> verify tampered and wrong-key signatures fail", () => {
+      // Setup 3DS payment flow for testing tampered and wrong-key signature scenarios
+      // globalState: shared state object for test data persistence
+      // includeRedirection: false - skips browser redirection to test signature validation failures
+      // fixtures: test data fixtures for payment setup
       setup3DSPayment(globalState, { includeRedirection: false, fixtures });
 
       cy.step("compute and verify redirect signature", () => {
