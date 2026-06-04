@@ -597,7 +597,6 @@ pub async fn payments_start(
     .await
 }
 
-
 #[cfg(feature = "v1")]
 #[instrument(skip(state, req), fields(flow, payment_id))]
 pub async fn payments_retrieve(
@@ -1849,9 +1848,7 @@ pub async fn payments_cancel_post_capture_retrieve(
 
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
 
-    let payload = payment_types::PaymentsCancelPostCaptureSyncBody {
-        payment_id,
-    };
+    let payload = payment_types::PaymentsCancelPostCaptureSyncBody { payment_id };
     let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(api::server_wrap(
         flow,

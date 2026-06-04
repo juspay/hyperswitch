@@ -5701,7 +5701,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelPo
                     state_metadata.get_connector_post_capture_void_transaction_id()
                 })
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
-            connector_meta: payment_data.payment_attempt.connector_metadata,
+            connector_meta: payment_data
+                .payment_attempt
+                .connector_metadata
+                .map(pii::SecretSerdeValue::new),
         })
     }
 }

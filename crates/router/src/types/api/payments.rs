@@ -21,17 +21,18 @@ pub use api_models::{
         PaymentIdType, PaymentListConstraints, PaymentListFilters, PaymentListFiltersV2,
         PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp,
         PaymentsAggregateResponse, PaymentsApproveRequest, PaymentsCancelPostCaptureRequest,
-        PaymentsCancelPostCaptureSyncBody, PaymentsPostCaptureVoidSyncTrackingData, PaymentsCancelRequest, PaymentsCaptureRequest,
+        PaymentsCancelPostCaptureSyncBody, PaymentsCancelRequest, PaymentsCaptureRequest,
         PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
         PaymentsDynamicTaxCalculationResponse, PaymentsExtendAuthorizationRequest,
         PaymentsExternalAuthenticationRequest, PaymentsIncrementalAuthorizationRequest,
-        PaymentsManualUpdateRequest, PaymentsPostSessionTokensRequest,
-        PaymentsPostSessionTokensResponse, PaymentsRedirectRequest, PaymentsRedirectionResponse,
-        PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
-        PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
-        PaymentsStartRequest, PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse,
-        PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, UrlDetails,
-        VaultDetails, VaultSessionDetails, VerifyRequest, VerifyResponse, VgsSessionDetails, WalletData,
+        PaymentsManualUpdateRequest, PaymentsPostCaptureVoidSyncTrackingData,
+        PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse,
+        PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRejectRequest,
+        PaymentsRequest, PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest,
+        PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
+        PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse, PgRedirectResponse,
+        PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VaultDetails,
+        VaultSessionDetails, VerifyRequest, VerifyResponse, VgsSessionDetails, WalletData,
     },
 };
 pub use common_types::payments::{AcceptanceType, CustomerAcceptance, OnlineMandate};
@@ -51,8 +52,8 @@ pub use hyperswitch_interfaces::api::payments::{
     PaymentPostCaptureVoid, PaymentPostCaptureVoidSync, PaymentPostSessionTokens, PaymentReject,
     PaymentSession, PaymentSessionUpdate, PaymentSync, PaymentToken, PaymentUpdateMetadata,
     PaymentVoid, PaymentsCompleteAuthorize, PaymentsCreateOrder, PaymentsGenerateQr,
-    PaymentsPostProcessing, PaymentsPreProcessing, PaymentsPushNotification, SurchargeCalculation, SurchargeComplete,
-    SurchargeRefund, TaxCalculation,
+    PaymentsPostProcessing, PaymentsPreProcessing, PaymentsPushNotification, SurchargeCalculation,
+    SurchargeComplete, SurchargeRefund, TaxCalculation,
 };
 pub use mandates::MandateTransactionType;
 

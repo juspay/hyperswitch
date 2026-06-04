@@ -42,11 +42,10 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
         process: storage::ProcessTracker,
     ) -> Result<(), sch_errors::ProcessTrackerError> {
         let db: &dyn StorageInterface = &*state.store;
-        let tracking_data: api::PaymentsPostCaptureVoidSyncTrackingData =
-            process
-                .tracking_data
-                .clone()
-                .parse_value("PaymentsPostCaptureVoidSyncTrackingData")?;
+        let tracking_data: api::PaymentsPostCaptureVoidSyncTrackingData = process
+            .tracking_data
+            .clone()
+            .parse_value("PaymentsPostCaptureVoidSyncTrackingData")?;
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
                 &tracking_data.merchant_id,
@@ -55,10 +54,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
             .await?;
 
         let merchant_account = db
-            .find_merchant_account_by_merchant_id(
-                &tracking_data.merchant_id,
-                &key_store,
-            )
+            .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &key_store)
             .await?;
 
         let platform = domain::Platform::new(

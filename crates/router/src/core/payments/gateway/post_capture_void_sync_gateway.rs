@@ -26,7 +26,11 @@ where
         + Send
         + Sync
         + 'static
-        + RouterDataConversion<Self, types::PaymentsCancelPostCaptureSyncData, types::PaymentsResponseData>,
+        + RouterDataConversion<
+            Self,
+            types::PaymentsCancelPostCaptureSyncData,
+            types::PaymentsResponseData,
+        >,
 {
     fn get_gateway(
         execution_path: ExecutionPath,
