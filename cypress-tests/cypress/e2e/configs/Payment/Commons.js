@@ -878,32 +878,26 @@ export const payment_methods_enabled = [
     payment_method: "bank_debit",
     payment_method_types: [
       {
-        payment_method_type: "ach",
+        payment_method_type: "klarna",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
         minimum_amount: 1,
         maximum_amount: 68607706,
-        recurring_enabled: true,
-        installment_payment_enabled: true,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
       },
       {
-        payment_method_type: "sepa",
+        payment_method_type: "affirm",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
         minimum_amount: 1,
         maximum_amount: 68607706,
-        recurring_enabled: true,
-        installment_payment_enabled: true,
-      },
-      {
-        payment_method_type: "bacs",
-        minimum_amount: 1,
-        maximum_amount: 68607706,
-        recurring_enabled: true,
-        installment_payment_enabled: true,
-      },
-      {
-        payment_method_type: "becs",
-        minimum_amount: 1,
-        maximum_amount: 68607706,
-        recurring_enabled: true,
-        installment_payment_enabled: true,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
       },
     ],
   },
@@ -3437,6 +3431,184 @@ export const connectorDetails = {
             message: "API key not provided or invalid API key used",
             code: "IR_01",
           },
+        },
+      },
+    }),
+    RequiresCVVPaymentIntent: getCustomExchange({
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    RequiresCVVOnSession: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: customerAcceptance,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    RequiresCVVOffSessionMandate: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    RequiresCVVSavedCardWithCVV: getCustomExchange({
+      Request: {
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    RequiresCVVSavedCardWithoutCVV: getCustomExchange({
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    RequiresCVVInvalidCVVShort: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "12",
+            card_exp_year: "2030",
+            card_holder_name: "Test User",
+            card_cvc: "12",
+          },
+        },
+        currency: "USD",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_16",
+            message: "Invalid card_cvc length",
+          },
+        },
+      },
+    }),
+    RequiresCVVInvalidCVVLong: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "12",
+            card_exp_year: "2030",
+            card_holder_name: "Test User",
+            card_cvc: "12345",
+          },
+        },
+        currency: "USD",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_16",
+            message: "Invalid card_cvc length",
+          },
+        },
+      },
+    }),
+    RequiresCVVInvalidCVVNonNumeric: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "12",
+            card_exp_year: "2030",
+            card_holder_name: "Test User",
+            card_cvc: "abc",
+          },
+        },
+        currency: "USD",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_07",
+            message: "Invalid value provided: card_cvc",
+          },
+        },
+      },
+    }),
+    RequiresCVVListPMOnSession: getCustomExchange({
+      Request: {},
+      Response: { status: 200, body: { requires_cvv: true } },
+    }),
+    RequiresCVVListPMOffSession: getCustomExchange({
+      Request: {},
+      Response: { status: 200, body: { requires_cvv: false } },
+    }),
+    RequiresCVVFalsePaymentIntent: getCustomExchange({
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        requires_cvv: false,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    RequiresCVVFalseSavedCardWithoutCVV: getCustomExchange({
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     }),
