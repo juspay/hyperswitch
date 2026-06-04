@@ -79,7 +79,7 @@ mod storage {
         core::errors::utils::RedisErrorExt,
         errors::{self, CustomResult},
         types::storage::{
-            enums, kv,
+            enums,
             reverse_lookup::{ReverseLookup, ReverseLookupNew},
         },
         utils::db_utils,
@@ -114,15 +114,16 @@ mod storage {
                         source: new.source.clone(),
                         updated_by: storage_scheme.to_string(),
                     };
-                    let redis_entry = kv::TypedSql {
-                        op: kv::DBOperation::Insert {
-                            insertable: Box::new(kv::Insertable::ReverseLookUp(new)),
-                        },
-                    };
+                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
+                    let drainer_query = new
+                        .generate_drainer_insert_query(&mut query_gen_conn)
+                        .await
+                        .change_context(errors::StorageError::KVError)
+                        .attach_printable("Failed to generate reverse lookup insert query")?;
 
                     match Box::pin(kv_wrapper::<ReverseLookup, _, _>(
                         self,
-                        KvOperation::SetNx(&created_rev_lookup, redis_entry),
+                        KvOperation::SetNx(&created_rev_lookup, drainer_query),
                         PartitionKey::CombinationKey {
                             combination: &format!(
                                 "reverse_lookup_{}",
