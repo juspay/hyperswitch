@@ -2,6 +2,8 @@ use common_utils::{errors::CustomResult, id_type};
 use diesel_models::{organization as storage, organization::OrganizationBridge};
 use error_stack::report;
 use router_env::{instrument, tracing};
+#[cfg(feature = "accounts_cache")]
+use storage_impl::redis::cache::{self, CacheKind, ACCOUNTS_CACHE};
 
 use crate::{connection, core::errors, services::Store};
 
@@ -43,10 +45,28 @@ impl OrganizationInterface for Store {
         &self,
         org_id: &id_type::OrganizationId,
     ) -> CustomResult<storage::Organization, errors::StorageError> {
-        let conn = connection::pg_accounts_connection_read(self).await?;
-        storage::Organization::find_by_org_id(&conn, org_id.to_owned())
+        let find_call = || async {
+            let conn = connection::pg_accounts_connection_read(self).await?;
+            storage::Organization::find_by_org_id(&conn, org_id.to_owned())
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        };
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            find_call().await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            cache::get_or_populate_in_memory(
+                self,
+                org_id.get_string_repr(),
+                find_call,
+                &ACCOUNTS_CACHE,
+            )
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        }
     }
 
     #[instrument(skip_all)]
@@ -56,10 +76,26 @@ impl OrganizationInterface for Store {
         update: storage::OrganizationUpdate,
     ) -> CustomResult<storage::Organization, errors::StorageError> {
         let conn = connection::pg_accounts_connection_write(self).await?;
+        let update_call = || async {
+            storage::Organization::update_by_org_id(&conn, org_id.to_owned(), update)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        };
 
-        storage::Organization::update_by_org_id(&conn, org_id.to_owned(), update)
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            update_call().await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            cache::publish_and_redact(
+                self,
+                CacheKind::Accounts(org_id.get_string_repr().into()),
+                update_call,
+            )
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        }
     }
 }
 
