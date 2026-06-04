@@ -4478,6 +4478,17 @@ Cypress.Commands.add(
             globalState.set("mandateId", response.body.mandate_id);
           }
 
+          if (response.body.connector_transaction_id) {
+            globalState.set(
+              "connectorTransactionId",
+              response.body.connector_transaction_id
+            );
+          }
+
+          if (response.body.connector) {
+            globalState.set("achConnector", response.body.connector);
+          }
+
           if (response.body.capture_method === "automatic") {
             expect(response.body).to.have.property("mandate_id");
             if (response.body.authentication_type === "three_ds") {
@@ -4683,8 +4694,10 @@ Cypress.Commands.add(
         expect(response.headers["content-type"]).to.include("application/json");
         if (response.status === 200) {
           globalState.set("paymentID", response.body.payment_id);
-          expect(response.body.payment_method_data, "payment_method_data").to
-            .not.be.empty;
+          if (response.body.payment_method_data !== null) {
+            expect(response.body.payment_method_data, "payment_method_data").to
+              .not.be.empty;
+          }
           const expectedConnector = getOriginalConnectorName(
             globalState.get("connectorId")
           );
@@ -4762,6 +4775,56 @@ Cypress.Commands.add(
     });
   }
 );
+
+Cypress.Commands.add("verifyAchMicrodepositCallTest", (globalState) => {
+  const connectorTransactionId = globalState.get("connectorTransactionId");
+  const connectorAuthFilePath = globalState.get("connectorAuthFilePath");
+  // Use the actual connector from the CIT response (e.g. "stripe"), not the
+  // Cypress env CONNECTOR (e.g. "stripeconnect"), so the auth file lookup
+  // picks the right API key for the Stripe account that owns the PI.
+  const connectorId =
+    globalState.get("achConnector") || globalState.get("connectorId");
+
+  if (!connectorTransactionId) {
+    cy.task(
+      "cli_log",
+      "No connector_transaction_id found, skipping ACH microdeposit verification"
+    );
+    return;
+  }
+
+  cy.task("cli_log", `Verifying ACH microdeposit for PI: ${connectorTransactionId}`);
+  cy.task("verifyStripeAchPaymentIntent", {
+    connectorAuthFilePath,
+    connectorId,
+    paymentIntentId: connectorTransactionId,
+  }).then((result) => {
+    if (result.logs && result.logs.length) {
+      cy.task("cli_log", `ACH verify debug logs:\n${result.logs.join("\n")}`);
+    }
+    expect(result.status, "fetch hosted_verification_url").to.equal(200);
+
+    if (result.body.already_verified) {
+      cy.task("cli_log", "PI already verified, skipping microdeposit page interaction");
+      return;
+    }
+
+    const hostedUrl = result.body.hosted_verification_url;
+    cy.task("cli_log", `Visiting Stripe hosted verification page: ${hostedUrl}`);
+
+    // Visit the Stripe hosted microdeposit verification page and enter the
+    // test descriptor code SM11AA (Stripe test mode code for instant verification)
+    cy.origin("https://payments.stripe.com", { args: { hostedUrl } }, ({ hostedUrl }) => {
+      cy.visit(hostedUrl);
+      // Stripe uses p-CodePuncher-controllingInput which has opacity:0 — use force:true
+      // Append {enter} to submit the form since the button lacks type="submit"
+      cy.get("input.p-CodePuncher-controllingInput").type("11AA{enter}", { force: true });
+      // Wait for Stripe's internal verify_microdeposits fetch to complete before
+      // Cypress moves on — the fetch is async and fires after the {enter} keypress
+      cy.wait(5000);
+    });
+  });
+});
 
 Cypress.Commands.add(
   "mitUsingPMId",

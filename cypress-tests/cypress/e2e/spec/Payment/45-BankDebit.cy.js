@@ -365,6 +365,17 @@ describe("Bank Debit tests", () => {
         }
       });
 
+      cy.step("Verify ACH microdeposits for mandate", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Verify ACH microdeposits for mandate"
+          );
+          return;
+        }
+        cy.verifyAchMicrodepositCallTest(globalState);
+      });
+
       cy.step("MIT mandate reuse for ACH", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: MIT mandate reuse for ACH");
@@ -420,6 +431,10 @@ describe("Bank Debit tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
         ]["MITAutoCaptureBacs"];
+        if (!utils.should_continue_further(data)) {
+          cy.task("cli_log", "Skipping step: MIT mandate reuse for BACS");
+          return;
+        }
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           data,
