@@ -849,9 +849,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
         .attach_printable("Failed to parse customer data from payment intent")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let email = customer_details
-        .as_ref()
-        .and_then(|cd| cd.email.clone());
+    let email = customer_details.as_ref().and_then(|cd| cd.email.clone());
 
     let customer_id = payment_data.payment_intent.customer_id.clone();
 

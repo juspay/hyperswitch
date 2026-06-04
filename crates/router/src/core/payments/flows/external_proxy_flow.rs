@@ -27,10 +27,7 @@ use crate::{
     logger,
     routes::{metrics, SessionState},
     services::{self, api::ConnectorValidation},
-    types::{
-        self, api, domain,
-        transformers::ForeignTryFrom,
-    },
+    types::{self, api, domain, transformers::ForeignTryFrom},
 };
 
 #[cfg(feature = "v1")]
