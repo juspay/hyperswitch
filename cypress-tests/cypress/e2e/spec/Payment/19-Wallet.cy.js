@@ -417,6 +417,7 @@ describe("Google Pay Wallet tests", () => {
     });
   });
 });
+});
 
 describe("PayPal Wallet tests", () => {
 
