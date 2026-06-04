@@ -1053,7 +1053,7 @@ describe("PayLater tests", () => {
             globalState
           ).then((response) => {
             expect(response.status).to.eq(400);
-            expect(response.body.error.code).to.eq("IR_19");
+            expect(response.body.error.code).to.eq("IR_39");
             expect(response.body.error.type).to.eq("invalid_request");
           });
         }

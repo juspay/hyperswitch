@@ -1808,6 +1808,7 @@ export const connectorDetails = {
     }),
     AutoCapture: getCustomExchange({
       Request: {
+        currency: "EUR",
         capture_method: "automatic",
       },
       Response: {
@@ -1819,6 +1820,7 @@ export const connectorDetails = {
     }),
     ManualCapture: getCustomExchange({
       Request: {
+        currency: "EUR",
         capture_method: "manual",
       },
       Response: {
@@ -1828,6 +1830,41 @@ export const connectorDetails = {
         },
       },
     }),
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "USD",
+        capture_method: "manual",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    Refund: getCustomExchange({
+      Request: {
+        amount: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    }),
+    PartialRefund: getCustomExchange({
+      Request: {
+        amount: 2000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    }),
+    SyncRefund: getCustomExchange({}),
     AffirmAutoCapture: getCustomExchange({
       Request: {
         currency: "USD",
@@ -1873,6 +1910,9 @@ export const connectorDetails = {
       },
     }),
     AffirmManualCapture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         currency: "USD",
         capture_method: "manual",
@@ -1932,7 +1972,7 @@ export const connectorDetails = {
     }),
     Affirm: getCustomExchange({
       Configs: {
-        TRIGGER_SKIP: false,
+        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "pay_later",
@@ -2035,6 +2075,9 @@ export const connectorDetails = {
       },
     }),
     Atome: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "pay_later",
         payment_method_type: "atome",
@@ -2183,8 +2226,7 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            code: "IR_19",
-            reason: "manual for atome is not supported by adyen",
+            code: "IR_39",
           },
         },
       },

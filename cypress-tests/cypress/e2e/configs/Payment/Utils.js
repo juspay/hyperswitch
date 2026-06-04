@@ -262,6 +262,9 @@ export function getValueByKey(jsonObject, key, keyNumber = 0) {
 }
 
 export const should_continue_further = (data) => {
+  if (!data) {
+    return false;
+  }
   const resData = data.Response || {};
   const configData = validateConfig(data.Configs) || {};
 
