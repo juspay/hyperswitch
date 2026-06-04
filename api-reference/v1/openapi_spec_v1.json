@@ -27419,6 +27419,7 @@
           "attempt_id",
           "status",
           "amount",
+          "net_amount",
           "created_at",
           "modified_at"
         ],
@@ -27441,6 +27442,26 @@
             "format": "int64",
             "description": "The payment attempt tax_amount.",
             "example": 6540,
+            "nullable": true
+          },
+          "net_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The total amount including surcharge, tax, and shipping. Amount in lowest denomination of the currency.",
+            "example": 6750
+          },
+          "surcharge_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Surcharge amount applied to this payment attempt, if any. Amount in lowest denomination of the currency.",
+            "example": 100,
+            "nullable": true
+          },
+          "tax_on_surcharge": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Tax on surcharge amount, if applicable. Amount in lowest denomination of the currency.",
+            "example": 10,
             "nullable": true
           },
           "currency": {
