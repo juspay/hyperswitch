@@ -214,6 +214,20 @@ pub struct RefundUpdateRequest {
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize, SmithyModel)]
+#[serde(deny_unknown_fields)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct RefundCancelPostRefundRequest {
+    #[serde(skip)]
+    pub refund_id: String,
+
+    /// Reason for reversing/voiding the refund at the connector.
+    #[schema(max_length = 255, example = "Void refund before settlement")]
+    #[smithy(value_type = "Option<String>")]
+    pub cancellation_reason: Option<String>,
+}
+
 #[cfg(feature = "v2")]
 #[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]

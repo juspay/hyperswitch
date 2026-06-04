@@ -1526,6 +1526,10 @@ impl Refunds {
                 .service(web::resource("").route(web::post().to(refunds_create)))
                 .service(web::resource("/sync").route(web::post().to(refunds_retrieve_with_body)))
                 .service(
+                    web::resource("/{id}/cancel_post_refund")
+                        .route(web::post().to(refunds_cancel_post_refund)),
+                )
+                .service(
                     web::resource("/{id}")
                         .route(web::get().to(refunds_retrieve))
                         .route(web::post().to(refunds_update)),

@@ -18,7 +18,10 @@ use common_utils::{
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
 use external_services::grpc_client::{
-    unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
+    unified_connector_service::{
+        ConnectorAuthMetadata, RefundCancelPostRefundResponse,
+        RefundServiceCancelPostRefundRequest, UnifiedConnectorServiceError,
+    },
     LineageIds,
 };
 use hyperswitch_connectors::utils::CardData;
@@ -65,6 +68,13 @@ use crate::{
 
 pub mod connector_config;
 pub mod transformers;
+
+pub struct RefundReverseUcsResponse {
+    pub state_metadata: Option<Secret<String>>,
+    pub raw_connector_response: Option<Secret<String>>,
+    pub connector_refund_id: String,
+    pub status: common_enums::RefundStatus,
+}
 
 /// Returns Apple Pay data from payment method token when it has decrypt data,
 /// otherwise returns the original payment data.
@@ -534,7 +544,7 @@ fn build_rollout_keys(
     payment_method_type: Option<PaymentMethodType>,
 ) -> String {
     // Detect if this is a refund flow based on flow name
-    let is_refund_flow = matches!(flow_name, "Execute" | "RSync");
+    let is_refund_flow = matches!(flow_name, "Execute" | "RSync" | "CancelPostRefund");
 
     if is_refund_flow {
         // Refund flows: UCS_merchant_connector_flow (e.g., UCS_merchant123_stripe_Execute)
@@ -3321,4 +3331,84 @@ pub async fn call_unified_connector_service_for_surcharge_calculate(
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to parse UCS surcharge calculate response")
+}
+
+/// Execute UCS refund reverse request using RefundService.Reverse gRPC method.
+#[instrument(skip_all)]
+pub async fn call_unified_connector_service_for_refund_cancel_post_refund(
+    state: &SessionState,
+    processor: &Processor,
+    router_data: RouterData<refunds::CancelPostRefund, RefundsData, RefundsResponseData>,
+    execution_mode: ExecutionMode,
+    #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
+    #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
+) -> RouterResult<RefundReverseUcsResponse> {
+    let ucs_client = get_ucs_client(state)?;
+
+    let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+        merchant_connector_account,
+        processor,
+        router_data.connector.clone(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to build UCS auth metadata for refund reverse")?;
+
+    let ucs_refund_cancel_post_refund_request =
+        RefundServiceCancelPostRefundRequest::foreign_try_from(&router_data)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to transform router data to UCS refund reverse request")?;
+
+    let merchant_id = processor.get_account().get_id().clone();
+    let profile_id = id_type::ProfileId::from_str(merchant_id.get_string_repr())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to convert merchant_id to profile_id for UCS refund reverse")?;
+    let lineage_ids = LineageIds::new(merchant_id, profile_id);
+    let merchant_reference_id =
+        id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
+            .inspect_err(|err| logger::warn!(error=?err, "Invalid PaymentId for UCS reference id"))
+            .ok()
+            .map(ucs_types::UcsReferenceId::Payment);
+    let resource_id = router_data
+        .refund_id
+        .as_ref()
+        .and_then(|refund_id| {
+            id_type::RefundReferenceId::try_from(Cow::Owned(refund_id.to_string()))
+                .inspect_err(
+                    |err| logger::warn!(error=?err, "Invalid RefundId for UCS resource id"),
+                )
+                .ok()
+        })
+        .map(ucs_types::UcsResourceId::Refund);
+
+    let grpc_headers = state
+        .get_grpc_headers_ucs(execution_mode)
+        .lineage_ids(lineage_ids)
+        .external_vault_proxy_metadata(None)
+        .merchant_reference_id(merchant_reference_id)
+        .resource_id(resource_id)
+        .build();
+
+    let grpc_response: RefundCancelPostRefundResponse = ucs_client
+        .refund_cancel_post_refund(
+            ucs_refund_cancel_post_refund_request,
+            connector_auth_metadata,
+            grpc_headers,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("UCS refund reverse execution failed")?
+        .into_inner();
+
+    let refund_status = payments_grpc::RefundStatus::try_from(grpc_response.status)
+        .unwrap_or(payments_grpc::RefundStatus::Unspecified);
+    let status = common_enums::RefundStatus::foreign_try_from(refund_status)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to transform UCS refund reverse status")?;
+
+    Ok(RefundReverseUcsResponse {
+        state_metadata: grpc_response.state.and_then(|state| state.state_metadata),
+        raw_connector_response: grpc_response.raw_connector_response,
+        connector_refund_id: grpc_response.connector_refund_id,
+        status,
+    })
 }

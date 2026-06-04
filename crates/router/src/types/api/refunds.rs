@@ -1,12 +1,12 @@
 #[cfg(feature = "v1")]
-pub use api_models::refunds::RefundRequest;
+pub use api_models::refunds::{RefundCancelPostRefundRequest, RefundRequest};
 pub use api_models::refunds::{
     RefundListRequest, RefundListResponse, RefundResponse, RefundStatus, RefundType,
     RefundUpdateRequest, RefundsRetrieveBody, RefundsRetrieveRequest,
 };
 #[cfg(feature = "v2")]
 pub use api_models::refunds::{RefundMetadataUpdateRequest, RefundsCreateRequest};
-pub use hyperswitch_domain_models::router_flow_types::refunds::{Execute, RSync};
+pub use hyperswitch_domain_models::router_flow_types::refunds::{CancelPostRefund, Execute, RSync};
 pub use hyperswitch_interfaces::api::refunds::{Refund, RefundExecute, RefundSync};
 
 use crate::types::{storage::enums as storage_enums, transformers::ForeignFrom};
