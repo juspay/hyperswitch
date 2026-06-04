@@ -63,6 +63,11 @@ describe("[Payout] Priority", () => {
         "bank_transfer_pm"
       ]["PayoutPriority"];
 
+      if (!utils.should_continue_further(data)) {
+        shouldContinue = false;
+        return;
+      }
+
       cy.createConfirmPayoutTest(
         fixtures.createPayoutBody,
         data,

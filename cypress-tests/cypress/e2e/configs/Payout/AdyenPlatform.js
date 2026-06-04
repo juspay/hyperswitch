@@ -217,6 +217,10 @@ export const connectorDetails = {
       },
     },
     PayoutPriority: {
+      Configs: {
+        // AdyenPlatform test IBAN does not support instant priority payouts
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payout_type: "bank",
         priority: "instant",
@@ -270,6 +274,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
+          status: "initiated",
           priority: "regular",
           payout_type: "bank",
         },
@@ -289,6 +294,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
+          status: "initiated",
           priority: "wire",
           payout_type: "bank",
         },
@@ -306,6 +312,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
+          status: "initiated",
           priority: "regular",
         },
       },
@@ -314,6 +321,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
+          status: "initiated",
           priority: "wire",
         },
       },
