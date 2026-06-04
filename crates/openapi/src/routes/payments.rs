@@ -1050,7 +1050,7 @@ pub fn payments_update_metadata() {}
 )]
 pub fn payments_submit_eligibility_check() {}
 
-/// Payments - Submit Eligiblity Data
+/// Payments - Submit Eligibility Data
 ///
 /// Runs eligibility checks (blocklist, card testing guard) and calculates an external surcharge
 /// in a single call. Intended to be called by the SDK before the final confirm step.

@@ -1726,7 +1726,7 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Submit Eligiblity Data",
+        "summary": "Payments - Submit Eligibility Data",
         "description": "Runs eligibility checks (blocklist, card testing guard) and calculates an external surcharge\nin a single call. Intended to be called by the SDK before the final confirm step.\n\n- If eligibility is denied the response will contain `sdk_next_action: deny` and no surcharge details.\n- If the merchant has no surcharge connector configured, `surcharge_details` will be `null`.\n- Surcharge calculation is best-effort: if the external call fails the payment still proceeds\nwith `surcharge_details: null`.",
         "operationId": "Submit Eligibility data for a Payment",
         "parameters": [
@@ -32369,7 +32369,7 @@
       },
       "PaymentsEligibilityRequest": {
         "type": "object",
-        "description": "Request body for the eligiblity endpoint.\nCombines eligibility checks with external surcharge calculation in a single call.",
+        "description": "Request body for the eligibility endpoint.\nCombines eligibility checks with external surcharge calculation in a single call.",
         "required": [
           "client_secret",
           "payment_method_type",
@@ -32417,7 +32417,7 @@
       },
       "PaymentsEligibilityResponse": {
         "type": "object",
-        "description": "Response body for the eligiblity endpoint.",
+        "description": "Response body for the eligibility endpoint.",
         "required": [
           "payment_id",
           "sdk_next_action"

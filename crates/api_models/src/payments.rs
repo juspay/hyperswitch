@@ -12786,7 +12786,7 @@ pub struct PaymentsEligibilityCheckResponse {
     pub sdk_next_action: SdkNextAction,
 }
 
-/// Request body for the eligiblity endpoint.
+/// Request body for the eligibility endpoint.
 /// Combines eligibility checks with external surcharge calculation in a single call.
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Deserialize, ToSchema)]
@@ -12815,7 +12815,7 @@ pub struct PaymentsEligibilityRequest {
     pub payment_token: Option<Secret<String>>,
 }
 
-/// Response body for the eligiblity endpoint.
+/// Response body for the eligibility endpoint.
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsEligibilityResponse {

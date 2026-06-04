@@ -867,13 +867,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .net_amount
             .set_order_tax_amount(order_tax_amount);
 
-        // If the SDK passed surcharge details from a prior /eligiblity call (external surcharge
+        // If the SDK passed surcharge details from a prior /eligibility call (external surcharge
         // via InterPayments), apply them to net_amount now so that populate_surcharge_details
         // picks them up in the non-DSS path and persists them with the attempt.
         let resolved_surcharge = if request.surcharge_details.is_some() {
             request.surcharge_details
         } else {
-            // Try to load the latest surcharge calculated during eligiblity from Redis
+            // Try to load the latest surcharge calculated during eligibility from Redis
             let redis_key = helpers::get_external_surcharge_redis_key(&payment_attempt.payment_id);
             match state.store.get_redis_conn() {
                 Ok(redis_conn) => {

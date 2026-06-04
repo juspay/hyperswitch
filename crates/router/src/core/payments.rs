@@ -12834,7 +12834,7 @@ pub async fn payments_submit_eligibility(
                             logger::info!(
                                 redis_key = %redis_key,
                                 surcharge_amount = %surcharge_amount.get_amount_as_i64(),
-                                "eligiblity: stored surcharge in Redis"
+                                "eligibility: stored surcharge in Redis"
                             );
                             Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(())
                         }
@@ -12842,7 +12842,7 @@ pub async fn payments_submit_eligibility(
                         if let Err(err) = redis_write_result {
                             logger::warn!(
                                 error=?err,
-                                "eligiblity: failed to write surcharge to Redis; confirm will not auto-apply surcharge"
+                                "eligibility: failed to write surcharge to Redis; confirm will not auto-apply surcharge"
                             );
                         }
 
