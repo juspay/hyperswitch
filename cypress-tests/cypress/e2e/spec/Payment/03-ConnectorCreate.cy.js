@@ -1,56 +1,16 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import { payment_methods_enabled } from "../../configs/Payment/Commons";
+import {
+  bankDebitPaymentMethodsBacs,
+  bankDebitPaymentMethodsBecs,
+  bankDebitPaymentMethodsSepa,
+  payment_methods_enabled,
+} from "../../configs/Payment/Commons";
 import {
   CONNECTOR_LISTS,
   shouldIncludeConnector,
 } from "../../configs/Payment/Utils";
 import * as utils from "../../configs/Payment/Utils";
-
-const bankDebitPaymentMethodsSepa = [
-  {
-    payment_method: "bank_debit",
-    payment_method_types: [
-      {
-        payment_method_type: "sepa",
-        minimum_amount: 1,
-        maximum_amount: 68607706,
-        recurring_enabled: true,
-        installment_payment_enabled: true,
-      },
-    ],
-  },
-];
-
-const bankDebitPaymentMethodsBecs = [
-  {
-    payment_method: "bank_debit",
-    payment_method_types: [
-      {
-        payment_method_type: "becs",
-        minimum_amount: 1,
-        maximum_amount: 68607706,
-        recurring_enabled: true,
-        installment_payment_enabled: true,
-      },
-    ],
-  },
-];
-
-const bankDebitPaymentMethodsBacs = [
-  {
-    payment_method: "bank_debit",
-    payment_method_types: [
-      {
-        payment_method_type: "bacs",
-        minimum_amount: 1,
-        maximum_amount: 68607706,
-        recurring_enabled: true,
-        installment_payment_enabled: true,
-      },
-    ],
-  },
-];
 
 let globalState;
 describe("Connector Account Create flow test", () => {
@@ -104,7 +64,7 @@ describe("Connector Account Create flow test", () => {
   );
 
   context(
-    "Create business profile and merchant connector account for connector_3 (bank_debit BACS)",
+    "Create business profile and merchant connector account for connector_3",
     () => {
       beforeEach(function () {
         if (!isBankDebitConnector) {
@@ -134,7 +94,7 @@ describe("Connector Account Create flow test", () => {
   );
 
   context(
-    "Create business profile and merchant connector account for connector_4 (bank_debit BECS)",
+    "Create business profile and merchant connector account for connector_4",
     () => {
       beforeEach(function () {
         if (!isBankDebitConnector) {
@@ -164,7 +124,7 @@ describe("Connector Account Create flow test", () => {
   );
 
   context(
-    "Create business profile and merchant connector account for connector_5 (bank_debit SEPA)",
+    "Create business profile and merchant connector account for connector_5",
     () => {
       beforeEach(function () {
         if (!isBankDebitConnector) {

@@ -2811,7 +2811,6 @@ export const connectorDetails = {
           },
         },
         setup_future_usage: "off_session",
-        customer_acceptance: onlineCustomerAcceptance,
         payment_type: "new_mandate",
       },
       Response: {
@@ -2849,7 +2848,6 @@ export const connectorDetails = {
           },
         },
         setup_future_usage: "off_session",
-        customer_acceptance: onlineCustomerAcceptance,
         billing: {
           address: {
             line1: "1467",
@@ -2915,7 +2913,6 @@ export const connectorDetails = {
             last_name: "Doe",
           },
         },
-        customer_acceptance: onlineCustomerAcceptance,
         mandate_data: {
           customer_acceptance: onlineCustomerAcceptance,
           mandate_type: {
@@ -3013,7 +3010,6 @@ export const connectorDetails = {
           },
         },
         setup_future_usage: "off_session",
-        customer_acceptance: onlineCustomerAcceptance,
         billing: {
           address: {
             line1: "1467",

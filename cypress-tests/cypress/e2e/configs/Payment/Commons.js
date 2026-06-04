@@ -207,6 +207,51 @@ export const fullNameRequiredField = {
 
 export const billingRequiredField = {};
 
+export const bankDebitPaymentMethodsBacs = [
+  {
+    payment_method: "bank_debit",
+    payment_method_types: [
+      {
+        payment_method_type: "bacs",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+];
+
+export const bankDebitPaymentMethodsBecs = [
+  {
+    payment_method: "bank_debit",
+    payment_method_types: [
+      {
+        payment_method_type: "becs",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+];
+
+export const bankDebitPaymentMethodsSepa = [
+  {
+    payment_method: "bank_debit",
+    payment_method_types: [
+      {
+        payment_method_type: "sepa",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+];
+
 export const payment_methods_enabled = [
   {
     payment_method: "bank_redirect",
@@ -1377,9 +1422,6 @@ export const connectorDetails = {
       },
     }),
     MandateSingleUseSepa: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "sepa",
@@ -1398,17 +1440,8 @@ export const connectorDetails = {
           email: "test@example.com",
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
     }),
     MandateSingleUseBecs: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "becs",
@@ -1428,17 +1461,8 @@ export const connectorDetails = {
           email: "test@example.com",
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
     }),
     MandateSingleUseAch: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "ach",
@@ -1458,17 +1482,8 @@ export const connectorDetails = {
           email: "test@example.com",
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
     }),
     MandateSingleUseBacs: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "bacs",
@@ -1488,60 +1503,18 @@ export const connectorDetails = {
           email: "test@example.com",
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
     }),
     MITAutoCaptureSepa: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
     }),
     MITAutoCaptureBecs: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
     }),
     MITAutoCaptureAch: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
     }),
     MITAutoCaptureBacs: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
     }),
   },
   wallet_pm: {
