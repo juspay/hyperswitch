@@ -1284,6 +1284,9 @@ function bankRedirectRedirection(
             if (["eps", "ideal", "giropay"].includes(paymentMethodType)) {
               cy.get('button[name="Successful"][value="SUCCEEDED"]').click();
               verifyUrl = true;
+            } else if (paymentMethodType === "paypal") {
+              cy.url().should("include", "sandbox.paypal.com");
+              verifyUrl = false;
             } else {
               throw new Error(
                 `Unsupported Paypal payment method type: ${paymentMethodType}`
@@ -1620,6 +1623,10 @@ function bankRedirectRedirection(
                     return;
                   }
                 });
+                verifyUrl = false;
+                break;
+              case "paypal":
+                cy.url().should("include", "sandbox.paypal.com");
                 verifyUrl = false;
                 break;
               default:
