@@ -18,12 +18,7 @@ describe("Wallet Mandate tests", () => {
         globalState = new State(state);
         const connector = globalState.get("connectorId");
 
-        if (
-          shouldIncludeConnector(
-            connector,
-            WALLET_MANDATE_CONNECTORS
-          )
-        ) {
+        if (shouldIncludeConnector(connector, WALLET_MANDATE_CONNECTORS)) {
           skip = true;
         }
       })

@@ -5248,37 +5248,6 @@ Cypress.Commands.add(
       connectorId,
       paymentMethodType
     );
-      return;
-    }
-
-    let redirectionUrl;
-    try {
-      redirectionUrl = new URL(nextActionUrl);
-    } catch (e) {
-      cy.task(
-        "cli_log",
-        `Skipping wallet redirection: invalid redirect URL for ${paymentMethodType} (nextActionUrl=${nextActionUrl})`
-      );
-      return;
-    }
-
-    if (redirectionUrl.hostname === "null") {
-      cy.task(
-        "cli_log",
-        `Skipping wallet redirection: null hostname in redirect URL for ${paymentMethodType} (nextActionUrl=${nextActionUrl})`
-      );
-
-      return;
-    }
-
-    const expectedUrl = new URL(expectedRedirection);
-
-    handleRedirection(
-      "bank_redirect",
-      { redirectionUrl, expectedUrl },
-      connectorId,
-      paymentMethodType
-    );
   }
 );
 
