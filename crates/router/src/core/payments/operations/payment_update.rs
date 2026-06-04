@@ -1141,7 +1141,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     payment_data.payment_intent.session_expiry,
                 )
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to refresh client session during payment update")?;
 
             services::logger::debug!(

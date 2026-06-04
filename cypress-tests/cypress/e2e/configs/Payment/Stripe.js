@@ -403,10 +403,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "pending",
-          card_type: null,
-          card_network: null,
-          card_issuer: null,
-          card_issuing_country: null,
         },
       },
     },
