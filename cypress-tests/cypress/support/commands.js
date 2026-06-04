@@ -7278,7 +7278,7 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "manualRefundStatusUpdateTest",
-  (globalState, refundManualUpdateRequestBody) => {
+  (data, globalState) => {
     const merchantId = globalState.get("merchantId");
     const refundId = globalState.get("refundId");
     const completeUrl = `${Cypress.env("BASEURL")}/refunds/${refundId}/manual-update`;
@@ -7292,7 +7292,7 @@ Cypress.Commands.add(
         "api-key": adminApiKey,
         "X-Merchant-Id": merchantId,
       },
-      body: refundManualUpdateRequestBody,
+      body: data,
       failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);

@@ -128,8 +128,8 @@ describe("Refund Webhook Tests", () => {
       };
 
       cy.manualRefundStatusUpdateTest(
-        globalState,
-        refundManualUpdateRequestBody
+        refundManualUpdateRequestBody,
+        globalState
       );
     });
 
