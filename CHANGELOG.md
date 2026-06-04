@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.03.0-hotfix1
+
+### Bug Fixes
+
+- **payment_methods:** Use processor key store when listing MCAs in customer payment method list ([#12605](https://github.com/juspay/hyperswitch/pull/12605)) ([`eafb08e`](https://github.com/juspay/hyperswitch/commit/eafb08e3cde48c4b06fe86fba32cc19b158f2f7a))
+
+**Full Changelog:** [`2026.06.03.0...2026.06.03.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.06.03.0...2026.06.03.0-hotfix1)
+
+- - -
+
 ## 2026.06.03.0
 
 ### Features
