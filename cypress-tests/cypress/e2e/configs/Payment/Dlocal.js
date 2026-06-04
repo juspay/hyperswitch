@@ -3,7 +3,7 @@ import {
   multiUseMandateData,
   singleUseMandateData,
 } from "./Commons";
-import { getCustomExchange } from "./Modifiers";
+// import { getCustomExchange } from "./Modifiers";
 const mockBillingDetails = {
   address: {
     line1: "Servidao B-1",
@@ -92,7 +92,7 @@ const payment_method_data_3ds_address = {
 };
 export const connectorDetails = {
   voucher_pm: {
-    PaymentIntent: (paymentMethodType) => {
+    PaymentIntent: () => {
       return {
         Request: {
           currency: "MXN",
