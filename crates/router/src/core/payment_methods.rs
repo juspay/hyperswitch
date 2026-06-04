@@ -1038,6 +1038,27 @@ pub(crate) async fn get_payment_method_create_request(
     match payment_method_data {
         Some(pm_data) => match payment_method {
             Some(payment_method) => {
+                let default_payment_method_request = payment_methods::PaymentMethodCreate {
+                    payment_method: Some(payment_method),
+                    payment_method_type,
+                    payment_method_issuer: None,
+                    payment_method_issuer_code: None,
+                    #[cfg(feature = "payouts")]
+                    bank_transfer: None,
+                    #[cfg(feature = "payouts")]
+                    bank_transfer_data: None,
+                    #[cfg(feature = "payouts")]
+                    wallet: None,
+                    card: None,
+                    metadata: None,
+                    customer_id: customer_id.clone(),
+                    card_network: None,
+                    client_secret: None,
+                    payment_method_data: None,
+                    billing: None,
+                    connector_mandate_details: None,
+                    network_transaction_id: None,
+                };
                 match pm_data {
                     domain::PaymentMethodData::Card(card) => {
                         let card_network = get_card_network_with_us_local_debit_network_override(
@@ -1128,110 +1149,94 @@ pub(crate) async fn get_payment_method_create_request(
                     }
                     domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(
                         apple_pay_data,
-                    )) if let Some(decrypted_data) = apple_pay_data
-                        .payment_data
-                        .get_decrypted_apple_pay_payment_data_optional() =>
-                    {
-                        Ok(payment_methods::PaymentMethodCreate {
-                            payment_method: Some(payment_method),
-                            payment_method_type,
-                            payment_method_issuer: None,
-                            payment_method_issuer_code: None,
-                            #[cfg(feature = "payouts")]
-                            bank_transfer: None,
-                            #[cfg(feature = "payouts")]
-                            bank_transfer_data: None,
-                            #[cfg(feature = "payouts")]
-                            wallet: None,
-                            card: None,
-                            metadata: None,
-                            customer_id: customer_id.clone(),
-                            card_network: None,
-                            client_secret: None,
-                            payment_method_data: Some(
-                                payment_methods::PaymentMethodCreateData::Wallet(
-                                    payment_methods::WalletDetail::ApplePayDecryptedData {
-                                        application_primary_account_number: decrypted_data
-                                            .application_primary_account_number
-                                            .clone(),
-                                        expiry_month: decrypted_data
-                                            .application_expiration_month
-                                            .clone(),
-                                        expiry_year: decrypted_data
-                                            .application_expiration_year
-                                            .clone(),
-                                    },
+                    )) => {
+                        if let Some(decrypted_data) = apple_pay_data
+                            .payment_data
+                            .get_decrypted_apple_pay_payment_data_optional()
+                        {
+                            Ok(payment_methods::PaymentMethodCreate {
+                                payment_method: Some(payment_method),
+                                payment_method_type,
+                                payment_method_issuer: None,
+                                payment_method_issuer_code: None,
+                                #[cfg(feature = "payouts")]
+                                bank_transfer: None,
+                                #[cfg(feature = "payouts")]
+                                bank_transfer_data: None,
+                                #[cfg(feature = "payouts")]
+                                wallet: None,
+                                card: None,
+                                metadata: None,
+                                customer_id: customer_id.clone(),
+                                card_network: None,
+                                client_secret: None,
+                                payment_method_data: Some(
+                                    payment_methods::PaymentMethodCreateData::Wallet(
+                                        payment_methods::WalletDetail::ApplePayDecryptedData {
+                                            application_primary_account_number: decrypted_data
+                                                .application_primary_account_number
+                                                .clone(),
+                                            expiry_month: decrypted_data
+                                                .application_expiration_month
+                                                .clone(),
+                                            expiry_year: decrypted_data
+                                                .application_expiration_year
+                                                .clone(),
+                                        },
+                                    ),
                                 ),
-                            ),
-                            billing: payment_method_billing_address.cloned().map(From::from),
-                            connector_mandate_details: None,
-                            network_transaction_id: None,
-                        })
+                                billing: payment_method_billing_address.cloned().map(From::from),
+                                connector_mandate_details: None,
+                                network_transaction_id: None,
+                            })
+                        } else {
+                            Ok(default_payment_method_request)
+                        }
                     }
                     domain::PaymentMethodData::Wallet(domain::WalletData::GooglePay(
                         google_pay_data,
-                    )) if let Some(decrypted_data) = google_pay_data
-                        .tokenization_data
-                        .get_decrypted_google_pay_payment_data_optional() =>
-                    {
-                        Ok(payment_methods::PaymentMethodCreate {
-                            payment_method: Some(payment_method),
-                            payment_method_type,
-                            payment_method_issuer: None,
-                            payment_method_issuer_code: None,
-                            #[cfg(feature = "payouts")]
-                            bank_transfer: None,
-                            #[cfg(feature = "payouts")]
-                            bank_transfer_data: None,
-                            #[cfg(feature = "payouts")]
-                            wallet: None,
-                            card: None,
-                            metadata: None,
-                            customer_id: customer_id.clone(),
-                            card_network: None,
-                            client_secret: None,
-                            payment_method_data: Some(
-                                payment_methods::PaymentMethodCreateData::Wallet(
-                                    payment_methods::WalletDetail::GooglePayDecryptedData {
-                                        application_primary_account_number: decrypted_data
-                                            .application_primary_account_number
-                                            .clone(),
-                                        expiry_month: decrypted_data.card_exp_month.clone(),
-                                        expiry_year: decrypted_data.card_exp_year.clone(),
-                                    },
+                    )) => {
+                        if let Some(decrypted_data) = google_pay_data
+                            .tokenization_data
+                            .get_decrypted_google_pay_payment_data_optional()
+                        {
+                            Ok(payment_methods::PaymentMethodCreate {
+                                payment_method: Some(payment_method),
+                                payment_method_type,
+                                payment_method_issuer: None,
+                                payment_method_issuer_code: None,
+                                #[cfg(feature = "payouts")]
+                                bank_transfer: None,
+                                #[cfg(feature = "payouts")]
+                                bank_transfer_data: None,
+                                #[cfg(feature = "payouts")]
+                                wallet: None,
+                                card: None,
+                                metadata: None,
+                                customer_id: customer_id.clone(),
+                                card_network: None,
+                                client_secret: None,
+                                payment_method_data: Some(
+                                    payment_methods::PaymentMethodCreateData::Wallet(
+                                        payment_methods::WalletDetail::GooglePayDecryptedData {
+                                            application_primary_account_number: decrypted_data
+                                                .application_primary_account_number
+                                                .clone(),
+                                            expiry_month: decrypted_data.card_exp_month.clone(),
+                                            expiry_year: decrypted_data.card_exp_year.clone(),
+                                        },
+                                    ),
                                 ),
-                            ),
-                            billing: payment_method_billing_address.cloned().map(From::from),
-                            connector_mandate_details: None,
-                            network_transaction_id: None,
-                        })
+                                billing: payment_method_billing_address.cloned().map(From::from),
+                                connector_mandate_details: None,
+                                network_transaction_id: None,
+                            })
+                        } else {
+                            Ok(default_payment_method_request)
+                        }
                     }
 
-                    _ => {
-                        let payment_method_request = payment_methods::PaymentMethodCreate {
-                            payment_method: Some(payment_method),
-                            payment_method_type,
-                            payment_method_issuer: None,
-                            payment_method_issuer_code: None,
-                            #[cfg(feature = "payouts")]
-                            bank_transfer: None,
-                            #[cfg(feature = "payouts")]
-                            bank_transfer_data: None,
-                            #[cfg(feature = "payouts")]
-                            wallet: None,
-                            card: None,
-                            metadata: None,
-                            customer_id: customer_id.clone(),
-                            card_network: None,
-                            client_secret: None,
-                            payment_method_data: None,
-                            billing: None,
-                            connector_mandate_details: None,
-                            network_transaction_id: None,
-                        };
-
-                        Ok(payment_method_request)
-                    }
+                    _ => Ok(default_payment_method_request),
                 }
             }
             None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
