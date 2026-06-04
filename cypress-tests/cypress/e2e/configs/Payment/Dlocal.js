@@ -110,9 +110,7 @@ export const connectorDetails = {
         payment_method: "voucher",
         payment_method_type: "oxxo",
         payment_method_data: {
-          voucher: {
-            oxxo: null,
-          },
+          voucher: "oxxo",
         },
         billing: {
           address: {
@@ -145,9 +143,7 @@ export const connectorDetails = {
         payment_method: "voucher",
         payment_method_type: "oxxo",
         payment_method_data: {
-          voucher: {
-            oxxo: "oxxo",
-          },
+          voucher: "invalid_oxxo_value",
         },
         billing: {
           address: {
