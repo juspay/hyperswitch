@@ -177,7 +177,7 @@ export const connectorDetails = {
         body: {
           error: {
             message:
-              "Json deserialize error: unknown variant `invalid_oxxo_value`, expected one of `boleto`, `efecty`, `pago_efectivo`, `red_compra`, `red_pagos`, `alfamart`, `indomaret`, `oxxo`, `seven_eleven`, `lawson`, `mini_stop`, `family_mart`, `seicomart`, `pay_easy` at line 1 column 666",
+              "Json deserialize error: unknown variant `invalid_oxxo_value`, expected one of `boleto`, `efecty`, `pago_efectivo`, `red_compra`, `red_pagos`, `alfamart`, `indomaret`, `oxxo`, `seven_eleven`, `lawson`, `mini_stop`, `family_mart`, `seicomart`, `pay_easy`",
             code: "IR_06",
           },
         },
