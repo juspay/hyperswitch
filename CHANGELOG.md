@@ -4,6 +4,38 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.04.0
+
+### Features
+
+- **cache:** Add in-memory cache support for organization ([#12480](https://github.com/juspay/hyperswitch/pull/12480)) ([`ea92e95`](https://github.com/juspay/hyperswitch/commit/ea92e95d2c037233225af3ad71677584fa4e393c))
+- **core/connector:** Renaming `Pix` to `PixEmv` PaymentMethodType for Santander ([#11550](https://github.com/juspay/hyperswitch/pull/11550)) ([`f062b99`](https://github.com/juspay/hyperswitch/commit/f062b995059e796fb6ba25851d24e2af8698c2e1))
+- **platform:**
+  - Add processor_merchant_id, created_by columns to blocklist table and query update ([#11951](https://github.com/juspay/hyperswitch/pull/11951)) ([`858c30f`](https://github.com/juspay/hyperswitch/commit/858c30fe9f0bf67f461ead10264d0f398bd272a7))
+  - Refund workflows to use processor_merchant_id ([#12223](https://github.com/juspay/hyperswitch/pull/12223)) ([`4a850f0`](https://github.com/juspay/hyperswitch/commit/4a850f066008754edf2c087920b67ee725cd14d9))
+
+### Bug Fixes
+
+- **payment_methods:** Align recurring_enabled and requires_cvv in modular PM list with legacy DB flow ([#12520](https://github.com/juspay/hyperswitch/pull/12520)) ([`1127ba9`](https://github.com/juspay/hyperswitch/commit/1127ba9779de35acd54b86367b5a88d57d29d336))
+- **router:** Propagate correct error on session recreation failure ([#12379](https://github.com/juspay/hyperswitch/pull/12379)) ([`7f26690`](https://github.com/juspay/hyperswitch/commit/7f266901c06b65bdbf0f0cfed54d0274180d6ea2))
+
+### Refactors
+
+- **authentication:** Logged error for acquirer details if not found in default bucket ([#12558](https://github.com/juspay/hyperswitch/pull/12558)) ([`9f25745`](https://github.com/juspay/hyperswitch/commit/9f25745fd9fee91e936e267dd71d5f0371d73c16))
+- **drainer:** Store SQL queries in drainer stream instead of JSON-ified entities ([#12449](https://github.com/juspay/hyperswitch/pull/12449)) ([`a55673c`](https://github.com/juspay/hyperswitch/commit/a55673cc9abe5fd94b426be927fb09c41460fe8e))
+- **storage_impl:** Move Conversion impl for authentication to storage_impl crate ([#11805](https://github.com/juspay/hyperswitch/pull/11805)) ([`ddfcedf`](https://github.com/juspay/hyperswitch/commit/ddfcedfe0e9e7b542fdc0f929cee19f843586a4e))
+
+### Testing
+
+- **cypress:**
+  - Add bank redirect payment tests for GlobalPay ([#12343](https://github.com/juspay/hyperswitch/pull/12343)) ([`6804b1a`](https://github.com/juspay/hyperswitch/commit/6804b1a215a5bac74e14d30ef624be7735139ab8))
+  - Add multisafepay wallet(AliPay, WeChatPay, MbWay, PayPal) ([#12426](https://github.com/juspay/hyperswitch/pull/12426)) ([`2c17690`](https://github.com/juspay/hyperswitch/commit/2c1769048bb9c624ad1dfe1303878a83745f2061))
+  - Add airwallex alternative payment coverage for paylater, and wallet ([#12370](https://github.com/juspay/hyperswitch/pull/12370)) ([`d912902`](https://github.com/juspay/hyperswitch/commit/d91290241278c1ff0bb8007f2ac9904b850ae45a))
+
+**Full Changelog:** [`2026.06.03.0...2026.06.04.0`](https://github.com/juspay/hyperswitch/compare/2026.06.03.0...2026.06.04.0)
+
+- - -
+
 ## 2026.06.03.0
 
 ### Features
