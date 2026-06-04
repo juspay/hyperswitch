@@ -262,7 +262,7 @@ impl ParentGroupExt for ParentGroup {
     }
 }
 
-pub static OPERATIONS: [Resource; 8] = [
+pub static OPERATIONS: [Resource; 7] = [
     Resource::Payment,
     Resource::Refund,
     Resource::Mandate,
@@ -270,22 +270,20 @@ pub static OPERATIONS: [Resource; 8] = [
     Resource::Customer,
     Resource::Payout,
     Resource::Report,
-    Resource::Account,
 ];
 
-pub static CONNECTORS: [Resource; 2] = [Resource::Connector, Resource::Account];
+pub static CONNECTORS: [Resource; 1] = [Resource::Connector];
 
-pub static WORKFLOWS: [Resource; 5] = [
+pub static WORKFLOWS: [Resource; 4] = [
     Resource::Routing,
     Resource::ThreeDsDecisionManager,
     Resource::SurchargeDecisionManager,
-    Resource::Account,
     Resource::RevenueRecovery,
 ];
 
-pub static ANALYTICS: [Resource; 3] = [Resource::Analytics, Resource::Report, Resource::Account];
+pub static ANALYTICS: [Resource; 2] = [Resource::Analytics, Resource::Report];
 
-pub static USERS: [Resource; 2] = [Resource::User, Resource::Account];
+pub static USERS: [Resource; 1] = [Resource::User];
 
 pub static ACCOUNT: [Resource; 1] = [Resource::Account];
 
@@ -297,18 +295,11 @@ pub static INTERNAL: [Resource; 1] = [Resource::InternalConnector];
 
 pub static THEME: [Resource; 1] = [Resource::Theme];
 
-pub static RECON_SOURCES: [Resource; 3] = [
-    Resource::ReconIngestion,
-    Resource::ReconTransformation,
-    Resource::Account,
-];
+pub static RECON_SOURCES: [Resource; 2] = [Resource::ReconIngestion, Resource::ReconTransformation];
 
-pub static RECON_EXCEPTIONS: [Resource; 2] = [Resource::ReconException, Resource::Account];
+pub static RECON_EXCEPTIONS: [Resource; 1] = [Resource::ReconException];
 
-pub static RECON_TRANSACTIONS: [Resource; 3] = [
-    Resource::ReconStagingEntry,
-    Resource::ReconTransaction,
-    Resource::Account,
-];
+pub static RECON_TRANSACTIONS: [Resource; 2] =
+    [Resource::ReconStagingEntry, Resource::ReconTransaction];
 
-pub static RECON_RULES: [Resource; 2] = [Resource::ReconRule, Resource::Account];
+pub static RECON_RULES: [Resource; 1] = [Resource::ReconRule];
