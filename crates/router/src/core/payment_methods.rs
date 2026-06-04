@@ -507,13 +507,13 @@ pub async fn payment_method_modular_forward_compat_action(
         let state = state.clone();
         domain::PaymentMethodCompatAction::new(move |payment_method| {
             let state = state.clone();
-            async move {
+            Box::pin(async move {
                 let res = add_payment_method_modular_forward_compat_task(
                     &*state.store,
-                    &payment_method,
+                    payment_method,
                     &payment_method.merchant_id,
                     state.conf.application_source,
-                    payment_method_compat_modifier(&payment_method),
+                    payment_method_compat_modifier(payment_method),
                 )
                 .await;
 
@@ -525,7 +525,7 @@ pub async fn payment_method_modular_forward_compat_action(
                         "Failed to schedule modular forward compatibility PT after payment method DB write"
                     );
                 }
-            }
+            })
         })
     })
 }
@@ -537,14 +537,14 @@ pub fn payment_method_modular_backward_compat_action(
     let state = state.clone();
     domain::PaymentMethodCompatAction::new(move |payment_method| {
         let state = state.clone();
-        async move {
+        Box::pin(async move {
             backward_compat::trigger_payment_method_modular_backward_compat(
                 &state,
-                &payment_method,
-                payment_method_compat_modifier(&payment_method),
+                payment_method,
+                payment_method_compat_modifier(payment_method),
             )
             .await;
-        }
+        })
     })
 }
 

@@ -194,7 +194,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             .change_context(errors::StorageError::KVError)
             .attach_printable("Failed to generate payment method insert query")?;
 
-        let payment_method = self
+        let payment_method: DomainPaymentMethod = self
             .insert_resource(
                 key_store,
                 storage_scheme,
@@ -208,10 +208,10 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
                     resource_type: "payment_method",
                 },
             )
-            .await;
+            .await?;
 
         if let Some(compat_action) = compat_action {
-            compat_action.execute(payment_method.clone()).await;
+            compat_action.execute(&payment_method).await;
         }
 
         Ok(payment_method)
@@ -275,7 +275,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         .await?;
 
         if let Some(compat_action) = compat_action {
-            compat_action.execute(payment_method.clone()).await;
+            compat_action.execute(&payment_method).await;
         }
 
         Ok(payment_method)
@@ -619,7 +619,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
             .await?;
 
         if let Some(compat_action) = compat_action {
-            compat_action.execute(payment_method.clone()).await;
+            compat_action.execute(&payment_method).await;
         }
 
         Ok(payment_method)
@@ -648,7 +648,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
             .await?;
 
         if let Some(compat_action) = compat_action {
-            compat_action.execute(payment_method.clone()).await;
+            compat_action.execute(&payment_method).await;
         }
 
         Ok(payment_method)
@@ -676,7 +676,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
             .await?;
 
         if let Some(compat_action) = compat_action {
-            compat_action.execute(payment_method.clone()).await;
+            compat_action.execute(&payment_method).await;
         }
 
         Ok(payment_method)
@@ -997,7 +997,7 @@ impl PaymentMethodInterface for MockDb {
 
         payment_methods.push(pm);
         if let Some(compat_action) = compat_action {
-            compat_action.execute(payment_method.clone()).await;
+            compat_action.execute(&payment_method).await;
         }
         Ok(payment_method)
     }
@@ -1183,7 +1183,7 @@ impl PaymentMethodInterface for MockDb {
             .await?;
 
         if let Some(compat_action) = compat_action {
-            compat_action.execute(payment_method.clone()).await;
+            compat_action.execute(&payment_method).await;
         }
 
         Ok(payment_method)

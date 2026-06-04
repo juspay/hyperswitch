@@ -1284,23 +1284,21 @@ pub trait PaymentMethodInterface {
     ) -> CustomResult<PaymentMethod, Self::Error>;
 }
 
-type PaymentMethodCompatFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
-type PaymentMethodCompatFn = dyn Fn(PaymentMethod) -> PaymentMethodCompatFuture + Send + Sync;
+type PaymentMethodCompatFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
+type PaymentMethodCompatFn =
+    dyn for<'a> Fn(&'a PaymentMethod) -> PaymentMethodCompatFuture<'a> + Send + Sync;
 
 pub struct PaymentMethodCompatAction(Arc<PaymentMethodCompatFn>);
 
 impl PaymentMethodCompatAction {
-    pub fn new<F, Fut>(action: F) -> Self
+    pub fn new<F>(action: F) -> Self
     where
-        F: Fn(PaymentMethod) -> Fut + Send + Sync + 'static,
-        Fut: Future<Output = ()> + Send + 'static,
+        F: for<'a> Fn(&'a PaymentMethod) -> PaymentMethodCompatFuture<'a> + Send + Sync + 'static,
     {
-        Self(Arc::new(move |payment_method| {
-            Box::pin(action(payment_method))
-        }))
+        Self(Arc::new(action))
     }
 
-    pub async fn execute(&self, payment_method: PaymentMethod) {
+    pub async fn execute(&self, payment_method: &PaymentMethod) {
         self.0(payment_method).await;
     }
 }
