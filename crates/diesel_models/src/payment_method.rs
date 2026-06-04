@@ -78,8 +78,8 @@ pub struct PaymentMethod {
     // Do not use this column in v1 business logic.
     pub payment_method_subtype: Option<String>,
     pub network_transaction_link_id: Option<String>,
-    pub connector_payment_method_details: Option<serde_json::Value>,
     pub compatibility_updated_at: Option<PrimitiveDateTime>,
+    pub connector_payment_method_details: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v2")]

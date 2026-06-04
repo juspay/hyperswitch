@@ -1444,8 +1444,8 @@ diesel::table! {
         payment_method_subtype -> Nullable<Varchar>,
         #[max_length = 255]
         network_transaction_link_id -> Nullable<Varchar>,
-        connector_payment_method_details -> Nullable<Jsonb>,
         compatibility_updated_at -> Nullable<Timestamp>,
+        connector_payment_method_details -> Nullable<Jsonb>,
     }
 }
 
