@@ -17,7 +17,7 @@ pub use api_models::{
     payments::{
         Address, AddressDetails, Amount, ApplepayPaymentMethod, AuthenticationForStartResponse,
         Card, CryptoData, CustomerDetails, CustomerDetailsResponse, HyperswitchVaultSessionDetails,
-        MandateAmountData, MandateData, MandateTransactionType, MandateType,
+        InternalVaultSessionDetails, MandateAmountData, MandateData, MandateType,
         MandateValidationFields, NextActionType, OpenBankingSessionToken, PayLaterData,
         PaymentIdType, PaymentListConstraints, PaymentListFilters, PaymentListFiltersV2,
         PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp,
@@ -31,12 +31,13 @@ pub use api_models::{
         PaymentsRequest, PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest,
         PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
         PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse, PgRedirectResponse,
-        PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VaultSessionDetails,
-        VerifyRequest, VerifyResponse, VgsSessionDetails, WalletData,
+        PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VaultDetails,
+        VaultSessionDetails, VerifyRequest, VerifyResponse, VgsSessionDetails, WalletData,
     },
 };
 pub use common_types::payments::{AcceptanceType, CustomerAcceptance, OnlineMandate};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::mandates;
 pub use hyperswitch_domain_models::router_flow_types::payments::{
     Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
     CreateConnectorCustomer, CreateOrder, ExtendAuthorization, ExternalVaultProxy, GenerateQr,
@@ -54,6 +55,7 @@ pub use hyperswitch_interfaces::api::payments::{
     PaymentsPreProcessing, PaymentsPushNotification, SurchargeCalculation, SurchargeComplete,
     SurchargeRefund, TaxCalculation,
 };
+pub use mandates::MandateTransactionType;
 
 pub use super::payments_v2::{
     ConnectorCustomerV2, MandateSetupV2, PaymentApproveV2, PaymentAuthorizeSessionTokenV2,

@@ -2625,6 +2625,17 @@ impl PayoutAttemptInterface for KafkaStore {
             .get_filters_for_payouts(payouts, merchant_id, storage_scheme)
             .await
     }
+
+    async fn find_payout_attempts_by_merchant_id_payout_id(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        payout_id: &id_type::PayoutId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<storage::PayoutAttempt>, errors::StorageError> {
+        self.diesel_store
+            .find_payout_attempts_by_merchant_id_payout_id(merchant_id, payout_id, storage_scheme)
+            .await
+    }
 }
 
 #[cfg(not(feature = "payouts"))]
@@ -3322,13 +3333,16 @@ impl RoutingAlgorithmInterface for KafkaStore {
             .await
     }
 
-    async fn find_routing_algorithm_by_algorithm_id_merchant_id(
+    async fn find_routing_algorithm_by_algorithm_id_processor_merchant_id(
         &self,
         algorithm_id: &id_type::RoutingId,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
     ) -> CustomResult<storage::RoutingAlgorithm, errors::StorageError> {
         self.diesel_store
-            .find_routing_algorithm_by_algorithm_id_merchant_id(algorithm_id, merchant_id)
+            .find_routing_algorithm_by_algorithm_id_processor_merchant_id(
+                algorithm_id,
+                processor_merchant_id,
+            )
             .await
     }
 

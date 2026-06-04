@@ -57,8 +57,15 @@ async fn run_batch_job(
 
         let chunk_rows = batch::parse_chunk_csv(&chunk_bytes)?;
 
-        let chunk_succeeded =
-            batch::process_chunk(state, merchant_id_obj, chunk_idx, chunk_rows).await?;
+        let chunk_succeeded = batch::process_chunk(
+            state,
+            merchant_id_obj,
+            tracking_data.processor_merchant_id.as_ref(),
+            chunk_idx,
+            chunk_rows,
+            tracking_data.created_by.clone(),
+        )
+        .await?;
         total_succeeded += chunk_succeeded;
 
         tracking_data.completed_chunks.push(chunk_idx);
@@ -156,7 +163,10 @@ impl ProcessTrackerWorkflow<SessionState> for BatchBlocklistUploadWorkflow {
         let job_id = tracking_data.job_id.clone();
         let chunk_total_count = tracking_data.chunk_total_count;
 
-        let merchant_id = tracking_data.merchant_id.clone();
+        let merchant_id = tracking_data
+            .processor_merchant_id
+            .clone()
+            .unwrap_or_else(|| tracking_data.merchant_id.clone());
         let merchant_id_str = merchant_id.get_string_repr();
 
         if tracking_data.completed_chunks.is_empty() {

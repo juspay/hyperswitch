@@ -1,5 +1,5 @@
 use common_utils::{id_type, pii};
-use diesel_models::{customers, kv};
+use diesel_models::customers;
 use error_stack::ResultExt;
 use futures::future::try_join_all;
 use hyperswitch_domain_models::{
@@ -166,13 +166,28 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         let customer = Conversion::convert(customer)
             .await
             .change_context(StorageError::EncryptionError)?;
-        let updated_customer = diesel_models::CustomerUpdateInternal::from(customer_update.clone())
+        let customer_update_internal =
+            diesel_models::CustomerUpdateInternal::from(customer_update.clone());
+        let updated_customer = customer_update_internal
+            .clone()
             .apply_changeset(customer.clone());
         let key = PartitionKey::MerchantIdCustomerId {
             merchant_id: &merchant_id,
             customer_id: &customer_id,
         };
         let field = format!("cust_{}", customer_id.get_string_repr());
+
+        let mut query_gen_conn = pg_connection_write(self).await?;
+        let drainer_query = customer_update_internal
+            .generate_drainer_update_query(
+                &mut query_gen_conn,
+                customer_id.clone(),
+                merchant_id.clone(),
+            )
+            .await
+            .change_context(StorageError::KVError)
+            .attach_printable("Failed to generate customer update query")?;
+
         self.update_resource(
             key_store,
             storage_scheme,
@@ -184,10 +199,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             ),
             updated_customer,
             kv_router_store::UpdateResourceParams {
-                updateable: kv::Updateable::CustomerUpdate(Box::new(kv::CustomerUpdateMems {
-                    orig: customer.clone(),
-                    update_data: customer_update.clone().into(),
-                })),
+                drainer_query,
                 operation: Op::Update(key.clone(), &field, customer.updated_by.as_deref()),
             },
         )
@@ -323,13 +335,21 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             reverse_lookups.push(reverse_lookup_merchant_scoped_id);
         }
 
+        let mut query_gen_conn = pg_connection_write(self).await?;
+        let drainer_query = new_customer
+            .clone()
+            .generate_drainer_insert_query(&mut query_gen_conn)
+            .await
+            .change_context(StorageError::KVError)
+            .attach_printable("Failed to generate customer insert query")?;
+
         self.insert_resource(
             key_store,
             decided_storage_scheme,
             new_customer.clone().insert(&conn),
             new_customer.clone().into(),
             kv_router_store::InsertResourceParams {
-                insertable: kv::Insertable::Customer(new_customer.clone()),
+                drainer_query,
                 reverse_lookups,
                 identifier,
                 key,
@@ -365,13 +385,22 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         .await;
         new_customer.update_storage_scheme(storage_scheme);
         let customer = new_customer.clone().into();
+
+        let mut query_gen_conn = pg_connection_write(self).await?;
+        let drainer_query = new_customer
+            .clone()
+            .generate_drainer_insert_query(&mut query_gen_conn)
+            .await
+            .change_context(StorageError::KVError)
+            .attach_printable("Failed to generate customer insert query")?;
+
         self.insert_resource(
             key_store,
             storage_scheme,
             new_customer.clone().insert(&conn),
             customer,
             kv_router_store::InsertResourceParams {
-                insertable: kv::Insertable::Customer(new_customer.clone()),
+                drainer_query,
                 reverse_lookups: vec![],
                 identifier,
                 key,
@@ -472,23 +501,30 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         let customer = Conversion::convert(customer)
             .await
             .change_context(StorageError::EncryptionError)?;
+        let customer_update_internal =
+            diesel_models::CustomerUpdateInternal::from(customer_update.clone());
         let database_call =
-            customers::Customer::update_by_id(&conn, id.clone(), customer_update.clone().into());
+            customers::Customer::update_by_id(&conn, id.clone(), customer_update_internal.clone());
         let key = PartitionKey::GlobalId {
             id: id.get_string_repr(),
         };
         let field = format!("cust_{}", id.get_string_repr());
+
+        let mut query_gen_conn = pg_connection_write(self).await?;
+        let drainer_query = customer_update_internal
+            .clone()
+            .generate_drainer_update_query(&mut query_gen_conn, id.clone())
+            .await
+            .change_context(StorageError::KVError)
+            .attach_printable("Failed to generate customer update query")?;
+
         self.update_resource(
             key_store,
             storage_scheme,
             database_call,
-            diesel_models::CustomerUpdateInternal::from(customer_update.clone())
-                .apply_changeset(customer.clone()),
+            customer_update_internal.apply_changeset(customer.clone()),
             kv_router_store::UpdateResourceParams {
-                updateable: kv::Updateable::CustomerUpdate(Box::new(kv::CustomerUpdateMems {
-                    orig: customer.clone(),
-                    update_data: customer_update.into(),
-                })),
+                drainer_query,
                 operation: Op::Update(key.clone(), &field, customer.updated_by.as_deref()),
             },
         )

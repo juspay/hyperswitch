@@ -18,6 +18,7 @@ use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
 use hyperswitch_domain_models::{
+    mandates,
     mandates::{MandateData, MandateDataType},
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
@@ -354,6 +355,7 @@ impl
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
             l2_l3_data: None,
+            merchant_request_id: None,
         })
     }
 }
@@ -545,6 +547,7 @@ impl
                 .map(Into::into),
             l2_l3_data: None,
             connector_order_id: None,
+            merchant_request_id: None,
         })
     }
 }
@@ -720,6 +723,7 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
                 .payment_experience
                 .map(payments_grpc::PaymentExperience::foreign_from)
                 .map(Into::into),
+            merchant_request_id: None,
         })
     }
 }
@@ -1126,6 +1130,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 .map(|s| s.into()),
             test_mode: router_data.test_mode,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
+            merchant_request_id: None,
         })
     }
 }
@@ -1268,6 +1273,7 @@ impl
             continue_redirection_url: None,
             connector_order_id: None,
             l2_l3_data: None,
+            merchant_request_id: None,
         })
     }
 }
@@ -1447,6 +1453,7 @@ impl
             continue_redirection_url: None,
             connector_order_id: None,
             l2_l3_data: None,
+            merchant_request_id: None,
         })
     }
 }
@@ -1606,6 +1613,7 @@ impl
             continue_redirection_url: None,
             connector_order_id: None,
             l2_l3_data: None,
+            merchant_request_id: None,
         })
     }
 }
@@ -1785,51 +1793,51 @@ impl
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
         let connector_recurring_payment_id = match &router_data.request.mandate_id {
             Some(mandate) => match &mandate.mandate_reference_id {
-                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                    connector_mandate_id,
-                )) => Some(payments_grpc::MandateReference {
-                    mandate_id_type: Some(
-                        payments_grpc::mandate_reference::MandateIdType::ConnectorMandateId(
-                            payments_grpc::ConnectorMandateReferenceId {
-                                connector_mandate_id: connector_mandate_id
-                                    .get_connector_mandate_id(),
-                                payment_method_id: connector_mandate_id.get_payment_method_id(),
-                                connector_mandate_request_reference_id: connector_mandate_id
-                                    .get_connector_mandate_request_reference_id(),
-                            },
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_id)) => {
+                    Some(payments_grpc::MandateReference {
+                        mandate_id_type: Some(
+                            payments_grpc::mandate_reference::MandateIdType::ConnectorMandateId(
+                                payments_grpc::ConnectorMandateReferenceId {
+                                    connector_mandate_id: connector_mandate_id
+                                        .get_connector_mandate_id(),
+                                    payment_method_id: connector_mandate_id.get_payment_method_id(),
+                                    connector_mandate_request_reference_id: connector_mandate_id
+                                        .get_connector_mandate_request_reference_id(),
+                                },
+                            ),
                         ),
-                    ),
-                }),
-                Some(api_models::payments::MandateReferenceId::NetworkMandateId(
-                    network_mandate_id,
-                )) => Some(payments_grpc::MandateReference {
-                    mandate_id_type: Some(
-                        payments_grpc::mandate_reference::MandateIdType::NetworkMandateId(
-                            network_mandate_id.network_transaction_id.clone(),
+                    })
+                }
+                Some(mandates::MandateReferenceId::NetworkMandateId(network_mandate_id)) => {
+                    Some(payments_grpc::MandateReference {
+                        mandate_id_type: Some(
+                            payments_grpc::mandate_reference::MandateIdType::NetworkMandateId(
+                                network_mandate_id.network_transaction_id.clone(),
+                            ),
                         ),
-                    ),
-                }),
-                Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(
-                    network_token_with_nti,
-                )) => Some(payments_grpc::MandateReference {
-                    mandate_id_type: Some(
-                        payments_grpc::mandate_reference::MandateIdType::NetworkTokenWithNti(
-                            payments_grpc::NetworkTokenWithNti {
-                                network_transaction_id: network_token_with_nti
-                                    .network_transaction_id
-                                    .clone(),
-                                token_exp_month: network_token_with_nti
-                                    .token_exp_month
-                                    .clone()
-                                    .map(|exp| exp.expose().into()),
-                                token_exp_year: network_token_with_nti
-                                    .token_exp_year
-                                    .clone()
-                                    .map(|exp| exp.expose().into()),
-                            },
+                    })
+                }
+                Some(mandates::MandateReferenceId::NetworkTokenWithNTI(network_token_with_nti)) => {
+                    Some(payments_grpc::MandateReference {
+                        mandate_id_type: Some(
+                            payments_grpc::mandate_reference::MandateIdType::NetworkTokenWithNti(
+                                payments_grpc::NetworkTokenWithNti {
+                                    network_transaction_id: network_token_with_nti
+                                        .network_transaction_id
+                                        .clone(),
+                                    token_exp_month: network_token_with_nti
+                                        .token_exp_month
+                                        .clone()
+                                        .map(|exp| exp.expose().into()),
+                                    token_exp_year: network_token_with_nti
+                                        .token_exp_year
+                                        .clone()
+                                        .map(|exp| exp.expose().into()),
+                                },
+                            ),
                         ),
-                    ),
-                }),
+                    })
+                }
                 _ => {
                     return Err(UnifiedConnectorServiceError::MissingRequiredField {
                         field_name: "connector_mandate_id",
@@ -4872,6 +4880,8 @@ impl transformers::ForeignTryFrom<payments_grpc::ClientAuthenticationTokenData> 
                         .transpose()?,
                     // todo UCS
                     data_user_id_token: None,
+                    currency: None,
+                    intent: None,
                 };
 
                 Ok(Self::Paypal(Box::new(paypal_session_token_response)))
@@ -5773,6 +5783,8 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 .customer_id
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
+            merchant_request_id: None,
+            connector_order_id: None,
         })
     }
 }
@@ -5840,6 +5852,8 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             test_mode: router_data.test_mode,
             payment_method_type,
             connector_feature_data: None,
+            merchant_request_id: None,
+            connector_order_id: None,
         })
     }
 }
@@ -5965,6 +5979,7 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 .map(|s| s.into()),
             test_mode: router_data.test_mode,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
+            merchant_request_id: None,
         })
     }
 }
@@ -6310,6 +6325,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
+            description: router_data.description.clone(),
         })
     }
 }
@@ -6427,6 +6443,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
+            description: router_data.description.clone(),
         })
     }
 }
@@ -6995,7 +7012,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixBankTransfer>
             bank_branch: item.bank_branch.clone(),
             bank_account_number: item.bank_account_number.clone(),
             tax_id: item.tax_id.clone(),
-            ispb: None,
+            ispb: item.ispb.clone().map(Secret::new),
         })
     }
 }
@@ -7014,7 +7031,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixAccountBankTransfer>
             bank_branch: item.bank_branch.clone(),
             bank_account_number: Some(item.bank_account_number.clone()),
             tax_id: item.tax_id.clone(),
-            ispb: None,
+            ispb: item.ispb.clone().map(Secret::new),
         })
     }
 }

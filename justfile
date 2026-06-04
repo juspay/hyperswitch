@@ -88,7 +88,6 @@ build_v2 redis_interface_backend="redis-rs" *FLAGS:
     cargo build --package router --bin router --no-default-features --features "${FEATURES}" {{ FLAGS }}
     set +x
 
-
 # redis_interface_backend: "redis-rs" (default) or "fred"
 run_v2 redis_interface_backend="redis-rs":
     #! /usr/bin/env bash
@@ -175,6 +174,14 @@ payment-link-wasm features='' version='v1' environment='development':
 # Run pre-commit checks
 precommit: fmt clippy
 
+# Run drainer with v1 features enabled
+drainer redis_interface_backend="redis-rs" *FLAGS:
+    DRAINER__SERVER__PORT=8084 cargo run --package drainer --no-default-features --features "{{ redis_interface_backend }},v1" {{ FLAGS }}
+
+# Run drainer with v2 features enabled
+drainer_v2 redis_interface_backend="redis-rs" *FLAGS:
+    DRAINER__SERVER__PORT=8084 cargo run --package drainer --no-default-features --features "{{ redis_interface_backend }},v2" {{ FLAGS }}
+
 # Use the env variables if present, or fallback to default values
 
 db_user := env_var_or_default('DB_USER', 'db_user')
@@ -194,16 +201,16 @@ resultant_dir := source_directory() / 'final-migrations'
 [private]
 prefix_and_copy_migrations dir_1 dir_2 prefix resultant_dir:
     #! /usr/bin/env bash
-    mkdir -p {{resultant_dir}}
-    cp -r {{dir_1}}/* {{resultant_dir}}/ > /dev/null 2>&1
+    mkdir -p {{ resultant_dir }}
+    cp -r {{ dir_1 }}/* {{ resultant_dir }}/ > /dev/null 2>&1
 
-    # Prefix v2 migrations with {{prefix}}
+    # Prefix v2 migrations with {{ prefix }}
     sh -c '
-    for dir in "{{dir_2}}"/*; do
+    for dir in "{{ dir_2 }}"/*; do
         if [ -d "${dir}" ]; then
             base_name=$(basename "${dir}")
-            new_name="{{prefix}}${base_name}"
-            cp -r "${dir}" "{{resultant_dir}}/${new_name}"
+            new_name="{{ prefix }}${base_name}"
+            cp -r "${dir}" "{{ resultant_dir }}/${new_name}"
         fi
     done
     '

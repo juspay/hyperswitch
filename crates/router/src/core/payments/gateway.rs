@@ -20,10 +20,14 @@ pub mod setup_mandate;
 use std::sync;
 
 use common_enums;
+use common_utils::errors::ErrorSwitch;
+use error_stack::Report;
 use hyperswitch_domain_models::{router_data_v2::PaymentFlowData, router_flow_types::payments};
 use hyperswitch_interfaces::{
     api::{gateway, Connector, ConnectorIntegration},
     connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2},
+    errors::ConnectorError,
+    unified_connector_service::transformers::UnifiedConnectorServiceError,
 };
 
 use crate::{
@@ -86,4 +90,15 @@ where
     .await
     .to_payment_failed_response()?;
     Ok(resp)
+}
+
+/// Converts a `Report<UnifiedConnectorServiceError>` into a `Report<ConnectorError>`
+/// using the `ErrorSwitch` trait for consistent, exhaustive mapping.
+///
+/// Shared by all payment gateway files (authorize, psync, capture, void) to avoid duplication.
+pub(crate) fn convert_ucs_error_to_connector_error(
+    report: Report<UnifiedConnectorServiceError>,
+) -> Report<ConnectorError> {
+    let connector_error = report.current_context().switch();
+    report.change_context(connector_error)
 }
