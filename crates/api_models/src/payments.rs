@@ -7165,7 +7165,6 @@ pub struct PaymentsResponse {
 
     /// A unique identifier for a customer provided by the connector.
     #[schema(value_type = Option<String>, example = "cus_Rnm2pDKGyQi506")]
-    #[serde(skip_serializing_if = "Option::is_none")]
     #[smithy(value_type = "Option<String>")]
     pub connector_customer_id: Option<String>,
 
@@ -7651,6 +7650,11 @@ pub struct PaymentsResponse {
     pub installment_data: Option<common_types::payments::InstallmentData>,
 
     /// A connector-specific identifier representing the stored payment instrument
+    #[schema(
+        value_type = Option<String>,
+        max_length = 255
+    )]
+    #[smithy(value_type = "Option<String>")]
     pub sender_payment_instrument_id: Option<String>,
 }
 
