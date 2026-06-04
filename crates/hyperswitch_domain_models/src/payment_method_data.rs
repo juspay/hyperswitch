@@ -413,6 +413,16 @@ impl Card {
             co_badged_card_data: self.co_badged_card_data.clone(),
         }
     }
+
+    pub fn is_indian_issued_card(&self) -> bool {
+        self.card_issuing_country
+            .as_ref()
+            .map(|country| {
+                country.to_lowercase() == common_enums::Country::India.to_string().to_lowercase()
+                    || country.to_uppercase() == api_enums::CountryAlpha2::IN.to_string()
+            })
+            .unwrap_or(false)
+    }
 }
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -1688,6 +1698,7 @@ pub enum BankTransferData {
         /// The expiration date and time for the Pix QR code
         expiry_date: Option<time::PrimitiveDateTime>,
     },
+    PixEmv {},
     PixAutomaticoPush {
         account_number: Option<Secret<String>>,
         branch_code: Option<Secret<String>>,
@@ -3036,6 +3047,7 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
                 destination_bank_account_id,
                 expiry_date,
             },
+            api_models::payments::BankTransferData::PixEmv {} => Self::PixEmv {},
             api_models::payments::BankTransferData::PixAutomaticoPush {
                 account_number,
                 branch_code,
@@ -3105,6 +3117,7 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
                     expiry_date,
                 },
             )),
+            BankTransferData::PixEmv {} => Self::PixEmv {},
             BankTransferData::PixAutomaticoPush {
                 account_number,
                 branch_code,
@@ -3437,6 +3450,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::DanamonVaBankTransfer { .. } => api_enums::PaymentMethodType::DanamonVa,
             Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
             Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
+            Self::PixEmv {} => api_enums::PaymentMethodType::PixEmv,
             Self::PixAutomaticoPush { .. } => api_enums::PaymentMethodType::PixAutomaticoPush,
             Self::PixAutomaticoQr {} => api_enums::PaymentMethodType::PixAutomaticoQr,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
