@@ -2831,14 +2831,14 @@ pub async fn retrieve_extended_card_info(
 }
 
 #[cfg(all(feature = "oltp", feature = "v1"))]
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsSubmitEligibility, payment_id))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsSubmitCheckEligibility, payment_id))]
 pub async fn payments_submit_eligibility_check(
     state: web::Data<app::AppState>,
     http_req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsEligibilityCheckRequest>,
     path: web::Path<common_utils::id_type::PaymentId>,
 ) -> impl Responder {
-    let flow = Flow::PaymentsSubmitEligibility;
+    let flow = Flow::PaymentsSubmitCheckEligibility;
     let payment_id = path.into_inner();
     let mut payload = json_payload.into_inner();
     payload.payment_id = payment_id.clone();
@@ -2878,14 +2878,14 @@ pub async fn payments_submit_eligibility_check(
 }
 
 #[cfg(all(feature = "oltp", feature = "v1"))]
-#[instrument(skip_all, fields(flow = ?Flow::PaymentsSubmitPreConfirm, payment_id))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsSubmitEligibility, payment_id))]
 pub async fn payments_submit_eligibility(
     state: web::Data<app::AppState>,
     http_req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsEligibilityRequest>,
     path: web::Path<common_utils::id_type::PaymentId>,
 ) -> impl Responder {
-    let flow = Flow::PaymentsSubmitPreConfirm;
+    let flow = Flow::PaymentsSubmitEligibility;
     let payment_id = path.into_inner();
     let mut payload = json_payload.into_inner();
     payload.payment_id = payment_id.clone();

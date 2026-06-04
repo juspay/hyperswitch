@@ -873,32 +873,46 @@ pub async fn get_sdk_next_action_for_payment_method_list(
     customer_id: Option<&common_utils::id_type::CustomerId>,
     has_surcharge_processor: bool,
 ) -> api_models::payments::SdkNextAction {
-    // Always return EligibilityCheck regardless of surcharge.
-    // should_block_confirm signals to the SDK whether it must show surcharge to the user
-    // before allowing confirm (true = surcharge processor present, false = no surcharge).
-    let should_block_confirm = if has_surcharge_processor {
-        true
-    } else {
-        let should_perform_eligibility_check = dimensions
-            .get_should_perform_eligibility(
-                state.store.as_ref(),
-                state.superposition_service.as_ref(),
-                customer_id,
-            )
-            .await;
-        // When there's no surcharge processor, only send EligibilityCheck if eligibility
-        // check is needed — otherwise fall back to Confirm with no blocking.
-        if !should_perform_eligibility_check {
-            return api_models::payments::SdkNextAction {
-                next_action: api_models::payments::NextActionCall::Confirm,
-                should_block_confirm: None,
-            };
+    let should_perform_eligibility = dimensions
+        .get_should_perform_eligibility(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await;
+
+    let is_blocklist_enabled = match dimensions.get_processor_merchant_id() {
+        Some(processor_merchant_id) => {
+            let blocklist_key = processor_merchant_id.get_blocklist_guard_key();
+            match state
+                .store
+                .find_config_by_key_unwrap_or(&blocklist_key, Some("false".to_string()))
+                .await
+            {
+                Ok(config) => serde_json::from_str::<bool>(&config.config).unwrap_or(false),
+                Err(_) => false,
+            }
         }
-        false
+        None => false,
     };
-    api_models::payments::SdkNextAction {
-        next_action: api_models::payments::NextActionCall::EligibilityCheck,
-        should_block_confirm: Some(should_block_confirm),
+
+    let should_block_confirm = if has_surcharge_processor {
+        Some(true)
+    } else if should_perform_eligibility || is_blocklist_enabled {
+        Some(false)
+    } else {
+        None
+    };
+
+    match should_block_confirm {
+        Some(block_confirm) => api_models::payments::SdkNextAction {
+            next_action: api_models::payments::NextActionCall::EligibilityCheck,
+            should_block_confirm: Some(block_confirm),
+        },
+        None => api_models::payments::SdkNextAction {
+            next_action: api_models::payments::NextActionCall::Confirm,
+            should_block_confirm: None,
+        },
     }
 }
 
