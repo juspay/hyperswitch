@@ -1339,11 +1339,7 @@ pub async fn refund_reverse_core(
     let processor_merchant_id = processor_account.get_id();
 
     let refund = db
-        .find_refund_by_processor_merchant_id_refund_id(
-            processor_merchant_id,
-            &req.refund_id,
-            storage_scheme,
-        )
+        .find_refund_by_merchant_id_refund_id(processor_merchant_id, &req.refund_id, storage_scheme)
         .await
         .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
 
@@ -1408,7 +1404,7 @@ pub async fn refund_reverse_core(
     let mut router_data = core_utils::construct_refund_router_data::<api::RSync>(
         &state,
         &connector_id,
-        processor,
+        &platform,
         (payment_attempt.get_total_amount(), currency),
         &payment_intent,
         &payment_attempt,
@@ -1430,7 +1426,6 @@ pub async fn refund_reverse_core(
             None,
             payments::CallConnectorAction::Trigger,
             None,
-            common_enums::TransactionType::Payment,
         )
         .await?;
 
@@ -1469,7 +1464,6 @@ pub async fn refund_reverse_core(
         &router_data,
         None,
         &gateway_context,
-        None,
     ))
     .await?;
 
