@@ -1,6 +1,6 @@
 #[cfg(feature = "v1")]
 pub use api_models::payments::{
-    ExternalVaultProxyConfirmRequest, PaymentListFilterConstraints, PaymentListResponse,
+    PaymentListFilterConstraints, PaymentListResponse,
     PaymentListResponseV2, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials,
     PaymentsEligibilityRequest,
 };
