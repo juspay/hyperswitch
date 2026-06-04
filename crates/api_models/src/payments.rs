@@ -2026,6 +2026,18 @@ pub struct PaymentAttemptResponse {
     #[schema(value_type = Option<i64>, example = 6540)]
     #[smithy(value_type = "Option<i64>")]
     pub order_tax_amount: Option<MinorUnit>,
+    /// The total amount including surcharge, tax, and shipping. Amount in lowest denomination of the currency.
+    #[schema(value_type = i64, example = 6750)]
+    #[smithy(value_type = "i64")]
+    pub net_amount: MinorUnit,
+    /// Surcharge amount applied to this payment attempt, if any. Amount in lowest denomination of the currency.
+    #[schema(value_type = Option<i64>, example = 100)]
+    #[smithy(value_type = "Option<i64>")]
+    pub surcharge_amount: Option<MinorUnit>,
+    /// Tax on surcharge amount, if applicable. Amount in lowest denomination of the currency.
+    #[schema(value_type = Option<i64>, example = 10)]
+    #[smithy(value_type = "Option<i64>")]
+    pub tax_on_surcharge: Option<MinorUnit>,
     /// The currency of the amount of the payment attempt
     #[schema(value_type = Option<Currency>, example = "USD")]
     #[smithy(value_type = "Option<Currency>")]
