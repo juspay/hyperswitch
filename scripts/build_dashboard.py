@@ -115,7 +115,7 @@ def fetch_prod_coverage(until_tag=None):
         }
 
     rows = conn.execute("""
-        SELECT bucket, connector, pm, pmt, feature, prod_used, status, blocked_by_bug
+        SELECT bucket, connector, pm, pmt, feature, prod_used, cypress_status, blocked_by_bug
         FROM issues
     """).fetchall()
     conn.close()
@@ -123,7 +123,7 @@ def fetch_prod_coverage(until_tag=None):
     from collections import defaultdict
     buckets_by_prod = defaultdict(lambda: defaultdict(lambda: {'covered': 0, 'blocked': 0, 'total': 0}))
 
-    for bucket, connector, pm, pmt, feature, prod_used, status, blocked_by_bug in rows:
+    for bucket, connector, pm, pmt, feature, prod_used, cypress_status, blocked_by_bug in rows:
         if connector and connector.lower() in EXCLUDED_CONNECTORS:
             continue
         if bucket == 2 and pmt in EXCLUDED_PM_TYPES_BUCKET2:
@@ -141,7 +141,7 @@ def fetch_prod_coverage(until_tag=None):
             key = (bucket, connector or '', pm or '', pmt or '', feature)
             covered, blocked = snap.get(key, (0, 0))
         else:
-            covered = 1 if status == 'covered' else 0
+            covered = 1 if cypress_status == 'covered' else 0
             blocked = 1 if blocked_by_bug == 1 else 0
 
         buckets_by_prod[prod][f"b{bucket}"]['covered'] += covered
