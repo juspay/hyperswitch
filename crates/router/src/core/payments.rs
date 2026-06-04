@@ -9209,9 +9209,9 @@ pub async fn list_payments_for_platform(
     state: SessionState,
     platform: domain::Platform,
     profile_id_list: Option<Vec<id_type::ProfileId>>,
-    constraints: api::PaymentListConstraints,
+    constraints: api::PlatformPaymentListConstraints,
 ) -> RouterResponse<api::PlatformPaymentListResponse> {
-    helpers::validate_payment_list_request(&constraints)?;
+    helpers::validate_platform_payment_list_request(&constraints)?;
     let platform_merchant_id = platform.get_provider().get_account().get_id();
     let db = state.store.as_ref();
     let payment_intent_attempt_rows = db

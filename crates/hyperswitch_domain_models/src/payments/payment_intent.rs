@@ -1740,6 +1740,7 @@ pub struct PaymentIntentListParams {
     pub card_discovery: Option<Vec<common_enums::CardDiscovery>>,
     pub merchant_order_reference_id: Option<String>,
     pub customer_email: Option<Email>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
 }
 
 #[cfg(feature = "v2")]
@@ -1802,6 +1803,47 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             card_discovery: None,
             merchant_order_reference_id: None,
             customer_email: None,
+            processor_merchant_id: None,
+        }))
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<api_models::payments::PlatformPaymentListConstraints> for PaymentIntentFetchConstraints {
+    fn from(value: api_models::payments::PlatformPaymentListConstraints) -> Self {
+        let api_models::payments::PlatformPaymentListConstraints {
+            customer_id,
+            limit,
+            created,
+            created_lt,
+            created_gt,
+            created_lte,
+            created_gte,
+            processor_merchant_id,
+        } = value;
+        Self::List(Box::new(PaymentIntentListParams {
+            offset: 0,
+            starting_at: created_gte.or(created_gt).or(created),
+            ending_at: created_lte.or(created_lt).or(created),
+            amount_filter: None,
+            connector: None,
+            currency: None,
+            status: None,
+            payment_method: None,
+            payment_method_type: None,
+            authentication_type: None,
+            merchant_connector_id: None,
+            profile_id: None,
+            customer_id,
+            starting_after_id: None,
+            ending_before_id: None,
+            limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
+            order: Default::default(),
+            card_network: None,
+            card_discovery: None,
+            merchant_order_reference_id: None,
+            customer_email: None,
+            processor_merchant_id,
         }))
     }
 }
@@ -1894,6 +1936,7 @@ impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
             card_discovery: None,
             merchant_order_reference_id: None,
             customer_email: None,
+            processor_merchant_id: None,
         }))
     }
 }
@@ -1947,6 +1990,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 card_discovery,
                 merchant_order_reference_id,
                 customer_email,
+                processor_merchant_id: None,
             }))
         }
     }

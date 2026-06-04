@@ -7,8 +7,8 @@ pub use api_models::payments::{
 #[cfg(feature = "v1")]
 pub use api_models::payments::{
     PaymentListFilterConstraints, PaymentListResponse, PaymentListResponseV2, PaymentRetrieveBody,
-    PaymentRetrieveBodyWithCredentials, PaymentsEligibilityRequest, PlatformPaymentListItem,
-    PlatformPaymentListResponse,
+    PaymentRetrieveBodyWithCredentials, PaymentsEligibilityRequest, PlatformPaymentListConstraints,
+    PlatformPaymentListItem, PlatformPaymentListResponse,
 };
 pub use api_models::{
     feature_matrix::{

@@ -1094,6 +1094,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 if let Some(profile_id) = &params.profile_id {
                     query = query.filter(pi_dsl::profile_id.eq_any(profile_id.clone()));
                 }
+                if let Some(processor_merchant_id) = &params.processor_merchant_id {
+                    query = query.filter(
+                        pi_dsl::processor_merchant_id.eq(processor_merchant_id.to_owned()),
+                    );
+                }
 
                 // Platform list only supports date-based pagination cursors.
                 // `starting_after_id` / `ending_before_id` would require a per-row

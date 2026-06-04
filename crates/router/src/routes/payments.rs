@@ -1875,7 +1875,7 @@ pub async fn payments_list(
 pub async fn payments_list_for_platform(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    payload: web::Query<payment_types::PaymentListConstraints>,
+    payload: web::Query<payment_types::PlatformPaymentListConstraints>,
 ) -> impl Responder {
     let flow = Flow::PlatformPaymentsList;
     let payload = payload.into_inner();
