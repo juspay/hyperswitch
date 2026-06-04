@@ -163,7 +163,7 @@ export const connectorDetails = {
         status: 400,
         body: {
           error: {
-            message: 'invalid type: string "oxxo", expected unit',
+            message: "unknown variant `invalid_oxxo_value`",
             code: "IR_06",
           },
         },
