@@ -122,7 +122,6 @@ export const connectorDetails = {
             first_name: "Test",
             last_name: "Customer",
           },
-          email: "test@example.com",
         },
         customer: {
           name: "John Doe",
@@ -160,7 +159,6 @@ export const connectorDetails = {
             first_name: "Test",
             last_name: "Customer",
           },
-          email: "test@example.com",
         },
         customer: {
           name: "John Doe",
