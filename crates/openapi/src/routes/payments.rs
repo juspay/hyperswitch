@@ -1032,25 +1032,25 @@ pub fn payments_post_session_tokens() {}
 )]
 pub fn payments_update_metadata() {}
 
-/// Payments - Submit Eligibility Data
+/// Payments - Submit Eligibility Check Data
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/eligibility_check",
     params(
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
-    request_body=PaymentsEligibilityRequest,
+    request_body=PaymentsEligibilityCheckRequest,
     responses(
-        (status = 200, description = "Eligibility submit is successful", body = PaymentsEligibilityResponse),
+        (status = 200, description = "Eligibility Check submit is successful", body = PaymentsEligibilityCheckResponse),
         (status = 400, description = "Bad Request", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
-    operation_id = "Submit Eligibility data for a Payment",
+    operation_id = "Submit Eligibility Check data for a Payment",
     security(("publishable_key" = []))
 )]
-pub fn payments_submit_eligibility() {}
+pub fn payments_submit_eligibility_check() {}
 
-/// Payments - Submit Pre-Confirm Data
+/// Payments - Submit Eligiblity Data
 ///
 /// Runs eligibility checks (blocklist, card testing guard) and calculates an external surcharge
 /// in a single call. Intended to be called by the SDK before the final confirm step.
@@ -1065,17 +1065,17 @@ pub fn payments_submit_eligibility() {}
     params(
         ("payment_id" = String, Path, description = "The identifier for the payment")
     ),
-    request_body = PaymentsPreConfirmRequest,
+    request_body = PaymentsEligibilityRequest,
     responses(
-        (status = 200, description = "Pre-confirm checks successful", body = PaymentsPreConfirmResponse),
+        (status = 200, description = "Eligibility checks successful", body = PaymentsEligibilityResponse),
         (status = 400, description = "Bad Request", body = GenericErrorResponseOpenApi),
         (status = 404, description = "Payment not found", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
-    operation_id = "Submit Pre-Confirm data for a Payment",
+    operation_id = "Submit Eligibility data for a Payment",
     security(("publishable_key" = []))
 )]
-pub fn payments_submit_pre_confirm() {}
+pub fn payments_submit_eligibility() {}
 
 /// Payments - Create Intent
 ///

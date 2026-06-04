@@ -10556,8 +10556,6 @@ pub enum NextActionCall {
     Deny { message: String },
     /// The next action is to perform eligibility check
     EligibilityCheck,
-    /// The next action is to perform pre-confirm (combined eligibility + surcharge calculation)
-    PreConfirm,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -12544,7 +12542,7 @@ pub struct ClickToPaySessionResponse {
 
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, Clone, ToSchema)]
-pub struct PaymentsEligibilityRequest {
+pub struct PaymentsEligibilityCheckRequest {
     /// The identifier for the payment
     /// Added in the payload for ApiEventMetrics, populated from the path param
     #[serde(skip)]
@@ -12571,7 +12569,7 @@ pub struct PaymentsEligibilityRequest {
 }
 
 #[cfg(feature = "v1")]
-impl PaymentsEligibilityRequest {
+impl PaymentsEligibilityCheckRequest {
     /// Validates that either payment_token or payment_method_data is provided
     pub fn validate_payment_method_input(
         &self,
@@ -12780,7 +12778,7 @@ pub struct EligibilityPaymentMethodDataRequest {
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
-pub struct PaymentsEligibilityResponse {
+pub struct PaymentsEligibilityCheckResponse {
     /// The identifier for the payment
     #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,
@@ -12788,11 +12786,11 @@ pub struct PaymentsEligibilityResponse {
     pub sdk_next_action: SdkNextAction,
 }
 
-/// Request body for the pre_confirm endpoint.
+/// Request body for the eligiblity endpoint.
 /// Combines eligibility checks with external surcharge calculation in a single call.
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Deserialize, ToSchema)]
-pub struct PaymentsPreConfirmRequest {
+pub struct PaymentsEligibilityRequest {
     /// The identifier for the payment
     /// Added in the payload for ApiEventMetrics, populated from the path param
     #[serde(skip)]
@@ -12817,10 +12815,10 @@ pub struct PaymentsPreConfirmRequest {
     pub payment_token: Option<Secret<String>>,
 }
 
-/// Response body for the pre_confirm endpoint.
+/// Response body for the eligiblity endpoint.
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
-pub struct PaymentsPreConfirmResponse {
+pub struct PaymentsEligibilityResponse {
     /// The identifier for the payment
     #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,

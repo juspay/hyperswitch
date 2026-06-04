@@ -867,15 +867,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .net_amount
             .set_order_tax_amount(order_tax_amount);
 
-        // If the SDK passed surcharge details from a prior /pre_confirm call (external surcharge
+        // If the SDK passed surcharge details from a prior /eligiblity call (external surcharge
         // via InterPayments), apply them to net_amount now so that populate_surcharge_details
         // picks them up in the non-DSS path and persists them with the attempt.
         let resolved_surcharge = if request.surcharge_details.is_some() {
             request.surcharge_details
         } else {
-            // Try to load the latest surcharge calculated during pre_confirm from Redis
-            let redis_key =
-                helpers::get_pre_confirm_surcharge_redis_key(&payment_attempt.payment_id);
+            // Try to load the latest surcharge calculated during eligiblity from Redis
+            let redis_key = helpers::get_external_surcharge_redis_key(&payment_attempt.payment_id);
             match state.store.get_redis_conn() {
                 Ok(redis_conn) => {
                     match redis_conn
@@ -889,7 +888,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             logger::info!(
                                 payment_id = %payment_attempt.payment_id.get_string_repr(),
                                 surcharge_amount = %surcharge.surcharge_amount.get_amount_as_i64(),
-                                "Loaded pre_confirm surcharge from Redis for confirm"
+                                "Loaded external surcharge from Redis for confirm"
                             );
                             Some(surcharge)
                         }
@@ -900,17 +899,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             ) {
                                 logger::info!(
                                     payment_id = %payment_attempt.payment_id.get_string_repr(),
-                                    "confirm: no pre_confirm surcharge found in Redis; proceeding without surcharge"
+                                    "confirm: no external surcharge found in Redis; proceeding without surcharge"
                                 );
                             } else {
-                                logger::warn!(error=?err, "Failed to fetch pre_confirm surcharge from Redis");
+                                logger::warn!(error=?err, "Failed to fetch external surcharge from Redis");
                             }
                             None
                         }
                     }
                 }
                 Err(err) => {
-                    logger::warn!(error=?err, "Could not get redis conn to fetch pre_confirm surcharge");
+                    logger::warn!(error=?err, "Could not get redis conn to fetch external surcharge");
                     None
                 }
             }

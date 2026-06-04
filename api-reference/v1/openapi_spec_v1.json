@@ -1669,8 +1669,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Submit Eligibility Data",
-        "operationId": "Submit Eligibility data for a Payment",
+        "summary": "Payments - Submit Eligibility Check Data",
+        "operationId": "Submit Eligibility Check data for a Payment",
         "parameters": [
           {
             "name": "payment_id",
@@ -1686,7 +1686,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PaymentsEligibilityRequest"
+                "$ref": "#/components/schemas/PaymentsEligibilityCheckRequest"
               }
             }
           },
@@ -1694,11 +1694,11 @@
         },
         "responses": {
           "200": {
-            "description": "Eligibility submit is successful",
+            "description": "Eligibility Check submit is successful",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentsEligibilityResponse"
+                  "$ref": "#/components/schemas/PaymentsEligibilityCheckResponse"
                 }
               }
             }
@@ -1726,9 +1726,9 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Submit Pre-Confirm Data",
+        "summary": "Payments - Submit Eligiblity Data",
         "description": "Runs eligibility checks (blocklist, card testing guard) and calculates an external surcharge\nin a single call. Intended to be called by the SDK before the final confirm step.\n\n- If eligibility is denied the response will contain `sdk_next_action: deny` and no surcharge details.\n- If the merchant has no surcharge connector configured, `surcharge_details` will be `null`.\n- Surcharge calculation is best-effort: if the external call fails the payment still proceeds\nwith `surcharge_details: null`.",
-        "operationId": "Submit Pre-Confirm data for a Payment",
+        "operationId": "Submit Eligibility data for a Payment",
         "parameters": [
           {
             "name": "payment_id",
@@ -1744,7 +1744,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PaymentsPreConfirmRequest"
+                "$ref": "#/components/schemas/PaymentsEligibilityRequest"
               }
             }
           },
@@ -1752,11 +1752,11 @@
         },
         "responses": {
           "200": {
-            "description": "Pre-confirm checks successful",
+            "description": "Eligibility checks successful",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentsPreConfirmResponse"
+                  "$ref": "#/components/schemas/PaymentsEligibilityResponse"
                 }
               }
             }
@@ -26040,13 +26040,6 @@
             "enum": [
               "eligibility_check"
             ]
-          },
-          {
-            "type": "string",
-            "description": "The next action is to perform pre-confirm (combined eligibility + surcharge calculation)",
-            "enum": [
-              "pre_confirm"
-            ]
           }
         ]
       },
@@ -32311,7 +32304,7 @@
           }
         }
       },
-      "PaymentsEligibilityRequest": {
+      "PaymentsEligibilityCheckRequest": {
         "type": "object",
         "required": [
           "client_secret",
@@ -32358,7 +32351,7 @@
           }
         }
       },
-      "PaymentsEligibilityResponse": {
+      "PaymentsEligibilityCheckResponse": {
         "type": "object",
         "required": [
           "payment_id",
@@ -32371,6 +32364,76 @@
           },
           "sdk_next_action": {
             "$ref": "#/components/schemas/SdkNextAction"
+          }
+        }
+      },
+      "PaymentsEligibilityRequest": {
+        "type": "object",
+        "description": "Request body for the eligiblity endpoint.\nCombines eligibility checks with external surcharge calculation in a single call.",
+        "required": [
+          "client_secret",
+          "payment_method_type",
+          "payment_token"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "Token used for client side verification",
+            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EligibilityPaymentMethodDataRequest"
+              }
+            ],
+            "nullable": true
+          },
+          "browser_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_token": {
+            "type": "string",
+            "description": "The payment token to look up the saved payment method",
+            "example": "token_abc123xyz"
+          }
+        }
+      },
+      "PaymentsEligibilityResponse": {
+        "type": "object",
+        "description": "Response body for the eligiblity endpoint.",
+        "required": [
+          "payment_id",
+          "sdk_next_action"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "sdk_next_action": {
+            "$ref": "#/components/schemas/SdkNextAction"
+          },
+          "surcharge_details": {
+            "type": "string",
+            "description": "Surcharge details if an external surcharge was calculated. None if eligibility was denied\nor no surcharge connector is configured for this merchant.",
+            "nullable": true
           }
         }
       },
@@ -32528,76 +32591,6 @@
               }
             ],
             "default": "requires_confirmation"
-          }
-        }
-      },
-      "PaymentsPreConfirmRequest": {
-        "type": "object",
-        "description": "Request body for the pre_confirm endpoint.\nCombines eligibility checks with external surcharge calculation in a single call.",
-        "required": [
-          "client_secret",
-          "payment_method_type",
-          "payment_token"
-        ],
-        "properties": {
-          "client_secret": {
-            "type": "string",
-            "description": "Token used for client side verification",
-            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
-          },
-          "payment_method_type": {
-            "$ref": "#/components/schemas/PaymentMethod"
-          },
-          "payment_method_subtype": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethodType"
-              }
-            ],
-            "nullable": true
-          },
-          "payment_method_data": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EligibilityPaymentMethodDataRequest"
-              }
-            ],
-            "nullable": true
-          },
-          "browser_info": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/BrowserInformation"
-              }
-            ],
-            "nullable": true
-          },
-          "payment_token": {
-            "type": "string",
-            "description": "The payment token to look up the saved payment method",
-            "example": "token_abc123xyz"
-          }
-        }
-      },
-      "PaymentsPreConfirmResponse": {
-        "type": "object",
-        "description": "Response body for the pre_confirm endpoint.",
-        "required": [
-          "payment_id",
-          "sdk_next_action"
-        ],
-        "properties": {
-          "payment_id": {
-            "type": "string",
-            "description": "The identifier for the payment"
-          },
-          "sdk_next_action": {
-            "$ref": "#/components/schemas/SdkNextAction"
-          },
-          "surcharge_details": {
-            "type": "string",
-            "description": "Surcharge details if an external surcharge was calculated. None if eligibility was denied\nor no surcharge connector is configured for this merchant.",
-            "nullable": true
           }
         }
       },

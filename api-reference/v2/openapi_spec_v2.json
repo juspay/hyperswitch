@@ -19055,13 +19055,6 @@
             "enum": [
               "eligibility_check"
             ]
-          },
-          {
-            "type": "string",
-            "description": "The next action is to perform pre-confirm (combined eligibility + surcharge calculation)",
-            "enum": [
-              "pre_confirm"
-            ]
           }
         ]
       },

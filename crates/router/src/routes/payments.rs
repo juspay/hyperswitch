@@ -2832,10 +2832,10 @@ pub async fn retrieve_extended_card_info(
 
 #[cfg(all(feature = "oltp", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsSubmitEligibility, payment_id))]
-pub async fn payments_submit_eligibility(
+pub async fn payments_submit_eligibility_check(
     state: web::Data<app::AppState>,
     http_req: actix_web::HttpRequest,
-    json_payload: web::Json<payment_types::PaymentsEligibilityRequest>,
+    json_payload: web::Json<payment_types::PaymentsEligibilityCheckRequest>,
     path: web::Path<common_utils::id_type::PaymentId>,
 ) -> impl Responder {
     let flow = Flow::PaymentsSubmitEligibility;
@@ -2864,7 +2864,12 @@ pub async fn payments_submit_eligibility(
             if let Some(client_secret) = auth.client_secret {
                 payload.client_secret = Some(Secret::new(client_secret));
             }
-            payments::payments_submit_eligibility(state, auth.platform, payload.clone(), payment_id)
+            payments::payments_submit_eligibility_check(
+                state,
+                auth.platform,
+                payload.clone(),
+                payment_id,
+            )
         },
         &*auth_type,
         api_locking::LockAction::NotApplicable,
@@ -2874,10 +2879,10 @@ pub async fn payments_submit_eligibility(
 
 #[cfg(all(feature = "oltp", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsSubmitPreConfirm, payment_id))]
-pub async fn payments_submit_pre_confirm(
+pub async fn payments_submit_eligibility(
     state: web::Data<app::AppState>,
     http_req: actix_web::HttpRequest,
-    json_payload: web::Json<payment_types::PaymentsPreConfirmRequest>,
+    json_payload: web::Json<payment_types::PaymentsEligibilityRequest>,
     path: web::Path<common_utils::id_type::PaymentId>,
 ) -> impl Responder {
     let flow = Flow::PaymentsSubmitPreConfirm;
@@ -2906,7 +2911,7 @@ pub async fn payments_submit_pre_confirm(
             if let Some(client_secret) = auth.client_secret {
                 payload.client_secret = Some(Secret::new(client_secret));
             }
-            payments::payments_submit_pre_confirm(state, auth.platform, payload.clone(), payment_id)
+            payments::payments_submit_eligibility(state, auth.platform, payload.clone(), payment_id)
         },
         &*auth_type,
         api_locking::LockAction::NotApplicable,

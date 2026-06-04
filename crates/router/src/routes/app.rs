@@ -1005,7 +1005,7 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/eligibility_check")
-                        .route(web::post().to(payments::payments_submit_eligibility)),
+                        .route(web::post().to(payments::payments_submit_eligibility_check)),
                 )
                 .service(
                     web::resource("/{payment_id}/client")
@@ -1013,7 +1013,7 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/eligibility")
-                        .route(web::post().to(payments::payments_submit_pre_confirm)),
+                        .route(web::post().to(payments::payments_submit_eligibility)),
                 )
                 .service(
                     web::resource("/redirect/{payment_id}/{merchant_id}/{attempt_id}")

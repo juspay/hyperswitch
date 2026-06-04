@@ -8797,7 +8797,7 @@ impl PaymentEligibilityData {
     pub async fn from_request(
         state: &SessionState,
         platform: &domain::Platform,
-        payments_eligibility_request: &api_models::payments::PaymentsEligibilityRequest,
+        payments_eligibility_request: &api_models::payments::PaymentsEligibilityCheckRequest,
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
         payments_eligibility_request
             .validate_payment_method_input()
@@ -12546,12 +12546,12 @@ impl EligibilityHandler {
 }
 
 #[cfg(all(feature = "oltp", feature = "v1"))]
-pub async fn payments_submit_eligibility(
+pub async fn payments_submit_eligibility_check(
     state: SessionState,
     platform: domain::Platform,
-    req: api_models::payments::PaymentsEligibilityRequest,
+    req: api_models::payments::PaymentsEligibilityCheckRequest,
     payment_id: id_type::PaymentId,
-) -> RouterResponse<api_models::payments::PaymentsEligibilityResponse> {
+) -> RouterResponse<api_models::payments::PaymentsEligibilityCheckResponse> {
     let payment_eligibility_data = Box::pin(PaymentEligibilityData::from_request(
         &state, &platform, &req,
     ))
@@ -12589,7 +12589,7 @@ pub async fn payments_submit_eligibility(
             should_block_confirm: None,
         });
     Ok(services::ApplicationResponse::Json(
-        api_models::payments::PaymentsEligibilityResponse {
+        api_models::payments::PaymentsEligibilityCheckResponse {
             payment_id,
             sdk_next_action,
         },
@@ -12597,12 +12597,12 @@ pub async fn payments_submit_eligibility(
 }
 
 #[cfg(all(feature = "oltp", feature = "v1"))]
-pub async fn payments_submit_pre_confirm(
+pub async fn payments_submit_eligibility(
     state: SessionState,
     platform: domain::Platform,
-    req: api_models::payments::PaymentsPreConfirmRequest,
+    req: api_models::payments::PaymentsEligibilityRequest,
     payment_id: id_type::PaymentId,
-) -> RouterResponse<api_models::payments::PaymentsPreConfirmResponse> {
+) -> RouterResponse<api_models::payments::PaymentsEligibilityResponse> {
     // Convert to eligibility request so we can reuse the existing data-fetching logic
     // Extract postal code and country from request billing address (will be used to override PI values below)
     let req_billing_address = req
@@ -12612,7 +12612,7 @@ pub async fn payments_submit_pre_confirm(
         .and_then(|billing| billing.address.as_ref());
     let req_postal_code = req_billing_address.and_then(|addr| addr.zip.clone());
     let req_billing_country = req_billing_address.and_then(|addr| addr.country);
-    let eligibility_req = api_models::payments::PaymentsEligibilityRequest {
+    let eligibility_req = api_models::payments::PaymentsEligibilityCheckRequest {
         payment_id: req.payment_id.clone(),
         client_secret: req.client_secret.clone(),
         payment_method_type: req.payment_method_type,
@@ -12816,8 +12816,7 @@ pub async fn payments_submit_pre_confirm(
                                 .get_redis_conn()
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable("Failed to get redis connection for surcharge")?;
-                            let redis_key =
-                                helpers::get_pre_confirm_surcharge_redis_key(&payment_id);
+                            let redis_key = helpers::get_external_surcharge_redis_key(&payment_id);
                             let surcharge_to_store =
                                 api_models::payments::RequestSurchargeDetails {
                                     surcharge_amount,
@@ -12827,17 +12826,15 @@ pub async fn payments_submit_pre_confirm(
                                 .serialize_and_set_key_with_expiry(
                                     &redis_key.as_str().into(),
                                     &surcharge_to_store,
-                                    consts::PRE_CONFIRM_SURCHARGE_TTL,
+                                    consts::EXTERNAL_SURCHARGE_TTL,
                                 )
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable(
-                                    "Failed to store pre_confirm surcharge in redis",
-                                )?;
+                                .attach_printable("Failed to store external surcharge in redis")?;
                             logger::info!(
                                 redis_key = %redis_key,
                                 surcharge_amount = %surcharge_amount.get_amount_as_i64(),
-                                "pre_confirm: stored surcharge in Redis"
+                                "eligiblity: stored surcharge in Redis"
                             );
                             Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(())
                         }
@@ -12845,7 +12842,7 @@ pub async fn payments_submit_pre_confirm(
                         if let Err(err) = redis_write_result {
                             logger::warn!(
                                 error=?err,
-                                "pre_confirm: failed to write surcharge to Redis; confirm will not auto-apply surcharge"
+                                "eligiblity: failed to write surcharge to Redis; confirm will not auto-apply surcharge"
                             );
                         }
 
@@ -12913,7 +12910,7 @@ pub async fn payments_submit_pre_confirm(
     };
 
     Ok(services::ApplicationResponse::Json(
-        api_models::payments::PaymentsPreConfirmResponse {
+        api_models::payments::PaymentsEligibilityResponse {
             payment_id,
             sdk_next_action,
             surcharge_details,

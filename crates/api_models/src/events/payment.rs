@@ -191,6 +191,24 @@ impl ApiEventMetric for payments::PaymentsRequest {
 }
 
 #[cfg(feature = "v1")]
+impl ApiEventMetric for payments::PaymentsEligibilityCheckRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for payments::PaymentsEligibilityCheckResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
 impl ApiEventMetric for payments::PaymentsEligibilityRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
@@ -201,24 +219,6 @@ impl ApiEventMetric for payments::PaymentsEligibilityRequest {
 
 #[cfg(feature = "v1")]
 impl ApiEventMetric for payments::PaymentsEligibilityResponse {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::Payment {
-            payment_id: self.payment_id.clone(),
-        })
-    }
-}
-
-#[cfg(feature = "v1")]
-impl ApiEventMetric for payments::PaymentsPreConfirmRequest {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::Payment {
-            payment_id: self.payment_id.clone(),
-        })
-    }
-}
-
-#[cfg(feature = "v1")]
-impl ApiEventMetric for payments::PaymentsPreConfirmResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.payment_id.clone(),

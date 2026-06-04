@@ -3132,7 +3132,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
 /// Execute a surcharge calculation call via UCS SurchargeService.Calculate.
 ///
 /// This is a lightweight helper — it does not go through the full RouterData
-/// machinery. It is called from `payments_submit_pre_confirm` after eligibility
+/// machinery. It is called from `payments_submit_eligibility` after eligibility
 /// checks pass.
 #[cfg(all(feature = "oltp", feature = "v1"))]
 #[instrument(skip_all, fields(connector_name))]
