@@ -1458,6 +1458,8 @@ export const connectorDetails = {
       }),
     GooglePay: getCustomExchange({
       Configs: {
+        // TODO: Remove TRIGGER_SKIP when Stripe sandbox supports mock Google Pay tokens
+        // Currently skipped due to IR_24 validation incompatibility with mock tokens
         skipBillingAssertion: true,
         TRIGGER_SKIP: true,
       },
