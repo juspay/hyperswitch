@@ -39,6 +39,19 @@ const singleUseMandateData = {
   },
 };
 
+const voucherCurrencyMap = {
+  Boleto: "BRL",
+  Oxxo: "MXN",
+  Alfamart: "IDR",
+  Indomaret: "IDR",
+  SevenEleven: "JPY",
+  Lawson: "JPY",
+  MiniStop: "JPY",
+  FamilyMart: "JPY",
+  Seicomart: "JPY",
+  PayEasy: "JPY",
+};
+
 const mandateBrowserInfo = {
   user_agent:
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
@@ -1813,6 +1826,438 @@ export const connectorDetails = {
     }),
   },
 
+  voucher_pm: {
+    PaymentIntent: (paymentMethodType) => {
+      return {
+        Request: {
+          currency: voucherCurrencyMap[paymentMethodType] || "USD",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+    Boleto: getCustomExchange({
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "boleto",
+        payment_method_data: {
+          voucher: {
+            boleto: {
+              social_security_number: "12345678909",
+              document_type: "cpf",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "Rua Test 123",
+            city: "Sao Paulo",
+            state: "SP",
+            zip: "01310100",
+            country: "BR",
+            first_name: "Test",
+            last_name: "User",
+          },
+          phone: {
+            number: "11987654321",
+            country_code: "+55",
+          },
+          email: "test@example.com",
+        },
+        currency: voucherCurrencyMap.Boleto,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method: "voucher",
+          payment_method_type: "boleto",
+        },
+      },
+    }),
+    Oxxo: getCustomExchange({
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "oxxo",
+        payment_method_data: {
+          voucher: {
+            oxxo: null,
+          },
+        },
+        billing: {
+          address: {
+            line1: "123 Test St",
+            city: "Mexico City",
+            state: "Mexico",
+            zip: "06600",
+            country: "MX",
+            first_name: "Test",
+            last_name: "User",
+          },
+          email: "test@example.com",
+        },
+        currency: voucherCurrencyMap.Oxxo,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method: "voucher",
+          payment_method_type: "oxxo",
+        },
+      },
+    }),
+    Alfamart: getCustomExchange({
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "alfamart",
+        payment_method_data: {
+          voucher: {
+            alfamart: {
+              first_name: "Test",
+              last_name: "User",
+              email: "test@example.com",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "Jl Test 123",
+            city: "Jakarta",
+            state: "DKI Jakarta",
+            zip: "10110",
+            country: "ID",
+            first_name: "Test",
+            last_name: "User",
+          },
+          email: "test@example.com",
+        },
+        currency: voucherCurrencyMap.Alfamart,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method: "voucher",
+          payment_method_type: "alfamart",
+        },
+      },
+    }),
+    Indomaret: getCustomExchange({
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "indomaret",
+        payment_method_data: {
+          voucher: {
+            indomaret: {
+              first_name: "Test",
+              last_name: "User",
+              email: "test@example.com",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "Jl Test 123",
+            city: "Jakarta",
+            state: "DKI Jakarta",
+            zip: "10110",
+            country: "ID",
+            first_name: "Test",
+            last_name: "User",
+          },
+          email: "test@example.com",
+        },
+        currency: voucherCurrencyMap.Indomaret,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method: "voucher",
+          payment_method_type: "indomaret",
+        },
+      },
+    }),
+    SevenEleven: getCustomExchange({
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "seven_eleven",
+        payment_method_data: {
+          voucher: {
+            seven_eleven: {
+              first_name: "Test",
+              last_name: "User",
+              email: "test@example.com",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1-1 Test",
+            city: "Tokyo",
+            state: "Tokyo",
+            zip: "1000001",
+            country: "JP",
+            first_name: "Test",
+            last_name: "User",
+          },
+          phone: {
+            number: "312345678",
+            country_code: "+81",
+          },
+          email: "test@example.com",
+        },
+        currency: voucherCurrencyMap.SevenEleven,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method: "voucher",
+          payment_method_type: "seven_eleven",
+        },
+      },
+    }),
+    Lawson: getCustomExchange({
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "lawson",
+        payment_method_data: {
+          voucher: {
+            lawson: {
+              first_name: "Test",
+              last_name: "User",
+              email: "test@example.com",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1-1 Test",
+            city: "Tokyo",
+            state: "Tokyo",
+            zip: "1000001",
+            country: "JP",
+            first_name: "Test",
+            last_name: "User",
+          },
+          phone: {
+            number: "312345678",
+            country_code: "+81",
+          },
+          email: "test@example.com",
+        },
+        currency: voucherCurrencyMap.Lawson,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method: "voucher",
+          payment_method_type: "lawson",
+        },
+      },
+    }),
+    MiniStop: getCustomExchange({
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "mini_stop",
+        payment_method_data: {
+          voucher: {
+            mini_stop: {
+              first_name: "Test",
+              last_name: "User",
+              email: "test@example.com",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1-1 Test",
+            city: "Tokyo",
+            state: "Tokyo",
+            zip: "1000001",
+            country: "JP",
+            first_name: "Test",
+            last_name: "User",
+          },
+          phone: {
+            number: "312345678",
+            country_code: "+81",
+          },
+          email: "test@example.com",
+        },
+        currency: voucherCurrencyMap.MiniStop,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method: "voucher",
+          payment_method_type: "mini_stop",
+        },
+      },
+    }),
+    FamilyMart: getCustomExchange({
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "family_mart",
+        payment_method_data: {
+          voucher: {
+            family_mart: {
+              first_name: "Test",
+              last_name: "User",
+              email: "test@example.com",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1-1 Test",
+            city: "Tokyo",
+            state: "Tokyo",
+            zip: "1000001",
+            country: "JP",
+            first_name: "Test",
+            last_name: "User",
+          },
+          phone: {
+            number: "312345678",
+            country_code: "+81",
+          },
+          email: "test@example.com",
+        },
+        currency: voucherCurrencyMap.FamilyMart,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method: "voucher",
+          payment_method_type: "family_mart",
+        },
+      },
+    }),
+    Seicomart: getCustomExchange({
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "seicomart",
+        payment_method_data: {
+          voucher: {
+            seicomart: {
+              first_name: "Test",
+              last_name: "User",
+              email: "test@example.com",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1-1 Test",
+            city: "Tokyo",
+            state: "Tokyo",
+            zip: "1000001",
+            country: "JP",
+            first_name: "Test",
+            last_name: "User",
+          },
+          phone: {
+            number: "312345678",
+            country_code: "+81",
+          },
+          email: "test@example.com",
+        },
+        currency: voucherCurrencyMap.Seicomart,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method: "voucher",
+          payment_method_type: "seicomart",
+        },
+      },
+    }),
+    PayEasy: getCustomExchange({
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "pay_easy",
+        payment_method_data: {
+          voucher: {
+            pay_easy: {
+              first_name: "Test",
+              last_name: "User",
+              email: "test@example.com",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1-1 Test",
+            city: "Tokyo",
+            state: "Tokyo",
+            zip: "1000001",
+            country: "JP",
+            first_name: "Test",
+            last_name: "User",
+          },
+          phone: {
+            number: "312345678",
+            country_code: "+81",
+          },
+          email: "test@example.com",
+        },
+        currency: voucherCurrencyMap.PayEasy,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method: "voucher",
+          payment_method_type: "pay_easy",
+        },
+      },
+    }),
+    OxxoInvalidFormat: getCustomExchange({
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "oxxo",
+        payment_method_data: {
+          voucher: {
+            oxxo: "oxxo",
+          },
+        },
+        billing: {
+          address: {
+            line1: "123 Test St",
+            city: "Mexico City",
+            state: "Mexico",
+            zip: "06600",
+            country: "MX",
+            first_name: "Test",
+            last_name: "User",
+          },
+          email: "test@example.com",
+        },
+        currency: voucherCurrencyMap.Oxxo,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            message: 'invalid type: string "oxxo", expected unit',
+            code: "IR_06",
+          },
+        },
+      },
+    }),
+  },
+
   pm_list: {
     PmListResponse: {
       PmListNull: {
@@ -2073,6 +2518,7 @@ export const connectorDetails = {
       },
     },
   },
+
   bank_debit_pm: {
     PaymentIntent: (paymentMethodType) => {
       if (paymentMethodType === "Ach") {

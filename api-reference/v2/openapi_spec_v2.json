@@ -8731,6 +8731,17 @@
           {
             "type": "object",
             "required": [
+              "pix_emv"
+            ],
+            "properties": {
+              "pix_emv": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "pix_automatico_push"
             ],
             "properties": {
@@ -9114,6 +9125,17 @@
                     "nullable": true
                   }
                 }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix_emv"
+            ],
+            "properties": {
+              "pix_emv": {
+                "type": "object"
               }
             }
           },
@@ -15117,6 +15139,7 @@
               "$ref": "#/components/schemas/FrmPaymentMethodType"
             },
             "description": "payment method types(credit, debit) that can be used in the payment. This field is deprecated. It has not been removed to provide backward compatibility.",
+            "deprecated": true,
             "nullable": true
           },
           "flow": {
@@ -16597,6 +16620,19 @@
             "description": "Percentage of IOF (Financial Operations Tax). Pattern: \\d{3}$\\.\\d{5}\nOnly provided if the agreement is \"Cobra IOF na Barra ou Cadastro\"",
             "example": "32.45325",
             "nullable": true
+          }
+        }
+      },
+      "InternalVaultSessionDetails": {
+        "type": "object",
+        "description": "Internal vault details for SDK authorization",
+        "required": [
+          "sdk_authorization"
+        ],
+        "properties": {
+          "sdk_authorization": {
+            "type": "string",
+            "description": "Base64-encoded SDK authorization token for the internal vault session"
           }
         }
       },
@@ -21563,14 +21599,6 @@
             ],
             "nullable": true
           },
-          "psp_tokenization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PspTokenization"
-              }
-            ],
-            "nullable": true
-          },
           "network_tokenization": {
             "allOf": [
               {
@@ -22528,8 +22556,7 @@
           "payment_method_subtype",
           "created",
           "requires_cvv",
-          "is_default",
-          "psp_tokenization_enabled"
+          "is_default"
         ],
         "properties": {
           "id": {
@@ -22560,14 +22587,6 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentMethodListData"
-              }
-            ],
-            "nullable": true
-          },
-          "bank": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MaskedBankDetails"
               }
             ],
             "nullable": true
@@ -22610,9 +22629,18 @@
             ],
             "nullable": true
           },
-          "psp_tokenization_enabled": {
-            "type": "boolean",
-            "description": "Whether psp_tokenization is enabled for the payment_method, this will be true when at least\none multi-use token with status `Active` is available for the payment method"
+          "connector_tokens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectorTokenDetails"
+            },
+            "description": "The connector token details if available",
+            "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`.",
+            "nullable": true
           }
         }
       },
@@ -22699,14 +22727,6 @@
             "description": "The return url to which the customer should be redirected to after adding the payment method",
             "nullable": true
           },
-          "psp_tokenization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PspTokenization"
-              }
-            ],
-            "nullable": true
-          },
           "network_tokenization": {
             "allOf": [
               {
@@ -22762,14 +22782,6 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Address"
-              }
-            ],
-            "nullable": true
-          },
-          "psp_tokenization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PspTokenization"
               }
             ],
             "nullable": true
@@ -22866,6 +22878,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/NetworkTokenResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "external_vault_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultSessionDetails"
               }
             ],
             "nullable": true
@@ -23162,14 +23182,6 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Address"
-              }
-            ],
-            "nullable": true
-          },
-          "psp_tokenization": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PspTokenization"
               }
             ],
             "nullable": true
@@ -24830,7 +24842,7 @@
           "vault_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/VaultSessionDetails"
+                "$ref": "#/components/schemas/VaultDetails"
               }
             ],
             "nullable": true
@@ -26568,6 +26580,12 @@
             "description": "Individual taxpayer identification number",
             "example": "000123456",
             "nullable": true
+          },
+          "ispb": {
+            "type": "string",
+            "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
+            "example": "60701190",
+            "nullable": true
           }
         }
       },
@@ -26807,6 +26825,12 @@
             "type": "string",
             "description": "String formatted QR code for pix payout",
             "example": "00020126580014br.gov.bcb.pix0114000123456785204000053039865802BR5925John Doe6009Sao Paulo61080540900062070503***63041D3D"
+          },
+          "ispb": {
+            "type": "string",
+            "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
+            "example": "60701190",
+            "nullable": true
           }
         }
       },
@@ -32250,6 +32274,28 @@
         "description": "Represents a value in the DSL",
         "discriminator": {
           "propertyName": "type"
+        }
+      },
+      "VaultDetails": {
+        "type": "object",
+        "description": "Top-level vault details returned in the session-tokens response.\nFor v1: contains both internal vault (SDK authorization) and external vault details.\nFor v2: contains only external vault details.",
+        "properties": {
+          "internal_vault": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InternalVaultSessionDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "external_vault_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultSessionDetails"
+              }
+            ],
+            "nullable": true
+          }
         }
       },
       "VaultSdk": {

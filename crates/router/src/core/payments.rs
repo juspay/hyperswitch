@@ -6964,8 +6964,8 @@ where
     F: Send + Clone + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let merchant_id = processor.get_account().get_id();
-    let blocklist_enabled_key = merchant_id.get_blocklist_guard_key();
+    let processor_merchant_id = processor.get_account().get_id();
+    let blocklist_enabled_key = processor_merchant_id.get_blocklist_guard_key();
     let blocklist_guard_enabled = state
         .store
         .find_config_by_key_unwrap_or(&blocklist_enabled_key, Some("false".to_string()))
@@ -8773,7 +8773,7 @@ where
     pub card_testing_guard_data:
         Option<hyperswitch_domain_models::card_testing_guard_data::CardTestingGuardData>,
     pub vault_operation: Option<domain_payments::VaultOperation>,
-    pub vault_session_details: Option<api::VaultSessionDetails>,
+    pub vault_session_details: Option<api::VaultDetails>,
     pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
     pub whole_connector_response: Option<Secret<String>>,
     pub is_manual_retry_enabled: Option<bool>,
@@ -12688,7 +12688,7 @@ pub trait OperationSessionGetters<F> {
         &self,
     ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>>;
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails>;
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails>;
     #[cfg(feature = "v1")]
     fn get_click_to_pay_service_details(&self) -> Option<&api_models::payments::CtpServiceDetails>;
 
@@ -12773,7 +12773,7 @@ pub trait OperationSessionSetters<F> {
 
     fn set_vault_session_details(
         &mut self,
-        external_vault_session_details: Option<api::VaultSessionDetails>,
+        external_vault_session_details: Option<api::VaultDetails>,
     );
     fn set_routing_approach_in_attempt(&mut self, routing_approach: Option<enums::RoutingApproach>);
 
@@ -12955,7 +12955,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.client_session_id.clone()
     }
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails> {
         self.vault_session_details.clone()
     }
 
@@ -13134,10 +13134,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         self.vault_operation = Some(vault_operation);
     }
 
-    fn set_vault_session_details(
-        &mut self,
-        vault_session_details: Option<api::VaultSessionDetails>,
-    ) {
+    fn set_vault_session_details(&mut self, vault_session_details: Option<api::VaultDetails>) {
         self.vault_session_details = vault_session_details;
     }
 
@@ -13318,7 +13315,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         None
     }
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails> {
         self.vault_session_details.clone()
     }
 }
@@ -13449,10 +13446,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn set_vault_session_details(
-        &mut self,
-        vault_session_details: Option<api::VaultSessionDetails>,
-    ) {
+    fn set_vault_session_details(&mut self, vault_session_details: Option<api::VaultDetails>) {
         self.vault_session_details = vault_session_details;
     }
 
@@ -13634,7 +13628,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
             .and_then(|pre_routing_algorithm| pre_routing_algorithm.pre_routing_results)
     }
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails> {
         todo!()
     }
 }
@@ -13769,7 +13763,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
 
     fn set_vault_session_details(
         &mut self,
-        external_vault_session_details: Option<api::VaultSessionDetails>,
+        external_vault_session_details: Option<api::VaultDetails>,
     ) {
         todo!()
     }
@@ -13949,7 +13943,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         None
     }
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails> {
         todo!()
     }
 }
@@ -14083,7 +14077,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
 
     fn set_vault_session_details(
         &mut self,
-        external_vault_session_details: Option<api::VaultSessionDetails>,
+        external_vault_session_details: Option<api::VaultDetails>,
     ) {
         todo!()
     }
@@ -14264,7 +14258,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
         None
     }
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails> {
         todo!()
     }
 }
@@ -14398,7 +14392,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
 
     fn set_vault_session_details(
         &mut self,
-        external_vault_session_details: Option<api::VaultSessionDetails>,
+        external_vault_session_details: Option<api::VaultDetails>,
     ) {
         todo!()
     }
@@ -14579,7 +14573,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentAttemptListData<F> {
         todo!()
     }
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails> {
         todo!()
     }
 }
@@ -14740,7 +14734,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCancelData<F> {
         None
     }
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails> {
         todo!()
     }
 }
@@ -14875,7 +14869,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCancelData<F> {
 
     fn set_vault_session_details(
         &mut self,
-        _external_vault_session_details: Option<api::VaultSessionDetails>,
+        _external_vault_session_details: Option<api::VaultDetails>,
     ) {
         todo!()
     }
