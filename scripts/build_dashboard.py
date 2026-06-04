@@ -423,9 +423,9 @@ HTML_TEMPLATE = Template("""<!DOCTYPE html>
     </div>
   </div>
   <div class="card">
-    <div class="label">Features With Cypress Tests</div>
-    <div class="value">$total_covered</div>
-    <div class="delta">$coverage_pct% of all features (Connector Flows + Connector × PM + Core / Schema)</div>
+    <div class="label">Coverage (Achieved)</div>
+    <div class="value">$coverage_pct%</div>
+    <div class="delta">$total_covered / $automatable_count automatable<br><span style="color:#ffa56c">Potential: $potential_pct% (with $total_blocked bug-blocked)</span></div>
   </div>
   <div class="card">
     <div class="label">Features Introduced (period)</div>
@@ -666,7 +666,9 @@ def main():
     earliest = series[0]
     total_features_latest = latest["b1"] + latest["b2"] + latest["b3"]
     total_covered = latest["b1_covered"] + latest["b2_covered"] + latest["b3_covered"]
+    total_blocked = latest["b1_blocked"] + latest["b2_blocked"] + latest["b3_blocked"]
     coverage_pct = round(100.0 * total_covered / total_features_latest, 1) if total_features_latest else 0.0
+    potential_pct = round(100.0 * (total_covered + total_blocked) / total_features_latest, 1) if total_features_latest else 0.0
 
     # "Introduced in period" totals — filtered to the cutoff window
     conn = sqlite3.connect(DB_PATH)
@@ -807,6 +809,9 @@ def main():
         b3_latest=latest["b3"],
         total_covered=total_covered,
         coverage_pct=coverage_pct,
+        total_blocked=total_blocked,
+        automatable_count=total_features_latest - total_blocked,
+        potential_pct=potential_pct,
         total_new_features=total_new_features,
         total_new_b1=total_new_b1,
         total_new_b2=total_new_b2,

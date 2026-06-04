@@ -45,7 +45,7 @@ EXCLUDED_CONNECTORS = {
     # Standard exclusions
     "blackhawknetwork", "boku", "breadpay", "celero", "chargebee", "digitalvirgo",
     "flexiti", "getnet", "gpayments", "hyperwallet", "imerchantsolutions",
-    "juspaythreedesserver", "katapult", "mpgs", "payeezy", "paytm", "phonepe",
+    "juspaythreedsserver", "katapult", "mpgs", "payeezy", "paytm", "phonepe",
     "powertranz", "prophetpay", "santander", "sift", "silverflow", "square",
     "hyperpg", "tokenex", "trustpayments", "zen"
 }
