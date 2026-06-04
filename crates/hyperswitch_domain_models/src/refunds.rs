@@ -16,6 +16,7 @@ pub struct RefundListConstraints {
     pub merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
     pub currency: Option<Vec<common_enums::Currency>>,
     pub refund_status: Option<Vec<common_enums::RefundStatus>>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
 }
 
 #[cfg(feature = "v2")]
@@ -97,7 +98,34 @@ impl
             merchant_connector_id,
             currency,
             refund_status,
+            processor_merchant_id: None,
         })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<api_models::refunds::PlatformRefundListRequest> for RefundListConstraints {
+    fn from(value: api_models::refunds::PlatformRefundListRequest) -> Self {
+        let api_models::refunds::PlatformRefundListRequest {
+            processor_merchant_id,
+            limit,
+            offset,
+            time_range,
+        } = value;
+        Self {
+            payment_id: None,
+            refund_id: None,
+            profile_id: None,
+            limit,
+            offset,
+            time_range,
+            amount_filter: None,
+            connector: None,
+            merchant_connector_id: None,
+            currency: None,
+            refund_status: None,
+            processor_merchant_id,
+        }
     }
 }
 
