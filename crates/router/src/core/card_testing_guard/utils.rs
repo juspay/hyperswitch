@@ -28,9 +28,13 @@ pub async fn validate_card_testing_guard_checks(
 
             let card_testing_guard_expiry = card_testing_guard_config.card_testing_guard_expiry;
 
-            let mut card_ip_blocking_cache_key = String::new();
-            let mut guest_user_card_blocking_cache_key = String::new();
-            let mut customer_id_blocking_cache_key = String::new();
+            let mut card_ip_blocking_cache_key = None;
+            let mut guest_user_card_blocking_cache_key = None;
+            let mut customer_id_blocking_cache_key = None;
+            let mut guest_ip_blocking_cache_key = None;
+
+            let is_guest_ip_blocking_enabled =
+                card_testing_guard_config.is_guest_ip_blocking_enabled;
 
             if card_testing_guard_config.is_card_ip_blocking_enabled {
                 if let Some(browser_info) = browser_info {
@@ -42,54 +46,125 @@ pub async fn validate_card_testing_guard_checks(
                                 .attach_printable("could not parse browser_info")?;
 
                         if let Some(browser_info_ip) = browser_info.ip_address {
-                            card_ip_blocking_cache_key =
+                            card_ip_blocking_cache_key = Some(
                                 helpers::validate_card_ip_blocking_for_business_profile(
                                     state,
                                     browser_info_ip,
                                     fingerprint.clone(),
                                     card_testing_guard_config,
                                 )
-                                .await?;
+                                .await?,
+                            );
                         }
                     }
 
                     #[cfg(feature = "v2")]
                     {
                         if let Some(browser_info_ip) = browser_info.ip_address {
-                            card_ip_blocking_cache_key =
+                            card_ip_blocking_cache_key = Some(
                                 helpers::validate_card_ip_blocking_for_business_profile(
                                     state,
                                     browser_info_ip,
                                     fingerprint.clone(),
                                     card_testing_guard_config,
                                 )
-                                .await?;
+                                .await?,
+                            );
                         }
                     }
                 }
             }
 
             if card_testing_guard_config.is_guest_user_card_blocking_enabled {
-                guest_user_card_blocking_cache_key =
+                guest_user_card_blocking_cache_key = Some(
                     helpers::validate_guest_user_card_blocking_for_business_profile(
                         state,
                         fingerprint.clone(),
                         customer_id.clone(),
                         card_testing_guard_config,
                     )
-                    .await?;
+                    .await?,
+                );
             }
 
             if card_testing_guard_config.is_customer_id_blocking_enabled {
                 if let Some(customer_id) = customer_id.clone() {
-                    customer_id_blocking_cache_key =
+                    customer_id_blocking_cache_key = Some(
                         helpers::validate_customer_id_blocking_for_business_profile(
                             state,
                             customer_id.clone(),
                             business_profile.get_id(),
                             card_testing_guard_config,
                         )
-                        .await?;
+                        .await?,
+                    );
+                }
+            }
+
+            if card_testing_guard_config.is_guest_ip_blocking_enabled && customer_id.is_none() {
+                if let Some(browser_info) = browser_info {
+                    #[cfg(feature = "v1")]
+                    {
+                        let browser_info =
+                            serde_json::from_value::<BrowserInformation>(browser_info.clone())
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("could not parse browser_info")?;
+
+                        if let Some(browser_info_ip) = browser_info.ip_address {
+                            guest_ip_blocking_cache_key =
+                                match helpers::validate_guest_ip_blocking_for_business_profile(
+                                    state,
+                                    browser_info_ip,
+                                    business_profile.get_id(),
+                                    card_testing_guard_config,
+                                )
+                                .await
+                                {
+                                    Ok(key) => Some(key),
+                                    Err(err) => match err.current_context() {
+                                        errors::ApiErrorResponse::PreconditionFailed { .. } => {
+                                            return Err(err)
+                                        }
+                                        _ => {
+                                            logger::error!(
+                                                "Guest IP blocking validation error: {:?}",
+                                                err
+                                            );
+                                            None
+                                        }
+                                    },
+                                };
+                        }
+                    }
+
+                    #[cfg(feature = "v2")]
+                    {
+                        if let Some(browser_info_ip) = browser_info.ip_address {
+                            guest_ip_blocking_cache_key =
+                                match helpers::validate_guest_ip_blocking_for_business_profile(
+                                    state,
+                                    browser_info_ip,
+                                    business_profile.get_id(),
+                                    card_testing_guard_config,
+                                )
+                                .await
+                                {
+                                    Ok(key) => Some(key),
+                                    Err(err) => match err.current_context() {
+                                        errors::ApiErrorResponse::PreconditionFailed { .. } => {
+                                            return Err(err)
+                                        }
+                                        _ => {
+                                            logger::error!(
+                                                "Guest IP blocking validation error: {:?}",
+                                                err
+                                            );
+                                            None
+                                        }
+                                    },
+                                };
+                        }
+                    }
                 }
             }
 
@@ -103,6 +178,8 @@ pub async fn validate_card_testing_guard_checks(
                     .is_customer_id_blocking_enabled,
                 customer_id_blocking_cache_key,
                 card_testing_guard_expiry,
+                is_guest_ip_blocking_enabled,
+                guest_ip_blocking_cache_key,
             }))
         }
         None => Ok(None),
@@ -145,46 +222,76 @@ pub async fn generate_fingerprint(
 pub async fn increment_blocked_count_in_cache(
     state: &SessionState,
     card_testing_guard_data: Option<CardTestingGuardData>,
-) -> RouterResult<()> {
-    if let Some(card_testing_guard_data) = card_testing_guard_data.clone() {
-        if card_testing_guard_data.is_card_ip_blocking_enabled
-            && !card_testing_guard_data
-                .card_ip_blocking_cache_key
-                .is_empty()
-        {
-            let _ = services::card_testing_guard::increment_blocked_count_in_cache(
-                state,
-                &card_testing_guard_data.card_ip_blocking_cache_key,
-                card_testing_guard_data.card_testing_guard_expiry.into(),
-            )
-            .await;
+) {
+    if let Some(card_testing_guard_data) = card_testing_guard_data {
+        if card_testing_guard_data.is_card_ip_blocking_enabled {
+            if let Some(ref cache_key) = card_testing_guard_data.card_ip_blocking_cache_key {
+                if let Err(err) = services::card_testing_guard::increment_blocked_count_in_cache(
+                    state,
+                    cache_key,
+                    card_testing_guard_data.card_testing_guard_expiry.into(),
+                )
+                .await
+                {
+                    logger::error!(
+                        "Failed to increment card IP blocked count in cache: {:?}",
+                        err
+                    );
+                }
+            }
         }
 
-        if card_testing_guard_data.is_guest_user_card_blocking_enabled
-            && !card_testing_guard_data
-                .guest_user_card_blocking_cache_key
-                .is_empty()
-        {
-            let _ = services::card_testing_guard::increment_blocked_count_in_cache(
-                state,
-                &card_testing_guard_data.guest_user_card_blocking_cache_key,
-                card_testing_guard_data.card_testing_guard_expiry.into(),
-            )
-            .await;
+        if card_testing_guard_data.is_guest_user_card_blocking_enabled {
+            if let Some(ref cache_key) = card_testing_guard_data.guest_user_card_blocking_cache_key
+            {
+                if let Err(err) = services::card_testing_guard::increment_blocked_count_in_cache(
+                    state,
+                    cache_key,
+                    card_testing_guard_data.card_testing_guard_expiry.into(),
+                )
+                .await
+                {
+                    logger::error!(
+                        "Failed to increment guest user card blocked count in cache: {:?}",
+                        err
+                    );
+                }
+            }
         }
 
-        if card_testing_guard_data.is_customer_id_blocking_enabled
-            && !card_testing_guard_data
-                .customer_id_blocking_cache_key
-                .is_empty()
-        {
-            let _ = services::card_testing_guard::increment_blocked_count_in_cache(
-                state,
-                &card_testing_guard_data.customer_id_blocking_cache_key,
-                card_testing_guard_data.card_testing_guard_expiry.into(),
-            )
-            .await;
+        if card_testing_guard_data.is_customer_id_blocking_enabled {
+            if let Some(ref cache_key) = card_testing_guard_data.customer_id_blocking_cache_key {
+                if let Err(err) = services::card_testing_guard::increment_blocked_count_in_cache(
+                    state,
+                    cache_key,
+                    card_testing_guard_data.card_testing_guard_expiry.into(),
+                )
+                .await
+                {
+                    logger::error!(
+                        "Failed to increment customer ID blocked count in cache: {:?}",
+                        err
+                    );
+                }
+            }
+        }
+
+        if card_testing_guard_data.is_guest_ip_blocking_enabled {
+            if let Some(ref cache_key) = card_testing_guard_data.guest_ip_blocking_cache_key {
+                if let Err(err) =
+                    services::card_testing_guard::increment_guest_ip_blocked_count_in_cache(
+                        state,
+                        cache_key,
+                        card_testing_guard_data.card_testing_guard_expiry.into(),
+                    )
+                    .await
+                {
+                    logger::error!(
+                        "Failed to increment guest IP blocked count in cache: {:?}",
+                        err
+                    );
+                }
+            }
         }
     }
-    Ok(())
 }

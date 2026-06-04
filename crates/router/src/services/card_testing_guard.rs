@@ -76,3 +76,62 @@ where
         .await
         .change_context(ApiErrorResponse::InternalServerError)
 }
+
+pub async fn set_guest_ip_blocked_count_in_cache<A>(
+    state: &A,
+    cache_key: &str,
+    value: i32,
+    expiry: i64,
+) -> RouterResult<()>
+where
+    A: SessionStateInfo + Sync,
+{
+    let redis_conn = get_redis_connection(state)?;
+
+    redis_conn
+        .set_key_with_expiry(&cache_key.into(), value, expiry)
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)
+}
+
+pub async fn get_guest_ip_blocked_count_from_cache<A>(
+    state: &A,
+    cache_key: &str,
+) -> RouterResult<Option<i32>>
+where
+    A: SessionStateInfo + Sync,
+{
+    let redis_conn = get_redis_connection(state)?;
+
+    let value: Option<i32> = redis_conn
+        .get_key(&cache_key.into())
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)?;
+
+    Ok(value)
+}
+
+pub async fn increment_guest_ip_blocked_count_in_cache<A>(
+    state: &A,
+    cache_key: &str,
+    expiry: i64,
+) -> RouterResult<i32>
+where
+    A: SessionStateInfo + Sync,
+{
+    let redis_conn = get_redis_connection(state)?;
+
+    let value: Option<i32> = redis_conn
+        .get_key(&cache_key.into())
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)?;
+
+    let incremented_blocked_count = value.map_or(1, |actual_value| actual_value + 1);
+
+    redis_conn
+        .set_key_with_expiry(&cache_key.into(), incremented_blocked_count, expiry)
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)?;
+
+    Ok(incremented_blocked_count)
+}

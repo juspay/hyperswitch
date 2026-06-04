@@ -1664,6 +1664,44 @@ pub async fn validate_customer_id_blocking_for_business_profile(
     validate_blocking_threshold(state, unsuccessful_payment_threshold, cache_key).await
 }
 
+pub async fn validate_guest_ip_blocking_for_business_profile(
+    state: &SessionState,
+    client_ip: IpAddr,
+    profile_id: &id_type::ProfileId,
+    card_testing_guard_config: &diesel_models::business_profile::CardTestingGuardConfig,
+) -> RouterResult<String> {
+    let normalized_ip = match client_ip {
+        IpAddr::V4(v4) => v4.to_string(),
+        IpAddr::V6(v6) => v6.to_canonical().to_string(),
+    }
+    .replace(':', "-");
+
+    let cache_key = format!(
+        "{}_{}_{}",
+        consts::GUEST_IP_BLOCKING_CACHE_KEY_PREFIX,
+        profile_id.get_string_repr(),
+        normalized_ip
+    );
+
+    let unsuccessful_payment_threshold = card_testing_guard_config.guest_ip_blocking_threshold;
+
+    match services::card_testing_guard::get_guest_ip_blocked_count_from_cache(state, &cache_key)
+        .await
+    {
+        Ok(Some(unsuccessful_payment_count)) => {
+            if unsuccessful_payment_count >= unsuccessful_payment_threshold {
+                Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Blocked due to suspicious activity".to_string(),
+                })?
+            } else {
+                Ok(cache_key)
+            }
+        }
+        Ok(None) => Ok(cache_key),
+        Err(error) => Err(errors::ApiErrorResponse::InternalServerError).attach_printable(error)?,
+    }
+}
+
 pub async fn validate_blocking_threshold(
     state: &SessionState,
     unsuccessful_payment_threshold: i32,

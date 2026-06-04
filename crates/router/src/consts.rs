@@ -91,6 +91,8 @@ pub const GUEST_USER_CARD_BLOCKING_CACHE_KEY_PREFIX: &str = "GUEST_USER_CARD_BLO
 
 pub const CUSTOMER_ID_BLOCKING_PREFIX: &str = "CUSTOMER_ID_BLOCKING";
 
+pub const GUEST_IP_BLOCKING_CACHE_KEY_PREFIX: &str = "GUEST_IP_BLOCKING";
+
 #[cfg(feature = "olap")]
 pub const VERIFY_CONNECTOR_ID_PREFIX: &str = "conn_verify";
 #[cfg(feature = "olap")]
