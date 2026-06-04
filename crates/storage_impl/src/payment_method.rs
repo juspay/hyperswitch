@@ -194,20 +194,21 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             .change_context(errors::StorageError::KVError)
             .attach_printable("Failed to generate payment method insert query")?;
 
-        let payment_method = self.insert_resource(
-            key_store,
-            storage_scheme,
-            payment_method_new.clone().insert(&conn),
-            payment_method,
-            InsertResourceParams {
-                drainer_query,
-                reverse_lookups,
-                key,
-                identifier,
-                resource_type: "payment_method",
-            },
-        )
-        .await;
+        let payment_method = self
+            .insert_resource(
+                key_store,
+                storage_scheme,
+                payment_method_new.clone().insert(&conn),
+                payment_method,
+                InsertResourceParams {
+                    drainer_query,
+                    reverse_lookups,
+                    key,
+                    identifier,
+                    resource_type: "payment_method",
+                },
+            )
+            .await;
 
         if let Some(compat_action) = compat_action {
             compat_action.execute(payment_method.clone()).await;
