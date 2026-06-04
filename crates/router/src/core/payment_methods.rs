@@ -6499,18 +6499,18 @@ pub async fn payment_methods_session_update_payment_method(
             .await
             .attach_printable("Failed to update saved payment method")?;
 
-    let response = transformers::generate_payment_method_session_response(
-        updated_payment_method_session.clone(),
-        Secret::new("CLIENT_SECRET_REDACTED".to_string()),
-        None, // sdk_authorization is not returned for non-create flows
-        None, // TODO: send associated payments response based on the expandable param
-        None,
-        updated_payment_method_session.storage_type,
-        update_response.card_cvc_token_storage,
-        update_response.payment_method_data.clone(),
-        None,
-        None,
-    );
+            let response = transformers::generate_payment_method_session_response(
+                updated_payment_method_session.clone(),
+                Secret::new("CLIENT_SECRET_REDACTED".to_string()),
+                None, // sdk_authorization is not returned for non-create flows
+                None, // TODO: send associated payments response based on the expandable param
+                None,
+                updated_payment_method_session.storage_type,
+                update_response.card_cvc_token_storage,
+                update_response.payment_method_data.clone(),
+                None,
+                None,
+            );
 
             Ok(services::ApplicationResponse::Json(response))
         }
