@@ -1327,6 +1327,7 @@ pub struct PaymentsRequest {
     pub client_secret: Option<String>,
 
     /// Passing this object during payments creates a mandate. The mandate_type sub object is passed by the server.
+    #[schema(deprecated)]
     #[smithy(value_type = "Option<MandateData>")]
     pub mandate_data: Option<MandateData>,
 
@@ -1336,7 +1337,7 @@ pub struct PaymentsRequest {
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
 
     /// A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data
-    #[schema(max_length = 64, example = "mandate_iwer89rnjef349dni3")]
+    #[schema(max_length = 64, example = "mandate_iwer89rnjef349dni3", deprecated)]
     #[remove_in(PaymentsUpdateRequest)]
     #[smithy(value_type = "Option<String>")]
     pub mandate_id: Option<String>,
@@ -1368,14 +1369,14 @@ pub struct PaymentsRequest {
 
     /// Business country of the merchant for this payment.
     /// To be deprecated soon. Pass the profile_id instead
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<CountryAlpha2>, example = "US", deprecated)]
     #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest)]
     #[smithy(value_type = "Option<CountryAlpha2>")]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     /// Business label of the merchant for this payment.
     /// To be deprecated soon. Pass the profile_id instead
-    #[schema(example = "food")]
+    #[schema(example = "food", deprecated)]
     #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest)]
     #[smithy(value_type = "Option<String>")]
     pub business_label: Option<String>,
@@ -3694,6 +3695,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::DanamonVaBankTransfer { .. } => api_enums::PaymentMethodType::DanamonVa,
             Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
             Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
+            Self::PixEmv { .. } => api_enums::PaymentMethodType::PixEmv,
             Self::PixAutomaticoQr {} => api_enums::PaymentMethodType::PixAutomaticoQr,
             Self::PixAutomaticoPush { .. } => api_enums::PaymentMethodType::PixAutomaticoPush,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
@@ -4739,6 +4741,8 @@ pub enum BankTransferData {
         expiry_date: Option<PrimitiveDateTime>,
     },
     #[smithy(nested_value_type)]
+    PixEmv {},
+    #[smithy(nested_value_type)]
     PixAutomaticoQr {},
     #[smithy(nested_value_type)]
     PixAutomaticoPush {
@@ -4875,6 +4879,7 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
             }
             Self::LocalBankTransfer { .. }
             | Self::Pix { .. }
+            | Self::PixEmv {}
             | Self::PixAutomaticoPush { .. }
             | Self::PixAutomaticoQr {}
             | Self::Pse {}
@@ -7213,11 +7218,12 @@ pub struct PaymentsResponse {
     pub captures: Option<Vec<CaptureResponse>>,
 
     /// A unique identifier to link the payment to a mandate, can be used instead of payment_method_data, in case of setting up recurring payments
-    #[schema(max_length = 255, example = "mandate_iwer89rnjef349dni3")]
+    #[schema(max_length = 255, example = "mandate_iwer89rnjef349dni3", deprecated)]
     #[smithy(value_type = "Option<String>")]
     pub mandate_id: Option<String>,
 
     /// Provided mandate information for creating a mandate
+    #[schema(deprecated)]
     #[smithy(value_type = "Option<MandateData>")]
     pub mandate_data: Option<MandateData>,
 
@@ -10132,6 +10138,24 @@ pub enum SessionToken {
     NoSessionTokenReceived,
 }
 
+/// Top-level vault details returned in the session-tokens response.
+/// For v1: contains both internal vault (SDK authorization) and external vault details.
+/// For v2: contains only external vault details.
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct VaultDetails {
+    /// Internal vault details containing the SDK authorization token (v1 only)
+    pub internal_vault: Option<InternalVaultSessionDetails>,
+    /// External vault details (e.g. VGS or Hyperswitch Vault)
+    pub external_vault_details: Option<VaultSessionDetails>,
+}
+
+/// Internal vault details for SDK authorization
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct InternalVaultSessionDetails {
+    /// Base64-encoded SDK authorization token for the internal vault session
+    pub sdk_authorization: String,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum VaultSessionDetails {
@@ -10390,6 +10414,28 @@ pub enum PaypalFlow {
     Checkout,
 }
 
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PaypalCaptureMethod {
+    Capture,
+    Authorize,
+}
+
+impl From<common_enums::CaptureMethod> for PaypalCaptureMethod {
+    fn from(from: common_enums::CaptureMethod) -> Self {
+        match from {
+            common_enums::CaptureMethod::SequentialAutomatic
+            | common_enums::CaptureMethod::Automatic => Self::Capture,
+            common_enums::CaptureMethod::Manual
+            | common_enums::CaptureMethod::ManualMultiple
+            | common_enums::CaptureMethod::Scheduled => Self::Authorize,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaypalTransactionInfo {
     /// Paypal flow type
@@ -10424,6 +10470,14 @@ pub struct PaypalSessionTokenResponse {
     pub transaction_info: Option<PaypalTransactionInfo>,
     /// User token required for returning customer flow, used by client to initiate sdk
     pub data_user_id_token: Option<String>,
+    /// Transaction currency code
+    #[schema(example = "USD", value_type = Option<Currency>)]
+    #[smithy(value_type = "Option<Currency>")]
+    pub currency: Option<common_enums::Currency>,
+    /// PayPal capture method
+    #[schema(value_type = Option<PaypalCaptureMethod>)]
+    #[smithy(value_type = "Option<PaypalCaptureMethod>")]
+    pub intent: Option<PaypalCaptureMethod>,
 }
 
 #[derive(
@@ -10860,8 +10914,8 @@ pub struct PaymentsSessionResponse {
     pub client_secret: Secret<String, pii::ClientSecret>,
     /// The list of session token object
     pub session_token: Vec<SessionToken>,
-    /// External vault session details
-    pub vault_details: Option<VaultSessionDetails>,
+    /// Vault details containing internal vault (SDK auth) and external vault info
+    pub vault_details: Option<VaultDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -10873,7 +10927,7 @@ pub struct PaymentsSessionResponse {
     /// The list of session token object
     pub session_token: Vec<SessionToken>,
     /// External vault session details
-    pub vault_details: Option<VaultSessionDetails>,
+    pub vault_details: Option<VaultDetails>,
 }
 
 #[cfg(feature = "v1")]

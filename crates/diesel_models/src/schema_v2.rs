@@ -215,6 +215,10 @@ diesel::table! {
         data_kind -> BlocklistDataKind,
         metadata -> Nullable<Jsonb>,
         created_at -> Timestamp,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
@@ -1380,6 +1384,7 @@ diesel::table! {
         payment_method_subtype -> Nullable<Varchar>,
         #[max_length = 255]
         network_transaction_link_id -> Nullable<Varchar>,
+        compatibility_updated_at -> Nullable<Timestamp>,
         external_vault_token_data -> Nullable<Bytea>,
         #[max_length = 64]
         auxiliary_fingerprint_id -> Nullable<Varchar>,
@@ -1608,6 +1613,10 @@ diesel::table! {
         created_at -> Timestamp,
         modified_at -> Timestamp,
         response_data -> Nullable<Jsonb>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
@@ -1683,6 +1692,10 @@ diesel::table! {
         algorithm_for -> TransactionType,
         #[max_length = 64]
         decision_engine_routing_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
