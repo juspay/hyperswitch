@@ -7276,39 +7276,36 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add(
-  "manualRefundStatusUpdateTest",
-  (data, globalState) => {
-    const merchantId = globalState.get("merchantId");
-    const refundId = globalState.get("refundId");
-    const completeUrl = `${Cypress.env("BASEURL")}/refunds/${refundId}/manual-update`;
-    const adminApiKey = globalState.get("adminApiKey");
+Cypress.Commands.add("manualRefundStatusUpdateTest", (data, globalState) => {
+  const merchantId = globalState.get("merchantId");
+  const refundId = globalState.get("refundId");
+  const completeUrl = `${Cypress.env("BASEURL")}/refunds/${refundId}/manual-update`;
+  const adminApiKey = globalState.get("adminApiKey");
 
-    cy.request({
-      method: "PUT",
-      url: completeUrl,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": adminApiKey,
-        "X-Merchant-Id": merchantId,
-      },
-      body: data,
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
+  cy.request({
+    method: "PUT",
+    url: completeUrl,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": adminApiKey,
+      "X-Merchant-Id": merchantId,
+    },
+    body: data,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
 
-      cy.wrap(response).then(() => {
-        if (response.status === 200) {
-          expect(response.status).to.eq(200);
-        } else {
-          throw new Error(
-            `Refund Manual Update Call Failed with error code "${response.body?.error?.code}" error message "${response.body?.error?.message}"`
-          );
-        }
-      });
+    cy.wrap(response).then(() => {
+      if (response.status === 200) {
+        expect(response.status).to.eq(200);
+      } else {
+        throw new Error(
+          `Refund Manual Update Call Failed with error code "${response.body?.error?.code}" error message "${response.body?.error?.message}"`
+        );
+      }
     });
-  }
-);
+  });
+});
 
 Cypress.Commands.add(
   "IncomingWebhookTest",
