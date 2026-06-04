@@ -3,7 +3,6 @@ pub mod utils;
 #[cfg(feature = "dummy_connector")]
 pub use hyperswitch_connectors::connectors::DummyConnector;
 pub use hyperswitch_connectors::connectors::{
-    nextiva, nextiva::Nextiva,
     absa_sanlam, absa_sanlam::AbsaSanlam, aci, aci::Aci, adyen, adyen::Adyen, adyenplatform,
     adyenplatform::Adyenplatform, affirm, affirm::Affirm, airwallex, airwallex::Airwallex,
     amazonpay, amazonpay::Amazonpay, archipel, archipel::Archipel, authipay, authipay::Authipay,
@@ -33,13 +32,13 @@ pub use hyperswitch_connectors::connectors::{
     katapult, katapult::Katapult, klarna, klarna::Klarna, loonio, loonio::Loonio, mifinity,
     mifinity::Mifinity, mollie, mollie::Mollie, moneris, moneris::Moneris, mpgs, mpgs::Mpgs,
     multisafepay, multisafepay::Multisafepay, netcetera, netcetera::Netcetera, nexinets,
-    nexinets::Nexinets, nexixpay, nexixpay::Nexixpay, nmi, nmi::Nmi, nomupay, nomupay::Nomupay,
-    noon, noon::Noon, nordea, nordea::Nordea, novalnet, novalnet::Novalnet, nuvei, nuvei::Nuvei,
-    opayo, opayo::Opayo, opennode, opennode::Opennode, paybox, paybox::Paybox, payeezy,
-    payeezy::Payeezy, payjustnow, payjustnow::Payjustnow, payjustnowinstore,
-    payjustnowinstore::Payjustnowinstore, payload, payload::Payload, payme, payme::Payme, payone,
-    payone::Payone, paypal, paypal::Paypal, paysafe, paysafe::Paysafe, paystack,
-    paystack::Paystack, paytm, paytm::Paytm, payu, payu::Payu, peachpayments,
+    nexinets::Nexinets, nexixpay, nexixpay::Nexixpay, nextiva, nextiva::Nextiva, nmi, nmi::Nmi,
+    nomupay, nomupay::Nomupay, noon, noon::Noon, nordea, nordea::Nordea, novalnet,
+    novalnet::Novalnet, nuvei, nuvei::Nuvei, opayo, opayo::Opayo, opennode, opennode::Opennode,
+    paybox, paybox::Paybox, payeezy, payeezy::Payeezy, payjustnow, payjustnow::Payjustnow,
+    payjustnowinstore, payjustnowinstore::Payjustnowinstore, payload, payload::Payload, payme,
+    payme::Payme, payone, payone::Payone, paypal, paypal::Paypal, paysafe, paysafe::Paysafe,
+    paystack, paystack::Paystack, paytm, paytm::Paytm, payu, payu::Payu, peachpayments,
     peachpayments::Peachpayments, phonepe, phonepe::Phonepe, placetopay, placetopay::Placetopay,
     plaid, plaid::Plaid, powertranz, powertranz::Powertranz, prophetpay, prophetpay::Prophetpay,
     rapyd, rapyd::Rapyd, razorpay, razorpay::Razorpay, recurly, recurly::Recurly, redsys,
