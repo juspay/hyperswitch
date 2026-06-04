@@ -34,6 +34,7 @@ use crate::core::payment_methods::{
 use crate::{
     consts,
     core::{
+        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
         mandate,
         payment_methods::{self, cards::PmCards, network_tokenization},
@@ -168,6 +169,7 @@ pub async fn save_payment_method<FData>(
     payment_method_info: Option<domain::PaymentMethod>,
     payment_method_token: Option<hyperswitch_domain_models::router_data::PaymentMethodToken>,
     customer_details: Option<api_models::customers::CustomerDocumentDetails>,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<SavePaymentMethodDataResponse>
 where
     FData: mandate::MandateBehaviour + Clone,
@@ -858,14 +860,23 @@ where
                         }
                     },
                     None => {
+                        let should_save_apple_pay_decrypted_data = save_payment_method_data
+                            .payment_method_token
+                            .as_ref()
+                            .map(|pmt| pmt.is_apple_pay_decrypt())
+                            .unwrap_or(false)
+                            && dimensions
+                                .get_save_apple_pay_decrypted_data(
+                                    state.store.as_ref(),
+                                    state.superposition_service.as_ref(),
+                                    Some(&customer_id),
+                                )
+                                .await;
                         let customer_saved_pm_option = if payment_method_type
                             .map(|payment_method_type_value| {
                                 payment_method_type_value
                                     .should_check_for_customer_saved_payment_method_type(
-                                        save_payment_method_data
-                                            .payment_method_token
-                                            .as_ref()
-                                            .is_some_and(|pmt| pmt.is_apple_pay_decrypt()),
+                                        should_save_apple_pay_decrypted_data,
                                     )
                             })
                             .unwrap_or(false)
@@ -925,7 +936,8 @@ where
                             locker_id = resp.payment_method.and_then(|pm| {
                                 if pm == PaymentMethod::Card
                                     || pm == PaymentMethod::BankDebit
-                                    || pm == PaymentMethod::Wallet
+                                    || (pm == PaymentMethod::Wallet
+                                        && should_save_apple_pay_decrypted_data)
                                 {
                                     Some(resp.payment_method_id)
                                 } else {

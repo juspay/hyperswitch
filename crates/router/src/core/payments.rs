@@ -1099,6 +1099,7 @@ where
                         &business_profile,
                         req.get_payment_method_data(),
                         &feature_config,
+                        &dimensions.without_profile_id(),
                     )
                     .await?;
 
@@ -1322,6 +1323,7 @@ where
                         &business_profile,
                         req.get_payment_method_data(),
                         &feature_config,
+                        &dimensions.without_profile_id(),
                     )
                     .await?;
 
@@ -2543,6 +2545,7 @@ async fn handle_pm_and_mandate_post_update<F, R, Op, D>(
     business_profile: &domain::Profile,
     request_payment_method_data: Option<api_models::payments::PaymentMethodData>,
     feature_config: &core_utils::FeatureConfig,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
     F: Clone + Send + Sync,
@@ -2574,6 +2577,7 @@ where
                 payment_data,
                 business_profile,
                 domain_payment_method_data.as_ref(),
+                dimensions,
             )
             .await?;
     } else {
@@ -2583,7 +2587,14 @@ where
         );
         operation
             .to_post_update_tracker()?
-            .save_pm_and_mandate(state, router_data, platform, payment_data, business_profile)
+            .save_pm_and_mandate(
+                state,
+                router_data,
+                platform,
+                payment_data,
+                business_profile,
+                dimensions,
+            )
             .await?;
     }
 
