@@ -1839,7 +1839,6 @@ pub async fn payments_cancel_post_capture_retrieve(
 
     let payload = payment_types::PaymentsCancelPostCaptureSyncBody {
         payment_id,
-        merchant_id: None,
     };
     let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(api::server_wrap(

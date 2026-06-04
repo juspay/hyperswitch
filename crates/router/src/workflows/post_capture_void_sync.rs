@@ -42,27 +42,21 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
         process: storage::ProcessTracker,
     ) -> Result<(), sch_errors::ProcessTrackerError> {
         let db: &dyn StorageInterface = &*state.store;
-        let tracking_data: api::PaymentsCancelPostCaptureSyncBody =
+        let tracking_data: api::PaymentsPostCaptureVoidSyncTrackingData =
             process
                 .tracking_data
                 .clone()
-                .parse_value("PaymentsCancelPostCaptureSyncBody")?;
+                .parse_value("PaymentsPostCaptureVoidSyncTrackingData")?;
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
-                tracking_data
-                    .merchant_id
-                    .as_ref()
-                    .get_required_value("merchant_id")?,
+                &tracking_data.merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
             .await?;
 
         let merchant_account = db
             .find_merchant_account_by_merchant_id(
-                tracking_data
-                    .merchant_id
-                    .as_ref()
-                    .get_required_value("merchant_id")?,
+                &tracking_data.merchant_id,
                 &key_store,
             )
             .await?;
@@ -79,6 +73,10 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
             .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
             .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
+        let request_body = api::PaymentsCancelPostCaptureSyncBody {
+            payment_id: tracking_data.payment_id.clone(),
+        };
+
         let (payment_data, _, _, _) = Box::pin(payment_flows::payments_operation_core::<
             api::PostCaptureVoidSync,
             _,
@@ -91,7 +89,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
             &platform,
             None,
             operations::PaymentCancelPostCaptureSync,
-            tracking_data.clone(),
+            request_body,
             payment_flows::CallConnectorAction::Trigger,
             None,
             services::AuthFlow::Client,

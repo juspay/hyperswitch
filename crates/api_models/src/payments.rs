@@ -11015,9 +11015,15 @@ pub struct PaymentsCancelPostCaptureSyncBody {
     /// The identifier for the payment
     #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,
+}
+
+/// Tracking data for the post_capture_void_sync workflow stored in process_tracker
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct PaymentsPostCaptureVoidSyncTrackingData {
+    /// The identifier for the payment
+    pub payment_id: id_type::PaymentId,
     /// The identifier for the merchant
-    #[schema(value_type = Option<String>)]
-    pub merchant_id: Option<id_type::MerchantId>,
+    pub merchant_id: id_type::MerchantId,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

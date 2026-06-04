@@ -2707,7 +2707,6 @@ pub async fn payments_retrieve_core(
     if should_call_void_sync {
         let payload = api::PaymentsCancelPostCaptureSyncBody {
             payment_id: payment_intent_id,
-            merchant_id: None,
         };
 
         Box::pin(payments_core::<
@@ -9891,9 +9890,9 @@ pub async fn add_process_post_capture_void_sync_task(
     schedule_time: time::PrimitiveDateTime,
     application_source: enums::ApplicationSource,
 ) -> CustomResult<(), errors::StorageError> {
-    let tracking_data = api::PaymentsCancelPostCaptureSyncBody {
+    let tracking_data = api::PaymentsPostCaptureVoidSyncTrackingData {
         payment_id: payment_attempt.payment_id.clone(),
-        merchant_id: Some(payment_attempt.merchant_id.clone()),
+        merchant_id: payment_attempt.merchant_id.clone(),
     };
     let runner = storage::ProcessTrackerRunner::PaymentsPostCaptureVoidSyncWorkflow;
     let task = "PAYMENTS_POST_CAPTURE_VOID_SYNC";

@@ -21,7 +21,7 @@ pub use api_models::{
         PaymentIdType, PaymentListConstraints, PaymentListFilters, PaymentListFiltersV2,
         PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp,
         PaymentsAggregateResponse, PaymentsApproveRequest, PaymentsCancelPostCaptureRequest,
-        PaymentsCancelPostCaptureSyncBody, PaymentsCancelRequest, PaymentsCaptureRequest,
+        PaymentsCancelPostCaptureSyncBody, PaymentsPostCaptureVoidSyncTrackingData, PaymentsCancelRequest, PaymentsCaptureRequest,
         PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
         PaymentsDynamicTaxCalculationResponse, PaymentsExtendAuthorizationRequest,
         PaymentsExternalAuthenticationRequest, PaymentsIncrementalAuthorizationRequest,
