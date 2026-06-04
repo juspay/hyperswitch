@@ -72,8 +72,11 @@ export default defineConfig({
           }
 
           const logs = [];
-          // eslint-disable-next-line no-console
-          const log = (msg) => { console.log(msg); logs.push(msg); };
+
+          const log = (msg) => {
+            console.log(msg);
+            logs.push(msg);
+          };
 
           const stripeRequest = (method, path, postData) =>
             new Promise((resolve, reject) => {
@@ -93,10 +96,15 @@ export default defineConfig({
               };
               const req = https.request(options, (res) => {
                 let data = "";
-                res.on("data", (chunk) => { data += chunk; });
+                res.on("data", (chunk) => {
+                  data += chunk;
+                });
                 res.on("end", () => {
-                  try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
-                  catch { resolve({ status: res.statusCode, body: data }); }
+                  try {
+                    resolve({ status: res.statusCode, body: JSON.parse(data) });
+                  } catch {
+                    resolve({ status: res.statusCode, body: data });
+                  }
                 });
               });
               req.on("error", reject);
@@ -107,23 +115,39 @@ export default defineConfig({
           log(`[stripeVerify] Using connectorId=${connectorId}`);
 
           // GET the PaymentIntent to extract the hosted_verification_url for microdeposit
-          return stripeRequest("GET", `/v1/payment_intents/${paymentIntentId}`, null)
-            .then((piResult) => {
-              log(`[stripeVerify] GET PI ${paymentIntentId} => ${piResult.status}`);
-              if (piResult.status !== 200) {
-                log(`[stripeVerify] GET PI failed: ${JSON.stringify(piResult.body)}`);
-                return { status: piResult.status, body: piResult.body, logs };
-              }
-              const hostedVerificationUrl =
-                piResult.body.next_action?.verify_with_microdeposits?.hosted_verification_url;
-              if (!hostedVerificationUrl) {
-                log("[stripeVerify] No hosted_verification_url — PI may already be verified");
-                return { status: 200, body: { already_verified: true }, logs };
-              }
-              log(`[stripeVerify] Got hosted_verification_url: ${hostedVerificationUrl}`);
-              // Return the URL so the Cypress command can visit it via cy.origin()
-              return { status: 200, body: { hosted_verification_url: hostedVerificationUrl }, logs };
-            });
+          return stripeRequest(
+            "GET",
+            `/v1/payment_intents/${paymentIntentId}`,
+            null
+          ).then((piResult) => {
+            log(
+              `[stripeVerify] GET PI ${paymentIntentId} => ${piResult.status}`
+            );
+            if (piResult.status !== 200) {
+              log(
+                `[stripeVerify] GET PI failed: ${JSON.stringify(piResult.body)}`
+              );
+              return { status: piResult.status, body: piResult.body, logs };
+            }
+            const hostedVerificationUrl =
+              piResult.body.next_action?.verify_with_microdeposits
+                ?.hosted_verification_url;
+            if (!hostedVerificationUrl) {
+              log(
+                "[stripeVerify] No hosted_verification_url — PI may already be verified"
+              );
+              return { status: 200, body: { already_verified: true }, logs };
+            }
+            log(
+              `[stripeVerify] Got hosted_verification_url: ${hostedVerificationUrl}`
+            );
+            // Return the URL so the Cypress command can visit it via cy.origin()
+            return {
+              status: 200,
+              body: { hosted_verification_url: hostedVerificationUrl },
+              logs,
+            };
+          });
         },
       });
       on("after:spec", (spec, results) => {

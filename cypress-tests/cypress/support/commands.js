@@ -4793,7 +4793,10 @@ Cypress.Commands.add("verifyAchMicrodepositCallTest", (globalState) => {
     return;
   }
 
-  cy.task("cli_log", `Verifying ACH microdeposit for PI: ${connectorTransactionId}`);
+  cy.task(
+    "cli_log",
+    `Verifying ACH microdeposit for PI: ${connectorTransactionId}`
+  );
   cy.task("verifyStripeAchPaymentIntent", {
     connectorAuthFilePath,
     connectorId,
@@ -4805,24 +4808,36 @@ Cypress.Commands.add("verifyAchMicrodepositCallTest", (globalState) => {
     expect(result.status, "fetch hosted_verification_url").to.equal(200);
 
     if (result.body.already_verified) {
-      cy.task("cli_log", "PI already verified, skipping microdeposit page interaction");
+      cy.task(
+        "cli_log",
+        "PI already verified, skipping microdeposit page interaction"
+      );
       return;
     }
 
     const hostedUrl = result.body.hosted_verification_url;
-    cy.task("cli_log", `Visiting Stripe hosted verification page: ${hostedUrl}`);
+    cy.task(
+      "cli_log",
+      `Visiting Stripe hosted verification page: ${hostedUrl}`
+    );
 
     // Visit the Stripe hosted microdeposit verification page and enter the
     // test descriptor code SM11AA (Stripe test mode code for instant verification)
-    cy.origin("https://payments.stripe.com", { args: { hostedUrl } }, ({ hostedUrl }) => {
-      cy.visit(hostedUrl);
-      // Stripe uses p-CodePuncher-controllingInput which has opacity:0 — use force:true
-      // Append {enter} to submit the form since the button lacks type="submit"
-      cy.get("input.p-CodePuncher-controllingInput").type("11AA{enter}", { force: true });
-      // Wait for Stripe's internal verify_microdeposits fetch to complete before
-      // Cypress moves on — the fetch is async and fires after the {enter} keypress
-      cy.wait(5000);
-    });
+    cy.origin(
+      "https://payments.stripe.com",
+      { args: { hostedUrl } },
+      ({ hostedUrl }) => {
+        cy.visit(hostedUrl);
+        // Stripe uses p-CodePuncher-controllingInput which has opacity:0 — use force:true
+        // Append {enter} to submit the form since the button lacks type="submit"
+        cy.get("input.p-CodePuncher-controllingInput").type("11AA{enter}", {
+          force: true,
+        });
+        // Wait for Stripe's internal verify_microdeposits fetch to complete before
+        // Cypress moves on — the fetch is async and fires after the {enter} keypress
+        cy.wait(5000);
+      }
+    );
   });
 });
 
