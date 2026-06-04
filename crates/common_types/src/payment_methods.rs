@@ -275,49 +275,6 @@ pub enum AssociatedPaymentMethodTokenType {
     PaymentMethodSessionToken(String),
 }
 
-/// Card details for an associated payment method
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct AssociatedCardDetails {
-    /// Last 4 digits of the card number
-    #[schema(value_type = Option<String>, example = "4242")]
-    pub last4_digits: Option<String>,
-
-    /// First 6 or 8 digits (BIN/IIN) of the card number
-    #[schema(value_type = Option<String>, example = "424242")]
-    pub card_isin: Option<String>,
-
-    /// Card network (e.g. Visa, Mastercard)
-    #[schema(value_type = Option<String>, example = "Visa")]
-    pub card_network: Option<common_enums::CardNetwork>,
-
-    /// Card expiry month
-    #[schema(value_type = Option<String>, example = "10")]
-    pub expiry_month: Option<hyperswitch_masking::Secret<String>>,
-
-    /// Card expiry year
-    #[schema(value_type = Option<String>, example = "25")]
-    pub expiry_year: Option<hyperswitch_masking::Secret<String>>,
-
-    /// Card type (e.g. credit, debit)
-    #[schema(value_type = Option<String>, example = "Credit")]
-    pub card_type: Option<String>,
-
-    /// Card issuer bank name
-    #[schema(value_type = Option<String>, example = "Chase")]
-    pub card_issuer: Option<String>,
-
-    /// Card holder name
-    #[schema(value_type = Option<String>, example = "John Doe")]
-    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
-}
-
-/// Payment method data for an associated payment method
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(tag = "type", content = "data", rename_all = "snake_case")]
-pub enum AssociatedPaymentMethodData {
-    /// Card payment method details
-    Card(AssociatedCardDetails),
-}
 
 /// Details of associated payment methods for Payment Methods Session
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -325,7 +282,4 @@ pub struct AssociatedPaymentMethods {
     /// token type for associated payment method
     pub payment_method_token: AssociatedPaymentMethodTokenType,
 
-    /// Payment method details (bin, last4, network, etc.)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub payment_method_data: Option<AssociatedPaymentMethodData>,
 }
