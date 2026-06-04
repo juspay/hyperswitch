@@ -30314,11 +30314,6 @@
           "payment_id": {
             "type": "string",
             "description": "The identifier for the payment"
-          },
-          "merchant_id": {
-            "type": "string",
-            "description": "The identifier for the merchant",
-            "nullable": true
           }
         }
       },
