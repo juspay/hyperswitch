@@ -92,9 +92,9 @@ describe("Card - Payment Response Hash flow test", () => {
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
-          "no_three_ds",
-          "automatic",
-          globalState
+          "no_three_ds",    // authentication_type: no 3D Secure authentication
+          "automatic",      // capture_method: automatic capture after authorization
+          globalState       // globalState: state object for cross-step data persistence
         );
 
         if (!utils.should_continue_further(data)) {
@@ -112,7 +112,12 @@ describe("Card - Payment Response Hash flow test", () => {
           "card_pm"
         ]["No3DSAutoCapture"];
 
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+        cy.confirmCallTest(
+          fixtures.confirmBody,  // confirmBody: payment confirmation payload with card details
+          data,                   // data: connector-specific config for No3DSAutoCapture flow
+          true,                   // confirmFlag: true triggers the actual confirm API call
+          globalState             // globalState: state object for cross-step data persistence
+        );
 
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
