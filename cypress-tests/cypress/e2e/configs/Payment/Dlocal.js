@@ -124,17 +124,22 @@ export const connectorDetails = {
           },
           email: "test@example.com",
         },
+        customer: {
+          name: "John Doe",
+          email: "guest@example.com",
+          document_details: {
+            document_type: "cnpj",
+            document_number: "12345678000195",
+          },
+        },
         currency: "MXN",
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Missing required param: customer.document_details.document_number",
-            code: "IR_04",
-          },
+          status: "requires_customer_action",
+          payment_method: "voucher",
+          payment_method_type: "oxxo",
         },
       },
     },
@@ -156,6 +161,14 @@ export const connectorDetails = {
             last_name: "Customer",
           },
           email: "test@example.com",
+        },
+        customer: {
+          name: "John Doe",
+          email: "guest@example.com",
+          document_details: {
+            document_type: "cnpj",
+            document_number: "12345678000195",
+          },
         },
         currency: "MXN",
       },
