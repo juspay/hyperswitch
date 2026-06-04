@@ -121,8 +121,8 @@ pub struct PaymentMethod {
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub network_transaction_link_id: Option<Secret<String>>,
     pub compatibility_updated_at: Option<PrimitiveDateTime>,
-    pub external_vault_token_data: Option<Encryption>,
     pub auxiliary_fingerprint_id: Option<String>,
+    pub external_vault_token_data: Option<Encryption>,
 }
 
 impl PaymentMethod {
