@@ -8731,6 +8731,17 @@
           {
             "type": "object",
             "required": [
+              "pix_emv"
+            ],
+            "properties": {
+              "pix_emv": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "pix_automatico_push"
             ],
             "properties": {
@@ -9114,6 +9125,17 @@
                     "nullable": true
                   }
                 }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix_emv"
+            ],
+            "properties": {
+              "pix_emv": {
+                "type": "object"
               }
             }
           },
@@ -15117,6 +15139,7 @@
               "$ref": "#/components/schemas/FrmPaymentMethodType"
             },
             "description": "payment method types(credit, debit) that can be used in the payment. This field is deprecated. It has not been removed to provide backward compatibility.",
+            "deprecated": true,
             "nullable": true
           },
           "flow": {
@@ -22568,14 +22591,6 @@
             ],
             "nullable": true
           },
-          "bank": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MaskedBankDetails"
-              }
-            ],
-            "nullable": true
-          },
           "created": {
             "type": "string",
             "format": "date-time",
@@ -22612,6 +22627,19 @@
                 "$ref": "#/components/schemas/NetworkTokenResponse"
               }
             ],
+            "nullable": true
+          },
+          "connector_tokens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectorTokenDetails"
+            },
+            "description": "The connector token details if available",
+            "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`.",
             "nullable": true
           }
         }
