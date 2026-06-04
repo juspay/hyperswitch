@@ -540,6 +540,7 @@ export const CONNECTOR_LISTS = {
     PAYPAL_WALLET: ["novalnet", "paypal"],
     MIFINITY_WALLET: ["mifinity"],
     SKRILL_WALLET: ["paysafe"],
+    GOOGLE_PAY_WALLET: ["stripe"],
     PAYSAFECARD_GIFT_CARD: ["paysafe"],
     PAYPAL_MANDATE: ["paypal"],
     CARD_INSTALLMENTS: ["adyen"],

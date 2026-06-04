@@ -1443,6 +1443,69 @@ export const connectorDetails = {
       pmListDynamicFieldWithEmail: requiredFields,
     },
   },
+  wallet_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: "USD",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
+    GooglePay: getCustomExchange({
+      Configs: {
+        skipBillingAssertion: true,
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "google_pay",
+        payment_method_data: {
+          wallet: {
+            google_pay: {
+              pm_type: "CARD",
+              description: "Test Google Pay Card",
+              info: {
+                card_network: "VISA",
+                card_details: "4242",
+              },
+              tokenization_data: {
+                type: "PAYMENT_GATEWAY",
+                token: JSON.stringify({ id: "tok_visa" }),
+              },
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          email: "test@example.com",
+          phone: {
+            number: "8056594427",
+            country_code: "+1",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+  },
   webhook: {
     TransactionIdConfig: {
       // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
