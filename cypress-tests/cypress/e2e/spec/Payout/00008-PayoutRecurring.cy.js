@@ -36,7 +36,6 @@ describe("[Payout] Recurring", () => {
 
   context("Create payout with recurring=true", () => {
     let shouldContinue = true;
-    let capturedPayoutMethodId = null;
 
     beforeEach(function () {
       if (!shouldContinue) {
