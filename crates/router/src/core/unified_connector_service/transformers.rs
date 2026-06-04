@@ -5899,7 +5899,10 @@ impl transformers::ForeignTryFrom<payments_grpc::RefundResponse>
                     .and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status: None,
-                connector_transaction_id: None,
+                connector_transaction_id: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.connector_transaction_id.clone()),
                 connector_response_reference_id: None,
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
