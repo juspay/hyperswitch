@@ -7054,12 +7054,6 @@ impl GooglePayTokenDecryptor {
         recipient_id: hyperswitch_masking::Secret<String>,
         private_key: hyperswitch_masking::Secret<String>,
     ) -> CustomResult<Self, errors::GooglePayDecryptionError> {
-        println!(
-            "Initializing Google Pay Token Decryptor , {:?} {:?} {:?}",
-            root_keys.peek(),
-            recipient_id.peek(),
-            private_key.peek()
-        );
         // base64 decode the private key
         let decoded_key = BASE64_ENGINE
             .decode(private_key.expose())
@@ -7126,7 +7120,6 @@ impl GooglePayTokenDecryptor {
 
         // decrypt the message
         let decrypted = self.decrypt_message(symmetric_encryption_key, encrypted_message)?;
-        println!("Decrypted data for googlepay: {:?}", decrypted);
         // parse the decrypted data
         let decrypted_data: hyperswitch_domain_models::router_data::GooglePayPredecryptDataInternal =
             decrypted

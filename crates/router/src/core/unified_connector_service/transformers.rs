@@ -6872,7 +6872,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                 }
                  api_models::payouts::Wallet::GooglePayDecrypt(_google_pay) => Err(error_stack::Report::new(
                     UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                        "OpenBanking bank transfer not supported for Unified Connector Service"
+                        "Googlepay wallet not supported for Unified Connector Service"
                             .to_string(),
                     ),
                 ))?,

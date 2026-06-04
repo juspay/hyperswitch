@@ -822,12 +822,12 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<bytes::Bytes>>
         let metadata_for_jwt =
             WorldpayxmlConnectorMetadataObject::try_from(item.data.connector_meta_data.as_ref())?;
 
-        let bin = match (
-            &item.data.request.payment_method_data,
-            item.data.payment_method_token.as_ref(),
-        ) {
-            (PaymentMethodData::Card(ref card_info), _) => card_info.card_number.get_card_isin(),
-            (_, Some(PaymentMethodToken::GooglePayDecrypt(ref gpay_decrypt_data))) => {
+        let bin = match &item.data.request.payment_method_data {
+            PaymentMethodData::Card(ref card_info) => card_info.card_number.get_card_isin(),
+            PaymentMethodData::Wallet(WalletData::GooglePay(ref gpay_decrypt_data))
+                if let GpayTokenizationData::Decrypted(ref gpay_decrypt_data) =
+                    gpay_decrypt_data.tokenization_data =>
+            {
                 gpay_decrypt_data
                     .application_primary_account_number
                     .get_card_isin()
@@ -2311,7 +2311,7 @@ impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for Pa
                 .router_data
                 .get_optional_shipping()
                 .and_then(get_address_details);
-            let customer_name = item.router_data.get_billing_full_name()?;
+
             let payment_details = match item.router_data.request.payment_method_data.clone() {
                 Some(PaymentMethodData::Card(req_card)) => PaymentDetails::try_from((
                     &req_card,
@@ -2319,6 +2319,7 @@ impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for Pa
                     session,
                 ))?,
                 Some(PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data))) => {
+                    let customer_name = item.router_data.get_billing_full_name()?;
                     PaymentDetails::try_from((
                         &google_pay_data,
                         item.router_data.request.clone(),

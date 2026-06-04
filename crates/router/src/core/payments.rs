@@ -8636,7 +8636,6 @@ where
                     )
                     .await?;
                 payment_data.set_payment_method_data(payment_method_data);
-                // popualte payment_method_token
                 if let Some(payment_method_id) = pm_id {
                     payment_data.set_payment_method_id_in_attempt(Some(payment_method_id));
                 }
