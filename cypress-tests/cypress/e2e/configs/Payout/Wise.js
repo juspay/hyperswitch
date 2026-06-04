@@ -251,6 +251,9 @@ export const connectorDetails = {
       },
     },
     PayoutLinkBankTransfer: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payout_link: true,
         currency: "EUR",
