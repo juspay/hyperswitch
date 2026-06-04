@@ -1858,7 +1858,6 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             RequestBuilder::new()
                 .method(Method::Post)
                 .url(&PaymentsCaptureType::get_url(self, req, connectors)?)
-                .attach_default_headers()
                 .headers(PaymentsCaptureType::get_headers(self, req, connectors)?)
                 .set_body(PaymentsCaptureType::get_request_body(
                     self, req, connectors,
