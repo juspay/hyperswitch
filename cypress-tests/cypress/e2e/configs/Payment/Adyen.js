@@ -1923,9 +1923,6 @@ export const connectorDetails = {
       },
     }),
     AffirmManualCapture: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         currency: "USD",
         capture_method: "manual",
@@ -1984,9 +1981,6 @@ export const connectorDetails = {
       },
     }),
     Affirm: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "pay_later",
         payment_method_type: "affirm",
@@ -2088,9 +2082,6 @@ export const connectorDetails = {
       },
     }),
     Atome: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "pay_later",
         payment_method_type: "atome",
