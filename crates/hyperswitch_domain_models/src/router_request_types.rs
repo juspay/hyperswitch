@@ -1166,7 +1166,7 @@ pub struct PaymentsCancelPostCaptureSyncData {
     pub currency: Option<storage_enums::Currency>,
     pub connector_payment_transaction_id: String,
     pub connector_post_capture_void_transaction_id: String,
-    pub connector_meta: Option<serde_json::Value>,
+    pub connector_meta: Option<pii::SecretSerdeValue>,
     // minor amount data for amount framework
     pub minor_amount: Option<MinorUnit>,
 }

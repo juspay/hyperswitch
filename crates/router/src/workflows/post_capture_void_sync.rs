@@ -1,4 +1,4 @@
-use common_utils::ext_traits::{OptionExt, StringExt, ValueExt};
+use common_utils::ext_traits::{StringExt, ValueExt};
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
 use router_env::logger;
@@ -95,7 +95,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
             services::AuthFlow::Client,
             None,
             hyperswitch_domain_models::payments::HeaderPayload::default(),
-            dimensions,
+            &dimensions,
         ))
         .await?;
 
@@ -146,7 +146,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
 pub async fn get_post_capture_void_sync_process_schedule_time(
     db: &dyn StorageInterface,
     connector: &str,
-    merchant_id: &common_utils::id_type::MerchantId,
+    _merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let mapping: common_utils::errors::CustomResult<
@@ -168,7 +168,7 @@ pub async fn get_post_capture_void_sync_process_schedule_time(
             process_data::ConnectorPTMapping::default()
         }
     };
-    let time_delta = scheduler_utils::get_schedule_time(mapping, merchant_id, retry_count);
+    let time_delta = scheduler_utils::get_schedule_time(mapping, retry_count);
 
     Ok(scheduler_utils::get_time_from_delta(time_delta))
 }

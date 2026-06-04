@@ -597,6 +597,7 @@ pub async fn payments_start(
     .await
 }
 
+
 #[cfg(feature = "v1")]
 #[instrument(skip(state, req), fields(flow, payment_id))]
 pub async fn payments_retrieve(
@@ -660,13 +661,24 @@ pub async fn payments_retrieve(
                 req.client_secret = Some(client_secret);
             }
 
-            payments::payments_retrieve_core(
+            payments::payments_core::<
+                api_types::PSync,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::PSync>,
+            >(
                 state,
                 req_state,
                 auth.platform,
                 auth.profile.map(|profile| profile.get_id().clone()),
+                payments::PaymentStatus,
                 req,
                 auth_flow,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
                 header_payload.clone(),
             )
         },
