@@ -4460,7 +4460,7 @@ pub struct PaymentMethodsSessionUpdateRequest {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodSessionUpdateSavedPaymentMethod {
     /// The payment method token associated with the payment method session.
-    /// If not provided, a new token will be generated and the CVC will be stored in Redis.
+    /// If not provided, a new token will be generated.
     #[schema(value_type = Option<String>, example = "token_9wcXDRVkfEtLEsSnYKgQ")]
     pub payment_method_token: Option<String>,
     /// The update request for the payment method update
