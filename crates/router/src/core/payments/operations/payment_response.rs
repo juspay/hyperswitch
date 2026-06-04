@@ -111,7 +111,9 @@ async fn persist_pm_update_from_psync(
     update: hyperswitch_domain_models::payment_method_data::PaymentMethodPsyncUpdate,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     match update {
-        hyperswitch_domain_models::payment_method_data::PaymentMethodPsyncUpdate::BankRedirect(bank_redirect_update) => {
+        hyperswitch_domain_models::payment_method_data::PaymentMethodPsyncUpdate::BankRedirect(
+            bank_redirect_update,
+        ) => {
             payment_methods::cards::create_or_update_bank_redirect_payment_method(
                 state,
                 provider,

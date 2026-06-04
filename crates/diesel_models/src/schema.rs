@@ -1403,7 +1403,6 @@ diesel::table! {
         #[max_length = 64]
         locker_id -> Nullable<Varchar>,
         last_used_at -> Timestamp,
-        connector_payment_method_details -> Nullable<Jsonb>,
         connector_mandate_details -> Nullable<Jsonb>,
         customer_acceptance -> Nullable<Jsonb>,
         #[max_length = 64]
@@ -1441,6 +1440,7 @@ diesel::table! {
         payment_method_subtype -> Nullable<Varchar>,
         #[max_length = 255]
         network_transaction_link_id -> Nullable<Varchar>,
+        connector_payment_method_details -> Nullable<Jsonb>,
         compatibility_updated_at -> Nullable<Timestamp>,
     }
 }

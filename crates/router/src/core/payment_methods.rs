@@ -4278,7 +4278,8 @@ fn convert_from_saved_payment_method_data(
         domain::payment_method_data::PaymentMethodsData::BankDetails(_)
         | domain::payment_method_data::PaymentMethodsData::BankDebit(_)
         | domain::payment_method_data::PaymentMethodsData::WalletDetails(_)
-        | domain::payment_method_data::PaymentMethodsData::NetworkToken(_) => {
+        | domain::payment_method_data::PaymentMethodsData::NetworkToken(_)
+        | domain::payment_method_data::PaymentMethodsData::BankRedirect(_) => {
             Err(errors::ApiErrorResponse::UnprocessableEntity {
                 message: "External vaulting is not supported for this payment method type"
                     .to_string(),
@@ -4445,7 +4446,8 @@ async fn build_legacy_locker_add_req(
         ),
         domain::PaymentMethodVaultingData::CardNumber(_)
         | domain::PaymentMethodVaultingData::BankDebit(_)
-        | domain::PaymentMethodVaultingData::Wallet(_) => {
+        | domain::PaymentMethodVaultingData::Wallet(_)
+        | domain::PaymentMethodVaultingData::BankRedirect(_) => {
             Err(report!(errors::ApiErrorResponse::NotSupported {
                 message: "Legacy locker only supports Card and NetworkToken".into(),
             }))
@@ -5015,6 +5017,7 @@ fn get_pm_list_context(
                 )),
             ),
         }),
+        Some(domain::payment_method_data::PaymentMethodsData::BankRedirect(bank_redirect)) => None,
     };
 
     Ok(payment_method_retrieval_context)

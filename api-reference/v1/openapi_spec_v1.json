@@ -28759,6 +28759,17 @@
                 "$ref": "#/components/schemas/WalletDetail"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_redirect"
+            ],
+            "properties": {
+              "bank_redirect": {
+                "$ref": "#/components/schemas/BankRedirectData"
+              }
+            }
           }
         ]
       },

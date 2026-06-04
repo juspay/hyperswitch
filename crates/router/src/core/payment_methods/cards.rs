@@ -5620,7 +5620,7 @@ pub async fn list_customer_payment_method(
             })
             .and_then(|routing_info| routing_info.pre_routing_results)
     };
-    
+
     for pm in resp.into_iter() {
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
 

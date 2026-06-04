@@ -50,7 +50,6 @@ pub struct PaymentMethod {
     pub payment_method_data: Option<Encryption>,
     pub locker_id: Option<String>,
     pub last_used_at: PrimitiveDateTime,
-    pub connector_payment_method_details: Option<serde_json::Value>,
     pub connector_mandate_details: Option<serde_json::Value>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
@@ -79,6 +78,7 @@ pub struct PaymentMethod {
     // Do not use this column in v1 business logic.
     pub payment_method_subtype: Option<String>,
     pub network_transaction_link_id: Option<String>,
+    pub connector_payment_method_details: Option<serde_json::Value>,
     pub compatibility_updated_at: Option<PrimitiveDateTime>,
 }
 

@@ -50,6 +50,7 @@ pub enum AuxiliaryFingerprintData {
     NetworkToken(cards::NetworkToken),
     CardNumberData(cards::CardNumber),
     BankDebit(hyperswitch_masking::Secret<String>),
+    BankRedirect(hyperswitch_masking::Secret<String>),
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -253,6 +254,51 @@ impl PaymentMethodVaultingData {
                 };
                 payment_method_data::PaymentMethodsData::WalletDetails(wallet_info)
             }
+            Self::BankRedirect(bank_redirect) => {
+                let payment_method_data::BankRedirectDetail::OpenBanking {
+                    iban,
+                    account_number,
+                    sort_code,
+                    account_holder_name,
+                } = bank_redirect.clone();
+                payment_method_data::PaymentMethodsData::BankRedirect(
+                    payment_method_data::BankRedirectDetailsPaymentMethod::OpenBanking {
+                        masked_iban: iban.map(|iban| {
+                            iban.peek()
+                                .chars()
+                                .rev()
+                                .take(4)
+                                .collect::<String>()
+                                .chars()
+                                .rev()
+                                .collect::<String>()
+                        }),
+                        masked_account_number: account_number.map(|account_number| {
+                            account_number
+                                .peek()
+                                .chars()
+                                .rev()
+                                .take(4)
+                                .collect::<String>()
+                                .chars()
+                                .rev()
+                                .collect::<String>()
+                        }),
+                        masked_sort_code: sort_code.map(|sort_code| {
+                            sort_code
+                                .peek()
+                                .chars()
+                                .rev()
+                                .take(4)
+                                .collect::<String>()
+                                .chars()
+                                .rev()
+                                .collect::<String>()
+                        }),
+                        account_holder_name,
+                    },
+                )
+            }
         }
     }
 
@@ -291,6 +337,20 @@ impl PaymentMethodVaultingData {
                     expiry_year,
                 })
             }
+            Self::BankRedirect(bank_redirect) => {
+                let payment_method_data::BankRedirectDetail::OpenBanking {
+                    iban,
+                    account_number,
+                    sort_code,
+                    account_holder_name,
+                } = bank_redirect.clone();
+                FingerprintData::BankRedirect(FingerprintBankRedirectData {
+                    iban,
+                    account_number,
+                    sort_code,
+                    account_holder_name,
+                })
+            }
         }
     }
 
@@ -316,6 +376,18 @@ impl PaymentMethodVaultingData {
                 application_primary_account_number,
                 ..
             }) => AuxiliaryFingerprintData::CardNumber(application_primary_account_number.clone()),
+            Self::BankRedirect(bank_redirect) => {
+                let payment_method_data::BankRedirectDetail::OpenBanking {
+                    iban,
+                    account_number,
+                    ..
+                } = bank_redirect.clone();
+                AuxiliaryFingerprintData::BankRedirect(
+                    account_number
+                        .or(iban)
+                        .unwrap_or_else(|| hyperswitch_masking::Secret::new(String::new())),
+                )
+            }
         }
     }
 

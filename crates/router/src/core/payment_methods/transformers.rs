@@ -1027,6 +1027,9 @@ impl
                 payment_method_data::PaymentMethodsData::NetworkToken(_) => {
                     todo!()
                 }
+                payment_method_data::PaymentMethodsData::BankRedirect(_) => {
+                    todo!()
+                }
             });
 
         let payment_method_billing = item
@@ -1131,6 +1134,9 @@ impl
                     }
                 }
                 payment_method_data::PaymentMethodsData::NetworkToken(_) => {
+                    todo!()
+                }
+                payment_method_data::PaymentMethodsData::BankRedirect(_) => {
                     todo!()
                 }
             });
