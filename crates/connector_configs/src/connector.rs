@@ -335,6 +335,7 @@ pub struct ConnectorConfig {
     pub multisafepay: Option<ConnectorTomlConfig>,
     pub nexinets: Option<ConnectorTomlConfig>,
     pub nexixpay: Option<ConnectorTomlConfig>,
+    pub nextiva: Option<ConnectorTomlConfig>,
     pub nmi: Option<ConnectorTomlConfig>,
     pub nomupay_payout: Option<ConnectorTomlConfig>,
     pub noon: Option<ConnectorTomlConfig>,

@@ -79,6 +79,7 @@ pub mod multisafepay;
 pub mod netcetera;
 pub mod nexinets;
 pub mod nexixpay;
+pub mod nextiva;
 pub mod nmi;
 pub mod nomupay;
 pub mod noon;
@@ -185,4 +186,5 @@ pub use self::{
     wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
     worldpay::Worldpay, worldpaymodular::Worldpaymodular, worldpayvantiv::Worldpayvantiv,
     worldpayxml::Worldpayxml, xendit::Xendit, zen::Zen, zift::Zift, zsl::Zsl,
+ nextiva::Nextiva,
 };

@@ -132,6 +132,7 @@ mod trustpay;
 mod trustpayments;
 mod tsys;
 mod unified_authentication_service;
+mod nextiva;
 mod utils;
 mod vgs;
 mod volt;

@@ -81,11 +81,18 @@ pub async fn insert_merchant_configs_with_superposition(
 ) -> RouterResult<()> {
     let fingerprint_secret = utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs");
 
-    dimensions
+    // Best-effort: when the Superposition service is unavailable (e.g. local/dev without it
+    // running), don't block merchant creation. The fingerprint_secret is non-critical for
+    // basic payment flows, so log and continue instead of failing the request.
+    if let Err(error) = dimensions
         .set_fingerprint_secret(state.superposition_service.as_ref(), &fingerprint_secret)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to create fingerprint_secret in Superposition")?;
+    {
+        logger::warn!(
+            ?error,
+            "Failed to create fingerprint_secret in Superposition; continuing (local/dev fallback)"
+        );
+    }
     Ok(())
 }
 

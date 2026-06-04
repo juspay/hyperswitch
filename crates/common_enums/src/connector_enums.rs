@@ -157,6 +157,7 @@ pub enum Connector {
     Paysafe,
     Paystack,
     Paytm,
+    Nextiva,
     Payu,
     Peachpayments,
     Payjustnow,
@@ -438,6 +439,7 @@ impl Connector {
             | Self::Tokenio
             | Self::Datatrans
             | Self::Paytm
+            | Self::Nextiva
             | Self::Payjustnow
             | Self::Payjustnowinstore
             | Self::Phonepe
