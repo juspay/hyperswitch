@@ -2021,6 +2021,14 @@ export const connectorDetails = {
       },
     }),
     SyncRefund: getCustomExchange({}),
+    SyncRefundScheduled: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    }),
     RefundInstant: getCustomExchange({
       Request: {
         amount: 6000,
