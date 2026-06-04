@@ -122,10 +122,9 @@ export const connectorDetails = {
             first_name: "Test",
             last_name: "Customer",
           },
+          email: "guest@example.com",
         },
         customer: {
-          name: "John Doe",
-          email: "guest@example.com",
           document_details: {
             document_type: "cnpj",
             document_number: "12345678000195",
@@ -159,10 +158,9 @@ export const connectorDetails = {
             first_name: "Test",
             last_name: "Customer",
           },
+          email: "guest@example.com",
         },
         customer: {
-          name: "John Doe",
-          email: "guest@example.com",
           document_details: {
             document_type: "cnpj",
             document_number: "12345678000195",
