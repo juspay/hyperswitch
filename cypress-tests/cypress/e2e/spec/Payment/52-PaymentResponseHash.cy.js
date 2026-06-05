@@ -9,16 +9,31 @@ describe("Card - Payment Response Hash flow test", () => {
   let shouldContinue = true;
 
   before("seed global state and check account config", function () {
-    cy.task("getGlobalState").then((state) => {
+    return cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
+      // Check if the current connector supports the payment response hash feature
+      // This gate ensures the test only runs for connectors explicitly configured
+      // with PAYMENT_RESPONSE_HASH support (currently only Stripe)
       if (
         !utils.CONNECTOR_LISTS.INCLUDE.PAYMENT_RESPONSE_HASH.includes(
           globalState.get("connectorId")
         )
       ) {
         shouldContinue = false;
+        return;
       }
-      cy.fetchPaymentResponseHashConfig(globalState);
+      return cy.fetchPaymentResponseHashConfig(globalState).then(() => {
+        const enablePaymentResponseHash = globalState.get(
+          "enablePaymentResponseHash"
+        );
+        if (!enablePaymentResponseHash) {
+          cy.task(
+            "cli_log",
+            "enable_payment_response_hash is false - skipping spec"
+          );
+          shouldContinue = false;
+        }
+      });
     });
   });
 
@@ -64,12 +79,7 @@ describe("Card - Payment Response Hash flow test", () => {
           "card_pm"
         ]["No3DSAutoCapture"];
 
-        cy.confirmCallForHashTest(
-          fixtures.confirmBody,
-          data,
-          true,
-          globalState
-        );
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
         if (!utils.should_continue_further(data)) {
           stepContinue = false;
@@ -93,8 +103,6 @@ describe("Card - Payment Response Hash flow test", () => {
 
         // Verify payment response hash is enabled in business profile config
         cy.assertPaymentResponseHashEnabled(globalState);
-        // Verify payment response hash fields are present in the actual payment response body
-        cy.verifyPaymentResponseHashInBody(globalState);
       });
     });
   });
@@ -167,6 +175,15 @@ describe("Card - Payment Response Hash flow test", () => {
         }
 
         cy.verifyTamperedSignatureFails(globalState);
+      });
+
+      cy.step("verify wrong-key signature fails", () => {
+        if (!globalState.get("_setup3DSContinue")) {
+          cy.task("cli_log", "Skipping step: verify wrong-key signature fails");
+          return;
+        }
+
+        cy.verifyWrongKeySignatureFails(globalState);
       });
     });
   });

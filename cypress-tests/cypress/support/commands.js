@@ -489,18 +489,16 @@ function cleanupProcessedRequestIds(
   globalState.set("requestIds", remainingRequestIds);
 }
 
-const ALGORITHM_MAP = {
-  "HMAC-SHA512": "sha512",
-  "HMAC-SHA256": "sha256",
-};
+const EXPECTED_ALGORITHM = "HMAC-SHA512";
+const HASH_ALGO = "sha512";
+const SIGNATURE_HEX_LENGTH = 128;
 
 function resolveAlgorithm(signatureAlgorithm) {
-  const algo = ALGORITHM_MAP[signatureAlgorithm];
   expect(
-    algo,
-    `signature_algorithm must be in whitelist: ${JSON.stringify(Object.keys(ALGORITHM_MAP))}`
-  ).to.exist;
-  return algo;
+    signatureAlgorithm,
+    `signature_algorithm must be ${EXPECTED_ALGORITHM}`
+  ).to.equal(EXPECTED_ALGORITHM);
+  return HASH_ALGO;
 }
 
 function logRequestId(xRequestId) {
@@ -3985,11 +3983,6 @@ Cypress.Commands.add(
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
       storeRequestId(response.headers["x-request-id"], globalState);
-
-      // Store last payment response for hash verification
-      if (response.status === 200 && response.body) {
-        globalState.set("lastPaymentResponse", response.body);
-      }
 
       cy.wrap(response).then(() => {
         if (response.status === 200) {
@@ -9538,9 +9531,10 @@ Cypress.Commands.add("retrieveNonExistentPaymentLinkTest", (globalState) => {
  */
 Cypress.Commands.add("fetchPaymentResponseHashConfig", (globalState) => {
   const merchantId = globalState.get("merchantId");
+  const profileId = globalState.get("profileId");
   const apiKey = globalState.get("adminApiKey");
   const baseUrl = globalState.get("baseUrl");
-  const url = `${baseUrl}/accounts/${merchantId}`;
+  const url = `${baseUrl}/account/${merchantId}/business_profile/${profileId}`;
 
   cy.request({
     method: "GET",
@@ -9552,7 +9546,10 @@ Cypress.Commands.add("fetchPaymentResponseHashConfig", (globalState) => {
     failOnStatusCode: false,
   }).then((response) => {
     if (!response || response.status !== 200) {
-      cy.task("cli_log", "Failed to fetch account config - skipping spec");
+      cy.task(
+        "cli_log",
+        "Failed to fetch business profile config - skipping spec"
+      );
       return;
     }
 
@@ -9573,13 +9570,13 @@ Cypress.Commands.add("fetchPaymentResponseHashConfig", (globalState) => {
 
     cy.task(
       "cli_log",
-      `Account config verified - enable_payment_response_hash: true, key length: ${paymentResponseHashKey.length}`
+      `Business profile config verified - enable_payment_response_hash: true, key length: ${paymentResponseHashKey.length}`
     );
   });
 });
 
 /**
- * Verifies that the payment response hash feature is properly configured on the merchant account.
+ * Verifies that the payment response hash feature is properly configured on the business profile.
  *
  * The payment_response_hash feature adds HMAC signatures to redirect URLs (as
  * `signature` and `signature_algorithm` query params) and to outgoing webhook headers
@@ -9588,7 +9585,7 @@ Cypress.Commands.add("fetchPaymentResponseHashConfig", (globalState) => {
  *
  * This command uses the values already stored in globalState by the before hook
  * (enablePaymentResponseHash and paymentResponseHashKey) — it does NOT re-fetch the
- * merchant account API.
+ * business profile API.
  *
  * @param {Object} globalState - The global state object
  */
@@ -9612,32 +9609,6 @@ Cypress.Commands.add("assertPaymentResponseHashEnabled", (globalState) => {
   );
 });
 
-/**
- * Verifies that the payment response body contains hash-related fields.
- * This command checks for the presence of payment_response_hash_key in merchant details
- * and validates that the response structure is correct for No3DS flows.
- *
- * @param {Object} globalState - The global state object containing the last payment response
- */
-Cypress.Commands.add("verifyPaymentResponseHashInBody", (globalState) => {
-  const lastPaymentResponse = globalState.get("lastPaymentResponse");
-
-  expect(
-    lastPaymentResponse,
-    "Last payment response should be stored in global state"
-  ).to.exist;
-
-  expect(
-    lastPaymentResponse.merchant_id,
-    "Payment response should contain merchant_id"
-  ).to.exist.and.not.be.empty;
-
-  cy.task(
-    "cli_log",
-    `Payment response hash fields verified in response body for merchant: ${lastPaymentResponse.merchant_id}`
-  );
-});
-
 Cypress.Commands.add("verifyRedirectSignature", (globalState) => {
   const redirectUrl =
     globalState.get("redirectReturnUrl") || globalState.get("nextActionUrl");
@@ -9658,17 +9629,13 @@ Cypress.Commands.add("verifyRedirectSignature", (globalState) => {
     .and.not.be.empty;
   expect(
     signatureAlgorithm,
-    "signature_algorithm should be a supported HMAC algorithm"
-  ).to.be.oneOf(
-    ["HMAC-SHA512", "HMAC-SHA256"],
-    "signature_algorithm must be a supported HMAC algorithm"
-  );
+    "signature_algorithm must be HMAC-SHA512"
+  ).to.equal(EXPECTED_ALGORITHM);
 
-  const expectedLength = signatureAlgorithm === "HMAC-SHA512" ? 128 : 64;
   expect(
     signature.length,
-    `signature should be ${expectedLength} hex chars (${signatureAlgorithm})`
-  ).to.equal(expectedLength);
+    `signature should be ${SIGNATURE_HEX_LENGTH} hex chars (${EXPECTED_ALGORITHM})`
+  ).to.equal(SIGNATURE_HEX_LENGTH);
 
   cy.task(
     "cli_log",
@@ -9702,11 +9669,8 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
     .and.not.be.empty;
   expect(
     signatureAlgorithm,
-    "signature_algorithm should be a supported HMAC algorithm"
-  ).to.be.oneOf(
-    ["HMAC-SHA512", "HMAC-SHA256"],
-    "signature_algorithm must be a supported HMAC algorithm"
-  );
+    "signature_algorithm must be HMAC-SHA512"
+  ).to.equal(EXPECTED_ALGORITHM);
 
   const signatureParams = [];
   urlObj.searchParams.forEach((value, key) => {
@@ -9715,7 +9679,11 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
     }
   });
 
-  signatureParams.sort((a, b) => a[0].localeCompare(b[0]));
+  signatureParams.sort((a, b) => {
+    if (a[0] < b[0]) return -1;
+    if (a[0] > b[0]) return 1;
+    return 0;
+  });
   const signingPayload = signatureParams.map(([k, v]) => `${k}=${v}`).join("&");
   const algorithm = resolveAlgorithm(signatureAlgorithm);
 
@@ -9772,10 +9740,7 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
 
     const algorithm = resolveAlgorithm(signatureAlgorithm);
 
-    const tamperedPayload = signingPayload.replace(
-      /status=\w+/,
-      "status=tampered_status"
-    );
+    const tamperedPayload = signingPayload + "&tampered=true";
 
     cy.task("computeHmac", {
       key: hashKey,
@@ -9790,6 +9755,48 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
       cy.task(
         "cli_log",
         `Failure scenario verified - tampered payload produces different signature`
+      );
+    });
+  });
+});
+
+Cypress.Commands.add("verifyWrongKeySignatureFails", (globalState) => {
+  cy.then(() => {
+    const computedSignature = globalState.get("computedSignature");
+    const signingPayload = globalState.get("computedSigningPayload");
+    const signatureAlgorithm = globalState.get("signatureAlgorithm");
+
+    expect(
+      computedSignature,
+      "computedSignature must exist from prior step - ensure computeAndVerifyRedirectSignature was called first"
+    ).to.be.a("string").and.not.be.empty;
+
+    expect(
+      signingPayload,
+      "computedSigningPayload must exist from prior step - ensure computeAndVerifyRedirectSignature was called first"
+    ).to.be.a("string").and.not.be.empty;
+
+    expect(
+      signatureAlgorithm,
+      "signatureAlgorithm must exist from prior step - ensure computeAndVerifyRedirectSignature was called first"
+    ).to.be.a("string").and.not.be.empty;
+
+    const algorithm = resolveAlgorithm(signatureAlgorithm);
+    const wrongKey = "wrong_key_that_should_not_match";
+
+    cy.task("computeHmac", {
+      key: wrongKey,
+      message: signingPayload,
+      algorithm,
+    }).then((wrongKeySignature) => {
+      expect(
+        wrongKeySignature,
+        "Signature computed with wrong key should not match the correct signature"
+      ).to.not.equal(computedSignature);
+
+      cy.task(
+        "cli_log",
+        `Failure scenario verified - wrong-key signature does not match the correct signature`
       );
     });
   });
@@ -9821,119 +9828,6 @@ Cypress.Commands.add("captureRedirectReturnUrl", (globalState) => {
     }
   });
 });
-
-Cypress.Commands.add(
-  "confirmCallForHashTest",
-  (confirmBody, data, confirm, globalState) => {
-    const {
-      Configs: configs = {},
-      Request: reqData,
-      Response: resData,
-    } = data || {};
-
-    const apiKey = globalState.get("publishableKey");
-    const baseUrl = globalState.get("baseUrl");
-    const configInfo = execConfig(validateConfig(configs));
-    const paymentIntentID = globalState.get("paymentID");
-    const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
-    const url = `${baseUrl}/payments/${paymentIntentID}/confirm`;
-
-    if (confirmBody.split_payments) {
-      delete confirmBody.split_payments;
-    }
-
-    confirmBody.client_secret = globalState.get("clientSecret");
-    confirmBody.confirm = confirm;
-    confirmBody.profile_id = profileId;
-
-    for (const key in reqData) {
-      if (key !== "split_payments") {
-        confirmBody[key] = reqData[key];
-      }
-    }
-
-    if (!reqData?.setup_future_usage && confirmBody.setup_future_usage) {
-      delete confirmBody.setup_future_usage;
-    }
-
-    if (reqData?.split_payments && isStripeConnect(globalState)) {
-      confirmBody.split_payments = reqData.split_payments;
-    }
-
-    const headers = {
-      "Content-Type": "application/json",
-      "api-key": apiKey,
-    };
-
-    cy.request({
-      method: "POST",
-      url,
-      headers,
-      failOnStatusCode: false,
-      body: confirmBody,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-      storeRequestId(response.headers["x-request-id"], globalState);
-
-      cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
-
-        if (response.status === 200) {
-          if (response.body.next_action?.redirect_to_url) {
-            globalState.set(
-              "nextActionUrl",
-              response.body.next_action.redirect_to_url
-            );
-          }
-          globalState.set("paymentID", paymentIntentID);
-          updateConnectorState(globalState, response.body.connector);
-          globalState.set(
-            "connectorTransactionID",
-            response.body.connector_transaction_id
-          );
-          globalState.set("paymentIntentStatus", response.body.status);
-
-          const expectedConnector = getOriginalConnectorName(
-            globalState.get("connectorId")
-          );
-          expect(response.body.connector, "connector").to.equal(
-            expectedConnector
-          );
-          expect(paymentIntentID, "payment_id").to.equal(
-            response.body.payment_id
-          );
-
-          if (
-            response.body.authentication_type === "three_ds" &&
-            response.body.next_action
-          ) {
-            if (response.body.next_action.type === "invoke_ddc") {
-              globalState.set(
-                "nextActionUrl",
-                response.body.next_action.ddc_data.iframe_url
-              );
-            } else if (
-              response.body.next_action.type === "redirect_inside_popup"
-            ) {
-              globalState.set("nextActionType", "redirect_inside_popup");
-              globalState.set(
-                "nextActionUrl",
-                response.body.next_action.popup_url
-              );
-            } else {
-              globalState.set(
-                "nextActionUrl",
-                response.body.next_action.redirect_to_url
-              );
-            }
-          }
-        } else {
-          defaultErrorHandler(response, resData);
-        }
-      });
-    });
-  }
-);
 
 // ============================================
 // Forex Rates Commands
