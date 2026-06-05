@@ -22,6 +22,19 @@ impl MerchantConnectorAccountId {
     pub fn wrap(merchant_connector_account_id: String) -> CustomResult<Self, ValidationError> {
         Self::try_from(std::borrow::Cow::from(merchant_connector_account_id))
     }
+
+    /// Reverse-lookup id to find an authentication by its connector authentication
+    /// id, scoped to this MCA so the key stays unique across connector accounts.
+    pub fn get_authentication_connector_lookup_id(
+        &self,
+        connector_authentication_id: &str,
+    ) -> String {
+        format!(
+            "auth_connector_{}_{}",
+            self.get_string_repr(),
+            connector_authentication_id
+        )
+    }
 }
 
 impl FromStr for MerchantConnectorAccountId {

@@ -334,6 +334,9 @@ pub async fn find_mca_from_authentication_id_type(
         webhooks::AuthenticationIdType::ConnectorAuthenticationId(connector_authentication_id) => {
             db.find_authentication_by_merchant_id_connector_authentication_id(
                 platform.get_processor().get_account().get_id().clone(),
+                // MCA id is what this path resolves, so it's unknown here; the
+                // lookup falls back to the merchant-id-keyed DB query.
+                None,
                 connector_authentication_id,
                 platform.get_processor().get_key_store(),
                 &state.into(),

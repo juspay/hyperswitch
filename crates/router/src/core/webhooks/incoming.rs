@@ -1896,6 +1896,7 @@ async fn external_authentication_incoming_webhook_flow(
                         .store
                         .find_authentication_by_merchant_id_connector_authentication_id(
                             platform.get_processor().get_account().get_id().clone(),
+                            Some(merchant_connector_account.get_id()),
                             connector_authentication_id.clone(),
                             platform.get_processor().get_key_store(),
                             &key_manager_state,
