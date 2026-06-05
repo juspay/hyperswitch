@@ -76,13 +76,36 @@ const payment_method_data_3ds = {
   billing: null,
 };
 
-const payment_method_data_no3ds = {
+const payment_method_data_no3ds_null_meta = {
   card: {
     last4: "0005",
     card_type: null,
     card_network: null,
     card_issuer: null,
     card_issuing_country: null,
+    card_isin: "378282",
+    card_extended_bin: null,
+    card_exp_month: "10",
+    card_exp_year: "50",
+    card_holder_name: "morino",
+    payment_checks: {
+      cvc_check: "pass",
+      address_line1_check: "pass",
+      address_postal_code_check: "pass",
+    },
+    authentication_data: null,
+    auth_code: null,
+  },
+  billing: null,
+};
+
+const payment_method_data_no3ds = {
+  card: {
+    last4: "0005",
+    card_type: "CREDIT",
+    card_network: "AmericanExpress",
+    card_issuer: "AMERICAN EXPRESS US CARS",
+    card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "378282",
     card_extended_bin: null,
     card_exp_month: "10",
@@ -290,6 +313,26 @@ export const connectorDetails = {
         },
       },
     },
+    No3DSAutoCaptureRefundType: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
+          payment_method_data: payment_method_data_no3ds_null_meta,
+        },
+      },
+    },
     No3DSFailPayment: {
       Request: {
         payment_method: "card",
@@ -415,10 +458,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          card_type: null,
-          card_network: null,
-          card_issuer: null,
-          card_issuing_country: null,
         },
       },
     },
@@ -431,10 +470,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "pending",
-          card_type: null,
-          card_network: null,
-          card_issuer: null,
-          card_issuing_country: null,
         },
       },
     },
