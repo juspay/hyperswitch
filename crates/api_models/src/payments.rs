@@ -1327,6 +1327,7 @@ pub struct PaymentsRequest {
     pub client_secret: Option<String>,
 
     /// Passing this object during payments creates a mandate. The mandate_type sub object is passed by the server.
+    #[schema(deprecated)]
     #[smithy(value_type = "Option<MandateData>")]
     pub mandate_data: Option<MandateData>,
 
@@ -1336,7 +1337,7 @@ pub struct PaymentsRequest {
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
 
     /// A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data
-    #[schema(max_length = 64, example = "mandate_iwer89rnjef349dni3")]
+    #[schema(max_length = 64, example = "mandate_iwer89rnjef349dni3", deprecated)]
     #[remove_in(PaymentsUpdateRequest)]
     #[smithy(value_type = "Option<String>")]
     pub mandate_id: Option<String>,
@@ -1368,14 +1369,14 @@ pub struct PaymentsRequest {
 
     /// Business country of the merchant for this payment.
     /// To be deprecated soon. Pass the profile_id instead
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<CountryAlpha2>, example = "US", deprecated)]
     #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest)]
     #[smithy(value_type = "Option<CountryAlpha2>")]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     /// Business label of the merchant for this payment.
     /// To be deprecated soon. Pass the profile_id instead
-    #[schema(example = "food")]
+    #[schema(example = "food", deprecated)]
     #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest)]
     #[smithy(value_type = "Option<String>")]
     pub business_label: Option<String>,
@@ -7165,7 +7166,6 @@ pub struct PaymentsResponse {
 
     /// A unique identifier for a customer provided by the connector.
     #[schema(value_type = Option<String>, example = "cus_Rnm2pDKGyQi506")]
-    #[serde(skip_serializing_if = "Option::is_none")]
     #[smithy(value_type = "Option<String>")]
     pub connector_customer_id: Option<String>,
 
@@ -7217,11 +7217,12 @@ pub struct PaymentsResponse {
     pub captures: Option<Vec<CaptureResponse>>,
 
     /// A unique identifier to link the payment to a mandate, can be used instead of payment_method_data, in case of setting up recurring payments
-    #[schema(max_length = 255, example = "mandate_iwer89rnjef349dni3")]
+    #[schema(max_length = 255, example = "mandate_iwer89rnjef349dni3", deprecated)]
     #[smithy(value_type = "Option<String>")]
     pub mandate_id: Option<String>,
 
     /// Provided mandate information for creating a mandate
+    #[schema(deprecated)]
     #[smithy(value_type = "Option<MandateData>")]
     pub mandate_data: Option<MandateData>,
 
@@ -7651,6 +7652,11 @@ pub struct PaymentsResponse {
     pub installment_data: Option<common_types::payments::InstallmentData>,
 
     /// A connector-specific identifier representing the stored payment instrument
+    #[schema(
+        value_type = Option<String>,
+        max_length = 255
+    )]
+    #[smithy(value_type = "Option<String>")]
     pub sender_payment_instrument_id: Option<String>,
 }
 

@@ -5267,7 +5267,7 @@ pub async fn list_customer_payment_method(
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
             platform.get_processor().get_account().get_id(),
             true,
-            platform.get_provider().get_key_store(),
+            platform.get_processor().get_key_store(),
         )
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
