@@ -4,6 +4,32 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.05.0
+
+### Features
+
+- **connectors:** [payload] add description, descriptor and attrs ([#12593](https://github.com/juspay/hyperswitch/pull/12593)) ([`680f8e6`](https://github.com/juspay/hyperswitch/commit/680f8e621d0dc411b4a11445e7a3071029567eb6))
+- **payment_methods:** Add cvc storage support in update saved payment method session ([#12487](https://github.com/juspay/hyperswitch/pull/12487)) ([`87c1ec6`](https://github.com/juspay/hyperswitch/commit/87c1ec6bca854dccc938a8ac16b4d9382f89cb77))
+
+### Bug Fixes
+
+- **payment_attempt:** Fix incorrect value being serialized in payment attempt update flow ([#12592](https://github.com/juspay/hyperswitch/pull/12592)) ([`71532f8`](https://github.com/juspay/hyperswitch/commit/71532f87eec13629ae57e87156992c0b75378fd1))
+- **payment_methods:** Use processor key store when listing MCAs in customer payment method list ([#12598](https://github.com/juspay/hyperswitch/pull/12598)) ([`5fcd1e4`](https://github.com/juspay/hyperswitch/commit/5fcd1e4923caa71f1ef2ca659a67a15f9b11e49a))
+- **router:** Fix generate session response ([#12603](https://github.com/juspay/hyperswitch/pull/12603)) ([`2df8fc8`](https://github.com/juspay/hyperswitch/commit/2df8fc8e55b89ff14ce3148a3b9cc76b2b7e1d89))
+- Remove skip_serializing_if for connector_customer_id in PaymentsResponse ([#12582](https://github.com/juspay/hyperswitch/pull/12582)) ([`bffef49`](https://github.com/juspay/hyperswitch/commit/bffef4970ea8d02b71844ba3a947565c96598713))
+
+### Testing
+
+- **cypress:** Add payout entity type coverage for wise ([#12548](https://github.com/juspay/hyperswitch/pull/12548)) ([`7676496`](https://github.com/juspay/hyperswitch/commit/76764965c83750f2c0dcab7f39567a064337900c))
+
+### Documentation
+
+- **api-reference:** Mark deprecated fields in OpenAPI schema and reference ([#12534](https://github.com/juspay/hyperswitch/pull/12534)) ([`35f6a9c`](https://github.com/juspay/hyperswitch/commit/35f6a9c1245a8bbbb324ed622f3b2fac97b0af83))
+
+**Full Changelog:** [`2026.06.04.0...2026.06.05.0`](https://github.com/juspay/hyperswitch/compare/2026.06.04.0...2026.06.05.0)
+
+- - -
+
 ## 2026.06.04.0
 
 ### Features
