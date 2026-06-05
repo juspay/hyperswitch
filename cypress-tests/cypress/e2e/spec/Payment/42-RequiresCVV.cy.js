@@ -435,25 +435,28 @@ describe("Card - Requires CVV flow test", () => {
           cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
         });
 
-        cy.step("Create and Confirm Payment (on_session save with requires_cvv=false)", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Create and Confirm Payment");
-            return;
+        cy.step(
+          "Create and Confirm Payment (on_session save with requires_cvv=false)",
+          () => {
+            if (!shouldContinue) {
+              cy.task("cli_log", "Skipping step: Create and Confirm Payment");
+              return;
+            }
+            const data = getConnectorDetails(globalState.get("connectorId"))[
+              "card_pm"
+            ]["RequiresCVVOnSession"];
+            cy.createConfirmPaymentTest(
+              fixtures.createConfirmPaymentBody,
+              data,
+              "no_three_ds",
+              "automatic",
+              globalState
+            );
+            if (!utils.should_continue_further(data)) {
+              shouldContinue = false;
+            }
           }
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["RequiresCVVOnSession"];
-          cy.createConfirmPaymentTest(
-            fixtures.createConfirmPaymentBody,
-            data,
-            "no_three_ds",
-            "automatic",
-            globalState
-          );
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
+        );
 
         cy.step("Retrieve Payment after Confirm", () => {
           if (!shouldContinue) {
@@ -488,32 +491,37 @@ describe("Card - Requires CVV flow test", () => {
           cy.listCustomerPMByClientSecret(globalState, data);
         });
 
-        cy.step("Create Payment Intent (off_session with requires_cvv=false)", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Create Payment Intent");
-            return;
+        cy.step(
+          "Create Payment Intent (off_session with requires_cvv=false)",
+          () => {
+            if (!shouldContinue) {
+              cy.task("cli_log", "Skipping step: Create Payment Intent");
+              return;
+            }
+            const data = getConnectorDetails(globalState.get("connectorId"))[
+              "card_pm"
+            ]["RequiresCVVFalsePaymentIntent"];
+            cy.createPaymentIntentTest(
+              fixtures.createPaymentBody,
+              data,
+              "no_three_ds",
+              "automatic",
+              globalState
+            );
+            if (!utils.should_continue_further(data)) {
+              shouldContinue = false;
+            }
           }
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["RequiresCVVFalsePaymentIntent"];
-          cy.createPaymentIntentTest(
-            fixtures.createPaymentBody,
-            data,
-            "no_three_ds",
-            "automatic",
-            globalState
-          );
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
+        );
 
         cy.step("Save Card Confirm Call (without CVV)", () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Save Card Confirm Call");
             return;
           }
-          const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
+          const saveCardBody = Cypress._.cloneDeep(
+            fixtures.saveCardConfirmBody
+          );
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["RequiresCVVFalseSavedCardWithoutCVV"];
