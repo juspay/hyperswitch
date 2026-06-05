@@ -9841,7 +9841,9 @@ Cypress.Commands.add("captureRedirectReturnUrl", (globalState) => {
             "cli_log",
             `captureRedirectReturnUrl: got status ${response.status}, retrying in ${DELAY_MS}ms (${MAX_RETRIES - remainingAttempts + 1}/${MAX_RETRIES})`
           );
-          return cy.wait(DELAY_MS).then(() => attemptCapture(remainingAttempts - 1));
+          return cy
+            .wait(DELAY_MS)
+            .then(() => attemptCapture(remainingAttempts - 1));
         }
 
         // Final attempt failed — throw so the test fails loudly

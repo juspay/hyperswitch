@@ -255,12 +255,12 @@ describe("Card - Payment Response Hash Negative Test", () => {
 
         const urlObj = new URL(redirectUrl);
         const signature = urlObj.searchParams.get("signature");
-        const signatureAlgorithm = urlObj.searchParams.get("signature_algorithm");
+        const signatureAlgorithm = urlObj.searchParams.get(
+          "signature_algorithm"
+        );
 
-        expect(
-          signature,
-          "signature must be absent when hash is disabled"
-        ).to.be.null;
+        expect(signature, "signature must be absent when hash is disabled").to
+          .be.null;
         expect(
           signatureAlgorithm,
           "signature_algorithm must be absent when hash is disabled"
