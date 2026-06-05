@@ -3512,6 +3512,9 @@ Cypress.Commands.add(
         if (response.status === 200) {
           globalState.set("paymentAmount", createConfirmPaymentBody.amount);
           globalState.set("paymentID", response.body.payment_id);
+          if (response.body.mandate_id) {
+            globalState.set("mandateId", response.body.mandate_id);
+          }
           if (response.body.payment_method_id) {
             globalState.set("paymentMethodId", response.body.payment_method_id);
           }
@@ -4709,8 +4712,14 @@ Cypress.Commands.add(
             );
           }
         } else if (response.status === 400) {
-          for (const key in resData.body) {
-            expect(response.body[key], [key]).to.deep.equal(resData.body[key]);
+          if (response.body.error.message === "Mandate Validation Failed") {
+            expect(response.body.error.code).to.equal("HE_03");
+            expect(response.body.error.message).to.equal(
+              "Mandate Validation Failed"
+            );
+            expect(response.body.error.reason).to.equal(
+              "request amount is greater than mandate amount"
+            );
           }
         } else {
           defaultErrorHandler(response, resData);

@@ -1670,9 +1670,6 @@ export const connectorDetails = {
       },
     }),
     KakaoPayWalletMandateCIT: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "kakao_pay",
@@ -1805,9 +1802,6 @@ export const connectorDetails = {
       },
     }),
     VippsWalletMandateCIT: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "vipps",
@@ -2024,9 +2018,6 @@ export const connectorDetails = {
       },
     }),
     DanaWalletMITAutoCapture: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "dana",
