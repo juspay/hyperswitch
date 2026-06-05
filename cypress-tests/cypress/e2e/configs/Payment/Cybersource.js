@@ -1664,9 +1664,12 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 500,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            code: "IR_39",
+          },
         },
       },
     },
