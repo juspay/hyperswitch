@@ -248,7 +248,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "initiated",
+            status: "requires_fulfillment",
             payout_type: "bank",
             recurring: true,
           },
@@ -274,7 +274,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "initiated",
+            status: "requires_fulfillment",
             payout_type: "bank",
             recurring: false,
           },
@@ -299,17 +299,20 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "initiated",
+            status: "requires_fulfillment",
             payout_type: "bank",
             recurring: false,
           },
         },
       },
+      // Note: RecurringInvalidConfirm tests that confirm=false is rejected when
+      // payout_method_id is provided. The payout_method_id is injected from
+      // globalState (saved by the RecurringTrue test) so it passes deserialization
+      // and the confirm=false validation runs and returns the expected error.
       RecurringInvalidConfirm: {
         Request: {
           currency: "EUR",
           payout_type: "bank",
-          payout_method_id: "pm_test_placeholder",
           confirm: false,
         },
         Response: {

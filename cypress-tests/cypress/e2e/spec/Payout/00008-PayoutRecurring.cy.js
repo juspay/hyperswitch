@@ -12,7 +12,8 @@ describe("[Payout] Recurring", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
 
-      // Check if the connector supports payouts and is in the inclusion list for recurring tests
+      // Synchronously set shouldContinue after globalState is available
+      // This ensures the flag is set before any beforeEach checks run
       if (
         !globalState.get("payoutsExecution") ||
         !utils.CONNECTOR_LISTS?.INCLUDE?.PAYOUT_RECURRING?.includes(
@@ -56,13 +57,10 @@ describe("[Payout] Recurring", () => {
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
 
-      // Capture payout_method_id from response if present
-      cy.task("getGlobalState").then((state) => {
-        const payoutData = state.data;
-        if (payoutData && payoutData.payoutId) {
-          cy.task("cli_log", `Payout created with ID: ${payoutData.payoutId}`);
-        }
-      });
+      // Verify payout_method_id is returned and non-null for recurring payouts
+      cy.wrap(globalState.get("payoutMethodId")).should("exist");
+      cy.wrap(globalState.get("payoutMethodId")).should("not.be.null");
+      cy.wrap(globalState.get("payoutMethodId")).should("not.eq", "");
     });
 
     it("retrieve-payout-call-test", () => {
