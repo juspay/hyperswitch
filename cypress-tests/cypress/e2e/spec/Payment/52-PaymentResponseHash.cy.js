@@ -116,10 +116,12 @@ describe("Card - Payment Response Hash flow test", () => {
       setup3DSPayment(globalState, { includeRedirection: false, fixtures });
 
       cy.step("verify redirect signature", () => {
-        if (!globalState.get("_setup3DSContinue")) {
-          cy.task("cli_log", "Skipping step: verify redirect signature");
-          return;
-        }
+        // Assert that redirect URL was captured before attempting signature verification
+        // This prevents silent passes when captureRedirectReturnUrl fails
+        expect(
+          globalState.get("redirectReturnUrl"),
+          "redirectReturnUrl must be captured from 3DS setup"
+        ).to.exist.and.not.be.empty;
 
         cy.verifyRedirectSignature(globalState);
       });
@@ -184,6 +186,90 @@ describe("Card - Payment Response Hash flow test", () => {
         }
 
         cy.verifyWrongKeySignatureFails(globalState);
+      });
+    });
+  });
+});
+
+/**
+ * Negative test: when enable_payment_response_hash = false,
+ * redirect URLs must NOT contain signature or signature_algorithm params.
+ *
+ * This runs independently of the positive tests above so it can verify
+ * the absence of hash-related query params when the feature is disabled.
+ */
+describe("Card - Payment Response Hash Negative Test", () => {
+  let negGlobalState;
+  let negShouldContinue = false;
+
+  before("seed global state and verify hash is disabled", function () {
+    return cy.task("getGlobalState").then((state) => {
+      negGlobalState = new State(state);
+      // Only test connectors that support the feature in principle
+      if (
+        !utils.CONNECTOR_LISTS.INCLUDE.PAYMENT_RESPONSE_HASH.includes(
+          negGlobalState.get("connectorId")
+        )
+      ) {
+        return;
+      }
+      return cy.fetchPaymentResponseHashConfig(negGlobalState).then(() => {
+        const enabled = negGlobalState.get("enablePaymentResponseHash");
+        if (enabled === false) {
+          negShouldContinue = true;
+          cy.task(
+            "cli_log",
+            "Negative test active: enable_payment_response_hash is false"
+          );
+        }
+      });
+    });
+  });
+
+  beforeEach(function () {
+    if (!negShouldContinue) {
+      this.skip();
+    }
+  });
+
+  after("flush global state", () => {
+    cy.task("setGlobalState", negGlobalState.data);
+  });
+
+  context("Hash Disabled - Verify Redirect URL Has No Signature Params", () => {
+    it("setup 3DS -> capture redirect URL -> verify no signature params", () => {
+      setup3DSPayment(negGlobalState, { includeRedirection: false, fixtures });
+
+      cy.step("verify redirect URL has no signature params", () => {
+        const redirectUrl =
+          negGlobalState.get("redirectReturnUrl") ||
+          negGlobalState.get("nextActionUrl");
+
+        if (!redirectUrl) {
+          cy.task(
+            "cli_log",
+            "No redirect URL available - skipping negative assertion"
+          );
+          return;
+        }
+
+        const urlObj = new URL(redirectUrl);
+        const signature = urlObj.searchParams.get("signature");
+        const signatureAlgorithm = urlObj.searchParams.get("signature_algorithm");
+
+        expect(
+          signature,
+          "signature must be absent when hash is disabled"
+        ).to.be.null;
+        expect(
+          signatureAlgorithm,
+          "signature_algorithm must be absent when hash is disabled"
+        ).to.be.null;
+
+        cy.task(
+          "cli_log",
+          "Negative test PASSED: redirect URL has no signature params when hash is disabled"
+        );
       });
     });
   });

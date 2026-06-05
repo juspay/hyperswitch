@@ -9571,6 +9571,17 @@ Cypress.Commands.add("fetchPaymentResponseHashConfig", (globalState) => {
       return;
     }
 
+    // Validate that the hash key is present and non-empty
+    // A null or empty key would cause cryptic Node crypto errors downstream
+    if (
+      typeof paymentResponseHashKey !== "string" ||
+      paymentResponseHashKey.length === 0
+    ) {
+      throw new Error(
+        "fetchPaymentResponseHashConfig: enable_payment_response_hash is true but payment_response_hash_key is null or empty"
+      );
+    }
+
     globalState.set("paymentResponseHashKey", paymentResponseHashKey);
     globalState.set("enablePaymentResponseHash", enablePaymentResponseHash);
 
@@ -9633,19 +9644,21 @@ Cypress.Commands.add("verifyRedirectSignature", (globalState) => {
 
   expect(signature, "signature should exist in redirect URL").to.be.a("string")
     .and.not.be.empty;
+
+  // Validate hex format: exactly 128 lowercase hex characters
+  expect(
+    signature,
+    `signature must be a valid ${SIGNATURE_HEX_LENGTH}-char hex string`
+  ).to.match(/^[0-9a-f]{128}$/);
+
   expect(
     signatureAlgorithm,
     "signature_algorithm must be HMAC-SHA512"
   ).to.equal(EXPECTED_ALGORITHM);
 
-  expect(
-    signature.length,
-    `signature should be ${SIGNATURE_HEX_LENGTH} hex chars (${EXPECTED_ALGORITHM})`
-  ).to.equal(SIGNATURE_HEX_LENGTH);
-
   cy.task(
     "cli_log",
-    `Redirect signature verified - algorithm: ${signatureAlgorithm}, signature length: ${signature.length}`
+    `Redirect signature verified - algorithm: ${signatureAlgorithm}, signature length: ${signature.length}, hex format: valid`
   );
 });
 
@@ -9708,103 +9721,85 @@ Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
 
     globalState.set("computedSigningPayload", signingPayload);
     globalState.set("computedSignature", computedSignature);
-    globalState.set("signatureAlgorithm", signatureAlgorithm);
 
     cy.task(
       "cli_log",
-      `HMAC computed and verified (algorithm: ${signatureAlgorithm}) - signing payload: ${signingPayload.substring(0, 80)}..., signature match: YES`
+      `HMAC computed and verified (algorithm: ${EXPECTED_ALGORITHM}) - signing payload: ${signingPayload.substring(0, 80)}..., signature match: YES`
     );
   });
 });
 
 Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
-  cy.then(() => {
-    const computedSignature = globalState.get("computedSignature");
-    const hashKey = globalState.get("paymentResponseHashKey");
-    const signingPayload = globalState.get("computedSigningPayload");
-    const signatureAlgorithm = globalState.get("signatureAlgorithm");
+  const computedSignature = globalState.get("computedSignature");
+  const hashKey = globalState.get("paymentResponseHashKey");
+  const signingPayload = globalState.get("computedSigningPayload");
 
+  expect(
+    computedSignature,
+    "computedSignature must exist from prior step - ensure computeAndVerifyRedirectSignature was called first"
+  ).to.be.a("string").and.not.be.empty;
+
+  expect(
+    hashKey,
+    "payment_response_hash_key must exist in global state - ensure proper test setup"
+  ).to.be.a("string").and.not.be.empty;
+
+  expect(
+    signingPayload,
+    "computedSigningPayload must exist from prior step - ensure computeAndVerifyRedirectSignature was called first"
+  ).to.be.a("string").and.not.be.empty;
+
+  const algorithm = EXPECTED_ALGORITHM;
+  const tamperedPayload = signingPayload + "&tampered=true";
+
+  cy.task("computeHmac", {
+    key: hashKey,
+    message: tamperedPayload,
+    algorithm,
+  }).then((tamperedSignature) => {
     expect(
-      computedSignature,
-      "computedSignature must exist from prior step - ensure computeAndVerifyRedirectSignature was called first"
-    ).to.be.a("string").and.not.be.empty;
+      tamperedSignature,
+      "Tampered payload should produce a different signature"
+    ).to.not.equal(computedSignature);
 
-    expect(
-      hashKey,
-      "payment_response_hash_key must exist in global state - ensure proper test setup"
-    ).to.be.a("string").and.not.be.empty;
-
-    expect(
-      signingPayload,
-      "computedSigningPayload must exist from prior step - ensure computeAndVerifyRedirectSignature was called first"
-    ).to.be.a("string").and.not.be.empty;
-
-    expect(
-      signatureAlgorithm,
-      "signatureAlgorithm must exist from prior step - ensure computeAndVerifyRedirectSignature was called first"
-    ).to.be.a("string").and.not.be.empty;
-
-    const algorithm = resolveAlgorithm(signatureAlgorithm);
-
-    const tamperedPayload = signingPayload + "&tampered=true";
-
-    cy.task("computeHmac", {
-      key: hashKey,
-      message: tamperedPayload,
-      algorithm,
-    }).then((tamperedSignature) => {
-      expect(
-        tamperedSignature,
-        "Tampered payload should produce a different signature"
-      ).to.not.equal(computedSignature);
-
-      cy.task(
-        "cli_log",
-        `Failure scenario verified - tampered payload produces different signature`
-      );
-    });
+    cy.task(
+      "cli_log",
+      `Failure scenario verified - tampered payload produces different signature`
+    );
   });
 });
 
 Cypress.Commands.add("verifyWrongKeySignatureFails", (globalState) => {
-  cy.then(() => {
-    const computedSignature = globalState.get("computedSignature");
-    const signingPayload = globalState.get("computedSigningPayload");
-    const signatureAlgorithm = globalState.get("signatureAlgorithm");
+  const computedSignature = globalState.get("computedSignature");
+  const signingPayload = globalState.get("computedSigningPayload");
 
+  expect(
+    computedSignature,
+    "computedSignature must exist from prior step - ensure computeAndVerifyRedirectSignature was called first"
+  ).to.be.a("string").and.not.be.empty;
+
+  expect(
+    signingPayload,
+    "computedSigningPayload must exist from prior step - ensure computeAndVerifyRedirectSignature was called first"
+  ).to.be.a("string").and.not.be.empty;
+
+  const algorithm = EXPECTED_ALGORITHM;
+  const wrongKey = "wrong_key_that_should_not_match";
+
+  cy.task("computeHmac", {
+    key: wrongKey,
+    message: signingPayload,
+    algorithm,
+  }).then((wrongKeySignature) => {
     expect(
-      computedSignature,
-      "computedSignature must exist from prior step - ensure computeAndVerifyRedirectSignature was called first"
-    ).to.be.a("string").and.not.be.empty;
+      wrongKeySignature,
+      "Signature computed with wrong key should not match the correct signature"
+    ).to.not.equal(computedSignature);
 
-    expect(
-      signingPayload,
-      "computedSigningPayload must exist from prior step - ensure computeAndVerifyRedirectSignature was called first"
-    ).to.be.a("string").and.not.be.empty;
-
-    expect(
-      signatureAlgorithm,
-      "signatureAlgorithm must exist from prior step - ensure computeAndVerifyRedirectSignature was called first"
-    ).to.be.a("string").and.not.be.empty;
-
-    const algorithm = resolveAlgorithm(signatureAlgorithm);
-    const wrongKey = "wrong_key_that_should_not_match";
-
-    cy.task("computeHmac", {
-      key: wrongKey,
-      message: signingPayload,
-      algorithm,
-    }).then((wrongKeySignature) => {
-      expect(
-        wrongKeySignature,
-        "Signature computed with wrong key should not match the correct signature"
-      ).to.not.equal(computedSignature);
-
-      cy.task(
-        "cli_log",
-        `Failure scenario verified - wrong-key signature does not match the correct signature`
-      );
-    });
+    cy.task(
+      "cli_log",
+      `Failure scenario verified - wrong-key signature does not match the correct signature`
+    );
   });
 });
 
@@ -9814,25 +9809,50 @@ Cypress.Commands.add("captureRedirectReturnUrl", (globalState) => {
   const merchantId = globalState.get("merchantId");
   const connectorId = getOriginalConnectorName(globalState.get("connectorId"));
   const url = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/response/${connectorId}`;
-  cy.request({
-    method: "GET",
-    url,
-    followRedirect: false,
-    failOnStatusCode: false,
-  }).then((response) => {
-    if (response.status === 302 && response.headers.location) {
-      globalState.set("redirectReturnUrl", response.headers.location);
-      cy.task(
-        "cli_log",
-        "captureRedirectReturnUrl: captured redirect return URL with signature"
-      );
-    } else {
-      cy.task(
-        "cli_log",
-        `captureRedirectReturnUrl: unexpected status ${response.status}, no Location header`
-      );
-    }
-  });
+
+  /**
+   * Attempt to capture the redirect return URL with polling retry.
+   * The payment may not immediately be in redirect-ready state,
+   * so we retry up to MAX_RETRIES with DELAY_MS between attempts.
+   */
+  const MAX_RETRIES = 5;
+  const DELAY_MS = 2000;
+
+  function attemptCapture(remainingAttempts) {
+    return cy
+      .request({
+        method: "GET",
+        url,
+        followRedirect: false,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        if (response.status === 302 && response.headers.location) {
+          globalState.set("redirectReturnUrl", response.headers.location);
+          cy.task(
+            "cli_log",
+            "captureRedirectReturnUrl: captured redirect return URL with signature"
+          );
+          return;
+        }
+
+        if (remainingAttempts > 1) {
+          cy.task(
+            "cli_log",
+            `captureRedirectReturnUrl: got status ${response.status}, retrying in ${DELAY_MS}ms (${MAX_RETRIES - remainingAttempts + 1}/${MAX_RETRIES})`
+          );
+          return cy.wait(DELAY_MS).then(() => attemptCapture(remainingAttempts - 1));
+        }
+
+        // Final attempt failed — throw so the test fails loudly
+        throw new Error(
+          `captureRedirectReturnUrl: expected 302 with Location header, got ${response.status}. ` +
+            `Headers: ${JSON.stringify(response.headers)}`
+        );
+      });
+  }
+
+  attemptCapture(MAX_RETRIES);
 });
 
 // ============================================
