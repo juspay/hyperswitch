@@ -9749,7 +9749,7 @@ Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
     "computedSigningPayload must exist from prior step - ensure computeAndVerifyRedirectSignature was called first"
   ).to.be.a("string").and.not.be.empty;
 
-  const algorithm = EXPECTED_ALGORITHM;
+  const algorithm = HASH_ALGO;
   const tamperedPayload = signingPayload + "&tampered=true";
 
   cy.task("computeHmac", {
@@ -9783,7 +9783,7 @@ Cypress.Commands.add("verifyWrongKeySignatureFails", (globalState) => {
     "computedSigningPayload must exist from prior step - ensure computeAndVerifyRedirectSignature was called first"
   ).to.be.a("string").and.not.be.empty;
 
-  const algorithm = EXPECTED_ALGORITHM;
+  const algorithm = HASH_ALGO;
   const wrongKey = "wrong_key_that_should_not_match";
 
   cy.task("computeHmac", {
