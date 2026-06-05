@@ -3509,15 +3509,12 @@ Cypress.Commands.add(
         globalState.set("clientSecret", response.body.client_secret);
         expect(response.headers["content-type"]).to.include("application/json");
 
-        if (response.status === 200) {
-          globalState.set("paymentAmount", createConfirmPaymentBody.amount);
-          globalState.set("paymentID", response.body.payment_id);
-          if (response.body.mandate_id) {
-            globalState.set("mandateId", response.body.mandate_id);
-          }
-          if (response.body.payment_method_id) {
-            globalState.set("paymentMethodId", response.body.payment_method_id);
-          }
+          if (response.status === 200) {
+            globalState.set("paymentAmount", createConfirmPaymentBody.amount);
+            globalState.set("paymentID", response.body.payment_id);
+            if (response.body.payment_method_id) {
+              globalState.set("paymentMethodId", response.body.payment_method_id);
+            }
           // Store the actual setup_future_usage value from the response
           globalState.set(
             "actualSetupFutureUsage",
@@ -3976,9 +3973,6 @@ Cypress.Commands.add(
             globalState.get("paymentAmount")
           );
           expect(response.body.profile_id, "profile_id").to.not.be.null;
-          if (response.body.mandate_id) {
-            globalState.set("mandateId", response.body.mandate_id);
-          }
           if (!configs.skipBillingAssertion) {
             expect(response.body.billing, "billing_address").to.not.be.null;
           }
@@ -4027,10 +4021,6 @@ Cypress.Commands.add(
 
             // Whenever, CIT Confirmations gets a payment status of `processing`, it does not yield the `payment_method_id` and hence the `paymentMethodId` in the `globalState` gets the value of `null`. And hence while confirming MIT, it yields an `error.message` of `"Json deserialize error: invalid type: null, expected a string at line 1 column 182"` which is basically because of the `null` value in `recurring_details.data` with `recurring_details.type` as `payment_method_id`. However, we get the `payment_method_id` while PSync, so we can assign it to the `globalState` here.
             globalState.set("paymentMethodId", response.body.payment_method_id);
-
-            if (response.body.mandate_id) {
-              globalState.set("mandateId", response.body.mandate_id);
-            }
 
             globalState.set(
               "networkTransactionId",
