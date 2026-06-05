@@ -1091,14 +1091,15 @@ pub struct MerchantConnectorCreate {
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<CountryAlpha2>, example = "US", deprecated)]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     /// The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
+    #[schema(deprecated)]
     pub business_label: Option<String>,
 
     /// The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(example = "chase")]
+    #[schema(example = "chase", deprecated)]
     pub business_sub_label: Option<String>,
 
     /// Unique ID of the connector
@@ -1546,15 +1547,15 @@ pub struct MerchantConnectorResponse {
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<CountryAlpha2>, example = "US", deprecated)]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     ///The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(example = "travel")]
+    #[schema(example = "travel", deprecated)]
     pub business_label: Option<String>,
 
     /// The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(example = "chase")]
+    #[schema(example = "chase", deprecated)]
     pub business_sub_label: Option<String>,
 
     /// identifier for the verified domains of a particular connector account
@@ -1658,15 +1659,15 @@ pub struct MerchantConnectorListResponse {
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<CountryAlpha2>, example = "US", deprecated)]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     ///The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(example = "travel")]
+    #[schema(example = "travel", deprecated)]
     pub business_label: Option<String>,
 
     /// The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(example = "chase")]
+    #[schema(example = "chase", deprecated)]
     pub business_sub_label: Option<String>,
 
     /// identifier for the verified domains of a particular connector account
@@ -1971,6 +1972,7 @@ pub struct FrmPaymentMethod {
     #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: Option<common_enums::PaymentMethod>,
     ///payment method types(credit, debit) that can be used in the payment. This field is deprecated. It has not been removed to provide backward compatibility.
+    #[schema(deprecated)]
     pub payment_method_types: Option<Vec<FrmPaymentMethodType>>,
     ///frm flow type to be used, can be pre/post
     #[schema(value_type = Option<FrmPreferredFlowTypes>)]

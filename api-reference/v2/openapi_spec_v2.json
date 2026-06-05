@@ -15139,6 +15139,7 @@
               "$ref": "#/components/schemas/FrmPaymentMethodType"
             },
             "description": "payment method types(credit, debit) that can be used in the payment. This field is deprecated. It has not been removed to provide backward compatibility.",
+            "deprecated": true,
             "nullable": true
           },
           "flow": {
@@ -22898,14 +22899,12 @@
           },
           {
             "type": "object",
-            "required": [
-              "payment_method_token"
-            ],
             "properties": {
               "payment_method_token": {
                 "type": "string",
-                "description": "The payment method token associated with the payment method session",
-                "example": "token_9wcXDRVkfEtLEsSnYKgQ"
+                "description": "The payment method token associated with the payment method session.\nIf not provided, a new token will be generated.",
+                "example": "token_9wcXDRVkfEtLEsSnYKgQ",
+                "nullable": true
               }
             }
           }

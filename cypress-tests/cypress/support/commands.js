@@ -1171,7 +1171,10 @@ Cypress.Commands.add("apiKeyListCall", (globalState) => {
         if (base_url.includes("sandbox") || base_url.includes("integ")) {
           expect(response.body[key]).to.have.property("key_id").include("snd_")
             .and.not.empty;
-        } else if (base_url.includes("localhost")) {
+        } else if (
+          base_url.includes("localhost") ||
+          base_url.includes("host.docker.internal")
+        ) {
           expect(response.body[key]).to.have.property("key_id").include("dev_")
             .and.not.empty;
         }
@@ -7292,7 +7295,10 @@ Cypress.Commands.add(
         "api-key": adminApiKey,
         "X-Merchant-Id": merchantId,
       },
-      body: refundManualUpdateRequestBody,
+      body: {
+        merchant_id: merchantId,
+        ...refundManualUpdateRequestBody.Request,
+      },
       failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
