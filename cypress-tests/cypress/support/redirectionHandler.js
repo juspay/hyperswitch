@@ -2515,9 +2515,7 @@ function voucherRedirection(
                 // Dlocal Oxxo returns a redirect URL via ticket.image_url.
                 // Visit the page, inspect for interactive elements,
                 // and attempt to complete payment.
-                cy.log(
-                  `Dlocal Oxxo voucher — visiting redirect URL`
-                );
+                cy.log(`Dlocal Oxxo voucher — visiting redirect URL`);
 
                 // Suppress potential JS errors from sandbox/test pages
                 cy.on("uncaught:exception", () => false);
@@ -2528,9 +2526,9 @@ function voucherRedirection(
                     const bodyText = $body.text().toLowerCase();
 
                     // Determine if this is an interactive payment page
-                    const hasPayButton = $body.find(
-                      'button:visible, input[type="submit"]:visible'
-                    ).length > 0;
+                    const hasPayButton =
+                      $body.find('button:visible, input[type="submit"]:visible')
+                        .length > 0;
                     const hasInteractiveElements = [
                       /pay/i,
                       /confirm/i,
@@ -2547,17 +2545,14 @@ function voucherRedirection(
                       cy.get("body").then(($b) => {
                         const buttons = $b.find("button:visible");
                         for (let i = 0; i < buttons.length; i++) {
-                          const btnText =
-                            buttons[i].innerText.toLowerCase();
+                          const btnText = buttons[i].innerText.toLowerCase();
                           if (
                             /pay|confirm|continue|submit|complete/i.test(
                               btnText
                             )
                           ) {
                             cy.wrap(buttons[i]).click({ force: true });
-                            cy.log(
-                              `Clicked payment button: ${btnText}`
-                            );
+                            cy.log(`Clicked payment button: ${btnText}`);
                             break;
                           }
                         }
@@ -2565,7 +2560,9 @@ function voucherRedirection(
 
                       // If there's a form, try to fill any visible inputs
                       cy.get("body").then(($b) => {
-                        const inputs = $b.find("input:visible:not([type='hidden'])");
+                        const inputs = $b.find(
+                          "input:visible:not([type='hidden'])"
+                        );
                         if (inputs.length > 0) {
                           cy.log(
                             `Found ${inputs.length} visible input(s) on Oxxo page`
