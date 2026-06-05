@@ -146,6 +146,7 @@ const connectorDetails = {
   stripeconnect: stripeconnectConnectorDetails,
   trustpay: trustpayConnectorDetails,
   tesouro: tesouroConnectorDetails,
+  trustpayments: trustpaymentsConnectorDetails,
   tsys: tsysConnectorDetails,
   volt: voltConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
