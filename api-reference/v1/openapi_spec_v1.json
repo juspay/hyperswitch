@@ -21473,6 +21473,7 @@
               "$ref": "#/components/schemas/FrmPaymentMethodType"
             },
             "description": "payment method types(credit, debit) that can be used in the payment. This field is deprecated. It has not been removed to provide backward compatibility.",
+            "deprecated": true,
             "nullable": true
           },
           "flow": {
@@ -24573,11 +24574,13 @@
           "business_label": {
             "type": "string",
             "description": "The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
+            "deprecated": true,
             "nullable": true
           },
           "business_sub_label": {
             "type": "string",
             "description": "The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
+            "deprecated": true,
             "example": "chase",
             "nullable": true
           },
@@ -24805,12 +24808,14 @@
           "business_label": {
             "type": "string",
             "description": "The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
+            "deprecated": true,
             "example": "travel",
             "nullable": true
           },
           "business_sub_label": {
             "type": "string",
             "description": "The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
+            "deprecated": true,
             "example": "chase",
             "nullable": true
           },
@@ -24964,12 +24969,14 @@
           "business_label": {
             "type": "string",
             "description": "The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
+            "deprecated": true,
             "example": "travel",
             "nullable": true
           },
           "business_sub_label": {
             "type": "string",
             "description": "The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
+            "deprecated": true,
             "example": "chase",
             "nullable": true
           },
@@ -30568,6 +30575,7 @@
           "mandate_id": {
             "type": "string",
             "description": "A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data",
+            "deprecated": true,
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
             "maxLength": 64
@@ -31092,6 +31100,7 @@
           "mandate_id": {
             "type": "string",
             "description": "A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data",
+            "deprecated": true,
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
             "maxLength": 64
@@ -31131,6 +31140,7 @@
           "business_label": {
             "type": "string",
             "description": "Business label of the merchant for this payment.\nTo be deprecated soon. Pass the profile_id instead",
+            "deprecated": true,
             "example": "food",
             "nullable": true
           },
@@ -31609,6 +31619,7 @@
           "mandate_id": {
             "type": "string",
             "description": "A unique identifier to link the payment to a mandate, can be used instead of payment_method_data, in case of setting up recurring payments",
+            "deprecated": true,
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
             "maxLength": 255
@@ -32183,7 +32194,8 @@
           "sender_payment_instrument_id": {
             "type": "string",
             "description": "A connector-specific identifier representing the stored payment instrument",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -32743,6 +32755,7 @@
           "mandate_id": {
             "type": "string",
             "description": "A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data",
+            "deprecated": true,
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
             "maxLength": 64
@@ -32782,6 +32795,7 @@
           "business_label": {
             "type": "string",
             "description": "Business label of the merchant for this payment.\nTo be deprecated soon. Pass the profile_id instead",
+            "deprecated": true,
             "example": "food",
             "nullable": true
           },
@@ -33290,6 +33304,7 @@
           "mandate_id": {
             "type": "string",
             "description": "A unique identifier to link the payment to a mandate, can be used instead of payment_method_data, in case of setting up recurring payments",
+            "deprecated": true,
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
             "maxLength": 255
@@ -33881,7 +33896,8 @@
           "sender_payment_instrument_id": {
             "type": "string",
             "description": "A connector-specific identifier representing the stored payment instrument",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
