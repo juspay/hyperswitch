@@ -542,10 +542,44 @@ export const connectorDetails = {
       },
     },
     SessionToken: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        wallets: [],
+      },
       Response: {
         status: 200,
         body: {
           session_token: [],
+        },
+      },
+    },
+    CaptureGreaterAmount: {
+      Request: {
+        amount_to_capture: 6000000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "No eligible connector was found for the current payment method configuration",
+            code: "IR_06",
+          },
+        },
+      },
+    },
+    InvalidPublishableKey: {
+      Request: {},
+      Response: {
+        status: 401,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "API key not provided or invalid API key used",
+            code: "IR_01",
+          },
         },
       },
     },
