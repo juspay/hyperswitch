@@ -962,7 +962,7 @@ describe("Stripe AliPay Wallet tests", () => {
           if (
             shouldIncludeConnector(
               connector,
-              CONNECTOR_LISTS.INCLUDE.WALLET_ALIPAY
+              CONNECTOR_LISTS.INCLUDE.ALIPAY_WALLET
             )
           ) {
             skip = true;
@@ -972,7 +972,7 @@ describe("Stripe AliPay Wallet tests", () => {
         .then(() => {
           if (skip) {
             cy.log(
-              "Skipping Stripe AliPay wallet tests — connector not in WALLET_ALIPAY list"
+              "Skipping Stripe AliPay wallet tests — connector not in ALIPAY_WALLET list"
             );
             this.skip();
           }
@@ -1063,7 +1063,7 @@ describe("Stripe AliPay Wallet tests", () => {
           if (
             shouldIncludeConnector(
               connector,
-              CONNECTOR_LISTS.INCLUDE.WALLET_ALIPAY
+              CONNECTOR_LISTS.INCLUDE.ALIPAY_WALLET
             )
           ) {
             skip = true;
@@ -1138,7 +1138,7 @@ describe("Stripe AmazonPay Wallet tests", () => {
           if (
             shouldIncludeConnector(
               connector,
-              CONNECTOR_LISTS.INCLUDE.WALLET_AMAZONPAY
+              CONNECTOR_LISTS.INCLUDE.AMAZONPAY_WALLET
             )
           ) {
             skip = true;
@@ -1148,7 +1148,7 @@ describe("Stripe AmazonPay Wallet tests", () => {
         .then(() => {
           if (skip) {
             cy.log(
-              "Skipping Stripe AmazonPay wallet tests — connector not in WALLET_AMAZONPAY list"
+              "Skipping Stripe AmazonPay wallet tests — connector not in AMAZONPAY_WALLET list"
             );
             this.skip();
           }
@@ -1239,7 +1239,7 @@ describe("Stripe AmazonPay Wallet tests", () => {
           if (
             shouldIncludeConnector(
               connector,
-              CONNECTOR_LISTS.INCLUDE.WALLET_AMAZONPAY
+              CONNECTOR_LISTS.INCLUDE.AMAZONPAY_WALLET
             )
           ) {
             skip = true;
@@ -1337,7 +1337,7 @@ describe("Stripe AmazonPay Wallet tests", () => {
           if (
             shouldIncludeConnector(
               connector,
-              CONNECTOR_LISTS.INCLUDE.WALLET_AMAZONPAY
+              CONNECTOR_LISTS.INCLUDE.AMAZONPAY_WALLET
             )
           ) {
             skip = true;
@@ -1412,7 +1412,7 @@ describe("Stripe Cashapp Wallet tests", () => {
           if (
             shouldIncludeConnector(
               connector,
-              CONNECTOR_LISTS.INCLUDE.WALLET_CASHAPP
+              CONNECTOR_LISTS.INCLUDE.CASHAPP_WALLET
             )
           ) {
             skip = true;
@@ -1422,7 +1422,7 @@ describe("Stripe Cashapp Wallet tests", () => {
         .then(() => {
           if (skip) {
             cy.log(
-              "Skipping Stripe Cashapp wallet tests — connector not in WALLET_CASHAPP list"
+              "Skipping Stripe Cashapp wallet tests — connector not in CASHAPP_WALLET list"
             );
             this.skip();
           }
@@ -1513,7 +1513,7 @@ describe("Stripe Cashapp Wallet tests", () => {
           if (
             shouldIncludeConnector(
               connector,
-              CONNECTOR_LISTS.INCLUDE.WALLET_CASHAPP
+              CONNECTOR_LISTS.INCLUDE.CASHAPP_WALLET
             )
           ) {
             skip = true;
@@ -1611,7 +1611,7 @@ describe("Stripe Cashapp Wallet tests", () => {
           if (
             shouldIncludeConnector(
               connector,
-              CONNECTOR_LISTS.INCLUDE.WALLET_CASHAPP
+              CONNECTOR_LISTS.INCLUDE.CASHAPP_WALLET
             )
           ) {
             skip = true;
@@ -1686,7 +1686,7 @@ describe("Stripe RevolutPay Wallet tests", () => {
           if (
             shouldIncludeConnector(
               connector,
-              CONNECTOR_LISTS.INCLUDE.WALLET_REVOLUTPAY
+              CONNECTOR_LISTS.INCLUDE.REVOLUTPAY_WALLET
             )
           ) {
             skip = true;
@@ -1696,7 +1696,7 @@ describe("Stripe RevolutPay Wallet tests", () => {
         .then(() => {
           if (skip) {
             cy.log(
-              "Skipping Stripe RevolutPay wallet tests — connector not in WALLET_REVOLUTPAY list"
+              "Skipping Stripe RevolutPay wallet tests — connector not in REVOLUTPAY_WALLET list"
             );
             this.skip();
           }
@@ -1787,7 +1787,7 @@ describe("Stripe RevolutPay Wallet tests", () => {
           if (
             shouldIncludeConnector(
               connector,
-              CONNECTOR_LISTS.INCLUDE.WALLET_REVOLUTPAY
+              CONNECTOR_LISTS.INCLUDE.REVOLUTPAY_WALLET
             )
           ) {
             skip = true;
@@ -1885,7 +1885,7 @@ describe("Stripe RevolutPay Wallet tests", () => {
           if (
             shouldIncludeConnector(
               connector,
-              CONNECTOR_LISTS.INCLUDE.WALLET_REVOLUTPAY
+              CONNECTOR_LISTS.INCLUDE.REVOLUTPAY_WALLET
             )
           ) {
             skip = true;
@@ -1960,7 +1960,7 @@ describe("Stripe WeChatPay Wallet tests", () => {
           if (
             shouldIncludeConnector(
               connector,
-              CONNECTOR_LISTS.INCLUDE.WALLET_WECHATPAY
+              CONNECTOR_LISTS.INCLUDE.WECHATPAY_WALLET
             )
           ) {
             skip = true;
@@ -1970,7 +1970,7 @@ describe("Stripe WeChatPay Wallet tests", () => {
         .then(() => {
           if (skip) {
             cy.log(
-              "Skipping Stripe WeChatPay wallet tests — connector not in WALLET_WECHATPAY list"
+              "Skipping Stripe WeChatPay wallet tests — connector not in WECHATPAY_WALLET list"
             );
             this.skip();
           }
@@ -2061,7 +2061,7 @@ describe("Stripe WeChatPay Wallet tests", () => {
           if (
             shouldIncludeConnector(
               connector,
-              CONNECTOR_LISTS.INCLUDE.WALLET_WECHATPAY
+              CONNECTOR_LISTS.INCLUDE.WECHATPAY_WALLET
             )
           ) {
             skip = true;
