@@ -2509,6 +2509,22 @@ function voucherRedirection(
                 verifyUrl = false;
             }
             break;
+          case "dlocal":
+            switch (paymentMethodType) {
+              case "oxxo":
+                // Dlocal Oxxo is a display_voucher_information voucher.
+                // handleVoucherRedirection already skips cy.visit() for "oxxo",
+                // but we keep this case here to be explicit and future-proof.
+                cy.log(
+                  `Dlocal Oxxo voucher — no browser redirect, voucher data in API response`
+                );
+                verifyUrl = false;
+                break;
+              default:
+                cy.log(`Unhandled dlocal voucher type: ${paymentMethodType}`);
+                verifyUrl = false;
+            }
+            break;
           default:
             cy.log(
               `Generic voucher handling for ${connectorId}/${paymentMethodType}`
