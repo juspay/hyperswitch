@@ -2632,19 +2632,17 @@ pub async fn should_execute_based_on_rollout_with_precedence(
             }
             Some(config) => {
                 logger::info!(config_key = %key, "Rollout config found, using this key");
-                return Ok(
-                    serde_json::from_str::<RolloutConfig>(&config.config)
-                        .map(RolloutExecutionResult::from)
-                        .map_err(|err| {
-                            logger::error!(
-                                error = ?err,
-                                config = %config.config,
-                                "Failed to parse rollout config as JSON. Defaulting to not execute."
-                            );
-                            RolloutExecutionResult::default()
-                        })
-                        .unwrap_or_default(),
-                );
+                return Ok(serde_json::from_str::<RolloutConfig>(&config.config)
+                    .map(RolloutExecutionResult::from)
+                    .map_err(|err| {
+                        logger::error!(
+                            error = ?err,
+                            config = %config.config,
+                            "Failed to parse rollout config as JSON. Defaulting to not execute."
+                        );
+                        RolloutExecutionResult::default()
+                    })
+                    .unwrap_or_default());
             }
             None => {
                 // Unexpected DB error — skip and try next key
