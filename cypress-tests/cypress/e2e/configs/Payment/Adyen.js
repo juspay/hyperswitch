@@ -1646,7 +1646,7 @@ export const connectorDetails = {
           },
         },
         customer_acceptance: {
-          acceptance_type: "offline",
+          acceptance_type: "online",
           accepted_at: "2024-01-01T00:00:00Z",
           online: {
             ip_address: "10.0.0.1",
@@ -1659,6 +1659,20 @@ export const connectorDetails = {
         return_url: "https://example.com",
         billing: {
           email: "test@example.com",
+        },
+        browser_info: {
+          user_agent:
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+          accept_header:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+          language: "nl-NL",
+          color_depth: 24,
+          screen_height: 723,
+          screen_width: 1536,
+          time_zone: 0,
+          java_enabled: true,
+          java_script_enabled: true,
+          ip_address: "127.0.0.1",
         },
       },
       Response: {
@@ -1679,7 +1693,7 @@ export const connectorDetails = {
           },
         },
         customer_acceptance: {
-          acceptance_type: "offline",
+          acceptance_type: "online",
           accepted_at: "2024-01-01T00:00:00Z",
           online: {
             ip_address: "10.0.0.1",
@@ -1692,6 +1706,20 @@ export const connectorDetails = {
         return_url: "https://example.com",
         billing: {
           email: "test@example.com",
+        },
+        browser_info: {
+          user_agent:
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+          accept_header:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+          language: "nl-NL",
+          color_depth: 24,
+          screen_height: 723,
+          screen_width: 1536,
+          time_zone: 0,
+          java_enabled: true,
+          java_script_enabled: true,
+          ip_address: "127.0.0.1",
         },
       },
       Response: {
@@ -1712,7 +1740,7 @@ export const connectorDetails = {
           },
         },
         customer_acceptance: {
-          acceptance_type: "offline",
+          acceptance_type: "online",
           accepted_at: "2024-01-01T00:00:00Z",
           online: {
             ip_address: "10.0.0.1",
@@ -1725,6 +1753,20 @@ export const connectorDetails = {
         return_url: "https://example.com",
         billing: {
           email: "test@example.com",
+        },
+        browser_info: {
+          user_agent:
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+          accept_header:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+          language: "nl-NL",
+          color_depth: 24,
+          screen_height: 723,
+          screen_width: 1536,
+          time_zone: 0,
+          java_enabled: true,
+          java_script_enabled: true,
+          ip_address: "127.0.0.1",
         },
       },
       Response: {
@@ -1745,7 +1787,7 @@ export const connectorDetails = {
           },
         },
         customer_acceptance: {
-          acceptance_type: "offline",
+          acceptance_type: "online",
           accepted_at: "2024-01-01T00:00:00Z",
           online: {
             ip_address: "10.0.0.1",
@@ -1758,6 +1800,20 @@ export const connectorDetails = {
         return_url: "https://example.com",
         billing: {
           email: "test@example.com",
+        },
+        browser_info: {
+          user_agent:
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+          accept_header:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+          language: "nl-NL",
+          color_depth: 24,
+          screen_height: 723,
+          screen_width: 1536,
+          time_zone: 0,
+          java_enabled: true,
+          java_script_enabled: true,
+          ip_address: "127.0.0.1",
         },
       },
       Response: {
@@ -1778,7 +1834,7 @@ export const connectorDetails = {
           },
         },
         customer_acceptance: {
-          acceptance_type: "offline",
+          acceptance_type: "online",
           accepted_at: "2024-01-01T00:00:00Z",
           online: {
             ip_address: "10.0.0.1",
@@ -1791,6 +1847,20 @@ export const connectorDetails = {
         return_url: "https://example.com",
         billing: {
           email: "test@example.com",
+        },
+        browser_info: {
+          user_agent:
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+          accept_header:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+          language: "nl-NL",
+          color_depth: 24,
+          screen_height: 723,
+          screen_width: 1536,
+          time_zone: 0,
+          java_enabled: true,
+          java_script_enabled: true,
+          ip_address: "127.0.0.1",
         },
       },
       Response: {
@@ -1811,7 +1881,7 @@ export const connectorDetails = {
           },
         },
         customer_acceptance: {
-          acceptance_type: "offline",
+          acceptance_type: "online",
           accepted_at: "2024-01-01T00:00:00Z",
           online: {
             ip_address: "10.0.0.1",
@@ -1824,6 +1894,20 @@ export const connectorDetails = {
         return_url: "https://example.com",
         billing: {
           email: "test@example.com",
+        },
+        browser_info: {
+          user_agent:
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+          accept_header:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+          language: "nl-NL",
+          color_depth: 24,
+          screen_height: 723,
+          screen_width: 1536,
+          time_zone: 0,
+          java_enabled: true,
+          java_script_enabled: true,
+          ip_address: "127.0.0.1",
         },
       },
       Response: {
@@ -1844,7 +1928,7 @@ export const connectorDetails = {
           },
         },
         customer_acceptance: {
-          acceptance_type: "offline",
+          acceptance_type: "online",
           accepted_at: "2024-01-01T00:00:00Z",
           online: {
             ip_address: "10.0.0.1",
@@ -1857,6 +1941,20 @@ export const connectorDetails = {
         return_url: "https://example.com",
         billing: {
           email: "test@example.com",
+        },
+        browser_info: {
+          user_agent:
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+          accept_header:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+          language: "nl-NL",
+          color_depth: 24,
+          screen_height: 723,
+          screen_width: 1536,
+          time_zone: 0,
+          java_enabled: true,
+          java_script_enabled: true,
+          ip_address: "127.0.0.1",
         },
       },
       Response: {
@@ -1877,7 +1975,7 @@ export const connectorDetails = {
           },
         },
         customer_acceptance: {
-          acceptance_type: "offline",
+          acceptance_type: "online",
           accepted_at: "2024-01-01T00:00:00Z",
           online: {
             ip_address: "10.0.0.1",
@@ -1890,6 +1988,20 @@ export const connectorDetails = {
         return_url: "https://example.com",
         billing: {
           email: "test@example.com",
+        },
+        browser_info: {
+          user_agent:
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+          accept_header:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+          language: "nl-NL",
+          color_depth: 24,
+          screen_height: 723,
+          screen_width: 1536,
+          time_zone: 0,
+          java_enabled: true,
+          java_script_enabled: true,
+          ip_address: "127.0.0.1",
         },
       },
       Response: {
@@ -2001,6 +2113,9 @@ export const connectorDetails = {
       },
     }),
     VippsWalletMITAutoCapture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "vipps",
@@ -2018,6 +2133,9 @@ export const connectorDetails = {
       },
     }),
     DanaWalletMITAutoCapture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "dana",
