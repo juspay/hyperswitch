@@ -854,6 +854,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payouts::Bank,
         api_models::payouts::BankTransfer,
         api_models::payouts::ApplePayDecrypt,
+        api_models::payouts::GooglePayDecrypt,
         api_models::payouts::PayoutCreatePayoutLinkConfig,
         api_models::enums::PayoutEntityType,
         api_models::enums::PayoutSendPriority,
