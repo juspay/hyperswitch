@@ -1,5 +1,6 @@
 use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
 use error_stack::{report, ResultExt};
+pub use hyperswitch_domain_models::authentication::AuthenticationInterface;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 use router_env::{instrument, tracing};
 use storage_impl::{
@@ -9,7 +10,6 @@ use storage_impl::{
 
 use super::{MockDb, Store};
 use crate::{connection, core::errors::CustomResult, types::storage};
-pub use hyperswitch_domain_models::authentication::AuthenticationInterface;
 
 #[async_trait::async_trait]
 pub trait AuthenticationInterface {
