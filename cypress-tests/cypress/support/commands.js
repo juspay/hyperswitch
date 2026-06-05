@@ -3726,6 +3726,11 @@ Cypress.Commands.add(
 
           validateErrorMessage(response, resData);
 
+          const allowedPmStatuses = [
+              "active",
+              "inactive",
+            ];
+
           if (response.body.capture_method === "automatic") {
             if (response.body.authentication_type === "three_ds") {
               expect(response.body)
@@ -3735,11 +3740,6 @@ Cypress.Commands.add(
                 "nextActionUrl",
                 response.body.next_action.redirect_to_url
               );
-
-              const allowedPmStatuses = [
-              "active",
-              "inactive",
-            ];
 
               if (
                 response.body?.payment_method_id &&
