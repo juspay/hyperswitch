@@ -485,7 +485,7 @@ mod storage {
                     let redis_value = serde_json::to_string(&updated_address)
                         .change_context(errors::StorageError::KVError)?;
 
-                    let mut query_gen_conn = connection::pg_connection_read(self).await?;
+                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
                     let drainer_query = address_update_internal
                         .generate_drainer_update_query(
                             &mut query_gen_conn,
@@ -590,7 +590,7 @@ mod storage {
                         origin_zip: address_new.origin_zip.clone(),
                     };
 
-                    let mut query_gen_conn = connection::pg_connection_read(self).await?;
+                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
                     let drainer_query = address_new
                         .generate_drainer_insert_query(&mut query_gen_conn)
                         .await

@@ -114,7 +114,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                 self.insert_reverse_lookup(reverse_lookup, storage_scheme)
                     .await?;
 
-                let mut query_gen_conn = pg_connection_read(self).await?;
+                let mut query_gen_conn = pg_connection_write(self).await?;
                 let drainer_query = new_payout_attempt
                     .to_storage_model()
                     .generate_drainer_insert_query(&mut query_gen_conn)
@@ -223,7 +223,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                     _ => {}
                 }
 
-                let mut query_gen_conn = pg_connection_read(self).await?;
+                let mut query_gen_conn = pg_connection_write(self).await?;
                 let drainer_query = diesel_payout_update
                     .clone()
                     .generate_drainer_update_query(

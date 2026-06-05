@@ -1,4 +1,9 @@
+mod bind_params;
+mod entity_type;
+mod pg_type_metadata;
+
 use async_bb8_diesel::AsyncConnection;
+use common_utils::pii;
 use diesel::{
     associations::HasTable,
     debug_query,
@@ -19,20 +24,7 @@ use router_env::logger;
 
 use crate::errors;
 
-/// Masking strategy for binary data or raw bytes
-#[derive(Debug)]
-pub enum BinaryDataStrategy {}
-
-impl<T> hyperswitch_masking::Strategy<T> for BinaryDataStrategy
-where
-    T: AsRef<[u8]>,
-{
-    fn fmt(value: &T, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(fmt, "*** Binary data ({} bytes) ***", value.as_ref().len())
-    }
-}
-
-type SecretBinaryData = Secret<Vec<u8>, BinaryDataStrategy>;
+type SecretBinaryData = Secret<Vec<u8>, pii::BinaryDataStrategy>;
 
 /// The SQL query and its bind parameters, in a (de)serialization-friendly representation
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -64,65 +56,6 @@ pub struct SerializableQuery {
 pub enum DatabaseOperation {
     Insert,
     Update,
-}
-
-mod bind_params {
-    use base64::Engine;
-    use common_utils::consts::BASE64_ENGINE;
-    use hyperswitch_masking::{PeekInterface, Secret};
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
-    use super::SecretBinaryData;
-
-    pub fn serialize<S: Serializer>(
-        binds: &[Option<SecretBinaryData>],
-        s: S,
-    ) -> Result<S::Ok, S::Error> {
-        let encoded: Vec<Option<String>> = binds
-            .iter()
-            .map(|b| b.as_ref().map(|bytes| BASE64_ENGINE.encode(bytes.peek())))
-            .collect();
-        encoded.serialize(s)
-    }
-
-    pub fn deserialize<'de, D: Deserializer<'de>>(
-        d: D,
-    ) -> Result<Vec<Option<SecretBinaryData>>, D::Error> {
-        let encoded: Vec<Option<String>> = Vec::deserialize(d)?;
-        encoded
-            .into_iter()
-            .map(|b| {
-                b.map(|s| {
-                    BASE64_ENGINE
-                        .decode(&s)
-                        .map(Secret::new)
-                        .map_err(serde::de::Error::custom)
-                })
-                .transpose()
-            })
-            .collect()
-    }
-}
-
-mod pg_type_metadata {
-    use diesel::pg::PgTypeMetadata;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
-    pub fn serialize<S: Serializer>(metadata: &[PgTypeMetadata], s: S) -> Result<S::Ok, S::Error> {
-        let pairs: Vec<(u32, u32)> = metadata
-            .iter()
-            .map(|m| (m.oid().unwrap_or(0), m.array_oid().unwrap_or(0)))
-            .collect();
-        pairs.serialize(s)
-    }
-
-    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<PgTypeMetadata>, D::Error> {
-        let pairs: Vec<(u32, u32)> = Vec::deserialize(d)?;
-        Ok(pairs
-            .into_iter()
-            .map(|(oid, array_oid)| PgTypeMetadata::from_result(Ok((oid, array_oid))))
-            .collect())
-    }
 }
 
 impl SerializableQuery {
@@ -297,69 +230,4 @@ where
     SerializableQuery::from_query(conn, query, entity_type, DatabaseOperation::Update)
         .await
         .attach_printable("Failed to generate update query (with predicate)")
-}
-
-mod entity_type {
-    /// Associates a database type name with an entity type.
-    pub(crate) trait EntityType {
-        const ENTITY_TYPE: &'static str;
-    }
-
-    macro_rules! entity_type {
-        ($($entity_name:literal => { $($type:path),* $(,)? })*) => {
-            $(
-                $(
-                    impl EntityType for $type {
-                        const ENTITY_TYPE: &'static str = $entity_name;
-                    }
-                )*
-            )*
-        };
-    }
-    entity_type! {
-        "payment_intent" => {
-            crate::payment_intent::PaymentIntentNew,
-            crate::payment_intent::PaymentIntentUpdateInternal,
-        }
-        "payment_attempt" => {
-            crate::payment_attempt::PaymentAttemptNew,
-            crate::payment_attempt::PaymentAttemptUpdateInternal,
-        }
-        "customer" => {
-            crate::customers::CustomerNew,
-            crate::customers::CustomerUpdateInternal,
-        }
-        "refund" => {
-            crate::refund::RefundNew,
-            crate::refund::RefundUpdate,
-            crate::refund::RefundUpdateInternal,
-        }
-        "mandate" => {
-            crate::mandate::MandateNew,
-            crate::mandate::MandateUpdateInternal,
-        }
-        "address" => {
-            crate::address::AddressNew,
-            crate::address::AddressUpdateInternal,
-        }
-        "payout_attempt" => {
-            crate::payout_attempt::PayoutAttemptNew,
-            crate::payout_attempt::PayoutAttemptUpdateInternal,
-        }
-        "payout" => {
-            crate::payouts::PayoutsNew,
-            crate::payouts::PayoutsUpdateInternal,
-        }
-        "payment_method" => {
-            crate::payment_method::PaymentMethodNew,
-            crate::payment_method::PaymentMethodUpdateInternal,
-        }
-        "reverse_lookup" => {
-            crate::reverse_lookup::ReverseLookupNew,
-        }
-        "authentication" => {
-            crate::authentication::AuthenticationNew,
-            crate::authentication::AuthenticationUpdateInternal,
-        }
-    }
 }

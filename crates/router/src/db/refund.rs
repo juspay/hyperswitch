@@ -716,7 +716,7 @@ mod storage {
 
                     futures::future::try_join_all(rev_look).await?;
 
-                    let mut query_gen_conn = connection::pg_connection_read(self).await?;
+                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
                     let drainer_query = new
                         .generate_drainer_insert_query(&mut query_gen_conn)
                         .await
@@ -891,7 +891,7 @@ mod storage {
                         .encode_to_string_of_json()
                         .change_context(errors::StorageError::SerializationFailed)?;
 
-                    let mut query_gen_conn = connection::pg_connection_read(self).await?;
+                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
                     let drainer_query = refund
                         .generate_drainer_update_query(
                             &mut query_gen_conn,

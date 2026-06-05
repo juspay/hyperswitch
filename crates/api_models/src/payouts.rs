@@ -285,6 +285,7 @@ impl TryFrom<Bank> for BankTransfer {
                         bank_branch: pix.bank_branch,
                         bank_account_number,
                         tax_id: pix.tax_id,
+                        ispb: pix.ispb,
                     })),
                     // If pix key is present then it's PixKeyBankTransfer
                     (None, Some(pix_key), None) => Ok(Self::PixKey(PixKeyBankTransfer {
@@ -324,6 +325,7 @@ impl From<BankTransfer> for Bank {
                 pix_key: None,
                 tax_id: pix.tax_id,
                 emv: None,
+                ispb: pix.ispb,
             }),
             BankTransfer::Trustly(trustly) => Self::Trustly(TrustlyBankTransfer {
                 iban: trustly.iban,
@@ -338,6 +340,7 @@ impl From<BankTransfer> for Bank {
                 pix_key: None,
                 tax_id: None,
                 emv: Some(pix_emv.emv),
+                ispb: None,
             }),
             BankTransfer::PixKey(pix_key) => Self::Pix(PixBankTransfer {
                 bank_name: None,
@@ -346,6 +349,7 @@ impl From<BankTransfer> for Bank {
                 pix_key: Some(pix_key.pix_key),
                 tax_id: None,
                 emv: None,
+                ispb: None,
             }),
             BankTransfer::OpenBanking(open_banking) => Self::OpenBanking(open_banking),
         }
@@ -507,6 +511,10 @@ pub struct PixBankTransfer {
     /// String formatted QR code for pix payout
     #[schema(value_type = String, example = "00020126580014br.gov.bcb.pix0114000123456785204000053039865802BR5925John Doe6009Sao Paulo61080540900062070503***63041D3D")]
     pub emv: Option<Secret<String>>,
+
+    /// ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.
+    #[schema(value_type = Option<String>, example = "60701190")]
+    pub ispb: Option<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -526,6 +534,10 @@ pub struct PixAccountBankTransfer {
     /// Individual taxpayer identification number
     #[schema(value_type = Option<String>, example = "000123456")]
     pub tax_id: Option<Secret<String>>,
+
+    /// ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.
+    #[schema(value_type = Option<String>, example = "60701190")]
+    pub ispb: Option<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -1275,6 +1287,7 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                 pix_key,
                 tax_id,
                 emv,
+                ispb,
             }) => Self::Pix(Box::new(
                 payout_method_utils::PixBankTransferAdditionalData {
                     bank_name,
@@ -1283,6 +1296,7 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                     pix_key: pix_key.map(From::from),
                     tax_id: tax_id.map(From::from),
                     emv: emv.map(From::from),
+                    ispb,
                 },
             )),
             Bank::Trustly(TrustlyBankTransfer {
@@ -1368,6 +1382,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                 bank_branch,
                 bank_account_number,
                 tax_id,
+                ispb,
             }) => Self::Pix(Box::new(
                 payout_method_utils::PixBankTransferAdditionalData {
                     bank_name,
@@ -1376,6 +1391,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                     pix_key: None,
                     emv: None,
                     tax_id: tax_id.map(From::from),
+                    ispb,
                 },
             )),
             BankTransfer::PixKey(PixKeyBankTransfer { pix_key }) => Self::Pix(Box::new(
@@ -1386,6 +1402,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                     pix_key: Some(pix_key.into()),
                     emv: None,
                     tax_id: None,
+                    ispb: None,
                 },
             )),
             BankTransfer::PixEmv(PixEmvBankTransfer { emv }) => Self::Pix(Box::new(
@@ -1396,6 +1413,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                     pix_key: None,
                     emv: Some(emv.into()),
                     tax_id: None,
+                    ispb: None,
                 },
             )),
 

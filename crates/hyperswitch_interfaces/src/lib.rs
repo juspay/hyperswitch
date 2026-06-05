@@ -35,3 +35,5 @@ pub mod webhooks;
 
 /// Crm interface
 pub mod crm;
+/// Connector relay integration interface
+pub mod relay;

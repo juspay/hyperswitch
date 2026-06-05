@@ -11,6 +11,7 @@ use hyperswitch_masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface, RedisStore};
 mod address;
 pub mod authentication;
+pub mod behaviour;
 pub mod business_profile;
 pub mod callback_mapper;
 pub mod card_issuer;
