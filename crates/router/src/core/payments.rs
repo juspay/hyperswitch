@@ -344,7 +344,14 @@ where
 
             payments_response_operation
                 .to_post_update_tracker()?
-                .save_pm_and_mandate(state, &router_data, &platform, &mut payment_data, profile)
+                .save_pm_and_mandate(
+                    state,
+                    &router_data,
+                    &platform,
+                    &mut payment_data,
+                    profile,
+                    &dimensions,
+                )
                 .await?;
 
             let payment_data = payments_response_operation
@@ -448,7 +455,14 @@ where
 
             payments_response_operation
                 .to_post_update_tracker()?
-                .save_pm_and_mandate(state, &router_data, &platform, &mut payment_data, profile)
+                .save_pm_and_mandate(
+                    state,
+                    &router_data,
+                    &platform,
+                    &mut payment_data,
+                    profile,
+                    &dimensions,
+                )
                 .await?;
 
             let payment_data = payments_response_operation
