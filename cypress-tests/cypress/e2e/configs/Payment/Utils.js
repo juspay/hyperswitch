@@ -539,6 +539,7 @@ export const CONNECTOR_LISTS = {
     MIFINITY_WALLET: ["mifinity"],
     SKRILL_WALLET: ["paysafe"],
     PAYSAFECARD_GIFT_CARD: ["paysafe"],
+    PAZE_WALLET: ["cybersource"],
     PAYPAL_MANDATE: ["paypal"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [
