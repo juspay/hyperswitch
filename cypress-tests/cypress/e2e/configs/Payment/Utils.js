@@ -543,6 +543,7 @@ export const CONNECTOR_LISTS = {
     WECHATPAY_WALLET: ["multisafepay"],
     MBWAY_WALLET: ["multisafepay"],
     SKRILL_WALLET: ["paysafe"],
+    GOOGLE_PAY_WALLET: ["stripe"],
     PAYSAFECARD_GIFT_CARD: ["paysafe"],
     PAYPAL_MANDATE: ["paypal"],
     CARD_INSTALLMENTS: ["adyen"],
