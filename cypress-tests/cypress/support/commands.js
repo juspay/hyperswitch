@@ -4431,7 +4431,10 @@ Cypress.Commands.add(
             // For wallet mandates that return requires_customer_action, payment_method_id may be null initially.
             // It will be populated after handleWalletRedirection and retrieved in subsequent retrievePaymentCallTest.
             if (response.body.payment_method_id) {
-              globalState.set("paymentMethodId", response.body.payment_method_id);
+              globalState.set(
+                "paymentMethodId",
+                response.body.payment_method_id
+              );
             }
           } else {
             expect(response.body).to.have.property("mandate_id");

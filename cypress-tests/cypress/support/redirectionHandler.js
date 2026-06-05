@@ -1053,7 +1053,10 @@ function bankRedirectRedirection(
 
   const adyenWalletTypesWithNullRedirect = ["dana", "go_pay", "momo", "vipps"];
 
-  if (connectorId === "adyen" && adyenWalletTypesWithNullRedirect.includes(paymentMethodType)) {
+  if (
+    connectorId === "adyen" &&
+    adyenWalletTypesWithNullRedirect.includes(paymentMethodType)
+  ) {
     if (redirectionUrl.hostname === "null") {
       cy.log(
         `Adyen ${paymentMethodType} redirect URL has null hostname - skipping redirect handling`
@@ -1067,7 +1070,9 @@ function bankRedirectRedirection(
 
     cy.visit(redirectionUrl.href, { failOnStatusCode: false });
     cy.get("body", { timeout: CONSTANTS.TIMEOUT }).should("exist");
-    cy.log(`Adyen ${paymentMethodType} redirect page loaded (may return error status)`);
+    cy.log(
+      `Adyen ${paymentMethodType} redirect page loaded (may return error status)`
+    );
     verifyUrl = false;
     cy.then(() => {
       verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
@@ -1076,7 +1081,10 @@ function bankRedirectRedirection(
   }
 
   if (connectorId === "adyen" && paymentMethodType === "gcash") {
-    cy.visit(redirectionUrl.href, { failOnStatusCode: false, timeout: CONSTANTS.TIMEOUT * 2 });
+    cy.visit(redirectionUrl.href, {
+      failOnStatusCode: false,
+      timeout: CONSTANTS.TIMEOUT * 2,
+    });
     cy.get("body", { timeout: CONSTANTS.TIMEOUT * 2 }).should("exist");
     cy.log("Adyen Gcash redirect page loaded (extended timeout)");
     verifyUrl = false;
