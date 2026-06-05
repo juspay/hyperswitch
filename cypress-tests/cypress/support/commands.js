@@ -3726,10 +3726,7 @@ Cypress.Commands.add(
 
           validateErrorMessage(response, resData);
 
-          const allowedPmStatuses = [
-              "active",
-              "inactive",
-            ];
+          const allowedPmStatuses = ["active", "inactive"];
 
           if (response.body.capture_method === "automatic") {
             if (response.body.authentication_type === "three_ds") {
