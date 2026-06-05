@@ -2605,6 +2605,10 @@ pub async fn should_execute_based_on_rollout(
 /// 2. `ucs_rollout_config_<org_id>_<merchant_id>_<connector>_...` — org + merchant + connector
 /// 3. `ucs_rollout_config_<org_id>_<merchant_id>`                  — org + merchant
 /// 4. `ucs_rollout_config_<org_id>`                                — org level
+///
+/// Uses `find_config_by_key_unwrap_or` with a sentinel so absent keys are cached after
+/// the first DB miss — subsequent requests hit in-memory cache instead of the DB.
+/// The future is boxed (`Box::pin`) to keep stack frames small under high concurrency.
 pub async fn should_execute_based_on_rollout_with_precedence(
     state: &SessionState,
     // Keys in ascending precedence order (lowest first, highest last)
@@ -2612,16 +2616,29 @@ pub async fn should_execute_based_on_rollout_with_precedence(
 ) -> RouterResult<RolloutExecutionResult> {
     // Iterate highest → lowest (reverse of the input order)
     for key in keys.iter().rev() {
-        match state.store.find_config_by_key(key).await {
-            Ok(rollout_config) => {
+        // Box the future to avoid large stack frames from nested async in debug builds
+        let result = Box::pin(state.store.find_config_by_key_unwrap_or(
+            key,
+            Some(consts::UCS_ROLLOUT_CONFIG_NOT_CONFIGURED.to_string()),
+        ))
+        .await
+        .ok();
+
+        match result {
+            Some(config) if config.config == consts::UCS_ROLLOUT_CONFIG_NOT_CONFIGURED => {
+                // Sentinel — key absent in DB, cached to skip future DB calls
+                logger::debug!(config_key = %key, "Rollout config not set, trying next key");
+                continue;
+            }
+            Some(config) => {
                 logger::info!(config_key = %key, "Rollout config found, using this key");
                 return Ok(
-                    serde_json::from_str::<RolloutConfig>(&rollout_config.config)
+                    serde_json::from_str::<RolloutConfig>(&config.config)
                         .map(RolloutExecutionResult::from)
                         .map_err(|err| {
                             logger::error!(
                                 error = ?err,
-                                config = %rollout_config.config,
+                                config = %config.config,
                                 "Failed to parse rollout config as JSON. Defaulting to not execute."
                             );
                             RolloutExecutionResult::default()
@@ -2629,8 +2646,8 @@ pub async fn should_execute_based_on_rollout_with_precedence(
                         .unwrap_or_default(),
                 );
             }
-            Err(_) => {
-                // Key not found — try next lower precedence key
+            None => {
+                // Unexpected DB error — skip and try next key
                 continue;
             }
         }
