@@ -313,26 +313,6 @@ export const connectorDetails = {
         },
       },
     },
-    No3DSAutoCaptureRefundType: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-          payment_method: "card",
-          attempt_count: 1,
-          payment_method_data: payment_method_data_no3ds_null_meta,
-        },
-      },
-    },
     No3DSFailPayment: {
       Request: {
         payment_method: "card",
@@ -438,38 +418,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-        },
-      },
-    },
-    SyncRefundScheduled: {
-      Response: {
-        status: 200,
-        body: {
-          status: "pending",
-        },
-      },
-    },
-    RefundInstant: {
-      Request: {
-        amount: 6000,
-        refund_type: "instant",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    RefundScheduled: {
-      Request: {
-        amount: 6000,
-        refund_type: "scheduled",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "pending",
         },
       },
     },

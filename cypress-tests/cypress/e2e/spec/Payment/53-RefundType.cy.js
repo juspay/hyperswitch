@@ -65,7 +65,7 @@ describe("Card - Refund Type (instant/scheduled) flow - No 3DS", () => {
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["No3DSAutoCaptureRefundType"];
+        ]["No3DSAutoCapture"];
         cy.confirmCallTest(
           fixtures.confirmBody,
           confirmData,
@@ -87,7 +87,7 @@ describe("Card - Refund Type (instant/scheduled) flow - No 3DS", () => {
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["No3DSAutoCaptureRefundType"];
+        ]["No3DSAutoCapture"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
@@ -164,7 +164,7 @@ describe("Card - Refund Type (instant/scheduled) flow - No 3DS", () => {
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["No3DSAutoCaptureRefundType"];
+        ]["No3DSAutoCapture"];
         cy.confirmCallTest(
           fixtures.confirmBody,
           confirmData,
@@ -186,7 +186,7 @@ describe("Card - Refund Type (instant/scheduled) flow - No 3DS", () => {
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["No3DSAutoCaptureRefundType"];
+        ]["No3DSAutoCapture"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
@@ -237,7 +237,7 @@ describe("Card - Refund Type (instant/scheduled) flow - No 3DS", () => {
         cy.step("Create and Confirm Payment", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
-          ]["No3DSAutoCaptureRefundType"];
+          ]["No3DSAutoCapture"];
           cy.createConfirmPaymentTest(
             fixtures.createConfirmPaymentBody,
             data,
@@ -260,7 +260,7 @@ describe("Card - Refund Type (instant/scheduled) flow - No 3DS", () => {
           }
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
-          ]["No3DSAutoCaptureRefundType"];
+          ]["No3DSAutoCapture"];
           cy.retrievePaymentCallTest({ globalState, data });
           if (!utils.should_continue_further(data)) {
             shouldContinue = false;
@@ -312,7 +312,7 @@ describe("Card - Refund Type (instant/scheduled) flow - No 3DS", () => {
         cy.step("Create and Confirm Payment", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
-          ]["No3DSAutoCaptureRefundType"];
+          ]["No3DSAutoCapture"];
           cy.createConfirmPaymentTest(
             fixtures.createConfirmPaymentBody,
             data,
@@ -335,7 +335,7 @@ describe("Card - Refund Type (instant/scheduled) flow - No 3DS", () => {
           }
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
-          ]["No3DSAutoCaptureRefundType"];
+          ]["No3DSAutoCapture"];
           cy.retrievePaymentCallTest({ globalState, data });
           if (!utils.should_continue_further(data)) {
             shouldContinue = false;
