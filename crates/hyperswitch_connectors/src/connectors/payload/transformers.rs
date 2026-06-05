@@ -52,6 +52,35 @@ fn get_processing_account_id_from_metadata(
         .map(|s| Secret::new(s.to_string()))
 }
 
+fn get_filtered_metadata(metadata: Option<&serde_json::Value>) -> Option<serde_json::Value> {
+    metadata.and_then(|m| match m {
+        serde_json::Value::Object(map) => {
+            let mut filtered = map.clone();
+            filtered.remove("processing_account_id");
+            if filtered.is_empty() {
+                None
+            } else {
+                Some(serde_json::Value::Object(filtered))
+            }
+        }
+        _ => None,
+    })
+}
+
+fn get_description_from_billing_descriptor(
+    billing_descriptor: Option<&common_types::payments::BillingDescriptor>,
+) -> Option<String> {
+    billing_descriptor
+        .and_then(|bd| bd.statement_descriptor.as_ref())
+        .map(|desc| {
+            if desc.len() > 32 {
+                desc.chars().take(32).collect()
+            } else {
+                desc.clone()
+            }
+        })
+}
+
 #[allow(clippy::too_many_arguments)]
 fn build_payload_payment_request_data(
     payment_method_data: &PaymentMethodData,
@@ -64,6 +93,8 @@ fn build_payload_payment_request_data(
     customer_id: Option<String>,
     is_three_ds: bool,
     metadata: Option<&serde_json::Value>,
+    description: Option<String>,
+    billing_descriptor: Option<&common_types::payments::BillingDescriptor>,
 ) -> Result<requests::PayloadPaymentRequestData, Error> {
     let payment_method: Result<requests::PayloadPaymentMethods, Error> = match payment_method_data {
         PaymentMethodData::Card(req_card) => {
@@ -161,6 +192,9 @@ fn build_payload_payment_request_data(
         processing_id: get_processing_account_id_from_metadata(metadata)
             .or(payload_auth.processing_account_id),
         customer_id,
+        description,
+        descriptor: get_description_from_billing_descriptor(billing_descriptor),
+        attrs: get_filtered_metadata(metadata),
     })
 }
 
@@ -298,6 +332,8 @@ impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentRequestData {
                 item.get_connector_customer_id()?.into(),
                 item.is_three_ds(),
                 item.request.metadata.as_ref().map(|m| m.peek()),
+                item.description.clone(),
+                item.request.billing_descriptor.as_ref(),
             )
         }
     }
@@ -349,6 +385,11 @@ impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentMethodRequest 
                     },
                     account_holder,
                     payment_method_type: requests::PayloadPaymentMethodType::BankAccount,
+                    description: item.description.clone(),
+                    descriptor: get_description_from_billing_descriptor(
+                        item.request.billing_descriptor.as_ref(),
+                    ),
+                    attrs: item.request.metadata.clone().expose_option(),
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -366,6 +407,10 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &PayloadRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        let description = item.router_data.description.clone();
+        let billing_descriptor = item.router_data.request.billing_descriptor.as_ref();
+        let metadata = item.router_data.request.metadata.as_ref();
+
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::BankDebit(BankDebitData::AchBankDebit { .. })
             | PaymentMethodData::Card(_) => {
@@ -382,7 +427,9 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                     is_mandate,
                     item.router_data.connector_customer.clone(),
                     item.router_data.is_three_ds(),
-                    item.router_data.request.metadata.as_ref(),
+                    metadata,
+                    description,
+                    billing_descriptor,
                 )?;
 
                 Ok(Self::PaymentRequest(Box::new(payment_request)))
@@ -409,6 +456,9 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                         ),
                         status,
                         processing_id,
+                        description,
+                        descriptor: get_description_from_billing_descriptor(billing_descriptor),
+                        attrs: get_filtered_metadata(metadata),
                     },
                 )))
             }

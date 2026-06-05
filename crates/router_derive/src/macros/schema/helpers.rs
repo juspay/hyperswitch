@@ -12,6 +12,7 @@ mod keyword {
     custom_keyword!(min_length);
     custom_keyword!(max_length);
     custom_keyword!(example);
+    custom_keyword!(deprecated);
 }
 
 pub enum SchemaParameterVariant {
@@ -30,6 +31,9 @@ pub enum SchemaParameterVariant {
     Example {
         keyword: keyword::example,
         value: LitStr,
+    },
+    Deprecated {
+        keyword: keyword::deprecated,
     },
 }
 
@@ -56,6 +60,9 @@ impl Parse for SchemaParameterVariant {
             input.parse::<Token![=]>()?;
             let value = input.parse()?;
             Ok(Self::Example { keyword, value })
+        } else if lookahead.peek(keyword::deprecated) {
+            let keyword = input.parse()?;
+            Ok(Self::Deprecated { keyword })
         } else {
             Err(lookahead.error())
         }
@@ -69,6 +76,7 @@ impl ToTokens for SchemaParameterVariant {
             Self::MinLength { keyword, .. } => keyword.to_tokens(tokens),
             Self::MaxLength { keyword, .. } => keyword.to_tokens(tokens),
             Self::Example { keyword, .. } => keyword.to_tokens(tokens),
+            Self::Deprecated { keyword } => keyword.to_tokens(tokens),
         }
     }
 }
@@ -141,6 +149,7 @@ impl HasSchemaParameters for Field {
                     example_keyword = Some(keyword);
                     output.example = Some(value.value());
                 }
+                SchemaParameterVariant::Deprecated { .. } => {}
             }
         }
 
