@@ -14,7 +14,7 @@ use std::{fmt::Debug, sync::Arc};
 
 #[cfg(feature = "dynamic_routing")]
 use common_utils::consts;
-use common_utils::{id_type, ucs_types};
+use common_utils::{external_service::ExternalServiceEventEmitter, id_type, ucs_types};
 #[cfg(feature = "dynamic_routing")]
 use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
 #[cfg(feature = "dynamic_routing")]
@@ -79,7 +79,10 @@ impl GrpcClientSettings {
     /// This function will panic if it fails to establish a connection with the gRPC server.
     /// This function will be called at service startup.
     #[allow(clippy::expect_used)]
-    pub async fn get_grpc_client_interface(&self) -> Arc<GrpcClients> {
+    pub async fn get_grpc_client_interface(
+        &self,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+    ) -> Arc<GrpcClients> {
         #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
         let client =
             hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
@@ -101,7 +104,7 @@ impl GrpcClientSettings {
             .expect("Failed to build gRPC connections");
 
         let unified_connector_service_client =
-            UnifiedConnectorServiceClient::build_connections(self).await;
+            UnifiedConnectorServiceClient::build_connections(self, event_emitter).await;
 
         #[cfg(feature = "revenue_recovery")]
         let recovery_decider_client = {

@@ -506,7 +506,17 @@ impl AppState {
             let theme_storage_client = conf.theme.storage.get_file_storage_client().await;
             let crm_client = conf.crm.get_crm_client().await;
 
-            let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
+            let grpc_event_emitter: Arc<
+                dyn common_utils::external_service::ExternalServiceEventEmitter,
+            > = if conf.events.emit_external_service_call_events {
+                Arc::new(event_handler.clone())
+            } else {
+                Arc::new(common_utils::external_service::NoOpEventEmitter)
+            };
+            let grpc_client = conf
+                .grpc_client
+                .get_grpc_client_interface(grpc_event_emitter)
+                .await;
             let infra_component_values = Self::process_env_mappings(conf.infra_values.clone());
             let enhancement = conf.enhancement.clone();
             #[allow(clippy::expect_used)]
