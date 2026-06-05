@@ -545,16 +545,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          session_token: [
-            {
-              wallet_name: "apple_pay",
-              connector: "trustpay",
-            },
-            {
-              wallet_name: "google_pay",
-              connector: "trustpay",
-            },
-          ],
+          session_token: [],
         },
       },
     },
