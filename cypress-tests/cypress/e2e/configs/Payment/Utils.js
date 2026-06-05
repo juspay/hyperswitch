@@ -537,7 +537,7 @@ export const CONNECTOR_LISTS = {
     BANK_REDIRECT_MANDATE: ["adyen"],
     BLUECODE_WALLET: ["calida"],
     ALIPAY_HK_WALLET: ["adyen"],
-    PAYPAL_WALLET: ["novalnet", "paypal", "multisafepay"],
+    PAYPAL_WALLET: ["authorizedotnet", "multisafepay", "novalnet", "paypal"],
     MIFINITY_WALLET: ["mifinity"],
     ALIPAY_WALLET: ["multisafepay"],
     WECHATPAY_WALLET: ["multisafepay"],
