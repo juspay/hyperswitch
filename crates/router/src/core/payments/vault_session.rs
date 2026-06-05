@@ -1,5 +1,6 @@
 pub use common_enums::enums::CallConnectorAction;
 use common_utils::id_type;
+use hyperswitch_masking::ExposeInterface;
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 pub use hyperswitch_domain_models::payments::PaymentIntentData;
@@ -17,7 +18,7 @@ use hyperswitch_interfaces::api::Connector as ConnectorTrait;
 #[cfg(feature = "v2")]
 use hyperswitch_interfaces::connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2};
 #[cfg(feature = "v1")]
-use hyperswitch_masking::{ExposeInterface, Mask};
+use hyperswitch_masking::Mask;
 use router_env::env::Env;
 
 #[cfg(feature = "v2")]
@@ -377,91 +378,6 @@ pub async fn generate_vault_session_details(
 }
 
 #[cfg(feature = "v1")]
-pub async fn generate_vault_session_details_v1(
-    state: &SessionState,
-    processor: &domain::Processor,
-    vault_mca: &domain::MerchantConnectorAccount,
-    connector_customer_id: Option<String>,
-) -> RouterResult<Option<api::VaultSessionDetails>> {
-    let connector_name_str = vault_mca.get_connector_name_as_string();
-    let connector =
-        api_enums::VaultConnectors::from_connector_name(&connector_name_str).map_err(|error| {
-            report!(errors::ApiErrorResponse::InternalServerError).attach_printable(error)
-        })?;
-
-    let connector_auth_type: router_types::ConnectorAuthType = vault_mca
-        .get_connector_account_details()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to parse connector auth type")?;
-
-    match (connector, connector_auth_type) {
-        // create session for vgs vault
-        (
-            api_enums::VaultConnectors::Vgs,
-            router_types::ConnectorAuthType::SignatureKey { api_secret, .. },
-        ) => {
-            let sdk_env = match state.conf.env {
-                Env::Sandbox | Env::Development | Env::Integ => {
-                    common_enums::enums::VaultEnv::Sandbox.to_string()
-                }
-                Env::Production => common_enums::enums::VaultEnv::Live.to_string(),
-            };
-            Ok(Some(api::VaultSessionDetails::Vgs(
-                api::VgsSessionDetails {
-                    external_vault_id: api_secret,
-                    sdk_env,
-                },
-            )))
-        }
-        // create session for hyperswitch vault
-        (
-            api_enums::VaultConnectors::HyperswitchVault,
-            router_types::ConnectorAuthType::SignatureKey {
-                key1, api_secret, ..
-            },
-        ) => {
-            let connector_response = call_external_vault_create_v1(
-                state,
-                processor,
-                connector_name_str,
-                vault_mca,
-                connector_customer_id,
-            )
-            .await?;
-
-            match connector_response.response {
-                Ok(router_types::VaultResponseData::ExternalVaultCreateResponse {
-                    session_id,
-                    client_secret,
-                }) => Ok(Some(api::VaultSessionDetails::HyperswitchVault(
-                    api::HyperswitchVaultSessionDetails {
-                        payment_method_session_id: session_id,
-                        client_secret,
-                        publishable_key: key1,
-                        profile_id: api_secret,
-                    },
-                ))),
-                Ok(_) => {
-                    router_env::logger::warn!("Unexpected response from external vault create API");
-                    Err(errors::ApiErrorResponse::InternalServerError.into())
-                }
-                Err(err) => {
-                    router_env::logger::error!(error_response_from_external_vault_create=?err);
-                    Err(errors::ApiErrorResponse::InternalServerError.into())
-                }
-            }
-        }
-        _ => {
-            router_env::logger::warn!(
-                "External vault session creation is not supported for connector: {:?}",
-                connector
-            );
-            Ok(None)
-        }
-    }
-}
-
-#[cfg(feature = "v1")]
 async fn call_external_vault_create_v1(
     state: &SessionState,
     processor: &domain::Processor,
@@ -525,7 +441,7 @@ async fn generate_hyperswitch_vault_session_details(
     merchant_connector_account_type: &domain::MerchantConnectorAccountTypeDetails,
     connector_customer_id: Option<String>,
     connector_name: String,
-    vault_publishable_key: hyperswitch_masking::Secret<String>,
+    _vault_publishable_key: hyperswitch_masking::Secret<String>,
     vault_profile_id: hyperswitch_masking::Secret<String>,
 ) -> RouterResult<Option<api::VaultSessionDetails>> {
     let connector_response = call_external_vault_create(
@@ -533,7 +449,7 @@ async fn generate_hyperswitch_vault_session_details(
         platform,
         connector_name,
         merchant_connector_account_type,
-        connector_customer_id,
+        connector_customer_id.clone(),
     )
     .await?;
 
@@ -541,14 +457,49 @@ async fn generate_hyperswitch_vault_session_details(
         Ok(router_types::VaultResponseData::ExternalVaultCreateResponse {
             session_id,
             client_secret,
-        }) => Ok(Some(api::VaultSessionDetails::HyperswitchVault(
-            api::HyperswitchVaultSessionDetails {
-                payment_method_session_id: session_id,
-                client_secret,
-                publishable_key: vault_publishable_key,
-                profile_id: vault_profile_id,
-            },
-        ))),
+        }) => {
+            // Build the base64-encoded SDK authorization for the Hyperswitch Vault session,
+            // mirroring the payment-method-session-create response, instead of exposing the
+            // individual vault keys.
+            let sdk_authorization =
+                Option::<hyperswitch_domain_models::sdk_auth::SdkAuthorization>::from(
+                    hyperswitch_domain_models::sdk_auth::SdkAuthorizationContext {
+                        platform: platform.to_owned(),
+                        profile_id: id_type::ProfileId::try_from(std::borrow::Cow::from(
+                            vault_profile_id.expose(),
+                        ))
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Invalid profile_id in Hyperswitch Vault connector auth",
+                        )?,
+                        client_secret: client_secret.expose(),
+                        customer_id: connector_customer_id
+                            .map(id_type::GlobalCustomerId::new_unchecked),
+                        payment_method_session_id: Some(
+                            id_type::GlobalPaymentMethodSessionId::new_unchecked(
+                                session_id.expose(),
+                            ),
+                        ),
+                    },
+                )
+                .map(|auth| auth.encode())
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to encode Hyperswitch Vault SDK authorization")?;
+
+            match sdk_authorization {
+                Some(sdk_authorization) => Ok(Some(api::VaultSessionDetails::HyperswitchVault(
+                    api::HyperswitchVaultSessionDetails { payment_method_session_id: session_id, sdk_authorization: sdk_authorization.into() },
+                ))),
+                None => {
+                    router_env::logger::warn!(
+                        "No SDK authorization generated for Hyperswitch Vault session (non-API initiator)"
+                    );
+                    Ok(None)
+                }
+            }
+        }
+
         Ok(_) => {
             router_env::logger::warn!("Unexpected response from external vault create API");
             Err(errors::ApiErrorResponse::InternalServerError.into())

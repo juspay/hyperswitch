@@ -768,6 +768,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::AmazonPayShippingMethod,
         api_models::payments::VaultDetails,
         api_models::payments::InternalVaultSessionDetails,
+        api_models::payments::ProxyCardData,
         api_models::payment_methods::RequiredFieldInfo,
         api_models::payment_methods::DefaultPaymentMethod,
         api_models::payment_methods::MaskedBankDetails,

@@ -27,7 +27,9 @@ pub struct CreatePaymentMethodV1Request {
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub customer_id: id_type::CustomerId, // Payment method data will be saved when customer acceptance is given, hence customer id will always be present
-    pub payment_method_data: PaymentMethodData,
+    /// The payment method data for the normal create flow. `None` for the external vault proxy
+    /// flow, where `proxy_card_data` is set instead.
+    pub payment_method_data: Option<PaymentMethodData>,
     pub billing: Option<hyperswitch_domain_models::address::Address>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub storage_type: Option<common_enums::StorageType>,
@@ -307,7 +309,19 @@ impl TryFrom<&CreatePaymentMethodV1Request> for ModularPMCreateRequest {
         let payment_method_data = if let Some(proxy_card) = request.proxy_card_data.clone() {
             PaymentMethodCreateData::from(proxy_card)
         } else {
-            PaymentMethodCreateData::try_from(request.payment_method_data.clone())?
+            let payment_method_data =
+                request
+                    .payment_method_data
+                    .clone()
+                    .ok_or_else(|| MicroserviceClientError {
+                        operation: "CreatePaymentMethodV1Request to ModularPMCreateRequest"
+                            .to_string(),
+                        kind: MicroserviceClientErrorKind::InvalidRequest(
+                            "payment_method_data is required when proxy_card_data is not provided"
+                                .to_string(),
+                        ),
+                    })?;
+            PaymentMethodCreateData::try_from(payment_method_data)?
         };
         Ok(Self {
             payment_method_type: request.payment_method,

@@ -1912,10 +1912,10 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
             api_models::payments::PaymentMethodData::NetworkToken(network_token_data) => {
                 Self::NetworkToken(From::from(network_token_data))
             }
-            // VaultDataCard is handled before reaching domain conversion (routed to
+            // ProxyCard is handled before reaching domain conversion (routed to
             // external_vault_proxy_for_payments_core). This branch should not be reached
             // in normal flow, but we handle it gracefully.
-            api_models::payments::PaymentMethodData::VaultDataCard(_) => {
+            api_models::payments::PaymentMethodData::ProxyCard(_) => {
                 // This variant is intercepted at the routing layer and should not reach here.
                 // Falling back to MandatePayment as a safe no-op sentinel value.
                 Self::MandatePayment
@@ -1927,7 +1927,7 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
 impl From<api_models::payments::ProxyPaymentMethodData> for ExternalVaultPaymentMethodData {
     fn from(api_model_payment_method_data: api_models::payments::ProxyPaymentMethodData) -> Self {
         match api_model_payment_method_data {
-            api_models::payments::ProxyPaymentMethodData::VaultDataCard(card_data) => {
+            api_models::payments::ProxyPaymentMethodData::ProxyCard(card_data) => {
                 Self::Card(Box::new(ExternalVaultCard::from(*card_data)))
             }
             api_models::payments::ProxyPaymentMethodData::VaultToken(vault_data) => {

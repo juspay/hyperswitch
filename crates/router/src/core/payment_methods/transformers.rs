@@ -2049,7 +2049,7 @@ pub async fn create_payment_method_in_modular_service(
         payment_method_type,
         metadata: None,
         customer_id,
-        payment_method_data,
+        payment_method_data: Some(payment_method_data),
         billing: billing_address,
         network_tokenization: is_network_tokenization_enabled.then_some(
             common_types::payment_methods::NetworkTokenization {
@@ -2089,14 +2089,14 @@ pub async fn create_proxy_card_payment_method_in_modular_service(
     billing_address: Option<hyperswitch_domain_models::address::Address>,
     customer_id: id_type::CustomerId,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
-    // Use a placeholder PaymentMethodData::MandatePayment since proxy_card_data overrides it
+    // Proxy flow: the card comes from `proxy_card_data`, so `payment_method_data` is None.
     let payment_method_request = CreatePaymentMethodV1Request {
         merchant_id: provider_merchant_id.clone(),
         payment_method,
         payment_method_type,
         metadata: None,
         customer_id,
-        payment_method_data: domain::PaymentMethodData::MandatePayment,
+        payment_method_data: None,
         billing: billing_address,
         network_tokenization: None,
         storage_type: Some(common_enums::StorageType::Persistent),

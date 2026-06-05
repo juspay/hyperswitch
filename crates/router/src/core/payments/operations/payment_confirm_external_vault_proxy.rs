@@ -192,14 +192,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
         };
 
         // The external vault proxy flow is non-PCI: the confirm request carries vault card data
-        // as `PaymentMethodData::VaultDataCard`. Derive the external vault payment method data
+        // as `PaymentMethodData::ProxyCard`. Derive the external vault payment method data
         // from it. Any other payment method data variant is not routed here (see the route layer).
         let external_vault_pmd = request
             .payment_method_data
             .as_ref()
             .and_then(|pmd| pmd.payment_method_data.as_ref())
             .and_then(|pmd| match pmd {
-                api_models::payments::PaymentMethodData::VaultDataCard(card) => Some(
+                api_models::payments::PaymentMethodData::ProxyCard(card) => Some(
                     hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
                         Box::new(
                             hyperswitch_domain_models::payment_method_data::ExternalVaultCard::from(
@@ -454,7 +454,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
         _platform: &domain::Platform,
         _feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<PaymentMethodFetchData> {
-        // The external vault proxy flow only supports inline `VaultDataCard`, so there is no
+        // The external vault proxy flow only supports inline `ProxyCard`, so there is no
         // stored payment method to fetch up front. The vault card is parsed from the request
         // in `get_trackers`.
         Ok(PaymentMethodFetchData::default())
@@ -471,13 +471,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
         business_profile: &domain::Profile,
         feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<()> {
-        router_env::logger::info!(
-            is_payment_method_modular_allowed = feature_config.is_payment_method_modular_allowed,
-            has_customer_acceptance = payment_data.customer_acceptance.is_some(),
-            has_external_vault_pmd = payment_data.external_vault_pmd.is_some(),
-            has_customer_id = payment_data.payment_intent.customer_id.is_some(),
-            "create_payment_method called for external vault proxy"
-        );
 
         // Only create if customer has given acceptance
         if payment_data.customer_acceptance.is_none() {

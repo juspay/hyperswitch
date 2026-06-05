@@ -3150,7 +3150,7 @@ mod payment_method_data_serde {
                     | PaymentMethodData::Voucher(_)
                     | PaymentMethodData::Card(_)
                     | PaymentMethodData::NetworkToken(_)
-                    | PaymentMethodData::VaultDataCard(_)
+                    | PaymentMethodData::ProxyCard(_)
                     | PaymentMethodData::MandatePayment
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::Wallet(_) => {
@@ -3230,7 +3230,7 @@ pub struct ProxyPaymentMethodDataRequest {
 #[serde(rename_all = "snake_case")]
 pub enum ProxyPaymentMethodData {
     #[schema(title = "ProxyCardData")]
-    VaultDataCard(Box<ProxyCardData>),
+    ProxyCard(Box<ProxyCardData>),
     VaultToken(VaultToken),
     /// Used for repeat CIT flow with an internal PM service token.
     /// The card number, expiry tokens come from the PM service (via `payment_token`),
@@ -3508,8 +3508,8 @@ pub enum PaymentMethodData {
     NetworkToken(NetworkTokenData),
     /// Vault card data used for external vault proxy payments.
     /// When this variant is used, the payment will be routed through the external vault proxy flow.
-    #[schema(title = "VaultDataCard")]
-    VaultDataCard(Box<ProxyCardData>),
+    #[schema(title = "ProxyCard")]
+    ProxyCard(Box<ProxyCardData>),
 }
 
 pub trait GetAddressFromPaymentMethodData {
@@ -3537,7 +3537,7 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             | Self::MandatePayment
             | Self::MobilePayment(_)
             | Self::NetworkToken(_)
-            | Self::VaultDataCard(_) => None,
+            | Self::ProxyCard(_) => None,
         }
     }
 }
@@ -3562,7 +3562,7 @@ impl PaymentMethodData {
             Self::MobilePayment(_) => Some(api_enums::PaymentMethod::MobilePayment),
             Self::NetworkToken(_) => Some(api_enums::PaymentMethod::NetworkToken),
             Self::CardToken(_) | Self::MandatePayment => None,
-            Self::VaultDataCard(_) => Some(api_enums::PaymentMethod::Card),
+            Self::ProxyCard(_) => Some(api_enums::PaymentMethod::Card),
         }
     }
 }
@@ -10206,15 +10206,8 @@ pub struct HyperswitchVaultSessionDetails {
     /// Session ID for Hyperswitch Vault
     #[schema(value_type = String)]
     pub payment_method_session_id: Secret<String>,
-    /// Client secret for Hyperswitch Vault
-    #[schema(value_type = String)]
-    pub client_secret: Secret<String>,
-    /// Publishable key for Hyperswitch Vault
-    #[schema(value_type = String)]
-    pub publishable_key: Secret<String>,
-    /// Profile ID for Hyperswitch Vault
-    #[schema(value_type = String)]
-    pub profile_id: Secret<String>,
+    /// Base64-encoded SDK authorization token for the Hyperswitch Vault session
+    pub sdk_authorization: Secret<String>,
 }
 
 #[derive(

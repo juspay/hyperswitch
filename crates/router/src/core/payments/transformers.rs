@@ -944,7 +944,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
             .authentication_type
             .unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
-        connector_wallets_details: merchant_connector_account.get_connector_wallets_details(),
+        connector_wallets_details: None,
         request,
         response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
         amount_captured: payment_data
@@ -988,11 +988,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
         connector_api_version: None,
         connector_http_status_code: None,
         external_latency: None,
-        apple_pay_flow: payments::decide_apple_pay_flow(
-            state,
-            payment_data.payment_attempt.payment_method_type,
-            Some(merchant_connector_account),
-        ),
+        apple_pay_flow: None,
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,

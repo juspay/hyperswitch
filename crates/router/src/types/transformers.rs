@@ -448,7 +448,7 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
                 })
             }
             payments::PaymentMethodData::NetworkToken(..) => Ok(Self::NetworkToken),
-            payments::PaymentMethodData::VaultDataCard(..) => Ok(Self::Card),
+            payments::PaymentMethodData::ProxyCard(..) => Ok(Self::Card),
         }
     }
 }
