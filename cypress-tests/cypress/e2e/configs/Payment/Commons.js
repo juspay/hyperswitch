@@ -569,6 +569,30 @@ export const payment_methods_enabled = [
         recurring_enabled: false,
         installment_payment_enabled: false,
       },
+      {
+        payment_method_type: "ali_pay",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "we_chat_pay",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "mb_way",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
     ],
   },
   {
@@ -594,6 +618,121 @@ export const payment_methods_enabled = [
         minimum_amount: 0,
         maximum_amount: 68607706,
         recurring_enabled: true,
+        installment_payment_enabled: false,
+      },
+    ],
+  },
+  {
+    payment_method: "voucher",
+    payment_method_types: [
+      {
+        payment_method_type: "boleto",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "oxxo",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "alfamart",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "indomaret",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "seven_eleven",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "lawson",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "mini_stop",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "family_mart",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "seicomart",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "pay_easy",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
         installment_payment_enabled: false,
       },
     ],
@@ -646,6 +785,28 @@ export const payment_methods_enabled = [
     payment_method_types: [
       {
         payment_method_type: "klarna",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "affirm",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "atome",
         payment_experience: "redirect_to_url",
         card_networks: null,
         accepted_currencies: null,
@@ -1319,6 +1480,39 @@ export const connectorDetails = {
         ],
       },
     }),
+    Affirm: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "affirm",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            affirm_redirect: {},
+          },
+        },
+        billing: {
+          email: "guest@juspay.in",
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+    }),
     AutoCapture: getCustomExchange({
       Request: {
         currency: "EUR",
@@ -1341,6 +1535,46 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
         },
+      },
+    }),
+    AffirmManualCapture: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "affirm",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            affirm_redirect: {
+              billing_email: "guest@juspay.in",
+              billing_country: "US",
+            },
+          },
+        },
+        billing: {
+          email: "guest@juspay.in",
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056599999",
+            country_code: "+1",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
       },
     }),
     Capture: getCustomExchange({
@@ -1487,6 +1721,23 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
     }),
+    ExtendedCardInfo: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
     No3DSFailPayment: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -1593,6 +1844,27 @@ export const connectorDetails = {
     PartialCapture: getCustomExchange({
       Request: {
         amount_to_capture: 2000,
+      },
+    }),
+    MultipleCapture: getCustomExchange({
+      Request: {
+        amount_to_capture: 3000,
+      },
+    }),
+    MultipleCapturePartial: getCustomExchange({
+      Request: {
+        amount_to_capture: 2000,
+      },
+    }),
+    MultipleCaptureFinal: getCustomExchange({
+      Request: {
+        amount_to_capture: 2000,
+      },
+    }),
+    MultipleCaptureRetrieve: getCustomExchange({}),
+    MultipleCaptureOvercapture: getCustomExchange({
+      Request: {
+        amount_to_capture: 7000,
       },
     }),
     Void: getCustomExchange({
@@ -2906,6 +3178,30 @@ export const connectorDetails = {
         currency: "USD",
       },
     }),
+    ManualPaymentUpdate: getCustomExchange({
+      Request: {
+        attempt_status: "pending",
+        error_code: "TEST_ERROR",
+        error_message: "Manual test error message",
+      },
+      Response: {
+        status: 200,
+        body: {
+          attempt_status: "pending",
+        },
+      },
+    }),
+    ManualPaymentUpdateStatusOnly: getCustomExchange({
+      Request: {
+        attempt_status: "pending",
+      },
+      Response: {
+        status: 200,
+        body: {
+          attempt_status: "pending",
+        },
+      },
+    }),
     OrderDetails: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -3691,6 +3987,323 @@ export const connectorDetails = {
             pay_safe_card: {},
           },
         },
+      },
+    }),
+  },
+  voucher_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: getCurrency(paymentMethodType),
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
+    Boleto: getCustomExchange({
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "boleto",
+        payment_method_data: {
+          voucher: {
+            boleto: {
+              social_security_number: "12345678909",
+              document_type: "cpf",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "Rua Test 123",
+            city: "Sao Paulo",
+            state: "SP",
+            zip: "01310100",
+            country: "BR",
+            first_name: "Test",
+            last_name: "User",
+          },
+          phone: {
+            number: "11987654321",
+            country_code: "+55",
+          },
+          email: "test@example.com",
+        },
+        currency: "BRL",
+      },
+    }),
+    Oxxo: getCustomExchange({
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "oxxo",
+        payment_method_data: {
+          voucher: {
+            oxxo: null,
+          },
+        },
+        billing: {
+          address: {
+            line1: "123 Test St",
+            city: "Mexico City",
+            state: "Mexico",
+            zip: "06600",
+            country: "MX",
+            first_name: "Test",
+            last_name: "User",
+          },
+          email: "test@example.com",
+        },
+        currency: "MXN",
+      },
+    }),
+    Alfamart: getCustomExchange({
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "alfamart",
+        payment_method_data: {
+          voucher: {
+            alfamart: {
+              first_name: "Test",
+              last_name: "User",
+              email: "test@example.com",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "Jl Test 123",
+            city: "Jakarta",
+            state: "DKI Jakarta",
+            zip: "10110",
+            country: "ID",
+            first_name: "Test",
+            last_name: "User",
+          },
+          email: "test@example.com",
+        },
+        currency: "IDR",
+      },
+    }),
+    Indomaret: getCustomExchange({
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "indomaret",
+        payment_method_data: {
+          voucher: {
+            indomaret: {
+              first_name: "Test",
+              last_name: "User",
+              email: "test@example.com",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "Jl Test 123",
+            city: "Jakarta",
+            state: "DKI Jakarta",
+            zip: "10110",
+            country: "ID",
+            first_name: "Test",
+            last_name: "User",
+          },
+          email: "test@example.com",
+        },
+        currency: "IDR",
+      },
+    }),
+    SevenEleven: getCustomExchange({
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "seven_eleven",
+        payment_method_data: {
+          voucher: {
+            seven_eleven: {
+              first_name: "Test",
+              last_name: "User",
+              email: "test@example.com",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1-1 Test",
+            city: "Tokyo",
+            state: "Tokyo",
+            zip: "1000001",
+            country: "JP",
+            first_name: "Test",
+            last_name: "User",
+          },
+          phone: {
+            number: "312345678",
+            country_code: "+81",
+          },
+          email: "test@example.com",
+        },
+        currency: "JPY",
+      },
+    }),
+    Lawson: getCustomExchange({
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "lawson",
+        payment_method_data: {
+          voucher: {
+            lawson: {
+              first_name: "Test",
+              last_name: "User",
+              email: "test@example.com",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1-1 Test",
+            city: "Tokyo",
+            state: "Tokyo",
+            zip: "1000001",
+            country: "JP",
+            first_name: "Test",
+            last_name: "User",
+          },
+          phone: {
+            number: "312345678",
+            country_code: "+81",
+          },
+          email: "test@example.com",
+        },
+        currency: "JPY",
+      },
+    }),
+    MiniStop: getCustomExchange({
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "mini_stop",
+        payment_method_data: {
+          voucher: {
+            mini_stop: {
+              first_name: "Test",
+              last_name: "User",
+              email: "test@example.com",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1-1 Test",
+            city: "Tokyo",
+            state: "Tokyo",
+            zip: "1000001",
+            country: "JP",
+            first_name: "Test",
+            last_name: "User",
+          },
+          phone: {
+            number: "312345678",
+            country_code: "+81",
+          },
+          email: "test@example.com",
+        },
+        currency: "JPY",
+      },
+    }),
+    FamilyMart: getCustomExchange({
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "family_mart",
+        payment_method_data: {
+          voucher: {
+            family_mart: {
+              first_name: "Test",
+              last_name: "User",
+              email: "test@example.com",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1-1 Test",
+            city: "Tokyo",
+            state: "Tokyo",
+            zip: "1000001",
+            country: "JP",
+            first_name: "Test",
+            last_name: "User",
+          },
+          phone: {
+            number: "312345678",
+            country_code: "+81",
+          },
+          email: "test@example.com",
+        },
+        currency: "JPY",
+      },
+    }),
+    Seicomart: getCustomExchange({
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "seicomart",
+        payment_method_data: {
+          voucher: {
+            seicomart: {
+              first_name: "Test",
+              last_name: "User",
+              email: "test@example.com",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1-1 Test",
+            city: "Tokyo",
+            state: "Tokyo",
+            zip: "1000001",
+            country: "JP",
+            first_name: "Test",
+            last_name: "User",
+          },
+          phone: {
+            number: "312345678",
+            country_code: "+81",
+          },
+          email: "test@example.com",
+        },
+        currency: "JPY",
+      },
+    }),
+    PayEasy: getCustomExchange({
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "pay_easy",
+        payment_method_data: {
+          voucher: {
+            pay_easy: {
+              first_name: "Test",
+              last_name: "User",
+              email: "test@example.com",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1-1 Test",
+            city: "Tokyo",
+            state: "Tokyo",
+            zip: "1000001",
+            country: "JP",
+            first_name: "Test",
+            last_name: "User",
+          },
+          phone: {
+            number: "312345678",
+            country_code: "+81",
+          },
+          email: "test@example.com",
+        },
+        currency: "JPY",
       },
     }),
   },

@@ -893,6 +893,10 @@ impl Relay {
         web::scope("/relay")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(relay::relay)))
+            .service(
+                web::resource("/unreferenced_refund")
+                    .route(web::post().to(relay::unreferenced_refund)),
+            )
             .service(web::resource("/{relay_id}").route(web::get().to(relay::relay_retrieve)))
     }
 }
@@ -2765,6 +2769,10 @@ impl User {
                 .route(web::post().to(user::user_merchant_account_create)),
         );
         route = route.service(
+            web::resource("/merchant-details")
+                .route(web::get().to(user::get_user_merchant_details)),
+        );
+        route = route.service(
             web::scope("/list")
                 .service(
                     web::resource("/merchant")
@@ -2822,6 +2830,10 @@ impl User {
             .service(
                 web::resource("/create_merchant")
                     .route(web::post().to(user::user_merchant_account_create)),
+            )
+            .service(
+                web::resource("/merchant_details")
+                    .route(web::get().to(user::get_user_merchant_details)),
             )
             // TODO: To be deprecated
             .service(

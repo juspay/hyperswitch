@@ -12,6 +12,7 @@ use super::generics;
 use crate::{
     enums,
     errors::DatabaseError,
+    kv,
     payout_attempt::{
         PayoutAttempt, PayoutAttemptNew, PayoutAttemptUpdate, PayoutAttemptUpdateInternal,
     },
@@ -22,6 +23,13 @@ use crate::{
 impl PayoutAttemptNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PayoutAttempt> {
         generics::generic_insert(conn, self).await
+    }
+
+    pub async fn generate_drainer_insert_query(
+        self,
+        conn: &mut PgPooledConn,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_insert_query(conn, self).await
     }
 }
 
@@ -241,5 +249,23 @@ impl PayoutAttempt {
             payout_status,
             filter_payout_method,
         ))
+    }
+}
+
+impl PayoutAttemptUpdate {
+    pub async fn generate_drainer_update_query(
+        self,
+        conn: &mut PgPooledConn,
+        payout_attempt_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_update_query_with_predicate::<<PayoutAttempt as HasTable>::Table, _, _>(
+            conn,
+            dsl::payout_attempt_id
+                .eq(payout_attempt_id)
+                .and(dsl::merchant_id.eq(merchant_id)),
+            PayoutAttemptUpdateInternal::from(self),
+        )
+        .await
     }
 }

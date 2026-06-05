@@ -1,189 +1,155 @@
-use error_stack::ResultExt;
-use serde::{Deserialize, Serialize};
+mod bind_params;
+mod entity_type;
+mod pg_type_metadata;
 
-#[cfg(feature = "v2")]
-use crate::payment_attempt::PaymentAttemptUpdateInternal;
-#[cfg(feature = "v1")]
-use crate::payment_intent::PaymentIntentUpdate;
-#[cfg(feature = "v2")]
-use crate::payment_intent::PaymentIntentUpdateInternal;
-use crate::{
-    address::{Address, AddressNew, AddressUpdateInternal},
-    customers::{Customer, CustomerNew, CustomerUpdateInternal},
-    errors,
-    payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
-    payment_intent::PaymentIntentNew,
-    payout_attempt::{PayoutAttempt, PayoutAttemptNew, PayoutAttemptUpdate},
-    payouts::{Payouts, PayoutsNew, PayoutsUpdate},
-    refund::{Refund, RefundNew, RefundUpdate},
-    reverse_lookup::{ReverseLookup, ReverseLookupNew},
-    Mandate, MandateNew, MandateUpdateInternal, PaymentIntent, PaymentMethod, PaymentMethodNew,
-    PaymentMethodUpdateInternal, PgPooledConn,
+use async_bb8_diesel::AsyncConnection;
+use common_utils::pii;
+use diesel::{
+    associations::HasTable,
+    debug_query,
+    dsl::{Filter, Find},
+    pg::Pg,
+    query_builder::{
+        bind_collector::RawBytesBindCollector, AsChangeset, AsQuery, CollectedQuery,
+        InsertStatement, IntoUpdateTarget, MoveableBindCollector, QueryBuilder, QueryFragment,
+        UpdateStatement,
+    },
+    query_dsl::methods::{ExecuteDsl, FilterDsl, FindDsl},
+    query_source::Table,
+    Insertable,
 };
+use error_stack::ResultExt;
+use hyperswitch_masking::Secret;
+use router_env::logger;
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case", tag = "db_op", content = "data")]
-pub enum DBOperation {
-    Insert { insertable: Box<Insertable> },
-    Update { updatable: Box<Updateable> },
+use crate::errors;
+
+type SecretBinaryData = Secret<Vec<u8>, pii::BinaryDataStrategy>;
+
+/// The SQL query and its bind parameters, in a (de)serialization-friendly representation
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct SerializableQuery {
+    /// The SQL query
+    sql: String,
+
+    /// The serialized bytes for each bind parameter
+    #[serde(with = "bind_params")]
+    binds: Vec<Option<SecretBinaryData>>,
+
+    /// The metadata associated with each bind parameter
+    #[serde(with = "pg_type_metadata")]
+    metadata: Vec<diesel::pg::PgTypeMetadata>,
+
+    /// Whether this query is safe to store in the prepared statement cache
+    safe_to_cache_prepared: bool,
+
+    /// Entity type
+    entity_type: String,
+
+    /// The type of database operation
+    operation: DatabaseOperation,
 }
 
-impl DBOperation {
-    pub fn operation<'a>(&self) -> &'a str {
-        match self {
-            Self::Insert { .. } => "insert",
-            Self::Update { .. } => "update",
-        }
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, strum::Display)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum DatabaseOperation {
+    Insert,
+    Update,
+}
+
+impl SerializableQuery {
+    pub fn entity_type(&self) -> String {
+        self.entity_type.clone()
     }
-    pub fn table<'a>(&self) -> &'a str {
-        match self {
-            Self::Insert { insertable } => match **insertable {
-                Insertable::PaymentIntent(_) => "payment_intent",
-                Insertable::PaymentAttempt(_) => "payment_attempt",
-                Insertable::Refund(_) => "refund",
-                Insertable::Address(_) => "address",
-                Insertable::Payouts(_) => "payouts",
-                Insertable::PayoutAttempt(_) => "payout_attempt",
-                Insertable::Customer(_) => "customer",
-                Insertable::ReverseLookUp(_) => "reverse_lookup",
-                Insertable::PaymentMethod(_) => "payment_method",
-                Insertable::Mandate(_) => "mandate",
-            },
-            Self::Update { updatable } => match **updatable {
-                Updateable::PaymentIntentUpdate(_) => "payment_intent",
-                Updateable::PaymentAttemptUpdate(_) => "payment_attempt",
-                Updateable::RefundUpdate(_) => "refund",
-                Updateable::CustomerUpdate(_) => "customer",
-                Updateable::AddressUpdate(_) => "address",
-                Updateable::PayoutsUpdate(_) => "payouts",
-                Updateable::PayoutAttemptUpdate(_) => "payout_attempt",
-                Updateable::PaymentMethodUpdate(_) => "payment_method",
-                Updateable::MandateUpdate(_) => " mandate",
-            },
-        }
+
+    pub fn operation(&self) -> DatabaseOperation {
+        self.operation
     }
-}
 
-#[derive(Debug)]
-pub enum DBResult {
-    PaymentIntent(Box<PaymentIntent>),
-    PaymentAttempt(Box<PaymentAttempt>),
-    Refund(Box<Refund>),
-    Address(Box<Address>),
-    Customer(Box<Customer>),
-    ReverseLookUp(Box<ReverseLookup>),
-    Payouts(Box<Payouts>),
-    PayoutAttempt(Box<PayoutAttempt>),
-    PaymentMethod(Box<PaymentMethod>),
-    Mandate(Box<Mandate>),
-}
+    async fn from_query<Q>(
+        conn: &mut crate::PgPooledConn,
+        query: Q,
+        entity_type: String,
+        operation: DatabaseOperation,
+    ) -> crate::StorageResult<Self>
+    where
+        Q: QueryFragment<Pg> + Send + 'static,
+    {
+        logger::debug!(%entity_type, %operation, query = %debug_query::<Pg, _>(&query).to_string());
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TypedSql {
-    #[serde(flatten)]
-    pub op: DBOperation,
-}
+        let mut qb = diesel::pg::PgQueryBuilder::new();
+        query
+            .to_sql(&mut qb, &Pg)
+            .change_context(errors::DatabaseError::QueryGenerationFailed)
+            .attach_printable("Failed to construct SQL query")?;
+        let sql = qb.finish();
 
-impl DBOperation {
-    pub async fn execute(self, conn: &PgPooledConn) -> crate::StorageResult<DBResult> {
-        Ok(match self {
-            Self::Insert { insertable } => match *insertable {
-                Insertable::PaymentIntent(a) => {
-                    DBResult::PaymentIntent(Box::new(a.insert(conn).await?))
-                }
-                Insertable::PaymentAttempt(a) => {
-                    DBResult::PaymentAttempt(Box::new(a.insert(conn).await?))
-                }
-                Insertable::Refund(a) => DBResult::Refund(Box::new(a.insert(conn).await?)),
-                Insertable::Address(addr) => DBResult::Address(Box::new(addr.insert(conn).await?)),
-                Insertable::Customer(cust) => {
-                    DBResult::Customer(Box::new(cust.insert(conn).await?))
-                }
-                Insertable::ReverseLookUp(rev) => {
-                    DBResult::ReverseLookUp(Box::new(rev.insert(conn).await?))
-                }
-                Insertable::Payouts(rev) => DBResult::Payouts(Box::new(rev.insert(conn).await?)),
-                Insertable::PayoutAttempt(rev) => {
-                    DBResult::PayoutAttempt(Box::new(rev.insert(conn).await?))
-                }
-                Insertable::PaymentMethod(rev) => {
-                    DBResult::PaymentMethod(Box::new(rev.insert(conn).await?))
-                }
-                Insertable::Mandate(m) => DBResult::Mandate(Box::new(m.insert(conn).await?)),
-            },
-            Self::Update { updatable } => match *updatable {
-                #[cfg(feature = "v1")]
-                Updateable::PaymentIntentUpdate(a) => {
-                    DBResult::PaymentIntent(Box::new(a.orig.update(conn, a.update_data).await?))
-                }
-                #[cfg(feature = "v2")]
-                Updateable::PaymentIntentUpdate(a) => {
-                    DBResult::PaymentIntent(Box::new(a.orig.update(conn, a.update_data).await?))
-                }
-                #[cfg(feature = "v1")]
-                Updateable::PaymentAttemptUpdate(a) => DBResult::PaymentAttempt(Box::new(
-                    a.orig.update_with_attempt_id(conn, a.update_data).await?,
-                )),
-                #[cfg(feature = "v2")]
-                Updateable::PaymentAttemptUpdate(a) => DBResult::PaymentAttempt(Box::new(
-                    a.orig.update_with_attempt_id(conn, a.update_data).await?,
-                )),
-                #[cfg(feature = "v1")]
-                Updateable::RefundUpdate(a) => {
-                    DBResult::Refund(Box::new(a.orig.update(conn, a.update_data).await?))
-                }
-                #[cfg(feature = "v2")]
-                Updateable::RefundUpdate(a) => {
-                    DBResult::Refund(Box::new(a.orig.update_with_id(conn, a.update_data).await?))
-                }
-                Updateable::AddressUpdate(a) => {
-                    DBResult::Address(Box::new(a.orig.update(conn, a.update_data).await?))
-                }
-                Updateable::PayoutsUpdate(a) => {
-                    DBResult::Payouts(Box::new(a.orig.update(conn, a.update_data).await?))
-                }
-                Updateable::PayoutAttemptUpdate(a) => DBResult::PayoutAttempt(Box::new(
-                    a.orig.update_with_attempt_id(conn, a.update_data).await?,
-                )),
-                #[cfg(feature = "v1")]
-                Updateable::PaymentMethodUpdate(v) => DBResult::PaymentMethod(Box::new(
-                    v.orig
-                        .update_with_payment_method_id(conn, v.update_data)
-                        .await?,
-                )),
-                #[cfg(feature = "v2")]
-                Updateable::PaymentMethodUpdate(v) => DBResult::PaymentMethod(Box::new(
-                    v.orig.update_with_id(conn, v.update_data).await?,
-                )),
-                Updateable::MandateUpdate(m) => DBResult::Mandate(Box::new(
-                    Mandate::update_by_merchant_id_mandate_id(
-                        conn,
-                        &m.orig.merchant_id,
-                        &m.orig.mandate_id,
-                        m.update_data,
-                    )
-                    .await?,
-                )),
-                #[cfg(feature = "v1")]
-                Updateable::CustomerUpdate(cust) => DBResult::Customer(Box::new(
-                    Customer::update_by_customer_id_merchant_id(
-                        conn,
-                        cust.orig.customer_id.clone(),
-                        cust.orig.merchant_id.clone(),
-                        cust.update_data,
-                    )
-                    .await?,
-                )),
-                #[cfg(feature = "v2")]
-                Updateable::CustomerUpdate(cust) => DBResult::Customer(Box::new(
-                    Customer::update_by_id(conn, cust.orig.id, cust.update_data).await?,
-                )),
-            },
-        })
+        let safe_to_cache_prepared = query
+            .is_safe_to_cache_prepared(&Pg)
+            .change_context(errors::DatabaseError::QueryGenerationFailed)
+            .attach_printable(
+                "Failed to determine whether query is safe to store in prepared statement cache",
+            )?;
+
+        let bind_collector = conn
+            .run(move |c| {
+                let mut bc = RawBytesBindCollector::<Pg>::new();
+                query.collect_binds(&mut bc, c, &Pg)?;
+                Ok::<RawBytesBindCollector<Pg>, diesel::result::Error>(bc)
+            })
+            .await
+            .change_context(errors::DatabaseError::QueryGenerationFailed)
+            .attach_printable("Failed to construct bind parameters")?;
+
+        let serializable_query = Self {
+            sql,
+            binds: bind_collector
+                .binds
+                .into_iter()
+                .map(|option| option.map(Secret::new))
+                .collect(),
+            metadata: bind_collector.metadata.clone(),
+            safe_to_cache_prepared,
+            entity_type,
+            operation,
+        };
+
+        Ok(serializable_query)
     }
-}
 
-impl TypedSql {
+    fn to_collected_query(&self) -> CollectedQuery<RawBytesBindCollector<Pg>> {
+        use hyperswitch_masking::ExposeInterface;
+
+        let mut bind_collector = RawBytesBindCollector::<Pg>::new();
+        bind_collector.binds = self
+            .binds
+            .clone()
+            .into_iter()
+            .map(|option| option.map(ExposeInterface::expose))
+            .collect();
+        bind_collector.metadata = self.metadata.clone();
+
+        CollectedQuery::new(
+            self.sql.clone(),
+            self.safe_to_cache_prepared,
+            bind_collector.moveable(),
+        )
+    }
+
+    pub async fn execute(self, conn: &mut crate::PgPooledConn) -> crate::StorageResult<usize> {
+        use common_utils::errors::ReportSwitchExt;
+
+        let query = self.to_collected_query();
+
+        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+        conn.run(move |c| ExecuteDsl::execute(query, c))
+            .await
+            .attach_printable("Failed to execute drainer query")
+            .switch()
+    }
+
     pub fn to_field_value_pairs(
         &self,
         request_id: String,
@@ -193,7 +159,7 @@ impl TypedSql {
 
         Ok(vec![
             (
-                "typed_sql",
+                "query",
                 serde_json::to_string(self)
                     .change_context(errors::DatabaseError::QueryGenerationFailed)?,
             ),
@@ -204,100 +170,64 @@ impl TypedSql {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case", tag = "table", content = "data")]
-pub enum Insertable {
-    PaymentIntent(Box<PaymentIntentNew>),
-    PaymentAttempt(Box<PaymentAttemptNew>),
-    Refund(RefundNew),
-    Address(Box<AddressNew>),
-    Customer(CustomerNew),
-    ReverseLookUp(ReverseLookupNew),
-    Payouts(PayoutsNew),
-    PayoutAttempt(PayoutAttemptNew),
-    PaymentMethod(Box<PaymentMethodNew>),
-    Mandate(MandateNew),
+pub(crate) async fn generate_insert_query<T, N>(
+    conn: &mut crate::PgPooledConn,
+    new: N,
+) -> crate::StorageResult<SerializableQuery>
+where
+    T: HasTable<Table = T> + Table + Send + 'static,
+    N: Insertable<T> + entity_type::EntityType,
+    <N as Insertable<T>>::Values: QueryFragment<Pg> + Send + 'static,
+    InsertStatement<T, <N as Insertable<T>>::Values>: QueryFragment<Pg> + Send,
+{
+    let entity_type = N::ENTITY_TYPE.to_owned();
+    let query = diesel::insert_into(<T as HasTable>::table()).values(new);
+    SerializableQuery::from_query(conn, query, entity_type, DatabaseOperation::Insert)
+        .await
+        .attach_printable("Failed to generate insert query")
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case", tag = "table", content = "data")]
-pub enum Updateable {
-    PaymentIntentUpdate(Box<PaymentIntentUpdateMems>),
-    PaymentAttemptUpdate(Box<PaymentAttemptUpdateMems>),
-    RefundUpdate(Box<RefundUpdateMems>),
-    CustomerUpdate(Box<CustomerUpdateMems>),
-    AddressUpdate(Box<AddressUpdateMems>),
-    PayoutsUpdate(PayoutsUpdateMems),
-    PayoutAttemptUpdate(PayoutAttemptUpdateMems),
-    PaymentMethodUpdate(Box<PaymentMethodUpdateMems>),
-    MandateUpdate(MandateUpdateMems),
+pub(crate) async fn generate_update_query_by_id<T, V, Pk>(
+    conn: &mut crate::PgPooledConn,
+    id: Pk,
+    values: V,
+) -> crate::StorageResult<SerializableQuery>
+where
+    T: FindDsl<Pk> + HasTable<Table = T> + Table + 'static,
+    V: AsChangeset<Target = <Find<T, Pk> as HasTable>::Table> + entity_type::EntityType,
+    Find<T, Pk>: IntoUpdateTarget + 'static,
+    UpdateStatement<
+        <Find<T, Pk> as HasTable>::Table,
+        <Find<T, Pk> as IntoUpdateTarget>::WhereClause,
+        <V as AsChangeset>::Changeset,
+    >: AsQuery + QueryFragment<Pg> + Send + 'static,
+    Pk: Clone,
+{
+    let entity_type = V::ENTITY_TYPE.to_owned();
+    let query = diesel::update(<T as HasTable>::table().find(id)).set(values);
+    SerializableQuery::from_query(conn, query, entity_type, DatabaseOperation::Update)
+        .await
+        .attach_printable("Failed to generate update query (with primary key)")
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CustomerUpdateMems {
-    pub orig: Customer,
-    pub update_data: CustomerUpdateInternal,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct AddressUpdateMems {
-    pub orig: Address,
-    pub update_data: AddressUpdateInternal,
-}
-#[cfg(feature = "v1")]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PaymentIntentUpdateMems {
-    pub orig: PaymentIntent,
-    pub update_data: PaymentIntentUpdate,
-}
-
-#[cfg(feature = "v2")]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PaymentIntentUpdateMems {
-    pub orig: PaymentIntent,
-    pub update_data: PaymentIntentUpdateInternal,
-}
-
-#[cfg(feature = "v1")]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PaymentAttemptUpdateMems {
-    pub orig: PaymentAttempt,
-    pub update_data: PaymentAttemptUpdate,
-}
-
-#[cfg(feature = "v2")]
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PaymentAttemptUpdateMems {
-    pub orig: PaymentAttempt,
-    pub update_data: PaymentAttemptUpdateInternal,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RefundUpdateMems {
-    pub orig: Refund,
-    pub update_data: RefundUpdate,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PayoutsUpdateMems {
-    pub orig: Payouts,
-    pub update_data: PayoutsUpdate,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PayoutAttemptUpdateMems {
-    pub orig: PayoutAttempt,
-    pub update_data: PayoutAttemptUpdate,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PaymentMethodUpdateMems {
-    pub orig: PaymentMethod,
-    pub update_data: PaymentMethodUpdateInternal,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct MandateUpdateMems {
-    pub orig: Mandate,
-    pub update_data: MandateUpdateInternal,
+pub(crate) async fn generate_update_query_with_predicate<T, V, P>(
+    conn: &mut crate::PgPooledConn,
+    predicate: P,
+    values: V,
+) -> crate::StorageResult<SerializableQuery>
+where
+    T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
+    V: AsChangeset<Target = <Filter<T, P> as HasTable>::Table> + entity_type::EntityType,
+    Filter<T, P>: IntoUpdateTarget + 'static,
+    UpdateStatement<
+        <Filter<T, P> as HasTable>::Table,
+        <Filter<T, P> as IntoUpdateTarget>::WhereClause,
+        <V as AsChangeset>::Changeset,
+    >: AsQuery + QueryFragment<Pg> + Send + 'static,
+{
+    let entity_type = V::ENTITY_TYPE.to_owned();
+    let query = diesel::update(<T as HasTable>::table().filter(predicate)).set(values);
+    SerializableQuery::from_query(conn, query, entity_type, DatabaseOperation::Update)
+        .await
+        .attach_printable("Failed to generate update query (with predicate)")
 }

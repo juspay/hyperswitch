@@ -1,9 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    marker::PhantomData,
-    str::FromStr,
-    sync::LazyLock,
-};
+use std::{collections::HashMap, marker::PhantomData, str::FromStr, sync::LazyLock};
 
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutVendorAccountDetails;
@@ -2307,7 +2302,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn is_mit_payment(&self) -> bool;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
-    fn get_connector_mandate_data(&self) -> Option<payments::ConnectorMandateReferenceId>;
+    fn get_connector_mandate_data(&self) -> Option<mandates::ConnectorMandateReferenceId>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
     fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error>;
@@ -2382,12 +2377,12 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_))
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
-                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                Some(mandates::MandateReferenceId::NetworkMandateId(_))
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
                 | None => None,
             })
     }
@@ -2434,16 +2429,16 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             .ok_or_else(missing_field_err("connector_mandate_id"))
     }
 
-    fn get_connector_mandate_data(&self) -> Option<payments::ConnectorMandateReferenceId> {
+    fn get_connector_mandate_data(&self) -> Option<mandates::ConnectorMandateReferenceId> {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     Some(connector_mandate_ids.clone())
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_))
-                | Some(payments::MandateReferenceId::CardWithLimitedData)
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                Some(mandates::MandateReferenceId::NetworkMandateId(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
                 | None => None,
             })
     }
@@ -2545,13 +2540,13 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.get_connector_mandate_request_reference_id()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_))
-                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                Some(mandates::MandateReferenceId::NetworkMandateId(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
                 | None
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
             .ok_or_else(missing_field_err("connector_mandate_request_reference_id"))
     }
@@ -2563,12 +2558,12 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
+                Some(mandates::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
                     Some(network_transaction_id.network_transaction_id.clone())
                 }
-                Some(payments::MandateReferenceId::ConnectorMandateId(_))
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
-                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                Some(mandates::MandateReferenceId::ConnectorMandateId(_))
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
                 | None => None,
             })
     }
@@ -2695,12 +2690,12 @@ impl PaymentsSyncRequestData for PaymentsSyncData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_))
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
-                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                Some(mandates::MandateReferenceId::NetworkMandateId(_))
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
                 | None => None,
             })
     }
@@ -2958,13 +2953,13 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.get_connector_mandate_request_reference_id()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_))
-                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                Some(mandates::MandateReferenceId::NetworkMandateId(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
                 | None
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
             .ok_or_else(missing_field_err("connector_mandate_request_reference_id"))
     }
@@ -2986,13 +2981,13 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_))
-                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                Some(mandates::MandateReferenceId::NetworkMandateId(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
                 | None
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
     }
 }
@@ -3204,13 +3199,13 @@ impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
-                Some(payments::MandateReferenceId::NetworkMandateId(_))
-                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                Some(mandates::MandateReferenceId::NetworkMandateId(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData)
                 | None
-                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
     }
     fn is_customer_initiated_mandate_payment(&self) -> bool {
@@ -6584,30 +6579,6 @@ mod tests {
     }
 }
 
-pub fn is_mandate_supported(
-    selected_pmd: PaymentMethodData,
-    payment_method_type: Option<enums::PaymentMethodType>,
-    mandate_implemented_pmds: HashSet<PaymentMethodDataType>,
-    connector: &'static str,
-) -> Result<(), Error> {
-    if mandate_implemented_pmds.contains(&PaymentMethodDataType::from(selected_pmd.clone())) {
-        Ok(())
-    } else {
-        match payment_method_type {
-            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{pm_type} mandate payment"),
-                connector,
-            }
-            .into()),
-            None => Err(errors::ConnectorError::NotSupported {
-                message: "mandate payment".to_string(),
-                connector,
-            }
-            .into()),
-        }
-    }
-}
-
 pub fn get_mandate_details(
     setup_mandate_details: Option<mandates::MandateData>,
 ) -> Result<Option<mandates::MandateAmountData>, error_stack::Report<errors::ConnectorError>> {
@@ -6962,6 +6933,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                     Self::MandiriVaBankTransfer
                 }
                 payment_method_data::BankTransferData::Pix { .. } => Self::Pix,
+                payment_method_data::BankTransferData::PixEmv { .. } => Self::PixEmv,
                 payment_method_data::BankTransferData::PixAutomaticoPush { .. } => {
                     Self::PixAutomaticoPush
                 }
