@@ -274,7 +274,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "initiated",
+          status: "requires_fulfillment",
           priority: "regular",
           payout_type: "bank",
         },
@@ -294,7 +294,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "initiated",
+          status: "requires_fulfillment",
           priority: "wire",
           payout_type: "bank",
         },
@@ -312,7 +312,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "initiated",
+          status: "requires_fulfillment",
           priority: "regular",
         },
       },
@@ -321,7 +321,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "initiated",
+          status: "requires_fulfillment",
           priority: "wire",
         },
       },

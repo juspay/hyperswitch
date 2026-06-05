@@ -116,7 +116,7 @@ describe("[Payout] Priority", () => {
         fixtures.createPayoutBody,
         data,
         true,
-        true,
+        false,
         globalState
       );
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
@@ -148,7 +148,7 @@ describe("[Payout] Priority", () => {
         fixtures.createPayoutBody,
         data,
         true,
-        true,
+        false,
         globalState
       );
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
