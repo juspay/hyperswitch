@@ -1670,6 +1670,9 @@ export const connectorDetails = {
       },
     }),
     KakaoPayWalletMandateCIT: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "kakao_pay",
