@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.03.0-hotfix2
+
+### Features
+
+- **core/connector:** Renaming `Pix` to `PixEmv` PaymentMethodType for Santander ([#12614](https://github.com/juspay/hyperswitch/pull/12614)) ([`15beb39`](https://github.com/juspay/hyperswitch/commit/15beb39961b53bf646b5c4497ec1a7e486b9fb7f))
+
+**Full Changelog:** [`2026.06.03.0-hotfix1...2026.06.03.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.06.03.0-hotfix1...2026.06.03.0-hotfix2)
+
+- - -
+
 ## 2026.06.03.0-hotfix1
 
 ### Bug Fixes
