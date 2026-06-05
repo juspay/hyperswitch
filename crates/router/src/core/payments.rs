@@ -1,3 +1,4 @@
+use hyperswitch_domain_models::mandates;
 pub mod access_token;
 pub mod conditional_configs;
 pub mod customers;
@@ -985,10 +986,22 @@ where
                     .map_err(|e| logger::error!(routable_connector_error=?e))
                     .unwrap_or_default();
                     let schedule_time = if should_add_task_to_process_tracker {
+                        let connector_enum = connector
+                            .connector_data
+                            .connector
+                            .id()
+                            .parse::<common_enums::connector_enums::Connector>()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Invalid connector name")?;
+                        let dimensions = Dimensions::new()
+                            .with_processor_merchant_id(
+                                platform.get_processor().get_processor_merchant_id(),
+                            )
+                            .with_connector(connector_enum);
                         payment_sync::get_sync_process_schedule_time(
                             &*state.store,
-                            connector.connector_data.connector.id(),
-                            platform.get_processor().get_account().get_id(),
+                            state.superposition_service.as_ref(),
+                            &dimensions,
                             0,
                         )
                         .await
@@ -1159,10 +1172,21 @@ where
                         )?;
 
                     let schedule_time = if should_add_task_to_process_tracker {
+                        let connector_enum = connector_data
+                            .connector
+                            .id()
+                            .parse::<common_enums::connector_enums::Connector>()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Invalid connector name")?;
+                        let dimensions = Dimensions::new()
+                            .with_processor_merchant_id(
+                                platform.get_processor().get_processor_merchant_id(),
+                            )
+                            .with_connector(connector_enum);
                         payment_sync::get_sync_process_schedule_time(
                             &*state.store,
-                            connector_data.connector.id(),
-                            platform.get_processor().get_account().get_id(),
+                            state.superposition_service.as_ref(),
+                            &dimensions,
                             0,
                         )
                         .await
@@ -1622,10 +1646,19 @@ where
     let locale = header_payload.locale.clone();
 
     let schedule_time = if should_add_task_to_process_tracker {
+        let connector_enum = connector
+            .connector
+            .id()
+            .parse::<common_enums::connector_enums::Connector>()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid connector name")?;
+        let dimensions = Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_connector(connector_enum);
         payment_sync::get_sync_process_schedule_time(
             &*state.store,
-            connector.connector.id(),
-            platform.get_processor().get_account().get_id(),
+            state.superposition_service.as_ref(),
+            &dimensions,
             0,
         )
         .await
@@ -2517,11 +2550,13 @@ where
     D: OperationSessionGetters<F> + Send + Sync,
     Op: Operation<F, R, Data = D> + Send + Sync,
 {
-    if feature_config.is_modular_with_pm_version(
-        payment_data
-            .get_payment_method_info()
-            .map(|payment_method| payment_method.version),
-    ) {
+    if payment_data.get_payment_method_info().is_some_and(|pm| {
+        feature_config.should_use_modular_pm_path(
+            Some(pm.version),
+            pm.compatibility_updated_at,
+            Some(pm.last_modified),
+        )
+    }) {
         logger::debug!(
             payment_id = ?payment_data.get_payment_attempt().payment_id,
             "Modular merchant detected; calling update_modular_pm_and_mandate"
@@ -4413,25 +4448,20 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to add poll_id in redis")?;
         };
-        let default_poll_config = router_types::PollConfig::default();
-        let default_config_str = default_poll_config
-            .encode_to_string_of_json()
+        let connector_enum = common_enums::connector_enums::Connector::from_str(&connector)
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error while stringifying default poll config")?;
-        let poll_config = state
-            .store
-            .find_config_by_key_unwrap_or(
-                &router_types::PollConfig::get_poll_config_key(connector),
-                Some(default_config_str),
+            .attach_printable("Invalid connector name")?;
+        let merchant_id = platform.get_processor().get_account().get_id();
+        let dimensions = Dimensions::new()
+            .with_processor_merchant_id(merchant_id.clone().into())
+            .with_connector(connector_enum);
+        let poll_config = dimensions
+            .get_poll_config_external_three_ds(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                Some(&payment_id),
             )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("The poll config was not found in the DB")?;
-        let poll_config: router_types::PollConfig = poll_config
-            .config
-            .parse_struct("PollConfig")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error while parsing PollConfig")?;
+            .await;
         let profile_id = payments_response
             .profile_id
             .as_ref()
@@ -5054,6 +5084,25 @@ where
                 payments::VaultOperation::ExistingVaultData(_) => (),
             }
         }
+    }
+
+    if let Some(network_token_data) = network_tokenization::evaluate_and_fetch_altid(
+        state,
+        payment_data.get_payment_method_data(),
+        payment_data.get_payment_intent().currency,
+        &connector.connector_name,
+        payment_data
+            .get_payment_attempt()
+            .customer_acceptance
+            .is_none(),
+        payment_data.get_payment_intent().amount,
+        business_profile,
+    )
+    .await?
+    {
+        payment_data.set_payment_method_data(Some(domain::PaymentMethodData::NetworkToken(
+            network_token_data,
+        )));
     }
 
     if payment_data
@@ -6952,8 +7001,8 @@ where
     F: Send + Clone + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let merchant_id = processor.get_account().get_id();
-    let blocklist_enabled_key = merchant_id.get_blocklist_guard_key();
+    let processor_merchant_id = processor.get_account().get_id();
+    let blocklist_enabled_key = processor_merchant_id.get_blocklist_guard_key();
     let blocklist_guard_enabled = state
         .store
         .find_config_by_key_unwrap_or(&blocklist_enabled_key, Some("false".to_string()))
@@ -8406,21 +8455,23 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let connector = payment_data.get_payment_attempt().connector.to_owned();
-    let should_use_modular_pm_path = feature_config.is_modular_with_pm_version(
-        payment_data
-            .get_payment_method_info()
-            .map(|payment_method| payment_method.version),
-    );
+    let should_use_modular_pm_path = payment_data.get_payment_method_info().is_some_and(|pm| {
+        feature_config.should_use_modular_pm_path(
+            Some(pm.version),
+            pm.compatibility_updated_at,
+            Some(pm.last_modified),
+        )
+    });
 
     let is_mandate = payment_data
         .get_mandate_id()
         .as_ref()
         .and_then(|inner| inner.mandate_reference_id.as_ref())
         .map(|mandate_reference| match mandate_reference {
-            api_models::payments::MandateReferenceId::ConnectorMandateId(_) => true,
-            api_models::payments::MandateReferenceId::NetworkMandateId(_)
-            | api_models::payments::MandateReferenceId::CardWithLimitedData
-            | api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_) => false,
+            mandates::MandateReferenceId::ConnectorMandateId(_) => true,
+            mandates::MandateReferenceId::NetworkMandateId(_)
+            | mandates::MandateReferenceId::CardWithLimitedData
+            | mandates::MandateReferenceId::NetworkTokenWithNTI(_) => false,
         })
         .unwrap_or(false);
 
@@ -8616,11 +8667,13 @@ where
     let is_external_authentication_requested = payment_data
         .get_payment_intent()
         .request_external_three_ds_authentication;
-    let should_use_modular_pm_path = feature_config.is_modular_with_pm_version(
-        payment_data
-            .get_payment_method_info()
-            .map(|payment_method| payment_method.version),
-    );
+    let should_use_modular_pm_path = payment_data.get_payment_method_info().is_some_and(|pm| {
+        feature_config.should_use_modular_pm_path(
+            Some(pm.version),
+            pm.compatibility_updated_at,
+            Some(pm.last_modified),
+        )
+    });
     let payment_data =
         if !is_operation_confirm(operation) || is_external_authentication_requested == Some(true) {
             if !should_use_modular_pm_path {
@@ -8718,7 +8771,7 @@ where
     pub payment_attempt: storage::PaymentAttempt,
     pub multiple_capture_data: Option<types::MultipleCaptureData>,
     pub amount: api::Amount,
-    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub mandate_id: Option<mandates::MandateIds>,
     pub mandate_connector: Option<MandateConnectorDetails>,
     pub currency: storage_enums::Currency,
     pub setup_mandate: Option<MandateData>,
@@ -8757,7 +8810,7 @@ where
     pub card_testing_guard_data:
         Option<hyperswitch_domain_models::card_testing_guard_data::CardTestingGuardData>,
     pub vault_operation: Option<domain_payments::VaultOperation>,
-    pub vault_session_details: Option<api::VaultSessionDetails>,
+    pub vault_session_details: Option<api::VaultDetails>,
     pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
     pub whole_connector_response: Option<Secret<String>>,
     pub is_manual_retry_enabled: Option<bool>,
@@ -10217,11 +10270,13 @@ where
             }),
     };
 
-    let should_use_modular_pm_path = feature_config.is_modular_with_pm_version(
-        payment_data
-            .get_payment_method_info()
-            .map(|payment_method| payment_method.version),
-    );
+    let should_use_modular_pm_path = payment_data.get_payment_method_info().is_some_and(|pm| {
+        feature_config.should_use_modular_pm_path(
+            Some(pm.version),
+            pm.compatibility_updated_at,
+            Some(pm.last_modified),
+        )
+    });
 
     let decided_connector = decide_connector(
         state.clone(),
@@ -10731,7 +10786,7 @@ where
                     .merchant_connector_id,
             );
 
-            payment_data.set_mandate_id(payments_api::MandateIds {
+            payment_data.set_mandate_id(mandates::MandateIds {
                 mandate_id: None,
                 mandate_reference_id,
             });
@@ -10792,7 +10847,7 @@ pub fn get_mandate_reference_id<F: Clone, D>(
     connector_routing_data: api::ConnectorRoutingData,
     payment_data: &mut D,
     payment_method_info: &domain::PaymentMethod,
-) -> RouterResult<Option<api_models::payments::MandateReferenceId>>
+) -> RouterResult<Option<mandates::MandateReferenceId>>
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
@@ -10800,14 +10855,14 @@ where
         Some(ActionType::NetworkTokenWithNetworkTransactionId(network_token_data)) => {
             logger::info!("using network token with network_transaction_id for MIT flow");
 
-            Some(payments_api::MandateReferenceId::NetworkTokenWithNTI(
+            Some(mandates::MandateReferenceId::NetworkTokenWithNTI(
                 network_token_data.into(),
             ))
         }
         Some(ActionType::CardWithNetworkTransactionId(card_with_nti_ref)) => {
             logger::info!("using card with network_transaction_id for MIT flow");
 
-            Some(payments_api::MandateReferenceId::NetworkMandateId(
+            Some(mandates::MandateReferenceId::NetworkMandateId(
                 card_with_nti_ref.into(),
             ))
         }
@@ -10841,8 +10896,8 @@ where
 
             payment_data.set_recurring_mandate_payment_data(mandate_reference_record.into());
 
-            Some(payments_api::MandateReferenceId::ConnectorMandateId(
-                api_models::payments::ConnectorMandateReferenceId::new(
+            Some(mandates::MandateReferenceId::ConnectorMandateId(
+                mandates::ConnectorMandateReferenceId::new(
                     Some(mandate_reference_record.connector_mandate_id.clone()),
                     Some(payment_method_info.get_id().clone()),
                     None,
@@ -10914,8 +10969,8 @@ where
                                     }))
                                 },
                             )?;
-                            let mandate_reference_id = Some(payments_api::MandateReferenceId::ConnectorMandateId(
-                                api_models::payments::ConnectorMandateReferenceId::new(
+                            let mandate_reference_id = Some(mandates::MandateReferenceId::ConnectorMandateId(
+                                mandates::ConnectorMandateReferenceId::new(
                                     Some(mandate_reference_record.connector_mandate_id.clone()),
                                     Some(payment_method_info.get_id().clone()),
                                     // update_history
@@ -10946,7 +11001,7 @@ where
                 .attach_printable("Failed to fetch the network transaction id")?;
             let transaction_link_id = payment_method_info.network_transaction_link_id.clone();
 
-            let mandate_reference_id = Some(payments_api::MandateReferenceId::NetworkMandateId(
+            let mandate_reference_id = Some(mandates::MandateReferenceId::NetworkMandateId(
                 CardWithNTIRef {
                     network_transaction_id: network_transaction_id.to_string(),
                     transaction_link_id,
@@ -10972,7 +11027,7 @@ where
         .merchant_connector_id
         .clone_from(&chosen_connector_data.merchant_connector_id);
 
-    payment_data.set_mandate_id(payments_api::MandateIds {
+    payment_data.set_mandate_id(mandates::MandateIds {
         mandate_id: None,
         mandate_reference_id,
     });
@@ -11006,7 +11061,7 @@ pub struct NTWithNTIRef {
     pub token_exp_year: Option<Secret<String>>,
 }
 
-impl From<NTWithNTIRef> for payments_api::NetworkTokenWithNTIRef {
+impl From<NTWithNTIRef> for mandates::NetworkTokenWithNTIRef {
     fn from(network_token_data: NTWithNTIRef) -> Self {
         Self {
             network_transaction_id: network_token_data.network_transaction_id,
@@ -11023,7 +11078,7 @@ pub struct CardWithNTIRef {
     pub transaction_link_id: Option<String>,
 }
 
-impl From<CardWithNTIRef> for payments_api::NetworkMandateIdRef {
+impl From<CardWithNTIRef> for mandates::NetworkMandateIdRef {
     fn from(card_data: CardWithNTIRef) -> Self {
         Self {
             network_transaction_id: card_data.network_transaction_id,
@@ -11038,7 +11093,7 @@ pub enum ActionType {
     NetworkTokenWithNetworkTransactionId(NTWithNTIRef),
     CardWithNetworkTransactionId(CardWithNTIRef),
     #[cfg(feature = "v1")]
-    ConnectorMandate(hyperswitch_domain_models::mandates::PaymentsMandateReference),
+    ConnectorMandate(mandates::PaymentsMandateReference),
 }
 
 pub fn filter_network_tokenization_supported_connectors(
@@ -11070,9 +11125,7 @@ impl ActionTypesBuilder {
     pub fn with_mandate_flow(
         mut self,
         is_mandate_flow: bool,
-        connector_mandate_details: Option<
-            hyperswitch_domain_models::mandates::PaymentsMandateReference,
-        >,
+        connector_mandate_details: Option<mandates::PaymentsMandateReference>,
     ) -> Self {
         if is_mandate_flow {
             self.action_types.extend(
@@ -12619,7 +12672,7 @@ pub trait OperationSessionGetters<F> {
     fn get_client_secret(&self) -> &Option<Secret<String>>;
     fn get_payment_method_info(&self) -> Option<&domain::PaymentMethod>;
     fn get_payment_method_token(&self) -> Option<&PaymentMethodToken>;
-    fn get_mandate_id(&self) -> Option<&payments_api::MandateIds>;
+    fn get_mandate_id(&self) -> Option<&mandates::MandateIds>;
     fn get_address(&self) -> &PaymentAddress;
     fn get_creds_identifier(&self) -> Option<&str>;
     fn get_token(&self) -> Option<&str>;
@@ -12672,7 +12725,7 @@ pub trait OperationSessionGetters<F> {
         &self,
     ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>>;
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails>;
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails>;
     #[cfg(feature = "v1")]
     fn get_click_to_pay_service_details(&self) -> Option<&api_models::payments::CtpServiceDetails>;
 
@@ -12727,7 +12780,7 @@ pub trait OperationSessionSetters<F> {
         recurring_mandate_payment_data:
             hyperswitch_domain_models::router_data::RecurringMandatePaymentData,
     );
-    fn set_mandate_id(&mut self, mandate_id: api_models::payments::MandateIds);
+    fn set_mandate_id(&mut self, mandate_id: mandates::MandateIds);
     fn set_setup_future_usage_in_payment_intent(
         &mut self,
         setup_future_usage: storage_enums::FutureUsage,
@@ -12757,7 +12810,7 @@ pub trait OperationSessionSetters<F> {
 
     fn set_vault_session_details(
         &mut self,
-        external_vault_session_details: Option<api::VaultSessionDetails>,
+        external_vault_session_details: Option<api::VaultDetails>,
     );
     fn set_routing_approach_in_attempt(&mut self, routing_approach: Option<enums::RoutingApproach>);
 
@@ -12787,7 +12840,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.payment_method_token.as_ref()
     }
 
-    fn get_mandate_id(&self) -> Option<&payments_api::MandateIds> {
+    fn get_mandate_id(&self) -> Option<&mandates::MandateIds> {
         self.mandate_id.as_ref()
     }
 
@@ -12939,7 +12992,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.client_session_id.clone()
     }
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails> {
         self.vault_session_details.clone()
     }
 
@@ -13082,7 +13135,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         self.recurring_mandate_payment_data = Some(recurring_mandate_payment_data);
     }
 
-    fn set_mandate_id(&mut self, mandate_id: api_models::payments::MandateIds) {
+    fn set_mandate_id(&mut self, mandate_id: mandates::MandateIds) {
         self.mandate_id = Some(mandate_id);
     }
 
@@ -13118,10 +13171,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         self.vault_operation = Some(vault_operation);
     }
 
-    fn set_vault_session_details(
-        &mut self,
-        vault_session_details: Option<api::VaultSessionDetails>,
-    ) {
+    fn set_vault_session_details(&mut self, vault_session_details: Option<api::VaultDetails>) {
         self.vault_session_details = vault_session_details;
     }
 
@@ -13170,7 +13220,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn get_mandate_id(&self) -> Option<&payments_api::MandateIds> {
+    fn get_mandate_id(&self) -> Option<&mandates::MandateIds> {
         todo!()
     }
 
@@ -13302,7 +13352,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         None
     }
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails> {
         self.vault_session_details.clone()
     }
 }
@@ -13410,7 +13460,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn set_mandate_id(&mut self, _mandate_id: api_models::payments::MandateIds) {
+    fn set_mandate_id(&mut self, _mandate_id: mandates::MandateIds) {
         todo!()
     }
 
@@ -13433,10 +13483,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn set_vault_session_details(
-        &mut self,
-        vault_session_details: Option<api::VaultSessionDetails>,
-    ) {
+    fn set_vault_session_details(&mut self, vault_session_details: Option<api::VaultDetails>) {
         self.vault_session_details = vault_session_details;
     }
 
@@ -13490,7 +13537,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
         todo!()
     }
 
-    fn get_mandate_id(&self) -> Option<&payments_api::MandateIds> {
+    fn get_mandate_id(&self) -> Option<&mandates::MandateIds> {
         todo!()
     }
 
@@ -13618,7 +13665,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
             .and_then(|pre_routing_algorithm| pre_routing_algorithm.pre_routing_results)
     }
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails> {
         todo!()
     }
 }
@@ -13728,7 +13775,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
         todo!()
     }
 
-    fn set_mandate_id(&mut self, _mandate_id: api_models::payments::MandateIds) {
+    fn set_mandate_id(&mut self, _mandate_id: mandates::MandateIds) {
         todo!()
     }
 
@@ -13753,7 +13800,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
 
     fn set_vault_session_details(
         &mut self,
-        external_vault_session_details: Option<api::VaultSessionDetails>,
+        external_vault_session_details: Option<api::VaultDetails>,
     ) {
         todo!()
     }
@@ -13808,7 +13855,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
-    fn get_mandate_id(&self) -> Option<&payments_api::MandateIds> {
+    fn get_mandate_id(&self) -> Option<&mandates::MandateIds> {
         todo!()
     }
 
@@ -13933,7 +13980,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         None
     }
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails> {
         todo!()
     }
 }
@@ -14042,7 +14089,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
-    fn set_mandate_id(&mut self, _mandate_id: api_models::payments::MandateIds) {
+    fn set_mandate_id(&mut self, _mandate_id: mandates::MandateIds) {
         todo!()
     }
 
@@ -14067,7 +14114,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
 
     fn set_vault_session_details(
         &mut self,
-        external_vault_session_details: Option<api::VaultSessionDetails>,
+        external_vault_session_details: Option<api::VaultDetails>,
     ) {
         todo!()
     }
@@ -14121,7 +14168,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
         todo!()
     }
 
-    fn get_mandate_id(&self) -> Option<&payments_api::MandateIds> {
+    fn get_mandate_id(&self) -> Option<&mandates::MandateIds> {
         todo!()
     }
 
@@ -14248,7 +14295,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
         None
     }
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails> {
         todo!()
     }
 }
@@ -14357,7 +14404,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
         todo!()
     }
 
-    fn set_mandate_id(&mut self, _mandate_id: api_models::payments::MandateIds) {
+    fn set_mandate_id(&mut self, _mandate_id: mandates::MandateIds) {
         todo!()
     }
 
@@ -14382,7 +14429,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
 
     fn set_vault_session_details(
         &mut self,
-        external_vault_session_details: Option<api::VaultSessionDetails>,
+        external_vault_session_details: Option<api::VaultDetails>,
     ) {
         todo!()
     }
@@ -14431,7 +14478,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentAttemptListData<F> {
         todo!()
     }
 
-    fn get_mandate_id(&self) -> Option<&payments_api::MandateIds> {
+    fn get_mandate_id(&self) -> Option<&mandates::MandateIds> {
         todo!()
     }
 
@@ -14563,7 +14610,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentAttemptListData<F> {
         todo!()
     }
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails> {
         todo!()
     }
 }
@@ -14598,7 +14645,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCancelData<F> {
         todo!()
     }
 
-    fn get_mandate_id(&self) -> Option<&payments_api::MandateIds> {
+    fn get_mandate_id(&self) -> Option<&mandates::MandateIds> {
         todo!()
     }
 
@@ -14724,7 +14771,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCancelData<F> {
         None
     }
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails> {
         todo!()
     }
 }
@@ -14827,7 +14874,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCancelData<F> {
         todo!()
     }
 
-    fn set_mandate_id(&mut self, _mandate_id: api_models::payments::MandateIds) {
+    fn set_mandate_id(&mut self, _mandate_id: mandates::MandateIds) {
         todo!()
     }
 
@@ -14859,7 +14906,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCancelData<F> {
 
     fn set_vault_session_details(
         &mut self,
-        _external_vault_session_details: Option<api::VaultSessionDetails>,
+        _external_vault_session_details: Option<api::VaultDetails>,
     ) {
         todo!()
     }

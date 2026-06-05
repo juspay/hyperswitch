@@ -121,7 +121,7 @@ pub struct ConnectorAuthentication {
     pub recurly: Option<HeaderKey>,
     pub redsys: Option<HeaderKey>,
     pub revolv3: Option<HeaderKey>,
-    pub sanlam: Option<BodyKey>,
+    pub absa_sanlam: Option<BodyKey>,
     pub santander: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
     pub sift: Option<HeaderKey>,

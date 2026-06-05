@@ -14,19 +14,27 @@ use super::generics;
 use crate::schema::payment_attempt::dsl;
 #[cfg(feature = "v2")]
 use crate::schema_v2::payment_attempt::dsl;
-#[cfg(feature = "v1")]
-use crate::{enums::IntentStatus, payment_attempt::PaymentAttemptUpdate, PaymentIntent};
 use crate::{
-    enums::{self},
+    enums,
     errors::DatabaseError,
+    kv,
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdateInternal},
     query::generics::db_metrics,
     PgPooledConn, StorageResult,
 };
+#[cfg(feature = "v1")]
+use crate::{enums::IntentStatus, payment_attempt::PaymentAttemptUpdate, PaymentIntent};
 
 impl PaymentAttemptNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentAttempt> {
         generics::generic_insert(conn, self).await
+    }
+
+    pub async fn generate_drainer_insert_query(
+        self,
+        conn: &mut PgPooledConn,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_insert_query(conn, self).await
     }
 }
 
@@ -549,5 +557,43 @@ impl PaymentAttempt {
         router_env::logger::debug!("Completed count query in {:?}", duration);
 
         result
+    }
+}
+
+#[cfg(feature = "v1")]
+impl PaymentAttemptUpdate {
+    pub async fn generate_drainer_update_query(
+        self,
+        conn: &mut PgPooledConn,
+        source_payment_attempt: &PaymentAttempt,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_update_query_with_predicate::<<PaymentAttempt as HasTable>::Table, _, _>(
+            conn,
+            dsl::attempt_id
+                .eq(source_payment_attempt.attempt_id.clone())
+                .and(
+                    dsl::processor_merchant_id
+                        .eq(source_payment_attempt.processor_merchant_id.clone()),
+                ),
+            PaymentAttemptUpdateInternal::from(self)
+                .populate_derived_fields(source_payment_attempt),
+        )
+        .await
+    }
+}
+
+#[cfg(feature = "v2")]
+impl PaymentAttemptUpdateInternal {
+    pub async fn generate_drainer_update_query(
+        self,
+        conn: &mut PgPooledConn,
+        id: common_utils::id_type::GlobalAttemptId,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_update_query_with_predicate::<<PaymentAttempt as HasTable>::Table, _, _>(
+            conn,
+            dsl::id.eq(id),
+            self,
+        )
+        .await
     }
 }

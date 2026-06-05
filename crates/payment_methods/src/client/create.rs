@@ -42,7 +42,6 @@ pub struct ModularPMCreateRequest {
     pub customer_id: id_type::CustomerId, // Payment method data will be saved when customer acceptance is given, hence customer id will always be present
     pub payment_method_data: PaymentMethodCreateData,
     pub billing: Option<payments::Address>,
-    pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub storage_type: Option<common_enums::StorageType>,
 }
@@ -278,7 +277,6 @@ impl TryFrom<&CreatePaymentMethodV1Request> for ModularPMCreateRequest {
                 .billing
                 .as_ref()
                 .map(|billing| billing.clone().into()),
-            psp_tokenization: None,
             network_tokenization: request.network_tokenization.clone(),
             storage_type: request.storage_type,
         })
