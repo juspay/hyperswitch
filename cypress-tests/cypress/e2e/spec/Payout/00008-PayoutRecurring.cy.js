@@ -53,7 +53,7 @@ describe("[Payout] Recurring", () => {
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["RecurringTrue"];
 
-      cy.createConfirmPayoutTest(payoutBody, data, true, true, globalState);
+      cy.createConfirmPayoutTest(payoutBody, data, true, false, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
 
@@ -86,7 +86,7 @@ describe("[Payout] Recurring", () => {
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["RecurringFalse"];
 
-      cy.createConfirmPayoutTest(payoutBody, data, true, true, globalState);
+      cy.createConfirmPayoutTest(payoutBody, data, true, false, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -114,7 +114,7 @@ describe("[Payout] Recurring", () => {
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["RecurringDefault"];
 
-      cy.createConfirmPayoutTest(payoutBody, data, true, true, globalState);
+      cy.createConfirmPayoutTest(payoutBody, data, true, false, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -141,6 +141,10 @@ describe("[Payout] Recurring", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["RecurringInvalidConfirm"];
+
+      // Inject real payout_method_id from RecurringTrue to pass deserialization
+      // so the confirm=false validation runs and returns the expected error
+      data.Request.payout_method_id = globalState.get("payoutMethodId");
 
       // This test validates that using payout_method_id with confirm=false returns error
       cy.createConfirmPayoutTest(payoutBody, data, false, false, globalState);
