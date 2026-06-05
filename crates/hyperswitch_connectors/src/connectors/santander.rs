@@ -1611,7 +1611,7 @@ impl ConnectorIntegration<PreAuthorizeVoid, PaymentsPreAuthorizeCancelData, Paym
 
         match req.payment_method {
             enums::PaymentMethod::BankTransfer => match req.payment_method_type {
-                Some(enums::PaymentMethodType::Pix) => {
+                Some(enums::PaymentMethodType::PixEmv) => {
                     let santander_variant = transformers::get_qr_code_type(
                         req.request.connector_meta.clone(),
                     )
@@ -2110,7 +2110,7 @@ impl ConnectorSpecifications for Santander {
         // TODO: Add support for pre-authorize cancel for PixAutomaticoQr and PixAutomaticoPush PMT
         matches!(
             payment_method_type,
-            Some(enums::PaymentMethodType::Pix) | Some(enums::PaymentMethodType::Boleto)
+            Some(enums::PaymentMethodType::PixEmv) | Some(enums::PaymentMethodType::Boleto)
         )
     }
 

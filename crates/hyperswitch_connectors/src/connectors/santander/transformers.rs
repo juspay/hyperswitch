@@ -2811,7 +2811,6 @@ pub fn decide_access_token_key_suffix(
                         None => Some(AccessTokenUrlPath::Leg2),
                     }
                 }
-                (_, Some(enums::PaymentMethodType::Pix)) => Some(AccessTokenUrlPath::Leg1),
                 (_, Some(enums::PaymentMethodType::Boleto)) => Some(AccessTokenUrlPath::Boleto),
                 (None, Some(enums::PaymentMethodType::PixAutomaticoPush)) => {
                     Some(AccessTokenUrlPath::Leg2)
