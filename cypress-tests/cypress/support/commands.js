@@ -638,7 +638,6 @@ Cypress.Commands.add("merchantRetrieveCall", (globalState, options = {}) => {
         "payment_response_hash_key"
       ).to.not.be.null;
       expect(response.body.publishable_key, "publishable_key").to.not.be.null;
-      cy.log("HI");
       expect(response.body.default_profile, "default_profile").to.not.be.null;
       expect(response.body.organization_id, "organization_id").to.not.be.null;
       globalState.set("organizationId", response.body.organization_id);
@@ -5429,6 +5428,129 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "confirmVoucherCallTest",
+  (confirmBody, data, confirm, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+
+    const configInfo = execConfig(validateConfig(configs));
+    const paymentIntentID = globalState.get("paymentID");
+    const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
+
+    for (const key in reqData) {
+      confirmBody[key] = reqData[key];
+    }
+    confirmBody.client_secret = globalState.get("clientSecret");
+    confirmBody.confirm = confirm;
+    confirmBody.profile_id = profile_id;
+
+    globalState.set("paymentMethodType", confirmBody.payment_method_type);
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/${paymentIntentID}/confirm`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("publishableKey"),
+      },
+      failOnStatusCode: false,
+      body: confirmBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        if (response.status === 200) {
+          globalState.set("paymentID", paymentIntentID);
+
+          validateErrorMessage(response, resData);
+
+          if (
+            response.body.capture_method === "automatic" ||
+            response.body.capture_method === "manual"
+          ) {
+            if (response.body.next_action) {
+              if (response.body.next_action.display_voucher_information) {
+                globalState.set(
+                  "nextActionType",
+                  "display_voucher_information"
+                );
+                globalState.set("nextActionUrl", null);
+              } else if (response.body.next_action.redirect_to_url) {
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.redirect_to_url
+                );
+                globalState.set("nextActionType", "redirect_to_url");
+              }
+            }
+
+            for (const key in resData.body) {
+              expect(resData.body[key], [key]).to.deep.equal(
+                response.body[key]
+              );
+            }
+          } else {
+            throw new Error(
+              `Invalid capture method ${response.body.capture_method}`
+            );
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "handleVoucherRedirection",
+  (globalState, paymentMethodType, expectedRedirection) => {
+    const DISPLAY_ONLY_VOUCHERS = ["boleto", "oxxo", "alfamart", "indomaret"];
+    if (DISPLAY_ONLY_VOUCHERS.includes(paymentMethodType)) {
+      cy.log(
+        `Skipping cy.visit() for display-only voucher: ${paymentMethodType}`
+      );
+      return;
+    }
+
+    const nextActionType = globalState.get("nextActionType");
+    const nextActionUrl = globalState.get("nextActionUrl");
+
+    if (nextActionType === "display_voucher_information" || !nextActionUrl) {
+      cy.log(
+        `Skipping voucher redirect for ${paymentMethodType} (nextActionType: ${nextActionType}). ` +
+          `Voucher information is displayed in the API response.`
+      );
+      return;
+    }
+
+    if (RequestBodyUtils.isCI()) {
+      cy.task(
+        "cli_log",
+        `Skipping voucher redirect for ${paymentMethodType} in CI environment. ` +
+          `Voucher payment is validated via Retrieve Payment.`
+      );
+      return;
+    }
+
+    const connectorId = globalState.get("connectorId");
+    const expectedUrl = new URL(expectedRedirection);
+    const redirectionUrl = new URL(nextActionUrl);
+
+    handleRedirection(
+      "voucher",
+      { redirectionUrl, expectedUrl },
+      connectorId,
+      paymentMethodType
+    );
+  }
+);
+
+Cypress.Commands.add(
   "handleUpiRedirection",
   (globalState, paymentMethodType, expected_redirection) => {
     const connectorId = globalState.get("connectorId");
@@ -5509,7 +5631,6 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState, order = 0) => {
           expect(cardInfo.card_holder_name, "card_holder_name").to.not.be.null;
         }
 
-        // Validate last_used_at timestamp
         expect(new Date(lastUsedAt).getTime(), "last_used_at").to.be.lessThan(
           Date.now()
         ).and.to.not.be.null;
@@ -9385,6 +9506,114 @@ Cypress.Commands.add("retrieveNonExistentPaymentLinkTest", (globalState) => {
 });
 
 // ============================================
+// Forex Rates Commands
+// ============================================
+
+Cypress.Commands.add("getForexRates", (globalState) => {
+  const apiKey = globalState.get("apiKey") || globalState.get("adminApiKey");
+  const baseUrl = globalState.get("baseUrl");
+
+  cy.request({
+    method: "GET",
+    url: `${baseUrl}/forex/rates`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status).to.equal(200);
+      expect(response.body).to.have.property("data");
+      expect(response.body.data).to.have.property("base_currency");
+      expect(response.body.data).to.have.property("conversion");
+      expect(typeof response.body.data.conversion).to.equal("object");
+      cy.task(
+        "cli_log",
+        `Forex rates - base_currency: ${response.body.data.base_currency}, rates count: ${Object.keys(response.body.data.conversion).length}`
+      );
+    });
+  });
+});
+
+function requestForexConvert(
+  baseUrl,
+  apiKey,
+  amount,
+  fromCurrency,
+  toCurrency
+) {
+  return cy.request({
+    method: "GET",
+    url: `${baseUrl}/forex/convert_from_minor?amount=${amount}&from_currency=${fromCurrency}&to_currency=${toCurrency}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    failOnStatusCode: false,
+  });
+}
+
+Cypress.Commands.add(
+  "convertCurrency",
+  (amount, fromCurrency, toCurrency, globalState, options = {}) => {
+    const apiKey =
+      options.apiKey ||
+      globalState.get("apiKey") ||
+      globalState.get("adminApiKey");
+    const baseUrl = globalState.get("baseUrl");
+
+    requestForexConvert(baseUrl, apiKey, amount, fromCurrency, toCurrency).then(
+      (response) => {
+        logRequestId(response.headers["x-request-id"]);
+
+        if (options.assert) {
+          options.assert(response);
+          return;
+        }
+
+        cy.wrap(response).then(() => {
+          if (response.status === 200) {
+            expect(response.body).to.have.property("converted_amount");
+            expect(response.body).to.have.property("currency");
+            expect(response.body.currency).to.equal(toCurrency);
+            cy.task(
+              "cli_log",
+              `Converted ${amount} ${fromCurrency} → ${response.body.converted_amount} ${response.body.currency}`
+            );
+          } else if (response.status === 400) {
+            expect(response.body).to.exist;
+          } else {
+            throw new Error(
+              `Unexpected forex convert status: ${response.status} - ${JSON.stringify(response.body)}`
+            );
+          }
+        });
+      }
+    );
+  }
+);
+
+Cypress.Commands.add("getForexRatesWithoutAuth", (globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+
+  cy.request({
+    method: "GET",
+    url: `${baseUrl}/forex/rates`,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    cy.wrap(response).then(() => {
+      expect(response.status, "status_code").to.equal(401);
+    });
+  });
+});
+
+// ============================================
 // Extended Card Info Commands
 // ============================================
 
@@ -9496,3 +9725,30 @@ Cypress.Commands.add("setExtendedCardInfoConfigTest", (globalState) => {
     });
   });
 });
+
+Cypress.Commands.add(
+  "convertCurrencyMissingParam",
+  (missingParam, amount, fromCurrency, toCurrency, globalState) => {
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+
+    const params = new URLSearchParams();
+    if (missingParam !== "amount") params.set("amount", amount);
+    if (missingParam !== "from_currency")
+      params.set("from_currency", fromCurrency);
+    if (missingParam !== "to_currency") params.set("to_currency", toCurrency);
+
+    cy.request({
+      method: "GET",
+      url: `${baseUrl}/forex/convert_from_minor?${params.toString()}`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      expect(response.status).to.be.oneOf([400, 422]);
+    });
+  }
+);

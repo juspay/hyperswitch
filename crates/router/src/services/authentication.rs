@@ -5556,7 +5556,7 @@ impl ClientSecretFetch for payments::PaymentsRequest {
 }
 
 #[cfg(feature = "v1")]
-impl ClientSecretFetch for payments::PaymentsEligibilityRequest {
+impl ClientSecretFetch for payments::PaymentsEligibilityCheckRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret
             .as_ref()
@@ -5565,7 +5565,7 @@ impl ClientSecretFetch for payments::PaymentsEligibilityRequest {
 }
 
 #[cfg(feature = "v1")]
-impl ClientSecretFetch for payments::PaymentsPreConfirmRequest {
+impl ClientSecretFetch for payments::PaymentsEligibilityRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret
             .as_ref()

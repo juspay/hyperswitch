@@ -8775,7 +8775,7 @@ where
     pub card_testing_guard_data:
         Option<hyperswitch_domain_models::card_testing_guard_data::CardTestingGuardData>,
     pub vault_operation: Option<domain_payments::VaultOperation>,
-    pub vault_session_details: Option<api::VaultSessionDetails>,
+    pub vault_session_details: Option<api::VaultDetails>,
     pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
     pub whole_connector_response: Option<Secret<String>>,
     pub is_manual_retry_enabled: Option<bool>,
@@ -8797,7 +8797,7 @@ impl PaymentEligibilityData {
     pub async fn from_request(
         state: &SessionState,
         platform: &domain::Platform,
-        payments_eligibility_request: &api_models::payments::PaymentsEligibilityRequest,
+        payments_eligibility_request: &api_models::payments::PaymentsEligibilityCheckRequest,
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
         payments_eligibility_request
             .validate_payment_method_input()
@@ -12546,12 +12546,12 @@ impl EligibilityHandler {
 }
 
 #[cfg(all(feature = "oltp", feature = "v1"))]
-pub async fn payments_submit_eligibility(
+pub async fn payments_submit_eligibility_check(
     state: SessionState,
     platform: domain::Platform,
-    req: api_models::payments::PaymentsEligibilityRequest,
+    req: api_models::payments::PaymentsEligibilityCheckRequest,
     payment_id: id_type::PaymentId,
-) -> RouterResponse<api_models::payments::PaymentsEligibilityResponse> {
+) -> RouterResponse<api_models::payments::PaymentsEligibilityCheckResponse> {
     let payment_eligibility_data = Box::pin(PaymentEligibilityData::from_request(
         &state, &platform, &req,
     ))
@@ -12589,7 +12589,7 @@ pub async fn payments_submit_eligibility(
             should_block_confirm: None,
         });
     Ok(services::ApplicationResponse::Json(
-        api_models::payments::PaymentsEligibilityResponse {
+        api_models::payments::PaymentsEligibilityCheckResponse {
             payment_id,
             sdk_next_action,
         },
@@ -12597,12 +12597,12 @@ pub async fn payments_submit_eligibility(
 }
 
 #[cfg(all(feature = "oltp", feature = "v1"))]
-pub async fn payments_submit_pre_confirm(
+pub async fn payments_submit_eligibility(
     state: SessionState,
     platform: domain::Platform,
-    req: api_models::payments::PaymentsPreConfirmRequest,
+    req: api_models::payments::PaymentsEligibilityRequest,
     payment_id: id_type::PaymentId,
-) -> RouterResponse<api_models::payments::PaymentsPreConfirmResponse> {
+) -> RouterResponse<api_models::payments::PaymentsEligibilityResponse> {
     // Convert to eligibility request so we can reuse the existing data-fetching logic
     // Extract postal code and country from request billing address (will be used to override PI values below)
     let req_billing_address = req
@@ -12612,7 +12612,7 @@ pub async fn payments_submit_pre_confirm(
         .and_then(|billing| billing.address.as_ref());
     let req_postal_code = req_billing_address.and_then(|addr| addr.zip.clone());
     let req_billing_country = req_billing_address.and_then(|addr| addr.country);
-    let eligibility_req = api_models::payments::PaymentsEligibilityRequest {
+    let eligibility_req = api_models::payments::PaymentsEligibilityCheckRequest {
         payment_id: req.payment_id.clone(),
         client_secret: req.client_secret.clone(),
         payment_method_type: req.payment_method_type,
@@ -12816,8 +12816,7 @@ pub async fn payments_submit_pre_confirm(
                                 .get_redis_conn()
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable("Failed to get redis connection for surcharge")?;
-                            let redis_key =
-                                helpers::get_pre_confirm_surcharge_redis_key(&payment_id);
+                            let redis_key = helpers::get_external_surcharge_redis_key(&payment_id);
                             let surcharge_to_store =
                                 api_models::payments::RequestSurchargeDetails {
                                     surcharge_amount,
@@ -12827,17 +12826,15 @@ pub async fn payments_submit_pre_confirm(
                                 .serialize_and_set_key_with_expiry(
                                     &redis_key.as_str().into(),
                                     &surcharge_to_store,
-                                    consts::PRE_CONFIRM_SURCHARGE_TTL,
+                                    consts::EXTERNAL_SURCHARGE_TTL,
                                 )
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable(
-                                    "Failed to store pre_confirm surcharge in redis",
-                                )?;
+                                .attach_printable("Failed to store external surcharge in redis")?;
                             logger::info!(
                                 redis_key = %redis_key,
                                 surcharge_amount = %surcharge_amount.get_amount_as_i64(),
-                                "pre_confirm: stored surcharge in Redis"
+                                "eligibility: stored surcharge in Redis"
                             );
                             Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(())
                         }
@@ -12845,7 +12842,7 @@ pub async fn payments_submit_pre_confirm(
                         if let Err(err) = redis_write_result {
                             logger::warn!(
                                 error=?err,
-                                "pre_confirm: failed to write surcharge to Redis; confirm will not auto-apply surcharge"
+                                "eligibility: failed to write surcharge to Redis; confirm will not auto-apply surcharge"
                             );
                         }
 
@@ -12913,7 +12910,7 @@ pub async fn payments_submit_pre_confirm(
     };
 
     Ok(services::ApplicationResponse::Json(
-        api_models::payments::PaymentsPreConfirmResponse {
+        api_models::payments::PaymentsEligibilityResponse {
             payment_id,
             sdk_next_action,
             surcharge_details,
@@ -13017,7 +13014,7 @@ pub trait OperationSessionGetters<F> {
         &self,
     ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>>;
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails>;
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails>;
     #[cfg(feature = "v1")]
     fn get_click_to_pay_service_details(&self) -> Option<&api_models::payments::CtpServiceDetails>;
 
@@ -13102,7 +13099,7 @@ pub trait OperationSessionSetters<F> {
 
     fn set_vault_session_details(
         &mut self,
-        external_vault_session_details: Option<api::VaultSessionDetails>,
+        external_vault_session_details: Option<api::VaultDetails>,
     );
     fn set_routing_approach_in_attempt(&mut self, routing_approach: Option<enums::RoutingApproach>);
 
@@ -13284,7 +13281,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.client_session_id.clone()
     }
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails> {
         self.vault_session_details.clone()
     }
 
@@ -13463,10 +13460,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         self.vault_operation = Some(vault_operation);
     }
 
-    fn set_vault_session_details(
-        &mut self,
-        vault_session_details: Option<api::VaultSessionDetails>,
-    ) {
+    fn set_vault_session_details(&mut self, vault_session_details: Option<api::VaultDetails>) {
         self.vault_session_details = vault_session_details;
     }
 
@@ -13647,7 +13641,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         None
     }
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails> {
         self.vault_session_details.clone()
     }
 }
@@ -13778,10 +13772,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn set_vault_session_details(
-        &mut self,
-        vault_session_details: Option<api::VaultSessionDetails>,
-    ) {
+    fn set_vault_session_details(&mut self, vault_session_details: Option<api::VaultDetails>) {
         self.vault_session_details = vault_session_details;
     }
 
@@ -13963,7 +13954,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
             .and_then(|pre_routing_algorithm| pre_routing_algorithm.pre_routing_results)
     }
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails> {
         todo!()
     }
 }
@@ -14098,7 +14089,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
 
     fn set_vault_session_details(
         &mut self,
-        external_vault_session_details: Option<api::VaultSessionDetails>,
+        external_vault_session_details: Option<api::VaultDetails>,
     ) {
         todo!()
     }
@@ -14278,7 +14269,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         None
     }
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails> {
         todo!()
     }
 }
@@ -14412,7 +14403,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
 
     fn set_vault_session_details(
         &mut self,
-        external_vault_session_details: Option<api::VaultSessionDetails>,
+        external_vault_session_details: Option<api::VaultDetails>,
     ) {
         todo!()
     }
@@ -14593,7 +14584,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCaptureData<F> {
         None
     }
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails> {
         todo!()
     }
 }
@@ -14727,7 +14718,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
 
     fn set_vault_session_details(
         &mut self,
-        external_vault_session_details: Option<api::VaultSessionDetails>,
+        external_vault_session_details: Option<api::VaultDetails>,
     ) {
         todo!()
     }
@@ -14908,7 +14899,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentAttemptListData<F> {
         todo!()
     }
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails> {
         todo!()
     }
 }
@@ -15069,7 +15060,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentCancelData<F> {
         None
     }
 
-    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultDetails> {
         todo!()
     }
 }
@@ -15204,7 +15195,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCancelData<F> {
 
     fn set_vault_session_details(
         &mut self,
-        _external_vault_session_details: Option<api::VaultSessionDetails>,
+        _external_vault_session_details: Option<api::VaultDetails>,
     ) {
         todo!()
     }

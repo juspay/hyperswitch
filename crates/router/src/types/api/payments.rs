@@ -7,7 +7,8 @@ pub use api_models::payments::{
 #[cfg(feature = "v1")]
 pub use api_models::payments::{
     PaymentListFilterConstraints, PaymentListResponse, PaymentListResponseV2, PaymentRetrieveBody,
-    PaymentRetrieveBodyWithCredentials, PaymentsEligibilityRequest, PaymentsPreConfirmRequest,
+    PaymentRetrieveBodyWithCredentials, PaymentsEligibilityCheckRequest,
+    PaymentsEligibilityRequest,
 };
 pub use api_models::{
     feature_matrix::{
@@ -16,20 +17,21 @@ pub use api_models::{
     payments::{
         Address, AddressDetails, Amount, ApplepayPaymentMethod, AuthenticationForStartResponse,
         Card, CryptoData, CustomerDetails, CustomerDetailsResponse, HyperswitchVaultSessionDetails,
-        MandateAmountData, MandateData, MandateType, MandateValidationFields, NextActionType,
-        OpenBankingSessionToken, PayLaterData, PaymentIdType, PaymentListConstraints,
-        PaymentListFilters, PaymentListFiltersV2, PaymentMethodData, PaymentMethodDataRequest,
-        PaymentMethodDataResponse, PaymentOp, PaymentsAggregateResponse, PaymentsApproveRequest,
-        PaymentsCancelPostCaptureRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
-        PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
-        PaymentsDynamicTaxCalculationResponse, PaymentsExtendAuthorizationRequest,
-        PaymentsExternalAuthenticationRequest, PaymentsIncrementalAuthorizationRequest,
-        PaymentsManualUpdateRequest, PaymentsPostSessionTokensRequest,
-        PaymentsPostSessionTokensResponse, PaymentsRedirectRequest, PaymentsRedirectionResponse,
-        PaymentsRejectRequest, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
-        PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
-        PaymentsStartRequest, PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse,
-        PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, UrlDetails,
+        InternalVaultSessionDetails, MandateAmountData, MandateData, MandateType,
+        MandateValidationFields, NextActionType, OpenBankingSessionToken, PayLaterData,
+        PaymentIdType, PaymentListConstraints, PaymentListFilters, PaymentListFiltersV2,
+        PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp,
+        PaymentsAggregateResponse, PaymentsApproveRequest, PaymentsCancelPostCaptureRequest,
+        PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
+        PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
+        PaymentsExtendAuthorizationRequest, PaymentsExternalAuthenticationRequest,
+        PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
+        PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse,
+        PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRejectRequest,
+        PaymentsRequest, PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest,
+        PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
+        PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse, PgRedirectResponse,
+        PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VaultDetails,
         VaultSessionDetails, VerifyRequest, VerifyResponse, VgsSessionDetails, WalletData,
     },
 };

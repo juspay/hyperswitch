@@ -893,6 +893,10 @@ impl Relay {
         web::scope("/relay")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(relay::relay)))
+            .service(
+                web::resource("/unreferenced_refund")
+                    .route(web::post().to(relay::unreferenced_refund)),
+            )
             .service(web::resource("/{relay_id}").route(web::get().to(relay::relay_retrieve)))
     }
 }
@@ -1001,7 +1005,7 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/eligibility_check")
-                        .route(web::post().to(payments::payments_submit_eligibility)),
+                        .route(web::post().to(payments::payments_submit_eligibility_check)),
                 )
                 .service(
                     web::resource("/{payment_id}/client")
@@ -1009,7 +1013,7 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/eligibility")
-                        .route(web::post().to(payments::payments_submit_pre_confirm)),
+                        .route(web::post().to(payments::payments_submit_eligibility)),
                 )
                 .service(
                     web::resource("/redirect/{payment_id}/{merchant_id}/{attempt_id}")

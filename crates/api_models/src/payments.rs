@@ -10172,6 +10172,24 @@ pub enum SessionToken {
     NoSessionTokenReceived,
 }
 
+/// Top-level vault details returned in the session-tokens response.
+/// For v1: contains both internal vault (SDK authorization) and external vault details.
+/// For v2: contains only external vault details.
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct VaultDetails {
+    /// Internal vault details containing the SDK authorization token (v1 only)
+    pub internal_vault: Option<InternalVaultSessionDetails>,
+    /// External vault details (e.g. VGS or Hyperswitch Vault)
+    pub external_vault_details: Option<VaultSessionDetails>,
+}
+
+/// Internal vault details for SDK authorization
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct InternalVaultSessionDetails {
+    /// Base64-encoded SDK authorization token for the internal vault session
+    pub sdk_authorization: String,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum VaultSessionDetails {
@@ -10574,8 +10592,6 @@ pub enum NextActionCall {
     Deny { message: String },
     /// The next action is to perform eligibility check
     EligibilityCheck,
-    /// The next action is to perform pre-confirm (combined eligibility + surcharge calculation)
-    PreConfirm,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -10937,8 +10953,8 @@ pub struct PaymentsSessionResponse {
     pub client_secret: Secret<String, pii::ClientSecret>,
     /// The list of session token object
     pub session_token: Vec<SessionToken>,
-    /// External vault session details
-    pub vault_details: Option<VaultSessionDetails>,
+    /// Vault details containing internal vault (SDK auth) and external vault info
+    pub vault_details: Option<VaultDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -10950,7 +10966,7 @@ pub struct PaymentsSessionResponse {
     /// The list of session token object
     pub session_token: Vec<SessionToken>,
     /// External vault session details
-    pub vault_details: Option<VaultSessionDetails>,
+    pub vault_details: Option<VaultDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -12562,7 +12578,7 @@ pub struct ClickToPaySessionResponse {
 
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, Clone, ToSchema)]
-pub struct PaymentsEligibilityRequest {
+pub struct PaymentsEligibilityCheckRequest {
     /// The identifier for the payment
     /// Added in the payload for ApiEventMetrics, populated from the path param
     #[serde(skip)]
@@ -12589,7 +12605,7 @@ pub struct PaymentsEligibilityRequest {
 }
 
 #[cfg(feature = "v1")]
-impl PaymentsEligibilityRequest {
+impl PaymentsEligibilityCheckRequest {
     /// Validates that either payment_token or payment_method_data is provided
     pub fn validate_payment_method_input(
         &self,
@@ -12798,7 +12814,7 @@ pub struct EligibilityPaymentMethodDataRequest {
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
-pub struct PaymentsEligibilityResponse {
+pub struct PaymentsEligibilityCheckResponse {
     /// The identifier for the payment
     #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,
@@ -12806,11 +12822,11 @@ pub struct PaymentsEligibilityResponse {
     pub sdk_next_action: SdkNextAction,
 }
 
-/// Request body for the pre_confirm endpoint.
+/// Request body for the eligibility endpoint.
 /// Combines eligibility checks with external surcharge calculation in a single call.
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Deserialize, ToSchema)]
-pub struct PaymentsPreConfirmRequest {
+pub struct PaymentsEligibilityRequest {
     /// The identifier for the payment
     /// Added in the payload for ApiEventMetrics, populated from the path param
     #[serde(skip)]
@@ -12835,10 +12851,10 @@ pub struct PaymentsPreConfirmRequest {
     pub payment_token: Option<Secret<String>>,
 }
 
-/// Response body for the pre_confirm endpoint.
+/// Response body for the eligibility endpoint.
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
-pub struct PaymentsPreConfirmResponse {
+pub struct PaymentsEligibilityResponse {
     /// The identifier for the payment
     #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,

@@ -222,6 +222,7 @@ pub struct PaymentIntentUpdateFields {
     pub active_attempt_id_type: Option<common_enums::ActiveAttemptIDType>,
     pub active_attempts_group_id: Option<id_type::GlobalAttemptGroupId>,
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
+    pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
 #[cfg(feature = "v1")]
@@ -269,6 +270,7 @@ pub struct PaymentIntentUpdateFields {
     pub shipping_cost: Option<MinorUnit>,
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
+    pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
 #[cfg(feature = "v1")]
@@ -554,6 +556,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
+                surcharge_strategy: None,
             }),
 
             PaymentIntentUpdate::ConfirmIntentPostUpdate {
@@ -604,6 +607,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
+                surcharge_strategy: None,
             }),
             PaymentIntentUpdate::SyncUpdate {
                 status,
@@ -652,6 +656,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
+                surcharge_strategy: None,
             }),
             PaymentIntentUpdate::CaptureUpdate {
                 status,
@@ -700,6 +705,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
+                surcharge_strategy: None,
             }),
             PaymentIntentUpdate::SessionIntentUpdate {
                 prerouting_algorithm,
@@ -751,6 +757,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
+                surcharge_strategy: None,
             }),
             PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
                 let PaymentIntentUpdateFields {
@@ -792,6 +799,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     active_attempt_id_type,
                     active_attempts_group_id,
                     profile_acquirer_id,
+                    surcharge_strategy,
                 } = *boxed_intent;
                 Ok(Self {
                     status: None,
@@ -842,6 +850,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     enable_partial_authorization,
                     state_metadata: None,
                     profile_acquirer_id,
+                    surcharge_strategy,
                 })
             }
             PaymentIntentUpdate::RecordUpdate {
@@ -893,6 +902,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
+                surcharge_strategy: None,
             }),
             PaymentIntentUpdate::VoidUpdate { status, updated_by } => Ok(Self {
                 status: Some(status),
@@ -938,6 +948,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
+                surcharge_strategy: None,
             }),
             PaymentIntentUpdate::AttemptGroupUpdate {
                 updated_by,
@@ -986,6 +997,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
+                surcharge_strategy: None,
             }),
             PaymentIntentUpdate::SplitPaymentStatusUpdate { status, updated_by } => Ok(Self {
                 status: Some(status),
@@ -1030,6 +1042,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
+                surcharge_strategy: None,
             }),
         }
     }
@@ -2091,6 +2104,7 @@ impl behaviour::Conversion for PaymentIntent {
             is_payment_id_from_merchant,
             enable_partial_authorization,
             profile_acquirer_id,
+            surcharge_strategy,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -2203,6 +2217,7 @@ impl behaviour::Conversion for PaymentIntent {
             state_metadata: None,
             installment_options: None,
             profile_acquirer_id,
+            surcharge_strategy,
         })
     }
     async fn convert_back(
@@ -2357,6 +2372,7 @@ impl behaviour::Conversion for PaymentIntent {
                     .enable_partial_authorization
                     .unwrap_or(false.into()),
                 profile_acquirer_id: storage_model.profile_acquirer_id,
+                surcharge_strategy: storage_model.surcharge_strategy,
             })
         }
         .await
@@ -2469,6 +2485,7 @@ impl behaviour::Conversion for PaymentIntent {
             state_metadata: None,
             installment_options: None,
             profile_acquirer_id: self.profile_acquirer_id,
+            surcharge_strategy: self.surcharge_strategy,
         })
     }
 }

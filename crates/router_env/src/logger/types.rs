@@ -647,6 +647,8 @@ pub enum Flow {
     Relay,
     /// Relay retrieve flow
     RelayRetrieve,
+    /// Relay unreferenced refund flow
+    RelayUnreferencedRefund,
     /// Card tokenization flow
     TokenizeCard,
     /// Card tokenization using payment method flow
@@ -731,10 +733,10 @@ pub enum Flow {
     RevenueRecoveryRedis,
     /// Payment Method balance check flow
     PaymentMethodBalanceCheck,
-    /// Payments Submit Eligibility flow
+    /// Payments Submit Eligibility Check flow
+    PaymentsSubmitCheckEligibility,
+    /// Payments Submit Eligibility flow (combined eligibility + external surcharge)
     PaymentsSubmitEligibility,
-    /// Payments Submit PreConfirm flow (combined eligibility + external surcharge)
-    PaymentsSubmitPreConfirm,
     /// Apply payment method data flow
     ApplyPaymentMethodData,
     /// Payouts aggregates flow

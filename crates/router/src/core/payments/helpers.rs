@@ -8536,8 +8536,8 @@ pub fn get_redis_key_for_extended_card_info(
     )
 }
 
-pub fn get_pre_confirm_surcharge_redis_key(payment_id: &id_type::PaymentId) -> String {
-    format!("{}_pre_confirm_surcharge", payment_id.get_string_repr())
+pub fn get_external_surcharge_redis_key(payment_id: &id_type::PaymentId) -> String {
+    format!("{}_external_surcharge", payment_id.get_string_repr())
 }
 
 pub fn check_integrity_based_on_flow<T, Request>(

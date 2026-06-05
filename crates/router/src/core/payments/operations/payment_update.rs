@@ -1112,6 +1112,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     shipping_cost,
                     installment_options: payment_data.payment_intent.installment_options.clone(),
                     profile_acquirer_id: payment_data.payment_intent.profile_acquirer_id.clone(),
+                    surcharge_strategy: payment_data.payment_intent.surcharge_strategy,
                 })),
                 key_store,
                 storage_scheme,

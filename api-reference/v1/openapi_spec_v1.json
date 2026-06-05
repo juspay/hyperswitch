@@ -1669,8 +1669,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Submit Eligibility Data",
-        "operationId": "Submit Eligibility data for a Payment",
+        "summary": "Payments - Submit Eligibility Check Data",
+        "operationId": "Submit Eligibility Check data for a Payment",
         "parameters": [
           {
             "name": "payment_id",
@@ -1686,7 +1686,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PaymentsEligibilityRequest"
+                "$ref": "#/components/schemas/PaymentsEligibilityCheckRequest"
               }
             }
           },
@@ -1694,11 +1694,11 @@
         },
         "responses": {
           "200": {
-            "description": "Eligibility submit is successful",
+            "description": "Eligibility Check submit is successful",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentsEligibilityResponse"
+                  "$ref": "#/components/schemas/PaymentsEligibilityCheckResponse"
                 }
               }
             }
@@ -1726,9 +1726,9 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Submit Pre-Confirm Data",
+        "summary": "Payments - Submit Eligibility Data",
         "description": "Runs eligibility checks (blocklist, card testing guard) and calculates an external surcharge\nin a single call. Intended to be called by the SDK before the final confirm step.\n\n- If eligibility is denied the response will contain `sdk_next_action: deny` and no surcharge details.\n- If the merchant has no surcharge connector configured, `surcharge_details` will be `null`.\n- Surcharge calculation is best-effort: if the external call fails the payment still proceeds\nwith `surcharge_details: null`.",
-        "operationId": "Submit Pre-Confirm data for a Payment",
+        "operationId": "Submit Eligibility data for a Payment",
         "parameters": [
           {
             "name": "payment_id",
@@ -1744,7 +1744,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PaymentsPreConfirmRequest"
+                "$ref": "#/components/schemas/PaymentsEligibilityRequest"
               }
             }
           },
@@ -1752,11 +1752,11 @@
         },
         "responses": {
           "200": {
-            "description": "Pre-confirm checks successful",
+            "description": "Eligibility checks successful",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentsPreConfirmResponse"
+                  "$ref": "#/components/schemas/PaymentsEligibilityResponse"
                 }
               }
             }
@@ -16379,6 +16379,7 @@
       "Connector": {
         "type": "string",
         "enum": [
+          "absa_sanlam",
           "authipay",
           "adyenplatform",
           "stripe_billing_test",
@@ -16492,7 +16493,6 @@
           "recurly",
           "redsys",
           "revolv3",
-          "sanlam",
           "santander",
           "shift4",
           "silverflow",
@@ -23138,6 +23138,19 @@
         },
         "additionalProperties": false
       },
+      "InternalVaultSessionDetails": {
+        "type": "object",
+        "description": "Internal vault details for SDK authorization",
+        "required": [
+          "sdk_authorization"
+        ],
+        "properties": {
+          "sdk_authorization": {
+            "type": "string",
+            "description": "Base64-encoded SDK authorization token for the internal vault session"
+          }
+        }
+      },
       "Invoice": {
         "type": "object",
         "required": [
@@ -26026,13 +26039,6 @@
             "description": "The next action is to perform eligibility check",
             "enum": [
               "eligibility_check"
-            ]
-          },
-          {
-            "type": "string",
-            "description": "The next action is to perform pre-confirm (combined eligibility + surcharge calculation)",
-            "enum": [
-              "pre_confirm"
             ]
           }
         ]
@@ -32298,7 +32304,7 @@
           }
         }
       },
-      "PaymentsEligibilityRequest": {
+      "PaymentsEligibilityCheckRequest": {
         "type": "object",
         "required": [
           "client_secret",
@@ -32345,7 +32351,7 @@
           }
         }
       },
-      "PaymentsEligibilityResponse": {
+      "PaymentsEligibilityCheckResponse": {
         "type": "object",
         "required": [
           "payment_id",
@@ -32358,6 +32364,76 @@
           },
           "sdk_next_action": {
             "$ref": "#/components/schemas/SdkNextAction"
+          }
+        }
+      },
+      "PaymentsEligibilityRequest": {
+        "type": "object",
+        "description": "Request body for the eligibility endpoint.\nCombines eligibility checks with external surcharge calculation in a single call.",
+        "required": [
+          "client_secret",
+          "payment_method_type",
+          "payment_token"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "Token used for client side verification",
+            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EligibilityPaymentMethodDataRequest"
+              }
+            ],
+            "nullable": true
+          },
+          "browser_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_token": {
+            "type": "string",
+            "description": "The payment token to look up the saved payment method",
+            "example": "token_abc123xyz"
+          }
+        }
+      },
+      "PaymentsEligibilityResponse": {
+        "type": "object",
+        "description": "Response body for the eligibility endpoint.",
+        "required": [
+          "payment_id",
+          "sdk_next_action"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "sdk_next_action": {
+            "$ref": "#/components/schemas/SdkNextAction"
+          },
+          "surcharge_details": {
+            "type": "string",
+            "description": "Surcharge details if an external surcharge was calculated. None if eligibility was denied\nor no surcharge connector is configured for this merchant.",
+            "nullable": true
           }
         }
       },
@@ -32515,76 +32591,6 @@
               }
             ],
             "default": "requires_confirmation"
-          }
-        }
-      },
-      "PaymentsPreConfirmRequest": {
-        "type": "object",
-        "description": "Request body for the pre_confirm endpoint.\nCombines eligibility checks with external surcharge calculation in a single call.",
-        "required": [
-          "client_secret",
-          "payment_method_type",
-          "payment_token"
-        ],
-        "properties": {
-          "client_secret": {
-            "type": "string",
-            "description": "Token used for client side verification",
-            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
-          },
-          "payment_method_type": {
-            "$ref": "#/components/schemas/PaymentMethod"
-          },
-          "payment_method_subtype": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethodType"
-              }
-            ],
-            "nullable": true
-          },
-          "payment_method_data": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EligibilityPaymentMethodDataRequest"
-              }
-            ],
-            "nullable": true
-          },
-          "browser_info": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/BrowserInformation"
-              }
-            ],
-            "nullable": true
-          },
-          "payment_token": {
-            "type": "string",
-            "description": "The payment token to look up the saved payment method",
-            "example": "token_abc123xyz"
-          }
-        }
-      },
-      "PaymentsPreConfirmResponse": {
-        "type": "object",
-        "description": "Response body for the pre_confirm endpoint.",
-        "required": [
-          "payment_id",
-          "sdk_next_action"
-        ],
-        "properties": {
-          "payment_id": {
-            "type": "string",
-            "description": "The identifier for the payment"
-          },
-          "sdk_next_action": {
-            "$ref": "#/components/schemas/SdkNextAction"
-          },
-          "surcharge_details": {
-            "type": "string",
-            "description": "Surcharge details if an external surcharge was calculated. None if eligibility was denied\nor no surcharge connector is configured for this merchant.",
-            "nullable": true
           }
         }
       },
@@ -34129,7 +34135,7 @@
           "vault_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/VaultSessionDetails"
+                "$ref": "#/components/schemas/VaultDetails"
               }
             ],
             "nullable": true
@@ -36746,6 +36752,12 @@
             "description": "Individual taxpayer identification number",
             "example": "000123456",
             "nullable": true
+          },
+          "ispb": {
+            "type": "string",
+            "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
+            "example": "60701190",
+            "nullable": true
           }
         }
       },
@@ -36985,6 +36997,12 @@
             "type": "string",
             "description": "String formatted QR code for pix payout",
             "example": "00020126580014br.gov.bcb.pix0114000123456785204000053039865802BR5925John Doe6009Sao Paulo61080540900062070503***63041D3D"
+          },
+          "ispb": {
+            "type": "string",
+            "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
+            "example": "60701190",
+            "nullable": true
           }
         }
       },
@@ -38542,6 +38560,48 @@
           }
         }
       },
+      "RecipientCardData": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "example": "4000000000009995"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "example": "03"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "example": "30"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "example": "John Doe",
+            "nullable": true
+          }
+        }
+      },
+      "RecipientPaymentMethodData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/RecipientCardData"
+              }
+            }
+          }
+        ]
+      },
       "RecommendedAction": {
         "type": "string",
         "enum": [
@@ -39192,6 +39252,17 @@
                 "$ref": "#/components/schemas/RelayVoidRequestData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "unreferenced_refund"
+            ],
+            "properties": {
+              "unreferenced_refund": {
+                "$ref": "#/components/schemas/RelayUnreferencedRefundData"
+              }
+            }
           }
         ]
       },
@@ -39369,8 +39440,34 @@
           "refund",
           "capture",
           "incremental_authorization",
-          "void"
+          "void",
+          "unreferenced_refund"
         ]
+      },
+      "RelayUnreferencedRefundData": {
+        "type": "object",
+        "required": [
+          "amount",
+          "currency",
+          "customer_id",
+          "recipient_payment_method_data"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "example": 6540
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "customer_id": {
+            "type": "string"
+          },
+          "recipient_payment_method_data": {
+            "$ref": "#/components/schemas/RecipientPaymentMethodData"
+          }
+        }
       },
       "RelayVoidRequestData": {
         "type": "object",
@@ -39926,6 +40023,7 @@
         "type": "string",
         "description": "RoutableConnectors are the subset of Connectors that are eligible for payments routing",
         "enum": [
+          "absa_sanlam",
           "authipay",
           "adyenplatform",
           "stripe_billing_test",
@@ -40033,7 +40131,6 @@
           "redsys",
           "revolv3",
           "riskified",
-          "sanlam",
           "santander",
           "shift4",
           "signifyd",
@@ -41743,8 +41840,7 @@
             "example": "acct_1234567890",
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "StripeChargeType": {
         "type": "string",
@@ -43316,6 +43412,28 @@
         "description": "Represents a value in the DSL",
         "discriminator": {
           "propertyName": "type"
+        }
+      },
+      "VaultDetails": {
+        "type": "object",
+        "description": "Top-level vault details returned in the session-tokens response.\nFor v1: contains both internal vault (SDK authorization) and external vault details.\nFor v2: contains only external vault details.",
+        "properties": {
+          "internal_vault": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InternalVaultSessionDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "external_vault_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultSessionDetails"
+              }
+            ],
+            "nullable": true
+          }
         }
       },
       "VaultSdk": {
