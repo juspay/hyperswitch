@@ -5217,7 +5217,7 @@ Cypress.Commands.add(
     let redirectionUrl;
     try {
       redirectionUrl = new URL(nextActionUrl);
-    } catch (e) {
+    } catch {
       cy.task(
         "cli_log",
         `Skipping wallet redirection: invalid redirect URL for ${paymentMethodType} (nextActionUrl=${nextActionUrl})`

@@ -1297,7 +1297,6 @@ function bankRedirectRedirection(
                 break;
               case "momo":
                 cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
-                  const bodyText = $body.text() || "";
                   if ($body.find("h1").length > 0) {
                     cy.get("h1").should("contain.text", "Acquirer Simulator");
                     cy.get('[value="authorised"]').click();
