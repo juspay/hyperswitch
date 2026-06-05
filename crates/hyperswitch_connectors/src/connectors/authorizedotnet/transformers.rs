@@ -1405,13 +1405,6 @@ pub struct AuthorizedotnetTransactionResponseError {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TransactionProfileInfo {
-    customer_profile_id: String,
-    customer_payment_profile_id: String,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetTransactionResponse {
     response_code: AuthorizedotnetPaymentStatus,
     #[serde(rename = "transId")]
@@ -1421,8 +1414,6 @@ pub struct AuthorizedotnetTransactionResponse {
     pub(super) errors: Option<Vec<ErrorMessage>>,
     secure_acceptance: Option<SecureAcceptance>,
     avs_result_code: Option<String>,
-    #[serde(default)]
-    profile: Option<TransactionProfileInfo>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1601,45 +1592,25 @@ impl<F, T>
                     .as_ref()
                     .and_then(|x| x.secure_acceptance_url.to_owned());
                 let redirection_data = url.map(|url| RedirectForm::from((url, Method::Get)));
-                let mandate_reference = item
-                    .response
-                    .profile_response
-                    .map(|profile_response| {
-                        let payment_profile_id = profile_response
-                            .customer_payment_profile_id_list
-                            .and_then(|customer_payment_profile_id_list| {
-                                customer_payment_profile_id_list.first().cloned()
-                            });
-                        MandateReference {
-                            connector_mandate_id: profile_response.customer_profile_id.and_then(
-                                |customer_profile_id| {
-                                    payment_profile_id.map(|payment_profile_id| {
-                                        format!("{customer_profile_id}-{payment_profile_id}")
-                                    })
-                                },
-                            ),
-                            payment_method_id: None,
-                            mandate_metadata: None,
-                            connector_mandate_request_reference_id: None,
-                        }
-                    })
-                    .or_else(|| {
-                        // For repeat payments, Authorize.net returns profile info inside
-                        // transaction_response.profile instead of profile_response.
-                        transaction_response
-                            .profile
-                            .as_ref()
-                            .map(|profile| MandateReference {
-                                connector_mandate_id: Some(format!(
-                                    "{}-{}",
-                                    profile.customer_profile_id,
-                                    profile.customer_payment_profile_id
-                                )),
-                                payment_method_id: None,
-                                mandate_metadata: None,
-                                connector_mandate_request_reference_id: None,
-                            })
-                    });
+                let mandate_reference = item.response.profile_response.map(|profile_response| {
+                    let payment_profile_id = profile_response
+                        .customer_payment_profile_id_list
+                        .and_then(|customer_payment_profile_id_list| {
+                            customer_payment_profile_id_list.first().cloned()
+                        });
+                    MandateReference {
+                        connector_mandate_id: profile_response.customer_profile_id.and_then(
+                            |customer_profile_id| {
+                                payment_profile_id.map(|payment_profile_id| {
+                                    format!("{customer_profile_id}-{payment_profile_id}")
+                                })
+                            },
+                        ),
+                        payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
+                    }
+                });
 
                 Ok(Self {
                     status,
