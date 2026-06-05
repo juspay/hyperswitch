@@ -2398,10 +2398,7 @@ where
                     .as_ref()
                     .and_then(|pmd| pmd.payment_method_data.as_ref())
                     .map(|data| {
-                        matches!(
-                            data,
-                            api_models::payments::PaymentMethodData::ProxyCard(_)
-                        )
+                        matches!(data, api_models::payments::PaymentMethodData::ProxyCard(_))
                     })
                     .unwrap_or(false);
 

@@ -471,7 +471,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
         business_profile: &domain::Profile,
         feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<()> {
-
         // Only create if customer has given acceptance
         if payment_data.customer_acceptance.is_none() {
             router_env::logger::info!("Skipping PM creation: customer_acceptance is None");
