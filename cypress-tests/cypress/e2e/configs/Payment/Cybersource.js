@@ -1633,4 +1633,42 @@ export const connectorDetails = {
       },
     },
   },
+  wallet_pm: {
+    PaymentIntent: (paymentMethodType) => ({
+      Request: {
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    PazeWallet: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paze",
+        payment_method_data: {
+          wallet: {
+            paze: {
+              complete_response: "{}",
+            },
+          },
+        },
+        billing: {
+          address: {
+            country: "US",
+          },
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+  },
 };
