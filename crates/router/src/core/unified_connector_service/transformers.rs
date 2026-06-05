@@ -2189,7 +2189,21 @@ impl
                     resource_id: connector_transaction_id,
                     redirection_data: Box::new(redirection_data),
                     mandate_reference: Box::new(None),
-                    connector_metadata: None,
+                    connector_metadata: response.connector_feature_data.clone().and_then(
+                        |secret| {
+                            let exposed = secret.expose();
+                            serde_json::from_str(&exposed)
+                                .map_err(|e| {
+                                    tracing::warn!(
+                                        serialization_error = ?e,
+                                        metadata = ?response.connector_feature_data,
+                                        "Failed to parse connector_metadata as JSON value"
+                                    );
+                                    e
+                                })
+                                .ok()
+                        },
+                    ),
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: None,
                     connector_response_reference_id: response.merchant_order_id.clone(),
@@ -5281,7 +5295,19 @@ impl
                         )
                     }
                     _ => (
-                        None,
+                        response.connector_feature_data.clone().and_then(|secret| {
+                            let exposed = secret.expose();
+                            serde_json::from_str(&exposed)
+                                .map_err(|e| {
+                                    tracing::warn!(
+                                        serialization_error = ?e,
+                                        metadata = ?response.connector_feature_data,
+                                        "Failed to parse connector_metadata as JSON value"
+                                    );
+                                    e
+                                })
+                                .ok()
+                        }),
                         Some(RedirectForm::foreign_try_from(redirection_data)).transpose()?,
                     ),
                 },
