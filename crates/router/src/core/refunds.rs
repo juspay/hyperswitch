@@ -2138,7 +2138,7 @@ pub async fn trigger_refund_execute_workflow(
             let payment_attempt = db
                 .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                     &refund.payment_id,
-                    &refund_processor_merchant_id,
+                    processor_merchant_id,
                     &refund.attempt_id,
                     processor_storage_scheme,
                     platform.get_processor().get_key_store(),
