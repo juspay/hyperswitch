@@ -477,7 +477,7 @@ async fn generate_hyperswitch_vault_session_details(
                             .map(id_type::GlobalCustomerId::new_unchecked),
                         payment_method_session_id: Some(
                             id_type::GlobalPaymentMethodSessionId::new_unchecked(
-                                session_id.expose(),
+                                session_id.clone().expose(),
                             ),
                         ),
                     },
