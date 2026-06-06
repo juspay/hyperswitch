@@ -69,9 +69,9 @@ describe("Card - Payment Response Hash flow test", () => {
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
-          "no_three_ds",
-          "automatic",
-          globalState
+          "no_three_ds", // authentication type: no 3-D Secure challenge required
+          "automatic", // capture method: auto-capture (immediate settlement)
+          globalState // shared mutable state for cross-step data persistence
         );
 
         if (!utils.should_continue_further(data)) {
