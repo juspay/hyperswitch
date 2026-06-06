@@ -186,12 +186,16 @@ impl<F, T> TryFrom<ResponseRouterData<F, BiopayPostAuthenticateResponse, T, Paym
             return Err(errors::ConnectorError::ResponseHandlingFailed.into());
         }
 
-        let attempt_status = match item.response.status.as_str() {
-            "approved" => AttemptStatus::AuthenticationSuccessful,
-            "expired" => AttemptStatus::Expired,
-            "failed" => AttemptStatus::AuthenticationFailed,
-            _ => AttemptStatus::AuthenticationPending,
-        };
+      let attempt_status = match item.response.status.as_str() {
+    "approved" => AttemptStatus::AuthenticationSuccessful,
+    "expired" => AttemptStatus::Expired,
+    "failed" => AttemptStatus::AuthenticationFailed,
+    "pending" => AttemptStatus::AuthenticationPending,
+    unknown => {
+        return Err(errors::ConnectorError::ResponseDeserializationFailed.into())
+            .attach_printable(format!("Unexpected BioPay status: {}", unknown));
+    }
+};
 
         Ok(Self {
             status: attempt_status,
