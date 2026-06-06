@@ -1632,7 +1632,12 @@ function bankRedirectRedirection(
           case "loonio":
             switch (paymentMethodType) {
               case "interac":
-                cy.contains("p", "Pay with Interac e-transfer").click();
+                cy.log("Handling Loonio Interac bank redirect flow");
+                cy.contains("button", "Back to Cashier", {
+                  timeout: constants.TIMEOUT / 3,
+                })
+                  .should("be.visible")
+                  .click();
 
                 verifyUrl = true;
                 break;
