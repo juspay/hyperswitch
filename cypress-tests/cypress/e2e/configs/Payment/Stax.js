@@ -897,6 +897,184 @@ export const connectorDetails = {
     },
   },
 
+  bank_debit_pm: {
+    PaymentIntent: (paymentMethodType) => {
+      const currencyMap = { Sepa: "EUR", Ach: "USD", Becs: "AUD", Bacs: "GBP" };
+      if (paymentMethodType !== "Ach") {
+        return {
+          Configs: {
+            TRIGGER_SKIP: true,
+          },
+          Request: {
+            currency: currencyMap[paymentMethodType] || "USD",
+          },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_payment_method",
+            },
+          },
+        };
+      }
+      return {
+        Request: {
+          currency: "USD",
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+    Ach: {
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "ach",
+        confirm: true,
+        capture_method: "automatic",
+        payment_method_data: {
+          bank_debit: {
+            ach_bank_debit: {
+              billing_details: {
+                name: "Deepanshu Bansal",
+                email: "customer139@juspay.in",
+              },
+              account_number: "9876543210",
+              routing_number: "021000021",
+              card_holder_name: "Steven Smith",
+              bank_account_holder_name: "Steven Smith",
+              bank_name: "bank_of_america",
+              bank_type: "savings",
+              bank_holder_type: "personal",
+            },
+          },
+        },
+        billing: {
+          address: {
+            first_name: "Deepanshu",
+            last_name: "Bansal",
+            line1: "123 Main St",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+          },
+          phone: {
+            number: "4155551234",
+            country_code: "+1",
+          },
+          email: "customer143@juspay.in",
+        },
+        email: "customer143@juspay.in",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+        },
+      },
+    },
+    AchInvalidRoutingNumber: {
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "ach",
+        confirm: true,
+        capture_method: "automatic",
+        payment_method_data: {
+          bank_debit: {
+            ach_bank_debit: {
+              billing_details: {
+                name: "Deepanshu Bansal",
+                email: "customer139@juspay.in",
+              },
+              account_number: "9876543210",
+              routing_number: "999999999",
+              card_holder_name: "Steven Smith",
+              bank_account_holder_name: "Steven Smith",
+              bank_name: "bank_of_america",
+              bank_type: "savings",
+              bank_holder_type: "personal",
+            },
+          },
+        },
+        billing: {
+          address: {
+            first_name: "Deepanshu",
+            last_name: "Bansal",
+            line1: "123 Main St",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+          },
+          phone: {
+            number: "4155551234",
+            country_code: "+1",
+          },
+          email: "customer143@juspay.in",
+        },
+        email: "customer143@juspay.in",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+        },
+      },
+    },
+    AchInvalidAccountNumber: {
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "ach",
+        confirm: true,
+        capture_method: "automatic",
+        payment_method_data: {
+          bank_debit: {
+            ach_bank_debit: {
+              billing_details: {
+                name: "Deepanshu Bansal",
+                email: "customer139@juspay.in",
+              },
+              account_number: "0000000000",
+              routing_number: "021000021",
+              card_holder_name: "Steven Smith",
+              bank_account_holder_name: "Steven Smith",
+              bank_name: "bank_of_america",
+              bank_type: "savings",
+              bank_holder_type: "personal",
+            },
+          },
+        },
+        billing: {
+          address: {
+            first_name: "Deepanshu",
+            last_name: "Bansal",
+            line1: "123 Main St",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+          },
+          phone: {
+            number: "4155551234",
+            country_code: "+1",
+          },
+          email: "customer143@juspay.in",
+        },
+        email: "customer143@juspay.in",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+        },
+      },
+    },
+  },
+
   pm_list: {
     PmListResponse: {
       PmListNull: {
