@@ -904,6 +904,15 @@ export const connectorDetails = {
           Configs: {
             TRIGGER_SKIP: true,
           },
+          Request: {
+            currency: "USD",
+          },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_payment_method",
+            },
+          },
         };
       }
       return {
