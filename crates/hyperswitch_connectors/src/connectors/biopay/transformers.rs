@@ -51,7 +51,9 @@ impl TryFrom<&RouterData<api::Authenticate, PaymentsAuthenticateData, PaymentsRe
         item: &RouterData<api::Authenticate, PaymentsAuthenticateData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let amount_minor = item.request.amount.unwrap_or(0);
-        let amount = format!("{:.2}", amount_minor as f64 / 100.0);
+        let units = amount_minor / 100;
+        let cents = amount_minor % 100;
+        let amount = format!("{}.{:02}", units, cents);
 
         let currency = item
             .request
