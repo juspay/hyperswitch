@@ -3232,24 +3232,6 @@ pub enum ProxyPaymentMethodData {
     #[schema(title = "ProxyCardData")]
     ProxyCard(Box<ProxyCardData>),
     VaultToken(VaultToken),
-    /// Used for repeat CIT flow with an internal PM service token.
-    /// The card number, expiry tokens come from the PM service (via `payment_token`),
-    /// and only the CVC (and optional card holder name) are supplied here.
-    CardTokenData(CardTokenData),
-}
-
-/// Card token data used in the repeat CIT flow with an internal PM service token.
-/// The `payment_token` field in the confirm request carries the internal PM token;
-/// this struct carries only the fields that are NOT stored in the vault.
-#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct CardTokenData {
-    /// The card CVC / CVV token (plain value, not vaulted)
-    #[schema(value_type = Option<String>, example = "123")]
-    pub card_cvc: Option<Secret<String>>,
-
-    /// The card holder's name
-    #[schema(value_type = Option<String>, example = "John Doe")]
-    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
