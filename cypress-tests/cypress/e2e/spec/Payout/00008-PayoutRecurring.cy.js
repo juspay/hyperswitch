@@ -371,36 +371,40 @@ describe("[Payout] Recurring", () => {
     });
   });
 
-  context("Create payout without entity_type field (defaults to Individual)", () => {
-    let shouldContinue = true;
+  context(
+    "Create payout without entity_type field (defaults to Individual)",
+    () => {
+      let shouldContinue = true;
 
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
 
-    it("create-payout-with-entity-type-default", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+      it("create-payout-with-entity-type-default", () => {
+        payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
 
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["EntityTypeDefault"];
+        const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+          "bank_transfer_pm"
+        ]["sepa_bank_transfer"]["EntityTypeDefault"];
 
-      if (!utils.should_continue_further(data)) {
-        shouldContinue = false;
-        return;
-      }
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+          return;
+        }
 
-      cy.createConfirmPayoutTest(payoutBody, data, true, false, globalState);
+        cy.createConfirmPayoutTest(payoutBody, data, true, false, globalState);
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
 
-    it("retrieve-payout-call-test", () => {
-      cy.retrievePayoutCallTest(globalState);
-    });
-  });
+      it("retrieve-payout-call-test", () => {
+        cy.retrievePayoutCallTest(globalState);
+      });
+    }
+  );
 
   context("Validation: invalid entity_type should fail", () => {
     let shouldContinue = true;
