@@ -6,6 +6,9 @@ import { setup3DSPayment } from "../../../utils/paymentHelpers";
 let globalState;
 
 describe("Card - Payment Response Hash flow test", () => {
+  // Gate variable: set to false when the connector does not support
+  // payment-response-hash or when the merchant has the feature disabled.
+  // Used in beforeEach to skip every test in this describe block.
   let shouldContinue = true;
 
   before("seed global state and check account config", function () {
@@ -49,6 +52,9 @@ describe("Card - Payment Response Hash flow test", () => {
 
   context("No3DS Auto-Capture - Verify Payment Response Hash Config", () => {
     it("create payment intent -> confirm payment -> verify payment response hash", () => {
+      // Per-step gate variable: tracks whether the preceding API call
+      // succeeded so that subsequent steps can be skipped gracefully when
+      // a connector does not support the No3DS auto-capture flow.
       let stepContinue = true;
 
       cy.step("create payment intent", () => {
@@ -199,7 +205,12 @@ describe("Card - Payment Response Hash flow test", () => {
  * the absence of hash-related query params when the feature is disabled.
  */
 describe("Card - Payment Response Hash Negative Test", () => {
+  // Dedicated state object for the negative-test describe block so it
+  // does not interfere with the positive-test globalState above.
   let negGlobalState;
+  // Gate variable for the negative-test block: flipped to true only when
+  // the connector supports the feature AND the merchant has explicitly
+  // disabled payment-response-hash (enablePaymentResponseHash === false).
   let negShouldContinue = false;
 
   before("seed global state and verify hash is disabled", function () {
