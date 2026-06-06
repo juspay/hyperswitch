@@ -56,6 +56,10 @@ describe("Card - Payment Response Hash flow test", () => {
           "card_pm"
         ]["PaymentIntent"];
 
+        // Create a payment intent with no-3DS authentication and automatic capture
+        // "no_three_ds": disables 3-D Secure authentication for a frictionless card flow
+        // "automatic": captures the authorized amount immediately without manual capture step
+        // globalState: shared state object for persisting payment data across test steps
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
