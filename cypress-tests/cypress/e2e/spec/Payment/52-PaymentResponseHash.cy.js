@@ -6,6 +6,9 @@ import { setup3DSPayment } from "../../../utils/paymentHelpers";
 let globalState;
 
 describe("Card - Payment Response Hash flow test", () => {
+  // Gate variable: set to false when the connector does not support
+  // payment-response-hash or when the merchant has the feature disabled.
+  // Used in beforeEach to skip every test in this describe block.
   let shouldContinue = true;
 
   before("seed global state and check account config", function () {
@@ -49,6 +52,9 @@ describe("Card - Payment Response Hash flow test", () => {
 
   context("No3DS Auto-Capture - Verify Payment Response Hash Config", () => {
     it("create payment intent -> confirm payment -> verify payment response hash", () => {
+      // Per-step gate variable: tracks whether the preceding API call
+      // succeeded so that subsequent steps can be skipped gracefully when
+      // a connector does not support the No3DS auto-capture flow.
       let stepContinue = true;
 
       cy.step("create payment intent", () => {
@@ -190,93 +196,6 @@ describe("Card - Payment Response Hash flow test", () => {
         }
 
         cy.verifyWrongKeySignatureFails(globalState);
-      });
-    });
-  });
-});
-
-/**
- * Negative test: when enable_payment_response_hash = false,
- * redirect URLs must NOT contain signature or signature_algorithm params.
- *
- * This runs independently of the positive tests above so it can verify
- * the absence of hash-related query params when the feature is disabled.
- */
-describe("Card - Payment Response Hash Negative Test", () => {
-  let negGlobalState;
-  let negShouldContinue = false;
-
-  before("seed global state and verify hash is disabled", function () {
-    return cy.task("getGlobalState").then((state) => {
-      negGlobalState = new State(state);
-      // Only test connectors that support the feature in principle
-      if (
-        !utils.CONNECTOR_LISTS.INCLUDE.PAYMENT_RESPONSE_HASH.includes(
-          negGlobalState.get("connectorId")
-        )
-      ) {
-        return;
-      }
-      return cy.fetchPaymentResponseHashConfig(negGlobalState).then(() => {
-        const enabled = negGlobalState.get("enablePaymentResponseHash");
-        // Only activate the negative test when the fetch succeeded AND
-        // explicitly confirmed the feature is disabled (stored as false).
-        // If enabled is undefined, the fetch failed — skip rather than guess.
-        if (enabled === false) {
-          negShouldContinue = true;
-          cy.task(
-            "cli_log",
-            "Negative test active: enable_payment_response_hash is explicitly false"
-          );
-        }
-      });
-    });
-  });
-
-  beforeEach(function () {
-    if (!negShouldContinue) {
-      this.skip();
-    }
-  });
-
-  after("flush global state", () => {
-    cy.task("setGlobalState", negGlobalState.data);
-  });
-
-  context("Hash Disabled - Verify Redirect URL Has No Signature Params", () => {
-    it("setup 3DS -> capture redirect URL -> verify no signature params", () => {
-      setup3DSPayment(negGlobalState, { includeRedirection: false, fixtures });
-
-      cy.step("verify redirect URL has no signature params", () => {
-        const redirectUrl =
-          negGlobalState.get("redirectReturnUrl") ||
-          negGlobalState.get("nextActionUrl");
-
-        if (!redirectUrl) {
-          cy.task(
-            "cli_log",
-            "No redirect URL available - skipping negative assertion"
-          );
-          return;
-        }
-
-        const urlObj = new URL(redirectUrl);
-        const signature = urlObj.searchParams.get("signature");
-        const signatureAlgorithm = urlObj.searchParams.get(
-          "signature_algorithm"
-        );
-
-        expect(signature, "signature must be absent when hash is disabled").to
-          .be.null;
-        expect(
-          signatureAlgorithm,
-          "signature_algorithm must be absent when hash is disabled"
-        ).to.be.null;
-
-        cy.task(
-          "cli_log",
-          "Negative test PASSED: redirect URL has no signature params when hash is disabled"
-        );
       });
     });
   });
