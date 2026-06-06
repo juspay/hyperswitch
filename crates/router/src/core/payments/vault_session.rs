@@ -1,6 +1,5 @@
 pub use common_enums::enums::CallConnectorAction;
 use common_utils::id_type;
-use hyperswitch_masking::ExposeInterface;
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 pub use hyperswitch_domain_models::payments::PaymentIntentData;
@@ -17,6 +16,7 @@ pub use hyperswitch_domain_models::{
 use hyperswitch_interfaces::api::Connector as ConnectorTrait;
 #[cfg(feature = "v2")]
 use hyperswitch_interfaces::connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2};
+use hyperswitch_masking::ExposeInterface;
 #[cfg(feature = "v1")]
 use hyperswitch_masking::Mask;
 use router_env::env::Env;
@@ -489,7 +489,10 @@ async fn generate_hyperswitch_vault_session_details(
 
             match sdk_authorization {
                 Some(sdk_authorization) => Ok(Some(api::VaultSessionDetails::HyperswitchVault(
-                    api::HyperswitchVaultSessionDetails { payment_method_session_id: session_id, sdk_authorization: sdk_authorization.into() },
+                    api::HyperswitchVaultSessionDetails {
+                        payment_method_session_id: session_id,
+                        sdk_authorization: sdk_authorization.into(),
+                    },
                 ))),
                 None => {
                     router_env::logger::warn!(

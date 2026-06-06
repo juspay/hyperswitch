@@ -2895,20 +2895,26 @@ where
             (connector, merchant_connector_account, router_data)
         }
         Some(ConnectorCallType::Retryable(_)) => {
-            return Err(error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Retryable connector call type is not supported for external vault proxy",
-                ))
+            return Err(
+                error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Retryable connector call type is not supported for external vault proxy",
+                    ),
+            )
         }
         Some(ConnectorCallType::SessionMultiple(_)) => {
-            return Err(error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
+            return Err(
+                error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
                     "SessionMultiple connector call type is not supported for external vault proxy",
-                ))
+                ),
+            )
         }
         None => {
-            return Err(error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("No eligible connector resolved for external vault proxy"))
+            return Err(
+                error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("No eligible connector resolved for external vault proxy"),
+            )
         }
     };
 
