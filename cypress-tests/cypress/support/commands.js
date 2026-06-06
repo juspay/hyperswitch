@@ -9533,14 +9533,17 @@ Cypress.Commands.add("retrieveNonExistentPaymentLinkTest", (globalState) => {
  * Fetches merchant account config and stores payment response hash settings in globalState.
  * Also skips the suite if enable_payment_response_hash is false/absent.
  *
+ * The backend falls back to merchant-account-level settings when business profile
+ * fields are unset, so we fetch from the merchant account endpoint to reliably
+ * read the payment_response_hash configuration.
+ *
  * @param {Object} globalState - The global state object
  */
 Cypress.Commands.add("fetchPaymentResponseHashConfig", (globalState) => {
   const merchantId = globalState.get("merchantId");
-  const profileId = globalState.get("profileId");
   const apiKey = globalState.get("adminApiKey");
   const baseUrl = globalState.get("baseUrl");
-  const url = `${baseUrl}/account/${merchantId}/business_profile/${profileId}`;
+  const url = `${baseUrl}/accounts/${merchantId}`;
 
   cy.request({
     method: "GET",
@@ -9554,7 +9557,7 @@ Cypress.Commands.add("fetchPaymentResponseHashConfig", (globalState) => {
     if (!response || response.status !== 200) {
       cy.task(
         "cli_log",
-        "Failed to fetch business profile config - skipping spec"
+        `Failed to fetch merchant account config (status: ${response?.status}) - skipping spec`
       );
       return;
     }
@@ -9568,6 +9571,9 @@ Cypress.Commands.add("fetchPaymentResponseHashConfig", (globalState) => {
         "cli_log",
         "enable_payment_response_hash is false/absent - skipping spec"
       );
+      // Explicitly store false so the negative test can distinguish
+      // "confirmed disabled" from "fetch failed"
+      globalState.set("enablePaymentResponseHash", false);
       return;
     }
 
@@ -9583,11 +9589,11 @@ Cypress.Commands.add("fetchPaymentResponseHashConfig", (globalState) => {
     }
 
     globalState.set("paymentResponseHashKey", paymentResponseHashKey);
-    globalState.set("enablePaymentResponseHash", enablePaymentResponseHash);
+    globalState.set("enablePaymentResponseHash", true);
 
     cy.task(
       "cli_log",
-      `Business profile config verified - enable_payment_response_hash: true, key length: ${paymentResponseHashKey.length}`
+      `Merchant account config verified - enable_payment_response_hash: true, key length: ${paymentResponseHashKey.length}`
     );
   });
 });

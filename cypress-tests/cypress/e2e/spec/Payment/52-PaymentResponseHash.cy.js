@@ -215,14 +215,14 @@ describe("Card - Payment Response Hash Negative Test", () => {
       }
       return cy.fetchPaymentResponseHashConfig(negGlobalState).then(() => {
         const enabled = negGlobalState.get("enablePaymentResponseHash");
-        // fetchPaymentResponseHashConfig returns early when the flag is false/absent
-        // without storing it, so enabled may be undefined. Treat any non-truthy value
-        // as "hash disabled" to activate the negative test.
-        if (enabled !== true) {
+        // Only activate the negative test when the fetch succeeded AND
+        // explicitly confirmed the feature is disabled (stored as false).
+        // If enabled is undefined, the fetch failed — skip rather than guess.
+        if (enabled === false) {
           negShouldContinue = true;
           cy.task(
             "cli_log",
-            "Negative test active: enable_payment_response_hash is not true"
+            "Negative test active: enable_payment_response_hash is explicitly false"
           );
         }
       });
