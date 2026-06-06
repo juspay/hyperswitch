@@ -44,11 +44,9 @@ describe("[Payout] Recurring", () => {
       }
     });
 
-    beforeEach("reset payoutBody", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
-    });
-
     it("create-payout-with-recurring-true", () => {
+      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["RecurringTrue"];
@@ -63,9 +61,27 @@ describe("[Payout] Recurring", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
 
       // Verify payout_method_id is returned and non-null for recurring payouts
-      cy.wrap(globalState.get("payoutMethodId")).should("exist");
-      cy.wrap(globalState.get("payoutMethodId")).should("not.be.null");
-      cy.wrap(globalState.get("payoutMethodId")).should("not.eq", "");
+      cy.verifyPayoutMethodId(globalState);
+    });
+
+    it("create-recurring-payout-using-saved-method", () => {
+      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["sepa_bank_transfer"]["RecurringUseMethod"];
+
+      if (!utils.should_continue_further(data)) {
+        shouldContinue = false;
+        return;
+      }
+
+      // Use the payout_method_id saved from the create-payout-with-recurring-true test
+      data.Request.payout_method_id = globalState.get("payoutMethodId");
+
+      cy.createConfirmPayoutTest(payoutBody, data, true, false, globalState);
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payout-call-test", () => {
@@ -82,11 +98,9 @@ describe("[Payout] Recurring", () => {
       }
     });
 
-    beforeEach("reset payoutBody", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
-    });
-
     it("create-payout-with-recurring-false", () => {
+      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["RecurringFalse"];
@@ -115,11 +129,9 @@ describe("[Payout] Recurring", () => {
       }
     });
 
-    beforeEach("reset payoutBody", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
-    });
-
     it("create-payout-with-recurring-omitted", () => {
+      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["RecurringDefault"];
@@ -148,11 +160,9 @@ describe("[Payout] Recurring", () => {
       }
     });
 
-    beforeEach("reset payoutBody", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
-    });
-
     it("attempt-payout-without-confirm-should-fail", () => {
+      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["RecurringInvalidConfirm"];
@@ -184,11 +194,9 @@ describe("[Payout] Recurring", () => {
       }
     });
 
-    beforeEach("reset payoutBody", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
-    });
-
     it("create-payout-with-entity-type-company", () => {
+      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["EntityTypeCompany"];
@@ -217,11 +225,9 @@ describe("[Payout] Recurring", () => {
       }
     });
 
-    beforeEach("reset payoutBody", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
-    });
-
     it("create-payout-with-entity-type-individual", () => {
+      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["EntityTypeIndividual"];
@@ -250,11 +256,9 @@ describe("[Payout] Recurring", () => {
       }
     });
 
-    beforeEach("reset payoutBody", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
-    });
-
     it("create-payout-with-entity-type-natural-person", () => {
+      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["EntityTypeNaturalPerson"];
@@ -283,11 +287,9 @@ describe("[Payout] Recurring", () => {
       }
     });
 
-    beforeEach("reset payoutBody", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
-    });
-
     it("create-payout-with-entity-type-non-profit", () => {
+      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["EntityTypeNonProfit"];
@@ -316,11 +318,9 @@ describe("[Payout] Recurring", () => {
       }
     });
 
-    beforeEach("reset payoutBody", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
-    });
-
     it("create-payout-with-entity-type-personal", () => {
+      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["EntityTypePersonal"];
@@ -349,11 +349,9 @@ describe("[Payout] Recurring", () => {
       }
     });
 
-    beforeEach("reset payoutBody", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
-    });
-
     it("create-payout-with-entity-type-public-sector", () => {
+      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["EntityTypePublicSector"];
@@ -382,11 +380,9 @@ describe("[Payout] Recurring", () => {
       }
     });
 
-    beforeEach("reset payoutBody", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
-    });
-
     it("create-payout-with-entity-type-default", () => {
+      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["EntityTypeDefault"];
@@ -415,11 +411,9 @@ describe("[Payout] Recurring", () => {
       }
     });
 
-    beforeEach("reset payoutBody", () => {
-      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
-    });
-
     it("create-payout-with-invalid-entity-type-should-fail", () => {
+      payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
+
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["sepa_bank_transfer"]["EntityTypeInvalid"];

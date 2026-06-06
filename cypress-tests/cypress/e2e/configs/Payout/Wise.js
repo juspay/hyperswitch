@@ -341,6 +341,212 @@ export const connectorDetails = {
           },
         },
       },
+      // RecurringUseMethod tests the happy-path recurring payout flow: using a
+      // payout_method_id saved from a prior RecurringTrue payout to create a new
+      // payout without re-supplying full bank details.
+      RecurringUseMethod: {
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+        Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          // payout_method_id is injected from globalState at test runtime
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_fulfillment",
+            payout_type: "bank",
+          },
+        },
+      },
+      EntityTypeCompany: {
+        Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          payout_method_data: {
+            bank: {
+              iban: "NL46TEST0136169112",
+              bic: "ABNANL2A",
+              bank_name: "Test Bank",
+              bank_country_code: "NL",
+              bank_city: "Amsterdam",
+            },
+          },
+          billing: billing,
+          entity_type: "Company",
+        },
+        Response: {
+          status: 200,
+          body: {
+            payout_type: "bank",
+          },
+        },
+      },
+      EntityTypeDefault: {
+        Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          payout_method_data: {
+            bank: {
+              iban: "NL46TEST0136169112",
+              bic: "ABNANL2A",
+              bank_name: "Test Bank",
+              bank_country_code: "NL",
+              bank_city: "Amsterdam",
+            },
+          },
+          billing: billing,
+        },
+        Response: {
+          status: 200,
+          body: {
+            payout_type: "bank",
+          },
+        },
+      },
+      EntityTypeIndividual: {
+        Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          payout_method_data: {
+            bank: {
+              iban: "NL46TEST0136169112",
+              bic: "ABNANL2A",
+              bank_name: "Test Bank",
+              bank_country_code: "NL",
+              bank_city: "Amsterdam",
+            },
+          },
+          billing: billing,
+          entity_type: "Individual",
+        },
+        Response: {
+          status: 200,
+          body: {
+            payout_type: "bank",
+          },
+        },
+      },
+      EntityTypeInvalid: {
+        Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          payout_method_data: {
+            bank: {
+              iban: "NL46TEST0136169112",
+              bic: "ABNANL2A",
+              bank_name: "Test Bank",
+              bank_country_code: "NL",
+              bank_city: "Amsterdam",
+            },
+          },
+          billing: billing,
+          entity_type: "InvalidType",
+        },
+        Response: {
+          status: 400,
+          body: {
+            error: {
+              message: "Json deserialize error: unknown variant `InvalidType`",
+              code: "IR_06",
+            },
+          },
+        },
+      },
+      EntityTypeNaturalPerson: {
+        Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          payout_method_data: {
+            bank: {
+              iban: "NL46TEST0136169112",
+              bic: "ABNANL2A",
+              bank_name: "Test Bank",
+              bank_country_code: "NL",
+              bank_city: "Amsterdam",
+            },
+          },
+          billing: billing,
+          entity_type: "NaturalPerson",
+        },
+        Response: {
+          status: 200,
+          body: {
+            payout_type: "bank",
+          },
+        },
+      },
+      EntityTypeNonProfit: {
+        Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          payout_method_data: {
+            bank: {
+              iban: "NL46TEST0136169112",
+              bic: "ABNANL2A",
+              bank_name: "Test Bank",
+              bank_country_code: "NL",
+              bank_city: "Amsterdam",
+            },
+          },
+          billing: billing,
+          entity_type: "NonProfit",
+        },
+        Response: {
+          status: 200,
+          body: {
+            payout_type: "bank",
+          },
+        },
+      },
+      EntityTypePersonal: {
+        Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          payout_method_data: {
+            bank: {
+              iban: "NL46TEST0136169112",
+              bic: "ABNANL2A",
+              bank_name: "Test Bank",
+              bank_country_code: "NL",
+              bank_city: "Amsterdam",
+            },
+          },
+          billing: billing,
+          entity_type: "Personal",
+        },
+        Response: {
+          status: 200,
+          body: {
+            payout_type: "bank",
+          },
+        },
+      },
+      EntityTypePublicSector: {
+        Request: {
+          currency: "EUR",
+          payout_type: "bank",
+          payout_method_data: {
+            bank: {
+              iban: "NL46TEST0136169112",
+              bic: "ABNANL2A",
+              bank_name: "Test Bank",
+              bank_country_code: "NL",
+              bank_city: "Amsterdam",
+            },
+          },
+          billing: billing,
+          entity_type: "PublicSector",
+        },
+        Response: {
+          status: 200,
+          body: {
+            payout_type: "bank",
+          },
+        },
+      },
     },
   },
 };

@@ -5987,6 +5987,12 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState) => {
   });
 });
 
+Cypress.Commands.add("verifyPayoutMethodId", (globalState) => {
+  cy.wrap(globalState.get("payoutMethodId")).should("exist");
+  cy.wrap(globalState.get("payoutMethodId")).should("not.be.null");
+  cy.wrap(globalState.get("payoutMethodId")).should("not.eq", "");
+});
+
 // User API calls
 // Below 3 commands should be called in sequence to login a user
 Cypress.Commands.add("userLogin", (globalState) => {
