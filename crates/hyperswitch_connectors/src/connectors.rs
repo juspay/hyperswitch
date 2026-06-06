@@ -14,6 +14,7 @@ pub mod bankofamerica;
 pub mod barclaycard;
 pub mod billwerk;
 pub mod bitpay;
+pub mod biopay;
 pub mod blackhawknetwork;
 pub mod bluesnap;
 pub mod boku;
@@ -153,7 +154,7 @@ pub use self::{
     airwallex::Airwallex, amazonpay::Amazonpay, archipel::Archipel, authipay::Authipay,
     authorizedotnet::Authorizedotnet, bambora::Bambora, bamboraapac::Bamboraapac,
     bankofamerica::Bankofamerica, barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay,
-    blackhawknetwork::Blackhawknetwork, bluesnap::Bluesnap, boku::Boku, braintree::Braintree,
+    biopay::Biopay, blackhawknetwork::Blackhawknetwork, bluesnap::Bluesnap, boku::Boku, braintree::Braintree,
     breadpay::Breadpay, calida::Calida, cashtocode::Cashtocode, celero::Celero,
     chargebee::Chargebee, checkbook::Checkbook, checkout::Checkout, coinbase::Coinbase,
     coingate::Coingate, cryptopay::Cryptopay, ctp_mastercard::CtpMastercard,
