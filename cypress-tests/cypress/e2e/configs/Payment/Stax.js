@@ -918,7 +918,6 @@ export const connectorDetails = {
       return {
         Request: {
           currency: "USD",
-          setup_future_usage: "off_session",
         },
         Response: {
           status: 200,
