@@ -417,29 +417,26 @@ export const connectorDetails = {
   },
   payout_link_pm: {
     PayoutLinkBase: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payout_link: true,
         currency: "EUR",
         payout_type: "bank",
+        payout_link_config: {
+          test_mode: true,
+        },
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            code: "IR_00",
-            message: "Payout Eligibility for Wise is not implemented",
+          status: "requires_confirmation",
+          payout_link: {
+            payout_link_id: expect.any(String),
+            link: expect.any(String),
           },
         },
       },
     },
     PayoutLinkBankTransfer: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payout_link: true,
         currency: "EUR",
@@ -467,11 +464,9 @@ export const connectorDetails = {
       },
     },
     PayoutLinkValidationError: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payout_link: true,
+        customer_id: null,
       },
       Response: {
         status: 400,
@@ -486,11 +481,9 @@ export const connectorDetails = {
       },
     },
     PayoutLinkConfirmConflict: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payout_link: true,
+        confirm: true,
       },
       Response: {
         status: 400,
@@ -504,9 +497,6 @@ export const connectorDetails = {
       },
     },
     PayoutLinkWithoutLink: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payout_link: false,
       },

@@ -9849,35 +9849,26 @@ Cypress.Commands.add("initiatePayoutLinkTest", (data, globalState) => {
       followRedirect: true,
       timeout: 30000,
     }).then((response) => {
+      expect(response.status).to.equal(200);
+
       const contentType = response.headers["content-type"] || "";
-      const isHtml = contentType.includes("text/html");
+      expect(contentType).to.include("text/html");
 
-      if (response.status === 200 && isHtml) {
-        const bodyText = typeof response.body === "string" ? response.body : "";
-        const hasHyperLoader =
-          bodyText.includes("HyperLoader") ||
-          bodyText.includes("hyperloader-sdk");
+      const bodyText = typeof response.body === "string" ? response.body : "";
+      const hasHyperLoader =
+        bodyText.includes("HyperLoader") ||
+        bodyText.includes("hyperloader-sdk");
 
-        if (hasHyperLoader) {
-          cy.task(
-            "cli_log",
-            "Payout Link page validated (CI): contains HyperLoader SDK"
-          );
-        } else {
-          cy.task(
-            "cli_log",
-            `Payout Link page validated (CI): status=${response.status}, body length=${bodyText.length}`
-          );
-        }
-
-        expect(response.status).to.equal(200);
-        expect(isHtml).to.be.true;
+      if (hasHyperLoader) {
+        cy.task(
+          "cli_log",
+          "Payout Link page validated (CI): contains HyperLoader SDK"
+        );
       } else {
         cy.task(
           "cli_log",
-          `Payout Link non-HTML or error response (CI): status=${response.status}, content-type=${contentType}`
+          `Payout Link page validated (CI): status=${response.status}, body length=${bodyText.length}`
         );
-        expect(response.status).to.equal(200);
       }
     });
   } else {

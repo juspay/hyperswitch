@@ -433,7 +433,7 @@ describe("Payout Link", () => {
     });
   });
 
-  context("Payout Link - Error Card Scenarios", () => {
+  context("Payout Link - Payout Update — Invalid Card Data", () => {
     let shouldContinue = true;
 
     beforeEach(function () {
