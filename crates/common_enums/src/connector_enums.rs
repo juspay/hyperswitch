@@ -76,6 +76,7 @@ pub enum Connector {
     Barclaycard,
     Billwerk,
     Bitpay,
+	Biopay,
     Bluesnap,
     Blackhawknetwork,
     #[serde(alias = "bluecode")]
