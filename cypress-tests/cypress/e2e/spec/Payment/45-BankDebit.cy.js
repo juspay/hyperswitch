@@ -318,7 +318,10 @@ describe("Bank Debit tests", () => {
 
       cy.step("Confirm ACH Bank Debit with Invalid Routing Number", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm ACH Bank Debit with Invalid Routing Number");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm ACH Bank Debit with Invalid Routing Number"
+          );
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -381,7 +384,10 @@ describe("Bank Debit tests", () => {
 
       cy.step("Confirm ACH Bank Debit with Invalid Account Number", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm ACH Bank Debit with Invalid Account Number");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm ACH Bank Debit with Invalid Account Number"
+          );
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
