@@ -973,7 +973,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
         },
       },
     },
@@ -1019,9 +1019,13 @@ export const connectorDetails = {
         email: "customer143@juspay.in",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "failed",
+          error: {
+            type: "invalid_request",
+            message: "Invalid routing number",
+            code: "IR_00",
+          },
         },
       },
     },
