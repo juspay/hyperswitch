@@ -123,17 +123,8 @@ export function handleRedirection(
         handlerMetadata
       );
       break;
-    case "payout_link_bank":
-      payoutLinkBankRedirection(
-        urls.redirectionUrl,
-        urls.expectedUrl,
-        resolvedConnectorId,
-        paymentMethodType,
-        handlerMetadata
-      );
-      break;
-    case "payout_link_card":
-      payoutLinkCardRedirection(
+    case "payout_link":
+      payoutLinkRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
         resolvedConnectorId,
@@ -3021,13 +3012,23 @@ function paymentLinkCardRedirection(
   }
 }
 
-function payoutLinkBankRedirection(
+function payoutLinkRedirection(
   redirectionUrl,
   expectedUrl,
   connectorId,
   paymentMethodType,
   handlerMetadata
 ) {
+  if (handlerMetadata?.payoutLinkType === "card") {
+    return payoutLinkCardRedirection(
+      redirectionUrl,
+      expectedUrl,
+      connectorId,
+      paymentMethodType,
+      handlerMetadata
+    );
+  }
+
   const bankData = handlerMetadata?.bankData || {};
   const expectedOutcome = handlerMetadata?.expectedOutcome || "success";
   const {

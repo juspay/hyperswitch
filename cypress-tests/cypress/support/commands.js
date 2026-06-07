@@ -10034,11 +10034,11 @@ Cypress.Commands.add(
     const expectedUrl = new URL("https://example.com/return");
 
     handleRedirection(
-      "payout_link_bank",
+      "payout_link",
       { redirectionUrl, expectedUrl },
       connectorId,
       null,
-      { bankData, expectedOutcome }
+      { bankData, expectedOutcome, payoutLinkType: "bank" }
     );
   }
 );
@@ -10066,11 +10066,11 @@ Cypress.Commands.add(
     const expectedUrl = new URL("https://example.com/return");
 
     handleRedirection(
-      "payout_link_card",
+      "payout_link",
       { redirectionUrl, expectedUrl },
       connectorId,
       null,
-      { cardData, expectedOutcome }
+      { cardData, expectedOutcome, payoutLinkType: "card" }
     );
   }
 );
