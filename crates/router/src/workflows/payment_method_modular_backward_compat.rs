@@ -1,6 +1,6 @@
 #[cfg(feature = "v1")]
 use api_models::payment_methods::Card;
-use common_utils::ext_traits::{ OptionExt, StringExt, ValueExt};
+use common_utils::ext_traits::{OptionExt, StringExt, ValueExt};
 #[cfg(feature = "v2")]
 use common_utils::id_type;
 use error_stack::ResultExt;
@@ -202,11 +202,11 @@ pub async fn backfill_legacy_locker_card(
                 merchant_id.clone(),
                 &customer_id,
                 &card_reference,
-            ).attach_printable(
-                    "Failed to encode generic locker retrieve request in backward compatibility PT",
-                )?;
+            )
+            .attach_printable(
+                "Failed to encode generic locker retrieve request in backward compatibility PT",
+            )?;
 
-                
             let vault_response =
                 vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
                     .await

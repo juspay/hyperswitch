@@ -8,11 +8,11 @@ use scheduler::{
 };
 
 #[cfg(feature = "v1")]
-use crate::types::{domain, payment_methods as pm_types};
-#[cfg(feature = "v1")]
 use crate::core::configs::dimension_state;
+#[cfg(feature = "v1")]
+use crate::types::{domain, payment_methods as pm_types};
 use crate::{
-    core::payment_methods::{cards, vault, utils as payment_method_utils},
+    core::payment_methods::{cards, utils as payment_method_utils, vault},
     errors,
     logger::{self, error},
     routes::SessionState,
@@ -48,11 +48,9 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
             )
             .await?;
 
-
         let merchant_account = db
             .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
             .await?;
-
 
         let payment_method = db
             .find_payment_method(
@@ -240,9 +238,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
 
                 let network_token_payload = pm_types::AddVaultRequest {
                     entity_id: network_token_entity_id,
-                    vault_id: domain::VaultId::generate(
-                        network_token_locker_id.clone(),
-                    ),
+                    vault_id: domain::VaultId::generate(network_token_locker_id.clone()),
                     data: &network_token_pmd,
                     ttl: state.conf.locker.ttl_for_storage_in_secs,
                 }

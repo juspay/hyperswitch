@@ -46,7 +46,9 @@ use crate::{
     core::{
         configs::dimension_state,
         errors::StorageErrorExt,
-        payment_methods::{cards as pm_cards, utils, LockerOperations, LockerType, utils as payment_method_utils},
+        payment_methods::{
+            cards as pm_cards, utils, utils as payment_method_utils, LockerOperations, LockerType,
+        },
         payments::{self as payments_core, helpers as payment_helpers},
         utils::create_encrypted_data,
     },
@@ -2081,7 +2083,6 @@ pub async fn add_payment_method_to_vault(
 
     let stored_pm_resp =
         pm_cards::parse_add_vault_response(should_trigger_fingerprint_migration, resp)?;
-
 
     Ok(stored_pm_resp)
 }

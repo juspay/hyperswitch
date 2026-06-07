@@ -1982,11 +1982,13 @@ pub fn parse_add_vault_response(
         resp.parse_struct("AddVaultResponseNew")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Failed to parse data into AddVaultResponseNew")
-            .map(|parsed: pm_types::AddVaultResponseNew| pm_types::AddVaultResponse {
-                entity_id: None,
-                vault_id: parsed.vault_id,
-                fingerprint_id: parsed.fingerprint_id,
-            })
+            .map(
+                |parsed: pm_types::AddVaultResponseNew| pm_types::AddVaultResponse {
+                    entity_id: None,
+                    vault_id: parsed.vault_id,
+                    fingerprint_id: parsed.fingerprint_id,
+                },
+            )
     } else {
         resp.parse_struct("AddVaultResponse")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
@@ -2031,7 +2033,6 @@ pub fn encode_vault_retrieve_request(
     }
 }
 
-
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub fn encode_vault_retrieve_request(
@@ -2064,7 +2065,6 @@ pub fn encode_vault_retrieve_request(
         .change_context(errors::ApiErrorResponse::InternalServerError)
     }
 }
-
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]

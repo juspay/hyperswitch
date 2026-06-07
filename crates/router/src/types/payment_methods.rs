@@ -176,7 +176,6 @@ pub struct VaultRetrieveRequest {
     pub vault_id: domain::VaultId,
 }
 
-
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultRetrieveRequestNew {
     pub entity_id: id_type::MerchantId,
