@@ -301,10 +301,13 @@ export const connectorDetails = {
         customer_acceptance: null,
       },
       Response: {
-        status: 200,
+        status: 500,
         body: {
-          status: "requires_confirmation",
-          payment_method_data: paymentMethodData3DSResponse,
+          error: {
+            type: "server_not_available",
+            code: "HE_00",
+            message: "Something went wrong",
+          },
         },
       },
     },
