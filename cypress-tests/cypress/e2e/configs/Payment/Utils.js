@@ -641,6 +641,7 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     POLL_CONFIG: ["stripe"],
+    HELcim_REFUND: ["helcim"],
     // Add more inclusion lists
   },
 };
