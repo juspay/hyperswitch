@@ -8,7 +8,7 @@ use router_derive::TryGetEnumVariant;
 use router_env::logger;
 use serde::de;
 
-use crate::{kv_router_store::KVRouterStore, metrics, store::kv::TypedSql, UniqueConstraints};
+use crate::{kv_router_store::KVRouterStore, metrics, store::kv, UniqueConstraints};
 
 pub trait KvStorePartition {
     fn partition_number(key: PartitionKey<'_>, num_partitions: u8) -> u32 {
@@ -20,7 +20,6 @@ pub trait KvStorePartition {
     }
 }
 
-#[allow(unused)]
 #[derive(Clone)]
 pub enum PartitionKey<'a> {
     MerchantIdPaymentId {
@@ -130,9 +129,9 @@ pub trait RedisConnInterface {
 
 /// An enum to represent what operation to do on
 pub enum KvOperation<'a, S: serde::Serialize + Debug> {
-    Hset((&'a str, String), TypedSql),
-    SetNx(&'a S, TypedSql),
-    HSetNx(&'a str, &'a S, TypedSql),
+    Hset((&'a str, String), kv::SerializableQuery),
+    SetNx(&'a S, kv::SerializableQuery),
+    HSetNx(&'a str, &'a S, kv::SerializableQuery),
     HGet(&'a str),
     Get,
     Scan(&'a str),
@@ -186,7 +185,7 @@ where
 
     let result = async {
         match op {
-            KvOperation::Hset(value, sql) => {
+            KvOperation::Hset(value, query) => {
                 logger::debug!(kv_operation= %operation, value = ?value);
 
                 redis_conn
@@ -194,7 +193,7 @@ where
                     .await?;
 
                 store
-                    .push_to_drainer_stream::<S>(sql, partition_key)
+                    .push_to_drainer_stream::<S>(query, partition_key)
                     .await?;
 
                 Ok(KvResult::Hset(()))
@@ -221,7 +220,7 @@ where
                 Ok(KvResult::Scan(result))
             }
 
-            KvOperation::HSetNx(field, value, sql) => {
+            KvOperation::HSetNx(field, value, query) => {
                 logger::debug!(kv_operation= %operation, value = ?value);
 
                 value.check_for_constraints(&redis_conn).await?;
@@ -232,7 +231,7 @@ where
 
                 if matches!(result, redis_interface::HsetnxReply::KeySet) {
                     store
-                        .push_to_drainer_stream::<S>(sql, partition_key)
+                        .push_to_drainer_stream::<S>(query, partition_key)
                         .await?;
                     Ok(KvResult::HSetNx(result))
                 } else {
@@ -240,7 +239,7 @@ where
                 }
             }
 
-            KvOperation::SetNx(value, sql) => {
+            KvOperation::SetNx(value, query) => {
                 logger::debug!(kv_operation= %operation, value = ?value);
 
                 let result = redis_conn
@@ -251,7 +250,7 @@ where
 
                 if matches!(result, redis_interface::SetnxReply::KeySet) {
                     store
-                        .push_to_drainer_stream::<S>(sql, partition_key)
+                        .push_to_drainer_stream::<S>(query, partition_key)
                         .await?;
                     Ok(KvResult::SetNx(result))
                 } else {
@@ -339,7 +338,7 @@ where
         };
 
         let type_name = std::any::type_name::<D>();
-        logger::info!(soft_kill_mode = "decide_storage_scheme", decided_scheme = %updated_scheme, configured_scheme = %storage_scheme,entity = %type_name, operation = %ops);
+        logger::info!(soft_kill_mode = "decide_storage_scheme", decided_scheme = %updated_scheme, configured_scheme = %storage_scheme, entity = %type_name, operation = %ops);
 
         updated_scheme
     } else {
