@@ -14,7 +14,7 @@ let connector;
  * Helcim detects and rejects duplicate transactions by amount.
  */
 function getRandomAmount() {
-  return Math.floor(Math.random() * 8000) + 1000; // 1000 - 9000 cents
+  return Math.floor(Math.random() * 9000) + 1000; // 1000 - 9999 cents
 }
 
 describe("Helcim - Refund E2E tests", () => {
