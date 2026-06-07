@@ -9761,7 +9761,8 @@ Cypress.Commands.add("paymentUpdateClientAuthTest", (globalState, data) => {
 
   const publishableKey = globalState.get("publishableKey");
   const baseUrl = globalState.get("baseUrl");
-  const paymentId = globalState.get("paymentID") || globalState.get("paymentId");
+  const paymentId =
+    globalState.get("paymentID") || globalState.get("paymentId");
   const clientSecret = globalState.get("clientSecret");
 
   const requestBody = {

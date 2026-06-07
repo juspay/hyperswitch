@@ -243,73 +243,70 @@ describe("Payment Update via Client Authentication Tests", () => {
     });
   });
 
-  context(
-    "Payment Update via Client Auth - Wrong Payment Status Error",
-    () => {
-      it("Failed update when payment status does not allow updates", () => {
-        let shouldContinue = true;
+  context("Payment Update via Client Auth - Wrong Payment Status Error", () => {
+    it("Failed update when payment status does not allow updates", () => {
+      let shouldContinue = true;
 
-        cy.step("Enable config", () => {
-          const merchantId = globalState.get("merchantId");
-          const configKey = `payment_update_enabled_for_client_auth_${merchantId}`;
-          cy.setConfigs(globalState, configKey, "true", "CREATE");
-        });
-
-        cy.step("Create and Confirm Payment to reach succeeded status", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["PaymentIntent"];
-
-          cy.createPaymentIntentTest(
-            fixtures.createPaymentBody,
-            data,
-            "no_three_ds",
-            "automatic",
-            globalState
-          );
-
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("Confirm Payment", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Confirm Payment");
-            return;
-          }
-
-          const confirmData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["No3DSAutoCapture"];
-
-          cy.confirmCallTest(
-            fixtures.confirmBody,
-            confirmData,
-            true,
-            globalState
-          );
-
-          if (!utils.should_continue_further(confirmData)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("Attempt update on already-confirmed payment", () => {
-          if (!shouldContinue) {
-            cy.task(
-              "cli_log",
-              "Skipping step: Attempt update on already-confirmed payment"
-            );
-            return;
-          }
-
-          cy.paymentUpdateClientAuthTest(
-            globalState,
-            PaymentUpdateClientAuthConfigs.WrongPaymentStatus
-          );
-        });
+      cy.step("Enable config", () => {
+        const merchantId = globalState.get("merchantId");
+        const configKey = `payment_update_enabled_for_client_auth_${merchantId}`;
+        cy.setConfigs(globalState, configKey, "true", "CREATE");
       });
-    }
-  );
+
+      cy.step("Create and Confirm Payment to reach succeeded status", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Confirm Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSAutoCapture"];
+
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Attempt update on already-confirmed payment", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Attempt update on already-confirmed payment"
+          );
+          return;
+        }
+
+        cy.paymentUpdateClientAuthTest(
+          globalState,
+          PaymentUpdateClientAuthConfigs.WrongPaymentStatus
+        );
+      });
+    });
+  });
 });
