@@ -107,58 +107,6 @@ export const connectorDetails = {
         },
       },
     },
-    Refund: {
-      Request: {
-        amount: 6000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-        },
-      },
-    },
-    PartialRefund: {
-      Request: {
-        amount: 2000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-        },
-      },
-    },
-    SyncRefund: {
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-        },
-      },
-    },
-    manualPaymentRefund: {
-      Request: {
-        amount: 6000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "pending",
-        },
-      },
-    },
-    manualPaymentPartialRefund: {
-      Request: {
-        amount: 2000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "pending",
-        },
-      },
-    },
   },
   pm_list: {
     PmListResponse: {
