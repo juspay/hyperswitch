@@ -2,12 +2,13 @@ use std::collections::HashMap;
 
 use common_enums::AttemptStatus;
 use common_utils::request::Method;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_request_types::{PaymentsAuthenticateData, PaymentsPostAuthenticateData, ResponseId},
     router_response_types::{PaymentsResponseData, RedirectForm},
 };
-use hyperswitch_interfaces::errors;
+use hyperswitch_interfaces::{api, errors};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -88,11 +89,13 @@ impl TryFrom<&RouterData<api::Authenticate, PaymentsAuthenticateData, PaymentsRe
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct BiopayAuthenticateResponse {
     pub ok: bool,
-    pub session_id: String,
+    pub session_id: Option<String>,
     pub merchant_id: Option<String>,
-    pub status: String,
-    pub redirect_url: String,
+    pub status: Option<String>,
+    pub redirect_url: Option<String>,
     pub expires_at: Option<String>,
+    pub error: Option<String>,
+    pub error_message: Option<String>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, BiopayAuthenticateResponse, T, PaymentsResponseData>>
@@ -104,18 +107,43 @@ impl<F, T> TryFrom<ResponseRouterData<F, BiopayAuthenticateResponse, T, Payments
         item: ResponseRouterData<F, BiopayAuthenticateResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         if !item.response.ok {
-            return Err(errors::ConnectorError::ResponseHandlingFailed.into());
+            let reason = item
+                .response
+                .error_message
+                .clone()
+                .or_else(|| item.response.error.clone())
+                .or_else(|| item.response.status.clone())
+                .unwrap_or_else(|| "unknown BioPay authentication failure".to_string());
+
+            return Err(errors::ConnectorError::ResponseHandlingFailed.into())
+                .attach_printable(format!("BioPay authentication failed: {}", reason));
         }
 
+        let session_id =
+            item.response
+                .session_id
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "session_id",
+                })?;
+
+        let redirect_url =
+            item.response
+                .redirect_url
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "redirect_url",
+                })?;
+
         let mut form_fields = HashMap::new();
-        form_fields.insert("session_id".to_string(), item.response.session_id.clone());
+        form_fields.insert("session_id".to_string(), session_id.clone());
 
         Ok(Self {
             status: AttemptStatus::AuthenticationPending,
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.session_id.clone()),
+                resource_id: ResponseId::ConnectorTransactionId(session_id.clone()),
                 redirection_data: Box::new(Some(RedirectForm::Form {
-                    endpoint: item.response.redirect_url,
+                    endpoint: redirect_url,
                     method: Method::Get,
                     form_fields,
                 })),
@@ -123,7 +151,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BiopayAuthenticateResponse, T, Payments
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
-                connector_response_reference_id: Some(item.response.session_id),
+                connector_response_reference_id: Some(session_id),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
@@ -159,7 +187,7 @@ impl TryFrom<&RouterData<api::PostAuthenticate, PaymentsPostAuthenticateData, Pa
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct BiopayPostAuthenticateResponse {
     pub ok: bool,
-    pub session_id: String,
+    pub session_id: Option<String>,
     pub status: String,
     pub platform: Option<String>,
     pub platform_merchant_id: Option<String>,
@@ -172,6 +200,8 @@ pub struct BiopayPostAuthenticateResponse {
     pub currency: Option<String>,
     pub return_url: Option<String>,
     pub expires_at: Option<String>,
+    pub error: Option<String>,
+    pub error_message: Option<String>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, BiopayPostAuthenticateResponse, T, PaymentsResponseData>>
@@ -183,30 +213,46 @@ impl<F, T> TryFrom<ResponseRouterData<F, BiopayPostAuthenticateResponse, T, Paym
         item: ResponseRouterData<F, BiopayPostAuthenticateResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         if !item.response.ok {
-            return Err(errors::ConnectorError::ResponseHandlingFailed.into());
+            let reason = item
+                .response
+                .error_message
+                .clone()
+                .or_else(|| item.response.error.clone())
+                .unwrap_or_else(|| "unknown BioPay post authentication failure".to_string());
+
+            return Err(errors::ConnectorError::ResponseHandlingFailed.into())
+                .attach_printable(format!("BioPay post authentication failed: {}", reason));
         }
 
-      let attempt_status = match item.response.status.as_str() {
-    "approved" => AttemptStatus::AuthenticationSuccessful,
-    "expired" => AttemptStatus::Expired,
-    "failed" => AttemptStatus::AuthenticationFailed,
-    "pending" => AttemptStatus::AuthenticationPending,
-    unknown => {
-        return Err(errors::ConnectorError::ResponseDeserializationFailed.into())
-            .attach_printable(format!("Unexpected BioPay status: {}", unknown));
-    }
-};
+        let session_id =
+            item.response
+                .session_id
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "session_id",
+                })?;
+
+        let attempt_status = match item.response.status.as_str() {
+            "approved" => AttemptStatus::AuthenticationSuccessful,
+            "expired" => AttemptStatus::Expired,
+            "failed" => AttemptStatus::AuthenticationFailed,
+            "pending" => AttemptStatus::AuthenticationPending,
+            unknown => {
+                return Err(errors::ConnectorError::ResponseDeserializationFailed.into())
+                    .attach_printable(format!("Unexpected BioPay status: {}", unknown));
+            }
+        };
 
         Ok(Self {
             status: attempt_status,
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.session_id.clone()),
+                resource_id: ResponseId::ConnectorTransactionId(session_id.clone()),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
-                connector_response_reference_id: Some(item.response.session_id),
+                connector_response_reference_id: Some(session_id),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
