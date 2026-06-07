@@ -1,3 +1,4 @@
+use actix_web::{HttpRequest, HttpResponse};
 pub use api_models::superposition_proxy::{
     AuditLogResponse, ContextResponse, DefaultConfigResponse, DimensionResponse,
     PaginatedListResponse, ResolveConfigResponse,
@@ -5,9 +6,11 @@ pub use api_models::superposition_proxy::{
 use external_services::superposition::{
     audit_log_full_to_struct, context_response_to_struct, create_context_output_to_struct,
     datetime_to_string, default_config_response_to_struct, dimension_response_to_struct,
-    doc_map_to_json, document_to_value, map_sdk_error, CreateContextInputBuilder,
+    doc_map_to_json, document_to_value, map_sdk_error, parse_datetime, value_to_document,
+    AuditAction, ContextFilterSortOn, CreateContextInputBuilder, DateTime, DimensionMatchStrategy,
     GetResolvedConfigInputBuilder, ListAuditLogsInputBuilder, ListContextsInputBuilder,
-    ListDefaultConfigsInputBuilder, ListDimensionsInputBuilder, SuperpositionError,
+    ListDefaultConfigsInputBuilder, ListDimensionsInputBuilder, ResolveConfigBody, SortBy,
+    SuperpositionError,
 };
 use router_env::logger;
 
@@ -163,6 +166,266 @@ fn map_superposition_err(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(context),
     }
+}
+
+/// Extract the `x-org-id` and `x-workspace` headers required by every proxy
+/// endpoint, returning a `400` response if either is missing.
+pub fn extract_proxy_headers(req: &HttpRequest) -> Result<(String, String), HttpResponse> {
+    let org_id = req
+        .headers()
+        .get("x-org-id")
+        .and_then(|v| v.to_str().ok())
+        .map(String::from)
+        .ok_or_else(|| {
+            HttpResponse::BadRequest().json(serde_json::json!({
+                "error": { "message": "missing required header: x-org-id" }
+            }))
+        })?;
+
+    let workspace_id = req
+        .headers()
+        .get("x-workspace")
+        .and_then(|v| v.to_str().ok())
+        .map(String::from)
+        .ok_or_else(|| {
+            HttpResponse::BadRequest().json(serde_json::json!({
+                "error": { "message": "missing required header: x-workspace" }
+            }))
+        })?;
+
+    Ok((org_id, workspace_id))
+}
+
+/// Typed `ListContexts` query params, parsed from the raw key/value pairs
+#[derive(Debug, Default)]
+pub struct ListContextsQuery {
+    count: Option<i32>,
+    page: Option<i32>,
+    all: Option<bool>,
+    prefix: Vec<String>,
+    sort_on: Option<ContextFilterSortOn>,
+    sort_by: Option<SortBy>,
+    created_by: Vec<String>,
+    last_modified_by: Vec<String>,
+    plaintext: Option<String>,
+    dimension_match_strategy: Option<DimensionMatchStrategy>,
+    dimension_params: Vec<(String, String)>,
+}
+
+impl From<Vec<(String, String)>> for ListContextsQuery {
+    fn from(params: Vec<(String, String)>) -> Self {
+        let first_value = |name: &str| {
+            params
+                .iter()
+                .find(|(k, _)| k == name)
+                .map(|(_, v)| v.clone())
+        };
+        let all_values = |name: &str| {
+            params
+                .iter()
+                .filter(|(k, _)| k == name)
+                .map(|(_, v)| v.clone())
+                .collect::<Vec<_>>()
+        };
+
+        Self {
+            count: first_value("count").and_then(|v| v.parse().ok()),
+            page: first_value("page").and_then(|v| v.parse().ok()),
+            all: first_value("all").and_then(|v| v.parse().ok()),
+            prefix: all_values("prefix"),
+            sort_on: first_value("sort_on").map(|v| ContextFilterSortOn::from(v.as_str())),
+            sort_by: first_value("sort_by").map(|v| SortBy::from(v.as_str())),
+            created_by: all_values("created_by"),
+            last_modified_by: all_values("last_modified_by"),
+            plaintext: first_value("plaintext"),
+            dimension_match_strategy: first_value("dimension_match_strategy")
+                .map(|v| DimensionMatchStrategy::from(v.as_str())),
+            dimension_params: params
+                .iter()
+                .filter(|(k, _)| k.starts_with("dimension["))
+                .cloned()
+                .collect(),
+        }
+    }
+}
+
+impl ListContextsQuery {
+    /// Build the `ListContexts` SDK input from the typed query.
+    pub fn into_input(self, org_id: String, workspace_id: String) -> ListContextsInputBuilder {
+        let mut builder = ListContextsInputBuilder::default()
+            .org_id(org_id)
+            .workspace_id(workspace_id)
+            .set_count(self.count)
+            .set_page(self.page)
+            .set_all(self.all)
+            .set_sort_on(self.sort_on)
+            .set_sort_by(self.sort_by)
+            .set_plaintext(self.plaintext)
+            .set_dimension_match_strategy(self.dimension_match_strategy)
+            .set_prefix((!self.prefix.is_empty()).then_some(self.prefix))
+            .set_created_by((!self.created_by.is_empty()).then_some(self.created_by))
+            .set_last_modified_by(
+                (!self.last_modified_by.is_empty()).then_some(self.last_modified_by),
+            );
+
+        for (key, value) in self.dimension_params {
+            builder = builder.dimension_params(key, value);
+        }
+
+        builder
+    }
+}
+
+/// Typed query params shared by `ListDimensions` and `ListDefaultConfigs`.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct SuperpositionListQuery {
+    pub count: Option<i32>,
+    pub page: Option<i32>,
+    pub all: Option<bool>,
+    pub name: Option<String>,
+}
+
+impl SuperpositionListQuery {
+    /// Build the `ListDimensions` SDK input from the typed query.
+    pub fn into_dimensions_input(
+        self,
+        org_id: String,
+        workspace_id: String,
+    ) -> ListDimensionsInputBuilder {
+        ListDimensionsInputBuilder::default()
+            .org_id(org_id)
+            .workspace_id(workspace_id)
+            .set_count(self.count)
+            .set_page(self.page)
+            .set_all(self.all)
+    }
+
+    /// Build the `ListDefaultConfigs` SDK input from the typed query.
+    pub fn into_default_configs_input(
+        self,
+        org_id: String,
+        workspace_id: String,
+    ) -> ListDefaultConfigsInputBuilder {
+        ListDefaultConfigsInputBuilder::default()
+            .org_id(org_id)
+            .workspace_id(workspace_id)
+            .set_count(self.count)
+            .set_page(self.page)
+            .set_all(self.all)
+            .set_name(self.name)
+    }
+}
+
+/// Typed `ListAuditLogs` query params, parsed from the raw key/value pairs.
+#[derive(Debug, Default)]
+pub struct ListAuditLogsQuery {
+    count: Option<i32>,
+    page: Option<i32>,
+    all: Option<bool>,
+    from_date: Option<DateTime>,
+    to_date: Option<DateTime>,
+    table: Vec<String>,
+    action: Vec<String>,
+    username: Option<String>,
+    sort_by: Option<SortBy>,
+    dimension_params: Vec<(String, String)>,
+}
+
+impl TryFrom<Vec<(String, String)>> for ListAuditLogsQuery {
+    type Error = HttpResponse;
+
+    fn try_from(params: Vec<(String, String)>) -> Result<Self, Self::Error> {
+        let first_value = |name: &str| {
+            params
+                .iter()
+                .find(|(k, _)| k == name)
+                .map(|(_, v)| v.clone())
+        };
+        // `table`/`action` accept comma-separated values across one or more keys.
+        let csv_values = |name: &str| {
+            params
+                .iter()
+                .filter(|(k, _)| k == name)
+                .flat_map(|(_, v)| v.split(',').map(|s| s.trim().to_owned()))
+                .collect::<Vec<_>>()
+        };
+        let parse_date = |name: &str| {
+            first_value(name)
+                .map(|v| {
+                    parse_datetime(&v).map_err(|_| {
+                        HttpResponse::BadRequest().json(serde_json::json!({
+                            "error": { "message": format!("invalid {name} format: {v}") }
+                        }))
+                    })
+                })
+                .transpose()
+        };
+
+        Ok(Self {
+            count: first_value("count").and_then(|v| v.parse().ok()),
+            page: first_value("page").and_then(|v| v.parse().ok()),
+            all: first_value("all").and_then(|v| v.parse().ok()),
+            from_date: parse_date("from_date")?,
+            to_date: parse_date("to_date")?,
+            table: csv_values("table"),
+            action: csv_values("action"),
+            username: first_value("username"),
+            sort_by: first_value("sort_by").map(|v| SortBy::from(v.as_str())),
+            dimension_params: params
+                .iter()
+                .filter(|(k, _)| k.starts_with("dimension["))
+                .cloned()
+                .collect(),
+        })
+    }
+}
+
+impl ListAuditLogsQuery {
+    /// Build the `ListAuditLogs` SDK input from the typed query.
+    pub fn into_input(self, org_id: String, workspace_id: String) -> ListAuditLogsInputBuilder {
+        let action = (!self.action.is_empty()).then(|| {
+            self.action
+                .iter()
+                .map(|a| AuditAction::from(a.as_str()))
+                .collect()
+        });
+
+        let mut builder = ListAuditLogsInputBuilder::default()
+            .org_id(org_id)
+            .workspace_id(workspace_id)
+            .set_count(self.count)
+            .set_page(self.page)
+            .set_all(self.all)
+            .set_from_date(self.from_date)
+            .set_to_date(self.to_date)
+            .set_username(self.username)
+            .set_sort_by(self.sort_by)
+            .set_tables((!self.table.is_empty()).then_some(self.table))
+            .set_action(action);
+
+        for (key, value) in self.dimension_params {
+            builder = builder.dimension_params(key, value);
+        }
+
+        builder
+    }
+}
+
+/// Build the `GetResolvedConfig` SDK input from the resolve-config body.
+pub fn build_resolve_config_input(
+    org_id: String,
+    workspace_id: String,
+    body: ResolveConfigBody,
+) -> GetResolvedConfigInputBuilder {
+    let mut builder = GetResolvedConfigInputBuilder::default()
+        .org_id(org_id)
+        .workspace_id(workspace_id);
+
+    for (dimension_key, dimension_value) in body.context {
+        builder = builder.context(dimension_key, value_to_document(dimension_value));
+    }
+
+    builder
 }
 
 pub async fn list_contexts(
