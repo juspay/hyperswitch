@@ -77,45 +77,49 @@ describe("Client Session Validation", () => {
     });
   });
 
-  context("Invalid SDK Authorization - Confirm with tampered sdk_authorization", () => {
-    let shouldContinue = true;
+  context(
+    "Invalid SDK Authorization - Confirm with tampered sdk_authorization",
+    () => {
+      let shouldContinue = true;
 
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
 
-    it("Create Payment Intent", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["PaymentIntent"];
+      it("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
 
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
 
-    it("Confirm with invalid sdk_authorization - expect 401", () => {
-      const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["ClientSessionInvalidConfirm"];
+      it("Confirm with invalid sdk_authorization - expect 401", () => {
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ClientSessionInvalidConfirm"];
 
-      cy.confirmWithSdkAuthTest(
-        fixtures.confirmBody,
-        confirmData,
-        true,
-        globalState,
-        "invalid_session"
-      );
-    });
-  });
+        cy.confirmWithSdkAuthTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState,
+          "invalid_session"
+        );
+      });
+    }
+  );
 
   context(
     "Missing SDK Authorization - Confirm without sdk_authorization (legacy fallback)",
