@@ -1,19 +1,17 @@
 pub mod transformers;
 
+use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
 };
-
 use error_stack::{report, ResultExt};
-
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_request_types::{PaymentsAuthenticateData, PaymentsPostAuthenticateData},
     router_response_types::{ConnectorInfo, PaymentsResponseData, SupportedPaymentMethods},
 };
-
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
@@ -25,11 +23,8 @@ use hyperswitch_interfaces::{
     types::Response,
     webhooks,
 };
-
-use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{ExposeInterface, Mask as _};
 use std::sync::LazyLock;
-
-use common_enums::enums;
 
 use crate::{constants::headers, types::ResponseRouterData};
 
@@ -124,9 +119,9 @@ impl ConnectorCommon for Biopay {
             attempt_status: None,
             connector_transaction_id: None,
             connector_response_reference_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
+            network_advice_code: response.network_advice_code,
+            network_decline_code: response.network_decline_code,
+            network_error_message: response.network_error_message,
             connector_metadata: None,
         })
     }
@@ -134,12 +129,8 @@ impl ConnectorCommon for Biopay {
 
 impl ConnectorValidation for Biopay {}
 
-impl
-    ConnectorIntegration<
-        api::Authenticate,
-        PaymentsAuthenticateData,
-        PaymentsResponseData,
-    > for Biopay
+impl ConnectorIntegration<api::Authenticate, PaymentsAuthenticateData, PaymentsResponseData>
+    for Biopay
 {
     fn get_headers(
         &self,
@@ -171,6 +162,7 @@ impl
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
+    #[router_env::instrument(skip_all, fields(connector = "biopay"))]
     fn build_request(
         &self,
         req: &RouterData<api::Authenticate, PaymentsAuthenticateData, PaymentsResponseData>,
@@ -199,6 +191,7 @@ impl
         ))
     }
 
+    #[router_env::instrument(skip_all, fields(connector = "biopay"))]
     fn handle_response(
         &self,
         data: &RouterData<api::Authenticate, PaymentsAuthenticateData, PaymentsResponseData>,
@@ -231,12 +224,8 @@ impl
     }
 }
 
-impl
-    ConnectorIntegration<
-        api::PostAuthenticate,
-        PaymentsPostAuthenticateData,
-        PaymentsResponseData,
-    > for Biopay
+impl ConnectorIntegration<api::PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>
+    for Biopay
 {
     fn get_headers(
         &self,
@@ -268,6 +257,7 @@ impl
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
+    #[router_env::instrument(skip_all, fields(connector = "biopay"))]
     fn build_request(
         &self,
         req: &RouterData<api::PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>,
@@ -296,6 +286,7 @@ impl
         ))
     }
 
+    #[router_env::instrument(skip_all, fields(connector = "biopay"))]
     fn handle_response(
         &self,
         data: &RouterData<api::PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>,
