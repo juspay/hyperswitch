@@ -430,8 +430,8 @@ export const connectorDetails = {
         body: {
           status: "requires_confirmation",
           payout_link: {
-            payout_link_id: expect.any(String),
-            link: expect.any(String),
+            payout_link_id: ".*",
+            link: ".*",
           },
         },
       },
@@ -466,7 +466,12 @@ export const connectorDetails = {
     PayoutLinkValidationError: {
       Request: {
         payout_link: true,
+        currency: "EUR",
+        amount: 100,
         customer_id: null,
+        payout_link_config: {
+          test_mode: true,
+        },
       },
       Response: {
         status: 400,
@@ -483,7 +488,12 @@ export const connectorDetails = {
     PayoutLinkConfirmConflict: {
       Request: {
         payout_link: true,
+        currency: "EUR",
+        amount: 100,
         confirm: true,
+        payout_link_config: {
+          test_mode: true,
+        },
       },
       Response: {
         status: 400,
