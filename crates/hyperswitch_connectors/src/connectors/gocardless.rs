@@ -13,7 +13,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -52,7 +51,7 @@ use transformers as gocardless;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, is_mandate_supported, PaymentMethodDataType},
+    utils::{self},
 };
 
 #[derive(Clone)]
@@ -358,21 +357,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
 {
 }
 
-impl ConnectorValidation for Gocardless {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::SepaBankDebit,
-            PaymentMethodDataType::AchBankDebit,
-            PaymentMethodDataType::BecsBankDebit,
-            PaymentMethodDataType::BacsBankDebit,
-        ]);
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Gocardless {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Gocardless {
     //TODO: implement sessions flow
