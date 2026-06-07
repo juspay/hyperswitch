@@ -54,18 +54,9 @@ pub struct AddVaultRequest<D> {
     pub ttl: i64,
 }
 
-#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultRequestNew<D> {
     pub entity_id: id_type::MerchantId,
-    pub vault_id: domain::VaultId,
-    pub data: D,
-    pub ttl: i64,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct AddCompatVaultRequest<D> {
-    pub entity_id: id_type::CustomerId,
     pub vault_id: domain::VaultId,
     pub data: D,
     pub ttl: i64,
@@ -90,6 +81,14 @@ pub struct AddVaultResponse {
     pub vault_id: domain::VaultId,
     #[cfg(feature = "v1")]
     pub vault_id: hyperswitch_domain_models::router_response_types::VaultIdType,
+    pub fingerprint_id: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AddVaultResponseNew {
+    pub entity_id: Option<String>,
+    pub vault_id: domain::VaultId,
     pub fingerprint_id: Option<String>,
 }
 
@@ -177,7 +176,7 @@ pub struct VaultRetrieveRequest {
     pub vault_id: domain::VaultId,
 }
 
-#[cfg(feature = "v1")]
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultRetrieveRequestNew {
     pub entity_id: id_type::MerchantId,
@@ -188,12 +187,6 @@ pub struct VaultRetrieveRequestNew {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultRetrieveRequest {
     pub entity_id: id_type::GlobalCustomerId,
-    pub vault_id: domain::VaultId,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct GenericVaultRetrieveRequest {
-    pub entity_id: id_type::CustomerId,
     pub vault_id: domain::VaultId,
 }
 

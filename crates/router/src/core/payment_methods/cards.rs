@@ -1886,7 +1886,7 @@ impl PaymentMethodsController for PmCards<'_> {
 /// Encode the appropriate `AddVaultRequest` based on the migration flag.
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-fn encode_add_vault_request(
+pub fn encode_add_vault_request(
     should_trigger_fingerprint_migration: bool,
     merchant_id: id_type::MerchantId,
     customer_id: &id_type::CustomerId,
@@ -1902,7 +1902,7 @@ fn encode_add_vault_request(
         }
         .encode_to_vec()
         .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode AddVaultRequest")
+        .attach_printable("Failed to encode AddVaultRequestNew")
     } else {
         pm_types::AddVaultRequest {
             entity_id: hyperswitch_domain_models::vault::V1VaultEntityId::new(
@@ -1919,10 +1919,41 @@ fn encode_add_vault_request(
     }
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub fn encode_add_vault_request(
+    should_trigger_fingerprint_migration: bool,
+    merchant_id: id_type::MerchantId,
+    customer_id: &id_type::GlobalCustomerId,
+    pmd: hyperswitch_domain_models::vault::PaymentMethodVaultingData,
+    ttl: i64,
+) -> errors::CustomResult<Vec<u8>, errors::VaultError> {
+    if should_trigger_fingerprint_migration {
+        pm_types::AddVaultRequestNew {
+            entity_id: merchant_id,
+            vault_id: domain::VaultId::generate(uuid::Uuid::now_v7().to_string()),
+            data: pmd,
+            ttl,
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode AddVaultRequestNew")
+    } else {
+        pm_types::AddVaultRequest {
+            entity_id: customer_id.clone(),
+            vault_id: domain::VaultId::generate(uuid::Uuid::now_v7().to_string()),
+            data: pmd,
+            ttl,
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode AddVaultRequest")
+    }
+}
 /// Parse the vault `AddVault` response and extract the `vault_id`.
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-fn parse_add_vault_response(
+pub fn parse_add_vault_response(
     should_trigger_fingerprint_migration: bool,
     resp: String,
 ) -> errors::CustomResult<domain::VaultId, errors::VaultError> {
@@ -1941,10 +1972,32 @@ fn parse_add_vault_response(
     }
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub fn parse_add_vault_response(
+    should_trigger_fingerprint_migration: bool,
+    resp: String,
+) -> errors::CustomResult<pm_types::AddVaultResponse, errors::VaultError> {
+    if should_trigger_fingerprint_migration {
+        resp.parse_struct("AddVaultResponseNew")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Failed to parse data into AddVaultResponseNew")
+            .map(|parsed: pm_types::AddVaultResponseNew| pm_types::AddVaultResponse {
+                entity_id: None,
+                vault_id: parsed.vault_id,
+                fingerprint_id: parsed.fingerprint_id,
+            })
+    } else {
+        resp.parse_struct("AddVaultResponse")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Failed to parse data into AddVaultResponse")
+    }
+}
+
 /// Encode the appropriate `VaultRetrieveRequest` based on the migration flag.
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-fn encode_vault_retrieve_request(
+pub fn encode_vault_retrieve_request(
     should_trigger_fingerprint_migration: bool,
     merchant_id: id_type::MerchantId,
     customer_id: &id_type::CustomerId,
@@ -1977,6 +2030,41 @@ fn encode_vault_retrieve_request(
         .change_context(errors::ApiErrorResponse::InternalServerError)
     }
 }
+
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub fn encode_vault_retrieve_request(
+    should_trigger_fingerprint_migration: bool,
+    merchant_id: id_type::MerchantId,
+    customer_id: &id_type::GlobalCustomerId,
+    token_ref: &str,
+) -> errors::CustomResult<Vec<u8>, errors::ApiErrorResponse> {
+    if should_trigger_fingerprint_migration {
+        pm_types::VaultRetrieveRequestNew {
+            entity_id: merchant_id,
+            vault_id: hyperswitch_domain_models::payment_methods::VaultId::generate(
+                token_ref.to_owned(),
+            ),
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode VaultRetrieveRequest")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+    } else {
+        pm_types::VaultRetrieveRequest {
+            entity_id: customer_id.clone(),
+            vault_id: hyperswitch_domain_models::payment_methods::VaultId::generate(
+                token_ref.to_owned(),
+            ),
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode VaultRetrieveRequest")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+    }
+}
+
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]

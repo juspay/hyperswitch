@@ -44,8 +44,9 @@ use crate::{
 #[cfg(feature = "v2")]
 use crate::{
     core::{
+        configs::dimension_state,
         errors::StorageErrorExt,
-        payment_methods::{cards as pm_cards, utils, LockerOperations, LockerType},
+        payment_methods::{cards as pm_cards, utils, LockerOperations, LockerType, utils as payment_method_utils},
         payments::{self as payments_core, helpers as payment_helpers},
         utils::create_encrypted_data,
     },
@@ -2051,16 +2052,25 @@ pub async fn add_payment_method_to_vault(
     customer_id: &id_type::GlobalCustomerId,
     write_mode: Option<pm_types::WriteMode>,
 ) -> CustomResult<pm_types::AddVaultResponse, errors::VaultError> {
-    let payload = pm_types::AddVaultRequest {
-        entity_id: customer_id.to_owned(),
-        vault_id: existing_vault_id
-            .unwrap_or(domain::VaultId::generate(uuid::Uuid::now_v7().to_string())),
-        data: pmd,
-        ttl: state.conf.locker.ttl_for_storage_in_secs,
-    }
-    .encode_to_vec()
-    .change_context(errors::VaultError::RequestEncodingFailed)
-    .attach_printable("Failed to encode AddVaultRequest")?;
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
+    let should_trigger_fingerprint_migration =
+        payment_method_utils::get_should_trigger_fingerprint_migration(state, &dimensions, None)
+            .await;
+
+    logger::info!(
+        "should_trigger_fingerprint_migration: {}",
+        should_trigger_fingerprint_migration
+    );
+
+    let payload = pm_cards::encode_add_vault_request(
+        should_trigger_fingerprint_migration,
+        platform.get_provider().get_account().get_id().clone(),
+        customer_id,
+        pmd.clone(),
+        state.conf.locker.ttl_for_storage_in_secs,
+    )?;
 
     let query_params = write_mode.map(pm_types::VaultQueryParam::from);
 
@@ -2069,10 +2079,9 @@ pub async fn add_payment_method_to_vault(
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")?;
 
-    let stored_pm_resp: pm_types::AddVaultResponse = resp
-        .parse_struct("AddVaultResponse")
-        .change_context(errors::VaultError::ResponseDeserializationFailed)
-        .attach_printable("Failed to parse data into AddVaultResponse")?;
+    let stored_pm_resp =
+        pm_cards::parse_add_vault_response(should_trigger_fingerprint_migration, resp)?;
+
 
     Ok(stored_pm_resp)
 }
