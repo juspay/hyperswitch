@@ -9759,19 +9759,22 @@ Cypress.Commands.add("paymentUpdateClientAuthTest", (globalState, data) => {
   const { Configs: configs = {} } = data;
   execConfig(validateConfig(configs));
 
-  const apiKey = globalState.get("publishableKey") || globalState.get("apiKey");
+  const publishableKey = globalState.get("publishableKey");
   const baseUrl = globalState.get("baseUrl");
   const paymentId = globalState.get("paymentID") || globalState.get("paymentId");
+  const clientSecret = globalState.get("clientSecret");
 
-  const connectorId = globalState.get("connectorId");
-  const requestBody = data.Request;
+  const requestBody = {
+    ...data.Request,
+    client_secret: data.Request?.client_secret || clientSecret,
+  };
 
   cy.request({
     method: "POST",
     url: `${baseUrl}/payments/${paymentId}`,
     headers: {
       "Content-Type": "application/json",
-      "api-key": apiKey,
+      "api-key": publishableKey,
     },
     body: requestBody,
     failOnStatusCode: false,

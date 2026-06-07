@@ -1,6 +1,7 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import { PaymentUpdateClientAuthConfigs } from "../../configs/Payment/ClientPaymentUpdate";
 
 let connector;
 let globalState;
@@ -35,8 +36,14 @@ describe("Payment Update via Client Authentication Tests", () => {
   });
 
   context("Payment Update via Client Auth - Happy Path", () => {
-    it("Create Payment Intent -> Update via Client Auth -> Retrieve Payment", () => {
+    it("Enable config -> Create Payment Intent -> Update via Client Auth -> Retrieve Payment", () => {
       let shouldContinue = true;
+
+      cy.step("Enable Payment Update Client Auth Config", () => {
+        const merchantId = globalState.get("merchantId");
+        const configKey = `payment_update_enabled_for_client_auth_${merchantId}`;
+        cy.setConfigs(globalState, configKey, "true", "CREATE");
+      });
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -98,43 +105,15 @@ describe("Payment Update via Client Authentication Tests", () => {
     });
   });
 
-  context("Payment Update via Client Auth - Error Cases", () => {
-    it("Handle update for non-existent payment ID", () => {
-      const data = {
-        Request: {
-          payment_method: "card",
-          payment_method_data: {
-            card: {
-              card_number: "4111111111111111",
-              card_exp_month: "08",
-              card_exp_year: "30",
-              card_holder_name: "joseph Doe",
-              card_cvc: "999",
-            },
-          },
-        },
-        Response: {
-          status: 404,
-          body: {
-            error: {
-              type: "invalid_request",
-              code: "IR_01",
-              message: "Payment not found",
-            },
-          },
-        },
-      };
-
-      const nonExistentPaymentId = "pay_nonexistent_12345";
-      globalState.set("paymentId", nonExistentPaymentId);
-
-      cy.paymentUpdateClientAuthTest(globalState, data);
-    });
-  });
-
-  context("Payment Update via Client Auth - Edge Cases", () => {
-    it("Handle update with invalid card data", () => {
+  context("Payment Update via Client Auth - Feature Disabled Error", () => {
+    it("Failed update when feature is disabled", () => {
       let shouldContinue = true;
+
+      cy.step("Ensure config is disabled", () => {
+        const merchantId = globalState.get("merchantId");
+        const configKey = `payment_update_enabled_for_client_auth_${merchantId}`;
+        cy.setConfigs(globalState, configKey, "false", "CREATE");
+      });
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -154,42 +133,183 @@ describe("Payment Update via Client Authentication Tests", () => {
         }
       });
 
-      cy.step("Attempt Update with Invalid Card Data", () => {
+      cy.step("Attempt update with feature disabled", () => {
         if (!shouldContinue) {
           cy.task(
             "cli_log",
-            "Skipping step: Attempt Update with Invalid Card Data"
+            "Skipping step: Attempt update with feature disabled"
           );
           return;
         }
 
-        const data = {
-          Request: {
-            payment_method: "card",
-            payment_method_data: {
-              card: {
-                card_number: "invalid_card_number",
-                card_exp_month: "99",
-                card_exp_year: "1999",
-                card_holder_name: "Invalid",
-                card_cvc: "999",
-              },
-            },
-          },
-          Response: {
-            status: 400,
-            body: {
-              error: {
-                type: "invalid_request",
-                code: "IR_01",
-                message: "Invalid card data",
-              },
-            },
-          },
-        };
-
-        cy.paymentUpdateClientAuthTest(globalState, data);
+        cy.paymentUpdateClientAuthTest(
+          globalState,
+          PaymentUpdateClientAuthConfigs.FeatureDisabled
+        );
       });
     });
   });
+
+  context(
+    "Payment Update via Client Auth - Invalid Client Secret Error",
+    () => {
+      it("Failed update with invalid client secret", () => {
+        let shouldContinue = true;
+
+        cy.step("Enable config", () => {
+          const merchantId = globalState.get("merchantId");
+          const configKey = `payment_update_enabled_for_client_auth_${merchantId}`;
+          cy.setConfigs(globalState, configKey, "true", "CREATE");
+        });
+
+        cy.step("Create Payment Intent", () => {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentIntent"];
+
+          cy.createPaymentIntentTest(
+            fixtures.createPaymentBody,
+            data,
+            "no_three_ds",
+            "automatic",
+            globalState
+          );
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("Attempt update with invalid client secret", () => {
+          if (!shouldContinue) {
+            cy.task(
+              "cli_log",
+              "Skipping step: Attempt update with invalid client secret"
+            );
+            return;
+          }
+
+          cy.paymentUpdateClientAuthTest(
+            globalState,
+            PaymentUpdateClientAuthConfigs.InvalidClientSecret
+          );
+        });
+      });
+    }
+  );
+
+  context("Payment Update via Client Auth - Wrong Customer ID Error", () => {
+    it("Failed update with wrong customer ID", () => {
+      let shouldContinue = true;
+
+      cy.step("Enable config", () => {
+        const merchantId = globalState.get("merchantId");
+        const configKey = `payment_update_enabled_for_client_auth_${merchantId}`;
+        cy.setConfigs(globalState, configKey, "true", "CREATE");
+      });
+
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Attempt update with wrong customer ID", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Attempt update with wrong customer ID"
+          );
+          return;
+        }
+
+        cy.paymentUpdateClientAuthTest(
+          globalState,
+          PaymentUpdateClientAuthConfigs.WrongCustomerId
+        );
+      });
+    });
+  });
+
+  context(
+    "Payment Update via Client Auth - Wrong Payment Status Error",
+    () => {
+      it("Failed update when payment status does not allow updates", () => {
+        let shouldContinue = true;
+
+        cy.step("Enable config", () => {
+          const merchantId = globalState.get("merchantId");
+          const configKey = `payment_update_enabled_for_client_auth_${merchantId}`;
+          cy.setConfigs(globalState, configKey, "true", "CREATE");
+        });
+
+        cy.step("Create and Confirm Payment to reach succeeded status", () => {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentIntent"];
+
+          cy.createPaymentIntentTest(
+            fixtures.createPaymentBody,
+            data,
+            "no_three_ds",
+            "automatic",
+            globalState
+          );
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("Confirm Payment", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Confirm Payment");
+            return;
+          }
+
+          const confirmData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["No3DSAutoCapture"];
+
+          cy.confirmCallTest(
+            fixtures.confirmBody,
+            confirmData,
+            true,
+            globalState
+          );
+
+          if (!utils.should_continue_further(confirmData)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("Attempt update on already-confirmed payment", () => {
+          if (!shouldContinue) {
+            cy.task(
+              "cli_log",
+              "Skipping step: Attempt update on already-confirmed payment"
+            );
+            return;
+          }
+
+          cy.paymentUpdateClientAuthTest(
+            globalState,
+            PaymentUpdateClientAuthConfigs.WrongPaymentStatus
+          );
+        });
+      });
+    }
+  );
 });
