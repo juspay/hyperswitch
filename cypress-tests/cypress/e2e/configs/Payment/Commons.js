@@ -569,6 +569,30 @@ export const payment_methods_enabled = [
         recurring_enabled: false,
         installment_payment_enabled: false,
       },
+      {
+        payment_method_type: "ali_pay",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "we_chat_pay",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "mb_way",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
     ],
   },
   {
@@ -772,6 +796,17 @@ export const payment_methods_enabled = [
       },
       {
         payment_method_type: "affirm",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "atome",
         payment_experience: "redirect_to_url",
         card_networks: null,
         accepted_currencies: null,
@@ -1376,6 +1411,35 @@ export const connectorDetails = {
           },
         },
         billing: standardBillingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    PaypalRedirectMandateCIT: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        billing: standardBillingAddress,
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+        setup_future_usage: "off_session",
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            single_use: {
+              amount: 8000,
+              currency: "EUR",
+            },
+          },
+        },
       },
       Response: {
         status: 200,

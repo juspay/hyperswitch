@@ -1156,8 +1156,29 @@ impl
             payment_method_data: pmd,
         });
 
-        // TODO: check how we can get this field
-        let recurring_enabled = Some(true);
+        let recurring_enabled = item.connector_mandate_details.as_ref().and_then(|details| {
+            details.payments.as_ref().map(|payments| {
+                payments.values().any(|connector_token_reference| {
+                    connector_token_reference.connector_token_status
+                        == api_enums::ConnectorTokenStatus::Active
+                })
+            })
+        });
+
+        let connector_tokens = item
+            .connector_mandate_details
+            .as_ref()
+            .and_then(|details| details.payments.clone())
+            .map(|payment_details| {
+                payment_details
+                    .0
+                    .into_iter()
+                    .map(transformers::ForeignFrom::foreign_from)
+                    .collect::<Vec<_>>()
+            })
+            .and_then(|tokens| (!tokens.is_empty()).then_some(tokens));
+
+        let network_transaction_id = item.network_transaction_id.clone().map(Secret::new);
 
         let is_default = default_payment_method_id.is_some()
             && default_payment_method_id == Some(item.id.clone());
@@ -1176,11 +1197,12 @@ impl
             last_used_at: item.last_used_at,
             recurring_enabled,
             payment_method_data,
-            bank: None,
             requires_cvv: true,
             is_default,
             billing: payment_method_billing,
             network_tokenization: network_token_resp,
+            connector_tokens,
+            network_transaction_id,
         })
     }
 }
@@ -1197,6 +1219,7 @@ pub fn generate_payment_method_session_response(
     card_cvc_token_storage: Option<api_models::payment_methods::CardCVCTokenStorageDetails>,
     payment_method_data: Option<api_models::payment_methods::PaymentMethodResponseData>,
     network_tokenization_response: Option<api_models::payment_methods::NetworkTokenResponse>,
+    external_vault_details: Option<api_models::payments::VaultSessionDetails>,
 ) -> api_models::payment_methods::PaymentMethodSessionResponse {
     let next_action = associated_payment
         .as_ref()
@@ -1238,6 +1261,7 @@ pub fn generate_payment_method_session_response(
         sdk_authorization,
         keep_alive: payment_method_session.keep_alive,
         network_tokenization_data: network_tokenization_response,
+        external_vault_details,
     }
 }
 

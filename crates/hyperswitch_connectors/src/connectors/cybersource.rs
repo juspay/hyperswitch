@@ -12,7 +12,6 @@ use common_utils::{
 };
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -81,8 +80,8 @@ use crate::{
     constants::{self, headers},
     types::ResponseRouterData,
     utils::{
-        self, convert_amount, PaymentMethodDataType, PaymentsAuthorizeRequestData,
-        PaymentsPreAuthenticateRequestData, RefundsRequestData, RouterData as OtherRouterData,
+        self, convert_amount, PaymentsAuthorizeRequestData, PaymentsPreAuthenticateRequestData,
+        RefundsRequestData, RouterData as OtherRouterData,
     },
 };
 
@@ -308,21 +307,7 @@ impl ConnectorCommon for Cybersource {
     }
 }
 
-impl ConnectorValidation for Cybersource {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::ApplePay,
-            PaymentMethodDataType::GooglePay,
-            PaymentMethodDataType::SamsungPay,
-        ]);
-        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Cybersource {}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Cybersource
 where
