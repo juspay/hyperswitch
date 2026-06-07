@@ -1550,7 +1550,7 @@ dependencies = [
  "bitflags 2.9.0",
  "cexpr",
  "clang-sys",
- "itertools 0.13.0",
+ "itertools 0.10.5",
  "log 0.4.27",
  "prettyplease",
  "proc-macro2",
@@ -3377,8 +3377,10 @@ dependencies = [
  "aws-sdk-sesv2",
  "aws-sdk-sts",
  "aws-smithy-runtime",
+ "aws-smithy-runtime-api",
  "aws-smithy-types",
  "base64 0.22.1",
+ "chrono",
  "common_enums",
  "common_utils",
  "dyn-clone",
@@ -5078,15 +5080,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "itertools"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
-dependencies = [
- "either",
-]
-
-[[package]]
 name = "itoa"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5343,7 +5336,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07033963ba89ebaf1584d767badaa2e8fcec21aedea6b8c0346d487d49c28667"
 dependencies = [
  "cfg-if 1.0.0",
- "windows-targets 0.53.5",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -7166,7 +7159,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "343d3bd7056eda839b03204e68deff7d1b13aba7af2b2fd16890697274262ee7"
 dependencies = [
  "heck 0.5.0",
- "itertools 0.13.0",
+ "itertools 0.10.5",
  "log 0.4.27",
  "multimap",
  "petgraph",
@@ -7187,7 +7180,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
 dependencies = [
  "anyhow",
- "itertools 0.13.0",
+ "itertools 0.10.5",
  "proc-macro2",
  "quote",
  "syn 2.0.101",
@@ -7200,7 +7193,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "27c6023962132f4b30eb4c172c91ce92d933da334c59c23cddee82358ddafb0b"
 dependencies = [
  "anyhow",
- "itertools 0.13.0",
+ "itertools 0.10.5",
  "proc-macro2",
  "quote",
  "syn 2.0.101",
@@ -9594,9 +9587,9 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "superposition_core"
-version = "0.102.0"
+version = "0.110.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8408c05eaa6d5e4ab17769e8a008b7b6908d4cf12995649bad45bd9e4ccac66"
+checksum = "2de1cdcaffc5100715e8b112d17cf30d6ab4a38309cc7a92c2c05c4592a6b4b5"
 dependencies = [
  "bigdecimal 0.3.1",
  "blake3",
@@ -9615,9 +9608,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_derives"
-version = "0.102.0"
+version = "0.110.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15ce4c755b62951f53d8ba1f686dfebe0a0fb22ea2e1abf437028b14130aabdb"
+checksum = "e91850369c0cd34217c5518936897edb0478460d50821f5d415e65fef00f7cff"
 dependencies = [
  "proc-macro-crate 3.2.0",
  "quote",
@@ -9626,9 +9619,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_provider"
-version = "0.102.0"
+version = "0.110.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0bc4b0c15a02a10d89deb0d4bc9e382193c9d745ac3057feac89f5503f6096b"
+checksum = "6a7152d014d0c15a7d61aa192aa2ec2c9171215352f92775fa2cb7f73853910c"
 dependencies = [
  "async-trait",
  "aws-smithy-types",
@@ -9651,9 +9644,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_sdk"
-version = "0.102.0"
+version = "0.110.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d53945cde9e454e8bdfe3560646c63556a25ec1242f28215a6fe709269de0126"
+checksum = "2e2c75f804dae814cc5c19e8e25bf0c2be225deacf653a3fb8b89fd4c5c339c3"
 dependencies = [
  "aws-smithy-async",
  "aws-smithy-http 0.62.1",
@@ -9669,9 +9662,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_types"
-version = "0.102.0"
+version = "0.110.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0751b1d31773b2dc67adaa208a270b5a5189b435f69f63f32f528878f8c33c72"
+checksum = "203935bb6b0be4eb53126a85fdaf61b044aad0b7d8e2dae087706bbac3df191a"
 dependencies = [
  "bigdecimal 0.3.1",
  "chrono",
@@ -11894,7 +11887,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]

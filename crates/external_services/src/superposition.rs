@@ -15,6 +15,304 @@ use superposition_provider::traits::AllFeatureProvider;
 pub use self::types::{ConfigContext, SuperpositionClientConfig, SuperpositionError, ToDocument};
 use crate::config_metrics;
 
+tokio::task_local! {
+    /// Per-request `x-user` header payload forwarded to Superposition when the
+    /// Internal-scheme auth bypass is active. Set by proxy handlers, consumed
+    /// by [`InternalAuthInterceptor`].
+    pub static SUPERPOSITION_X_USER: String;
+}
+
+/// Smithy interceptor that rewrites the SDK's default `Authorization: Bearer ...`
+/// header into the `Authorization: Internal <token>` scheme expected by
+/// Superposition's `auth_n.rs` bypass branch, and forwards an `x-user`
+/// identity header. Identity precedence: request-scoped task-local
+/// [`SUPERPOSITION_X_USER`] > static fallback supplied at construction. The
+/// static fallback is used by background flows (e.g. provider polling) that
+/// have no per-request context.
+#[derive(Debug, Clone)]
+pub struct InternalAuthInterceptor {
+    token: hyperswitch_masking::Secret<String>,
+    static_x_user: Option<String>,
+}
+
+impl InternalAuthInterceptor {
+    /// Create a new interceptor with the static service token. When no
+    /// task-local identity is set, no `x-user` header is sent.
+    pub fn new(token: hyperswitch_masking::Secret<String>) -> Self {
+        Self {
+            token,
+            static_x_user: None,
+        }
+    }
+
+    /// Create an interceptor that falls back to the given `x-user` payload
+    /// when the task-local identity is not set.
+    pub fn with_static_x_user(
+        token: hyperswitch_masking::Secret<String>,
+        static_x_user: String,
+    ) -> Self {
+        Self {
+            token,
+            static_x_user: Some(static_x_user),
+        }
+    }
+}
+
+impl superposition_sdk::config::Intercept for InternalAuthInterceptor {
+    fn name(&self) -> &'static str {
+        "SuperpositionInternalAuthInterceptor"
+    }
+
+    fn modify_before_transmit(
+        &self,
+        context: &mut superposition_sdk::config::interceptors::BeforeTransmitInterceptorContextMut<
+            '_,
+        >,
+        _runtime_components: &superposition_sdk::config::RuntimeComponents,
+        _cfg: &mut superposition_sdk::config::ConfigBag,
+    ) -> Result<(), aws_smithy_runtime_api::box_error::BoxError> {
+        let headers = context.request_mut().headers_mut();
+
+        let internal_value = format!("Internal {}", self.token.clone().expose());
+        headers.insert("authorization", internal_value);
+
+        let x_user = SUPERPOSITION_X_USER
+            .try_with(|payload| payload.clone())
+            .ok()
+            .or_else(|| self.static_x_user.clone());
+
+        if let Some(user_payload) = x_user {
+            headers.insert("x-user", user_payload);
+        }
+
+        Ok(())
+    }
+}
+
+/// Build the `x-user` payload used when polling Superposition from a
+/// background flow. The shape matches Superposition's `auth_n.rs` `User`
+/// deserializer for the Internal-scheme bypass.
+fn build_service_x_user_payload(service_name: &str) -> String {
+    serde_json::json!({
+        "email": format!("{service_name}@hyperswitch.internal"),
+        "username": service_name,
+    })
+    .to_string()
+}
+
+/// Custom Superposition data source backed by a `superposition_sdk::Client`
+/// built with [`InternalAuthInterceptor`]. Replaces
+/// [`superposition_provider::data_source::http::HttpDataSource`] when the
+/// upstream Superposition service runs with OIDC enabled, since that source
+/// hardcodes Bearer-token auth with no way to inject extra headers.
+#[allow(missing_debug_implementations)]
+pub struct HyperswitchHttpDataSource {
+    options: superposition_provider::types::SuperpositionOptions,
+    client: superposition_sdk::Client,
+}
+
+impl HyperswitchHttpDataSource {
+    /// Build a data source whose SDK client routes through the supplied
+    /// interceptor. The interceptor owns the auth-header rewrite.
+    pub fn new(
+        options: superposition_provider::types::SuperpositionOptions,
+        interceptor: InternalAuthInterceptor,
+    ) -> Self {
+        let sdk_config = superposition_sdk::Config::builder()
+            .endpoint_url(&options.endpoint)
+            .bearer_token(superposition_sdk::config::Token::new(
+                options.token.clone(),
+                None,
+            ))
+            .behavior_version_latest()
+            .interceptor(interceptor)
+            .build();
+
+        let client = superposition_sdk::Client::from_conf(sdk_config);
+        Self { options, client }
+    }
+
+    async fn fetch_experiments_with_filters(
+        &self,
+        context: Option<serde_json::Map<String, serde_json::Value>>,
+        prefix_filter: Option<Vec<String>>,
+        if_modified_since: Option<chrono::DateTime<chrono::Utc>>,
+        dimension_match_strategy: Option<superposition_sdk::types::DimensionMatchStrategy>,
+    ) -> superposition_provider::types::Result<
+        superposition_provider::data_source::FetchResponse<superposition_provider::ExperimentData>,
+    > {
+        let mut builder = self
+            .client
+            .get_experiment_config()
+            .workspace_id(&self.options.workspace_id)
+            .org_id(&self.options.org_id);
+
+        if let Some(modified_since) = if_modified_since
+            .and_then(|t| t.timestamp_nanos_opt())
+            .and_then(|t| aws_smithy_types::DateTime::from_nanos(t.into()).ok())
+        {
+            builder = builder.if_modified_since(modified_since);
+        }
+
+        if let Some(context) = context {
+            if !context.is_empty() {
+                let context_map = superposition_provider::conversions::map_to_hashmap(context);
+                builder = builder.set_context(Some(context_map));
+            }
+        }
+
+        if let Some(prefixes) = prefix_filter {
+            if !prefixes.is_empty() {
+                builder = builder.set_prefix(Some(prefixes));
+            }
+        }
+
+        if let Some(filter) = dimension_match_strategy {
+            builder = builder.dimension_match_strategy(filter);
+        }
+
+        let result = builder.send().await;
+        match result {
+            Ok(res) => {
+                use chrono::TimeZone as _;
+                let modified_at = chrono::Utc.timestamp_nanos(res.last_modified.as_nanos() as i64);
+                superposition_provider::utils::ConversionUtils::convert_experiment_config_response(
+                    res,
+                )
+                .map(|d| superposition_provider::ExperimentData {
+                    data: d,
+                    fetched_at: modified_at,
+                })
+                .map(superposition_provider::data_source::FetchResponse::Data)
+            }
+            Err(superposition_sdk::error::SdkError::ResponseError(r))
+                if r.raw().status().as_u16() == 304 =>
+            {
+                Ok(superposition_provider::data_source::FetchResponse::NotModified)
+            }
+            Err(e) => Err(
+                superposition_provider::types::SuperpositionError::NetworkError(format!(
+                    "Failed to list experiments: {e}"
+                )),
+            ),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl superposition_provider::data_source::SuperpositionDataSource for HyperswitchHttpDataSource {
+    async fn fetch_filtered_config(
+        &self,
+        context: Option<serde_json::Map<String, serde_json::Value>>,
+        prefix_filter: Option<Vec<String>>,
+        if_modified_since: Option<chrono::DateTime<chrono::Utc>>,
+    ) -> superposition_provider::types::Result<
+        superposition_provider::data_source::FetchResponse<superposition_provider::ConfigData>,
+    > {
+        let mut builder = self
+            .client
+            .get_config()
+            .workspace_id(&self.options.workspace_id)
+            .org_id(&self.options.org_id);
+
+        if let Some(modified_since) = if_modified_since
+            .and_then(|t| t.timestamp_nanos_opt())
+            .and_then(|t| aws_smithy_types::DateTime::from_nanos(t.into()).ok())
+        {
+            builder = builder.if_modified_since(modified_since);
+        }
+
+        if let Some(context) = context {
+            if !context.is_empty() {
+                let context_map = superposition_provider::conversions::map_to_hashmap(context);
+                builder = builder.set_context(Some(context_map));
+            }
+        }
+
+        if let Some(prefixes) = prefix_filter {
+            if !prefixes.is_empty() {
+                builder = builder.set_prefix(Some(prefixes));
+            }
+        }
+
+        let result = builder.send().await;
+        match result {
+            Ok(res) => {
+                use chrono::TimeZone as _;
+                let modified_at = chrono::Utc.timestamp_nanos(res.last_modified.as_nanos() as i64);
+                superposition_provider::utils::ConversionUtils::convert_get_config_response(res)
+                    .map(|d| superposition_provider::ConfigData {
+                        data: d,
+                        fetched_at: modified_at,
+                    })
+                    .map(superposition_provider::data_source::FetchResponse::Data)
+            }
+            Err(superposition_sdk::error::SdkError::ResponseError(r))
+                if r.raw().status().as_u16() == 304 =>
+            {
+                Ok(superposition_provider::data_source::FetchResponse::NotModified)
+            }
+            Err(e) => Err(
+                superposition_provider::types::SuperpositionError::NetworkError(format!(
+                    "Failed to fetch config: {e}"
+                )),
+            ),
+        }
+    }
+
+    async fn fetch_active_experiments(
+        &self,
+        if_modified_since: Option<chrono::DateTime<chrono::Utc>>,
+    ) -> superposition_provider::types::Result<
+        superposition_provider::data_source::FetchResponse<superposition_provider::ExperimentData>,
+    > {
+        self.fetch_experiments_with_filters(None, None, if_modified_since, None)
+            .await
+    }
+
+    async fn fetch_candidate_active_experiments(
+        &self,
+        context: Option<serde_json::Map<String, serde_json::Value>>,
+        prefix_filter: Option<Vec<String>>,
+        if_modified_since: Option<chrono::DateTime<chrono::Utc>>,
+    ) -> superposition_provider::types::Result<
+        superposition_provider::data_source::FetchResponse<superposition_provider::ExperimentData>,
+    > {
+        self.fetch_experiments_with_filters(
+            context,
+            prefix_filter,
+            if_modified_since,
+            Some(superposition_sdk::types::DimensionMatchStrategy::Exact),
+        )
+        .await
+    }
+
+    async fn fetch_matching_active_experiments(
+        &self,
+        context: Option<serde_json::Map<String, serde_json::Value>>,
+        prefix_filter: Option<Vec<String>>,
+        if_modified_since: Option<chrono::DateTime<chrono::Utc>>,
+    ) -> superposition_provider::types::Result<
+        superposition_provider::data_source::FetchResponse<superposition_provider::ExperimentData>,
+    > {
+        self.fetch_experiments_with_filters(
+            context,
+            prefix_filter,
+            if_modified_since,
+            Some(superposition_sdk::types::DimensionMatchStrategy::Subset),
+        )
+        .await
+    }
+
+    fn supports_experiments(&self) -> bool {
+        true
+    }
+
+    async fn close(&self) -> superposition_provider::types::Result<()> {
+        Ok(())
+    }
+}
+
 /// Generate a default change reason from the config key
 fn generate_change_reason(key: &str) -> String {
     format!("Updating {key} configuration")
@@ -151,13 +449,24 @@ impl SuperpositionClient {
         );
 
         // --- Build HTTP (primary) data source ---
-        let http_source = superposition_provider::data_source::http::HttpDataSource::new(
+        // We use a custom data source instead of
+        // `superposition_provider::data_source::http::HttpDataSource` so the
+        // polling client routes through `InternalAuthInterceptor` and works
+        // when Superposition has OIDC enabled (Bearer auth is rejected; the
+        // Internal scheme with an `x-user` payload is the supported
+        // service-account bypass).
+        let polling_interceptor = InternalAuthInterceptor::with_static_x_user(
+            hyperswitch_masking::Secret::new(token_value.clone()),
+            build_service_x_user_payload(service_name),
+        );
+        let http_source = HyperswitchHttpDataSource::new(
             superposition_provider::types::SuperpositionOptions::new(
                 config.endpoint.clone(),
                 token_value.clone(),
                 config.org_id.clone(),
                 config.workspace_id.clone(),
             ),
+            polling_interceptor,
         );
 
         // --- Build File (fallback) data source if backup_file_path is configured ---
@@ -169,11 +478,22 @@ impl SuperpositionClient {
                     "Configuring Superposition file fallback: path={:?}",
                     backup_path
                 );
-                Some(Box::new(
-                    superposition_provider::data_source::file::FileDataSource::new(
-                        backup_path.clone(),
-                    ),
-                ))
+                match superposition_provider::data_source::file::FileDataSource::new(
+                    backup_path.clone(),
+                ) {
+                    Ok(source) => {
+                        let boxed: Box<
+                            dyn superposition_provider::data_source::SuperpositionDataSource,
+                        > = Box::new(source);
+                        Some(boxed)
+                    }
+                    Err(e) => {
+                        router_env::logger::warn!(
+                            "Failed to create Superposition file fallback source: {e}"
+                        );
+                        None
+                    }
+                }
             }
             None => None,
         };
@@ -209,7 +529,13 @@ impl SuperpositionClient {
         // Use the same token_value extracted earlier for the provider
         let sdk_config = superposition_sdk::Config::builder()
             .endpoint_url(config.endpoint.clone())
-            .bearer_token(superposition_sdk::config::Token::new(token_value, None))
+            .bearer_token(superposition_sdk::config::Token::new(
+                token_value.clone(),
+                None,
+            ))
+            .interceptor(InternalAuthInterceptor::new(
+                hyperswitch_masking::Secret::new(token_value),
+            ))
             .build();
 
         let sdk_client = superposition_sdk::Client::from_conf(sdk_config);
@@ -328,7 +654,7 @@ impl SuperpositionClient {
                 )))
             })?;
         match response {
-            superposition_provider::data_source::FetchResponse::Data(data) => Ok(data.config),
+            superposition_provider::data_source::FetchResponse::Data(data) => Ok(data.data),
             superposition_provider::data_source::FetchResponse::NotModified => {
                 Err(report!(SuperpositionError::ProviderError(
                     "Config not modified but no data available".to_string()
@@ -395,6 +721,11 @@ impl SuperpositionClient {
         router_env::logger::info!("Set {} config successfully", T::SUPERPOSITION_KEY);
 
         Ok(())
+    }
+
+    /// Return a reference to the underlying Superposition SDK client.
+    pub fn superposition_sdk_client(&self) -> &superposition_sdk::Client {
+        &self.sdk_client
     }
 }
 
