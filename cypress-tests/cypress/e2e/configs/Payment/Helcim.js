@@ -1,23 +1,6 @@
-import { customerAcceptance } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
-  card_number: "4111111111111111",
-  card_exp_month: "12",
-  card_exp_year: "2030",
-  card_holder_name: "Test User",
-  card_cvc: "123",
-};
-
-const successfulCreditCardDetails = {
-  card_number: "4111111111111111",
-  card_exp_month: "12",
-  card_exp_year: "2030",
-  card_holder_name: "Test User",
-  card_cvc: "123",
-};
-
-const successfulDebitCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "12",
   card_exp_year: "2030",
@@ -29,44 +12,6 @@ const paymentMethodDataNo3DSResponse = {
   card: {
     last4: "1111",
     card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "UNKNOWN",
-    card_issuing_country: "UNKNOWN",
-    card_isin: "411111",
-    card_extended_bin: null,
-    card_exp_month: "12",
-    card_exp_year: "2030",
-    card_holder_name: "Test User",
-    payment_checks: null,
-    authentication_data: null,
-    auth_code: null,
-  },
-  billing: null,
-};
-
-const paymentMethodDataCreditResponse = {
-  card: {
-    last4: "1111",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "UNKNOWN",
-    card_issuing_country: "UNKNOWN",
-    card_isin: "411111",
-    card_extended_bin: null,
-    card_exp_month: "12",
-    card_exp_year: "2030",
-    card_holder_name: "Test User",
-    payment_checks: null,
-    authentication_data: null,
-    auth_code: null,
-  },
-  billing: null,
-};
-
-const paymentMethodDataDebitResponse = {
-  card: {
-    last4: "1111",
-    card_type: "DEBIT",
     card_network: "Visa",
     card_issuer: "UNKNOWN",
     card_issuing_country: "UNKNOWN",
@@ -271,7 +216,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_type: "credit",
         payment_method_data: {
-          card: successfulCreditCardDetails,
+          card: successfulNo3DSCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -281,7 +226,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          payment_method_data: paymentMethodDataCreditResponse,
+          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
@@ -290,7 +235,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_type: "credit",
         payment_method_data: {
-          card: successfulCreditCardDetails,
+          card: successfulNo3DSCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -300,7 +245,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
-          payment_method_data: paymentMethodDataCreditResponse,
+          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
@@ -309,7 +254,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_type: "debit",
         payment_method_data: {
-          card: successfulDebitCardDetails,
+          card: successfulNo3DSCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -319,7 +264,13 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          payment_method_data: paymentMethodDataDebitResponse,
+          payment_method_data: {
+            ...paymentMethodDataNo3DSResponse,
+            card: {
+              ...paymentMethodDataNo3DSResponse.card,
+              card_type: "DEBIT",
+            },
+          },
         },
       },
     },
@@ -328,7 +279,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_type: "debit",
         payment_method_data: {
-          card: successfulDebitCardDetails,
+          card: successfulNo3DSCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -338,13 +289,19 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
-          payment_method_data: paymentMethodDataDebitResponse,
+          payment_method_data: {
+            ...paymentMethodDataNo3DSResponse,
+            card: {
+              ...paymentMethodDataNo3DSResponse.card,
+              card_type: "DEBIT",
+            },
+          },
         },
       },
     },
     Capture: {
       Request: {
-        amount_to_capture: 1000,
+        amount_to_capture: 6543,
       },
       Response: {
         status: 200,
@@ -353,9 +310,20 @@ export const connectorDetails = {
         },
       },
     },
+    PartialCapture: {
+      Request: {
+        amount_to_capture: 3000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "partially_captured",
+        },
+      },
+    },
     Refund: {
       Request: {
-        amount: 1000,
+        amount: 6543,
         reason: "Customer request",
       },
       Response: {
@@ -367,7 +335,7 @@ export const connectorDetails = {
     },
     PartialRefund: {
       Request: {
-        amount: 500,
+        amount: 3000,
         reason: "Partial refund",
       },
       Response: {
@@ -386,21 +354,9 @@ export const connectorDetails = {
         },
       },
     },
-    // Additional capture/refund variants for comprehensive test coverage
-    PartialCapture: {
-      Request: {
-        amount_to_capture: 500,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "partially_captured",
-        },
-      },
-    },
     manualPaymentRefund: {
       Request: {
-        amount: 1000,
+        amount: 6543,
         reason: "Manual payment refund",
       },
       Response: {
@@ -412,8 +368,8 @@ export const connectorDetails = {
     },
     manualPaymentPartialRefund: {
       Request: {
-        amount: 500,
-        reason: "Manual partial payment refund",
+        amount: 3000,
+        reason: "Manual partial refund",
       },
       Response: {
         status: 200,
@@ -433,5 +389,8 @@ export const connectorDetails = {
         },
       },
     },
+    requiredFields,
   },
+  bank_transfer_pm: {},
+  wallet_pm: {},
 };
