@@ -425,10 +425,21 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
+        let integrity_object = utils::get_authorise_integrity_object(
+            &self.amount_convertor,
+            data.request.amount,
+            data.request.currency.to_string(),
+        )?;
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -524,10 +535,21 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tok
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
+        let integrity_object = utils::get_sync_integrity_object(
+            &self.amount_convertor,
+            data.request.amount,
+            data.request.currency.to_string(),
+        )?;
+
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
