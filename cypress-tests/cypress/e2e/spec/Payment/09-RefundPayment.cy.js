@@ -1,8 +1,22 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
+import * as RequestBodyUtils from "../../../utils/RequestBodyUtils";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
+
+/**
+ * Generates a random amount for connectors that require unique transaction amounts
+ * to prevent duplicate transaction detection (e.g., Helcim)
+ * @param {string} connectorId - The connector identifier
+ * @returns {number|null} Random amount for Helcim, null for other connectors
+ */
+function getRandomAmountForConnector(connectorId) {
+  if (connectorId === "helcim") {
+    return RequestBodyUtils.generateRandomAmount(1000, 9000);
+  }
+  return null;
+}
 
 describe("Card - Refund flow - No 3DS", () => {
   before("seed global state", () => {
@@ -18,13 +32,23 @@ describe("Card - Refund flow - No 3DS", () => {
   context("Card - Full Refund flow test for No-3DS", () => {
     it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Refund Payment -> Sync Refund Payment", () => {
       let shouldContinue = true;
+      // Generate random amount for Helcim to avoid duplicate transaction detection
+      const randomAmount = getRandomAmountForConnector(globalState.get("connectorId"));
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const paymentBody = { ...fixtures.createPaymentBody };
+        // Override amount for Helcim to use random amount
+        if (randomAmount !== null) {
+          paymentBody.amount = randomAmount;
+        }
+
         cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
+          paymentBody,
           data,
           "no_three_ds",
           "automatic",
@@ -51,8 +75,16 @@ describe("Card - Refund flow - No 3DS", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSAutoCapture"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const confirmRequestBody = { ...fixtures.confirmBody };
+        // Apply the same random amount for consistency
+        if (randomAmount !== null) {
+          confirmRequestBody.amount = randomAmount;
+        }
+
         cy.confirmCallTest(
-          fixtures.confirmBody,
+          confirmRequestBody,
           confirmData,
           true,
           globalState
@@ -109,13 +141,23 @@ describe("Card - Refund flow - No 3DS", () => {
   context("Card - Partial Refund flow test for No-3DS", () => {
     it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Partial Refund Payment -> Partial Refund Payment - 2nd Attempt -> Sync Refund Payment", () => {
       let shouldContinue = true;
+      // Generate random amount for Helcim to avoid duplicate transaction detection
+      const randomAmount = getRandomAmountForConnector(globalState.get("connectorId"));
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const paymentBody = { ...fixtures.createPaymentBody };
+        // Override amount for Helcim to use random amount
+        if (randomAmount !== null) {
+          paymentBody.amount = randomAmount;
+        }
+
         cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
+          paymentBody,
           data,
           "no_three_ds",
           "automatic",
@@ -142,8 +184,16 @@ describe("Card - Refund flow - No 3DS", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSAutoCapture"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const confirmRequestBody = { ...fixtures.confirmBody };
+        // Apply the same random amount for consistency
+        if (randomAmount !== null) {
+          confirmRequestBody.amount = randomAmount;
+        }
+
         cy.confirmCallTest(
-          fixtures.confirmBody,
+          confirmRequestBody,
           confirmData,
           true,
           globalState
@@ -219,13 +269,23 @@ describe("Card - Refund flow - No 3DS", () => {
     () => {
       it("Create and Confirm Payment -> Retrieve Payment after Confirmation -> Refund Payment -> Sync Refund Payment", () => {
         let shouldContinue = true;
+        // Generate random amount for Helcim to avoid duplicate transaction detection
+        const randomAmount = getRandomAmountForConnector(globalState.get("connectorId"));
 
         cy.step("Create and Confirm Payment", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["No3DSAutoCapture"];
+
+          // Clone the body to avoid mutating the imported fixture
+          const createConfirmBody = { ...fixtures.createConfirmPaymentBody };
+          // Override amount for Helcim to use random amount
+          if (randomAmount !== null) {
+            createConfirmBody.amount = randomAmount;
+          }
+
           cy.createConfirmPaymentTest(
-            fixtures.createConfirmPaymentBody,
+            createConfirmBody,
             data,
             "no_three_ds",
             "automatic",
@@ -286,13 +346,23 @@ describe("Card - Refund flow - No 3DS", () => {
     () => {
       it("Create and Confirm Payment -> Retrieve Payment after Confirmation -> Partial Refund Payment -> Partial Refund Payment - 2nd Attempt -> Sync Refund Payment", () => {
         let shouldContinue = true;
+        // Generate random amount for Helcim to avoid duplicate transaction detection
+        const randomAmount = getRandomAmountForConnector(globalState.get("connectorId"));
 
         cy.step("Create and Confirm Payment", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["No3DSAutoCapture"];
+
+          // Clone the body to avoid mutating the imported fixture
+          const createConfirmBody = { ...fixtures.createConfirmPaymentBody };
+          // Override amount for Helcim to use random amount
+          if (randomAmount !== null) {
+            createConfirmBody.amount = randomAmount;
+          }
+
           cy.createConfirmPaymentTest(
-            fixtures.createConfirmPaymentBody,
+            createConfirmBody,
             data,
             "no_three_ds",
             "automatic",
@@ -380,13 +450,23 @@ describe("Card - Refund flow - No 3DS", () => {
   context("Card - Full Refund for fully captured No-3DS payment", () => {
     it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Capture Payment -> Retrieve Payment after Capture -> Refund Payment -> Sync Refund Payment", () => {
       let shouldContinue = true;
+      // Generate random amount for Helcim to avoid duplicate transaction detection
+      const randomAmount = getRandomAmountForConnector(globalState.get("connectorId"));
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const paymentBody = { ...fixtures.createPaymentBody };
+        // Override amount for Helcim to use random amount
+        if (randomAmount !== null) {
+          paymentBody.amount = randomAmount;
+        }
+
         cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
+          paymentBody,
           data,
           "no_three_ds",
           "manual",
@@ -413,8 +493,16 @@ describe("Card - Refund flow - No 3DS", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSManualCapture"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const confirmRequestBody = { ...fixtures.confirmBody };
+        // Apply the same random amount for consistency
+        if (randomAmount !== null) {
+          confirmRequestBody.amount = randomAmount;
+        }
+
         cy.confirmCallTest(
-          fixtures.confirmBody,
+          confirmRequestBody,
           confirmData,
           true,
           globalState
@@ -503,13 +591,23 @@ describe("Card - Refund flow - No 3DS", () => {
   context("Card - Partial Refund for fully captured No-3DS payment", () => {
     it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Capture Payment -> Retrieve Payment after Capture -> Partial Refund Payment -> Partial Refund Payment - 2nd Attempt -> Sync Refund Payment -> List Refunds", () => {
       let shouldContinue = true;
+      // Generate random amount for Helcim to avoid duplicate transaction detection
+      const randomAmount = getRandomAmountForConnector(globalState.get("connectorId"));
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const paymentBody = { ...fixtures.createPaymentBody };
+        // Override amount for Helcim to use random amount
+        if (randomAmount !== null) {
+          paymentBody.amount = randomAmount;
+        }
+
         cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
+          paymentBody,
           data,
           "no_three_ds",
           "manual",
@@ -536,8 +634,16 @@ describe("Card - Refund flow - No 3DS", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSManualCapture"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const confirmRequestBody = { ...fixtures.confirmBody };
+        // Apply the same random amount for consistency
+        if (randomAmount !== null) {
+          confirmRequestBody.amount = randomAmount;
+        }
+
         cy.confirmCallTest(
-          fixtures.confirmBody,
+          confirmRequestBody,
           confirmData,
           true,
           globalState
@@ -668,13 +774,23 @@ describe("Card - Refund flow - No 3DS", () => {
   context("Card - Full Refund for partially captured No-3DS payment", () => {
     it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Partial Capture Payment -> Retrieve Payment after Partial Capture -> Refund Payment -> Sync Refund Payment", () => {
       let shouldContinue = true;
+      // Generate random amount for Helcim to avoid duplicate transaction detection
+      const randomAmount = getRandomAmountForConnector(globalState.get("connectorId"));
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const paymentBody = { ...fixtures.createPaymentBody };
+        // Override amount for Helcim to use random amount
+        if (randomAmount !== null) {
+          paymentBody.amount = randomAmount;
+        }
+
         cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
+          paymentBody,
           data,
           "no_three_ds",
           "manual",
@@ -701,8 +817,16 @@ describe("Card - Refund flow - No 3DS", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSManualCapture"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const confirmRequestBody = { ...fixtures.confirmBody };
+        // Apply the same random amount for consistency
+        if (randomAmount !== null) {
+          confirmRequestBody.amount = randomAmount;
+        }
+
         cy.confirmCallTest(
-          fixtures.confirmBody,
+          confirmRequestBody,
           confirmData,
           true,
           globalState
@@ -803,13 +927,23 @@ describe("Card - Refund flow - No 3DS", () => {
   context("Card - Partial Refund for partially captured No-3DS payment", () => {
     it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Partial Capture Payment -> Retrieve Payment after Partial Capture -> Refund Payment -> Sync Refund Payment", () => {
       let shouldContinue = true;
+      // Generate random amount for Helcim to avoid duplicate transaction detection
+      const randomAmount = getRandomAmountForConnector(globalState.get("connectorId"));
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const paymentBody = { ...fixtures.createPaymentBody };
+        // Override amount for Helcim to use random amount
+        if (randomAmount !== null) {
+          paymentBody.amount = randomAmount;
+        }
+
         cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
+          paymentBody,
           data,
           "no_three_ds",
           "manual",
@@ -836,8 +970,16 @@ describe("Card - Refund flow - No 3DS", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSManualCapture"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const confirmRequestBody = { ...fixtures.confirmBody };
+        // Apply the same random amount for consistency
+        if (randomAmount !== null) {
+          confirmRequestBody.amount = randomAmount;
+        }
+
         cy.confirmCallTest(
-          fixtures.confirmBody,
+          confirmRequestBody,
           confirmData,
           true,
           globalState
@@ -950,13 +1092,23 @@ describe("Card - Refund flow - 3DS", () => {
   context("Card - Full Refund flow test for 3DS", () => {
     it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Handle Redirection -> Retrieve Payment after Confirmation -> Refund Payment -> Sync Refund Payment", () => {
       let shouldContinue = true;
+      // Generate random amount for Helcim to avoid duplicate transaction detection
+      const randomAmount = getRandomAmountForConnector(globalState.get("connectorId"));
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const paymentBody = { ...fixtures.createPaymentBody };
+        // Override amount for Helcim to use random amount
+        if (randomAmount !== null) {
+          paymentBody.amount = randomAmount;
+        }
+
         cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
+          paymentBody,
           data,
           "three_ds",
           "automatic",
@@ -983,8 +1135,16 @@ describe("Card - Refund flow - 3DS", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["3DSAutoCapture"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const confirmRequestBody = { ...fixtures.confirmBody };
+        // Apply the same random amount for consistency
+        if (randomAmount !== null) {
+          confirmRequestBody.amount = randomAmount;
+        }
+
         cy.confirmCallTest(
-          fixtures.confirmBody,
+          confirmRequestBody,
           confirmData,
           true,
           globalState
@@ -1050,13 +1210,23 @@ describe("Card - Refund flow - 3DS", () => {
   context("Card - Partial Refund flow test for 3DS", () => {
     it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Handle Redirection -> Retrieve Payment after Confirmation -> Partial Refund Payment -> Partial Refund Payment - 2nd Attempt -> Sync Refund Payment", () => {
       let shouldContinue = true;
+      // Generate random amount for Helcim to avoid duplicate transaction detection
+      const randomAmount = getRandomAmountForConnector(globalState.get("connectorId"));
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const paymentBody = { ...fixtures.createPaymentBody };
+        // Override amount for Helcim to use random amount
+        if (randomAmount !== null) {
+          paymentBody.amount = randomAmount;
+        }
+
         cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
+          paymentBody,
           data,
           "three_ds",
           "automatic",
@@ -1083,8 +1253,16 @@ describe("Card - Refund flow - 3DS", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["3DSAutoCapture"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const confirmRequestBody = { ...fixtures.confirmBody };
+        // Apply the same random amount for consistency
+        if (randomAmount !== null) {
+          confirmRequestBody.amount = randomAmount;
+        }
+
         cy.confirmCallTest(
-          fixtures.confirmBody,
+          confirmRequestBody,
           confirmData,
           true,
           globalState
@@ -1167,13 +1345,23 @@ describe("Card - Refund flow - 3DS", () => {
   context("Fully Refund Card-ThreeDS payment flow test Create+Confirm", () => {
     it("Create and Confirm Payment -> Handle Redirection -> Retrieve Payment after Confirmation -> Refund Payment -> Sync Refund Payment", () => {
       let shouldContinue = true;
+      // Generate random amount for Helcim to avoid duplicate transaction detection
+      const randomAmount = getRandomAmountForConnector(globalState.get("connectorId"));
 
       cy.step("Create and Confirm Payment", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["3DSAutoCapture"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const createConfirmBody = { ...fixtures.createConfirmPaymentBody };
+        // Override amount for Helcim to use random amount
+        if (randomAmount !== null) {
+          createConfirmBody.amount = randomAmount;
+        }
+
         cy.createConfirmPaymentTest(
-          fixtures.createConfirmPaymentBody,
+          createConfirmBody,
           data,
           "three_ds",
           "automatic",
@@ -1242,13 +1430,23 @@ describe("Card - Refund flow - 3DS", () => {
     () => {
       it("Create and Confirm Payment -> Handle Redirection -> Retrieve Payment after Confirmation -> Partial Refund Payment -> Partial Refund Payment - 2nd Attempt -> Sync Refund Payment", () => {
         let shouldContinue = true;
+        // Generate random amount for Helcim to avoid duplicate transaction detection
+        const randomAmount = getRandomAmountForConnector(globalState.get("connectorId"));
 
         cy.step("Create and Confirm Payment", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["3DSAutoCapture"];
+
+          // Clone the body to avoid mutating the imported fixture
+          const createConfirmBody = { ...fixtures.createConfirmPaymentBody };
+          // Override amount for Helcim to use random amount
+          if (randomAmount !== null) {
+            createConfirmBody.amount = randomAmount;
+          }
+
           cy.createConfirmPaymentTest(
-            fixtures.createConfirmPaymentBody,
+            createConfirmBody,
             data,
             "three_ds",
             "automatic",
@@ -1341,13 +1539,23 @@ describe("Card - Refund flow - 3DS", () => {
   context("Card - Full Refund for fully captured 3DS payment", () => {
     it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Handle Redirection -> Retrieve Payment after Confirmation -> Capture Payment -> Retrieve Payment after Capture -> Refund Payment -> Sync Refund Payment", () => {
       let shouldContinue = true;
+      // Generate random amount for Helcim to avoid duplicate transaction detection
+      const randomAmount = getRandomAmountForConnector(globalState.get("connectorId"));
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const paymentBody = { ...fixtures.createPaymentBody };
+        // Override amount for Helcim to use random amount
+        if (randomAmount !== null) {
+          paymentBody.amount = randomAmount;
+        }
+
         cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
+          paymentBody,
           data,
           "three_ds",
           "manual",
@@ -1374,8 +1582,16 @@ describe("Card - Refund flow - 3DS", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["3DSManualCapture"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const confirmRequestBody = { ...fixtures.confirmBody };
+        // Apply the same random amount for consistency
+        if (randomAmount !== null) {
+          confirmRequestBody.amount = randomAmount;
+        }
+
         cy.confirmCallTest(
-          fixtures.confirmBody,
+          confirmRequestBody,
           confirmData,
           true,
           globalState
@@ -1469,13 +1685,23 @@ describe("Card - Refund flow - 3DS", () => {
   context("Card - Partial Refund for fully captured 3DS payment", () => {
     it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Handle Redirection -> Retrieve Payment after Confirmation -> Capture Payment -> Retrieve Payment after Capture -> Partial Refund Payment -> Partial Refund Payment - 2nd Attempt -> Sync Refund Payment", () => {
       let shouldContinue = true;
+      // Generate random amount for Helcim to avoid duplicate transaction detection
+      const randomAmount = getRandomAmountForConnector(globalState.get("connectorId"));
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const paymentBody = { ...fixtures.createPaymentBody };
+        // Override amount for Helcim to use random amount
+        if (randomAmount !== null) {
+          paymentBody.amount = randomAmount;
+        }
+
         cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
+          paymentBody,
           data,
           "three_ds",
           "manual",
@@ -1502,8 +1728,16 @@ describe("Card - Refund flow - 3DS", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["3DSManualCapture"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const confirmRequestBody = { ...fixtures.confirmBody };
+        // Apply the same random amount for consistency
+        if (randomAmount !== null) {
+          confirmRequestBody.amount = randomAmount;
+        }
+
         cy.confirmCallTest(
-          fixtures.confirmBody,
+          confirmRequestBody,
           confirmData,
           true,
           globalState
@@ -1614,13 +1848,23 @@ describe("Card - Refund flow - 3DS", () => {
   context("Card - Full Refund for partially captured 3DS payment", () => {
     it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Handle Redirection -> Retrieve Payment after Confirmation -> Partial Capture Payment -> Retrieve Payment after Partial Capture -> Refund Payment -> Sync Refund Payment", () => {
       let shouldContinue = true;
+      // Generate random amount for Helcim to avoid duplicate transaction detection
+      const randomAmount = getRandomAmountForConnector(globalState.get("connectorId"));
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const paymentBody = { ...fixtures.createPaymentBody };
+        // Override amount for Helcim to use random amount
+        if (randomAmount !== null) {
+          paymentBody.amount = randomAmount;
+        }
+
         cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
+          paymentBody,
           data,
           "three_ds",
           "manual",
@@ -1647,8 +1891,16 @@ describe("Card - Refund flow - 3DS", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["3DSManualCapture"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const confirmRequestBody = { ...fixtures.confirmBody };
+        // Apply the same random amount for consistency
+        if (randomAmount !== null) {
+          confirmRequestBody.amount = randomAmount;
+        }
+
         cy.confirmCallTest(
-          fixtures.confirmBody,
+          confirmRequestBody,
           confirmData,
           true,
           globalState
@@ -1749,13 +2001,23 @@ describe("Card - Refund flow - 3DS", () => {
   context("Card - Partial Refund for partially captured 3DS payment", () => {
     it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Handle Redirection -> Retrieve Payment after Confirmation -> Partial Capture Payment -> Retrieve Payment after Partial Capture -> Partial Refund Payment -> Sync Refund Payment", () => {
       let shouldContinue = true;
+      // Generate random amount for Helcim to avoid duplicate transaction detection
+      const randomAmount = getRandomAmountForConnector(globalState.get("connectorId"));
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const paymentBody = { ...fixtures.createPaymentBody };
+        // Override amount for Helcim to use random amount
+        if (randomAmount !== null) {
+          paymentBody.amount = randomAmount;
+        }
+
         cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
+          paymentBody,
           data,
           "three_ds",
           "manual",
@@ -1782,8 +2044,16 @@ describe("Card - Refund flow - 3DS", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["3DSManualCapture"];
+
+        // Clone the body to avoid mutating the imported fixture
+        const confirmRequestBody = { ...fixtures.confirmBody };
+        // Apply the same random amount for consistency
+        if (randomAmount !== null) {
+          confirmRequestBody.amount = randomAmount;
+        }
+
         cy.confirmCallTest(
-          fixtures.confirmBody,
+          confirmRequestBody,
           confirmData,
           true,
           globalState
