@@ -3035,6 +3035,8 @@ function payoutLinkRedirection(
     account_number = "000123456",
     routing_number = "110000000",
     bank_name = "Test Bank",
+    iban = "",
+    bic = "",
   } = bankData;
 
   if (!redirectionUrl || !redirectionUrl.href) {
@@ -3130,6 +3132,33 @@ function payoutLinkRedirection(
               .type(bank_name, { delay: 30, force: true });
             /* eslint-enable cypress/no-force */
             cy.task("cli_log", `Filled bank name in iframe ${index}`);
+          } else if (
+            placeholder.includes("iban") ||
+            ariaLabel.includes("iban") ||
+            name.includes("iban")
+          ) {
+            /* eslint-disable cypress/no-force */
+            cy.wrap(input)
+              .focus()
+              .clear({ force: true })
+              .type(iban, { delay: 30, force: true });
+            /* eslint-enable cypress/no-force */
+            cy.task("cli_log", `Filled IBAN in iframe ${index}`);
+          } else if (
+            placeholder.includes("bic") ||
+            placeholder.includes("swift") ||
+            ariaLabel.includes("bic") ||
+            ariaLabel.includes("swift") ||
+            name.includes("bic") ||
+            name.includes("swift")
+          ) {
+            /* eslint-disable cypress/no-force */
+            cy.wrap(input)
+              .focus()
+              .clear({ force: true })
+              .type(bic, { delay: 30, force: true });
+            /* eslint-enable cypress/no-force */
+            cy.task("cli_log", `Filled BIC/SWIFT in iframe ${index}`);
           }
         });
       });

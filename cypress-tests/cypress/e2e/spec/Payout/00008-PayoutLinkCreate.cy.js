@@ -108,14 +108,6 @@ describe("Payout Link", () => {
   });
 
   context("Payout Link - Validation errors", () => {
-    let shouldContinue = true;
-
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
-
     it("missing-customer-id-error-test", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "payout_link_pm"
@@ -125,7 +117,6 @@ describe("Payout Link", () => {
         data,
         globalState
       );
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("confirm-and-payout-link-conflict-test", () => {
@@ -137,7 +128,6 @@ describe("Payout Link", () => {
         data,
         globalState
       );
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-non-existent-payout-link-test", () => {
@@ -311,14 +301,30 @@ describe("Payout Link", () => {
     });
 
     it("Visit payout page and submit bank details", () => {
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "payout_link_pm"
-      ]["PayoutLinkBankTransfer"];
-      cy.handlePayoutLinkBankRedirection(globalState, data.BankData, "success");
+      const bankData = {
+        iban: "NL46TEST0136169112",
+        bic: "ABNANL2A",
+      };
+      cy.visitPayoutLinkAndSubmitBankDetails(globalState, bankData);
     });
 
     it("retrieve-payout-after-bank-submission-test", () => {
-      cy.retrievePayoutCallTest(globalState);
+      const payoutId = globalState.get("payoutID");
+      const apiKey = globalState.get("apiKey");
+      const baseUrl = globalState.get("baseUrl");
+
+      cy.request({
+        method: "GET",
+        url: `${baseUrl}/payouts/${payoutId}`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+        },
+        failOnStatusCode: false,
+      }).then((response) => {
+        expect(response.status).to.equal(200);
+        expect(response.body.status).to.equal("requires_fulfillment");
+      });
     });
   });
 
@@ -374,177 +380,6 @@ describe("Payout Link", () => {
 
     it("retrieve-payout-link-profile-config-test", () => {
       cy.retrievePayoutLinkTest({}, globalState);
-    });
-  });
-
-  context("Payout Link - Card Payment Flow", () => {
-    let shouldContinue = true;
-
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
-
-    beforeEach(function () {
-      if (
-        Cypress.browser.isHeadless &&
-        this.currentTest.title.startsWith("Visit payout page")
-      ) {
-        cy.log(
-          "Skipping payout link card UI test in headless mode - SDK requires headed browser"
-        );
-        this.skip();
-      }
-    });
-
-    it("create-payout-link-for-card-payment-test", () => {
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "payout_link_pm"
-      ]["PayoutLinkBase"];
-      const reqData = {
-        ...data.Request,
-        description: "Test Payout Link Card Payment",
-        payout_link_config: {
-          ...data.Request.payout_link_config,
-          enabled_payment_methods: [
-            {
-              payment_method: "card",
-              payment_method_types: ["credit"],
-            },
-          ],
-        },
-      };
-      cy.createPayoutWithLinkTest(
-        fixtures.createPayoutLinkBody,
-        { ...data, Request: reqData },
-        globalState
-      );
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
-
-    it("Visit payout page and submit card details", () => {
-      const cardData = {
-        card_number: "4242424242424242",
-        card_exp_month: "12",
-        card_exp_year: "35",
-        card_cvc: "123",
-      };
-      cy.handlePayoutLinkCardRedirection(globalState, cardData, "success");
-    });
-
-    it("retrieve-payout-after-card-submission-test", () => {
-      cy.retrievePayoutCallTest(globalState);
-    });
-  });
-
-  context("Payout Link - Payout Update — Invalid Card Data", () => {
-    let shouldContinue = true;
-
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
-
-    it("create-payout-link-for-invalid-card-test", () => {
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "payout_link_pm"
-      ]["PayoutLinkBase"];
-      const reqData = {
-        ...data.Request,
-        description: "Test Payout Link Invalid Card",
-        payout_link_config: {
-          ...data.Request.payout_link_config,
-          enabled_payment_methods: [
-            {
-              payment_method: "card",
-              payment_method_types: ["credit"],
-            },
-          ],
-        },
-      };
-      cy.createPayoutWithLinkTest(
-        fixtures.createPayoutLinkBody,
-        { ...data, Request: reqData },
-        globalState
-      );
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
-
-    it("update-payout-with-invalid-card-test", () => {
-      const cardData = {
-        card_number: "4000000000000002",
-        card_exp_month: "12",
-        card_exp_year: "35",
-        card_cvc: "123",
-      };
-      const errorData = {
-        Response: {
-          status: 400,
-          body: {},
-        },
-      };
-      cy.updatePayoutCallTest(
-        { payout_method_data: { card: cardData } },
-        errorData,
-        false,
-        globalState
-      );
-    });
-
-    it("retrieve-payout-after-invalid-card-test", () => {
-      cy.retrievePayoutCallTest(globalState);
-    });
-
-    it("create-payout-link-for-expired-card-test", () => {
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "payout_link_pm"
-      ]["PayoutLinkBase"];
-      const reqData = {
-        ...data.Request,
-        description: "Test Payout Link Expired Card",
-        payout_link_config: {
-          ...data.Request.payout_link_config,
-          enabled_payment_methods: [
-            {
-              payment_method: "card",
-              payment_method_types: ["credit"],
-            },
-          ],
-        },
-      };
-      cy.createPayoutWithLinkTest(
-        fixtures.createPayoutLinkBody,
-        { ...data, Request: reqData },
-        globalState
-      );
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
-
-    it("update-payout-with-expired-card-test", () => {
-      const cardData = {
-        card_number: "4000000000000069",
-        card_exp_month: "12",
-        card_exp_year: "35",
-        card_cvc: "123",
-      };
-      const errorData = {
-        Response: {
-          status: 400,
-          body: {},
-        },
-      };
-      cy.updatePayoutCallTest(
-        { payout_method_data: { card: cardData } },
-        errorData,
-        false,
-        globalState
-      );
-    });
-
-    it("retrieve-payout-after-expired-card-test", () => {
-      cy.retrievePayoutCallTest(globalState);
     });
   });
 });

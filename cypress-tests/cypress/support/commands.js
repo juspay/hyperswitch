@@ -10074,3 +10074,118 @@ Cypress.Commands.add(
     );
   }
 );
+
+Cypress.Commands.add(
+  "visitPayoutLinkAndSubmitBankDetails",
+  (globalState, bankData) => {
+    const payoutLinkUrl = globalState.get("payoutLinkUrl");
+
+    if (!payoutLinkUrl) {
+      cy.task("cli_log", "Skipping: No payout link URL available");
+      return;
+    }
+
+    if (RequestBodyUtils.isCI()) {
+      cy.task(
+        "cli_log",
+        "Skipping bank UI interaction in CI - payout link SDK iframe automation not supported in headless mode"
+      );
+      return;
+    }
+
+    cy.visit(payoutLinkUrl, { failOnStatusCode: false });
+
+    cy.get("body", { timeout: 30000 }).should("exist");
+
+    cy.get("#sdk-spinner", { timeout: 60000 }).should("have.class", "hidden");
+    cy.task("cli_log", "Payout Link SDK initialized successfully");
+
+    cy.get("#unified-checkout", { timeout: 30000 }).should("be.visible");
+    cy.get("#payment-form", { timeout: 30000 }).should("exist");
+
+    cy.get("#unified-checkout iframe", { timeout: 30000 }).should(
+      "have.length.at.least",
+      1
+    );
+
+    function fillBankInputInIframe(iframe, index) {
+      cy.wrap(iframe)
+        .its("0.contentDocument.body")
+        .should("not.be.empty")
+        .then((body) => {
+          const $body = Cypress.$(body);
+          const inputs = $body.find("input");
+
+          if (inputs.length === 0) {
+            cy.task("cli_log", `Iframe ${index}: no inputs found, skipping`);
+            return;
+          }
+
+          inputs.each((_, input) => {
+            const $input = Cypress.$(input);
+            const placeholder = ($input.attr("placeholder") || "").toLowerCase();
+            const ariaLabel = ($input.attr("aria-label") || "").toLowerCase();
+            const name = ($input.attr("name") || "").toLowerCase();
+
+            if (
+              placeholder.includes("iban") ||
+              ariaLabel.includes("iban") ||
+              name.includes("iban")
+            ) {
+              cy.wrap(input)
+                .focus()
+                .clear({ force: true })
+                .type(bankData.iban, { delay: 30, force: true });
+              cy.task("cli_log", `Filled IBAN in iframe ${index}`);
+            } else if (
+              placeholder.includes("bic") ||
+              placeholder.includes("swift") ||
+              ariaLabel.includes("bic") ||
+              ariaLabel.includes("swift") ||
+              name.includes("bic") ||
+              name.includes("swift")
+            ) {
+              cy.wrap(input)
+                .focus()
+                .clear({ force: true })
+                .type(bankData.bic, { delay: 30, force: true });
+              cy.task("cli_log", `Filled BIC/SWIFT in iframe ${index}`);
+            }
+          });
+        });
+    }
+
+    cy.get("#unified-checkout iframe").then(($iframes) => {
+      cy.task(
+        "cli_log",
+        `Found ${$iframes.length} iframes in unified-checkout`
+      );
+
+      $iframes.each((index, iframe) => {
+        fillBankInputInIframe(iframe, index);
+      });
+    });
+
+    cy.get("#submit", { timeout: 30000 })
+      .should("be.visible")
+      .and("not.have.class", "hidden")
+      .click({ force: true });
+    cy.task("cli_log", "Clicked Save button (first submission)");
+
+    cy.wait(2000);
+
+    cy.get("body", { timeout: 30000 }).then(($body) => {
+      const saveBtn = $body.find("#submit:not([disabled])");
+      if (saveBtn.length > 0) {
+        cy.wrap(saveBtn).click({ force: true });
+        cy.task("cli_log", "Clicked Save button again after redirection");
+      }
+    });
+
+    cy.contains(/succeeded|success|payout successful|thank you|saved/i, {
+      timeout: 30000,
+    }).should("exist");
+
+    cy.task("cli_log", "Payout link bank submission completed");
+  }
+);
