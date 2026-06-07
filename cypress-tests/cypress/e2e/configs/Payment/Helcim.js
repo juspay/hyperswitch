@@ -160,12 +160,25 @@ export const connectorDetails = {
     No3DSAutoCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        billing: {
+          address: {
+            state: "New York",
+            city: "New York",
+            country: "US",
+            first_name: "john",
+            last_name: "doe",
+            zip: "10001",
+            line1: "123",
+            line2: "Main Street",
+          },
+        },
       },
       Response: {
         status: 200,
@@ -178,12 +191,25 @@ export const connectorDetails = {
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        billing: {
+          address: {
+            state: "New York",
+            city: "New York",
+            country: "US",
+            first_name: "john",
+            last_name: "doe",
+            zip: "10001",
+            line1: "123",
+            line2: "Main Street",
+          },
+        },
       },
       Response: {
         status: 200,
@@ -300,9 +326,7 @@ export const connectorDetails = {
       },
     },
     Capture: {
-      Request: {
-        amount_to_capture: 6543,
-      },
+      Request: {},
       Response: {
         status: 200,
         body: {
@@ -311,9 +335,7 @@ export const connectorDetails = {
       },
     },
     PartialCapture: {
-      Request: {
-        amount_to_capture: 3000,
-      },
+      Request: {},
       Response: {
         status: 200,
         body: {
@@ -322,10 +344,7 @@ export const connectorDetails = {
       },
     },
     Refund: {
-      Request: {
-        amount: 6543,
-        reason: "Customer request",
-      },
+      Request: {},
       Response: {
         status: 200,
         body: {
@@ -334,10 +353,7 @@ export const connectorDetails = {
       },
     },
     PartialRefund: {
-      Request: {
-        amount: 3000,
-        reason: "Partial refund",
-      },
+      Request: {},
       Response: {
         status: 200,
         body: {
@@ -355,10 +371,7 @@ export const connectorDetails = {
       },
     },
     manualPaymentRefund: {
-      Request: {
-        amount: 6543,
-        reason: "Manual payment refund",
-      },
+      Request: {},
       Response: {
         status: 200,
         body: {
@@ -367,10 +380,7 @@ export const connectorDetails = {
       },
     },
     manualPaymentPartialRefund: {
-      Request: {
-        amount: 3000,
-        reason: "Manual partial refund",
-      },
+      Request: {},
       Response: {
         status: 200,
         body: {
