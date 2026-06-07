@@ -11,10 +11,10 @@ const successfulNo3DSCardDetails = {
 const paymentMethodDataNo3DSResponse = {
   card: {
     last4: "1111",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: "UNKNOWN",
-    card_issuing_country: "UNKNOWN",
+    card_type: null,
+    card_network: null,
+    card_issuer: null,
+    card_issuing_country: null,
     card_isin: "411111",
     card_extended_bin: null,
     card_exp_month: "12",
