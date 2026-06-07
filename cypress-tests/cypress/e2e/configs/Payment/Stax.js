@@ -937,7 +937,7 @@ export const connectorDetails = {
           bank_debit: {
             ach_bank_debit: {
               billing_details: {
-                name: "Deepanshu Bansal",
+                name: "Venkata Karthik",
                 email: "customer139@juspay.in",
               },
               account_number: "9876543210",
@@ -952,8 +952,8 @@ export const connectorDetails = {
         },
         billing: {
           address: {
-            first_name: "Deepanshu",
-            last_name: "Bansal",
+            first_name: "Venkat",
+            last_name: "Mariserla",
             line1: "123 Main St",
             city: "San Francisco",
             state: "California",
