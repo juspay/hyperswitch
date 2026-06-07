@@ -1,8 +1,4 @@
-import {
-  connectorDetails as commonConnectorDetails,
-  customerAcceptance,
-  multiUseMandateData,
-} from "./Commons";
+import { customerAcceptance, multiUseMandateData } from "./Commons";
 import {
   getCurrency,
   getCustomExchange,
@@ -1112,12 +1108,6 @@ export const connectorDetails = {
         },
       },
     },
-    ClientSessionInvalidConfirm:
-      commonConnectorDetails.card_pm.ClientSessionInvalidConfirm,
-    ClientSessionReplayConfirm:
-      commonConnectorDetails.card_pm.ClientSessionReplayConfirm,
-    ClientSessionUpdatePayment:
-      commonConnectorDetails.card_pm.ClientSessionUpdatePayment,
   },
   bank_transfer_pm: {
     Pix: {
