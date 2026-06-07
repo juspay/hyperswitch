@@ -9444,7 +9444,9 @@ Cypress.Commands.add(
       authorizationHeader = sdkAuth;
     }
 
-    confirmBody.client_secret = clientSecret;
+    if (!authorizationHeader) {
+      confirmBody.client_secret = clientSecret;
+    }
     confirmBody.confirm = confirm;
     confirmBody.profile_id = profileId;
 
@@ -9460,10 +9462,11 @@ Cypress.Commands.add(
 
     const headers = {
       "Content-Type": "application/json",
-      "api-key": publishableKey,
     };
     if (authorizationHeader) {
       headers["Authorization"] = authorizationHeader;
+    } else {
+      headers["api-key"] = publishableKey;
     }
 
     cy.request({

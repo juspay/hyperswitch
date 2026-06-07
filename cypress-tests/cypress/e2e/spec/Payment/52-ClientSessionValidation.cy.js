@@ -27,7 +27,7 @@ describe("Client Session Validation", () => {
     }
   });
 
-  context("Valid Client Session - Confirm with SDK Authorization", () => {
+  context("Valid SDK Authorization - Confirm with SDK Authorization", () => {
     let shouldContinue = true;
 
     beforeEach(function () {
@@ -77,7 +77,7 @@ describe("Client Session Validation", () => {
     });
   });
 
-  context("Invalid Client Session - Confirm with tampered CSI", () => {
+  context("Invalid SDK Authorization - Confirm with tampered sdk_authorization", () => {
     let shouldContinue = true;
 
     beforeEach(function () {
@@ -102,7 +102,7 @@ describe("Client Session Validation", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    it("Confirm with invalid client_session_id - expect 401", () => {
+    it("Confirm with invalid sdk_authorization - expect 401", () => {
       const confirmData = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["ClientSessionInvalidConfirm"];
@@ -118,7 +118,7 @@ describe("Client Session Validation", () => {
   });
 
   context(
-    "Missing Client Session - Confirm without CSI (legacy fallback)",
+    "Missing SDK Authorization - Confirm without sdk_authorization (legacy fallback)",
     () => {
       let shouldContinue = true;
 
@@ -145,7 +145,7 @@ describe("Client Session Validation", () => {
           shouldContinue = utils.should_continue_further(data);
       });
 
-      it("Confirm without client_session_id - legacy fallback", () => {
+      it("Confirm without sdk_authorization - legacy fallback", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ClientSessionMissingConfirm"];
