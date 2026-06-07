@@ -10123,7 +10123,9 @@ Cypress.Commands.add(
 
           inputs.each((_, input) => {
             const $input = Cypress.$(input);
-            const placeholder = ($input.attr("placeholder") || "").toLowerCase();
+            const placeholder = (
+              $input.attr("placeholder") || ""
+            ).toLowerCase();
             const ariaLabel = ($input.attr("aria-label") || "").toLowerCase();
             const name = ($input.attr("name") || "").toLowerCase();
 
