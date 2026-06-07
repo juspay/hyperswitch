@@ -3,6 +3,10 @@ const keyPrefixes = {
     publishable_key: "pk_dev_",
     key_id: "dev_",
   },
+  "host.docker.internal": {
+    publishable_key: "pk_dev_",
+    key_id: "dev_",
+  },
   hyperswitch: {
     publishable_key: "pk_snd_",
     key_id: "snd_",

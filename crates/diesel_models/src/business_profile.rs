@@ -942,6 +942,7 @@ pub struct PaymentLinkConfigRequest {
     pub show_card_terms: Option<common_enums::PaymentLinkShowSdkTerms>,
     pub is_setup_mandate_flow: Option<bool>,
     pub color_icon_card_cvc_error: Option<String>,
+    pub show_merchant_name: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
