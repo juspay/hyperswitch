@@ -323,7 +323,7 @@ describe("Payout Link", () => {
         failOnStatusCode: false,
       }).then((response) => {
         expect(response.status).to.equal(200);
-        expect(response.body.status).to.equal("requires_fulfillment");
+        expect(response.body.status).to.equal("requires_payout_method_data");
       });
     });
   });

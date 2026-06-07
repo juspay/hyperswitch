@@ -487,7 +487,7 @@ export const connectorDetails = {
             type: "invalid_request",
             code: "IR_04",
             message:
-              "Provide either customer or customer_id when payout_link is true",
+              "Missing required param: customer or customer_id when payout_link is true",
           },
         },
       },
@@ -503,12 +503,12 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_payout_method_data",
-          payout_link: {
-            payout_link_id: ".*",
-            link: ".*",
+          error: {
+            type: "invalid_request",
+            message: "cannot confirm a payout while creating a payout link",
+            code: "IR_06",
           },
         },
       },
