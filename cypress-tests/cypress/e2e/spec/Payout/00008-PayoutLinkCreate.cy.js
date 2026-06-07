@@ -247,7 +247,7 @@ describe("Payout Link", () => {
         description: "Test custom payout link id",
         payout_link_config: {
           ...data.Request.payout_link_config,
-          payout_link_id: "custom_payout_link_123",
+          payout_link_id: `custom_payout_link_${Date.now()}`,
         },
       };
       cy.createPayoutWithLinkTest(
@@ -407,7 +407,12 @@ describe("Payout Link", () => {
         description: "Test Payout Link Card Payment",
         payout_link_config: {
           ...data.Request.payout_link_config,
-          enabled_payment_methods: ["card"],
+          enabled_payment_methods: [
+            {
+              payment_method: "card",
+              payment_method_types: ["credit"],
+            },
+          ],
         },
       };
       cy.createPayoutWithLinkTest(
@@ -451,7 +456,12 @@ describe("Payout Link", () => {
         description: "Test Payout Link Invalid Card",
         payout_link_config: {
           ...data.Request.payout_link_config,
-          enabled_payment_methods: ["card"],
+          enabled_payment_methods: [
+            {
+              payment_method: "card",
+              payment_method_types: ["credit"],
+            },
+          ],
         },
       };
       cy.createPayoutWithLinkTest(
@@ -496,7 +506,12 @@ describe("Payout Link", () => {
         description: "Test Payout Link Expired Card",
         payout_link_config: {
           ...data.Request.payout_link_config,
-          enabled_payment_methods: ["card"],
+          enabled_payment_methods: [
+            {
+              payment_method: "card",
+              payment_method_types: ["credit"],
+            },
+          ],
         },
       };
       cy.createPayoutWithLinkTest(

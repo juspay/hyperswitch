@@ -216,7 +216,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_confirmation",
+          status: "requires_payout_method_data",
         },
       },
     }),
@@ -280,13 +280,9 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            code: "IR_04",
-            message: "Cannot confirm a payout while creating a payout link",
-          },
+          status: "requires_payout_method_data",
         },
       },
     }),

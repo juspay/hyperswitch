@@ -428,7 +428,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_confirmation",
+          status: "requires_payout_method_data",
           payout_link: {
             payout_link_id: ".*",
             link: ".*",
@@ -454,6 +454,13 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
+        body: {
+          status: "requires_payout_method_data",
+          payout_link: {
+            payout_link_id: ".*",
+            link: ".*",
+          },
+        },
       },
       BankData: {
         iban: "NL46TEST0136169112",
@@ -496,12 +503,12 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            code: "IR_04",
-            message: "Cannot confirm a payout while creating a payout link",
+          status: "requires_payout_method_data",
+          payout_link: {
+            payout_link_id: ".*",
+            link: ".*",
           },
         },
       },
