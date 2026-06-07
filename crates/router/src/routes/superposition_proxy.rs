@@ -1,7 +1,7 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use external_services::superposition::{
     context_put_from_request, parse_datetime, value_to_document, AuditAction, ContextFilterSortOn,
-    ContextPutRequest, CreateContextInputBuilder, DimensionMatchStrategy,
+    ContextPutRequest, CreateContextInputBuilder, DateTime, DimensionMatchStrategy,
     GetResolvedConfigInputBuilder, ListAuditLogsInputBuilder, ListContextsInputBuilder,
     ListDefaultConfigsInputBuilder, ListDimensionsInputBuilder, ResolveConfigBody, SortBy,
 };
@@ -39,69 +39,87 @@ fn extract_proxy_headers(req: &HttpRequest) -> Result<(String, String), HttpResp
     Ok((org_id, workspace_id))
 }
 
-/// Build the Superposition SDK `ListContexts` input builder directly from the
-/// raw query parameters.
-fn build_list_contexts_input(
-    org_id: String,
-    workspace_id: String,
-    params: Vec<(String, String)>,
-) -> ListContextsInputBuilder {
-    let mut builder = ListContextsInputBuilder::default()
-        .org_id(org_id)
-        .workspace_id(workspace_id);
-    let mut prefix = Vec::new();
-    let mut created_by = Vec::new();
-    let mut last_modified_by = Vec::new();
+/// Typed `ListContexts` query params, parsed from the raw key/value pairs
+#[derive(Debug, Default)]
+struct ListContextsQuery {
+    count: Option<i32>,
+    page: Option<i32>,
+    all: Option<bool>,
+    prefix: Vec<String>,
+    sort_on: Option<ContextFilterSortOn>,
+    sort_by: Option<SortBy>,
+    created_by: Vec<String>,
+    last_modified_by: Vec<String>,
+    plaintext: Option<String>,
+    dimension_match_strategy: Option<DimensionMatchStrategy>,
+    dimension_params: Vec<(String, String)>,
+}
 
-    for (key, value) in params {
-        match key.as_str() {
-            k if k.starts_with("dimension[") => {
-                builder = builder.dimension_params(key, value);
-            }
-            "count" => builder = builder.set_count(value.parse().ok()),
-            "page" => builder = builder.set_page(value.parse().ok()),
-            "all" => builder = builder.set_all(value.parse().ok()),
-            "prefix" => prefix.push(value),
-            "sort_on" => {
-                builder = builder.set_sort_on(Some(ContextFilterSortOn::from(value.as_str())))
-            }
-            "sort_by" => builder = builder.set_sort_by(Some(SortBy::from(value.as_str()))),
-            "created_by" => created_by.push(value),
-            "last_modified_by" => last_modified_by.push(value),
-            "plaintext" => builder = builder.set_plaintext(Some(value)),
-            "dimension_match_strategy" => {
-                builder = builder.set_dimension_match_strategy(Some(DimensionMatchStrategy::from(
-                    value.as_str(),
-                )))
-            }
-            _ => {}
+impl From<Vec<(String, String)>> for ListContextsQuery {
+    fn from(params: Vec<(String, String)>) -> Self {
+        let first_value = |name: &str| {
+            params
+                .iter()
+                .find(|(k, _)| k == name)
+                .map(|(_, v)| v.clone())
+        };
+        let all_values = |name: &str| {
+            params
+                .iter()
+                .filter(|(k, _)| k == name)
+                .map(|(_, v)| v.clone())
+                .collect::<Vec<_>>()
+        };
+
+        Self {
+            count: first_value("count").and_then(|v| v.parse().ok()),
+            page: first_value("page").and_then(|v| v.parse().ok()),
+            all: first_value("all").and_then(|v| v.parse().ok()),
+            prefix: all_values("prefix"),
+            sort_on: first_value("sort_on").map(|v| ContextFilterSortOn::from(v.as_str())),
+            sort_by: first_value("sort_by").map(|v| SortBy::from(v.as_str())),
+            created_by: all_values("created_by"),
+            last_modified_by: all_values("last_modified_by"),
+            plaintext: first_value("plaintext"),
+            dimension_match_strategy: first_value("dimension_match_strategy")
+                .map(|v| DimensionMatchStrategy::from(v.as_str())),
+            dimension_params: params
+                .iter()
+                .filter(|(k, _)| k.starts_with("dimension["))
+                .cloned()
+                .collect(),
         }
     }
-
-    builder
-        .set_prefix((!prefix.is_empty()).then_some(prefix))
-        .set_created_by((!created_by.is_empty()).then_some(created_by))
-        .set_last_modified_by((!last_modified_by.is_empty()).then_some(last_modified_by))
 }
 
-/// Build the `ListDefaultConfigs` SDK input builder from typed query parameters.
-/// Allowlist-driven paging overrides are applied later in the core handler.
-fn build_list_default_configs_input(
-    org_id: String,
-    workspace_id: String,
-    params: SuperpositionListQuery,
-) -> ListDefaultConfigsInputBuilder {
-    ListDefaultConfigsInputBuilder::default()
-        .org_id(org_id)
-        .workspace_id(workspace_id)
-        .set_count(params.count)
-        .set_page(params.page)
-        .set_all(params.all)
-        .set_name(params.name)
+impl ListContextsQuery {
+    /// Build the `ListContexts` SDK input from the typed query.
+    fn into_input(self, org_id: String, workspace_id: String) -> ListContextsInputBuilder {
+        let mut builder = ListContextsInputBuilder::default()
+            .org_id(org_id)
+            .workspace_id(workspace_id)
+            .set_count(self.count)
+            .set_page(self.page)
+            .set_all(self.all)
+            .set_sort_on(self.sort_on)
+            .set_sort_by(self.sort_by)
+            .set_plaintext(self.plaintext)
+            .set_dimension_match_strategy(self.dimension_match_strategy)
+            .set_prefix((!self.prefix.is_empty()).then_some(self.prefix))
+            .set_created_by((!self.created_by.is_empty()).then_some(self.created_by))
+            .set_last_modified_by(
+                (!self.last_modified_by.is_empty()).then_some(self.last_modified_by),
+            );
+
+        for (key, value) in self.dimension_params {
+            builder = builder.dimension_params(key, value);
+        }
+
+        builder
+    }
 }
 
-/// Typed query params shared by the simple Superposition list endpoints
-/// (`ListDimensions`, `ListDefaultConfigs`).
+/// Typed query params shared by `ListDimensions` and `ListDefaultConfigs`.
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct SuperpositionListQuery {
     pub count: Option<i32>,
@@ -110,76 +128,133 @@ pub struct SuperpositionListQuery {
     pub name: Option<String>,
 }
 
-/// Build the `ListDimensions` SDK input builder from typed query parameters.
-fn build_list_dimensions_input(
-    org_id: String,
-    workspace_id: String,
-    params: SuperpositionListQuery,
-) -> ListDimensionsInputBuilder {
-    ListDimensionsInputBuilder::default()
-        .org_id(org_id)
-        .workspace_id(workspace_id)
-        .set_count(params.count)
-        .set_page(params.page)
-        .set_all(params.all)
-}
-
-/// Build the `ListAuditLogs` SDK input builder from raw query parameters.
-fn build_list_audit_logs_input(
-    org_id: String,
-    workspace_id: String,
-    params: Vec<(String, String)>,
-) -> Result<ListAuditLogsInputBuilder, HttpResponse> {
-    let bad_date = |field: &str, value: &str| {
-        HttpResponse::BadRequest().json(serde_json::json!({
-            "error": { "message": format!("invalid {field} format: {value}") }
-        }))
-    };
-
-    let mut builder = ListAuditLogsInputBuilder::default()
-        .org_id(org_id)
-        .workspace_id(workspace_id);
-    let mut table: Vec<String> = Vec::new();
-    let mut action: Vec<String> = Vec::new();
-
-    for (key, value) in params {
-        match key.as_str() {
-            k if k.starts_with("dimension[") => {
-                builder = builder.dimension_params(key, value);
-            }
-            "count" => builder = builder.set_count(value.parse().ok()),
-            "page" => builder = builder.set_page(value.parse().ok()),
-            "all" => builder = builder.set_all(value.parse().ok()),
-            "from_date" => {
-                let parsed = parse_datetime(&value).map_err(|_| bad_date("from_date", &value))?;
-                builder = builder.set_from_date(Some(parsed));
-            }
-            "to_date" => {
-                let parsed = parse_datetime(&value).map_err(|_| bad_date("to_date", &value))?;
-                builder = builder.set_to_date(Some(parsed));
-            }
-            "table" => table.extend(value.split(',').map(|s| s.trim().to_owned())),
-            "action" => action.extend(value.split(',').map(|s| s.trim().to_owned())),
-            "username" => builder = builder.set_username(Some(value)),
-            "sort_by" => builder = builder.set_sort_by(Some(SortBy::from(value.as_str()))),
-            _ => {}
-        }
+impl SuperpositionListQuery {
+    /// Build the `ListDimensions` SDK input from the typed query.
+    fn into_dimensions_input(
+        self,
+        org_id: String,
+        workspace_id: String,
+    ) -> ListDimensionsInputBuilder {
+        ListDimensionsInputBuilder::default()
+            .org_id(org_id)
+            .workspace_id(workspace_id)
+            .set_count(self.count)
+            .set_page(self.page)
+            .set_all(self.all)
     }
 
-    let action = (!action.is_empty()).then(|| {
-        action
-            .iter()
-            .map(|a| AuditAction::from(a.as_str()))
-            .collect()
-    });
-
-    Ok(builder
-        .set_tables((!table.is_empty()).then_some(table))
-        .set_action(action))
+    /// Build the `ListDefaultConfigs` SDK input from the typed query.
+    fn into_default_configs_input(
+        self,
+        org_id: String,
+        workspace_id: String,
+    ) -> ListDefaultConfigsInputBuilder {
+        ListDefaultConfigsInputBuilder::default()
+            .org_id(org_id)
+            .workspace_id(workspace_id)
+            .set_count(self.count)
+            .set_page(self.page)
+            .set_all(self.all)
+            .set_name(self.name)
+    }
 }
 
-/// Build the `GetResolvedConfig` SDK input builder from the resolve-config
-/// request body.
+/// Typed `ListAuditLogs` query params, parsed from the raw key/value pairs.
+#[derive(Debug, Default)]
+struct ListAuditLogsQuery {
+    count: Option<i32>,
+    page: Option<i32>,
+    all: Option<bool>,
+    from_date: Option<DateTime>,
+    to_date: Option<DateTime>,
+    table: Vec<String>,
+    action: Vec<String>,
+    username: Option<String>,
+    sort_by: Option<SortBy>,
+    dimension_params: Vec<(String, String)>,
+}
+
+impl TryFrom<Vec<(String, String)>> for ListAuditLogsQuery {
+    type Error = HttpResponse;
+
+    fn try_from(params: Vec<(String, String)>) -> Result<Self, Self::Error> {
+        let first_value = |name: &str| {
+            params
+                .iter()
+                .find(|(k, _)| k == name)
+                .map(|(_, v)| v.clone())
+        };
+        // `table`/`action` accept comma-separated values across one or more keys.
+        let csv_values = |name: &str| {
+            params
+                .iter()
+                .filter(|(k, _)| k == name)
+                .flat_map(|(_, v)| v.split(',').map(|s| s.trim().to_owned()))
+                .collect::<Vec<_>>()
+        };
+        let parse_date = |name: &str| {
+            first_value(name)
+                .map(|v| {
+                    parse_datetime(&v).map_err(|_| {
+                        HttpResponse::BadRequest().json(serde_json::json!({
+                            "error": { "message": format!("invalid {name} format: {v}") }
+                        }))
+                    })
+                })
+                .transpose()
+        };
+
+        Ok(Self {
+            count: first_value("count").and_then(|v| v.parse().ok()),
+            page: first_value("page").and_then(|v| v.parse().ok()),
+            all: first_value("all").and_then(|v| v.parse().ok()),
+            from_date: parse_date("from_date")?,
+            to_date: parse_date("to_date")?,
+            table: csv_values("table"),
+            action: csv_values("action"),
+            username: first_value("username"),
+            sort_by: first_value("sort_by").map(|v| SortBy::from(v.as_str())),
+            dimension_params: params
+                .iter()
+                .filter(|(k, _)| k.starts_with("dimension["))
+                .cloned()
+                .collect(),
+        })
+    }
+}
+
+impl ListAuditLogsQuery {
+    /// Build the `ListAuditLogs` SDK input from the typed query.
+    fn into_input(self, org_id: String, workspace_id: String) -> ListAuditLogsInputBuilder {
+        let action = (!self.action.is_empty()).then(|| {
+            self.action
+                .iter()
+                .map(|a| AuditAction::from(a.as_str()))
+                .collect()
+        });
+
+        let mut builder = ListAuditLogsInputBuilder::default()
+            .org_id(org_id)
+            .workspace_id(workspace_id)
+            .set_count(self.count)
+            .set_page(self.page)
+            .set_all(self.all)
+            .set_from_date(self.from_date)
+            .set_to_date(self.to_date)
+            .set_username(self.username)
+            .set_sort_by(self.sort_by)
+            .set_tables((!self.table.is_empty()).then_some(self.table))
+            .set_action(action);
+
+        for (key, value) in self.dimension_params {
+            builder = builder.dimension_params(key, value);
+        }
+
+        builder
+    }
+}
+
+/// Build the `GetResolvedConfig` SDK input from the resolve-config body.
 fn build_resolve_config_input(
     org_id: String,
     workspace_id: String,
@@ -207,7 +282,8 @@ pub async fn list_contexts(
         Ok(headers) => headers,
         Err(response) => return response,
     };
-    let input = build_list_contexts_input(org_id, workspace_id, query.into_inner());
+    let params = ListContextsQuery::from(query.into_inner());
+    let input = params.into_input(org_id, workspace_id);
 
     Box::pin(api::server_wrap(
         flow,
@@ -219,7 +295,7 @@ pub async fn list_contexts(
             async move { superposition_proxy::list_contexts(state, user, input).await }
         },
         &auth::JWTAuth {
-            permission: Permission::MerchantSuperpositionConfigRead,
+            permission: Permission::ProfileSuperpositionConfigRead,
             allow_connected: true,
             allow_platform: true,
         },
@@ -239,7 +315,9 @@ pub async fn list_default_configs(
         Ok(headers) => headers,
         Err(response) => return response,
     };
-    let input = build_list_default_configs_input(org_id, workspace_id, query.into_inner());
+    let input = query
+        .into_inner()
+        .into_default_configs_input(org_id, workspace_id);
 
     Box::pin(api::server_wrap(
         flow,
@@ -251,7 +329,7 @@ pub async fn list_default_configs(
             async move { superposition_proxy::list_default_configs(state, user, input).await }
         },
         &auth::JWTAuth {
-            permission: Permission::MerchantSuperpositionConfigRead,
+            permission: Permission::ProfileSuperpositionConfigRead,
             allow_connected: true,
             allow_platform: true,
         },
@@ -271,7 +349,9 @@ pub async fn list_dimensions(
         Ok(headers) => headers,
         Err(response) => return response,
     };
-    let input = build_list_dimensions_input(org_id, workspace_id, query.into_inner());
+    let input = query
+        .into_inner()
+        .into_dimensions_input(org_id, workspace_id);
 
     Box::pin(api::server_wrap(
         flow,
@@ -283,7 +363,7 @@ pub async fn list_dimensions(
             async move { superposition_proxy::list_dimensions(state, user, input).await }
         },
         &auth::JWTAuth {
-            permission: Permission::MerchantSuperpositionConfigRead,
+            permission: Permission::ProfileSuperpositionConfigRead,
             allow_connected: true,
             allow_platform: true,
         },
@@ -332,7 +412,7 @@ pub async fn create_context(
             async move { superposition_proxy::create_context(state, user, input).await }
         },
         &auth::JWTAuth {
-            permission: Permission::MerchantSuperpositionConfigWrite,
+            permission: Permission::ProfileSuperpositionConfigWrite,
             allow_connected: true,
             allow_platform: true,
         },
@@ -365,7 +445,7 @@ pub async fn resolve_config(
             async move { superposition_proxy::resolve_config(state, user, input).await }
         },
         &auth::JWTAuth {
-            permission: Permission::MerchantSuperpositionConfigRead,
+            permission: Permission::ProfileSuperpositionConfigRead,
             allow_connected: true,
             allow_platform: true,
         },
@@ -385,10 +465,11 @@ pub async fn list_audit_logs(
         Ok(headers) => headers,
         Err(response) => return response,
     };
-    let input = match build_list_audit_logs_input(org_id, workspace_id, query.into_inner()) {
-        Ok(input) => input,
+    let params = match ListAuditLogsQuery::try_from(query.into_inner()) {
+        Ok(params) => params,
         Err(response) => return response,
     };
+    let input = params.into_input(org_id, workspace_id);
 
     Box::pin(api::server_wrap(
         flow,
@@ -400,7 +481,7 @@ pub async fn list_audit_logs(
             async move { superposition_proxy::list_audit_logs(state, user, input).await }
         },
         &auth::JWTAuth {
-            permission: Permission::MerchantSuperpositionConfigRead,
+            permission: Permission::ProfileSuperpositionConfigRead,
             allow_connected: true,
             allow_platform: true,
         },

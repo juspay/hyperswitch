@@ -332,6 +332,8 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
                 PermissionGroup::UsersManage,
                 PermissionGroup::AccountView,
                 PermissionGroup::AccountManage,
+                PermissionGroup::ConfigurationsView,
+                PermissionGroup::ConfigurationsManage,
             ],
             role_id: consts::user_role::ROLE_ID_PROFILE_ADMIN.to_string(),
             role_name: "profile_admin".to_string(),

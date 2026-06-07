@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 pub use api_models::superposition_proxy::{
     AuditLogResponse, ContextResponse, DefaultConfigResponse, DimensionResponse,
     PaginatedListResponse, ResolveConfigResponse,
@@ -14,7 +12,7 @@ use external_services::superposition::{
 use router_env::logger;
 
 use crate::{
-    consts::user_role::ROLE_ID_MERCHANT_ADMIN,
+    consts::user_role::{ROLE_ID_MERCHANT_ADMIN, ROLE_ID_PROFILE_ADMIN},
     core::errors::{self, RouterResponse},
     services::{authentication::UserFromToken, ApplicationResponse},
     SessionState,
@@ -112,6 +110,7 @@ fn validate_superposition_context_body(
         ));
     }
     let is_merchant_admin_role = auth.role_id == ROLE_ID_MERCHANT_ADMIN;
+    let is_profile_admin_role = auth.role_id == ROLE_ID_PROFILE_ADMIN;
     let has_merchant_level_dim = context_obj.contains_key("merchant_id")
         || context_obj.contains_key("profile_id")
         || context_obj.contains_key("processor_merchant_id")
@@ -126,6 +125,14 @@ fn validate_superposition_context_body(
             }
         ));
     }
+    // Profile admin: body must carry profile_id (no org-only/merchant-only contexts).
+    if is_profile_admin_role && !context_obj.contains_key("profile_id") {
+        return Err(error_stack::report!(
+            errors::ApiErrorResponse::AccessForbidden {
+                resource: "superposition".to_string(),
+            }
+        ));
+    }
     let params = context_obj
         .iter()
         .filter_map(|(k, v)| {
@@ -134,10 +141,6 @@ fn validate_superposition_context_body(
         })
         .collect::<Vec<_>>();
     validate_superposition_params(&params, auth)
-}
-
-fn filter_by_allowlist(items: &mut Vec<DefaultConfigResponse>, allowlist: &[String]) {
-    items.retain(|item| allowlist.iter().any(|allowed| item.key == allowed.as_str()));
 }
 
 fn map_superposition_err(
@@ -169,8 +172,6 @@ pub async fn list_contexts(
 ) -> RouterResponse<PaginatedListResponse<ContextResponse>> {
     logger::info!(
         user_id = %auth.user_id,
-        merchant_id = %auth.merchant_id.get_string_repr(),
-        org_id = %auth.org_id.get_string_repr(),
         role_id = %auth.role_id,
         "superposition list_contexts request"
     );
@@ -199,37 +200,6 @@ pub async fn list_contexts(
         );
         return Err(validation_error);
     }
-
-    let client_scoped_dimensions: HashMap<String, String> = dimension_params_vec
-        .iter()
-        .filter_map(|(key, value)| {
-            key.strip_prefix("dimension[")
-                .and_then(|inner| inner.strip_suffix(']'))
-                .filter(|inner| ScopingDimension::from_context_key(inner).is_some())
-                .map(|inner| (inner.to_owned(), value.clone()))
-        })
-        .collect();
-
-    let broad_dimension_params: HashMap<String, String> = input
-        .get_dimension_params()
-        .iter()
-        .flat_map(|map| map.iter())
-        .filter(|(key, _)| ScopingDimension::from_dimension_param(key).is_none())
-        .map(|(key, value)| (key.clone(), value.clone()))
-        .collect();
-
-    let requested_page = usize::try_from(input.get_page().unwrap_or(1))
-        .unwrap_or(1)
-        .max(1);
-    let requested_count = *input.get_count();
-    let input = input
-        .set_dimension_params(
-            (!broad_dimension_params.is_empty()).then_some(broad_dimension_params),
-        )
-        .set_all(Some(true))
-        .set_page(None)
-        .set_count(None);
-
     let list_contexts_output = input
         .send_with(state.superposition_service.superposition_sdk_client())
         .await
@@ -241,64 +211,15 @@ pub async fn list_contexts(
             )
         })?;
 
-    let mut all_contexts: Vec<ContextResponse> = list_contexts_output
+    let data: Vec<ContextResponse> = list_contexts_output
         .data()
         .iter()
         .map(context_response_to_struct)
         .collect();
 
-    all_contexts.retain(|context| {
-        let Some(context_dimensions) = context.value.as_object() else {
-            return true;
-        };
-        context_dimensions
-            .iter()
-            .filter(|(key, _)| ScopingDimension::from_context_key(key).is_some())
-            .all(|(key, value)| {
-                client_scoped_dimensions.get(key).map(String::as_str) == value.as_str()
-            })
-    });
-
-    if auth.role_id == ROLE_ID_MERCHANT_ADMIN {
-        let scoped_merchant_id = auth.merchant_id.get_string_repr().to_string();
-        let scoped_profile_id = auth.profile_id.get_string_repr().to_string();
-
-        let scoped_dimensions: [(&str, &str); 4] = [
-            ("merchant_id", &scoped_merchant_id),
-            ("processor_merchant_id", &scoped_merchant_id),
-            ("provider_merchant_id", &scoped_merchant_id),
-            ("profile_id", &scoped_profile_id),
-        ];
-
-        all_contexts.retain(|context| {
-            let Some(context_dimensions) = context.value.as_object() else {
-                return true;
-            };
-            scoped_dimensions.iter().all(|(key, expected)| {
-                context_dimensions
-                    .get(*key)
-                    .and_then(|v| v.as_str())
-                    .is_none_or(|v| v == *expected)
-            })
-        });
-    }
-
-    let total_items = all_contexts.len();
-    let (total_pages, data) = match requested_count {
-        Some(count) if count > 0 => {
-            let count = usize::try_from(count).unwrap_or(1);
-            let total_pages = total_items.div_ceil(count).max(1);
-            let start = requested_page.saturating_sub(1).saturating_mul(count);
-            let page_data = all_contexts.into_iter().skip(start).take(count).collect();
-            (total_pages, page_data)
-        }
-        // No positive count requested: everything fits on a single page.
-        _ => (1, all_contexts),
-    };
-
     let response = PaginatedListResponse {
-        total_pages: i32::try_from(total_pages).unwrap_or(i32::MAX),
-        total_items: i32::try_from(total_items).unwrap_or(i32::MAX),
+        total_pages: list_contexts_output.total_pages(),
+        total_items: list_contexts_output.total_items(),
         data,
     };
 
@@ -313,27 +234,9 @@ pub async fn list_default_configs(
 ) -> RouterResponse<PaginatedListResponse<DefaultConfigResponse>> {
     logger::info!(
         user_id = %auth.user_id,
-        merchant_id = %auth.merchant_id.get_string_repr(),
-        org_id = %auth.org_id.get_string_repr(),
         role_id = %auth.role_id,
         "superposition list_default_configs request"
     );
-
-    let allowlist = state
-        .conf
-        .superposition
-        .get_inner()
-        .proxy
-        .default_configs_allowlist
-        .clone();
-    let allowlist_active = !allowlist.is_empty();
-    // When an allowlist is active we must fetch every config (ignoring paging)
-    // so the allowlist filter below sees the full set.
-    let fetch_all = allowlist_active || matches!(input.get_all(), Some(true));
-    let mut input = input.set_all(Some(fetch_all));
-    if fetch_all {
-        input = input.set_count(None).set_page(None);
-    }
 
     let list_default_configs_output = input
         .send_with(state.superposition_service.superposition_sdk_client())
@@ -349,19 +252,15 @@ pub async fn list_default_configs(
             )
         })?;
 
-    let mut default_configs: Vec<DefaultConfigResponse> = list_default_configs_output
+    let default_configs: Vec<DefaultConfigResponse> = list_default_configs_output
         .data()
         .iter()
         .map(default_config_response_to_struct)
         .collect();
 
-    if allowlist_active {
-        filter_by_allowlist(&mut default_configs, &allowlist);
-    }
-
     let response = PaginatedListResponse {
         total_pages: list_default_configs_output.total_pages(),
-        total_items: i32::try_from(default_configs.len()).unwrap_or(i32::MAX),
+        total_items: list_default_configs_output.total_items(),
         data: default_configs,
     };
 
@@ -376,8 +275,6 @@ pub async fn list_dimensions(
 ) -> RouterResponse<PaginatedListResponse<DimensionResponse>> {
     logger::info!(
         user_id = %auth.user_id,
-        merchant_id = %auth.merchant_id.get_string_repr(),
-        org_id = %auth.org_id.get_string_repr(),
         role_id = %auth.role_id,
         "superposition list_dimensions request"
     );
@@ -425,8 +322,7 @@ pub async fn create_context(
         "superposition create_context request"
     );
 
-    // Read the context dimensions back off the SDK request to run auth-scoped
-    // validation (the builder carries the already-converted `ContextPut`).
+    // Read context dims off the SDK request for auth-scoped validation.
     let context_json = input
         .get_request()
         .as_ref()
@@ -468,19 +364,17 @@ pub async fn resolve_config(
 ) -> RouterResponse<ResolveConfigResponse> {
     logger::info!(
         user_id = %auth.user_id,
-        merchant_id = %auth.merchant_id.get_string_repr(),
-        org_id = %auth.org_id.get_string_repr(),
         role_id = %auth.role_id,
         "superposition resolve_config request"
     );
 
-    // Read the context dimensions back off the SDK request to run auth-scoped
-    // validation (the builder carries the already-converted context map).
+    // Read context dims off the SDK request for auth-scoped validation.
     let context_json = input
         .get_context()
         .as_ref()
         .map(doc_map_to_json)
         .unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::new()));
+
     if let Err(validation_error) = validate_superposition_context_body(&context_json, &auth) {
         logger::warn!(
             user_id = %auth.user_id,
@@ -503,22 +397,7 @@ pub async fn resolve_config(
         )
     })?;
 
-    let mut config_value = document_to_value(resolved_config.config().clone());
-    let allowlist = &state
-        .conf
-        .superposition
-        .get_inner()
-        .proxy
-        .default_configs_allowlist;
-    if !allowlist.is_empty() {
-        if let Some(config_obj) = config_value.as_object_mut() {
-            config_obj.retain(|key, _| {
-                allowlist
-                    .iter()
-                    .any(|allowed| key.starts_with(allowed.as_str()))
-            });
-        }
-    }
+    let config_value = document_to_value(resolved_config.config().clone());
 
     let response = ResolveConfigResponse {
         config: config_value,
@@ -538,8 +417,6 @@ pub async fn list_audit_logs(
 ) -> RouterResponse<PaginatedListResponse<AuditLogResponse>> {
     logger::info!(
         user_id = %auth.user_id,
-        merchant_id = %auth.merchant_id.get_string_repr(),
-        org_id = %auth.org_id.get_string_repr(),
         role_id = %auth.role_id,
         "superposition list_audit_logs request"
     );

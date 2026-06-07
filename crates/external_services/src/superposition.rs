@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use api_models::superposition_proxy::{
     AuditLogResponse, ContextResponse, DefaultConfigResponse, DimensionResponse,
 };
+pub use aws_smithy_types::DateTime;
 use aws_smithy_types::{Document, Number};
 use common_utils::{errors::CustomResult, id_type::TargetingKey};
 use error_stack::{report, ResultExt};
@@ -83,15 +84,14 @@ pub fn value_to_document(val: serde_json::Value) -> Document {
 }
 
 /// Format a smithy `DateTime` as an RFC3339 string.
-pub fn datetime_to_string(dt: &aws_smithy_types::DateTime) -> String {
+pub fn datetime_to_string(dt: &DateTime) -> String {
     dt.fmt(aws_smithy_types::date_time::Format::DateTime)
         .unwrap_or_default()
 }
 
 /// Parse an ISO 8601 datetime string into an `aws_smithy_types::DateTime`.
-pub fn parse_datetime(s: &str) -> Result<aws_smithy_types::DateTime, String> {
-    aws_smithy_types::DateTime::from_str(s, aws_smithy_types::date_time::Format::DateTime)
-        .map_err(|e| e.to_string())
+pub fn parse_datetime(s: &str) -> Result<DateTime, String> {
+    DateTime::from_str(s, aws_smithy_types::date_time::Format::DateTime).map_err(|e| e.to_string())
 }
 
 /// Convert a `HashMap<String, Document>` to a JSON object value.
