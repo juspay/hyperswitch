@@ -9425,10 +9425,10 @@ Cypress.Commands.add(
 
     let authorizationHeader;
     if (overrideSdkAuth === "missing_session") {
-      let header = `profile_id=${profileIdForHeader},publishable_key=${publishableKey},client_secret=${clientSecret}`;
-      if (customerIdFromAuth) header += `,customer_id=${customerIdFromAuth}`;
-      if (paymentIdFromAuth) header += `,payment_id=${paymentIdFromAuth}`;
-      authorizationHeader = btoa(header);
+      // Legacy fallback: do NOT send Authorization header.
+      // confirmWithSdkAuthTest will naturally fall back to api-key header
+      // and client_secret in body when authorizationHeader is undefined.
+      authorizationHeader = undefined;
     } else if (overrideSdkAuth === "invalid_session") {
       let header = `profile_id=${profileIdForHeader},publishable_key=${publishableKey},client_secret=${clientSecret},client_session_id=cs_invalid_tampered_session_id`;
       if (customerIdFromAuth) header += `,customer_id=${customerIdFromAuth}`;
