@@ -3205,9 +3205,6 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-      Configs: {
-        skipBillingAssertion: true,
-      },
       Response: {
         status: 200,
         body: {

@@ -653,41 +653,5 @@ export const connectorDetails = {
         },
       },
     },
-    ClientSessionValidConfirm: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "EUR",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-        billing: billingAddress,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    ClientSessionMissingConfirm: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "EUR",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-        billing: billingAddress,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
   },
 };
