@@ -60,7 +60,6 @@ pub trait MandateInterface {
 #[cfg(feature = "kv_store")]
 mod storage {
     use common_utils::{fallback_reverse_lookup_not_found, id_type};
-    use diesel_models::kv;
     use error_stack::{report, ResultExt};
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
@@ -272,22 +271,22 @@ mod storage {
                     let redis_value = serde_json::to_string(&updated_mandate)
                         .change_context(errors::StorageError::SerializationFailed)?;
 
-                    let redis_entry = kv::TypedSql {
-                        op: kv::DBOperation::Update {
-                            updatable: Box::new(kv::Updateable::MandateUpdate(
-                                kv::MandateUpdateMems {
-                                    orig: mandate,
-                                    update_data: m_update,
-                                },
-                            )),
-                        },
-                    };
+                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
+                    let drainer_query = m_update
+                        .generate_drainer_update_query(
+                            &mut query_gen_conn,
+                            merchant_id.clone(),
+                            mandate_id.to_owned(),
+                        )
+                        .await
+                        .change_context(errors::StorageError::KVError)
+                        .attach_printable("Failed to generate mandate update query")?;
 
                     Box::pin(kv_wrapper::<(), _, _>(
                         self,
                         KvOperation::<diesel_models::Mandate>::Hset(
                             (&field, redis_value),
-                            redis_entry,
+                            drainer_query,
                         ),
                         key,
                     ))
@@ -346,12 +345,6 @@ mod storage {
 
                     let storage_mandate = storage_types::Mandate::from(&mandate);
 
-                    let redis_entry = kv::TypedSql {
-                        op: kv::DBOperation::Insert {
-                            insertable: Box::new(kv::Insertable::Mandate(mandate)),
-                        },
-                    };
-
                     if let Some(connector_val) = connector_mandate_id {
                         let lookup_id = format!(
                             "mid_{}_conn_mandate_{}",
@@ -371,12 +364,19 @@ mod storage {
                             .await?;
                     }
 
+                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
+                    let drainer_query = mandate
+                        .generate_drainer_insert_query(&mut query_gen_conn)
+                        .await
+                        .change_context(errors::StorageError::KVError)
+                        .attach_printable("Failed to generate mandate insert query")?;
+
                     match Box::pin(kv_wrapper::<diesel_models::Mandate, _, _>(
                         self,
                         KvOperation::<diesel_models::Mandate>::HSetNx(
                             &field,
                             &storage_mandate,
-                            redis_entry,
+                            drainer_query,
                         ),
                         key,
                     ))

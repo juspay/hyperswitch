@@ -61,6 +61,7 @@ import { connectorDetails as paysafeConnectorDetails } from "./Paysafe.js";
 import { connectorDetails as payuConnectorDetails } from "./Payu.js";
 import { connectorDetails as peachpaymentsConnectorDetails } from "./Peachpayments.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
+import { connectorDetails as rapydConnectorDetails } from "./Rapyd.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
 import { connectorDetails as silverflowConnectorDetails } from "./Silverflow.js";
@@ -139,6 +140,7 @@ const connectorDetails = {
   payu: payuConnectorDetails,
   peachpayments: peachpaymentsConnectorDetails,
   powertranz: powertranzConnectorDetails,
+  rapyd: rapydConnectorDetails,
   redsys: redsysConnectorDetails,
   shift4: shift4ConnectorDetails,
   silverflow: silverflowConnectorDetails,
@@ -534,18 +536,27 @@ export const CONNECTOR_LISTS = {
       "paypal",
       "stripe",
     ],
-    BANK_DEBIT: ["adyen", "novalnet", "payload"], // payload verified as working
+    BANK_DEBIT: ["adyen", "novalnet", "payload", "wellsfargo"], // payload verified as working
     INESPAY_BANK_SIMULATION: ["inespay"],
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
     BANK_REDIRECT_MANDATE: ["adyen"],
     BLUECODE_WALLET: ["calida"],
     GLOBEPAY_WALLET: ["globepay"],
     ALIPAY_HK_WALLET: ["adyen"],
-    PAYPAL_WALLET: ["novalnet", "paypal"],
+    PAYPAL_WALLET: [
+      "airwallex",
+      "globalpay",
+      "multisafepay",
+      "novalnet",
+      "paypal",
+    ],
     MIFINITY_WALLET: ["mifinity"],
+    ALIPAY_WALLET: ["multisafepay"],
+    WECHATPAY_WALLET: ["multisafepay"],
+    MBWAY_WALLET: ["multisafepay"],
     SKRILL_WALLET: ["paysafe"],
     PAYSAFECARD_GIFT_CARD: ["paysafe"],
-    PAYPAL_MANDATE: ["paypal"],
+    PAYPAL_MANDATE: ["globalpay", "paypal"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [
       "adyen",
@@ -583,6 +594,7 @@ export const CONNECTOR_LISTS = {
     AFFIRM_PAY_LATER: ["affirm"],
     EXTEND_AUTHORIZATION: ["adyen", "paypal"],
     GIFT_CARD: ["adyen"],
+    VOUCHER: ["adyen"],
     RELAY_OPERATIONS: ["bankofamerica"],
     PAY_LATER: [
       "klarna",

@@ -13122,6 +13122,17 @@
           {
             "type": "object",
             "required": [
+              "pix_emv"
+            ],
+            "properties": {
+              "pix_emv": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "pix_automatico_push"
             ],
             "properties": {
@@ -13505,6 +13516,17 @@
                     "nullable": true
                   }
                 }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix_emv"
+            ],
+            "properties": {
+              "pix_emv": {
+                "type": "object"
               }
             }
           },
@@ -21451,6 +21473,7 @@
               "$ref": "#/components/schemas/FrmPaymentMethodType"
             },
             "description": "payment method types(credit, debit) that can be used in the payment. This field is deprecated. It has not been removed to provide backward compatibility.",
+            "deprecated": true,
             "nullable": true
           },
           "flow": {
@@ -23070,6 +23093,19 @@
         },
         "additionalProperties": false
       },
+      "InternalVaultSessionDetails": {
+        "type": "object",
+        "description": "Internal vault details for SDK authorization",
+        "required": [
+          "sdk_authorization"
+        ],
+        "properties": {
+          "sdk_authorization": {
+            "type": "string",
+            "description": "Base64-encoded SDK authorization token for the internal vault session"
+          }
+        }
+      },
       "Invoice": {
         "type": "object",
         "required": [
@@ -24538,11 +24574,13 @@
           "business_label": {
             "type": "string",
             "description": "The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
+            "deprecated": true,
             "nullable": true
           },
           "business_sub_label": {
             "type": "string",
             "description": "The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
+            "deprecated": true,
             "example": "chase",
             "nullable": true
           },
@@ -24770,12 +24808,14 @@
           "business_label": {
             "type": "string",
             "description": "The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
+            "deprecated": true,
             "example": "travel",
             "nullable": true
           },
           "business_sub_label": {
             "type": "string",
             "description": "The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
+            "deprecated": true,
             "example": "chase",
             "nullable": true
           },
@@ -24929,12 +24969,14 @@
           "business_label": {
             "type": "string",
             "description": "The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
+            "deprecated": true,
             "example": "travel",
             "nullable": true
           },
           "business_sub_label": {
             "type": "string",
             "description": "The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
+            "deprecated": true,
             "example": "chase",
             "nullable": true
           },
@@ -28068,6 +28110,11 @@
             "type": "string",
             "description": "Hex color for the CVC icon during error state",
             "nullable": true
+          },
+          "show_merchant_name": {
+            "type": "boolean",
+            "description": "Flag to display the merchant name in the payment link",
+            "nullable": true
           }
         }
       },
@@ -28248,6 +28295,13 @@
           "color_icon_card_cvc_error": {
             "type": "string",
             "description": "Hex color for the CVC icon during error state",
+            "nullable": true
+          },
+          "show_merchant_name": {
+            "type": "boolean",
+            "description": "Flag to display the merchant name in the payment link",
+            "default": true,
+            "example": true,
             "nullable": true
           }
         }
@@ -30533,6 +30587,7 @@
           "mandate_id": {
             "type": "string",
             "description": "A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data",
+            "deprecated": true,
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
             "maxLength": 64
@@ -31057,6 +31112,7 @@
           "mandate_id": {
             "type": "string",
             "description": "A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data",
+            "deprecated": true,
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
             "maxLength": 64
@@ -31096,6 +31152,7 @@
           "business_label": {
             "type": "string",
             "description": "Business label of the merchant for this payment.\nTo be deprecated soon. Pass the profile_id instead",
+            "deprecated": true,
             "example": "food",
             "nullable": true
           },
@@ -31574,6 +31631,7 @@
           "mandate_id": {
             "type": "string",
             "description": "A unique identifier to link the payment to a mandate, can be used instead of payment_method_data, in case of setting up recurring payments",
+            "deprecated": true,
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
             "maxLength": 255
@@ -32148,7 +32206,8 @@
           "sender_payment_instrument_id": {
             "type": "string",
             "description": "A connector-specific identifier representing the stored payment instrument",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -32708,6 +32767,7 @@
           "mandate_id": {
             "type": "string",
             "description": "A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data",
+            "deprecated": true,
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
             "maxLength": 64
@@ -32747,6 +32807,7 @@
           "business_label": {
             "type": "string",
             "description": "Business label of the merchant for this payment.\nTo be deprecated soon. Pass the profile_id instead",
+            "deprecated": true,
             "example": "food",
             "nullable": true
           },
@@ -33255,6 +33316,7 @@
           "mandate_id": {
             "type": "string",
             "description": "A unique identifier to link the payment to a mandate, can be used instead of payment_method_data, in case of setting up recurring payments",
+            "deprecated": true,
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
             "maxLength": 255
@@ -33846,7 +33908,8 @@
           "sender_payment_instrument_id": {
             "type": "string",
             "description": "A connector-specific identifier representing the stored payment instrument",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -33969,7 +34032,7 @@
           "vault_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/VaultSessionDetails"
+                "$ref": "#/components/schemas/VaultDetails"
               }
             ],
             "nullable": true
@@ -36581,6 +36644,12 @@
             "description": "Individual taxpayer identification number",
             "example": "000123456",
             "nullable": true
+          },
+          "ispb": {
+            "type": "string",
+            "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
+            "example": "60701190",
+            "nullable": true
           }
         }
       },
@@ -36820,6 +36889,12 @@
             "type": "string",
             "description": "String formatted QR code for pix payout",
             "example": "00020126580014br.gov.bcb.pix0114000123456785204000053039865802BR5925John Doe6009Sao Paulo61080540900062070503***63041D3D"
+          },
+          "ispb": {
+            "type": "string",
+            "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
+            "example": "60701190",
+            "nullable": true
           }
         }
       },
@@ -38377,6 +38452,48 @@
           }
         }
       },
+      "RecipientCardData": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "example": "4000000000009995"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "example": "03"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "example": "30"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "example": "John Doe",
+            "nullable": true
+          }
+        }
+      },
+      "RecipientPaymentMethodData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/RecipientCardData"
+              }
+            }
+          }
+        ]
+      },
       "RecommendedAction": {
         "type": "string",
         "enum": [
@@ -39027,6 +39144,17 @@
                 "$ref": "#/components/schemas/RelayVoidRequestData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "unreferenced_refund"
+            ],
+            "properties": {
+              "unreferenced_refund": {
+                "$ref": "#/components/schemas/RelayUnreferencedRefundData"
+              }
+            }
           }
         ]
       },
@@ -39204,8 +39332,34 @@
           "refund",
           "capture",
           "incremental_authorization",
-          "void"
+          "void",
+          "unreferenced_refund"
         ]
+      },
+      "RelayUnreferencedRefundData": {
+        "type": "object",
+        "required": [
+          "amount",
+          "currency",
+          "customer_id",
+          "recipient_payment_method_data"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "example": 6540
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "customer_id": {
+            "type": "string"
+          },
+          "recipient_payment_method_data": {
+            "$ref": "#/components/schemas/RecipientPaymentMethodData"
+          }
+        }
       },
       "RelayVoidRequestData": {
         "type": "object",
@@ -43137,6 +43291,28 @@
         "description": "Represents a value in the DSL",
         "discriminator": {
           "propertyName": "type"
+        }
+      },
+      "VaultDetails": {
+        "type": "object",
+        "description": "Top-level vault details returned in the session-tokens response.\nFor v1: contains both internal vault (SDK authorization) and external vault details.\nFor v2: contains only external vault details.",
+        "properties": {
+          "internal_vault": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InternalVaultSessionDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "external_vault_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultSessionDetails"
+              }
+            ],
+            "nullable": true
+          }
         }
       },
       "VaultSdk": {
