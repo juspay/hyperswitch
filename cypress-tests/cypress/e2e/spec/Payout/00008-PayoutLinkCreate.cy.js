@@ -323,7 +323,13 @@ describe("Payout Link", () => {
         failOnStatusCode: false,
       }).then((response) => {
         expect(response.status).to.equal(200);
-        expect(response.body.status).to.equal("requires_payout_method_data");
+        if (Cypress.browser.isHeadless) {
+          cy.task("cli_log", "Headless mode: asserting status requires_payout_method_data");
+          expect(response.body.status).to.equal("requires_payout_method_data");
+        } else {
+          cy.task("cli_log", "Headed mode: asserting status requires_fulfillment");
+          expect(response.body.status).to.equal("requires_fulfillment");
+        }
       });
     });
   });

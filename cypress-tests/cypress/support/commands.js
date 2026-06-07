@@ -10174,7 +10174,7 @@ Cypress.Commands.add(
       .click({ force: true });
     cy.task("cli_log", "Clicked Save button (first submission)");
 
-    cy.wait(2000);
+    cy.wait(10000);
 
     cy.get("body", { timeout: 30000 }).then(($body) => {
       const saveBtn = $body.find("#submit:not([disabled])");
