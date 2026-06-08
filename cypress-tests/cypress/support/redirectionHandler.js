@@ -3211,9 +3211,12 @@ function payoutLinkRedirection(
     });
     cy.task("cli_log", "Payout page shows error indicator as expected");
   } else {
-    cy.contains(/succeeded|success|payout successful|thank you|requires_fulfillment|saved/i, {
-      timeout: 30000,
-    }).should("exist");
+    cy.contains(
+      /succeeded|success|payout successful|thank you|requires_fulfillment|saved/i,
+      {
+        timeout: 30000,
+      }
+    ).should("exist");
 
     cy.get("body").then(($body) => {
       const bodyText = $body.text().toLowerCase();
