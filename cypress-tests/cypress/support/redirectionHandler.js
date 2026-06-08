@@ -3053,17 +3053,21 @@ function payoutLinkRedirection(
 
   cy.get("body", { timeout: 30000 }).should("exist");
 
-  // Wait for SDK form elements directly — skip #sdk-spinner check which
-  // times out on bank-transfer payout link pages where the form renders
+  // Directly detect the SEPA IBAN input inside the iframe instead of
+  // waiting for container visibility, which flakes when the form renders
   // without ever showing a loading spinner.
-  cy.get("#unified-checkout, #payment-form", { timeout: 60000 })
-    .should("exist")
-    .and("be.visible");
-
-  cy.get("#unified-checkout iframe, #payment-form iframe", {
-    timeout: 30000,
-  }).should("have.length.at.least", 1);
-  cy.task("cli_log", "Payout Link bank form iframe ready");
+  cy.get("#unified-checkout iframe, #payment-form iframe", { timeout: 60000 })
+    .should("have.length.at.least", 1)
+    .first()
+    .its("0.contentDocument.body")
+    .should("not.be.empty")
+    .then((body) => {
+      cy.wrap(body)
+        .find('input[id="sepa.iban"]', { timeout: 30000 })
+        .should("exist")
+        .and("be.visible");
+    });
+  cy.task("cli_log", "Payout Link SEPA IBAN input detected in iframe");
 
   function fillBankInputInIframe(iframe, index) {
     cy.wrap(iframe)
