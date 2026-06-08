@@ -81,7 +81,6 @@ mod multisafepay;
 mod netcetera;
 mod nexinets;
 mod nexixpay;
-mod payconex;
 mod nmi;
 mod nomupay;
 mod noon;
@@ -92,6 +91,7 @@ mod nuvei;
 mod opayo;
 mod opennode;
 mod paybox;
+mod payconex;
 #[cfg(feature = "dummy_connector")]
 mod payeezy;
 mod payjustnow;
