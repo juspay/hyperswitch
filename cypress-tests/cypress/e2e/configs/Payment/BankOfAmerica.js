@@ -985,7 +985,7 @@ export const connectorDetails = {
       },
     },
     RequiresCVVListPMOnSession: {
-      Response: { status: 200, body: { requires_cvv: false } },
+      Response: { status: 200, body: { requires_cvv: true } },
     },
     RequiresCVVListPMOffSession: {
       Response: { status: 200, body: { requires_cvv: false } },
