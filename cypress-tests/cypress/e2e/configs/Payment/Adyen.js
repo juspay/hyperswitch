@@ -1913,7 +1913,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "failed",
           payment_method_status: "inactive",
         },
       },
@@ -2218,7 +2218,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "Insufficient balance in the payment method",
+          payment_method_status: "inactive",
         },
       },
     }),
