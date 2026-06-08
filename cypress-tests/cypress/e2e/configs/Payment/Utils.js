@@ -588,7 +588,7 @@ export const CONNECTOR_LISTS = {
     AFFIRM_PAY_LATER: ["affirm"],
     EXTEND_AUTHORIZATION: ["adyen", "paypal"],
     GIFT_CARD: ["adyen"],
-    VOUCHER: ["adyen"],
+    VOUCHER: ["adyen", "dlocal"],
     RELAY_OPERATIONS: ["bankofamerica"],
     PAY_LATER: [
       "klarna",
