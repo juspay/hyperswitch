@@ -6128,7 +6128,11 @@ pub async fn payment_methods_session_create(
         hyperswitch_domain_models::sdk_auth::SdkAuthorizationContext {
             platform: platform.clone(),
             profile_id: profile.get_id().clone(),
-            publishable_key: platform.get_processor().get_account().publishable_key.clone(),
+            publishable_key: platform
+                .get_processor()
+                .get_account()
+                .publishable_key
+                .clone(),
             client_secret: client_secret.secret.clone().expose(),
             customer_id: payment_method_session_domain_model.customer_id.clone(),
             payment_method_session_id: Some(payment_method_session_domain_model.id.clone()),

@@ -2901,9 +2901,7 @@ where
                 .next()
                 .ok_or_else(|| {
                     error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "No eligible connector resolved for external vault proxy",
-                        )
+                        .attach_printable("No eligible connector resolved for external vault proxy")
                 })?
                 .connector_data;
 
