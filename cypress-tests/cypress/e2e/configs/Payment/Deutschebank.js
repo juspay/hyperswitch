@@ -323,14 +323,14 @@ export const connectorDetails = {
               bank_account_holder_name: "Test Account",
             },
           },
-        },
-        billing: {
-          address: {
-            country: "DE",
-            first_name: "Test",
-            last_name: "Account",
+          billing: {
+            address: {
+              country: "DE",
+              first_name: "Test",
+              last_name: "Account",
+            },
+            email: "test@example.com",
           },
-          email: "test@example.com",
         },
       },
       Response: {
@@ -349,14 +349,14 @@ export const connectorDetails = {
               bank_account_holder_name: "Test Account",
             },
           },
-        },
-        billing: {
-          address: {
-            country: "DE",
-            first_name: "Test",
-            last_name: "Account",
+          billing: {
+            address: {
+              country: "DE",
+              first_name: "Test",
+              last_name: "Account",
+            },
+            email: "test@example.com",
           },
-          email: "test@example.com",
         },
         setup_future_usage: "off_session",
         mandate_data: {
@@ -394,14 +394,14 @@ export const connectorDetails = {
               bank_account_holder_name: "Test Account",
             },
           },
-        },
-        billing: {
-          address: {
-            country: "US",
-            first_name: "Test",
-            last_name: "Account",
+          billing: {
+            address: {
+              country: "US",
+              first_name: "Test",
+              last_name: "Account",
+            },
+            email: "test@example.com",
           },
-          email: "test@example.com",
         },
         setup_future_usage: "off_session",
         mandate_data: {
