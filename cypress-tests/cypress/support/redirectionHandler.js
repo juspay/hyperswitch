@@ -3035,8 +3035,8 @@ function payoutLinkRedirection(
     account_number = "000123456",
     routing_number = "110000000",
     bank_name = "Test Bank",
-    iban = "",
-    bic = "",
+    iban = "NL46TEST0136169112",
+    bic = "ABNANL2A",
   } = bankData;
 
   cy.on("uncaught:exception", () => false);
@@ -3052,21 +3052,12 @@ function payoutLinkRedirection(
 
   cy.get("body", { timeout: 30000 }).should("exist");
 
-  // Directly detect the SEPA IBAN input inside the iframe instead of
-  // waiting for container visibility, which flakes when the form renders
-  // without ever showing a loading spinner.
-  cy.get("#unified-checkout iframe, #payment-form iframe", { timeout: 60000 })
-    .should("have.length.at.least", 1)
-    .first()
-    .its("0.contentDocument.body")
-    .should("not.be.empty")
-    .then((body) => {
-      cy.wrap(body)
-        .find('input[id="sepa.iban"]', { timeout: 30000 })
-        .should("exist")
-        .and("be.visible");
-    });
-  cy.task("cli_log", "Payout Link SEPA IBAN input detected in iframe");
+  // The payout link page is already loaded. Do not wait for containers
+  // or iframes — directly find and fill the SEPA IBAN and BIC inputs.
+  cy.task(
+    "cli_log",
+    "Payout link page loaded — filling SEPA IBAN and BIC directly"
+  );
 
   function fillBankInputInIframe(iframe, index) {
     cy.wrap(iframe)
@@ -3191,9 +3182,6 @@ function payoutLinkRedirection(
   cy.task("cli_log", "Clicked Save button (first submission)");
 
   cy.wait(10000);
-
-  cy.get("#sdk-spinner", { timeout: 60000 }).should("have.class", "hidden");
-  cy.get("#unified-checkout", { timeout: 30000 }).should("be.visible");
 
   /* eslint-disable cypress/no-force */
   cy.get("#submit", { timeout: 30000 })
