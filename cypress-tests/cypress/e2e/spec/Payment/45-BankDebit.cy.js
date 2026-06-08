@@ -287,4 +287,130 @@ describe("Bank Debit tests", () => {
       });
     });
   });
+
+  context("SEPA Bank Debit Mandate flow test", () => {
+    it("Create Payment Intent (setup_future_usage) -> List Merchant Payment Methods -> Confirm SEPA Bank Debit Mandate -> Retrieve Payment", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent for SEPA Mandate", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["PaymentIntent"]("Sepa");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm SEPA Bank Debit Mandate", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm SEPA Bank Debit Mandate");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["SepaDebitMandate"];
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["SepaDebitMandate"];
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+    });
+  });
+
+  context("ACH Bank Debit Mandate flow test", () => {
+    it("Create Payment Intent (setup_future_usage) -> List Merchant Payment Methods -> Confirm ACH Bank Debit Mandate -> Retrieve Payment", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent for ACH Mandate", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["PaymentIntent"]("Ach");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm ACH Bank Debit Mandate", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm ACH Bank Debit Mandate");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["AchMandate"];
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["AchMandate"];
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+    });
+  });
 });

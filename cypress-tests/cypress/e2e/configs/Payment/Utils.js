@@ -34,6 +34,7 @@ import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js"
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as forteConnectorDetails } from "./Forte.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
+import { connectorDetails as gocardlessConnectorDetails } from "./Gocardless.js";
 import { connectorDetails as gigadatConnectorDetails } from "./Gigadat.js";
 import { connectorDetails as globalpayConnectorDetails } from "./Globalpay.js";
 import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
@@ -109,6 +110,7 @@ const connectorDetails = {
   finix: finixConnectorDetails,
   forte: forteConnectorDetails,
   getnet: getnetConnectorDetails,
+  gocardless: gocardlessConnectorDetails,
   gigadat: gigadatConnectorDetails,
   globalpay: globalpayConnectorDetails,
   hipay: hipayConnectorDetails,
@@ -514,6 +516,7 @@ export const CONNECTOR_LISTS = {
       "adyen",
       "novalnet",
       "deutschebank",
+      "gocardless",
       "mollie",
       "payload",
       "stax",
