@@ -2696,6 +2696,21 @@ pub struct CardToken {
     pub card_cvc: Option<Secret<String>>,
 }
 
+/// Card token data for the external vault proxy flow with an already-saved card. The card details
+/// (number/expiry) are resolved from the saved payment method's external vault tokens; this carries
+/// the CVC / card holder name to combine with them.
+#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct CardTokenData {
+    /// The card holder's name
+    #[schema(value_type = Option<String>, example = "John Test")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The CVC number for the card
+    #[schema(value_type = Option<String>)]
+    pub card_cvc: Option<Secret<String>>,
+}
+
 #[derive(
     Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
@@ -3151,6 +3166,7 @@ mod payment_method_data_serde {
                     | PaymentMethodData::Card(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::ProxyCard(_)
+                    | PaymentMethodData::VaultCardTokenData(_)
                     | PaymentMethodData::MandatePayment
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::Wallet(_) => {
@@ -3492,6 +3508,12 @@ pub enum PaymentMethodData {
     /// When this variant is used, the payment will be routed through the external vault proxy flow.
     #[schema(title = "ProxyCard")]
     ProxyCard(Box<ProxyCardData>),
+    /// Vault card token data used for external vault proxy payments with an already-saved card.
+    /// The top-level `payment_token` resolves to a stored payment method whose external vault
+    /// tokens are retrieved from the modular PM service; this variant carries the CVC / card
+    /// holder name to combine with those tokens. Routed through the external vault proxy flow.
+    #[schema(title = "VaultCardTokenData")]
+    VaultCardTokenData(CardTokenData),
 }
 
 pub trait GetAddressFromPaymentMethodData {
@@ -3519,7 +3541,8 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             | Self::MandatePayment
             | Self::MobilePayment(_)
             | Self::NetworkToken(_)
-            | Self::ProxyCard(_) => None,
+            | Self::ProxyCard(_)
+            | Self::VaultCardTokenData(_) => None,
         }
     }
 }
@@ -3544,7 +3567,9 @@ impl PaymentMethodData {
             Self::MobilePayment(_) => Some(api_enums::PaymentMethod::MobilePayment),
             Self::NetworkToken(_) => Some(api_enums::PaymentMethod::NetworkToken),
             Self::CardToken(_) | Self::MandatePayment => None,
-            Self::ProxyCard(_) => Some(api_enums::PaymentMethod::Card),
+            Self::ProxyCard(_) | Self::VaultCardTokenData(_) => {
+                Some(api_enums::PaymentMethod::Card)
+            }
         }
     }
 }

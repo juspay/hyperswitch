@@ -1878,6 +1878,9 @@ pub struct VaultRequestData {
     pub connector_vault_id: Option<String>,
     pub connector_customer_id: Option<String>,
     pub should_generate_multiple_tokens: Option<bool>,
+    /// Storage type (persistent/volatile) for the vault session. `None` lets the connector apply
+    /// its default. Used by the external vault (e.g. Hyperswitch Vault) session create flow.
+    pub storage_type: Option<common_enums::StorageType>,
 }
 
 #[derive(Debug, Serialize, Clone)]

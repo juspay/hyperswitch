@@ -2337,6 +2337,7 @@ impl PaymentConfirm {
             &profile_id,
             payment_method_ref,
             card_token_data,
+            true, // fetch raw card detail from the internal vault
         )
         .await?;
         logger::info!("Payment method fetched from PM Modular Service.");

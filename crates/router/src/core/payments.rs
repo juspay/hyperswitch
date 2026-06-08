@@ -2850,7 +2850,10 @@ where
 
     // Dispatch on the resolved connector call type, mirroring `payments_operation_core`: the
     // prerequisites and the unified-connector-service decision both happen inside the match arm.
-    // The external vault proxy flow currently supports only a single, predetermined connector.
+    // `choose_connector` returns `Retryable` even for a single configured connector (the normal
+    // confirm flow applies retry logic on top); the proxy flow does not retry, so it just takes the
+    // first eligible connector. `SessionMultiple` and an unresolved (`None`) call type are not
+    // supported.
     let (connector, merchant_connector_account, router_data) = match connector {
         Some(ConnectorCallType::PreDetermined(connector_routing_data)) => {
             let connector = connector_routing_data.connector_data;
@@ -2894,13 +2897,57 @@ where
 
             (connector, merchant_connector_account, router_data)
         }
-        Some(ConnectorCallType::Retryable(_)) => {
-            return Err(
-                error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Retryable connector call type is not supported for external vault proxy",
-                    ),
+        Some(ConnectorCallType::Retryable(connectors)) => {
+            // The proxy flow does not retry — use the first eligible connector.
+            let connector = connectors
+                .into_iter()
+                .next()
+                .ok_or_else(|| {
+                    error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "No eligible connector resolved for external vault proxy",
+                        )
+                })?
+                .connector_data;
+
+            // `choose_connector` does not persist the chosen connector in the payment attempt for
+            // this flow, so set it explicitly — the confirm update tracker reads it back.
+            payment_data
+                .set_connector_in_payment_attempt(Some(connector.connector_name.to_string()));
+
+            let (
+                merchant_connector_account,
+                external_vault_merchant_connector_account,
+                router_data,
+            ) = call_connector_service_prerequisites_for_external_vault_proxy_v1(
+                state,
+                &platform,
+                &mut payment_data,
+                &connector,
+                &business_profile,
+                header_payload.clone(),
             )
+            .await?;
+
+            let router_data = decide_unified_connector_service_call_for_external_vault_proxy_v1(
+                state,
+                req_state.clone(),
+                &platform,
+                &operation,
+                &mut payment_data,
+                &connector,
+                merchant_connector_account.clone(),
+                external_vault_merchant_connector_account,
+                router_data,
+                call_connector_action.clone(),
+                header_payload.clone(),
+                &business_profile,
+                &dimensions,
+                return_raw_connector_response,
+            )
+            .await?;
+
+            (connector, merchant_connector_account, router_data)
         }
         Some(ConnectorCallType::SessionMultiple(_)) => {
             return Err(
@@ -9342,6 +9389,7 @@ impl PaymentEligibilityData {
                 profile_id,
                 payment_token.clone().expose().as_str(),
                 None, // CVC token data is not passed in create api
+                true, // fetch raw card detail from the internal vault
             )
             .await
             .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -9574,6 +9622,7 @@ where
 {
     match format!("{operation:?}").as_str() {
         "PaymentConfirm" => true,
+        "PaymentExternalVaultProxyConfirm" => true,
         "PaymentStart" => {
             !matches!(
                 payment_data.get_payment_intent().status,

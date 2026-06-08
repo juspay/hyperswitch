@@ -79,8 +79,14 @@ where
     let is_external_vault_sdk_enabled = profile.is_vault_sdk_enabled();
 
     if is_external_vault_sdk_enabled {
+        // Guest flow (no customer) uses volatile storage; a known customer uses persistent.
+        let storage_type = if customer.is_some() {
+            common_enums::StorageType::Persistent
+        } else {
+            common_enums::StorageType::Volatile
+        };
         let external_vault_details =
-            fetch_external_vault_details(state, platform, profile, customer).await?;
+            fetch_external_vault_details(state, platform, profile, customer, storage_type).await?;
         let vault_details = external_vault_details.map(|evd| api::VaultDetails {
             internal_vault: None,
             external_vault_details: Some(evd),
@@ -134,10 +140,18 @@ async fn call_internal_pm_session_create_for_vault(
         &state.conf.trace_header.header_name,
     );
 
+    // Guest flow (no customer) uses volatile storage; a known customer uses persistent. This is
+    // forwarded to the modular PM service, which in turn drives the external vault session create.
+    let storage_type = if customer_id.is_some() {
+        common_enums::StorageType::Persistent
+    } else {
+        common_enums::StorageType::Volatile
+    };
+
     let request = CreatePaymentMethodSessionV1Request {
         customer_id: customer_id.cloned(),
         modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
-        storage_type: common_enums::StorageType::Persistent,
+        storage_type,
     };
 
     let response = CreatePaymentMethodSession::call(state, &client, request)
@@ -316,6 +330,7 @@ pub async fn generate_vault_session_details(
     platform: &domain::Platform,
     merchant_connector_account_type: &domain::MerchantConnectorAccountTypeDetails,
     connector_customer_id: Option<String>,
+    storage_type: common_enums::StorageType,
 ) -> RouterResult<Option<api::VaultSessionDetails>> {
     let connector = VaultConnectors::try_from(merchant_connector_account_type.get_connector_name())
         .map_err(|error| {
@@ -369,6 +384,7 @@ pub async fn generate_vault_session_details(
                     .to_string(),
                 key1,
                 api_secret,
+                storage_type,
             )
             .await
         }
@@ -389,8 +405,9 @@ async fn generate_hyperswitch_vault_session_details(
     merchant_connector_account_type: &domain::MerchantConnectorAccountTypeDetails,
     connector_customer_id: Option<String>,
     connector_name: String,
-    _vault_publishable_key: hyperswitch_masking::Secret<String>,
+    vault_publishable_key: hyperswitch_masking::Secret<String>,
     vault_profile_id: hyperswitch_masking::Secret<String>,
+    storage_type: common_enums::StorageType,
 ) -> RouterResult<Option<api::VaultSessionDetails>> {
     let connector_response = call_external_vault_create(
         state,
@@ -398,6 +415,7 @@ async fn generate_hyperswitch_vault_session_details(
         connector_name,
         merchant_connector_account_type,
         connector_customer_id.clone(),
+        storage_type,
     )
     .await?;
 
@@ -412,6 +430,7 @@ async fn generate_hyperswitch_vault_session_details(
             let sdk_authorization =
                 Option::<hyperswitch_domain_models::sdk_auth::SdkAuthorization>::from(
                     hyperswitch_domain_models::sdk_auth::SdkAuthorizationContext {
+                        publishable_key: vault_publishable_key.expose(),
                         platform: platform.to_owned(),
                         profile_id: id_type::ProfileId::try_from(std::borrow::Cow::from(
                             vault_profile_id.expose(),
@@ -469,6 +488,7 @@ async fn call_external_vault_create(
     connector_name: String,
     merchant_connector_account_type: &domain::MerchantConnectorAccountTypeDetails,
     connector_customer_id: Option<String>,
+    storage_type: common_enums::StorageType,
 ) -> RouterResult<VaultRouterData<ExternalVaultCreateFlow>>
 where
     dyn ConnectorTrait + Sync: services::api::ConnectorIntegration<
@@ -507,6 +527,7 @@ where
         None,
         connector_customer_id,
         None,
+        Some(storage_type),
     )
     .await?;
 
@@ -539,6 +560,7 @@ pub async fn fetch_external_vault_details(
     platform: &domain::Platform,
     profile: &domain::Profile,
     customer: &Option<domain::Customer>,
+    storage_type: common_enums::StorageType,
 ) -> RouterResult<Option<api::VaultSessionDetails>> {
     let external_vault_source = profile
         .external_vault_connector_details
@@ -555,26 +577,36 @@ pub async fn fetch_external_vault_details(
             .await?,
         ));
 
-    // Retrieve the existing connector_customer_id from the customer record for this vault MCA.
-    // If none exists, create a connector customer at the vault connector.
-    let connector_customer_id = get_or_create_vault_connector_customer(
-        state,
-        platform,
-        customer,
-        &merchant_connector_account,
-        profile.get_id(),
-    )
-    .await
-    .map_err(|err| {
-        router_env::logger::error!(?err, "Failed to get or create vault connector customer");
-        err
-    })?;
+    // Connector-customer creation is optional. For the guest flow (no customer) we skip it
+    // entirely and call the external vault with a `null` customer id. When a customer is present,
+    // reuse the existing connector customer or create one at the vault connector.
+    let connector_customer_id = match customer {
+        Some(_) => get_or_create_vault_connector_customer(
+            state,
+            platform,
+            customer,
+            &merchant_connector_account,
+            profile.get_id(),
+        )
+        .await
+        .map_err(|err| {
+            router_env::logger::error!(?err, "Failed to get or create vault connector customer");
+            err
+        })?,
+        None => {
+            router_env::logger::info!(
+                "No customer present for external vault session; skipping connector customer creation (guest flow)"
+            );
+            None
+        }
+    };
 
     generate_vault_session_details(
         state,
         platform,
         &merchant_connector_account,
         connector_customer_id,
+        storage_type,
     )
     .await
 }
@@ -654,6 +686,7 @@ async fn get_or_create_vault_connector_customer(
                     state,
                     platform.get_processor().get_account().get_id(),
                     vault_mca,
+                    None,
                     None,
                     None,
                     None,
