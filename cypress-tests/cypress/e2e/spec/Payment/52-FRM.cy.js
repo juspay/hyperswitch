@@ -9,21 +9,29 @@ import {
 let globalState;
 
 describe("FRM - Fraud Risk Management Tests", () => {
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
-  });
+  before("seed global state", function () {
+    let skip = false;
 
-  before(function () {
-    if (
-      shouldIncludeConnector(
-        globalState.get("connectorId"),
-        CONNECTOR_LISTS.INCLUDE.FRM
-      )
-    ) {
-      this.skip();
-    }
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+        const connector = globalState.get("connectorId");
+
+        if (
+          shouldIncludeConnector(
+            connector,
+            CONNECTOR_LISTS.INCLUDE.FRM
+          )
+        ) {
+          skip = true;
+          return;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
   });
 
   after("flush global state", () => {
@@ -64,7 +72,9 @@ describe("FRM - Fraud Risk Management Tests", () => {
           return;
         }
 
-        const data = getConnectorDetails("signifyd")["card_pm"]["FRM"];
+        const data = getConnectorDetails("signifyd")[
+          "card_pm"
+        ]["FRM"];
 
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
@@ -146,7 +156,9 @@ describe("FRM - Fraud Risk Management Tests", () => {
           return;
         }
 
-        const data = getConnectorDetails("riskified")["card_pm"]["FRM"];
+        const data = getConnectorDetails("riskified")[
+          "card_pm"
+        ]["FRM"];
 
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
