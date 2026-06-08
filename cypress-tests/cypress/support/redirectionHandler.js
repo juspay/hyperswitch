@@ -1994,8 +1994,8 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
     return;
   }
 
-  if (connectorId === "iatapay") {
-    cy.log("Starting iatapay RealTimePayment redirection flow");
+  if (connectorId === "iatapay" && paymentMethodType === "duit_now") {
+    cy.log("Starting iatapay RealTimePayment redirection flow for DuitNow");
 
     cy.get(".iatapay-button.iatapay-button--secondary", {
       timeout: CONSTANTS.TIMEOUT,
