@@ -28,6 +28,7 @@ export const connectorDetails = {
         Request: {
           customer_acceptance: null,
           setup_future_usage: "on_session",
+          currency: currencyMap[paymentMethodType] || "EUR",
         },
         Response: {
           status: 200,
