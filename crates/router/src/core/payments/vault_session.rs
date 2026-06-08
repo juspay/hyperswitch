@@ -15,15 +15,17 @@ pub use hyperswitch_domain_models::{
     router_request_types::CustomerDetails,
     types::{VaultRouterData, VaultRouterDataV2},
 };
-use hyperswitch_interfaces::api::Connector as ConnectorTrait;
 #[cfg(feature = "v2")]
-use hyperswitch_interfaces::connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2};
+use hyperswitch_interfaces::{api::Connector as ConnectorTrait, connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2}};
 use hyperswitch_masking::ExposeInterface;
 #[cfg(feature = "v1")]
 use hyperswitch_masking::Mask;
 
 #[cfg(feature = "v2")]
-use crate::core::payments::{customers, gateway::context as gateway_context, helpers};
+use crate::core::{
+    payments::{customers, gateway::context as gateway_context, helpers},
+    utils as core_utils,
+};
 use crate::{
     core::{
         errors::{self, RouterResult},
@@ -31,12 +33,10 @@ use crate::{
             flows::{ConstructFlowSpecificData, Feature},
             operations::BoxedOperation,
             OperationSessionGetters, OperationSessionSetters,
-        },
-        utils as core_utils,
+        }
     },
-    db::errors::ConnectorErrorExt,
     routes::{app::ReqState, SessionState},
-    services::{self, connector_integration_interface::RouterDataConversion},
+    services,
     types::{
         self as router_types,
         api,
