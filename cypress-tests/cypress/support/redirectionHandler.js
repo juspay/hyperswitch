@@ -61,7 +61,8 @@ export function handleRedirection(
       threeDsRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
-        resolvedConnectorId
+        resolvedConnectorId,
+        paymentMethodType
       );
       break;
     case "upi":
@@ -1924,7 +1925,12 @@ function bankRedirectRedirection(
   });
 }
 
-function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
+function threeDsRedirection(
+  redirectionUrl,
+  expectedUrl,
+  connectorId,
+  paymentMethodType
+) {
   let responseContentType = null;
 
   // First check what type of response we get from the redirect URL
