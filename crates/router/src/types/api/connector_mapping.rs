@@ -301,6 +301,9 @@ impl ConnectorData {
                 enums::Connector::HyperswitchVault => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::HyperswitchVault)))
                 }
+                enums::Connector::Hyperswitchpeach => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Hyperswitchpeach::new())))
+                }
                 enums::Connector::Hyperpg => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Hyperpg::new())))
                 }
