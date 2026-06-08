@@ -12846,15 +12846,16 @@ async fn calculate_external_surcharge(
             )
             .await;
 
-            let surcharge_data = hyperswitch_domain_models::router_request_types::PaymentsSurchargeCalculationData {
-                amount: inputs.amount,
-                currency,
-                postal_code: inputs.postal_code,
-                card_iin,
-                previous_connector_surcharge_id,
-                country: inputs.billing_country,
-                surcharge_strategy: inputs.surcharge_strategy,
-            };
+            let surcharge_data =
+                hyperswitch_domain_models::router_request_types::PaymentsSurchargeCalculationData {
+                    amount: inputs.amount,
+                    currency,
+                    postal_code: inputs.postal_code,
+                    card_iin,
+                    previous_connector_surcharge_id,
+                    country: inputs.billing_country,
+                    surcharge_strategy: inputs.surcharge_strategy,
+                };
             let connector_name = surcharge_mca.connector_name.clone();
             let mca_type = helpers::MerchantConnectorAccountType::DbVal(Box::new(surcharge_mca));
 
