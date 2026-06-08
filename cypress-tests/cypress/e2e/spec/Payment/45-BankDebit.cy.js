@@ -318,34 +318,38 @@ describe("Bank Debit tests", () => {
       });
     });
   });
-});
-
-// Inespay SEPA Bank Debit — isolated top-level describe, runs only for Inespay
-describe("Inespay SEPA Bank Debit tests", () => {
-  let globalState;
-
-  before("seed global state", function () {
-    let skip = false;
-    cy.task("getGlobalState")
-      .then((state) => {
-        globalState = new State(state);
-        const connector = globalState.get("connectorId");
-        if (connector !== "inespay") {
-          skip = true;
-        }
-      })
-      .then(() => {
-        if (skip) {
-          this.skip();
-        }
-      });
-  });
-
-  afterEach("flush global state", () => {
-    cy.task("setGlobalState", globalState.data);
-  });
 
   context("Inespay SEPA Bank Debit Create, Confirm and Retrieve flow", () => {
+    let shouldContinue = true;
+
+    before("seed global state", function () {
+      let skip = false;
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          const connector = globalState.get("connectorId");
+          if (
+            shouldIncludeConnector(
+              connector,
+              CONNECTOR_LISTS.INCLUDE.INESPAY_BANK_SIMULATION
+            )
+          ) {
+            skip = true;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm SEPA -> Simulate Redirect -> Retrieve Payment", () => {
       let shouldContinue = true;
 
@@ -397,7 +401,11 @@ describe("Inespay SEPA Bank Debit tests", () => {
           cy.task("cli_log", "Skipping step: Simulate Inespay Redirect Flow");
           return;
         }
-        cy.handleInespayRedirectFlow(globalState);
+        cy.handleBankRedirectRedirection(
+          globalState,
+          "sepa",
+          fixtures.confirmBody["return_url"]
+        );
       });
 
       cy.step("Retrieve Payment", () => {

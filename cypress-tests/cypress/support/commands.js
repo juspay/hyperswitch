@@ -5102,6 +5102,11 @@ Cypress.Commands.add(
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
 
+    if (connectorId === "inespay") {
+      handleInespayRedirectFlow(nextActionUrl);
+      return;
+    }
+
     // explicitly restricting `sofort` payment method by adyen from running as it stops other tests from running
     // trying to handle that specific case results in stripe 3ds tests to fail
     if (!(connectorId == "adyen" && paymentMethodType == "sofort")) {
@@ -5197,6 +5202,11 @@ Cypress.Commands.add(
     const nextActionUrl = globalState.get("nextActionUrl");
 
     if (skipRedirectionInMockServer("handleWalletRedirection")) {
+      return;
+    }
+
+    if (connectorId === "globepay") {
+      handleGlobepayQR(nextActionUrl);
       return;
     }
 

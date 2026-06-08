@@ -389,7 +389,11 @@ describe("Wallet tests", () => {
           cy.task("cli_log", "Skipping step: Handle WeChatPay QR redirection");
           return;
         }
-        cy.handleGlobepayQRRedirection(globalState);
+        cy.handleWalletRedirection(
+          globalState,
+          "we_chat_pay",
+          fixtures.confirmBody["return_url"]
+        );
       });
 
       cy.step("Retrieve Payment", () => {
@@ -483,7 +487,11 @@ describe("Wallet tests", () => {
           cy.task("cli_log", "Skipping step: Handle AliPay QR code");
           return;
         }
-        cy.handleGlobepayQRRedirection(globalState);
+        cy.handleWalletRedirection(
+          globalState,
+          "ali_pay",
+          fixtures.confirmBody["return_url"]
+        );
       });
 
       cy.step("Retrieve Payment", () => {

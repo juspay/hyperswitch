@@ -45,7 +45,6 @@ export const connectorDetails = {
             we_chat_pay_qr: {},
           },
         },
-        capture_method: "automatic",
         customer_acceptance: null,
         billing: {
           address: {
@@ -72,7 +71,6 @@ export const connectorDetails = {
             ali_pay_qr: {},
           },
         },
-        capture_method: "automatic",
         customer_acceptance: null,
         billing: {
           address: {

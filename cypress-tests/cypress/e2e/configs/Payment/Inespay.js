@@ -26,7 +26,6 @@ export const connectorDetails = {
       };
       return {
         Request: {
-          currency: currencyMap[paymentMethodType] || "EUR",
           customer_acceptance: null,
           setup_future_usage: "on_session",
         },
