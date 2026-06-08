@@ -39,75 +39,69 @@ describe("Paze Wallet - Decrypt payment flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context(
-    "Paze wallet decrypt payment - Create and Confirm flow test",
-    () => {
-      it("Create Payment Intent -> Confirm Payment -> Retrieve Payment", () => {
-        let shouldContinue = true;
+  context("Paze wallet decrypt payment - Create and Confirm flow test", () => {
+    it("Create Payment Intent -> Confirm Payment -> Retrieve Payment", () => {
+      let shouldContinue = true;
 
-        cy.step("Create Payment Intent with Paze wallet", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "wallet_pm"
-          ]["PaymentIntent"]("Paze");
+      cy.step("Create Payment Intent with Paze wallet", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["PaymentIntent"]("Paze");
 
-          cy.createPaymentIntentTest(
-            fixtures.createPaymentBody,
-            data,
-            "no_three_ds",
-            "automatic",
-            globalState
-          );
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
 
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("Confirm Paze Wallet Payment", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Confirm Payment");
-            return;
-          }
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "wallet_pm"
-          ]["PazeDecrypt"];
-
-          cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("Retrieve Payment", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Retrieve Payment");
-            return;
-          }
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "wallet_pm"
-          ]["PazeDecrypt"];
-
-          cy.retrievePaymentCallTest({ globalState, data });
-        });
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
       });
-    }
-  );
+
+      cy.step("Confirm Paze Wallet Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["PazeDecrypt"];
+
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "wallet_pm"
+        ]["PazeDecrypt"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+    });
+  });
 
   context(
     "Paze wallet decrypt payment - Missing complete_response should error",
     () => {
       it("Confirm Paze payment with missing complete_response should fail", () => {
-        cy.step(
-          "Create Payment Intent with Paze wallet missing data",
-          () => {
-            const data = getConnectorDetails(globalState.get("connectorId"))[
-              "wallet_pm"
-            ]["PazeDecryptInvalid"];
+        cy.step("Create Payment Intent with Paze wallet missing data", () => {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "wallet_pm"
+          ]["PazeDecryptInvalid"];
 
-            cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-          }
-        );
+          cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+        });
       });
     }
   );

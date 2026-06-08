@@ -2,7 +2,11 @@ import {
   connectorDetails as commonConnectorDetails,
   customerAcceptance,
 } from "./Commons";
-import { getCustomExchange, getIframeRedirectionConfig, getCurrency } from "./Modifiers";
+import {
+  getCustomExchange,
+  getIframeRedirectionConfig,
+  getCurrency,
+} from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",

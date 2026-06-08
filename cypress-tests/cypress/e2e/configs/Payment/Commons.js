@@ -1476,7 +1476,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "Selected payment method through the connector is not implemented",
+            message:
+              "Selected payment method through the connector is not implemented",
             code: "IR_00",
           },
         },
