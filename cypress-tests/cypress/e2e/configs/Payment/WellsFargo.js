@@ -1,4 +1,5 @@
 import { customerAcceptance } from "./Commons";
+import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
@@ -647,6 +648,46 @@ export const connectorDetails = {
     },
   },
   bank_debit_pm: {
-    // Uses Commons.js defaults for Ach and AchMandate
+    PaymentIntent: (paymentMethodType) => {
+      const currencyMap = { Ach: "USD" };
+      return {
+        Request: {
+          currency: currencyMap[paymentMethodType] || "USD",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+    Ach: getCustomExchange({
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "ach",
+        payment_method_data: {
+          bank_debit: {
+            ach_bank_debit: {
+              account_number: "000123456789",
+              routing_number: "110000000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            country: "US",
+            first_name: "Test",
+            last_name: "Account",
+          },
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: { status: "processing" },
+      },
+    }),
   },
 };
