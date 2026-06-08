@@ -15,12 +15,12 @@ use serde::{Deserialize, Serialize};
 use crate::types::{RefundsResponseRouterData, ResponseRouterData};
 
 //TODO: Fill the struct with respective fields
-pub struct NextivaRouterData<T> {
+pub struct PayconexRouterData<T> {
     pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> From<(StringMinorUnit, T)> for NextivaRouterData<T> {
+impl<T> From<(StringMinorUnit, T)> for PayconexRouterData<T> {
     fn from((amount, item): (StringMinorUnit, T)) -> Self {
         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
@@ -32,13 +32,13 @@ impl<T> From<(StringMinorUnit, T)> for NextivaRouterData<T> {
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, PartialEq)]
-pub struct NextivaPaymentsRequest {
+pub struct PayconexPaymentsRequest {
     amount: StringMinorUnit,
-    card: NextivaCard,
+    card: PayconexCard,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct NextivaCard {
+pub struct PayconexCard {
     number: cards::CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
@@ -46,10 +46,10 @@ pub struct NextivaCard {
     complete: bool,
 }
 
-impl TryFrom<&NextivaRouterData<&PaymentsAuthorizeRouterData>> for NextivaPaymentsRequest {
+impl TryFrom<&PayconexRouterData<&PaymentsAuthorizeRouterData>> for PayconexPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &NextivaRouterData<&PaymentsAuthorizeRouterData>,
+        item: &PayconexRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
@@ -63,13 +63,13 @@ impl TryFrom<&NextivaRouterData<&PaymentsAuthorizeRouterData>> for NextivaPaymen
 
 //TODO: Fill the struct with respective fields
 // Auth Struct
-pub struct NextivaAuthType {
+pub struct PayconexAuthType {
     pub(super) api_key: Secret<String>,
     #[allow(dead_code)]
     pub(super) account_id: Secret<String>,
 }
 
-impl TryFrom<&ConnectorAuthType> for NextivaAuthType {
+impl TryFrom<&ConnectorAuthType> for PayconexAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
@@ -87,36 +87,36 @@ impl TryFrom<&ConnectorAuthType> for NextivaAuthType {
 //TODO: Append the remaining status flags
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub enum NextivaPaymentStatus {
+pub enum PayconexPaymentStatus {
     Succeeded,
     Failed,
     #[default]
     Processing,
 }
 
-impl From<NextivaPaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: NextivaPaymentStatus) -> Self {
+impl From<PayconexPaymentStatus> for common_enums::AttemptStatus {
+    fn from(item: PayconexPaymentStatus) -> Self {
         match item {
-            NextivaPaymentStatus::Succeeded => Self::Charged,
-            NextivaPaymentStatus::Failed => Self::Failure,
-            NextivaPaymentStatus::Processing => Self::Authorizing,
+            PayconexPaymentStatus::Succeeded => Self::Charged,
+            PayconexPaymentStatus::Failed => Self::Failure,
+            PayconexPaymentStatus::Processing => Self::Authorizing,
         }
     }
 }
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct NextivaPaymentsResponse {
-    status: NextivaPaymentStatus,
+pub struct PayconexPaymentsResponse {
+    status: PayconexPaymentStatus,
     id: String,
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, NextivaPaymentsResponse, T, PaymentsResponseData>>
+impl<F, T> TryFrom<ResponseRouterData<F, PayconexPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, NextivaPaymentsResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<F, PayconexPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: common_enums::AttemptStatus::from(item.response.status),
@@ -141,13 +141,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, NextivaPaymentsResponse, T, PaymentsRes
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
-pub struct NextivaRefundRequest {
+pub struct PayconexRefundRequest {
     pub amount: StringMinorUnit,
 }
 
-impl<F> TryFrom<&NextivaRouterData<&RefundsRouterData<F>>> for NextivaRefundRequest {
+impl<F> TryFrom<&PayconexRouterData<&RefundsRouterData<F>>> for PayconexRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &NextivaRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
+    fn try_from(item: &PayconexRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.amount.to_owned(),
         })
@@ -215,7 +215,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct NextivaErrorResponse {
+pub struct PayconexErrorResponse {
     pub status_code: u16,
     pub code: String,
     pub message: String,

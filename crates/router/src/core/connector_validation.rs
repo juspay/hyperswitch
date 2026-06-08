@@ -653,8 +653,8 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 paytm::transformers::PaytmAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            api_enums::Connector::Nextiva => {
-                nextiva::transformers::NextivaAuthType::try_from(self.auth_type)?;
+            api_enums::Connector::Payconex => {
+                payconex::transformers::PayconexAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Finix => {

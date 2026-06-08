@@ -8586,7 +8586,7 @@ merchant_secret="Source verification key"
 [interpayments.connector_auth.HeaderKey]
 api_key = "API Key"
 
-[nextiva]
-[nextiva.connector_auth.BodyKey]
+[payconex]
+[payconex.connector_auth.BodyKey]
 api_key = "API Key"
 key1 = "Account Id"

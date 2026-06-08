@@ -43,16 +43,16 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use hyperswitch_masking::{ExposeInterface, Mask};
-use transformers as nextiva;
+use transformers as payconex;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
-pub struct Nextiva {
+pub struct Payconex {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
-impl Nextiva {
+impl Payconex {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMinorUnitForConnector,
@@ -60,26 +60,26 @@ impl Nextiva {
     }
 }
 
-impl api::Payment for Nextiva {}
-impl api::PaymentSession for Nextiva {}
-impl api::ConnectorAccessToken for Nextiva {}
-impl api::MandateSetup for Nextiva {}
-impl api::PaymentAuthorize for Nextiva {}
-impl api::PaymentSync for Nextiva {}
-impl api::PaymentCapture for Nextiva {}
-impl api::PaymentVoid for Nextiva {}
-impl api::Refund for Nextiva {}
-impl api::RefundExecute for Nextiva {}
-impl api::RefundSync for Nextiva {}
-impl api::PaymentToken for Nextiva {}
+impl api::Payment for Payconex {}
+impl api::PaymentSession for Payconex {}
+impl api::ConnectorAccessToken for Payconex {}
+impl api::MandateSetup for Payconex {}
+impl api::PaymentAuthorize for Payconex {}
+impl api::PaymentSync for Payconex {}
+impl api::PaymentCapture for Payconex {}
+impl api::PaymentVoid for Payconex {}
+impl api::Refund for Payconex {}
+impl api::RefundExecute for Payconex {}
+impl api::RefundSync for Payconex {}
+impl api::PaymentToken for Payconex {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Nextiva
+    for Payconex
 {
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Nextiva
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Payconex
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -99,13 +99,13 @@ where
     }
 }
 
-impl ConnectorCommon for Nextiva {
+impl ConnectorCommon for Payconex {
     fn id(&self) -> &'static str {
-        "nextiva"
+        "payconex"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        // PayConex (nextiva) processes amounts in base (major) units. Never invoked on the
+        // PayConex (payconex) processes amounts in base (major) units. Never invoked on the
         // HS side for this UCS-only connector, but must return a valid value (no todo!()).
         api::CurrencyUnit::Base
     }
@@ -115,7 +115,7 @@ impl ConnectorCommon for Nextiva {
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.nextiva.base_url.as_ref()
+        connectors.payconex.base_url.as_ref()
     }
 
     fn get_auth_header(
@@ -123,7 +123,7 @@ impl ConnectorCommon for Nextiva {
         auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
     {
-        let auth = nextiva::NextivaAuthType::try_from(auth_type)
+        let auth = payconex::PayconexAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -136,9 +136,9 @@ impl ConnectorCommon for Nextiva {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: nextiva::NextivaErrorResponse = res
+        let response: payconex::PayconexErrorResponse = res
             .response
-            .parse_struct("NextivaErrorResponse")
+            .parse_struct("PayconexErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -160,7 +160,7 @@ impl ConnectorCommon for Nextiva {
     }
 }
 
-impl ConnectorValidation for Nextiva {
+impl ConnectorValidation for Payconex {
     fn validate_mandate_payment(
         &self,
         _pm_type: Option<enums::PaymentMethodType>,
@@ -186,15 +186,15 @@ impl ConnectorValidation for Nextiva {
     }
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Nextiva {
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Payconex {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Nextiva {}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Payconex {}
 
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Nextiva {}
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Payconex {}
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Nextiva {
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Payconex {
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
@@ -227,8 +227,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
 
-        let connector_router_data = nextiva::NextivaRouterData::from((amount, req));
-        let connector_req = nextiva::NextivaPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_router_data = payconex::PayconexRouterData::from((amount, req));
+        let connector_req = payconex::PayconexPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -260,9 +260,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: nextiva::NextivaPaymentsResponse = res
+        let response: payconex::PayconexPaymentsResponse = res
             .response
-            .parse_struct("Nextiva PaymentsAuthorizeResponse")
+            .parse_struct("Payconex PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -282,7 +282,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nextiva {
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Payconex {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -325,9 +325,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nex
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: nextiva::NextivaPaymentsResponse = res
+        let response: payconex::PayconexPaymentsResponse = res
             .response
-            .parse_struct("nextiva PaymentsSyncResponse")
+            .parse_struct("payconex PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -347,7 +347,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nex
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Nextiva {
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Payconex {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
@@ -403,9 +403,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: nextiva::NextivaPaymentsResponse = res
+        let response: payconex::PayconexPaymentsResponse = res
             .response
-            .parse_struct("Nextiva PaymentsCaptureResponse")
+            .parse_struct("Payconex PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -425,9 +425,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Nextiva {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Payconex {}
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nextiva {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payconex {
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
@@ -460,8 +460,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nextiva
             req.request.currency,
         )?;
 
-        let connector_router_data = nextiva::NextivaRouterData::from((refund_amount, req));
-        let connector_req = nextiva::NextivaRefundRequest::try_from(&connector_router_data)?;
+        let connector_router_data = payconex::PayconexRouterData::from((refund_amount, req));
+        let connector_req = payconex::PayconexRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -490,9 +490,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nextiva
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: nextiva::RefundResponse = res
+        let response: payconex::RefundResponse = res
             .response
-            .parse_struct("nextiva RefundResponse")
+            .parse_struct("payconex RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -512,7 +512,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nextiva
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Nextiva {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payconex {
     fn get_headers(
         &self,
         req: &RefundSyncRouterData,
@@ -558,9 +558,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Nextiva {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: nextiva::RefundResponse = res
+        let response: payconex::RefundResponse = res
             .response
-            .parse_struct("nextiva RefundSyncResponse")
+            .parse_struct("payconex RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -581,7 +581,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Nextiva {
 }
 
 #[async_trait::async_trait]
-impl webhooks::IncomingWebhook for Nextiva {
+impl webhooks::IncomingWebhook for Payconex {
     fn get_webhook_object_reference_id(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -606,28 +606,28 @@ impl webhooks::IncomingWebhook for Nextiva {
     }
 }
 
-static NEXTIVA_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+static PAYCONEX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(SupportedPaymentMethods::new);
 
-static NEXTIVA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "Nextiva",
-    description: "Nextiva connector",
+static PAYCONEX_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Payconex",
+    description: "Payconex connector",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
     integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
-static NEXTIVA_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+static PAYCONEX_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
-impl ConnectorSpecifications for Nextiva {
+impl ConnectorSpecifications for Payconex {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&NEXTIVA_CONNECTOR_INFO)
+        Some(&PAYCONEX_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&*NEXTIVA_SUPPORTED_PAYMENT_METHODS)
+        Some(&*PAYCONEX_SUPPORTED_PAYMENT_METHODS)
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&NEXTIVA_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&PAYCONEX_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

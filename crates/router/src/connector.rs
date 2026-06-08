@@ -32,7 +32,7 @@ pub use hyperswitch_connectors::connectors::{
     katapult, katapult::Katapult, klarna, klarna::Klarna, loonio, loonio::Loonio, mifinity,
     mifinity::Mifinity, mollie, mollie::Mollie, moneris, moneris::Moneris, mpgs, mpgs::Mpgs,
     multisafepay, multisafepay::Multisafepay, netcetera, netcetera::Netcetera, nexinets,
-    nexinets::Nexinets, nexixpay, nexixpay::Nexixpay, nextiva, nextiva::Nextiva, nmi, nmi::Nmi,
+    nexinets::Nexinets, nexixpay, nexixpay::Nexixpay, payconex, payconex::Payconex, nmi, nmi::Nmi,
     nomupay, nomupay::Nomupay, noon, noon::Noon, nordea, nordea::Nordea, novalnet,
     novalnet::Novalnet, nuvei, nuvei::Nuvei, opayo, opayo::Opayo, opennode, opennode::Opennode,
     paybox, paybox::Paybox, payeezy, payeezy::Payeezy, payjustnow, payjustnow::Payjustnow,

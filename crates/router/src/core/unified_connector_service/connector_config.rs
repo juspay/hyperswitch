@@ -150,8 +150,8 @@ pub enum ConnectorSpecificConfig {
     },
     /// Revolv3 connector configuration
     Revolv3 { api_key: Secret<String> },
-    /// Nextiva connector configuration
-    Nextiva {
+    /// Payconex connector configuration
+    Payconex {
         api_key: Secret<String>,
         account_id: Secret<String>,
         base_url: Option<String>,
@@ -1445,13 +1445,13 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("AbsaSanlam requires BodyKey auth type")),
             },
-            Connector::Nextiva => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Nextiva {
+            Connector::Payconex => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payconex {
                     api_key: api_key.clone(),
                     account_id: key1.clone(),
                     base_url: None,
                 }),
-                _ => Err(err("Nextiva requires BodyKey auth type")),
+                _ => Err(err("Payconex requires BodyKey auth type")),
             },
             // --- Unsupported connectors ---
             _ => Err(

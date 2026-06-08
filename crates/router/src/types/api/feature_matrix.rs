@@ -281,8 +281,8 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Paytm => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paytm::new())))
                 }
-                enums::Connector::Nextiva => {
-                    Ok(ConnectorEnum::Old(Box::new(connector::Nextiva::new())))
+                enums::Connector::Payconex => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Payconex::new())))
                 }
                 // "payeezy" => Ok(ConnectorIntegrationEnum::Old(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
                 // enums::Connector::Payload => {

@@ -79,7 +79,7 @@ pub mod multisafepay;
 pub mod netcetera;
 pub mod nexinets;
 pub mod nexixpay;
-pub mod nextiva;
+pub mod payconex;
 pub mod nmi;
 pub mod nomupay;
 pub mod noon;
@@ -170,7 +170,7 @@ pub use self::{
     interpayments::Interpayments, itaubank::Itaubank, jpmorgan::Jpmorgan,
     juspaythreedsserver::Juspaythreedsserver, katapult::Katapult, klarna::Klarna, loonio::Loonio,
     mifinity::Mifinity, mollie::Mollie, moneris::Moneris, mpgs::Mpgs, multisafepay::Multisafepay,
-    netcetera::Netcetera, nexinets::Nexinets, nexixpay::Nexixpay, nextiva::Nextiva, nmi::Nmi,
+    netcetera::Netcetera, nexinets::Nexinets, nexixpay::Nexixpay, payconex::Payconex, nmi::Nmi,
     nomupay::Nomupay, noon::Noon, nordea::Nordea, novalnet::Novalnet, nuvei::Nuvei, opayo::Opayo,
     opennode::Opennode, paybox::Paybox, payeezy::Payeezy, payjustnow::Payjustnow,
     payjustnowinstore::Payjustnowinstore, payload::Payload, payme::Payme, payone::Payone,

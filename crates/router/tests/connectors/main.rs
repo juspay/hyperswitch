@@ -81,7 +81,7 @@ mod multisafepay;
 mod netcetera;
 mod nexinets;
 mod nexixpay;
-mod nextiva;
+mod payconex;
 mod nmi;
 mod nomupay;
 mod noon;
