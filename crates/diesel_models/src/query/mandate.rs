@@ -2,11 +2,18 @@ use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, T
 use error_stack::report;
 
 use super::generics;
-use crate::{errors, mandate::*, schema::mandate::dsl, PgPooledConn, StorageResult};
+use crate::{errors, kv, mandate::*, schema::mandate::dsl, PgPooledConn, StorageResult};
 
 impl MandateNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Mandate> {
         generics::generic_insert(conn, self).await
+    }
+
+    pub async fn generate_drainer_insert_query(
+        self,
+        conn: &mut PgPooledConn,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_insert_query(conn, self).await
     }
 }
 
@@ -102,5 +109,23 @@ impl Mandate {
             report!(errors::DatabaseError::NotFound)
                 .attach_printable("Error while updating mandate")
         })
+    }
+}
+
+impl MandateUpdateInternal {
+    pub async fn generate_drainer_update_query(
+        self,
+        conn: &mut PgPooledConn,
+        merchant_id: common_utils::id_type::MerchantId,
+        mandate_id: String,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_update_query_with_predicate::<<Mandate as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id)
+                .and(dsl::mandate_id.eq(mandate_id)),
+            self,
+        )
+        .await
     }
 }

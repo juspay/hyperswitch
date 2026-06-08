@@ -8,7 +8,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData, payments::PaymentConfirmData,
+    mandates, payment_method_data::PaymentMethodData, payments::PaymentConfirmData,
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::PeekInterface;
@@ -61,7 +61,8 @@ impl ValidateStatusForOperation for ExternalVaultProxyPaymentIntent {
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::PartiallyCapturedAndProcessing
-            | common_enums::IntentStatus::Expired => {
+            | common_enums::IntentStatus::Expired
+            | common_enums::IntentStatus::Review => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
                     field_name: "status".to_string(),
@@ -270,11 +271,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ExternalVaultP
         );
 
         // TODO: Implement external vault specific mandate data handling
-        let mandate_data_input = api_models::payments::MandateIds {
+        let mandate_data_input = mandates::MandateIds {
             mandate_id: None,
             mandate_reference_id: processor_payment_token.map(|token| {
-                api_models::payments::MandateReferenceId::ConnectorMandateId(
-                    api_models::payments::ConnectorMandateReferenceId::new(
+                mandates::MandateReferenceId::ConnectorMandateId(
+                    mandates::ConnectorMandateReferenceId::new(
                         Some(token),
                         None,
                         None,
@@ -381,7 +382,6 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                     customer_id: Some(customer_id),
                     payment_method_data,
                     billing,
-                    psp_tokenization: None,
                     network_tokenization: None,
                     storage_type: common_enums::StorageType::Persistent, //this field is currently not being used in storing payment methods via external vault
                 };
@@ -519,7 +519,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ExternalVaultProxy
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntent {
                 status: intent_status,
                 updated_by: storage_scheme.to_string(),
-                active_attempt_id: Some(payment_data.payment_attempt.id.clone()),
+                active_attempt_id: Some(payment_data.payment_attempt.id.clone())
             };
 
         let authentication_type = payment_data

@@ -28,6 +28,7 @@ pub use crate::PaymentMethodType;
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum Connector {
+    AbsaSanlam,
     Authipay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
@@ -123,6 +124,7 @@ pub enum Connector {
     Hyperpg,
     HyperswitchVault,
     // Hyperwallet, added as template code for future usage
+    Interpayments,
     Inespay,
     Iatapay,
     Imerchantsolutions,
@@ -168,7 +170,6 @@ pub enum Connector {
     Recurly,
     Redsys,
     Revolv3,
-    Sanlam,
     Santander,
     Shift4,
     Silverflow,
@@ -285,7 +286,7 @@ impl Connector {
     pub fn requires_order_creation_before_payment(self, payment_method: PaymentMethod) -> bool {
         matches!(
             (self, payment_method),
-            (Self::Razorpay, PaymentMethod::Upi) | (Self::Airwallex, _) //ordercreation required for all flows in airwallex
+            (Self::Razorpay, _) | (Self::Airwallex, _)
         )
     }
     pub fn supports_file_storage_module(self) -> bool {
@@ -308,6 +309,7 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
+            | Self::AbsaSanlam
 			| Self::Authipay
             | Self::Affirm
             | Self::Adyenplatform
@@ -392,7 +394,6 @@ impl Connector {
             | Self::Recurly
             | Self::Redsys
             | Self::Revolv3
-            | Self::Sanlam
             | Self::Santander
             | Self::Shift4
             | Self::Silverflow
@@ -400,6 +401,7 @@ impl Connector {
             | Self::Stax
             | Self::Stripebilling
             | Self::Taxjar
+            | Self::Interpayments
             | Self::Tesouro
             // | Self::Thunes
             | Self::Truelayer

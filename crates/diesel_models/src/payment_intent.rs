@@ -88,6 +88,7 @@ pub struct PaymentIntent {
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub state_metadata: Option<PaymentIntentStateMetadata>,
     pub installment_options: Option<common_types::payments::InstallmentOptions>,
+    pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -199,6 +200,7 @@ pub struct PaymentIntent {
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub state_metadata: Option<PaymentIntentStateMetadata>,
     pub installment_options: Option<common_types::payments::InstallmentOptions>,
+    pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -259,6 +261,8 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub is_setup_mandate_flow: Option<bool>,
     /// Hex color for the CVC icon during error state
     pub color_icon_card_cvc_error: Option<String>,
+    /// Flag to display the merchant name in the payment link
+    pub show_merchant_name: Option<bool>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(PaymentLinkConfigRequestForPayments);
@@ -414,6 +418,7 @@ pub struct PaymentIntentNew {
     pub active_attempt_id_type: Option<common_enums::ActiveAttemptIDType>,
     pub state_metadata: Option<PaymentIntentStateMetadata>,
     pub installment_options: Option<common_types::payments::InstallmentOptions>,
+    pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
 }
 
 #[cfg(feature = "v1")]
@@ -505,6 +510,7 @@ pub struct PaymentIntentNew {
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub state_metadata: Option<PaymentIntentStateMetadata>,
     pub installment_options: Option<common_types::payments::InstallmentOptions>,
+    pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
 }
 
 #[cfg(feature = "v2")]
@@ -515,6 +521,7 @@ pub enum PaymentIntentUpdate {
         status: storage_enums::IntentStatus,
         active_attempt_id: common_utils::id_type::GlobalAttemptId,
         updated_by: String,
+        profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
     },
     /// Update the payment intent details on payment intent confirmation, after calling the connector
     ConfirmIntentPostUpdate {
@@ -642,6 +649,7 @@ pub struct PaymentIntentUpdateFields {
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub payment_channel: Option<Option<common_enums::PaymentChannel>>,
+    pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
 }
 
 #[cfg(feature = "v1")]
@@ -687,6 +695,7 @@ pub struct PaymentIntentUpdateFields {
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub shipping_cost: Option<MinorUnit>,
     pub installment_options: Option<common_types::payments::InstallmentOptions>,
+    pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
 }
 
 // TODO: uncomment fields as necessary
@@ -735,6 +744,7 @@ pub struct PaymentIntentUpdateInternal {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
     pub state_metadata: Option<PaymentIntentStateMetadata>,
+    pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
 }
 
 #[cfg(feature = "v2")]
@@ -782,6 +792,7 @@ impl PaymentIntentUpdateInternal {
             is_iframe_redirection_enabled,
             enable_partial_authorization,
             state_metadata,
+            profile_acquirer_id,
         } = self;
 
         PaymentIntent {
@@ -828,6 +839,7 @@ impl PaymentIntentUpdateInternal {
             frm_metadata: frm_metadata.or(source.frm_metadata),
             request_external_three_ds_authentication: request_external_three_ds_authentication
                 .or(source.request_external_three_ds_authentication),
+            profile_acquirer_id: profile_acquirer_id.or(source.profile_acquirer_id),
             updated_by,
             force_3ds_challenge: force_3ds_challenge.or(source.force_3ds_challenge),
             is_iframe_redirection_enabled: is_iframe_redirection_enabled
@@ -930,6 +942,7 @@ pub struct PaymentIntentUpdateInternal {
     pub shipping_cost: Option<MinorUnit>,
     pub state_metadata: Option<PaymentIntentStateMetadata>,
     pub installment_options: Option<common_types::payments::InstallmentOptions>,
+    pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
 }
 
 #[cfg(feature = "v1")]
@@ -985,6 +998,9 @@ impl PaymentIntentUpdate {
             enable_partial_authorization,
             enable_overcapture,
             shipping_cost,
+            state_metadata: _,
+            installment_options: _,
+            profile_acquirer_id,
             ..
         } = self.into();
         PaymentIntent {
@@ -1048,6 +1064,7 @@ impl PaymentIntentUpdate {
                 .or(source.enable_partial_authorization),
             enable_overcapture: enable_overcapture.or(source.enable_overcapture),
             shipping_cost: shipping_cost.or(source.shipping_cost),
+            profile_acquirer_id: profile_acquirer_id.or(source.profile_acquirer_id),
             ..source
         }
     }
@@ -1113,6 +1130,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
             },
             PaymentIntentUpdate::StateMetadataUpdate {
                 state_metadata,
@@ -1168,6 +1186,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
                 installment_options: None,
             },
             PaymentIntentUpdate::Update(value) => Self {
@@ -1223,6 +1242,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_cost: value.shipping_cost,
                 state_metadata: None,
                 installment_options: value.installment_options,
+                profile_acquirer_id: value.profile_acquirer_id,
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
                 return_url,
@@ -1284,6 +1304,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
             },
             PaymentIntentUpdate::PGStatusUpdate {
                 status,
@@ -1342,6 +1363,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
                 status,
@@ -1400,6 +1422,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
             },
             PaymentIntentUpdate::ResponseUpdate {
                 // amount,
@@ -1466,6 +1489,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -1523,6 +1547,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
             },
             PaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
@@ -1581,6 +1606,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
             },
             PaymentIntentUpdate::ApproveUpdate {
                 status,
@@ -1638,6 +1664,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
             },
             PaymentIntentUpdate::RejectUpdate {
                 status,
@@ -1695,6 +1722,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
             },
             PaymentIntentUpdate::SurchargeApplicableUpdate {
                 surcharge_applicable,
@@ -1751,6 +1779,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
             },
             PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
                 amount: Some(amount),
@@ -1804,6 +1833,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
             },
             PaymentIntentUpdate::AuthorizationCountUpdate {
                 authorization_count,
@@ -1859,6 +1889,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
             },
             PaymentIntentUpdate::CompleteAuthorizeUpdate {
                 shipping_address_id,
@@ -1914,6 +1945,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
             },
             PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
                 status,
@@ -1967,6 +1999,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
             },
             PaymentIntentUpdate::SessionResponseUpdate {
                 tax_details,
@@ -2025,6 +2058,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
             },
             PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => Self {
                 status: Some(status),
@@ -2078,6 +2112,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                profile_acquirer_id: None,
             },
         }
     }

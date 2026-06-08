@@ -1,3 +1,4 @@
+pub mod absa_sanlam;
 pub mod aci;
 pub mod adyen;
 pub mod adyenplatform;
@@ -64,6 +65,7 @@ pub mod hyperwallet;
 pub mod iatapay;
 pub mod imerchantsolutions;
 pub mod inespay;
+pub mod interpayments;
 pub mod itaubank;
 pub mod jpmorgan;
 pub mod juspaythreedsserver;
@@ -110,7 +112,6 @@ pub mod recurly;
 pub mod redsys;
 pub mod revolv3;
 pub mod riskified;
-pub mod sanlam;
 pub mod santander;
 pub mod shift4;
 pub mod sift;
@@ -149,10 +150,10 @@ pub mod zsl;
 #[cfg(feature = "dummy_connector")]
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
-    aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, affirm::Affirm, airwallex::Airwallex,
-    amazonpay::Amazonpay, archipel::Archipel, authipay::Authipay, authorizedotnet::Authorizedotnet,
-    bambora::Bambora, bamboraapac::Bamboraapac, bankofamerica::Bankofamerica,
-    barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay,
+    absa_sanlam::AbsaSanlam, aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, affirm::Affirm,
+    airwallex::Airwallex, amazonpay::Amazonpay, archipel::Archipel, authipay::Authipay,
+    authorizedotnet::Authorizedotnet, bambora::Bambora, bamboraapac::Bamboraapac,
+    bankofamerica::Bankofamerica, barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay,
     blackhawknetwork::Blackhawknetwork, bluesnap::Bluesnap, boku::Boku, braintree::Braintree,
     breadpay::Breadpay, calida::Calida, cashtocode::Cashtocode, celero::Celero,
     chargebee::Chargebee, checkbook::Checkbook, checkout::Checkout, coinbase::Coinbase,
@@ -166,7 +167,7 @@ pub use self::{
     globepay::Globepay, gocardless::Gocardless, gpayments::Gpayments, helcim::Helcim, hipay::Hipay,
     hyperpg::Hyperpg, hyperswitch::Hyperswitch, hyperswitch_vault::HyperswitchVault,
     hyperwallet::Hyperwallet, iatapay::Iatapay, imerchantsolutions::Imerchantsolutions,
-    inespay::Inespay, itaubank::Itaubank, jpmorgan::Jpmorgan,
+    inespay::Inespay, interpayments::Interpayments, itaubank::Itaubank, jpmorgan::Jpmorgan,
     juspaythreedsserver::Juspaythreedsserver, katapult::Katapult, klarna::Klarna, loonio::Loonio,
     mifinity::Mifinity, mollie::Mollie, moneris::Moneris, mpgs::Mpgs, multisafepay::Multisafepay,
     netcetera::Netcetera, nexinets::Nexinets, nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay,

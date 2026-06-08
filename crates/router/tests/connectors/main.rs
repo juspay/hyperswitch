@@ -6,6 +6,7 @@
 )]
 use test_utils::connector_auth;
 
+mod absa_sanlam;
 mod aci;
 mod adyen;
 mod adyenplatform;
@@ -67,6 +68,7 @@ mod hyperwallet;
 mod iatapay;
 mod imerchantsolutions;
 mod inespay;
+mod interpayments;
 mod itaubank;
 mod jpmorgan;
 mod juspaythreedsserver;
@@ -113,7 +115,6 @@ mod rapyd;
 mod razorpay;
 mod redsys;
 mod revolv3;
-mod sanlam;
 mod santander;
 mod shift4;
 mod sift;

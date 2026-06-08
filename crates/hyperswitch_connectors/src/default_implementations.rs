@@ -33,11 +33,11 @@ use hyperswitch_domain_models::{
         mandate_revoke::MandateRevoke,
         merchant_connector_webhook_management::ConnectorWebhookRegister,
         payments::{
-            Approve, AuthorizeSessionToken, CalculateTax, CompleteAuthorize,
-            CreateConnectorCustomer, CreateOrder, ExtendAuthorization, GenerateQr,
-            GiftCardBalanceCheck, IncrementalAuthorization, PostCaptureVoid, PostProcessing,
-            PostSessionTokens, PreProcessing, PushNotification, Reject, SdkSessionUpdate,
-            SettlementSplitCreate, UpdateMetadata,
+            Approve, AuthorizeSessionToken, CalculateSurcharge, CalculateTax, CompleteAuthorize,
+            CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer, CreateOrder,
+            ExtendAuthorization, GenerateQr, GiftCardBalanceCheck, IncrementalAuthorization,
+            PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, PushNotification,
+            Reject, SdkSessionUpdate, SettlementSplitCreate, UpdateMetadata,
         },
         subscriptions::{
             GetSubscriptionEstimate, GetSubscriptionItemPrices, GetSubscriptionItems,
@@ -68,13 +68,15 @@ use hyperswitch_domain_models::{
         DefendDisputeRequestData, DisputeSyncData, ExternalVaultProxyPaymentsData,
         FetchDisputesRequestData, GenerateQrRequestData, GiftCardBalanceCheckRequestData,
         MandateRevokeRequestData, PaymentsApproveData, PaymentsAuthenticateData,
-        PaymentsCancelPostCaptureData, PaymentsExtendAuthorizationData,
+        PaymentsCancelPostCaptureData, PaymentsCompleteRefundSurchrgeData,
+        PaymentsCompleteSurchargeData, PaymentsExtendAuthorizationData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
-        PaymentsPreProcessingData, PaymentsRejectData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, PushNotificationRequestData, RetrieveFileRequestData,
-        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSurchargeCalculationData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PushNotificationRequestData,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
+        SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
@@ -84,11 +86,12 @@ use hyperswitch_domain_models::{
             GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
             SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
-        AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
-        DisputeSyncResponse, FetchDisputesResponse, GiftCardBalanceCheckResponseData,
-        MandateRevokeResponseData, PaymentsResponseData, RetrieveFileResponse,
-        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
-        VerifyWebhookSourceResponseData,
+        AcceptDisputeResponse, AuthenticationResponseData, CompleteRefundSurchrgeResponseData,
+        CompleteSurchargeResponseData, DefendDisputeResponse, DisputeSyncResponse,
+        FetchDisputesResponse, GiftCardBalanceCheckResponseData, MandateRevokeResponseData,
+        PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
+        SurchargeCalculationResponseData, TaxCalculationResponseData, UploadFileResponse,
+        VaultResponseData, VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "frm")]
@@ -147,7 +150,8 @@ use hyperswitch_interfaces::{
             PaymentsCompleteAuthorize, PaymentsCreateOrder, PaymentsGenerateQr,
             PaymentsGiftCardBalanceCheck, PaymentsPostAuthenticate, PaymentsPostProcessing,
             PaymentsPreAuthenticate, PaymentsPreProcessing, PaymentsPushNotification,
-            PaymentsSettlementSplitCreate, TaxCalculation,
+            PaymentsSettlementSplitCreate, SurchargeCalculation, SurchargeComplete,
+            SurchargeRefund, TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
         subscriptions::{
@@ -183,6 +187,7 @@ macro_rules! default_imp_for_authorize_session_token {
 
 default_imp_for_authorize_session_token!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -246,6 +251,7 @@ default_imp_for_authorize_session_token!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -290,7 +296,6 @@ default_imp_for_authorize_session_token!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Shift4,
     connectors::Sift,
@@ -343,6 +348,7 @@ macro_rules! default_imp_for_payment_settlement_split_create {
 
 default_imp_for_payment_settlement_split_create!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -406,6 +412,7 @@ default_imp_for_payment_settlement_split_create!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -451,7 +458,6 @@ default_imp_for_payment_settlement_split_create!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -505,6 +511,7 @@ macro_rules! default_imp_for_calculate_tax {
 
 default_imp_for_calculate_tax!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -568,6 +575,7 @@ default_imp_for_calculate_tax!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -613,7 +621,6 @@ default_imp_for_calculate_tax!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -668,6 +675,7 @@ macro_rules! default_imp_for_session_update {
 default_imp_for_session_update!(
     connectors::Paysafe,
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -721,6 +729,7 @@ default_imp_for_session_update!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -732,7 +741,6 @@ default_imp_for_session_update!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -830,6 +838,7 @@ macro_rules! default_imp_for_post_session_tokens {
 default_imp_for_post_session_tokens!(
     connectors::Paysafe,
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -883,6 +892,7 @@ default_imp_for_post_session_tokens!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -894,7 +904,6 @@ default_imp_for_post_session_tokens!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -990,6 +999,7 @@ macro_rules! default_imp_for_create_order {
 }
 
 default_imp_for_create_order!(
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1042,6 +1052,7 @@ default_imp_for_create_order!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -1052,7 +1063,6 @@ default_imp_for_create_order!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -1148,6 +1158,7 @@ macro_rules! default_imp_for_update_metadata {
 }
 
 default_imp_for_update_metadata!(
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1201,6 +1212,7 @@ default_imp_for_update_metadata!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -1214,7 +1226,6 @@ default_imp_for_update_metadata!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Shift4,
     connectors::Sift,
     connectors::Silverflow,
@@ -1319,6 +1330,7 @@ macro_rules! default_imp_for_cancel_post_capture {
 }
 
 default_imp_for_cancel_post_capture!(
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1372,6 +1384,7 @@ default_imp_for_cancel_post_capture!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -1385,7 +1398,6 @@ default_imp_for_cancel_post_capture!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Santander,
     connectors::Shift4,
     connectors::Sift,
@@ -1482,10 +1494,10 @@ macro_rules! default_imp_for_complete_authorize {
 
 default_imp_for_complete_authorize!(
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Worldpaymodular,
     connectors::Silverflow,
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1537,6 +1549,7 @@ default_imp_for_complete_authorize!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -1621,6 +1634,7 @@ macro_rules! default_imp_for_incremental_authorization {
 default_imp_for_incremental_authorization!(
     connectors::Paysafe,
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1682,6 +1696,7 @@ default_imp_for_incremental_authorization!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -1725,7 +1740,6 @@ default_imp_for_incremental_authorization!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -1777,6 +1791,7 @@ macro_rules! default_imp_for_extend_authorization {
 }
 
 default_imp_for_extend_authorization!(
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Affirm,
@@ -1829,6 +1844,7 @@ default_imp_for_extend_authorization!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -1841,7 +1857,6 @@ default_imp_for_extend_authorization!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Santander,
     connectors::Shift4,
     connectors::Sift,
@@ -1940,6 +1955,7 @@ macro_rules! default_imp_for_create_customer {
 
 default_imp_for_create_customer!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -1995,6 +2011,7 @@ default_imp_for_create_customer!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -2037,7 +2054,6 @@ default_imp_for_create_customer!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -2097,6 +2113,7 @@ default_imp_for_connector_redirect_response!(
     connectors::Paysafe,
     connectors::Trustpayments,
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2150,6 +2167,7 @@ default_imp_for_connector_redirect_response!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -2185,7 +2203,6 @@ default_imp_for_connector_redirect_response!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -2233,7 +2250,7 @@ macro_rules! default_imp_for_pre_authenticate_steps{
 
 default_imp_for_pre_authenticate_steps!(
     connectors::Revolv3,
-    connectors::Sanlam,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2296,6 +2313,7 @@ default_imp_for_pre_authenticate_steps!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -2389,7 +2407,7 @@ macro_rules! default_imp_for_authenticate_steps{
 
 default_imp_for_authenticate_steps!(
     connectors::Revolv3,
-    connectors::Sanlam,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2452,6 +2470,7 @@ default_imp_for_authenticate_steps!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -2549,6 +2568,7 @@ macro_rules! default_imp_for_post_authenticate_steps{
 }
 
 default_imp_for_post_authenticate_steps!(
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2611,6 +2631,7 @@ default_imp_for_post_authenticate_steps!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -2654,7 +2675,6 @@ default_imp_for_post_authenticate_steps!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -2710,11 +2730,11 @@ macro_rules! default_imp_for_pre_processing_steps{
 
 default_imp_for_pre_processing_steps!(
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Zift,
     connectors::Trustpayments,
     connectors::Silverflow,
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Affirm,
@@ -2773,6 +2793,7 @@ default_imp_for_pre_processing_steps!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -2858,6 +2879,7 @@ macro_rules! default_imp_for_post_processing_steps{
 
 default_imp_for_post_processing_steps!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -2921,6 +2943,7 @@ default_imp_for_post_processing_steps!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -2965,7 +2988,6 @@ default_imp_for_post_processing_steps!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -3021,6 +3043,7 @@ macro_rules! default_imp_for_approve {
 
 default_imp_for_approve!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -3084,6 +3107,7 @@ default_imp_for_approve!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -3129,7 +3153,6 @@ default_imp_for_approve!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -3185,6 +3208,7 @@ macro_rules! default_imp_for_reject {
 
 default_imp_for_reject!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -3248,6 +3272,7 @@ default_imp_for_reject!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -3293,7 +3318,6 @@ default_imp_for_reject!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -3351,6 +3375,7 @@ default_imp_for_webhook_source_verification!(
     connectors::Trustly,
     connectors::Paysafe,
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -3414,6 +3439,7 @@ default_imp_for_webhook_source_verification!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -3457,7 +3483,6 @@ default_imp_for_webhook_source_verification!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -3512,6 +3537,7 @@ macro_rules! default_imp_for_accept_dispute {
 
 default_imp_for_accept_dispute!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Affirm,
@@ -3573,6 +3599,7 @@ default_imp_for_accept_dispute!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -3618,7 +3645,6 @@ default_imp_for_accept_dispute!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -3673,6 +3699,7 @@ macro_rules! default_imp_for_submit_evidence {
 
 default_imp_for_submit_evidence!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Affirm,
@@ -3734,6 +3761,7 @@ default_imp_for_submit_evidence!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -3779,7 +3807,6 @@ default_imp_for_submit_evidence!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -3833,6 +3860,7 @@ macro_rules! default_imp_for_defend_dispute {
 
 default_imp_for_defend_dispute!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Affirm,
@@ -3893,6 +3921,7 @@ default_imp_for_defend_dispute!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -3939,7 +3968,6 @@ default_imp_for_defend_dispute!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -3995,6 +4023,7 @@ macro_rules! default_imp_for_fetch_disputes {
 
 default_imp_for_fetch_disputes!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -4057,6 +4086,7 @@ default_imp_for_fetch_disputes!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -4103,7 +4133,6 @@ default_imp_for_fetch_disputes!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -4158,6 +4187,7 @@ macro_rules! default_imp_for_dispute_sync {
 
 default_imp_for_dispute_sync!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -4220,6 +4250,7 @@ default_imp_for_dispute_sync!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -4266,7 +4297,6 @@ default_imp_for_dispute_sync!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -4330,6 +4360,7 @@ macro_rules! default_imp_for_file_upload {
 
 default_imp_for_file_upload!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Affirm,
@@ -4391,6 +4422,7 @@ default_imp_for_file_upload!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -4436,7 +4468,6 @@ default_imp_for_file_upload!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -4486,6 +4517,7 @@ default_imp_for_payouts!(
     connectors::Paysafe,
     connectors::Affirm,
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Airwallex,
     connectors::Amazonpay,
@@ -4542,6 +4574,7 @@ default_imp_for_payouts!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -4581,7 +4614,6 @@ default_imp_for_payouts!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -4632,6 +4664,7 @@ macro_rules! default_imp_for_payouts_create {
 default_imp_for_payouts_create!(
     connectors::Paysafe,
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Affirm,
@@ -4691,6 +4724,7 @@ default_imp_for_payouts_create!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -4733,7 +4767,6 @@ default_imp_for_payouts_create!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -4790,6 +4823,7 @@ macro_rules! default_imp_for_payouts_retrieve {
 default_imp_for_payouts_retrieve!(
     connectors::Paysafe,
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -4852,6 +4886,7 @@ default_imp_for_payouts_retrieve!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -4893,7 +4928,6 @@ default_imp_for_payouts_retrieve!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -4948,6 +4982,7 @@ macro_rules! default_imp_for_payouts_eligibility {
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Affirm,
@@ -5009,6 +5044,7 @@ default_imp_for_payouts_eligibility!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -5053,7 +5089,6 @@ default_imp_for_payouts_eligibility!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -5113,6 +5148,7 @@ default_imp_for_payouts_fulfill!(
     connectors::Paysafe,
     connectors::Affirm,
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Airwallex,
     connectors::Amazonpay,
@@ -5169,6 +5205,7 @@ default_imp_for_payouts_fulfill!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -5208,7 +5245,6 @@ default_imp_for_payouts_fulfill!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -5260,6 +5296,7 @@ macro_rules! default_imp_for_payouts_cancel {
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Affirm,
@@ -5321,6 +5358,7 @@ default_imp_for_payouts_cancel!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -5365,7 +5403,6 @@ default_imp_for_payouts_cancel!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -5420,6 +5457,7 @@ macro_rules! default_imp_for_payouts_quote {
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -5481,6 +5519,7 @@ default_imp_for_payouts_quote!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -5525,7 +5564,6 @@ default_imp_for_payouts_quote!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -5582,6 +5620,7 @@ macro_rules! default_imp_for_payouts_recipient {
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -5644,6 +5683,7 @@ default_imp_for_payouts_recipient!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -5688,7 +5728,6 @@ default_imp_for_payouts_recipient!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -5743,6 +5782,7 @@ macro_rules! default_imp_for_payouts_recipient_account {
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient_account!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -5806,6 +5846,7 @@ default_imp_for_payouts_recipient_account!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -5850,7 +5891,6 @@ default_imp_for_payouts_recipient_account!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -5907,6 +5947,7 @@ macro_rules! default_imp_for_frm_sale {
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -5970,6 +6011,7 @@ default_imp_for_frm_sale!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -6015,7 +6057,6 @@ default_imp_for_frm_sale!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Santander,
     connectors::Shift4,
     connectors::Sift,
@@ -6071,6 +6112,7 @@ macro_rules! default_imp_for_frm_checkout {
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -6133,6 +6175,7 @@ default_imp_for_frm_checkout!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -6178,7 +6221,6 @@ default_imp_for_frm_checkout!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Santander,
     connectors::Shift4,
     connectors::Sift,
@@ -6234,6 +6276,7 @@ macro_rules! default_imp_for_frm_transaction {
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -6296,6 +6339,7 @@ default_imp_for_frm_transaction!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -6341,7 +6385,6 @@ default_imp_for_frm_transaction!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Santander,
     connectors::Shift4,
     connectors::Sift,
@@ -6397,6 +6440,7 @@ macro_rules! default_imp_for_frm_fulfillment {
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -6460,6 +6504,7 @@ default_imp_for_frm_fulfillment!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -6505,7 +6550,6 @@ default_imp_for_frm_fulfillment!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Santander,
     connectors::Shift4,
     connectors::Sift,
@@ -6561,6 +6605,7 @@ macro_rules! default_imp_for_frm_record_return {
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -6624,6 +6669,7 @@ default_imp_for_frm_record_return!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -6669,7 +6715,6 @@ default_imp_for_frm_record_return!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Santander,
     connectors::Shift4,
     connectors::Sift,
@@ -6722,6 +6767,7 @@ macro_rules! default_imp_for_revoking_mandates {
 
 default_imp_for_revoking_mandates!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -6783,6 +6829,7 @@ default_imp_for_revoking_mandates!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -6827,7 +6874,6 @@ default_imp_for_revoking_mandates!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -6881,6 +6927,7 @@ macro_rules! default_imp_for_uas_pre_authentication {
 
 default_imp_for_uas_pre_authentication!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -6945,6 +6992,7 @@ default_imp_for_uas_pre_authentication!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Katapult,
@@ -6989,7 +7037,6 @@ default_imp_for_uas_pre_authentication!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -7042,6 +7089,7 @@ macro_rules! default_imp_for_uas_webhook {
 
 default_imp_for_uas_webhook!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -7106,6 +7154,7 @@ default_imp_for_uas_webhook!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Katapult,
@@ -7150,7 +7199,6 @@ default_imp_for_uas_webhook!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -7203,6 +7251,7 @@ macro_rules! default_imp_for_uas_post_authentication {
 
 default_imp_for_uas_post_authentication!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -7267,6 +7316,7 @@ default_imp_for_uas_post_authentication!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Katapult,
@@ -7311,7 +7361,6 @@ default_imp_for_uas_post_authentication!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -7365,6 +7414,7 @@ macro_rules! default_imp_for_uas_authentication_confirmation {
 
 default_imp_for_uas_authentication_confirmation!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -7429,6 +7479,7 @@ default_imp_for_uas_authentication_confirmation!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Katapult,
@@ -7473,7 +7524,6 @@ default_imp_for_uas_authentication_confirmation!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -7519,6 +7569,7 @@ macro_rules! default_imp_for_connector_request_id {
 }
 default_imp_for_connector_request_id!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -7582,6 +7633,7 @@ default_imp_for_connector_request_id!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -7626,7 +7678,6 @@ default_imp_for_connector_request_id!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -7675,6 +7726,7 @@ macro_rules! default_imp_for_fraud_check {
 #[cfg(feature = "frm")]
 default_imp_for_fraud_check!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -7738,6 +7790,7 @@ default_imp_for_fraud_check!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -7783,7 +7836,6 @@ default_imp_for_fraud_check!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Santander,
     connectors::Shift4,
     connectors::Sift,
@@ -7860,6 +7912,7 @@ macro_rules! default_imp_for_connector_authentication {
 
 default_imp_for_connector_authentication!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -7923,6 +7976,7 @@ default_imp_for_connector_authentication!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -7967,7 +8021,6 @@ default_imp_for_connector_authentication!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -8019,6 +8072,7 @@ macro_rules! default_imp_for_uas_authentication {
 }
 default_imp_for_uas_authentication!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -8083,6 +8137,7 @@ default_imp_for_uas_authentication!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Katapult,
@@ -8127,7 +8182,6 @@ default_imp_for_uas_authentication!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -8173,6 +8227,7 @@ macro_rules! default_imp_for_revenue_recovery {
 
 default_imp_for_revenue_recovery!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -8237,6 +8292,7 @@ default_imp_for_revenue_recovery!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -8282,7 +8338,6 @@ default_imp_for_revenue_recovery!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -8388,6 +8443,7 @@ macro_rules! default_imp_for_subscriptions {
 
 default_imp_for_subscriptions!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -8451,6 +8507,7 @@ default_imp_for_subscriptions!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -8496,7 +8553,6 @@ default_imp_for_subscriptions!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -8551,6 +8607,7 @@ macro_rules! default_imp_for_billing_connector_payment_sync {
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_billing_connector_payment_sync!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -8615,6 +8672,7 @@ default_imp_for_billing_connector_payment_sync!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Juspaythreedsserver,
     connectors::Katapult,
@@ -8660,7 +8718,6 @@ default_imp_for_billing_connector_payment_sync!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -8708,6 +8765,7 @@ macro_rules! default_imp_for_revenue_recovery_record_back {
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_revenue_recovery_record_back!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -8771,6 +8829,7 @@ default_imp_for_revenue_recovery_record_back!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -8816,7 +8875,6 @@ default_imp_for_revenue_recovery_record_back!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -8870,6 +8928,7 @@ macro_rules! default_imp_for_billing_connector_invoice_sync {
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_billing_connector_invoice_sync!(
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -8934,6 +8993,7 @@ default_imp_for_billing_connector_invoice_sync!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Juspaythreedsserver,
     connectors::Katapult,
@@ -8979,7 +9039,6 @@ default_imp_for_billing_connector_invoice_sync!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Signifyd,
@@ -9027,6 +9086,7 @@ macro_rules! default_imp_for_external_vault {
 }
 
 default_imp_for_external_vault!(
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -9091,6 +9151,7 @@ default_imp_for_external_vault!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Juspaythreedsserver,
     connectors::Katapult,
@@ -9136,7 +9197,6 @@ default_imp_for_external_vault!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Signifyd,
@@ -9189,6 +9249,7 @@ macro_rules! default_imp_for_external_vault_insert {
 }
 
 default_imp_for_external_vault_insert!(
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -9253,6 +9314,7 @@ default_imp_for_external_vault_insert!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Juspaythreedsserver,
     connectors::Katapult,
@@ -9298,7 +9360,6 @@ default_imp_for_external_vault_insert!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Signifyd,
@@ -9350,6 +9411,7 @@ macro_rules! default_imp_for_gift_card_balance_check {
     };
 }
 default_imp_for_gift_card_balance_check!(
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Affirm,
@@ -9412,6 +9474,7 @@ default_imp_for_gift_card_balance_check!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -9457,7 +9520,6 @@ default_imp_for_gift_card_balance_check!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -9512,6 +9574,7 @@ macro_rules! default_imp_for_external_vault_retrieve {
 }
 
 default_imp_for_external_vault_retrieve!(
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -9576,6 +9639,7 @@ default_imp_for_external_vault_retrieve!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Juspaythreedsserver,
     connectors::Katapult,
@@ -9621,7 +9685,6 @@ default_imp_for_external_vault_retrieve!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Signifyd,
@@ -9674,6 +9737,7 @@ macro_rules! default_imp_for_external_vault_delete {
 }
 
 default_imp_for_external_vault_delete!(
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -9738,6 +9802,7 @@ default_imp_for_external_vault_delete!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Juspaythreedsserver,
     connectors::Katapult,
@@ -9783,7 +9848,6 @@ default_imp_for_external_vault_delete!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Signifyd,
@@ -9839,6 +9903,7 @@ macro_rules! default_imp_for_external_vault_create {
 
 default_imp_for_external_vault_create!(
     connectors::Hyperwallet,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -9901,6 +9966,7 @@ default_imp_for_external_vault_create!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Juspaythreedsserver,
     connectors::Katapult,
@@ -9946,7 +10012,6 @@ default_imp_for_external_vault_create!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Signifyd,
@@ -10001,6 +10066,7 @@ macro_rules! default_imp_for_connector_authentication_token {
 }
 
 default_imp_for_connector_authentication_token!(
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -10065,6 +10131,7 @@ default_imp_for_connector_authentication_token!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Juspaythreedsserver,
     connectors::Jpmorgan,
@@ -10109,7 +10176,6 @@ default_imp_for_connector_authentication_token!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Sift,
@@ -10163,6 +10229,7 @@ macro_rules! default_imp_for_external_vault_proxy_payments_create {
 }
 
 default_imp_for_external_vault_proxy_payments_create!(
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -10226,6 +10293,7 @@ default_imp_for_external_vault_proxy_payments_create!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -10271,7 +10339,6 @@ default_imp_for_external_vault_proxy_payments_create!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -10328,6 +10395,7 @@ macro_rules! default_imp_for_connector_webhook_register {
 
 default_imp_for_connector_webhook_register!(
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyenplatform,
     connectors::Affirm,
@@ -10391,6 +10459,7 @@ default_imp_for_connector_webhook_register!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -10436,7 +10505,6 @@ default_imp_for_connector_webhook_register!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Santander,
     connectors::Shift4,
@@ -10871,6 +10939,42 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "dummy_connector")]
+impl<const T: u8> SurchargeCalculation for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        CalculateSurcharge,
+        PaymentsSurchargeCalculationData,
+        SurchargeCalculationResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> SurchargeComplete for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        CompleteSurcharge,
+        PaymentsCompleteSurchargeData,
+        CompleteSurchargeResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> SurchargeRefund for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        CompleteRefundSurchrge,
+        PaymentsCompleteRefundSurchrgeData,
+        CompleteRefundSurchrgeResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
 impl<const T: u8> PaymentSessionUpdate for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
@@ -11223,6 +11327,7 @@ macro_rules! default_imp_for_generate_qr_flow{
 default_imp_for_generate_qr_flow!(
     connectors::Plaid,
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -11286,6 +11391,7 @@ default_imp_for_generate_qr_flow!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -11330,7 +11436,6 @@ default_imp_for_generate_qr_flow!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Shift4,
     connectors::Sift,
@@ -11386,6 +11491,7 @@ macro_rules! default_imp_for_push_notification_flow {
 default_imp_for_push_notification_flow!(
     connectors::Plaid,
     connectors::Vgs,
+    connectors::AbsaSanlam,
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
@@ -11449,6 +11555,7 @@ default_imp_for_push_notification_flow!(
     connectors::Iatapay,
     connectors::Imerchantsolutions,
     connectors::Inespay,
+    connectors::Interpayments,
     connectors::Itaubank,
     connectors::Jpmorgan,
     connectors::Juspaythreedsserver,
@@ -11493,7 +11600,6 @@ default_imp_for_push_notification_flow!(
     connectors::Recurly,
     connectors::Redsys,
     connectors::Revolv3,
-    connectors::Sanlam,
     connectors::Riskified,
     connectors::Shift4,
     connectors::Sift,

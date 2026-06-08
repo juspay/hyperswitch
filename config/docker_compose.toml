@@ -124,6 +124,7 @@ max_age = 365
 hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 [connectors]
+absa_sanlam.base_url = "dev"
 aci.base_url = "https://eu-test.oppwa.com/"
 adyen.base_url = "https://checkout-test.adyen.com/"
 adyenplatform.base_url = "https://balanceplatform-api-test.adyen.com/"
@@ -198,6 +199,7 @@ hipay.third_base_url = "https://stage-api-gateway.hipay.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 imerchantsolutions.base_url = "https://imerchantsolutions.com/api"
 inespay.base_url = "https://apiflow.inespay.com/san/v21"
+interpayments.base_url = "https://api-test.interpayments.com/v1"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br/"
 jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
 juspaythreedsserver.base_url = "http://localhost:8000"
@@ -247,7 +249,6 @@ razorpay.base_url = "https://api.razorpay.com/"
 recurly.base_url = "https://v3.recurly.com"
 redsys.base_url = "https://sis-t.redsys.es:25443"
 revolv3.base_url = "https://api-sandbox.revolv3.com"
-sanlam.base_url = "dev"
 riskified.base_url = "https://sandbox.riskified.com/api"
 santander.base_url = "https://trust-pix-h.santander.com.br/"
 santander.secondary_base_url = "https://trust-open-h.api.santander.com.br/"
@@ -645,7 +646,7 @@ debit = { currency = "INR,USD,GBP,EUR" }
 open_banking = { currency = "GBP,EUR" }
 
 [payout_method_filters.truelayer]
-open_banking_uk = { currency = "GBP,EUR,PLN" }
+open_banking = { currency = "GBP,EUR,PLN" }
 
 [payout_method_filters.trustly]
 trustly = { currency = "BGN,GBP,EUR,PLN,CZK,DKK,HRK,HUF,NOK,PLN,RON,SEK" }
@@ -1015,7 +1016,7 @@ crypto_currency = { country = "AL, AD, AT, BE, BA, BG, HR, CZ, DK, EE, FI, FR, D
 eft = { country = "NG, ZA, GH, KE, CI", currency = "NGN, GHS, ZAR, KES, USD" }
 
 [pm_filters.santander]
-pix = { country = "BR", currency = "BRL" }
+pix_emv = { country = "BR", currency = "BRL" }
 boleto = { country = "BR", currency = "BRL" }
 pix_automatico_qr = { country = "BR", currency = "BRL" }
 pix_automatico_push = { country = "BR", currency = "BRL" }
@@ -1106,7 +1107,7 @@ bank_transfer.pix_automatico_qr = { connector_list = "santander" }
 [mandates.supported_payment_methods]
 pay_later.klarna = { connector_list = "adyen,aci" }
 wallet.google_pay = { connector_list = "stripe,cybersource,adyen,zift,bankofamerica,authorizedotnet,noon,novalnet,multisafepay,wellsfargo,nuvei,worldpayxml" }
-wallet.apple_pay = { connector_list = "stripe,adyen,braintree,cybersource,zift,noon,bankofamerica,authorizedotnet,novalnet,multisafepay,wellsfargo,nuvei,worldpayxml" }
+wallet.apple_pay = { connector_list = "stripe,adyen,braintree,cybersource,zift,noon,bankofamerica,authorizedotnet,novalnet,multisafepay,wellsfargo,nuvei,worldpayxml,payme" }
 wallet.samsung_pay = { connector_list = "cybersource" }
 wallet.paypal = { connector_list = "adyen,novalnet,authorizedotnet" }
 card.credit = { connector_list = "aci,checkout,stripe,adyen,authorizedotnet,zift,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,archipel,wellsfargo,worldpayvantiv,payload,mollie,airwallex,peachpayments" }
@@ -1174,6 +1175,7 @@ consolidated_events_topic = "hyperswitch-consolidated-events"
 authentication_analytics_topic = "hyperswitch-authentication-events"
 routing_logs_topic = "hyperswitch-routing-api-events"
 revenue_recovery_topic = "hyperswitch-revenue-recovery-events"
+external_service_call_topic = "hyperswitch-external-service-call-events"
 
 [analytics]
 source = "sqlx"
@@ -1210,6 +1212,7 @@ enabled = true
 
 [events]
 source = "logs"
+emit_external_service_call_events = false
 
 [file_storage]
 file_storage_backend = "file_system"
@@ -1440,3 +1443,7 @@ backup_file_path = "./config/superposition_seed.toml" # Path to a local file for
 "28" = { description = "Retry after 6 days", recommended_action = "retry_after_6_days" }
 "29" = { description = "Retry after 8 days", recommended_action = "retry_after_8_days" }
 "30" = { description = "Retry after 10 days", recommended_action = "retry_after_10_days" }
+
+[micro_services.authentication_service]
+base_url = "http://localhost:8080"
+api_key = "api-key"

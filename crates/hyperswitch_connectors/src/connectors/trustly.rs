@@ -11,7 +11,6 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         refunds::{Execute, RSync},
@@ -167,20 +166,6 @@ impl ConnectorCommon for Trustly {
 }
 
 impl ConnectorValidation for Trustly {
-    fn validate_mandate_payment(
-        &self,
-        _pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), ConnectorError> {
-        match pm_data {
-            PaymentMethodData::Card(_) => Err(ConnectorError::NotImplemented(
-                "validate_mandate_payment does not support cards".to_string(),
-            )
-            .into()),
-            _ => Ok(()),
-        }
-    }
-
     fn validate_psync_reference_id(
         &self,
         _data: &PaymentsSyncData,
@@ -946,5 +931,14 @@ impl ConnectorSpecifications for Trustly {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&TRUSTLY_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    fn should_call_connector_customer(
+        &self,
+        #[cfg(feature = "v1")]
+        _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> api::ConnectorCustomerAction {
+        let connector_customer_id = uuid::Uuid::new_v4().to_string();
+        api::ConnectorCustomerAction::GeneratedCustomerId(connector_customer_id)
     }
 }

@@ -236,7 +236,7 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
 
         match req.payment_method {
             enums::PaymentMethod::BankTransfer => match req.request.payment_method_type {
-                Some(enums::PaymentMethodType::Pix) => {
+                Some(enums::PaymentMethodType::PixEmv) => {
                     let santander_variant =
                         transformers::get_qr_code_type(req.request.connector_meta.clone());
 
@@ -378,9 +378,9 @@ where
         let santander_mca_metadata = SantanderMetadataObject::try_from(&req.connector_meta_data)?;
 
         let client_id = match req.payment_method_type {
-            Some(enums::PaymentMethodType::Pix) => {
+            Some(enums::PaymentMethodType::PixEmv) => {
                 santander_mca_metadata
-                    .pix
+                    .pix_emv
                     .ok_or(errors::ConnectorError::NoConnectorMetaData)?
                     .client_id
             }
@@ -802,37 +802,39 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let feature_metadata = req.request.feature_metadata.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "feature_metadata",
+            },
+        )?;
+        let fixed_rec_amount_in_minor = feature_metadata
+            .get_optional_fixed_recurring_mit_amount_for_pix_automatico()
+            .change_context(errors::ConnectorError::InvalidDataFormat {
+                field_name: "feature_metadata.pix_automatico_additional_details",
+            })?;
+        let min_rec_amount_in_minor = feature_metadata
+            .get_optional_min_recurring_amount_for_pix_automatico()
+            .change_context(errors::ConnectorError::InvalidDataFormat {
+                field_name: "feature_metadata.pix_automatico_additional_details",
+            })?;
+        let fixed_rec_amount = fixed_rec_amount_in_minor
+            .map(|amount| convert_amount(self.amount_converter, amount, req.request.currency))
+            .transpose()?;
+        let min_rec_amount = min_rec_amount_in_minor
+            .map(|amount| convert_amount(self.amount_converter, amount, req.request.currency))
+            .transpose()?;
         let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.currency,
         )?;
-        let rec_amount_in_minor = req
-            .request
-            .connector_intent_metadata
-            .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_intent_metadata",
-            })?
-            .get_mandatory_pix_automatico_maximum_permissible_mandate_amount()
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name:
-                    "connector_metadata.santander.pix_automatico.cit.mandate_details.amount",
-            })?;
-        let rec_amount = convert_amount(
-            self.amount_converter,
-            rec_amount_in_minor,
-            req.request.currency,
-        )?;
-        let final_amount = if req.request.minor_amount.get_amount_as_i64()
-            < rec_amount_in_minor.get_amount_as_i64()
-        {
-            rec_amount
-        } else {
-            amount
-        };
-        let connector_router_data = SantanderRouterData::from((final_amount, req));
-        let connector_req = SantanderSetupMandateRequest::try_from(&connector_router_data)?;
+
+        let connector_router_data = SantanderRouterData::from((amount, req));
+        let connector_req = SantanderSetupMandateRequest::try_from((
+            &connector_router_data,
+            fixed_rec_amount,
+            min_rec_amount,
+        ))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -1016,7 +1018,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         match req.payment_method {
             enums::PaymentMethod::BankTransfer => match req.request.payment_method_type {
-                Some(enums::PaymentMethodType::Pix)
+                Some(enums::PaymentMethodType::PixEmv)
                 | Some(enums::PaymentMethodType::PixAutomaticoQr) => {
                     // Check if this is a MIT (Merchant Initiated Transaction) for PixAutomaticoPush or PixAutomaticoQr
                     if req.request.is_mit_payment() {
@@ -1131,7 +1133,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let auth_details = SantanderAuthType::try_from(&req.connector_auth_type)?;
         let method: Result<Method, error_stack::Report<errors::ConnectorError>> =
             match req.payment_method_type {
-                Some(enums::PaymentMethodType::Pix)
+                Some(enums::PaymentMethodType::PixEmv)
                 | Some(enums::PaymentMethodType::PixAutomaticoQr)
                 | Some(enums::PaymentMethodType::PixAutomaticoPush) => Ok(Method::Put),
                 Some(enums::PaymentMethodType::Boleto) => Ok(Method::Post),
@@ -1280,7 +1282,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
         } else {
             match req.payment_method {
                 enums::PaymentMethod::BankTransfer => match req.request.payment_method_type {
-                    Some(enums::PaymentMethodType::Pix)
+                    Some(enums::PaymentMethodType::PixEmv)
                     | Some(enums::PaymentMethodType::PixAutomaticoQr) => {
                         let santander_variant =
                             transformers::get_qr_code_type(req.request.connector_meta.clone());
@@ -1748,7 +1750,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Santand
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.payment_method {
             enums::PaymentMethod::BankTransfer => match req.payment_method_type {
-                Some(enums::PaymentMethodType::Pix) => {
+                Some(enums::PaymentMethodType::PixEmv) => {
                     let end_to_end_id = req
                         .request
                         .connector_metadata
@@ -1802,7 +1804,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Santand
         let auth_details = SantanderAuthType::try_from(&req.connector_auth_type)?;
         let method: Result<Method, error_stack::Report<errors::ConnectorError>> =
             match req.payment_method_type {
-                Some(enums::PaymentMethodType::Pix) => Ok(Method::Put),
+                Some(enums::PaymentMethodType::PixEmv) => Ok(Method::Put),
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: req.payment_method.to_string(),
                     connector: "Santander",
@@ -2006,7 +2008,7 @@ static SANTANDER_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 
         santander_supported_payment_methods.add(
             enums::PaymentMethod::BankTransfer,
-            enums::PaymentMethodType::Pix,
+            enums::PaymentMethodType::PixEmv,
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
@@ -2096,7 +2098,7 @@ impl ConnectorSpecifications for Santander {
         is_config_enabled_to_send_payment_id_as_connector_request_id: bool,
     ) -> String {
         match payment_attempt.payment_method_type {
-            Some(enums::PaymentMethodType::Pix)
+            Some(enums::PaymentMethodType::PixEmv)
             | Some(enums::PaymentMethodType::PixAutomaticoQr)
             | Some(enums::PaymentMethodType::PixAutomaticoPush) => {
                 if is_config_enabled_to_send_payment_id_as_connector_request_id

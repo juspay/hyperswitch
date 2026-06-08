@@ -5,7 +5,6 @@ use hyperswitch_domain_models::{
     api::ApplicationResponse,
     connector_endpoints::Connectors,
     errors::api_error_response::ApiErrorResponse,
-    payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::RouterDataV2,
     router_request_types::CurrentFlowInfo,
@@ -16,8 +15,8 @@ use crate::{
     api,
     api::{
         BoxedConnectorIntegration, CaptureSyncMethod, Connector, ConnectorCommon,
-        ConnectorIntegration, ConnectorRedirectResponse, ConnectorSpecifications,
-        ConnectorValidation, CurrencyUnit,
+        ConnectorCustomerAction, ConnectorIntegration, ConnectorRedirectResponse,
+        ConnectorSpecifications, ConnectorValidation, CurrencyUnit,
     },
     authentication::ExternalAuthenticationPayload,
     connector_integration_v2::{BoxedConnectorIntegrationV2, ConnectorIntegrationV2, ConnectorV2},
@@ -508,17 +507,6 @@ impl ConnectorValidation for ConnectorEnum {
         }
     }
 
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<common_enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        match self {
-            Self::Old(connector) => connector.validate_mandate_payment(pm_type, pm_data),
-            Self::New(connector) => connector.validate_mandate_payment(pm_type, pm_data),
-        }
-    }
-
     fn validate_psync_reference_id(
         &self,
         data: &hyperswitch_domain_models::router_request_types::PaymentsSyncData,
@@ -792,7 +780,7 @@ impl ConnectorSpecifications for ConnectorEnum {
         &self,
         #[cfg(feature = "v1")]
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> bool {
+    ) -> ConnectorCustomerAction {
         #[cfg(feature = "v1")]
         match self {
             Self::Old(connector) => connector.should_call_connector_customer(payment_attempt),

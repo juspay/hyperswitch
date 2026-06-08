@@ -4,7 +4,8 @@ use std::collections::HashMap;
 use api_models::enums::PayoutConnectors;
 use api_models::{
     enums::{
-        AuthenticationConnectors, BillingConnectors, Connector, PmAuthConnectors, TaxConnectors,
+        AuthenticationConnectors, BillingConnectors, Connector, PmAuthConnectors,
+        SurchargeConnectors, TaxConnectors,
     },
     payments,
 };
@@ -151,7 +152,7 @@ pub struct ConfigMetadata {
     pub google_pay: Option<Vec<InputData>>,
     pub apple_pay: Option<Vec<InputData>>,
     pub paypal_sdk: Option<Vec<InputData>>,
-    pub pix: Option<Vec<InputData>>,
+    pub pix_emv: Option<Vec<InputData>>,
     pub pix_automatico_push: Option<Vec<InputData>>,
     pub pix_automatico_qr: Option<Vec<InputData>>,
     pub boleto: Option<Vec<InputData>>,
@@ -241,6 +242,7 @@ pub struct ConnectorTomlConfig {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConnectorConfig {
+    pub absa_sanlam: Option<ConnectorTomlConfig>,
     pub authipay: Option<ConnectorTomlConfig>,
     pub juspaythreedsserver: Option<ConnectorTomlConfig>,
     pub katapult: Option<ConnectorTomlConfig>,
@@ -321,6 +323,7 @@ pub struct ConnectorConfig {
     pub hyperswitch_vault: Option<ConnectorTomlConfig>,
     pub hyperwallet: Option<ConnectorTomlConfig>,
     pub inespay: Option<ConnectorTomlConfig>,
+    pub interpayments: Option<ConnectorTomlConfig>,
     pub jpmorgan: Option<ConnectorTomlConfig>,
     pub klarna: Option<ConnectorTomlConfig>,
     pub loonio: Option<ConnectorTomlConfig>,
@@ -366,7 +369,6 @@ pub struct ConnectorConfig {
     pub rapyd: Option<ConnectorTomlConfig>,
     pub redsys: Option<ConnectorTomlConfig>,
     pub revolv3: Option<ConnectorTomlConfig>,
-    pub sanlam: Option<ConnectorTomlConfig>,
     pub santander: Option<ConnectorTomlConfig>,
     pub shift4: Option<ConnectorTomlConfig>,
     pub sift: Option<ConnectorTomlConfig>,
@@ -503,6 +505,15 @@ impl ConnectorConfig {
         }
     }
 
+    pub fn get_surcharge_processor_config(
+        connector: SurchargeConnectors,
+    ) -> Result<Option<ConnectorTomlConfig>, String> {
+        let connector_data = Self::new()?;
+        match connector {
+            SurchargeConnectors::Interpayments => Ok(connector_data.interpayments),
+        }
+    }
+
     pub fn get_pm_authentication_processor_config(
         connector: PmAuthConnectors,
     ) -> Result<Option<ConnectorTomlConfig>, String> {
@@ -517,6 +528,7 @@ impl ConnectorConfig {
     ) -> Result<Option<ConnectorTomlConfig>, String> {
         let connector_data = Self::new()?;
         match connector {
+            Connector::AbsaSanlam => Ok(connector_data.absa_sanlam),
             Connector::Aci => Ok(connector_data.aci),
             Connector::Authipay => Ok(connector_data.authipay),
             Connector::Adyen => Ok(connector_data.adyen),
@@ -630,12 +642,12 @@ impl ConnectorConfig {
             Connector::Tokenex => Ok(connector_data.tokenex),
             Connector::Tokenio => Ok(connector_data.tokenio),
             Connector::Truelayer => Ok(connector_data.truelayer),
-            Connector::Sanlam => Ok(connector_data.sanlam),
             Connector::Trustly => Ok(connector_data.trustly),
             Connector::Trustpay => Ok(connector_data.trustpay),
             Connector::Trustpayments => Ok(connector_data.trustpayments),
             Connector::Threedsecureio => Ok(connector_data.threedsecureio),
             Connector::Taxjar => Ok(connector_data.taxjar),
+            Connector::Interpayments => Ok(connector_data.interpayments),
             Connector::Tsys => Ok(connector_data.tsys),
             Connector::Vgs => Ok(connector_data.vgs),
             Connector::Volt => Ok(connector_data.volt),

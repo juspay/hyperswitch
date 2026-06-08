@@ -78,6 +78,13 @@ pub enum PaymentTokenData {
     BankDebit(BankDebitTokenData),
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TemporaryCardTokenData {
+    pub card_cvc: Option<hyperswitch_masking::Secret<String>>,
+    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 #[cfg(feature = "v2")]
@@ -86,6 +93,9 @@ pub enum PaymentTokenData {
     PermanentCard(CardTokenData),
     AuthBankDebit(payment_methods::BankAccountTokenData),
     BankDebit(BankDebitTokenData),
+    /// Temporary token that carries only CVC + card holder name for the repeat CIT
+    /// (session confirm) flow. The card number/expiry come from the internal PM service.
+    TemporaryCardToken(TemporaryCardTokenData),
 }
 
 impl PaymentTokenData {
@@ -124,6 +134,17 @@ impl PaymentTokenData {
     }
 
     #[cfg(feature = "v2")]
+    pub fn temporary_card_token(
+        card_cvc: Option<hyperswitch_masking::Secret<String>>,
+        card_holder_name: Option<hyperswitch_masking::Secret<String>>,
+    ) -> Self {
+        Self::TemporaryCardToken(TemporaryCardTokenData {
+            card_cvc,
+            card_holder_name,
+        })
+    }
+
+    #[cfg(feature = "v2")]
     pub fn bank_debit(
         payment_method_id: common_utils::id_type::GlobalPaymentMethodId,
         locker_id: Option<String>,
@@ -159,6 +180,8 @@ pub struct PaymentMethodListContext {
     pub hyperswitch_token_data: Option<PaymentTokenData>,
     #[cfg(feature = "payouts")]
     pub bank_transfer_details: Option<api::BankTransferPayout>,
+    #[cfg(feature = "payouts")]
+    pub wallet_details: Option<hyperswitch_domain_models::payment_method_data::WalletDetail>,
 }
 
 #[cfg(feature = "v2")]

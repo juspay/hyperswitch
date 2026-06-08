@@ -17,7 +17,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -55,10 +54,8 @@ use hyperswitch_masking::{ExposeInterface, Mask};
 use transformers as finix;
 
 use crate::{
-    connectors::finix::transformers::FinixWebhookSignature,
-    constants::headers,
-    types::ResponseRouterData,
-    utils::{self, PaymentMethodDataType},
+    connectors::finix::transformers::FinixWebhookSignature, constants::headers,
+    types::ResponseRouterData, utils,
 };
 
 #[derive(Clone)]
@@ -351,19 +348,6 @@ impl ConnectorCommon for Finix {
 }
 
 impl ConnectorValidation for Finix {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::GooglePay,
-            PaymentMethodDataType::ApplePay,
-        ]);
-        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-
     fn validate_psync_reference_id(
         &self,
         _data: &PaymentsSyncData,
@@ -1096,8 +1080,8 @@ impl ConnectorSpecifications for Finix {
         &self,
         #[cfg(feature = "v1")]
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> bool {
-        true
+    ) -> api::ConnectorCustomerAction {
+        api::ConnectorCustomerAction::CallConnectorCustomer
     }
     fn should_call_tokenization_before_setup_mandate(&self) -> bool {
         false
