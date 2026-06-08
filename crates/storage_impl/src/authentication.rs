@@ -197,23 +197,19 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
                     .await
             }
             common_enums::MerchantStorageScheme::RedisKv => {
-                let merchant_id = authentication.merchant_id.clone();
-                let authentication_id = authentication.authentication_id.clone();
-                let connector_authentication_id =
-                    authentication.connector_authentication_id.clone();
-                let payment_id = authentication.payment_id.clone();
-                let merchant_connector_id = authentication.merchant_connector_id.clone();
+                // Borrow: `authentication` is read-only here and returned at the end.
+                let merchant_id = &authentication.merchant_id;
+                let authentication_id = &authentication.authentication_id;
+                let payment_id = &authentication.payment_id;
 
                 // Co-locate on the payment's partition when present; otherwise
                 // (modular auth) the authentication id is its own partition.
                 let key = match payment_id {
-                    Some(ref payment_id) => PartitionKey::MerchantIdPaymentId {
-                        merchant_id: &merchant_id,
+                    Some(payment_id) => PartitionKey::MerchantIdPaymentId {
+                        merchant_id,
                         payment_id,
                     },
-                    None => PartitionKey::AuthenticationId {
-                        authentication_id: &authentication_id,
-                    },
+                    None => PartitionKey::AuthenticationId { authentication_id },
                 };
                 let field = authentication_id.get_hash_key_for_kv_store();
                 let key_str = key.to_string();
@@ -250,8 +246,8 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
 
                 // Connector-auth-id lookup, MCA-keyed to avoid cross-connector collisions.
                 if let (Some(connector_auth_id), Some(merchant_connector_id)) = (
-                    connector_authentication_id.as_ref(),
-                    merchant_connector_id.as_ref(),
+                    authentication.connector_authentication_id.as_ref(),
+                    authentication.merchant_connector_id.as_ref(),
                 ) {
                     let reverse_lookup = ReverseLookupNew {
                         lookup_id: merchant_connector_id
@@ -404,9 +400,16 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
         let diesel_authentication = match storage_scheme {
             common_enums::MerchantStorageScheme::PostgresOnly => database_call().await,
             common_enums::MerchantStorageScheme::RedisKv => match merchant_connector_id.as_ref() {
-                // No MCA id: fall back to the merchant-id-keyed DB lookup so records
-                // without an MCA id stay resolvable exactly as before.
-                None => database_call().await,
+                // No MCA id: the reverse lookup is MCA-keyed, so we can't hit Redis and
+                // fall back to the DB. A KV-only (not-yet-drained) row won't be found.
+                None => {
+                    router_env::logger::warn!(
+                        connector_authentication_id = %connector_authentication_id,
+                        "RedisKv find-by-connector-auth-id without MCA id: reading from \
+                         Postgres; a not-yet-drained KV record will not be found"
+                    );
+                    database_call().await
+                }
                 Some(merchant_connector_id) => {
                     let lookup_id = merchant_connector_id
                         .get_authentication_connector_lookup_id(&connector_authentication_id);
@@ -480,10 +483,14 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
         };
         let field = authentication_id.get_hash_key_for_kv_store();
 
+        // No `updated_by` column on authentication, so use the configured scheme as the
+        // soft-kill KV-presence hint (any value != "postgres_only" triggers the HGet
+        // probe). Bound to a local: the `Option<&str>` is borrowed across the `.await`.
+        let updated_by = storage_scheme.to_string();
         let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselAuthentication>(
             self,
             storage_scheme,
-            Op::Update(key.clone(), &field, None),
+            Op::Update(key.clone(), &field, Some(updated_by.as_str())),
         ))
         .await;
 
