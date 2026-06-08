@@ -7268,11 +7268,11 @@ impl
     }
 }
 
-impl ForeignFrom<router_request_types::SurchargeStrategy> for payments_grpc::SurchargeStrategy {
-    fn foreign_from(strategy: router_request_types::SurchargeStrategy) -> Self {
+impl ForeignFrom<common_enums::SurchargeStrategy> for payments_grpc::SurchargeStrategy {
+    fn foreign_from(strategy: common_enums::SurchargeStrategy) -> Self {
         match strategy {
-            router_request_types::SurchargeStrategy::Apply => Self::Apply,
-            router_request_types::SurchargeStrategy::Waive => Self::Waive,
+            common_enums::SurchargeStrategy::Apply => Self::Apply,
+            common_enums::SurchargeStrategy::Waive => Self::Waive,
         }
     }
 }
