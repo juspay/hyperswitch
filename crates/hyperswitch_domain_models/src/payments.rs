@@ -2,7 +2,7 @@
 use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
-use api_models::payments::{SessionToken, VaultSessionDetails};
+use api_models::payments::{SessionToken, VaultDetails, VaultSessionDetails};
 use api_models::{customers::CustomerDocumentDetails, payments::ConnectorMetadata};
 use common_types::primitive_wrappers;
 #[cfg(feature = "v1")]
@@ -1304,7 +1304,7 @@ where
     pub payment_intent: PaymentIntent,
     pub sessions_token: Vec<SessionToken>,
     pub client_secret: Option<Secret<String>>,
-    pub vault_session_details: Option<VaultSessionDetails>,
+    pub vault_session_details: Option<VaultDetails>,
     pub connector_customer_id: Option<String>,
 }
 
