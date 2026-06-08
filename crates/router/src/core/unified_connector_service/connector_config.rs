@@ -47,6 +47,14 @@ pub struct CybersourceMetadata {
 pub struct BraintreeMetadata {
     merchant_account_id: Secret<String>,
     merchant_config_currency: String,
+    #[serde(default)]
+    apple_pay_supported_networks: Vec<String>,
+    #[serde(default)]
+    apple_pay_merchant_capabilities: Vec<String>,
+    #[serde(default)]
+    gpay_allowed_auth_methods: Vec<String>,
+    #[serde(default)]
+    gpay_allowed_card_networks: Vec<String>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -122,6 +130,10 @@ pub enum ConnectorSpecificConfig {
         private_key: Secret<String>,
         merchant_account_id: Secret<String>,
         merchant_config_currency: Option<String>,
+        apple_pay_supported_networks: Vec<String>,
+        apple_pay_merchant_capabilities: Vec<String>,
+        gpay_allowed_auth_methods: Vec<String>,
+        gpay_allowed_card_networks: Vec<String>,
     },
     /// Cybersource connector configuration
     Cybersource {
@@ -625,6 +637,11 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                         private_key: api_secret.clone(),
                         merchant_account_id: braintree_meta.merchant_account_id,
                         merchant_config_currency: Some(braintree_meta.merchant_config_currency),
+                        apple_pay_supported_networks: braintree_meta.apple_pay_supported_networks,
+                        apple_pay_merchant_capabilities: braintree_meta
+                            .apple_pay_merchant_capabilities,
+                        gpay_allowed_auth_methods: braintree_meta.gpay_allowed_auth_methods,
+                        gpay_allowed_card_networks: braintree_meta.gpay_allowed_card_networks,
                     })
                 }
                 _ => Err(err("Braintree requires SignatureKey auth type")),
