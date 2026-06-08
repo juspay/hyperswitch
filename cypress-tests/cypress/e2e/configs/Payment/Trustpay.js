@@ -877,6 +877,77 @@ export const connectorDetails = {
       },
     },
   },
+  wallet_pm: {
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    DelayedSessionToken: {
+      Request: {
+        wallets: ["apple_pay", "google_pay"],
+      },
+      Response: {
+        status: 200,
+        body: {
+          session_token: [
+            {
+              wallet_name: "apple_pay",
+              session_token_data: null,
+              connector: "trustpay",
+              delayed_session_token: true,
+              sdk_next_action: {
+                next_action: "confirm",
+              },
+            },
+            {
+              wallet_name: "google_pay",
+              connector: "trustpay",
+              delayed_session_token: true,
+              sdk_next_action: {
+                next_action: "confirm",
+              },
+            },
+          ],
+        },
+      },
+    },
+    DelayedSessionTokenMissingClientSecret: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Missing required param: client_secret",
+            code: "IR_04",
+          },
+        },
+      },
+    },
+    DelayedSessionTokenInvalidPaymentId: {
+      Request: {
+        payment_id: "pay_test_00000000000000000000",
+        client_secret: "pay_test_00000000000000000000_secret_fake",
+        wallets: ["apple_pay"],
+      },
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Payment does not exist in our records",
+            code: "HE_02",
+          },
+        },
+      },
+    },
+  },
   bank_transfer_pm: {
     InstantBankTransferFinland: getCustomExchange(
       {
