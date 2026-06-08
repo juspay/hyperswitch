@@ -2249,6 +2249,13 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
                 ),
             })?
         }
+        storage::PaymentTokenData::TemporaryCardToken(_) => {
+            Err(errors::ApiErrorResponse::NotImplemented {
+                message: errors::NotImplementedMessage::Reason(
+                    "TemporaryCardToken does not have a vaulted payment method".to_string(),
+                ),
+            })?
+        }
     };
     let db = &*state.store;
 
