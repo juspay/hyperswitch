@@ -1228,7 +1228,20 @@ Cypress.Commands.add(
     createConnectorBody.connector_name =
       getOriginalConnectorName(connectorName);
     createConnectorBody.connector_label = connectorLabel;
-    createConnectorBody.payment_methods_enabled = paymentMethodsEnabled;
+
+    // For payment_vas (FRM) connectors, use frm_configs instead of payment_methods_enabled
+    if (connectorType === "payment_vas") {
+      createConnectorBody.frm_configs = [
+        {
+          gateway: getOriginalConnectorName(connectorName),
+        },
+      ];
+      // Remove payment_methods_enabled for FRM connectors
+      delete createConnectorBody.payment_methods_enabled;
+    } else {
+      createConnectorBody.payment_methods_enabled = paymentMethodsEnabled;
+    }
+
     // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
     // it is best to use then() to handle the response within the same block of code
     cy.readFile(globalState.get("connectorAuthFilePath")).then(
@@ -1237,6 +1250,13 @@ Cypress.Commands.add(
           JSON.stringify(jsonContent),
           connectorName
         );
+        if (!authDetails) {
+          cy.task(
+            "cli_log",
+            `WARNING: No credentials found for ${connectorName} in creds.json — connector creation may fail`
+          );
+          return;
+        }
         createConnectorBody.connector_account_details =
           authDetails.connector_account_details;
         cy.request({

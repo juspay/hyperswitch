@@ -26,7 +26,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "requires_payment_method",
         },
       },
     }),
