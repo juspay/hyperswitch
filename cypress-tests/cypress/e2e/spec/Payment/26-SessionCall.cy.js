@@ -32,7 +32,8 @@ describe("Session Call flow test", () => {
           globalState
         );
 
-        if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       cy.step("Step 2: Get session token", () => {
