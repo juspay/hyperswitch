@@ -2124,7 +2124,15 @@ pub struct PaymentAttemptResponse {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema)]
+#[derive(
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    Clone,
+    PartialEq,
+    ToSchema,
+    router_derive::PolymorphicSchema,
+)]
 pub struct PaymentAttemptResponse {
     /// The global identifier for the payment attempt
     #[schema(value_type = String)]

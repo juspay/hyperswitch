@@ -1369,7 +1369,7 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .notify_connector(request)
             .await
-            .change_context(UnifiedConnectorServiceError::NotifyConnector)
+            .change_context(UnifiedConnectorServiceError::NotifyConnectorFailure)
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
