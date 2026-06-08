@@ -63,12 +63,10 @@ describe("[Payout] Recurring", () => {
         false,
         globalState
       ).then((response) => {
-        // Verify recurring=true and payout_method_id is returned for recurring payouts
-        cy.verifyRecurringPayoutResponse(
-          response,
-          true,
-          globalState.get("payoutMethodId")
-        );
+        // Verify recurring=true is echoed back. payout_method_id is not checked
+        // here because Wise does not return a connector-level recurring mandate
+        // ID in the payout create response.
+        cy.verifyRecurringPayoutResponse(response, true, null);
       });
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);

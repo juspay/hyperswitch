@@ -227,12 +227,10 @@ export const connectorDetails = {
           },
         },
       },
-      // RecurringTrue/False/Default test the recurring flag field behaviour:
-      // these only go up to requires_fulfillment (create + confirm, no fulfill),
-      // so the Wise sandbox limitation (failed status on actual execution) does
-      // not apply. The recurring value is stored in the Hyperswitch DB and
-      // echoed back in the response regardless of what Wise returns, so these
-      // assertions work without any Rust changes to the Wise transformer.
+      // RecurringTrue/False/Default test the recurring flag field behaviour.
+      // recurring:bool is already present in PayoutCreateResponse — no backend
+      // changes needed. confirm:true + auto_fulfill:false yields
+      // status:"requires_fulfillment" on all environments.
       RecurringTrue: {
         Request: {
           currency: "EUR",
