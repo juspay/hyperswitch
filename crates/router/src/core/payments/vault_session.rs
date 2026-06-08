@@ -1,3 +1,5 @@
+#[cfg(feature = "v2")]
+use api_models::enums::VaultConnectors;
 pub use common_enums::enums::CallConnectorAction;
 use common_utils::id_type;
 #[cfg(feature = "v2")]
@@ -16,13 +18,14 @@ pub use hyperswitch_domain_models::{
     types::{VaultRouterData, VaultRouterDataV2},
 };
 #[cfg(feature = "v2")]
-use hyperswitch_interfaces::{api::Connector as ConnectorTrait, connector_integration_interface::RouterDataConversion, connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2}};
+use hyperswitch_interfaces::{
+    api::Connector as ConnectorTrait,
+    connector_integration_interface::RouterDataConversion,
+    connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2},
+};
 use hyperswitch_masking::ExposeInterface;
 #[cfg(feature = "v1")]
 use hyperswitch_masking::Mask;
-
-#[cfg(feature = "v2")]
-use api_models::enums::VaultConnectors;
 
 #[cfg(feature = "v2")]
 use crate::core::{
@@ -37,7 +40,7 @@ use crate::{
             flows::{ConstructFlowSpecificData, Feature},
             operations::BoxedOperation,
             OperationSessionGetters, OperationSessionSetters,
-        }
+        },
     },
     routes::{app::ReqState, SessionState},
     services,
@@ -314,14 +317,13 @@ pub async fn generate_vault_session_details(
     merchant_connector_account_type: &domain::MerchantConnectorAccountTypeDetails,
     connector_customer_id: Option<String>,
 ) -> RouterResult<Option<api::VaultSessionDetails>> {
-    let connector =
-        VaultConnectors::try_from(merchant_connector_account_type.get_connector_name())
-            .map_err(|error| {
-                report!(errors::ApiErrorResponse::InternalServerError).attach_printable(format!(
-                    "Failed to convert connector to vault connector: {}",
-                    error
-                ))
-            })?;
+    let connector = VaultConnectors::try_from(merchant_connector_account_type.get_connector_name())
+        .map_err(|error| {
+            report!(errors::ApiErrorResponse::InternalServerError).attach_printable(format!(
+                "Failed to convert connector to vault connector: {}",
+                error
+            ))
+        })?;
 
     let connector_auth_type: router_types::ConnectorAuthType = merchant_connector_account_type
         .get_connector_account_details()
@@ -337,7 +339,9 @@ pub async fn generate_vault_session_details(
             router_types::ConnectorAuthType::SignatureKey { api_secret, .. },
         ) => {
             let sdk_env = match state.conf.env {
-                router_env::Env::Sandbox | router_env::Env::Development | router_env::Env::Integ => "sandbox",
+                router_env::Env::Sandbox
+                | router_env::Env::Development
+                | router_env::Env::Integ => "sandbox",
                 router_env::Env::Production => "live",
             }
             .to_string();
