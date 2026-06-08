@@ -931,8 +931,6 @@ export const connectorDetails = {
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "ach",
-        confirm: true,
-        capture_method: "automatic",
         payment_method_data: {
           bank_debit: {
             ach_bank_debit: {
