@@ -389,7 +389,7 @@ async fn generate_hyperswitch_vault_session_details(
     merchant_connector_account_type: &domain::MerchantConnectorAccountTypeDetails,
     connector_customer_id: Option<String>,
     connector_name: String,
-    _vault_publishable_key: hyperswitch_masking::Secret<String>,
+    vault_publishable_key: hyperswitch_masking::Secret<String>,
     vault_profile_id: hyperswitch_masking::Secret<String>,
 ) -> RouterResult<Option<api::VaultSessionDetails>> {
     let connector_response = call_external_vault_create(
@@ -413,6 +413,7 @@ async fn generate_hyperswitch_vault_session_details(
                 Option::<hyperswitch_domain_models::sdk_auth::SdkAuthorization>::from(
                     hyperswitch_domain_models::sdk_auth::SdkAuthorizationContext {
                         platform: platform.to_owned(),
+                        publishable_key: vault_publishable_key.expose(),
                         profile_id: id_type::ProfileId::try_from(std::borrow::Cow::from(
                             vault_profile_id.expose(),
                         ))
