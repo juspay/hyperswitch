@@ -5222,26 +5222,6 @@ Cypress.Commands.add(
   }
 );
 
-/**
- * Verify Globepay QR-code nextActionUrl (inline base64 data URI).
- * Thin wrapper — actual logic lives in redirectionHandler.js.
- */
-Cypress.Commands.add("handleGlobepayQRRedirection", (globalState) => {
-  const nextActionUrl = globalState.get("nextActionUrl");
-  handleGlobepayQR(nextActionUrl);
-});
-
-/**
- * Thin wrapper: delegate Inespay redirect flow to redirectionHandler.js.
- * Keeps the Cypress command registration here while the implementation lives
- * in redirectionHandler.js (per PR reviewer feedback).
- */
-Cypress.Commands.add("handleInespayRedirectFlow", (globalState) => {
-  const nextActionUrl = globalState.get("nextActionUrl");
-  expect(nextActionUrl, "nextActionUrl should be present").to.be.a("string");
-  handleInespayRedirectFlow(nextActionUrl);
-});
-
 Cypress.Commands.add(
   "handlePayLaterRedirection",
   (globalState, paymentMethodType, expectedRedirection) => {

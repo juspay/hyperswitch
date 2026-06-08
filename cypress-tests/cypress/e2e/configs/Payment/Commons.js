@@ -571,7 +571,7 @@ export const payment_methods_enabled = [
       },
       {
         payment_method_type: "we_chat_pay",
-        payment_experience: "display_qr_code",
+        payment_experience: "redirect_to_url",
         minimum_amount: 1,
         maximum_amount: 68607706,
         recurring_enabled: false,
@@ -579,7 +579,7 @@ export const payment_methods_enabled = [
       },
       {
         payment_method_type: "ali_pay",
-        payment_experience: "display_qr_code",
+        payment_experience: "redirect_to_url",
         minimum_amount: 1,
         maximum_amount: 68607706,
         recurring_enabled: false,

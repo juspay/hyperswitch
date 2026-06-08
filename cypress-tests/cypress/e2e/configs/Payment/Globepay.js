@@ -17,6 +17,29 @@ const requiredFields = {
 };
 
 export const connectorDetails = {
+  payment_methods_enabled: [
+    {
+      payment_method: "wallet",
+      payment_method_types: [
+        {
+          payment_method_type: "ali_pay",
+          payment_experience: "display_qr_code",
+          minimum_amount: 1,
+          maximum_amount: 68607706,
+          recurring_enabled: false,
+          installment_payment_enabled: false,
+        },
+        {
+          payment_method_type: "we_chat_pay",
+          payment_experience: "display_qr_code",
+          minimum_amount: 1,
+          maximum_amount: 68607706,
+          recurring_enabled: false,
+          installment_payment_enabled: false,
+        },
+      ],
+    },
+  ],
   wallet_pm: {
     PaymentIntent: (walletType) => {
       const currencyMap = {
@@ -45,7 +68,6 @@ export const connectorDetails = {
             we_chat_pay_qr: {},
           },
         },
-        customer_acceptance: null,
         billing: {
           address: {
             country: "GB",
@@ -71,7 +93,6 @@ export const connectorDetails = {
             ali_pay_qr: {},
           },
         },
-        customer_acceptance: null,
         billing: {
           address: {
             country: "GB",

@@ -275,29 +275,41 @@ describe("Bank Debit tests", () => {
       });
     });
   });
+});
+
+describe("Inespay SEPA Bank Debit tests", () => {
+  before("seed global state", function () {
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+
+        if (
+          shouldIncludeConnector(
+            globalState.get("connectorId"),
+            CONNECTOR_LISTS.INCLUDE.INESPAY_BANK_SIMULATION
+          )
+        ) {
+          skip = true;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
+  });
+
+  after("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
 
   context("Inespay SEPA Bank Debit Create, Confirm and Retrieve flow", () => {
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm SEPA -> Simulate Redirect -> Retrieve Payment", () => {
       let shouldContinue = true;
 
-      cy.step("Check Inespay connector eligibility", () => {
-        const connectorId = globalState.get("connectorId");
-        if (
-          shouldIncludeConnector(
-            connectorId,
-            CONNECTOR_LISTS.INCLUDE.INESPAY_BANK_SIMULATION
-          )
-        ) {
-          cy.task("cli_log", `Skipping Inespay flow: ${connectorId} is not in INESPAY_BANK_SIMULATION list`);
-          shouldContinue = false;
-        }
-      });
-
       cy.step("Create Payment Intent for SEPA", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Create Payment Intent for SEPA");
-          return;
-        }
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
         ]["PaymentIntent"]("Sepa");
