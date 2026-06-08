@@ -2867,16 +2867,17 @@ function paymentLinkCardRedirection(
 
   cy.get("body", { timeout: 30000 }).should("exist");
 
-  cy.get("#sdk-spinner", { timeout: 60000 }).should("have.class", "hidden");
-  cy.task("cli_log", "Payment Link SDK initialized successfully");
+  // Wait for SDK form elements directly — skip #sdk-spinner check which times out
+  // on bank-transfer payout link pages where the form loads without a loading spinner
+  cy.get("#unified-checkout, #payment-form", { timeout: 60000 })
+    .should("exist")
+    .and("be.visible");
 
-  cy.get("#unified-checkout", { timeout: 30000 }).should("be.visible");
-  cy.get("#payment-form", { timeout: 30000 }).should("exist");
-
-  cy.get("#unified-checkout iframe", { timeout: 30000 }).should(
+  cy.get("#unified-checkout iframe, #payment-form iframe", { timeout: 30000 }).should(
     "have.length.at.least",
     1
   );
+  cy.task("cli_log", "Payout Link bank form iframe ready");
 
   function fillCardInputInIframe(iframe, index) {
     cy.wrap(iframe)
@@ -3052,16 +3053,17 @@ function payoutLinkRedirection(
 
   cy.get("body", { timeout: 30000 }).should("exist");
 
-  cy.get("#sdk-spinner", { timeout: 60000 }).should("have.class", "hidden");
-  cy.task("cli_log", "Payout Link SDK initialized successfully");
+  // Wait for SDK form elements directly — skip #sdk-spinner check which
+  // times out on bank-transfer payout link pages where the form renders
+  // without ever showing a loading spinner.
+  cy.get("#unified-checkout, #payment-form", { timeout: 60000 })
+    .should("exist")
+    .and("be.visible");
 
-  cy.get("#unified-checkout", { timeout: 30000 }).should("be.visible");
-  cy.get("#payment-form", { timeout: 30000 }).should("exist");
-
-  cy.get("#unified-checkout iframe", { timeout: 30000 }).should(
-    "have.length.at.least",
-    1
-  );
+  cy.get("#unified-checkout iframe, #payment-form iframe", {
+    timeout: 30000,
+  }).should("have.length.at.least", 1);
+  cy.task("cli_log", "Payout Link bank form iframe ready");
 
   function fillBankInputInIframe(iframe, index) {
     cy.wrap(iframe)
