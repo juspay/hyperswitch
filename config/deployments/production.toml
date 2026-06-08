@@ -295,7 +295,7 @@ card.debit = "adyen"
 adyen = "BRL,MXN,JPY"
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,checkout,cybersource,stripe,nuvei,tsys_xml,worldpayvantiv,revolv3"
+connector_list = "adyen,archipel,checkout,cybersource,stripe,nuvei,tsys_transit,worldpayvantiv,revolv3"
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit
