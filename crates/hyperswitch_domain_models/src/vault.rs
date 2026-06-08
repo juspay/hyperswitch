@@ -236,7 +236,6 @@ impl PaymentMethodVaultingData {
         }
     }
 
-    #[cfg(feature = "v2")]
     pub fn to_fingerprint_data(&self) -> FingerprintData {
         match self {
             Self::Card(card) => FingerprintData::Card(FingerprintCardData {
@@ -299,7 +298,6 @@ impl PaymentMethodVaultingData {
         }
     }
 
-    #[cfg(feature = "v2")]
     pub fn get_bank_debit_fingerprint_data(
         bank_debit: &payment_method_data::BankDebitDetail,
     ) -> FingerprintBankDebitData {

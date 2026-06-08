@@ -3995,6 +3995,12 @@ pub struct PaymentMethodMigrationResponse {
 }
 
 #[derive(Debug, Default, serde::Serialize)]
+pub struct ModularPaymentMethodMigrationResponse {
+    pub successfully_migrated: Vec<PaymentMethodId>,
+    pub failed_migrations: Vec<PaymentMethodId>,
+}
+
+#[derive(Debug, Default, serde::Serialize)]
 pub enum MigrationStatus {
     Success,
     #[default]

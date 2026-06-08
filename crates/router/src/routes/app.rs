@@ -1711,6 +1711,10 @@ impl PaymentMethods {
                         .route(web::post().to(payment_methods::migrate_payment_methods)),
                 )
                 .service(
+                    web::resource("/modular/migrate-batch")
+                        .route(web::post().to(payment_methods::modular_migrate_payment_methods)),
+                )
+                .service(
                     web::resource("/update-batch")
                         .route(web::post().to(payment_methods::update_payment_methods)),
                 )

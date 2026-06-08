@@ -187,7 +187,7 @@ pub async fn backfill_legacy_locker_card(
                     "Failed to encode generic locker retrieve request in backward compatibility PT",
                 )?;
             let vault_response =
-                vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
+                vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None, None)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
@@ -344,7 +344,7 @@ pub async fn backfill_legacy_locker_card(
                     "Failed to encode generic locker retrieve request in backward compatibility inline flow",
                 )?;
             let vault_response = vault::call_to_vault::<pm_types::VaultRetrieve>(
-                state, payload, None,
+                state, payload, None, None,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

@@ -806,10 +806,11 @@ impl PaymentMethodsController for PmCards<'_> {
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultFingerprintRequest")?;
 
-        let resp = vault::call_to_vault::<pm_types::GetVaultFingerprint>(self.state, payload, None)
-            .await
-            .change_context(errors::VaultError::VaultAPIError)
-            .attach_printable("Call to vault failed")?;
+        let resp =
+            vault::call_to_vault::<pm_types::GetVaultFingerprint>(self.state, payload, None, None)
+                .await
+                .change_context(errors::VaultError::VaultAPIError)
+                .attach_printable("Call to vault failed")?;
 
         let fingerprint_resp: pm_types::VaultFingerprintResponse = resp
             .parse_struct("VaultFingerprintResponse")
@@ -864,7 +865,7 @@ impl PaymentMethodsController for PmCards<'_> {
             let query_params = Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Insert));
 
             let resp =
-                vault::call_to_vault::<pm_types::AddVault>(self.state, payload, query_params)
+                vault::call_to_vault::<pm_types::AddVault>(self.state, payload, query_params, None)
                     .await
                     .change_context(errors::VaultError::VaultAPIError)
                     .attach_printable("Call to vault failed")?;
@@ -919,10 +920,11 @@ impl PaymentMethodsController for PmCards<'_> {
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultFingerprintRequest")?;
 
-        let resp = vault::call_to_vault::<pm_types::GetVaultFingerprint>(self.state, payload, None)
-            .await
-            .change_context(errors::VaultError::VaultAPIError)
-            .attach_printable("Call to vault failed")?;
+        let resp =
+            vault::call_to_vault::<pm_types::GetVaultFingerprint>(self.state, payload, None, None)
+                .await
+                .change_context(errors::VaultError::VaultAPIError)
+                .attach_printable("Call to vault failed")?;
 
         let fingerprint_resp: pm_types::VaultFingerprintResponse = resp
             .parse_struct("VaultFingerprintResponse")
@@ -977,7 +979,7 @@ impl PaymentMethodsController for PmCards<'_> {
             let query_params = Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Insert));
 
             let resp =
-                vault::call_to_vault::<pm_types::AddVault>(self.state, payload, query_params)
+                vault::call_to_vault::<pm_types::AddVault>(self.state, payload, query_params, None)
                     .await
                     .change_context(errors::VaultError::VaultAPIError)
                     .attach_printable("Call to vault failed")?;
@@ -1395,6 +1397,101 @@ impl PaymentMethodsController for PmCards<'_> {
         pm: &domain::PaymentMethod,
     ) -> errors::RouterResult<api::CardDetailFromLocker> {
         get_card_details_from_locker(self.state, pm).await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn retrieve_payment_method_from_vault(
+        &self,
+        entity_id: &hyperswitch_domain_models::vault::V1VaultEntityId,
+        vault_id: &domain::VaultId,
+    ) -> errors::CustomResult<
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData,
+        errors::VaultError,
+    > {
+        let vault_request = pm_types::VaultRetrieveRequest {
+            entity_id: entity_id.clone(),
+            vault_id: vault_id.clone(),
+        };
+        let payload = vault_request
+            .encode_to_vec()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode VaultRetrieveRequest")?;
+
+        let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(self.state, payload, None, None)
+            .await
+            .change_context(errors::VaultError::VaultAPIError)
+            .attach_printable("Call to vault failed")?;
+
+        let stored_pm_resp: pm_types::VaultRetrieveResponse = resp
+            .parse_struct("VaultRetrieveResponse")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Failed to parse data into VaultRetrieveResponse")?;
+
+        Ok(stored_pm_resp.data)
+    }
+
+    #[cfg(feature = "v1")]
+    async fn store_payment_method_in_vault(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        vault_id: &domain::VaultId,
+        data: &hyperswitch_domain_models::vault::PaymentMethodVaultingData,
+    ) -> errors::CustomResult<(), errors::VaultError> {
+        let payload = pm_types::AddVaultRequestNew {
+            entity_id: merchant_id.clone(),
+            vault_id: vault_id.clone(),
+            data: data.clone(),
+            ttl: self.state.conf.locker.ttl_for_storage_in_secs,
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode AddVaultRequest")?;
+
+        let query_params = Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Insert));
+
+        vault::call_to_vault::<pm_types::AddVault>(self.state, payload, query_params, None)
+            .await
+            .change_context(errors::VaultError::VaultAPIError)
+            .attach_printable("Call to vault failed")?;
+
+        Ok(())
+    }
+
+    #[cfg(feature = "v1")]
+    async fn get_fingerprint_id_from_vault(
+        &self,
+        entity_id: &hyperswitch_domain_models::vault::V1VaultEntityId,
+        fingerprint_data: &hyperswitch_domain_models::vault::FingerprintData,
+        fingerprint_id: String,
+    ) -> errors::CustomResult<String, errors::VaultError> {
+        let data = serde_json::to_string(fingerprint_data)
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode fingerprint data")?;
+
+        let payload = pm_types::VaultFingerprintRequest {
+            key: entity_id.clone(),
+            data,
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode VaultFingerprintRequest")?;
+
+        let resp = vault::call_to_vault::<pm_types::GetVaultFingerprint>(
+            self.state,
+            payload,
+            None,
+            Some(fingerprint_id.to_string()),
+        )
+        .await
+        .change_context(errors::VaultError::VaultAPIError)
+        .attach_printable("Call to vault failed")?;
+
+        let fingerprint_resp: pm_types::VaultFingerprintResponse = resp
+            .parse_struct("VaultFingerprintResponse")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Failed to parse VaultFingerprintResponse")?;
+
+        Ok(fingerprint_resp.fingerprint_id)
     }
 
     #[cfg(feature = "v1")]
@@ -6012,7 +6109,7 @@ pub async fn get_bank_debit_from_hs_locker(
         .attach_printable("Failed to encode VaultRetrieveRequest")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
+    let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None, None)
         .await
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")
@@ -6055,7 +6152,7 @@ pub async fn get_wallet_from_hs_locker(
         .attach_printable("Failed to encode VaultRetrieveRequest")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
+    let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None, None)
         .await
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")
