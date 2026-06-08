@@ -7277,7 +7277,7 @@ options=[]
 
 [santander]
 [[santander.bank_transfer]]
-payment_method_type = "pix"
+payment_method_type = "pix_emv"
 [[santander.bank_transfer]]
 payment_method_type = "pix_automatico_push"
 [[santander.bank_transfer]]
@@ -7288,38 +7288,38 @@ payment_method_type = "boleto"
 certificate="Base64 encoded PEM formatted certificate chain"
 private_key="Base64 encoded PEM formatted private key"
   
-[[santander.metadata.pix]]
+[[santander.metadata.pix_emv]]
 name="client_id"
 label="Client ID"
 placeholder="Enter your Client Id"
 required=true
 type="Text"
-[[santander.metadata.pix]]
+[[santander.metadata.pix_emv]]
 name="client_secret"
 label="Client Secret"
 placeholder="Enter your Client Secret"
 required=true
 type="Text"
-[[santander.metadata.pix]]
+[[santander.metadata.pix_emv]]
 name="pix_key_type"
 label="Chave Key Type"
 placeholder="Enter your Chave/Pix Key Type"
 required=true
 type="Select"
 options=["CPF", "CNPJ", "EMAIL", "CELLULAR", "EVP"]
-[[santander.metadata.pix]]
+[[santander.metadata.pix_emv]]
 name="pix_key_value"
 label="Chave Key"
 placeholder="Enter your Chave/Pix Key"
 required=true
 type="Text"
-[[santander.metadata.pix]]
+[[santander.metadata.pix_emv]]
 name="merchant_city"
 label="Merchant City"
 placeholder="Enter the city the merchant is based in"
 required=true
 type="Text"
-[[santander.metadata.pix]]
+[[santander.metadata.pix_emv]]
 name="merchant_name"
 label="Merchant Name"
 placeholder="Enter the merchant name"

@@ -4,7 +4,6 @@ use api_models::enums::PayoutConnectors;
 use common_utils::{errors::CustomResult, ext_traits::Encode, fallback_reverse_lookup_not_found};
 use diesel_models::{
     enums::MerchantStorageScheme,
-    kv,
     payout_attempt::{
         PayoutAttempt as DieselPayoutAttempt, PayoutAttemptNew as DieselPayoutAttemptNew,
         PayoutAttemptUpdate as DieselPayoutAttemptUpdate,
@@ -100,15 +99,6 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                         .clone(),
                 };
 
-                let redis_entry = kv::TypedSql {
-                    op: kv::DBOperation::Insert {
-                        insertable: Box::new(kv::Insertable::PayoutAttempt(
-                            new_payout_attempt.to_storage_model(),
-                        )),
-                    },
-                };
-
-                // Reverse lookup for payout_attempt_id
                 let field = format!("poa_{}", created_attempt.payout_attempt_id);
                 let reverse_lookup = ReverseLookupNew {
                     lookup_id: format!(
@@ -124,12 +114,20 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                 self.insert_reverse_lookup(reverse_lookup, storage_scheme)
                     .await?;
 
+                let mut query_gen_conn = pg_connection_write(self).await?;
+                let drainer_query = new_payout_attempt
+                    .to_storage_model()
+                    .generate_drainer_insert_query(&mut query_gen_conn)
+                    .await
+                    .change_context(errors::StorageError::KVError)
+                    .attach_printable("Failed to generate payout attempt insert query")?;
+
                 match Box::pin(kv_wrapper::<DieselPayoutAttempt, _, _>(
                     self,
                     KvOperation::<DieselPayoutAttempt>::HSetNx(
                         &field,
                         &created_attempt.clone().to_storage_model(),
-                        redis_entry,
+                        drainer_query,
                     ),
                     key,
                 ))
@@ -189,17 +187,6 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                     .encode_to_string_of_json()
                     .change_context(errors::StorageError::SerializationFailed)?;
 
-                let redis_entry = kv::TypedSql {
-                    op: kv::DBOperation::Update {
-                        updatable: Box::new(kv::Updateable::PayoutAttemptUpdate(
-                            kv::PayoutAttemptUpdateMems {
-                                orig: origin_diesel_payout,
-                                update_data: diesel_payout_update,
-                            },
-                        )),
-                    },
-                };
-
                 let updated_attempt = PayoutAttempt::from_storage_model(
                     payout_update
                         .to_storage_model()
@@ -236,9 +223,21 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                     _ => {}
                 }
 
+                let mut query_gen_conn = pg_connection_write(self).await?;
+                let drainer_query = diesel_payout_update
+                    .clone()
+                    .generate_drainer_update_query(
+                        &mut query_gen_conn,
+                        this.payout_attempt_id.clone(),
+                        this.merchant_id.clone(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::KVError)
+                    .attach_printable("Failed to generate payout attempt update query")?;
+
                 Box::pin(kv_wrapper::<(), _, _>(
                     self,
-                    KvOperation::<DieselPayoutAttempt>::Hset((&field, redis_value), redis_entry),
+                    KvOperation::<DieselPayoutAttempt>::Hset((&field, redis_value), drainer_query),
                     key,
                 ))
                 .await
