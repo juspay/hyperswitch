@@ -835,7 +835,11 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                 }
                 .attach_printable("Failed to parse currency from UCS Nmi redirect form")?;
                 Ok(Self::Nmi {
-                    amount: amount_money.minor_amount.to_string(),
+                    amount: common_utils::types::MinorUnit::new(amount_money.minor_amount)
+                        .to_major_unit_as_f64(currency)
+                        .change_context(UnifiedConnectorServiceError::ParsingFailed)?
+                        .get_amount_as_f64()
+                        .to_string(),
                     currency,
                     public_key: hyperswitch_masking::Secret::new(
                         nmi.public_key
