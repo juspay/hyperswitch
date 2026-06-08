@@ -1,0 +1,9 @@
+{
+  "customer_id": "cust_invalid_nonexistent",
+  "billing_processor_id": "",
+  "currency": "USD",
+  "amount": 1000,
+  "interval": "month",
+  "interval_count": 1,
+  "description": "Test subscription with invalid customer"
+}
