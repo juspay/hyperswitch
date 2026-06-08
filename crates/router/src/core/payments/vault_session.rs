@@ -1,6 +1,8 @@
 pub use common_enums::enums::CallConnectorAction;
 use common_utils::id_type;
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
+#[cfg(feature = "v2")]
+use error_stack::report;
 #[cfg(feature = "v2")]
 pub use hyperswitch_domain_models::payments::PaymentIntentData;
 pub use hyperswitch_domain_models::{
@@ -19,7 +21,6 @@ use hyperswitch_interfaces::connector_integration_v2::{ConnectorIntegrationV2, C
 use hyperswitch_masking::ExposeInterface;
 #[cfg(feature = "v1")]
 use hyperswitch_masking::Mask;
-use router_env::env::Env;
 
 #[cfg(feature = "v2")]
 use crate::core::payments::{customers, gateway::context as gateway_context, helpers};
@@ -38,7 +39,7 @@ use crate::{
     services::{self, connector_integration_interface::RouterDataConversion},
     types::{
         self as router_types,
-        api::{self, enums as api_enums},
+        api,
         domain,
     },
 };
@@ -375,63 +376,6 @@ pub async fn generate_vault_session_details(
             Ok(None)
         }
     }
-}
-
-#[cfg(feature = "v1")]
-async fn call_external_vault_create_v1(
-    state: &SessionState,
-    processor: &domain::Processor,
-    connector_name: String,
-    vault_mca: &domain::MerchantConnectorAccount,
-    connector_customer_id: Option<String>,
-) -> RouterResult<VaultRouterData<ExternalVaultCreateFlow>>
-where
-    dyn ConnectorTrait + Sync: services::api::ConnectorIntegration<
-        ExternalVaultCreateFlow,
-        router_types::VaultRequestData,
-        router_types::VaultResponseData,
-    >,
-{
-    let mca_id = vault_mca.get_id();
-    let connector_data: api::ConnectorData = api::ConnectorData::get_connector_by_name(
-        &state.conf.connectors,
-        &connector_name,
-        api::GetToken::Connector,
-        Some(mca_id),
-    )?;
-
-    let router_data = core_utils::construct_vault_router_data(
-        state,
-        processor.get_account().get_id(),
-        vault_mca,
-        None,
-        None,
-        connector_customer_id,
-        None,
-    )
-    .await?;
-
-    let old_router_data = VaultConnectorFlowData::to_old_router_data(router_data)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "Cannot construct router data for making the external vault create api call",
-        )?;
-
-    let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
-        ExternalVaultCreateFlow,
-        router_types::VaultRequestData,
-        router_types::VaultResponseData,
-    > = connector_data.connector.get_connector_integration();
-    services::execute_connector_processing_step(
-        state,
-        connector_integration,
-        &old_router_data,
-        CallConnectorAction::Trigger,
-        None,
-        None,
-    )
-    .await
-    .to_vault_failed_response()
 }
 
 #[cfg(feature = "v2")]
