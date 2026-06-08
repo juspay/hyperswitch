@@ -440,9 +440,9 @@ export const connectorDetails = {
         body: {
           status: "failed",
           error_code:
-            "Your transaction has been denied due to merchant account issue",
+            "Token not found",
           error_message:
-            "Your transaction has been denied due to merchant account issue",
+            "Token not found",
         },
       },
     },
@@ -466,9 +466,9 @@ export const connectorDetails = {
         body: {
           status: "failed",
           error_code:
-            "Your transaction has been denied due to merchant account issue",
+            "Token not found",
           error_message:
-            "Your transaction has been denied due to merchant account issue",
+            "Token not found",
         },
       },
     },
@@ -608,9 +608,9 @@ export const connectorDetails = {
         body: {
           status: "failed",
           error_code:
-            "Your transaction has been denied due to merchant account issue",
+            "Token not found",
           error_message:
-            "Your transaction has been denied due to merchant account issue",
+            "Token not found",
         },
       },
     },
@@ -624,9 +624,9 @@ export const connectorDetails = {
         body: {
           status: "failed",
           error_code:
-            "Your transaction has been denied due to merchant account issue",
+            "Token not found",
           error_message:
-            "Your transaction has been denied due to merchant account issue",
+            "Token not found",
         },
       },
     },
@@ -740,9 +740,9 @@ export const connectorDetails = {
         body: {
           status: "failed",
           error_code:
-            "Your transaction has been denied due to merchant account issue",
+            "Token not found",
           error_message:
-            "Your transaction has been denied due to merchant account issue",
+            "Token not found",
         },
       },
     },
