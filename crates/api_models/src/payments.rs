@@ -12351,6 +12351,7 @@ pub struct PaymentLinkDetails {
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
     pub color_icon_card_cvc_error: Option<String>,
+    pub show_merchant_name: Option<bool>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
