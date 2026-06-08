@@ -1994,6 +1994,26 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
     return;
   }
 
+  if (connectorId === "iatapay") {
+    cy.log("Starting iatapay RealTimePayment redirection flow");
+
+    cy.get(".iatapay-button.iatapay-button--secondary", {
+      timeout: CONSTANTS.TIMEOUT,
+    })
+      .should("be.visible")
+      .click();
+
+    cy.log("Clicked Simulate button");
+
+    cy.url({ timeout: CONSTANTS.TIMEOUT }).should(
+      "include",
+      expectedUrl.hostname
+    );
+
+    verifyReturnUrl(redirectionUrl, expectedUrl, true);
+    return;
+  }
+
   // Special handling for Airwallex which uses multiple domains in 3DS flow
   // Handle separately to avoid nested cy.origin() calls
   if (connectorId === "airwallex") {
