@@ -28110,6 +28110,11 @@
             "type": "string",
             "description": "Hex color for the CVC icon during error state",
             "nullable": true
+          },
+          "show_merchant_name": {
+            "type": "boolean",
+            "description": "Flag to display the merchant name in the payment link",
+            "nullable": true
           }
         }
       },
@@ -28290,6 +28295,13 @@
           "color_icon_card_cvc_error": {
             "type": "string",
             "description": "Hex color for the CVC icon during error state",
+            "nullable": true
+          },
+          "show_merchant_name": {
+            "type": "boolean",
+            "description": "Flag to display the merchant name in the payment link",
+            "default": true,
+            "example": true,
             "nullable": true
           }
         }

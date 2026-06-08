@@ -1419,6 +1419,35 @@ export const connectorDetails = {
         },
       },
     }),
+    PaypalRedirectMandateCIT: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        authentication_type: "no_three_ds",
+        billing: standardBillingAddress,
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+        setup_future_usage: "off_session",
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            single_use: {
+              amount: 8000,
+              currency: "EUR",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
     Skrill: getCustomExchange({
       Request: {
         payment_method: "wallet",

@@ -7295,7 +7295,10 @@ Cypress.Commands.add(
         "api-key": adminApiKey,
         "X-Merchant-Id": merchantId,
       },
-      body: refundManualUpdateRequestBody,
+      body: {
+        merchant_id: merchantId,
+        ...refundManualUpdateRequestBody.Request,
+      },
       failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
