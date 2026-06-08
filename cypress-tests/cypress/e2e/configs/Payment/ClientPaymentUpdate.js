@@ -17,13 +17,9 @@ export const PaymentUpdateClientAuthConfigs = {
       },
     },
     Response: {
-      status: 500,
+      status: 200,
       body: {
-        error: {
-          type: "server_not_available",
-          code: "HE_00",
-          message: "Something went wrong",
-        },
+        status: "requires_payment_method",
       },
     },
   },
@@ -44,12 +40,12 @@ export const PaymentUpdateClientAuthConfigs = {
       },
     },
     Response: {
-      status: 500,
+      status: 400,
       body: {
         error: {
-          type: "server_not_available",
-          code: "HE_00",
-          message: "Something went wrong",
+          type: "invalid_request",
+          code: "IR_00",
+          message: "Invalid client secret",
         },
       },
     },
@@ -71,12 +67,12 @@ export const PaymentUpdateClientAuthConfigs = {
       },
     },
     Response: {
-      status: 500,
+      status: 401,
       body: {
         error: {
-          type: "server_not_available",
-          code: "HE_00",
-          message: "Something went wrong",
+          type: "invalid_request",
+          code: "IR_00",
+          message: "Unauthorised access to update customer",
         },
       },
     },
@@ -97,12 +93,12 @@ export const PaymentUpdateClientAuthConfigs = {
       },
     },
     Response: {
-      status: 500,
+      status: 400,
       body: {
         error: {
-          type: "server_not_available",
-          code: "HE_00",
-          message: "Something went wrong",
+          type: "invalid_request",
+          code: "IR_00",
+          message: "Payment status does not allow updates",
         },
       },
     },
