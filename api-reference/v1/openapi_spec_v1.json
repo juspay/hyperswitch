@@ -1752,7 +1752,7 @@
         },
         "responses": {
           "200": {
-            "description": "Eligibility checks successful",
+            "description": "Eligibility and surcharge checks successful",
             "content": {
               "application/json": {
                 "schema": {
@@ -32431,8 +32431,11 @@
             "$ref": "#/components/schemas/SdkNextAction"
           },
           "surcharge_details": {
-            "type": "string",
-            "description": "Surcharge details if an external surcharge was calculated. None if eligibility was denied\nor no surcharge connector is configured for this merchant.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeDetailsResponse"
+              }
+            ],
             "nullable": true
           }
         }
@@ -41000,7 +41003,7 @@
           },
           "should_block_confirm": {
             "type": "boolean",
-            "description": "Whether the SDK should block the confirm call until the merchant explicitly unblocks it.\ntrue when a surcharge processor is enabled (surcharge must be shown to user before confirm),\nfalse otherwise.",
+            "description": "Whether the SDK should block the confirm call for user.",
             "nullable": true
           }
         }
