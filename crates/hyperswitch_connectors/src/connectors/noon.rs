@@ -13,7 +13,6 @@ use common_utils::{
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -53,11 +52,7 @@ use hyperswitch_masking::{Mask, PeekInterface};
 use router_env::logger;
 use transformers as noon;
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::{self as connector_utils, PaymentMethodDataType},
-};
+use crate::{constants::headers, types::ResponseRouterData, utils as connector_utils};
 
 #[derive(Clone)]
 pub struct Noon {
@@ -217,19 +212,6 @@ impl ConnectorValidation for Noon {
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
-    }
-
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::ApplePay,
-            PaymentMethodDataType::GooglePay,
-        ]);
-        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 
     fn validate_psync_reference_id(

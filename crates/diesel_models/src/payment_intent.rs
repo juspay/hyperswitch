@@ -261,6 +261,8 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub is_setup_mandate_flow: Option<bool>,
     /// Hex color for the CVC icon during error state
     pub color_icon_card_cvc_error: Option<String>,
+    /// Flag to display the merchant name in the payment link
+    pub show_merchant_name: Option<bool>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(PaymentLinkConfigRequestForPayments);

@@ -185,7 +185,7 @@ describe("Voucher Payment tests", () => {
       });
     });
 
-    it("OXXO invalid voucher data format (string instead of null) should error", () => {
+    it("OXXO invalid voucher value should return deserialization error", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "voucher_pm"
       ]["OxxoInvalidFormat"];
