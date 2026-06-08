@@ -5336,9 +5336,6 @@ Cypress.Commands.add(
           ) {
             switch (response.body.payment_method_type) {
               case "duit_now":
-              case "fps":
-              case "prompt_pay":
-              case "viet_qr":
                 if (response.body.connector === "fiuu")
                   expect(response.body)
                     .to.have.property("next_action")
