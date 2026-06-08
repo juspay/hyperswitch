@@ -667,6 +667,7 @@ export const CONNECTOR_LISTS = {
     ],
     POLL_CONFIG: ["stripe"],
     CLIENT_SESSION_VALIDATION: ["stripe"],
+    SUBSCRIPTION: ["stripebilling"],
     // Add more inclusion lists
   },
 };

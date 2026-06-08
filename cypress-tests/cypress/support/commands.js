@@ -10454,6 +10454,67 @@ Cypress.Commands.add(
   }
 );
 
+// Subscription Management Commands
+// ============================================
+
+
+Cypress.Commands.add(
+  "createSubscriptionTest",
+  (createSubscriptionBody, data, globalState) => {
+    const { Configs: configs = {} } = data;
+    execConfig(validateConfig(configs));
+
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const merchant_connector_id = globalState.get("merchantConnectorId");
+
+    // Merge request body with any connector-specific Request fields
+    const subscriptionBody = {
+      ...createSubscriptionBody,
+      ...data.Request,
+    };
+
+    // Substitute dynamic values
+    if (subscriptionBody.customer_id === "") {
+      subscriptionBody.customer_id = globalState.get("customerId");
+    }
+    if (subscriptionBody.billing_processor_id === "") {
+      subscriptionBody.billing_processor_id = merchant_connector_id;
+    }
+
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+      "X-Billing-Processor-Id": merchant_connector_id,
+    };
+
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/subscriptions`,
+      headers: headers,
+      failOnStatusCode: false,
+      body: subscriptionBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      const resData = data.Response;
+      cy.wrap(response).then(() => {
+        expect(response.status, "status_code").to.equal(resData.status);
+
+        if (response.status === 200 && response.body.subscription_id) {
+          globalState.set("subscriptionId", response.body.subscription_id);
+        }
+
+        if (resData.body) {
+          for (const key in resData.body) {
+            expect(response.body[key], [key]).to.deep.equal(resData.body[key]);
+          }
+        }
+      });
+    });
+  }
+);
+
 Cypress.Commands.add("initiatePayoutLinkTest", (data, globalState) => {
   const payoutLinkUrl = globalState.get("payoutLinkUrl");
 
@@ -10555,5 +10616,163 @@ Cypress.Commands.add("retrieveNonExistentPayoutTest", (globalState) => {
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
     expect(response.status).to.equal(404);
+  });
+});
+
+Cypress.Commands.add("retrieveSubscriptionTest", (data, globalState) => {
+  const { Configs: configs = {} } = data;
+  execConfig(validateConfig(configs));
+
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const subscriptionId = globalState.get("subscriptionId");
+  const merchant_connector_id = globalState.get("merchantConnectorId");
+
+  const headers = {
+    "Content-Type": "application/json",
+    "api-key": apiKey,
+    "X-Billing-Processor-Id": merchant_connector_id,
+  };
+
+  cy.request({
+    method: "GET",
+    url: `${baseUrl}/subscriptions/${subscriptionId}`,
+    headers: headers,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    const resData = data.Response;
+    cy.wrap(response).then(() => {
+      expect(response.status, "status_code").to.equal(resData.status);
+
+      if (resData.body) {
+        for (const key in resData.body) {
+          expect(response.body[key], [key]).to.deep.equal(resData.body[key]);
+        }
+      }
+    });
+  });
+});
+
+Cypress.Commands.add(
+  "updateSubscriptionTest",
+  (updateSubscriptionBody, data, globalState) => {
+    const { Configs: configs = {} } = data;
+    execConfig(validateConfig(configs));
+
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const subscriptionId = globalState.get("subscriptionId");
+    const merchant_connector_id = globalState.get("merchantConnectorId");
+
+    const subscriptionBody = {
+      ...updateSubscriptionBody,
+      ...data.Request,
+    };
+
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+      "X-Billing-Processor-Id": merchant_connector_id,
+    };
+
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/subscriptions/${subscriptionId}/update`,
+      headers: headers,
+      failOnStatusCode: false,
+      body: subscriptionBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      const resData = data.Response;
+      cy.wrap(response).then(() => {
+        expect(response.status, "status_code").to.equal(resData.status);
+
+        if (resData.body) {
+          for (const key in resData.body) {
+            expect(response.body[key], [key]).to.deep.equal(resData.body[key]);
+          }
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add("cancelSubscriptionTest", (data, globalState) => {
+  const { Configs: configs = {} } = data;
+  execConfig(validateConfig(configs));
+
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const subscriptionId = globalState.get("subscriptionId");
+  const merchant_connector_id = globalState.get("merchantConnectorId");
+
+  const subscriptionBody = {
+    ...(data.Request || {}),
+  };
+
+  const headers = {
+    "Content-Type": "application/json",
+    "api-key": apiKey,
+    "X-Billing-Processor-Id": merchant_connector_id,
+  };
+
+  cy.request({
+    method: "POST",
+    url: `${baseUrl}/subscriptions/${subscriptionId}/cancel`,
+    headers: headers,
+    failOnStatusCode: false,
+    body: subscriptionBody,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    const resData = data.Response;
+    cy.wrap(response).then(() => {
+      expect(response.status, "status_code").to.equal(resData.status);
+
+      if (resData.body) {
+        for (const key in resData.body) {
+          expect(response.body[key], [key]).to.deep.equal(resData.body[key]);
+        }
+      }
+    });
+  });
+});
+
+Cypress.Commands.add("reactivateSubscriptionTest", (data, globalState) => {
+  const { Configs: configs = {} } = data;
+  execConfig(validateConfig(configs));
+
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const subscriptionId = globalState.get("subscriptionId");
+  const merchant_connector_id = globalState.get("merchantConnectorId");
+
+  const headers = {
+    "Content-Type": "application/json",
+    "api-key": apiKey,
+    "X-Billing-Processor-Id": merchant_connector_id,
+  };
+
+  cy.request({
+    method: "POST",
+    url: `${baseUrl}/subscriptions/${subscriptionId}/reactivate`,
+    headers: headers,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    const resData = data.Response;
+    cy.wrap(response).then(() => {
+      expect(response.status, "status_code").to.equal(resData.status);
+
+      if (resData.body) {
+        for (const key in resData.body) {
+          expect(response.body[key], [key]).to.deep.equal(resData.body[key]);
+        }
+      }
+    });
   });
 });
