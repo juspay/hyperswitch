@@ -90,7 +90,10 @@ describe("FRM - Fraud Risk Management Tests", () => {
           },
           failOnStatusCode: false,
         }).then((response) => {
-          cy.task("cli_log", "FRM Signifyd connector delete status: " + response.status);
+          cy.task(
+            "cli_log",
+            "FRM Signifyd connector delete status: " + response.status
+          );
         });
       }
     });
@@ -171,7 +174,10 @@ describe("FRM - Fraud Risk Management Tests", () => {
           },
           failOnStatusCode: false,
         }).then((response) => {
-          cy.task("cli_log", "FRM Riskified connector delete status: " + response.status);
+          cy.task(
+            "cli_log",
+            "FRM Riskified connector delete status: " + response.status
+          );
         });
       }
     });
