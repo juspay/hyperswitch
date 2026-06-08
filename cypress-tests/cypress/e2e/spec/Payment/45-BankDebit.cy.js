@@ -32,42 +32,11 @@ describe("Bank Debit tests", () => {
       });
   });
 
-  afterEach("flush global state", () => {
+  after("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
   context("SEPA Bank Debit Create and Confirm flow test", () => {
-    const shouldContinue = true;
-
-    before("seed global state", function () {
-      let skip = false;
-
-      cy.task("getGlobalState")
-        .then((state) => {
-          globalState = new State(state);
-          const connector = globalState.get("connectorId");
-
-          if (
-            shouldIncludeConnector(
-              connector,
-              CONNECTOR_LISTS.INCLUDE.INESPAY_BANK_SIMULATION
-            )
-          ) {
-            skip = true;
-          }
-        })
-        .then(() => {
-          if (skip) {
-            this.skip();
-          }
-        });
-    });
-
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm SEPA Bank Debit -> Retrieve Payment", () => {
       let shouldContinue = true;
 
@@ -97,7 +66,7 @@ describe("Bank Debit tests", () => {
 
       cy.step("Confirm SEPA Bank Debit", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          cy.task("cli_log", "Skipping step: Confirm SEPA Bank Debit");
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -123,9 +92,6 @@ describe("Bank Debit tests", () => {
           "bank_debit_pm"
         ]["Sepa"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
       });
     });
   });
@@ -160,7 +126,7 @@ describe("Bank Debit tests", () => {
 
       cy.step("Confirm ACH Bank Debit", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          cy.task("cli_log", "Skipping step: Confirm ACH Bank Debit");
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -186,9 +152,6 @@ describe("Bank Debit tests", () => {
           "bank_debit_pm"
         ]["Ach"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
       });
     });
   });
@@ -223,7 +186,7 @@ describe("Bank Debit tests", () => {
 
       cy.step("Confirm BECS Bank Debit", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          cy.task("cli_log", "Skipping step: Confirm BECS Bank Debit");
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -249,9 +212,6 @@ describe("Bank Debit tests", () => {
           "bank_debit_pm"
         ]["Becs"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
       });
     });
   });
@@ -286,7 +246,7 @@ describe("Bank Debit tests", () => {
 
       cy.step("Confirm BACS Bank Debit", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          cy.task("cli_log", "Skipping step: Confirm BACS Bank Debit");
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -312,48 +272,32 @@ describe("Bank Debit tests", () => {
           "bank_debit_pm"
         ]["Bacs"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
       });
     });
   });
 
   context("Inespay SEPA Bank Debit Create, Confirm and Retrieve flow", () => {
-    let shouldContinue = true;
-
-    before("seed global state", function () {
-      let skip = false;
-      cy.task("getGlobalState")
-        .then((state) => {
-          globalState = new State(state);
-          const connector = globalState.get("connectorId");
-          if (
-            shouldIncludeConnector(
-              connector,
-              CONNECTOR_LISTS.INCLUDE.INESPAY_BANK_SIMULATION
-            )
-          ) {
-            skip = true;
-          }
-        })
-        .then(() => {
-          if (skip) {
-            this.skip();
-          }
-        });
-    });
-
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
-
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm SEPA -> Simulate Redirect -> Retrieve Payment", () => {
       let shouldContinue = true;
 
+      cy.step("Check Inespay connector eligibility", () => {
+        const connectorId = globalState.get("connectorId");
+        if (
+          shouldIncludeConnector(
+            connectorId,
+            CONNECTOR_LISTS.INCLUDE.INESPAY_BANK_SIMULATION
+          )
+        ) {
+          cy.task("cli_log", `Skipping Inespay flow: ${connectorId} is not in INESPAY_BANK_SIMULATION list`);
+          shouldContinue = false;
+        }
+      });
+
       cy.step("Create Payment Intent for SEPA", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Create Payment Intent for SEPA");
+          return;
+        }
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
         ]["PaymentIntent"]("Sepa");
@@ -417,9 +361,6 @@ describe("Bank Debit tests", () => {
           "bank_debit_pm"
         ]["Sepa"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
       });
     });
   });
