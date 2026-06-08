@@ -1,8 +1,8 @@
 pub use common_enums::enums::CallConnectorAction;
 use common_utils::id_type;
-use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use error_stack::report;
+use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 pub use hyperswitch_domain_models::payments::PaymentIntentData;
 pub use hyperswitch_domain_models::{
@@ -41,11 +41,7 @@ use crate::{
     },
     routes::{app::ReqState, SessionState},
     services,
-    types::{
-        self as router_types,
-        api,
-        domain,
-    },
+    types::{self as router_types, api, domain},
 };
 #[cfg(feature = "v2")]
 use crate::{
