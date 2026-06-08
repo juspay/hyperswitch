@@ -16,13 +16,17 @@ pub use hyperswitch_domain_models::{
     types::{VaultRouterData, VaultRouterDataV2},
 };
 #[cfg(feature = "v2")]
-use hyperswitch_interfaces::{api::Connector as ConnectorTrait, connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2}};
+use hyperswitch_interfaces::{api::Connector as ConnectorTrait, connector_integration_interface::RouterDataConversion, connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2}};
 use hyperswitch_masking::ExposeInterface;
 #[cfg(feature = "v1")]
 use hyperswitch_masking::Mask;
 
 #[cfg(feature = "v2")]
+use api_models::enums::VaultConnectors;
+
+#[cfg(feature = "v2")]
 use crate::core::{
+    errors::utils::ConnectorErrorExt,
     payments::{customers, gateway::context as gateway_context, helpers},
     utils as core_utils,
 };
@@ -315,7 +319,7 @@ pub async fn generate_vault_session_details(
     connector_customer_id: Option<String>,
 ) -> RouterResult<Option<api::VaultSessionDetails>> {
     let connector =
-        api_enums::VaultConnectors::try_from(merchant_connector_account_type.get_connector_name())
+        VaultConnectors::try_from(merchant_connector_account_type.get_connector_name())
             .map_err(|error| {
                 report!(errors::ApiErrorResponse::InternalServerError).attach_printable(format!(
                     "Failed to convert connector to vault connector: {}",
@@ -333,12 +337,12 @@ pub async fn generate_vault_session_details(
     match (connector, connector_auth_type) {
         // create session for vgs vault
         (
-            api_enums::VaultConnectors::Vgs,
+            VaultConnectors::Vgs,
             router_types::ConnectorAuthType::SignatureKey { api_secret, .. },
         ) => {
             let sdk_env = match state.conf.env {
-                Env::Sandbox | Env::Development | Env::Integ => "sandbox",
-                Env::Production => "live",
+                router_env::Env::Sandbox | router_env::Env::Development | router_env::Env::Integ => "sandbox",
+                router_env::Env::Production => "live",
             }
             .to_string();
             Ok(Some(api::VaultSessionDetails::Vgs(
@@ -350,7 +354,7 @@ pub async fn generate_vault_session_details(
         }
         // create session for hyperswitch vault
         (
-            api_enums::VaultConnectors::HyperswitchVault,
+            VaultConnectors::HyperswitchVault,
             router_types::ConnectorAuthType::SignatureKey {
                 key1, api_secret, ..
             },
