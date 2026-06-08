@@ -1,7 +1,10 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
-import { shouldIncludeConnector, CONNECTOR_LISTS } from "../../configs/Payment/Utils";
+import {
+  shouldIncludeConnector,
+  CONNECTOR_LISTS,
+} from "../../configs/Payment/Utils";
 
 let globalState;
 
@@ -13,7 +16,12 @@ describe("FRM - Fraud Risk Management Tests", () => {
   });
 
   before(function () {
-    if (shouldIncludeConnector(globalState.get("connectorId"), CONNECTOR_LISTS.INCLUDE.FRM)) {
+    if (
+      shouldIncludeConnector(
+        globalState.get("connectorId"),
+        CONNECTOR_LISTS.INCLUDE.FRM
+      )
+    ) {
       this.skip();
     }
   });
@@ -56,9 +64,7 @@ describe("FRM - Fraud Risk Management Tests", () => {
           return;
         }
 
-        const data = getConnectorDetails("signifyd")[
-          "card_pm"
-        ]["FRM"];
+        const data = getConnectorDetails("signifyd")["card_pm"]["FRM"];
 
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
@@ -140,9 +146,7 @@ describe("FRM - Fraud Risk Management Tests", () => {
           return;
         }
 
-        const data = getConnectorDetails("riskified")[
-          "card_pm"
-        ]["FRM"];
+        const data = getConnectorDetails("riskified")["card_pm"]["FRM"];
 
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
