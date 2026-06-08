@@ -295,6 +295,14 @@ export const connectorDetails = {
       return {
         Request: {
           currency: currencyMap[paymentMethodType] || "EUR",
+          billing: {
+            address: {
+              country: "DE",
+              first_name: "Test",
+              last_name: "Account",
+            },
+            email: "test@example.com",
+          },
         },
         Response: {
           status: 200,
