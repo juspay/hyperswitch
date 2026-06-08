@@ -6,7 +6,6 @@ use diesel_models::{
         MandateAmountData as DieselMandateAmountData, MandateDataType as DieselMandateType,
         MandateDetails as DieselMandateDetails, MerchantStorageScheme,
     },
-    kv,
     payment_attempt::PaymentAttempt as DieselPaymentAttempt,
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
 };
@@ -856,19 +855,12 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         .sender_payment_instrument_id
                         .clone(),
                 };
-
+                let payment_attempt_new = payment_attempt
+                    .clone()
+                    .construct_new()
+                    .await
+                    .change_context(errors::StorageError::EncryptionError)?;
                 let field = format!("pa_{}", created_attempt.attempt_id);
-
-                let redis_entry = kv::TypedSql {
-                    op: kv::DBOperation::Insert {
-                        insertable: Box::new(kv::Insertable::PaymentAttempt(Box::new(
-                            payment_attempt
-                                .construct_new()
-                                .await
-                                .change_context(errors::StorageError::EncryptionError)?,
-                        ))),
-                    },
-                };
 
                 //Reverse lookup for attempt_id
                 let reverse_lookup = ReverseLookupNew {
@@ -885,6 +877,13 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 self.insert_reverse_lookup(reverse_lookup, storage_scheme)
                     .await?;
 
+                let mut query_gen_conn = pg_connection_write(self).await?;
+                let drainer_query = payment_attempt_new
+                    .generate_drainer_insert_query(&mut query_gen_conn)
+                    .await
+                    .change_context(errors::StorageError::KVError)
+                    .attach_printable("Failed to generate payment attempt insert query")?;
+
                 match Box::pin(kv_wrapper::<DieselPaymentAttempt, _, _>(
                     self,
                     KvOperation::HSetNx(
@@ -894,7 +893,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                             .convert()
                             .await
                             .change_context(errors::StorageError::EncryptionError)?,
-                        redis_entry,
+                        drainer_query,
                     ),
                     key,
                 ))
@@ -961,14 +960,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         .await
                         .change_context(errors::StorageError::EncryptionError)?;
 
-                let redis_entry = kv::TypedSql {
-                    op: kv::DBOperation::Insert {
-                        insertable: Box::new(kv::Insertable::PaymentAttempt(Box::new(
-                            diesel_payment_attempt_new.clone(),
-                        ))),
-                    },
-                };
-
                 let reverse_lookup_attempt_id = ReverseLookupNew {
                     lookup_id: label::get_global_id_label(&payment_attempt.id),
                     pk_id: key_str.clone(),
@@ -994,9 +985,16 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         .await?;
                 }
 
+                let mut query_gen_conn = pg_connection_write(self).await?;
+                let drainer_query = diesel_payment_attempt_new
+                    .generate_drainer_insert_query(&mut query_gen_conn)
+                    .await
+                    .change_context(errors::StorageError::KVError)
+                    .attach_printable("Failed to generate payment attempt insert query")?;
+
                 match Box::pin(kv_wrapper::<DieselPaymentAttempt, _, _>(
                     self,
-                    KvOperation::HSetNx(&field, &diesel_payment_attempt_for_redis, redis_entry),
+                    KvOperation::HSetNx(&field, &diesel_payment_attempt_for_redis, drainer_query),
                     key,
                 ))
                 .await
@@ -1053,14 +1051,18 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 let key_manager_state = self
                     .get_keymanager_state()
                     .attach_printable("Missing KeyManagerState")?;
+                let source_payment_attempt_diesel = this
+                    .clone()
+                    .convert()
+                    .await
+                    .change_context(errors::StorageError::EncryptionError)?;
+                let payment_attempt_update_diesel = payment_attempt.to_storage_model();
+                let updated_payment_attempt_diesel = payment_attempt_update_diesel
+                    .clone()
+                    .apply_changeset(source_payment_attempt_diesel.clone());
                 let updated_attempt = PaymentAttempt::convert_back(
                     key_manager_state,
-                    payment_attempt.clone().to_storage_model().apply_changeset(
-                        this.clone()
-                            .convert()
-                            .await
-                            .change_context(errors::StorageError::EncryptionError)?,
-                    ),
+                    updated_payment_attempt_diesel.clone(),
                     merchant_key_store.key.get_inner(),
                     merchant_key_store.merchant_id.clone().into(),
                 )
@@ -1068,23 +1070,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 .change_context(errors::StorageError::EncryptionError)
                 .attach_printable("Error while constructing domain model")?;
                 // Check for database presence as well Maybe use a read replica here ?
-                let redis_value = serde_json::to_string(&updated_attempt)
+                let redis_value = serde_json::to_string(&updated_payment_attempt_diesel)
                     .change_context(errors::StorageError::KVError)?;
-
-                let redis_entry = kv::TypedSql {
-                    op: kv::DBOperation::Update {
-                        updatable: Box::new(kv::Updateable::PaymentAttemptUpdate(Box::new(
-                            kv::PaymentAttemptUpdateMems {
-                                orig: this
-                                    .clone()
-                                    .convert()
-                                    .await
-                                    .change_context(errors::StorageError::EncryptionError)?,
-                                update_data: payment_attempt.to_storage_model(),
-                            },
-                        ))),
-                    },
-                };
 
                 match (
                     old_connector_transaction_id,
@@ -1145,9 +1132,19 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     (_, _) => {}
                 }
 
+                let mut query_gen_conn = pg_connection_write(self).await?;
+                let drainer_query = payment_attempt_update_diesel
+                    .generate_drainer_update_query(
+                        &mut query_gen_conn,
+                        &source_payment_attempt_diesel,
+                    )
+                    .await
+                    .change_context(errors::StorageError::KVError)
+                    .attach_printable("Failed to generate payment attempt update query")?;
+
                 Box::pin(kv_wrapper::<(), _, _>(
                     self,
-                    KvOperation::Hset::<DieselPaymentAttempt>((&field, redis_value), redis_entry),
+                    KvOperation::Hset::<DieselPaymentAttempt>((&field, redis_value), drainer_query),
                     key,
                 ))
                 .await
@@ -1191,18 +1188,20 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             .clone()
             .update_with_attempt_id(&conn, payment_attempt_internal.clone());
 
+        let mut query_gen_conn = pg_connection_write(self).await?;
+        let drainer_query = payment_attempt_internal
+            .generate_drainer_update_query(&mut query_gen_conn, payment_attempt.id.clone())
+            .await
+            .change_context(errors::StorageError::KVError)
+            .attach_printable("Failed to generate payment attempt update query")?;
+
         Box::pin(self.update_resource(
             merchant_key_store,
             storage_scheme,
             updated_payment_attempt_with_id,
             updated_payment_attempt,
             UpdateResourceParams {
-                updateable: kv::Updateable::PaymentAttemptUpdate(Box::new(
-                    kv::PaymentAttemptUpdateMems {
-                        orig: payment_attempt,
-                        update_data: payment_attempt_internal,
-                    },
-                )),
+                drainer_query,
                 operation: Op::Update(key.clone(), &field, Some(updated_by.as_str())),
             },
         ))
