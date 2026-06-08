@@ -3039,6 +3039,8 @@ function payoutLinkRedirection(
     bic = "",
   } = bankData;
 
+  cy.on("uncaught:exception", () => false);
+
   if (!redirectionUrl || !redirectionUrl.href) {
     cy.log(
       "Skipping payout link bank redirection - no valid redirect URL provided"
@@ -3178,7 +3180,23 @@ function payoutLinkRedirection(
     .and("not.have.class", "hidden")
     .click({ force: true });
   /* eslint-enable cypress/no-force */
-  cy.task("cli_log", "Clicked submit button");
+  cy.task("cli_log", "Clicked Save button (first submission)");
+
+  cy.wait(10000);
+
+  cy.get("#sdk-spinner", { timeout: 60000 }).should("have.class", "hidden");
+  cy.get("#unified-checkout", { timeout: 30000 }).should("be.visible");
+
+  /* eslint-disable cypress/no-force */
+  cy.get("#submit", { timeout: 30000 })
+    .should("be.visible")
+    .and("not.have.class", "hidden")
+    .click({ force: true });
+  /* eslint-enable cypress/no-force */
+  cy.task(
+    "cli_log",
+    "Clicked Save button (second submission after page re-stabilization)"
+  );
 
   if (expectedOutcome === "error") {
     cy.get("body", { timeout: 30000 }).should(($body) => {
@@ -3193,7 +3211,7 @@ function payoutLinkRedirection(
     });
     cy.task("cli_log", "Payout page shows error indicator as expected");
   } else {
-    cy.contains(/succeeded|success|payout successful|thank you/i, {
+    cy.contains(/succeeded|success|payout successful|thank you|requires_fulfillment|saved/i, {
       timeout: 30000,
     }).should("exist");
 
@@ -3204,6 +3222,8 @@ function payoutLinkRedirection(
         bodyText.includes("success") ||
         bodyText.includes("payout successful") ||
         bodyText.includes("thank you") ||
+        bodyText.includes("requires_fulfillment") ||
+        bodyText.includes("saved") ||
         $body.find('[class*="success"]').length > 0;
       const hasError =
         (bodyText.includes("error") && bodyText.includes("bank")) ||

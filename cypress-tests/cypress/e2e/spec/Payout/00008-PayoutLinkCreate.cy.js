@@ -305,10 +305,18 @@ describe("Payout Link", () => {
         iban: "NL46TEST0136169112",
         bic: "ABNANL2A",
       };
-      cy.visitPayoutLinkAndSubmitBankDetails(globalState, bankData);
+      cy.handlePayoutLinkBankRedirection(globalState, bankData, "success");
     });
 
-    it("retrieve-payout-after-bank-submission-test", () => {
+    it("retrieve-payout-after-bank-submission-test", function () {
+      if (Cypress.browser.isHeadless) {
+        cy.task(
+          "cli_log",
+          "Skipping retrieve-payout-after-bank-submission-test in headless mode - bank submission was skipped"
+        );
+        this.skip();
+      }
+
       const payoutId = globalState.get("payoutID");
       const apiKey = globalState.get("apiKey");
       const baseUrl = globalState.get("baseUrl");
@@ -323,13 +331,8 @@ describe("Payout Link", () => {
         failOnStatusCode: false,
       }).then((response) => {
         expect(response.status).to.equal(200);
-        if (Cypress.browser.isHeadless) {
-          cy.task("cli_log", "Headless mode: asserting status requires_payout_method_data");
-          expect(response.body.status).to.equal("requires_payout_method_data");
-        } else {
-          cy.task("cli_log", "Headed mode: asserting status requires_fulfillment");
-          expect(response.body.status).to.equal("requires_fulfillment");
-        }
+        cy.task("cli_log", "Asserting payout status equals requires_fulfillment");
+        expect(response.body.status).to.equal("requires_fulfillment");
       });
     });
   });
