@@ -67,6 +67,7 @@ import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
 import { connectorDetails as silverflowConnectorDetails } from "./Silverflow.js";
 import { connectorDetails as squareConnectorDetails } from "./Square.js";
 import { connectorDetails as staxConnectorDetails } from "./Stax.js";
+import { connectorDetails as stripebillingConnectorDetails } from "./StripeBilling.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as stripeconnectConnectorDetails } from "./StripeConnect.js";
 import { connectorDetails as tesouroConnectorDetails } from "./Tesouro.js";
@@ -146,6 +147,7 @@ const connectorDetails = {
   silverflow: silverflowConnectorDetails,
   square: squareConnectorDetails,
   stax: staxConnectorDetails,
+  stripebilling: stripebillingConnectorDetails,
   stripe: stripeConnectorDetails,
   stripeconnect: stripeconnectConnectorDetails,
   trustpay: trustpayConnectorDetails,
