@@ -12,8 +12,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_flow_types::{
+    payment_method_data::PaymentMethodData, router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData}, router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{
             Authorize, Capture, CompleteAuthorize, PSync, PaymentMethodToken, Session,
@@ -21,22 +20,19 @@ use hyperswitch_domain_models::{
         },
         refunds::{Execute, RSync},
         unified_authentication_service::PreAuthenticate,
-    },
-    router_request_types::{
+    }, router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsPreAuthenticateData, PaymentsSessionData, PaymentsSyncData, RefundsData,
         SetupMandateRequestData,
-    },
-    router_response_types::{
+    }, router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
-    },
-    types::{
+    }, types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsPreAuthenticateRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData,
-    },
+    }
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
