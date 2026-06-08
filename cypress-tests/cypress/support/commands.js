@@ -9839,57 +9839,20 @@ Cypress.Commands.add("initiatePayoutLinkTest", (data, globalState) => {
     return;
   }
 
-  const runningInCI = RequestBodyUtils.isCI();
+  cy.visit(payoutLinkUrl, { failOnStatusCode: false });
 
-  if (runningInCI) {
-    cy.request({
-      method: "GET",
-      url: payoutLinkUrl,
-      failOnStatusCode: false,
-      followRedirect: true,
-      timeout: 30000,
-    }).then((response) => {
-      expect(response.status).to.equal(200);
+  cy.get("body", { timeout: 30000 }).should("exist");
 
-      const contentType = response.headers["content-type"] || "";
-      expect(contentType).to.include("text/html");
+  cy.get("#sdk-spinner", { timeout: 60000 }).should("have.class", "hidden");
+  cy.task("cli_log", "Payout Link SDK initialized");
 
-      const bodyText = typeof response.body === "string" ? response.body : "";
-      const hasHyperLoader =
-        bodyText.includes("HyperLoader") ||
-        bodyText.includes("hyperloader-sdk");
+  cy.get("#unified-checkout", { timeout: 30000 }).should("be.visible");
+  cy.get("#payment-form", { timeout: 30000 }).should("exist");
 
-      if (hasHyperLoader) {
-        cy.task(
-          "cli_log",
-          "Payout Link page validated (CI): contains HyperLoader SDK"
-        );
-      } else {
-        cy.task(
-          "cli_log",
-          `Payout Link page validated (CI): status=${response.status}, body length=${bodyText.length}`
-        );
-      }
-    });
-  } else {
-    cy.visit(payoutLinkUrl, { failOnStatusCode: false });
-
-    cy.get("body", { timeout: 30000 }).then(($body) => {
-      const bodyText = $body.text() || "";
-      const hasHyperLoader =
-        bodyText.includes("HyperLoader") ||
-        $body.find("#hyperloader-sdk").length > 0;
-
-      if (hasHyperLoader) {
-        cy.task("cli_log", "Payout Link page loaded with HyperLoader SDK");
-      } else {
-        cy.task(
-          "cli_log",
-          `Payout Link page loaded (body length: ${bodyText.length})`
-        );
-      }
-    });
-  }
+  cy.get("#unified-checkout iframe", { timeout: 30000 }).should(
+    "have.length.at.least",
+    1
+  );
 });
 
 Cypress.Commands.add("retrievePayoutLinkTest", (data, globalState) => {
