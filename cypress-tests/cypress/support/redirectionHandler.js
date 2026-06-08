@@ -3081,6 +3081,7 @@ function payoutLinkRedirection(
           const placeholder = ($input.attr("placeholder") || "").toLowerCase();
           const ariaLabel = ($input.attr("aria-label") || "").toLowerCase();
           const name = ($input.attr("name") || "").toLowerCase();
+          const id = ($input.attr("id") || "").toLowerCase();
           const autocomplete = (
             $input.attr("autocomplete") || ""
           ).toLowerCase();
@@ -3137,7 +3138,8 @@ function payoutLinkRedirection(
           } else if (
             placeholder.includes("iban") ||
             ariaLabel.includes("iban") ||
-            name.includes("iban")
+            name.includes("iban") ||
+            id === "sepa.iban"
           ) {
             /* eslint-disable cypress/no-force */
             cy.wrap(input)
@@ -3152,7 +3154,8 @@ function payoutLinkRedirection(
             ariaLabel.includes("bic") ||
             ariaLabel.includes("swift") ||
             name.includes("bic") ||
-            name.includes("swift")
+            name.includes("swift") ||
+            id === "sepa.bic"
           ) {
             /* eslint-disable cypress/no-force */
             cy.wrap(input)
