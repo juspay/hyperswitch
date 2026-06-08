@@ -29,7 +29,7 @@ pub struct DisputeNew {
     pub connector_created_at: Option<PrimitiveDateTime>,
     pub connector_updated_at: Option<PrimitiveDateTime>,
     pub connector: String,
-    pub evidence: Option<Secret<serde_json::Value>>,
+    pub evidence: Secret<serde_json::Value>,
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub dispute_amount: MinorUnit,
@@ -37,6 +37,8 @@ pub struct DisputeNew {
     pub dispute_currency: Option<storage_enums::Currency>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
+    pub created_at: PrimitiveDateTime,
+    pub modified_at: PrimitiveDateTime,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Identifiable, Queryable, Selectable)]

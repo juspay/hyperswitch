@@ -22911,14 +22911,12 @@
           },
           {
             "type": "object",
-            "required": [
-              "payment_method_token"
-            ],
             "properties": {
               "payment_method_token": {
                 "type": "string",
-                "description": "The payment method token associated with the payment method session",
-                "example": "token_9wcXDRVkfEtLEsSnYKgQ"
+                "description": "The payment method token associated with the payment method session.\nIf not provided, a new token will be generated.",
+                "example": "token_9wcXDRVkfEtLEsSnYKgQ",
+                "nullable": true
               }
             }
           }
