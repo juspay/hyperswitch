@@ -3781,12 +3781,39 @@ where
                 || next_action_containing_fetch_qr_code_url.is_some()
                 || payment_data.get_authentication().is_some()
             {
-                next_action_response = bank_transfer_next_steps
+                next_action_response = next_action_invoke_ddc_iframe.map(|ddc_iframe_data| {
+                                api_models::payments::NextActionData::InvokeDdc {
+                                    ddc_data: api_models::payments::DDCData {
+                                        iframe_url: ddc_iframe_data.iframe_url,
+                                        timeout_ms: ddc_iframe_data.timeout_ms,
+                                    }
+                                }
+                            }).or(
+                                payment_attempt.authentication_data.as_ref().map(|_| {
+                                // Check if iframe redirection is enabled in the business profile
+                                let redirect_url = helpers::create_startpay_url(
+                                    base_url,
+                                    &payment_attempt,
+                                    &payment_intent,
+                                );
+                                // Check if redirection inside popup is enabled in the payment intent
+                                if payment_intent.is_iframe_redirection_enabled.unwrap_or(false) {
+                                    api_models::payments::NextActionData::RedirectInsidePopup {
+                                        popup_url: redirect_url,
+                                        redirect_response_url:router_return_url
+                                    }
+                                } else {
+                                    api_models::payments::NextActionData::RedirectToUrl {
+                                        redirect_to_url: redirect_url,
+                                    }
+                                }
+                            }))
+                            .or(bank_transfer_next_steps
                             .map(|bank_transfer| {
                                 api_models::payments::NextActionData::DisplayBankTransferInformation {
                                     bank_transfer_steps_and_charges_details: bank_transfer,
                                 }
-                            })
+                            }))
                             .or(next_action_voucher.map(|voucher_data| {
                                 api_models::payments::NextActionData::DisplayVoucherInformation {
                                     voucher_details: voucher_data,
@@ -3816,33 +3843,6 @@ where
                                     display_from_timestamp: wait_screen_data.display_from_timestamp,
                                     display_to_timestamp: wait_screen_data.display_to_timestamp,
                                     poll_config: wait_screen_data.poll_config,
-                                }
-                            }))
-                            .or(next_action_invoke_ddc_iframe.map(|ddc_iframe_data| {
-                                api_models::payments::NextActionData::InvokeDdc {
-                                    ddc_data: api_models::payments::DDCData {
-                                        iframe_url: ddc_iframe_data.iframe_url,
-                                        timeout_ms: ddc_iframe_data.timeout_ms,
-                                    }
-                                }
-                            }))
-                            .or(payment_attempt.authentication_data.as_ref().map(|_| {
-                                // Check if iframe redirection is enabled in the business profile
-                                let redirect_url = helpers::create_startpay_url(
-                                    base_url,
-                                    &payment_attempt,
-                                    &payment_intent,
-                                );
-                                // Check if redirection inside popup is enabled in the payment intent
-                                if payment_intent.is_iframe_redirection_enabled.unwrap_or(false) {
-                                    api_models::payments::NextActionData::RedirectInsidePopup {
-                                        popup_url: redirect_url,
-                                        redirect_response_url:router_return_url
-                                    }
-                                } else {
-                                    api_models::payments::NextActionData::RedirectToUrl {
-                                        redirect_to_url: redirect_url,
-                                    }
                                 }
                             }))
                             .or(match payment_data.get_authentication(){
@@ -4644,6 +4644,8 @@ pub fn bank_transfer_next_steps_check(
                 != Some(diesel_models::enums::PaymentMethodType::PixAutomaticoQr)
             && payment_attempt.payment_method_type
                 != Some(diesel_models::enums::PaymentMethodType::PixAutomaticoPush)
+            && payment_attempt.payment_method_type
+                != Some(diesel_models::enums::PaymentMethodType::PixEmv)
         {
             let bank_transfer_next_steps: Option<api_models::payments::BankTransferNextStepsData> =
                 payment_attempt
@@ -6959,6 +6961,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             show_card_terms: config.show_card_terms,
             is_setup_mandate_flow: config.is_setup_mandate_flow,
             color_icon_card_cvc_error: config.color_icon_card_cvc_error,
+            show_merchant_name: config.show_merchant_name,
         }
     }
 }
@@ -7036,6 +7039,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             show_card_terms: config.show_card_terms,
             is_setup_mandate_flow: config.is_setup_mandate_flow,
             color_icon_card_cvc_error: config.color_icon_card_cvc_error,
+            show_merchant_name: config.show_merchant_name,
         }
     }
 }
