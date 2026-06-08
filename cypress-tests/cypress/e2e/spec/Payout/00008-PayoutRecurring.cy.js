@@ -56,9 +56,19 @@ describe("[Payout] Recurring", () => {
         return;
       }
 
-      cy.createConfirmPayoutTest(payoutBody, data, true, false, globalState).then((response) => {
+      cy.createConfirmPayoutTest(
+        payoutBody,
+        data,
+        true,
+        false,
+        globalState
+      ).then((response) => {
         // Verify recurring=true and payout_method_id is returned for recurring payouts
-        cy.verifyRecurringPayoutResponse(response, true, globalState.get("payoutMethodId"));
+        cy.verifyRecurringPayoutResponse(
+          response,
+          true,
+          globalState.get("payoutMethodId")
+        );
       });
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
@@ -79,9 +89,19 @@ describe("[Payout] Recurring", () => {
       // Use the payout_method_id saved from the create-payout-with-recurring-true test
       data.Request.payout_method_id = globalState.get("payoutMethodId");
 
-      cy.createConfirmPayoutTest(payoutBody, data, true, false, globalState).then((response) => {
+      cy.createConfirmPayoutTest(
+        payoutBody,
+        data,
+        true,
+        false,
+        globalState
+      ).then((response) => {
         // Verify recurring=true for payout using saved method
-        cy.verifyRecurringPayoutResponse(response, true, globalState.get("payoutMethodId"));
+        cy.verifyRecurringPayoutResponse(
+          response,
+          true,
+          globalState.get("payoutMethodId")
+        );
       });
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
@@ -113,7 +133,13 @@ describe("[Payout] Recurring", () => {
         return;
       }
 
-      cy.createConfirmPayoutTest(payoutBody, data, true, false, globalState).then((response) => {
+      cy.createConfirmPayoutTest(
+        payoutBody,
+        data,
+        true,
+        false,
+        globalState
+      ).then((response) => {
         // Verify recurring=false for non-recurring payouts
         cy.verifyRecurringPayoutResponse(response, false, null);
       });
@@ -147,7 +173,13 @@ describe("[Payout] Recurring", () => {
         return;
       }
 
-      cy.createConfirmPayoutTest(payoutBody, data, true, false, globalState).then((response) => {
+      cy.createConfirmPayoutTest(
+        payoutBody,
+        data,
+        true,
+        false,
+        globalState
+      ).then((response) => {
         // Verify recurring defaults to false when omitted
         cy.verifyRecurringPayoutResponse(response, false, null);
       });
