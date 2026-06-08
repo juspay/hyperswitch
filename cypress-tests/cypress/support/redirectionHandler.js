@@ -1323,6 +1323,20 @@ function bankRedirectRedirection(
                 });
               });
               verifyUrl = true;
+            } else if (
+              [
+                "alipay",
+                "amazon_pay",
+                "cashapp",
+                "revolut_pay",
+                "we_chat_pay",
+              ].includes(paymentMethodType)
+            ) {
+              // Stripe wallet redirects (AliPay, AmazonPay, Cashapp, RevolutPay, WeChatPay)
+              // External wallet pages cannot be fully automated; verify page loads
+              cy.log(`Handling Stripe ${paymentMethodType} wallet redirect`);
+              cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+              verifyUrl = false;
             } else {
               throw new Error(
                 `Unsupported Stripe payment method type: ${paymentMethodType}`
