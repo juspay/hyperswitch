@@ -30923,8 +30923,11 @@
             "nullable": true
           },
           "surcharge_strategy": {
-            "type": "string",
-            "description": "The strategy to use when applying surcharge for this payment.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeStrategy"
+              }
+            ],
             "nullable": true
           }
         }
@@ -31477,8 +31480,11 @@
             "nullable": true
           },
           "surcharge_strategy": {
-            "type": "string",
-            "description": "The strategy to use when applying surcharge for this payment.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeStrategy"
+              }
+            ],
             "nullable": true
           }
         }
@@ -33227,8 +33233,11 @@
             "nullable": true
           },
           "surcharge_strategy": {
-            "type": "string",
-            "description": "The strategy to use when applying surcharge for this payment.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeStrategy"
+              }
+            ],
             "nullable": true
           }
         },
@@ -34733,8 +34742,11 @@
             "nullable": true
           },
           "surcharge_strategy": {
-            "type": "string",
-            "description": "The strategy to use when applying surcharge for this payment.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeStrategy"
+              }
+            ],
             "nullable": true
           }
         }

@@ -2183,10 +2183,6 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     },
-    ExternalSurchargeUpdate {
-        external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
-        updated_by: String,
-    },
 }
 
 #[cfg(feature = "v1")]
@@ -2764,13 +2760,6 @@ impl PaymentAttemptUpdate {
                 updated_by,
                 connector_mandate_detail,
             },
-            Self::ExternalSurchargeUpdate {
-                external_surcharge_details,
-                updated_by,
-            } => DieselPaymentAttemptUpdate::ExternalSurchargeUpdate {
-                external_surcharge_details,
-                updated_by,
-            },
         }
     }
 
@@ -2800,8 +2789,7 @@ impl PaymentAttemptUpdate {
             | Self::AuthenticationUpdate { .. }
             | Self::ManualUpdate { .. }
             | Self::PostSessionTokensUpdate { .. }
-            | Self::RecurrenceUpdate { .. }
-            | Self::ExternalSurchargeUpdate { .. } => None,
+            | Self::RecurrenceUpdate { .. } => None,
         }
     }
 }

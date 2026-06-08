@@ -867,17 +867,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .net_amount
             .set_order_tax_amount(order_tax_amount);
 
-        if let Some(request_surcharge_details) = request.surcharge_details {
-            let surcharge_details =
-                hyperswitch_domain_models::router_request_types::SurchargeDetails::from((
-                    &request_surcharge_details,
-                    &payment_attempt,
-                ));
-            payment_attempt
-                .net_amount
-                .set_surcharge_details(Some(surcharge_details));
-        }
-
         payment_attempt.connector_mandate_detail = Some(
             DieselConnectorMandateReferenceId::foreign_from(ConnectorMandateReferenceId::new(
                 None,

@@ -1597,7 +1597,7 @@ pub struct PaymentsRequest {
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
 
     /// The strategy to use when applying surcharge for this payment.
-    #[schema(value_type = Option<String>)]
+    #[schema(value_type = Option<SurchargeStrategy>)]
     pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
