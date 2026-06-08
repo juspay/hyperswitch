@@ -1229,14 +1229,14 @@ Cypress.Commands.add(
       getOriginalConnectorName(connectorName);
     createConnectorBody.connector_label = connectorLabel;
 
-    // For payment_vas (FRM) connectors, use frm_configs instead of payment_methods_enabled
+    // For payment_vas (FRM) connectors, use frm_configs with payment_methods array inside
     if (connectorType === "payment_vas") {
       createConnectorBody.frm_configs = [
         {
           gateway: getOriginalConnectorName(connectorName),
+          payment_methods: [],
         },
       ];
-      // Remove payment_methods_enabled for FRM connectors
       delete createConnectorBody.payment_methods_enabled;
     } else {
       createConnectorBody.payment_methods_enabled = paymentMethodsEnabled;

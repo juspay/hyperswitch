@@ -1,6 +1,7 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import { shouldIncludeConnector, CONNECTOR_LISTS } from "../../configs/Payment/Utils";
 
 let globalState;
 
@@ -9,6 +10,12 @@ describe("FRM - Fraud Risk Management Tests", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
     });
+  });
+
+  before(function () {
+    if (shouldIncludeConnector(globalState.get("connectorId"), CONNECTOR_LISTS.INCLUDE.FRM)) {
+      this.skip();
+    }
   });
 
   after("flush global state", () => {
@@ -49,7 +56,7 @@ describe("FRM - Fraud Risk Management Tests", () => {
           return;
         }
 
-        const data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails("signifyd")[
           "card_pm"
         ]["FRM"];
 
@@ -133,7 +140,7 @@ describe("FRM - Fraud Risk Management Tests", () => {
           return;
         }
 
-        const data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails("riskified")[
           "card_pm"
         ]["FRM"];
 
@@ -219,7 +226,7 @@ describe("FRM - Fraud Risk Management Tests", () => {
             return;
           }
 
-          const data = getConnectorDetails(globalState.get("connectorId"))[
+          const data = getConnectorDetails("cybersourcedecisionmanager")[
             "card_pm"
           ]["FRM"];
 
