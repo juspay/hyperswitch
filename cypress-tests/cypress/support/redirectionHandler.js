@@ -2873,10 +2873,9 @@ function paymentLinkCardRedirection(
     .should("exist")
     .and("be.visible");
 
-  cy.get("#unified-checkout iframe, #payment-form iframe", { timeout: 30000 }).should(
-    "have.length.at.least",
-    1
-  );
+  cy.get("#unified-checkout iframe, #payment-form iframe", {
+    timeout: 30000,
+  }).should("have.length.at.least", 1);
   cy.task("cli_log", "Payout Link bank form iframe ready");
 
   function fillCardInputInIframe(iframe, index) {
