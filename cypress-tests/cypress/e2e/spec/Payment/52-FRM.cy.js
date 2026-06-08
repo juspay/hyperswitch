@@ -17,12 +17,7 @@ describe("FRM - Fraud Risk Management Tests", () => {
         globalState = new State(state);
         const connector = globalState.get("connectorId");
 
-        if (
-          shouldIncludeConnector(
-            connector,
-            CONNECTOR_LISTS.INCLUDE.FRM
-          )
-        ) {
+        if (shouldIncludeConnector(connector, CONNECTOR_LISTS.INCLUDE.FRM)) {
           skip = true;
           return;
         }
@@ -72,9 +67,7 @@ describe("FRM - Fraud Risk Management Tests", () => {
           return;
         }
 
-        const data = getConnectorDetails("signifyd")[
-          "card_pm"
-        ]["FRM"];
+        const data = getConnectorDetails("signifyd")["card_pm"]["FRM"];
 
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
@@ -156,9 +149,7 @@ describe("FRM - Fraud Risk Management Tests", () => {
           return;
         }
 
-        const data = getConnectorDetails("riskified")[
-          "card_pm"
-        ]["FRM"];
+        const data = getConnectorDetails("riskified")["card_pm"]["FRM"];
 
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
