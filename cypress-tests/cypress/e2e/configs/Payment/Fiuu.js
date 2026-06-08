@@ -439,10 +439,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code:
-            "Token not found",
-          error_message:
-            "Token not found",
+          error_code: "Token not found",
+          error_message: "Token not found",
         },
       },
     },
@@ -465,10 +463,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code:
-            "Token not found",
-          error_message:
-            "Token not found",
+          error_code: "Token not found",
+          error_message: "Token not found",
         },
       },
     },
@@ -607,10 +603,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code:
-            "Token not found",
-          error_message:
-            "Token not found",
+          error_code: "Token not found",
+          error_message: "Token not found",
         },
       },
     },
@@ -623,10 +617,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code:
-            "Token not found",
-          error_message:
-            "Token not found",
+          error_code: "Token not found",
+          error_message: "Token not found",
         },
       },
     },
@@ -739,10 +731,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code:
-            "Token not found",
-          error_message:
-            "Token not found",
+          error_code: "Token not found",
+          error_message: "Token not found",
         },
       },
     },
