@@ -543,35 +543,12 @@ export const connectorDetails = {
     },
     SessionToken: {
       Request: {
-        wallets: [],
+        wallets: ["apple_pay", "google_pay"],
       },
       Response: {
         status: 200,
         body: {
-          session_token: [
-            {
-              wallet_type: "apple_pay",
-              payment_method_type: "wallet",
-              session_token_data: {
-                delayed_session_token: true,
-                connector: "trustpay",
-                sdk_next_action: {
-                  next_action: "confirm",
-                },
-              },
-            },
-            {
-              wallet_type: "google_pay",
-              payment_method_type: "wallet",
-              session_token_data: {
-                delayed_session_token: true,
-                connector: "trustpay",
-                sdk_next_action: {
-                  next_action: "confirm",
-                },
-              },
-            },
-          ],
+          session_token: [],
         },
       },
     },
