@@ -550,7 +550,14 @@ export const CONNECTOR_LISTS = {
       "paypal",
       "stripe",
     ],
-    BANK_DEBIT: ["adyen", "novalnet", "payload", "stax", "stripe", "wellsfargo"], // payload verified as working
+    BANK_DEBIT: [
+      "adyen",
+      "novalnet",
+      "payload",
+      "stax",
+      "stripe",
+      "wellsfargo",
+    ], // payload verified as working
     // STRIPE_BANK_DEBIT is used by 03-ConnectorCreate.cy.js for multi-connector setup
     // (creating separate stripe connector accounts per bank debit sub-method).
     // For the bank debit spec inclusion gate, use BANK_DEBIT instead.
