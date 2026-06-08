@@ -4150,10 +4150,11 @@ pub async fn build_merchant_enabled_pms_context(
     };
 
     // ---- sdk_next_action ----
-    let has_surcharge_processor = !all_mcas
-        .clone()
-        .filter_based_on_profile_and_connector_type(&profile_id, ConnectorType::SurchargeProcessor)
-        .is_empty();
+    let has_surcharge_processor = business_profile
+        .surcharge_connector_details
+        .as_ref()
+        .and_then(|details| details.surcharge_connector_id.as_ref())
+        .is_some();
 
     let sdk_next_action = payment_method_utils::get_sdk_next_action_for_payment_method_list(
         state,

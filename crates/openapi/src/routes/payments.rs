@@ -1067,7 +1067,7 @@ pub fn payments_submit_eligibility_check() {}
     ),
     request_body = PaymentsEligibilityRequest,
     responses(
-        (status = 200, description = "Eligibility checks successful", body = PaymentsEligibilityResponse),
+        (status = 200, description = "Eligibility and surcharge checks successful", body = PaymentsEligibilityResponse),
         (status = 400, description = "Bad Request", body = GenericErrorResponseOpenApi),
         (status = 404, description = "Payment not found", body = GenericErrorResponseOpenApi)
     ),

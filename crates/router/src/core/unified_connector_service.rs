@@ -3140,14 +3140,12 @@ pub async fn call_unified_connector_service_for_surcharge_calculate(
     state: &SessionState,
     processor: &Processor,
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
-    surcharge_data: hyperswitch_domain_models::router_request_types::PaymentsSurchargeCalculationData,
+    payments_surcharge_calculate_data: hyperswitch_domain_models::router_request_types::PaymentsSurchargeCalculationData,
     payment_id: &id_type::PaymentId,
     profile_id: &id_type::ProfileId,
     connector_name: String,
 ) -> RouterResult<hyperswitch_domain_models::router_response_types::SurchargeCalculationResponseData>
 {
-    use hyperswitch_domain_models::router_request_types::SurchargeStrategy;
-
     let ucs_client = get_ucs_client(state)?;
 
     let connector_auth_metadata = build_unified_connector_service_auth_metadata(
@@ -3160,30 +3158,31 @@ pub async fn call_unified_connector_service_for_surcharge_calculate(
 
     // Build the gRPC request directly
     let amount = payments_grpc::Money {
-        minor_amount: surcharge_data.amount.get_amount_as_i64(),
-        currency: payments_grpc::Currency::foreign_try_from(surcharge_data.currency)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to convert currency for surcharge gRPC request")?
-            .into(),
+        minor_amount: payments_surcharge_calculate_data.amount.get_amount_as_i64(),
+        currency: payments_grpc::Currency::foreign_try_from(
+            payments_surcharge_calculate_data.currency,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to convert currency for surcharge gRPC request")?
+        .into(),
     };
     let surcharge_request = payments_grpc::SurchargeServiceCalculateRequest {
         merchant_surcharge_id: Some(payment_id.get_string_repr().to_owned()),
         amount: Some(amount),
-        card_bin: surcharge_data.card_iin.clone(),
-        postal_code: surcharge_data.postal_code.clone(),
-        previous_connector_surcharge_id: surcharge_data.previous_connector_surcharge_id.clone(),
-        country: surcharge_data
+        card_bin: payments_surcharge_calculate_data.card_iin.clone(),
+        postal_code: payments_surcharge_calculate_data.postal_code.clone(),
+        previous_connector_surcharge_id: payments_surcharge_calculate_data
+            .previous_connector_surcharge_id
+            .clone(),
+        country: payments_surcharge_calculate_data
             .country
             .as_ref()
             .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
             .map(|c| c.into()),
-        surcharge_strategy: surcharge_data.surcharge_strategy.as_ref().map(|s| {
-            match s {
-                SurchargeStrategy::Apply => payments_grpc::SurchargeStrategy::Apply,
-                SurchargeStrategy::Waive => payments_grpc::SurchargeStrategy::Waive,
-            }
-            .into()
-        }),
+        surcharge_strategy: payments_surcharge_calculate_data
+            .surcharge_strategy
+            .as_ref()
+            .map(|s| payments_grpc::SurchargeStrategy::foreign_from(*s).into()),
     };
 
     // Build gRPC headers

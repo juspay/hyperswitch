@@ -881,38 +881,16 @@ pub async fn get_sdk_next_action_for_payment_method_list(
         )
         .await;
 
-    let is_blocklist_enabled = match dimensions.get_processor_merchant_id() {
-        Some(processor_merchant_id) => {
-            let blocklist_key = processor_merchant_id.get_blocklist_guard_key();
-            match state
-                .store
-                .find_config_by_key_unwrap_or(&blocklist_key, Some("false".to_string()))
-                .await
-            {
-                Ok(config) => serde_json::from_str::<bool>(&config.config).unwrap_or(false),
-                Err(_) => false,
-            }
-        }
-        None => false,
-    };
-
-    let should_block_confirm = if has_surcharge_processor {
-        Some(true)
-    } else if should_perform_eligibility || is_blocklist_enabled {
-        Some(false)
-    } else {
-        None
-    };
-
-    match should_block_confirm {
-        Some(block_confirm) => api_models::payments::SdkNextAction {
+    if should_perform_eligibility {
+        api_models::payments::SdkNextAction {
             next_action: api_models::payments::NextActionCall::EligibilityCheck,
-            should_block_confirm: Some(block_confirm),
-        },
-        None => api_models::payments::SdkNextAction {
+            should_block_confirm: Some(has_surcharge_processor),
+        }
+    } else {
+        api_models::payments::SdkNextAction {
             next_action: api_models::payments::NextActionCall::Confirm,
-            should_block_confirm: None,
-        },
+            should_block_confirm: Some(false),
+        }
     }
 }
 

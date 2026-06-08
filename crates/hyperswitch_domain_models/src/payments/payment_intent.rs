@@ -363,10 +363,6 @@ pub enum PaymentIntentUpdate {
         status: common_enums::IntentStatus,
         updated_by: String,
     },
-    SurchargeStrategyUpdate {
-        surcharge_strategy: Option<common_enums::SurchargeStrategy>,
-        updated_by: String,
-    },
 }
 
 #[cfg(feature = "v1")]
@@ -1364,14 +1360,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 profile_acquirer_id: None,
                 surcharge_strategy: None,
             },
-            PaymentIntentUpdate::SurchargeStrategyUpdate {
-                surcharge_strategy,
-                updated_by,
-            } => Self {
-                surcharge_strategy,
-                updated_by,
-                ..Default::default()
-            },
         }
     }
 }
@@ -1595,13 +1583,6 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
             PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => {
                 Self::RecurrenceUpdate { status, updated_by }
             }
-            PaymentIntentUpdate::SurchargeStrategyUpdate {
-                surcharge_strategy,
-                updated_by,
-            } => Self::SurchargeStrategyUpdate {
-                surcharge_strategy,
-                updated_by,
-            },
         }
     }
 }

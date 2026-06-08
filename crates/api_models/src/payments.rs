@@ -10529,10 +10529,7 @@ pub struct SdkNextAction {
     /// The type of next action
     #[smithy(value_type = "NextActionCall")]
     pub next_action: NextActionCall,
-    /// Whether the SDK should block the confirm call until the merchant explicitly unblocks it.
-    /// true when a surcharge processor is enabled (surcharge must be shown to user before confirm),
-    /// false otherwise.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Whether the SDK should block the confirm call for user.
     pub should_block_confirm: Option<bool>,
 }
 
@@ -12815,6 +12812,21 @@ pub struct PaymentsEligibilityRequest {
     pub payment_token: Option<Secret<String>>,
 }
 
+#[cfg(feature = "v1")]
+impl From<PaymentsEligibilityRequest> for PaymentsEligibilityCheckRequest {
+    fn from(req: PaymentsEligibilityRequest) -> Self {
+        Self {
+            payment_id: req.payment_id,
+            client_secret: req.client_secret,
+            payment_method_type: req.payment_method_type,
+            payment_method_subtype: req.payment_method_subtype,
+            payment_method_data: req.payment_method_data,
+            browser_info: req.browser_info,
+            payment_token: req.payment_token,
+        }
+    }
+}
+
 /// Response body for the eligibility endpoint.
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -12826,7 +12838,7 @@ pub struct PaymentsEligibilityResponse {
     pub sdk_next_action: SdkNextAction,
     /// Surcharge details if an external surcharge was calculated. None if eligibility was denied
     /// or no surcharge connector is configured for this merchant.
-    #[schema(value_type = Option<String>)]
+    #[schema(value_type = Option<SurchargeDetailsResponse>)]
     pub surcharge_details: Option<payment_methods::SurchargeDetailsResponse>,
 }
 

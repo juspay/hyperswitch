@@ -12543,6 +12543,25 @@ impl EligibilityHandler {
             false => None,
         })
     }
+
+    // Run all eligibility checks in sequence, short-circuiting on the first deny.
+    // Returns Confirm if no check denies.
+    async fn run_all_eligiblity_checks(
+        &self,
+    ) -> CustomResult<api_models::payments::SdkNextAction, errors::ApiErrorResponse> {
+        let sdk_next_action = self
+            .run_check(BlockListCheck)
+            .await
+            .transpose()
+            .async_or_else(|| async { self.run_check(CardTestingCheck).await.transpose() })
+            .await
+            .transpose()?
+            .unwrap_or(api_models::payments::SdkNextAction {
+                next_action: api_models::payments::NextActionCall::Confirm,
+                should_block_confirm: None,
+            });
+        Ok(sdk_next_action)
+    }
 }
 
 #[cfg(all(feature = "oltp", feature = "v1"))]
@@ -12571,23 +12590,7 @@ pub async fn payments_submit_eligibility_check(
         })?;
     let eligibility_handler =
         EligibilityHandler::new(state, platform, payment_eligibility_data, business_profile);
-    // Run the checks in sequence, short-circuiting on the first that returns a next action
-    let sdk_next_action = eligibility_handler
-        .run_check(BlockListCheck)
-        .await
-        .transpose()
-        .async_or_else(|| async {
-            eligibility_handler
-                .run_check(CardTestingCheck)
-                .await
-                .transpose()
-        })
-        .await
-        .transpose()?
-        .unwrap_or(api_models::payments::SdkNextAction {
-            next_action: api_models::payments::NextActionCall::Confirm,
-            should_block_confirm: None,
-        });
+    let sdk_next_action = eligibility_handler.run_all_eligiblity_checks().await?;
     Ok(services::ApplicationResponse::Json(
         api_models::payments::PaymentsEligibilityCheckResponse {
             payment_id,
@@ -12603,7 +12606,6 @@ pub async fn payments_submit_eligibility(
     req: api_models::payments::PaymentsEligibilityRequest,
     payment_id: id_type::PaymentId,
 ) -> RouterResponse<api_models::payments::PaymentsEligibilityResponse> {
-    // Convert to eligibility request so we can reuse the existing data-fetching logic
     // Extract postal code and country from request billing address (will be used to override PI values below)
     let req_billing_address = req
         .payment_method_data
@@ -12612,15 +12614,7 @@ pub async fn payments_submit_eligibility(
         .and_then(|billing| billing.address.as_ref());
     let req_postal_code = req_billing_address.and_then(|addr| addr.zip.clone());
     let req_billing_country = req_billing_address.and_then(|addr| addr.country);
-    let eligibility_req = api_models::payments::PaymentsEligibilityCheckRequest {
-        payment_id: req.payment_id.clone(),
-        client_secret: req.client_secret.clone(),
-        payment_method_type: req.payment_method_type,
-        payment_method_subtype: req.payment_method_subtype,
-        payment_method_data: req.payment_method_data,
-        browser_info: req.browser_info,
-        payment_token: req.payment_token,
-    };
+    let eligibility_req: api_models::payments::PaymentsEligibilityCheckRequest = req.into();
     let payment_eligibility_data = Box::pin(PaymentEligibilityData::from_request(
         &state,
         &platform,
@@ -12688,23 +12682,7 @@ pub async fn payments_submit_eligibility(
 
     let eligibility_handler =
         EligibilityHandler::new(state, platform, payment_eligibility_data, business_profile);
-    // Run eligibility checks; short-circuit on deny
-    let sdk_next_action = eligibility_handler
-        .run_check(BlockListCheck)
-        .await
-        .transpose()
-        .async_or_else(|| async {
-            eligibility_handler
-                .run_check(CardTestingCheck)
-                .await
-                .transpose()
-        })
-        .await
-        .transpose()?
-        .unwrap_or(api_models::payments::SdkNextAction {
-            next_action: api_models::payments::NextActionCall::Confirm,
-            should_block_confirm: None,
-        });
+    let sdk_next_action = eligibility_handler.run_all_eligiblity_checks().await?;
 
     // If eligibility was denied, return without surcharge details
     let surcharge_details = if matches!(
@@ -12713,8 +12691,8 @@ pub async fn payments_submit_eligibility(
     ) {
         None
     } else {
-        // Look for a SurchargeProcessor MCA on this profile
-        let surcharge_mcas = state_for_surcharge
+        // At most one SurchargeProcessor MCA is configured per profile
+        let surcharge_mca = state_for_surcharge
             .store
             .list_enabled_connector_accounts_by_profile_id(
                 &profile_id,
@@ -12723,9 +12701,11 @@ pub async fn payments_submit_eligibility(
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to list SurchargeProcessor MCAs")?;
+            .attach_printable("Failed to fetch SurchargeProcessor MCA")?
+            .into_iter()
+            .next();
 
-        if let Some(surcharge_mca) = surcharge_mcas.into_iter().next() {
+        if let Some(surcharge_mca) = surcharge_mca {
             // Surcharge only applies to cards — skip if no card BIN
             if let (Some(card_iin), Some(currency)) = (card_iin, pi_currency) {
                 let amount = pi_amount;
@@ -12802,7 +12782,7 @@ pub async fn payments_submit_eligibility(
                 )
                 .await
                 {
-                    Ok(resp) if resp.surcharge_amount.get_amount_as_i64() > 0 => {
+                    Ok(resp) => {
                         let surcharge_amount = resp.surcharge_amount;
                         let connector_surcharge_id = resp.connector_surcharge_id.clone();
                         let surcharge_f64 = currency
@@ -12816,7 +12796,8 @@ pub async fn payments_submit_eligibility(
                                 .get_redis_conn()
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable("Failed to get redis connection for surcharge")?;
-                            let redis_key = helpers::get_external_surcharge_redis_key(&payment_id);
+                            let redis_key =
+                                payment_id.get_external_surcharge_redis_key(&merchant_id);
                             let surcharge_to_store =
                                 api_models::payments::RequestSurchargeDetails {
                                     surcharge_amount,
@@ -12891,7 +12872,6 @@ pub async fn payments_submit_eligibility(
                             display_total_surcharge_amount: surcharge_f64,
                         })
                     }
-                    Ok(_) => None,
                     Err(err) => {
                         // Log but do not fail the call — surcharge is best-effort
                         logger::warn!(

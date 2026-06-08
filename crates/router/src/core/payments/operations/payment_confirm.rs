@@ -874,7 +874,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             request.surcharge_details
         } else {
             // Try to load the latest surcharge calculated during eligibility from Redis
-            let redis_key = helpers::get_external_surcharge_redis_key(&payment_attempt.payment_id);
+            let redis_key = payment_attempt
+                .payment_id
+                .get_external_surcharge_redis_key(&payment_attempt.merchant_id);
             match state.store.get_redis_conn() {
                 Ok(redis_conn) => {
                     match redis_conn
@@ -887,7 +889,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         Ok(surcharge) => {
                             logger::info!(
                                 payment_id = %payment_attempt.payment_id.get_string_repr(),
-                                surcharge_amount = %surcharge.surcharge_amount.get_amount_as_i64(),
                                 "Loaded external surcharge from Redis for confirm"
                             );
                             Some(surcharge)
