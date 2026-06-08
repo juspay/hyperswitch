@@ -227,14 +227,13 @@ export const connectorDetails = {
           },
         },
       },
-      // Payout Recurring test scenarios
-      // Note: TRIGGER_SKIP is set because Wise sandbox returns failed for recurring
-      // payouts with this test IBAN. Remove when cassettes are re-recorded with
-      // a Wise sandbox account that supports recurring payout flows.
+      // RecurringTrue/False/Default test the recurring flag field behaviour:
+      // these only go up to requires_fulfillment (create + confirm, no fulfill),
+      // so the Wise sandbox limitation (failed status on actual execution) does
+      // not apply. The recurring value is stored in the Hyperswitch DB and
+      // echoed back in the response regardless of what Wise returns, so these
+      // assertions work without any Rust changes to the Wise transformer.
       RecurringTrue: {
-        Configs: {
-          TRIGGER_SKIP: true,
-        },
         Request: {
           currency: "EUR",
           payout_type: "bank",
@@ -261,9 +260,6 @@ export const connectorDetails = {
         },
       },
       RecurringFalse: {
-        Configs: {
-          TRIGGER_SKIP: true,
-        },
         Request: {
           currency: "EUR",
           payout_type: "bank",
@@ -290,9 +286,6 @@ export const connectorDetails = {
         },
       },
       RecurringDefault: {
-        Configs: {
-          TRIGGER_SKIP: true,
-        },
         Request: {
           currency: "EUR",
           payout_type: "bank",
@@ -317,10 +310,11 @@ export const connectorDetails = {
           },
         },
       },
-      // Note: RecurringInvalidConfirm tests that confirm=false is rejected when
-      // payout_method_id is provided. The payout_method_id is injected from
-      // globalState (saved by the RecurringTrue test) so it passes deserialization
-      // and the confirm=false validation runs and returns the expected error.
+      // RecurringInvalidConfirm and RecurringUseMethod are TRIGGER_SKIP because
+      // they depend on payout_method_id being returned by the connector (saved
+      // from RecurringTrue). Wise does not return payout_method_id in its
+      // payout response — this requires Rust changes to propagate the recurring
+      // flag through PayoutsData and implement it in the Wise transformer.
       RecurringInvalidConfirm: {
         Configs: {
           TRIGGER_SKIP: true,
@@ -343,7 +337,8 @@ export const connectorDetails = {
       },
       // RecurringUseMethod tests the happy-path recurring payout flow: using a
       // payout_method_id saved from a prior RecurringTrue payout to create a new
-      // payout without re-supplying full bank details.
+      // payout without re-supplying full bank details. TRIGGER_SKIP matches the
+      // rest of the recurring suite — depends on RecurringTrue completing.
       RecurringUseMethod: {
         Configs: {
           TRIGGER_SKIP: true,
