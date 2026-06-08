@@ -58,6 +58,7 @@ pub struct Customer {
     pub document_details: OptionalEncryptableValue,
     pub created_by: Option<CreatedBy>,
     pub last_modified_by: Option<CreatedBy>,
+    id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -92,6 +93,50 @@ pub struct Customer {
 }
 
 impl Customer {
+    #[cfg(feature = "v1")]
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        customer_id: id_type::CustomerId,
+        merchant_id: id_type::MerchantId,
+        name: Option<Encryptable<Secret<String>>>,
+        email: Option<Encryptable<Secret<String, pii::EmailStrategy>>>,
+        phone: Option<Encryptable<Secret<String>>>,
+        phone_country_code: Option<String>,
+        description: Option<Description>,
+        metadata: Option<pii::SecretSerdeValue>,
+        connector_customer: Option<pii::SecretSerdeValue>,
+        address_id: Option<String>,
+        tax_registration_id: Option<Encryptable<Secret<String>>>,
+        document_details: OptionalEncryptableValue,
+        created_by: Option<CreatedBy>,
+        last_modified_by: Option<CreatedBy>,
+        id: Option<String>,
+    ) -> Self {
+        let now = date_time::now();
+        Self {
+            customer_id,
+            merchant_id,
+            name,
+            email,
+            phone,
+            phone_country_code,
+            description,
+            created_at: now,
+            metadata,
+            modified_at: now,
+            connector_customer,
+            address_id,
+            default_payment_method_id: None,
+            updated_by: None,
+            version: common_enums::ApiVersion::V1,
+            tax_registration_id,
+            document_details,
+            created_by,
+            last_modified_by,
+            id,
+        }
+    }
+
     /// Get the unique identifier of Customer
     #[cfg(feature = "v1")]
     pub fn get_id(&self) -> &id_type::CustomerId {
@@ -151,6 +196,11 @@ impl Customer {
             MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
         }
     }
+
+    #[cfg(feature = "v1")]
+    pub fn get_cell_customer_id(&self) -> &Option<String> {
+        &self.id
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -181,7 +231,7 @@ impl behaviour::Conversion for Customer {
             last_modified_by: self
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
-            id: Some(self.customer_id),
+            id: self.id,
         })
     }
 
@@ -266,13 +316,14 @@ impl behaviour::Conversion for Customer {
             last_modified_by: item
                 .last_modified_by
                 .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
+            id: item.id,
         })
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
         Ok(diesel_models::customers::CustomerNew {
-            id: Some(self.customer_id.clone()),
+            id: self.id,
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
             name: self.name.map(Encryption::from),

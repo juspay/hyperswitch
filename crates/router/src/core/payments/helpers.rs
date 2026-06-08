@@ -94,6 +94,7 @@ use crate::{
     core::{
         authentication,
         configs::dimension_state,
+        customers,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::{
             self,
@@ -1970,6 +1971,20 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     let customer_id = request_customer_details
         .customer_id
         .or(payment_data.payment_intent.customer_id.clone());
+
+    // Validate that the customer_id is not in GlobalCustomerId format
+    if let Some(ref customer_id) = customer_id {
+        if customers::is_customer_id_in_global_format(
+            customer_id,
+            &state.conf.micro_services.cell_id,
+        ) {
+            Err(report!(errors::StorageError::InvalidDataFormat(format!(
+                "customer_id '{}' format is not supported",
+                customer_id.get_string_repr()
+            ))))?
+        }
+    }
+
     let db = &*state.store;
     let key_manager_state = &state.into();
     let optional_customer = match customer_id {
@@ -2109,11 +2124,11 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     }
                 }
                 None => {
-                    let new_customer = domain::Customer {
+                    let new_customer = domain::Customer::new(
                         customer_id,
-                        merchant_id: merchant_id.to_owned(),
-                        name: encryptable_customer.name,
-                        email: encryptable_customer.email.map(|email| {
+                        merchant_id.to_owned(),
+                        encryptable_customer.name,
+                        encryptable_customer.email.map(|email| {
                             let encryptable: Encryptable<
                                 hyperswitch_masking::Secret<String, pii::EmailStrategy>,
                             > = Encryptable::new(
@@ -2122,22 +2137,20 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                             );
                             encryptable
                         }),
-                        phone: encryptable_customer.phone,
-                        phone_country_code: request_customer_details.phone_country_code.clone(),
-                        description: None,
-                        created_at: common_utils::date_time::now(),
-                        metadata: None,
-                        modified_at: common_utils::date_time::now(),
-                        connector_customer: None,
-                        address_id: None,
-                        default_payment_method_id: None,
-                        updated_by: None,
-                        version: common_types::consts::API_VERSION,
-                        tax_registration_id: encryptable_customer.tax_registration_id,
+                        encryptable_customer.phone,
+                        request_customer_details.phone_country_code.clone(),
+                        None,
+                        None,
+                        None,
+                        None,
+                        encryptable_customer.tax_registration_id,
                         document_details,
-                        created_by: initiator.and_then(|initiator| initiator.to_created_by()),
-                        last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
-                    };
+                        initiator.and_then(|initiator| initiator.to_created_by()),
+                        initiator.and_then(|initiator| initiator.to_created_by()),
+                        customers::generate_cell_id_based_customer_id(
+                            &state.conf.micro_services.cell_id,
+                        ),
+                    );
                     metrics::CUSTOMER_CREATED.add(1, &[]);
                     db.insert_customer(new_customer, key_store, storage_scheme)
                         .await

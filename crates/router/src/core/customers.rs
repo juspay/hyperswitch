@@ -47,6 +47,19 @@ use crate::{
 
 pub const REDACTED: &str = "Redacted";
 
+pub fn generate_cell_id_based_customer_id(cell_id: &str) -> Option<String> {
+    let prefix = format!("{}_cus", cell_id);
+    let generated_id = common_utils::generate_time_ordered_id(&prefix);
+    Some(generated_id)
+}
+
+pub fn is_customer_id_in_global_format(customer_id: &id_type::CustomerId, cell_id: &str) -> bool {
+    customer_id
+        .get_string_repr()
+        .split_once('_')
+        .is_some_and(|(prefix, _)| prefix == cell_id)
+}
+
 #[instrument(skip(state))]
 pub async fn create_customer(
     state: SessionState,
@@ -235,35 +248,34 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             pii::SecretSerdeValue::new(serde_json::Value::Object(map))
         });
 
-        Ok(domain::Customer {
-            customer_id: merchant_reference_id
+        let cell_id_based_customer_id =
+            generate_cell_id_based_customer_id(&state.conf.micro_services.cell_id);
+
+        Ok(domain::Customer::new(
+            merchant_reference_id
                 .to_owned()
                 .ok_or(errors::CustomersErrorResponse::InternalServerError)?,
-            merchant_id: merchant_id.to_owned(),
-            name: encryptable_customer.name,
-            email: encryptable_customer.email.map(|email| {
+            merchant_id.to_owned(),
+            encryptable_customer.name,
+            encryptable_customer.email.map(|email| {
                 let encryptable: Encryptable<Secret<String, pii::EmailStrategy>> = Encryptable::new(
                     email.clone().into_inner().switch_strategy(),
                     email.into_encrypted(),
                 );
                 encryptable
             }),
-            phone: encryptable_customer.phone,
-            description: self.description.clone(),
-            phone_country_code: self.phone_country_code.clone(),
-            metadata: self.metadata.clone(),
+            encryptable_customer.phone,
+            self.phone_country_code.clone(),
+            self.description.clone(),
+            self.metadata.clone(),
             connector_customer,
-            address_id: address_from_db.clone().map(|addr| addr.address_id),
-            created_at: common_utils::date_time::now(),
-            modified_at: common_utils::date_time::now(),
-            default_payment_method_id: None,
-            updated_by: None,
-            version: common_types::consts::API_VERSION,
-            tax_registration_id: encryptable_customer.tax_registration_id,
-            document_details: document_details_encrypted,
-            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
-            last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
-        })
+            address_from_db.clone().map(|addr| addr.address_id),
+            encryptable_customer.tax_registration_id,
+            document_details_encrypted,
+            initiator.and_then(|initiator| initiator.to_created_by()),
+            initiator.and_then(|initiator| initiator.to_created_by()),
+            cell_id_based_customer_id,
+        ))
     }
 
     fn generate_response<'a>(

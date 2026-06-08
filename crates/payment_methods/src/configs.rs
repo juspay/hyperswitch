@@ -14,6 +14,7 @@ pub struct MicroServicesConfig {
     pub payment_methods_prefix: ModularPaymentMethodServicePrefix,
     pub use_legacy_locker: bool,
     pub authentication_service: AuthenticationServiceConfig,
+    pub cell_id: String,
 }
 
 /// Configuration for the authentication microservice.
