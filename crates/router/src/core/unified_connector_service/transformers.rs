@@ -723,14 +723,6 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
                 .map(payments_grpc::PaymentExperience::foreign_from)
                 .map(Into::into),
             merchant_request_id: None,
-            // Send the payment method type so connectors that need it on sync
-            // (e.g. Adyen, to build connector_response) can populate it.
-            payment_method_type: router_data
-                .request
-                .payment_method_type
-                .map(payments_grpc::PaymentMethodType::foreign_try_from)
-                .transpose()?
-                .map(|payment_method_type| payment_method_type.into()),
         })
     }
 }
