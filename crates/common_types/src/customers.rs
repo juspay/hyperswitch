@@ -52,6 +52,10 @@ pub enum DocumentKind {
     Cpf,
     /// Cadastro Nacional da Pessoa Jurídica - The Brazilian business identifier.
     Cnpj,
+    /// Generic / non-Brazilian national document (e.g. the Philippine PSN required by
+    /// dLocal for GCash). Carried through to the connector without a Brazil-specific
+    /// checksum; the connector/PSP validates the value per country.
+    Other,
 }
 
 impl DocumentKind {
@@ -63,6 +67,9 @@ impl DocumentKind {
         match self {
             Self::Cpf => self.validate_cpf(doc_number),
             Self::Cnpj => self.validate_cnpj(doc_number),
+            // Non-Brazilian documents are passed through; the connector/PSP validates
+            // them per country (e.g. dLocal validates the Philippine PSN server-side).
+            Self::Other => Ok(()),
         }
     }
 

@@ -83,6 +83,40 @@ pub fn build_upi_wait_screen_data(
         .attach_printable("Failed to serialize WaitScreenInstructions to JSON value")
 }
 
+/// Maps the optional customer identification document on a `RouterData` to the
+/// gRPC `CustomerDocumentDetails` sent to the Unified Connector Service.
+///
+/// `document_type` is encoded as the `DocumentKind` enum's `i32` discriminant
+/// (Cpf -> CPF, Cnpj -> CNPJ); `document_number` is passed through as a masked
+/// secret. Returns `None` when no document is present on the source data.
+fn to_grpc_customer_document_details<F, Req, Res>(
+    router_data: &RouterData<F, Req, Res>,
+) -> Option<payments_grpc::CustomerDocumentDetails> {
+    router_data
+        .customer_document_details
+        .as_ref()
+        .map(|details| {
+            let document_type = match details.document_type {
+                common_types::customers::DocumentKind::Cpf => {
+                    i32::from(payments_grpc::DocumentKind::Cpf)
+                }
+                common_types::customers::DocumentKind::Cnpj => {
+                    i32::from(payments_grpc::DocumentKind::Cnpj)
+                }
+                // Non-Brazilian document (e.g. Philippine PSN). Carried as the proto
+                // OTHER type; UCS keeps it and forwards document_number as-is, validated
+                // by the connector per country.
+                common_types::customers::DocumentKind::Other => {
+                    i32::from(payments_grpc::DocumentKind::Other)
+                }
+            };
+            payments_grpc::CustomerDocumentDetails {
+                document_type,
+                document_number: Some(details.document_number.clone()),
+            }
+        })
+}
+
 impl transformers::ForeignTryFrom<&payments_grpc::AccessToken> for AccessToken {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -171,7 +205,12 @@ impl
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
             }),
+            state: router_data
+                .access_token
+                .as_ref()
+                .map(ConnectorState::foreign_from),
         })
     }
 }
@@ -280,6 +319,7 @@ impl
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
             }),
             browser_info,
             session_token: router_data.session_token.clone(),
@@ -491,6 +531,7 @@ impl
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
             }),
             browser_info,
             session_token: router_data.session_token.clone(),
@@ -860,6 +901,7 @@ impl
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
             }),
             address: Some(address),
             authentication_data,
@@ -949,6 +991,7 @@ impl
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
             }),
             address: Some(address),
             authentication_data: None,
@@ -1043,6 +1086,7 @@ impl
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
             }),
             address: Some(address),
             enrolled_for_3ds: router_data.request.enrolled_for_3ds,
@@ -1224,6 +1268,7 @@ impl
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
             }),
             browser_info,
             locale: None,
@@ -1384,6 +1429,7 @@ impl
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
             }),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
@@ -1551,6 +1597,7 @@ impl
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
             }),
             browser_info,
             locale: None,
@@ -1696,6 +1743,7 @@ impl
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
             }),
             address: Some(address),
             auth_type: auth_type.into(),
@@ -1953,6 +2001,7 @@ impl
                 .transpose()?
                 .map(|currency| currency.into()),
             l2_l3_data: None,
+            customer_document_details: to_grpc_customer_document_details(router_data),
             customer: Some(payments_grpc::Customer {
                 name: router_data
                     .request
@@ -1971,6 +2020,7 @@ impl
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
             }),
         })
     }
@@ -2030,6 +2080,7 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
             }),
             return_url: None,
             metadata: None,
@@ -6171,6 +6222,8 @@ impl ForeignFrom<&router_request_types::CustomerDetails> for payments_grpc::Cust
             email: customer.email.clone().map(|e| e.expose().expose().into()),
             phone_number: customer.phone.clone().map(|s| s.expose()),
             phone_country_code: customer.phone_country_code.clone(),
+            // Payout CustomerDetails does not carry an identification document.
+            customer_document_details: None,
         }
     }
 }
