@@ -172,6 +172,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
             }),
+            state: None,
         })
     }
 }
