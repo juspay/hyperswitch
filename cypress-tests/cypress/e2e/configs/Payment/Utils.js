@@ -585,6 +585,7 @@ export const CONNECTOR_LISTS = {
     AFFIRM_PAY_LATER: ["affirm"],
     EXTEND_AUTHORIZATION: ["adyen", "paypal"],
     GIFT_CARD: ["adyen"],
+    VOUCHER: ["adyen", "dlocal"],
     RELAY_OPERATIONS: ["bankofamerica"],
     ALIPAY_WALLET: ["stripe", "multisafepay"],
     AMAZONPAY_WALLET: ["stripe"],
@@ -592,7 +593,6 @@ export const CONNECTOR_LISTS = {
     REVOLUTPAY_WALLET: ["stripe"],
     WECHATPAY_WALLET: ["stripe", "multisafepay"],
     MBWAY_WALLET: ["multisafepay"],
-    VOUCHER: ["adyen"],
     PAY_LATER: [
       "klarna",
       "adyen",

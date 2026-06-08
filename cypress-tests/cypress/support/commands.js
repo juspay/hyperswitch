@@ -5518,10 +5518,15 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "handleVoucherRedirection",
   (globalState, paymentMethodType, expectedRedirection) => {
-    const DISPLAY_ONLY_VOUCHERS = ["boleto", "oxxo", "alfamart", "indomaret"];
-    if (DISPLAY_ONLY_VOUCHERS.includes(paymentMethodType)) {
+    const connectorId = globalState.get("connectorId");
+    const DISPLAY_ONLY_VOUCHERS = {
+      adyen: ["boleto", "oxxo", "alfamart", "indomaret"],
+      dlocal: ["boleto", "alfamart", "indomaret"],
+    };
+    const connectorDisplayOnly = DISPLAY_ONLY_VOUCHERS[connectorId] || [];
+    if (connectorDisplayOnly.includes(paymentMethodType)) {
       cy.log(
-        `Skipping cy.visit() for display-only voucher: ${paymentMethodType}`
+        `Skipping cy.visit() for display-only voucher: ${paymentMethodType} (connector: ${connectorId})`
       );
       return;
     }
@@ -5546,7 +5551,6 @@ Cypress.Commands.add(
       return;
     }
 
-    const connectorId = globalState.get("connectorId");
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
 
