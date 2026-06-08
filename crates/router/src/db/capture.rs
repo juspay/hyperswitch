@@ -34,7 +34,7 @@ pub trait CaptureInterface {
 mod storage {
     use error_stack::{report, ResultExt};
     use redis_interface::HsetnxReply;
-    use router_env::{instrument, tracing};
+    use router_env::{instrument, logger, tracing};
     use storage_impl::{
         redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
         KvSupportedEntity,
@@ -213,7 +213,7 @@ mod storage {
                     };
                     let pattern = format!("pa_{authorized_attempt_id}_capture_*");
 
-                    Box::pin(db_utils::try_redis_get_else_try_database_get(
+                    let mut captures = Box::pin(db_utils::try_redis_get_else_try_database_get(
                         async {
                             Box::pin(kv_wrapper(
                                 self,
@@ -225,7 +225,26 @@ mod storage {
                         },
                         database_call,
                     ))
-                    .await
+                    .await?;
+
+                    // If sequence 1 is missing, earlier captures may have been drained to DB
+                    // and evicted from Redis. Fetch from DB and merge to ensure completeness.
+                    let has_sequence_one = captures.iter().any(|c| c.capture_sequence == 1i16);
+                    if !has_sequence_one {
+                        logger::info!("Only a subset of captures available in the Redis store. Hence reading from Database as well");
+                        let db_drainer_captures = database_call().await?;
+                        let seen_capture_ids: std::collections::HashSet<String> =
+                            captures.iter().map(|c| c.capture_id.clone()).collect();
+                        captures.extend(
+                            db_drainer_captures
+                                .into_iter()
+                                .filter(|c| !seen_capture_ids.contains(c.capture_id.as_str())),
+                        );
+                    }
+
+                    captures.sort_by_key(|c| c.capture_sequence);
+
+                    Ok(captures)
                 }
             }
         }
