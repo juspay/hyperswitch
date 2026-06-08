@@ -207,51 +207,6 @@ export const fullNameRequiredField = {
 
 export const billingRequiredField = {};
 
-export const bankDebitPaymentMethodsBacs = [
-  {
-    payment_method: "bank_debit",
-    payment_method_types: [
-      {
-        payment_method_type: "bacs",
-        minimum_amount: 1,
-        maximum_amount: 68607706,
-        recurring_enabled: true,
-        installment_payment_enabled: true,
-      },
-    ],
-  },
-];
-
-export const bankDebitPaymentMethodsBecs = [
-  {
-    payment_method: "bank_debit",
-    payment_method_types: [
-      {
-        payment_method_type: "becs",
-        minimum_amount: 1,
-        maximum_amount: 68607706,
-        recurring_enabled: true,
-        installment_payment_enabled: true,
-      },
-    ],
-  },
-];
-
-export const bankDebitPaymentMethodsSepa = [
-  {
-    payment_method: "bank_debit",
-    payment_method_types: [
-      {
-        payment_method_type: "sepa",
-        minimum_amount: 1,
-        maximum_amount: 68607706,
-        recurring_enabled: true,
-        installment_payment_enabled: true,
-      },
-    ],
-  },
-];
-
 export const payment_methods_enabled = [
   {
     payment_method: "bank_redirect",

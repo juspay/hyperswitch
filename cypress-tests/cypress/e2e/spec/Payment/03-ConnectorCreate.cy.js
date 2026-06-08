@@ -1,11 +1,6 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import {
-  bankDebitPaymentMethodsBacs,
-  bankDebitPaymentMethodsBecs,
-  bankDebitPaymentMethodsSepa,
-  payment_methods_enabled,
-} from "../../configs/Payment/Commons";
+import { payment_methods_enabled } from "../../configs/Payment/Commons";
 import {
   CONNECTOR_LISTS,
   shouldIncludeConnector,
@@ -84,7 +79,7 @@ describe("Connector Account Create flow test", () => {
         cy.createConnectorCallTest(
           "payment_processor",
           fixtures.createConnectorBody,
-          bankDebitPaymentMethodsBacs,
+          payment_methods_enabled,
           globalState,
           "profile2",
           "merchantConnector2"
@@ -114,7 +109,7 @@ describe("Connector Account Create flow test", () => {
         cy.createConnectorCallTest(
           "payment_processor",
           fixtures.createConnectorBody,
-          bankDebitPaymentMethodsBecs,
+          payment_methods_enabled,
           globalState,
           "profile3",
           "merchantConnector3"
@@ -144,7 +139,7 @@ describe("Connector Account Create flow test", () => {
         cy.createConnectorCallTest(
           "payment_processor",
           fixtures.createConnectorBody,
-          bankDebitPaymentMethodsSepa,
+          payment_methods_enabled,
           globalState,
           "profile4",
           "merchantConnector4"
