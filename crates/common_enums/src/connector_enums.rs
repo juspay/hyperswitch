@@ -189,7 +189,7 @@ pub enum Connector {
     Trustpay,
     Trustpayments,
     Tsys,
-    TsysXml,
+    TsysTransit,
     // UnifiedAuthenticationService,
     Vgs,
     Volt,
@@ -411,7 +411,7 @@ impl Connector {
             | Self::Trustpayments
             // | Self::Tokenio
             | Self::Tsys
-            | Self::TsysXml
+            | Self::TsysTransit
             // | Self::UnifiedAuthenticationService
             | Self::Vgs
             | Self::Volt

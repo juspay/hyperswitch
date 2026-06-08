@@ -525,8 +525,8 @@ impl ConnectorData {
                 // the unified connector service over gRPC. The boxed stub
                 // exists only to satisfy MCA validation and other boilerplate
                 // paths; none of its methods get called at request time.
-                enums::Connector::TsysXml => {
-                    Ok(ConnectorEnum::Old(Box::new(connector::TsysXml::new())))
+                enums::Connector::TsysTransit => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::TsysTransit::new())))
                 }
                 enums::Connector::Phonepe => Ok(ConnectorEnum::Old(Box::new(Phonepe::new()))),
                 enums::Connector::Paytm => Ok(ConnectorEnum::Old(Box::new(Paytm::new()))),

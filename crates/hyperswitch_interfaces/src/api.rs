@@ -513,7 +513,6 @@ pub trait ConnectorSpecifications {
     /// Connectors should override this method if they require to create a connector customer
     fn should_call_connector_customer(
         &self,
-        #[cfg(feature = "v1")]
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> ConnectorCustomerAction {
         ConnectorCustomerAction::NoAction
@@ -588,7 +587,6 @@ pub trait ConnectorSpecifications {
         false
     }
 
-    #[cfg(feature = "v1")]
     /// Generate connector customer reference ID for payments
     fn generate_connector_customer_id(
         &self,
@@ -596,16 +594,6 @@ pub trait ConnectorSpecifications {
         _merchant_id: &common_utils::id_type::MerchantId,
     ) -> Option<String> {
         None
-    }
-
-    #[cfg(feature = "v2")]
-    /// Generate connector customer reference ID for payments
-    fn generate_connector_customer_id(
-        &self,
-        _customer_id: &Option<common_utils::id_type::CustomerId>,
-        _merchant_id: &common_utils::id_type::MerchantId,
-    ) -> Option<String> {
-        todo!()
     }
 
     /// Check if connector needs tokenization call before setup mandate flow

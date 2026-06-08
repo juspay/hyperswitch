@@ -189,7 +189,7 @@ where
 
     let start_instant = Instant::now();
     let serialized_request = serde_json::json!({
-        "request_logging": "disabled_for_tsys_xml_stack_overflow_debug"
+        "request_logging": "disabled_for_tsys_transit_stack_overflow_debug"
     });
     logger::info!(tag = "server_wrap_util:request_serialized");
 

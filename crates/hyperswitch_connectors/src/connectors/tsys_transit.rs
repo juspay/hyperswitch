@@ -1,4 +1,3 @@
-pub mod transformers;
 use std::sync::LazyLock;
 
 use common_utils::errors::CustomResult;
@@ -25,30 +24,30 @@ use hyperswitch_interfaces::{
 };
 
 #[derive(Clone)]
-pub struct TsysXml {}
+pub struct TsysTransit {}
 
-impl TsysXml {
+impl TsysTransit {
     pub fn new() -> &'static Self {
         &Self {}
     }
 }
 
-impl api::Payment for TsysXml {}
-impl api::PaymentSession for TsysXml {}
-impl api::ConnectorAccessToken for TsysXml {}
-impl api::MandateSetup for TsysXml {}
-impl api::PaymentAuthorize for TsysXml {}
-impl api::PaymentSync for TsysXml {}
-impl api::PaymentCapture for TsysXml {}
-impl api::PaymentVoid for TsysXml {}
-impl api::Refund for TsysXml {}
-impl api::RefundExecute for TsysXml {}
-impl api::RefundSync for TsysXml {}
-impl api::PaymentToken for TsysXml {}
+impl api::Payment for TsysTransit {}
+impl api::PaymentSession for TsysTransit {}
+impl api::ConnectorAccessToken for TsysTransit {}
+impl api::MandateSetup for TsysTransit {}
+impl api::PaymentAuthorize for TsysTransit {}
+impl api::PaymentSync for TsysTransit {}
+impl api::PaymentCapture for TsysTransit {}
+impl api::PaymentVoid for TsysTransit {}
+impl api::Refund for TsysTransit {}
+impl api::RefundExecute for TsysTransit {}
+impl api::RefundSync for TsysTransit {}
+impl api::PaymentToken for TsysTransit {}
 
-impl api::ConnectorCommon for TsysXml {
+impl api::ConnectorCommon for TsysTransit {
     fn id(&self) -> &'static str {
-        "tsys_xml"
+        "tsys_transit"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
@@ -60,7 +59,7 @@ impl api::ConnectorCommon for TsysXml {
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.tsys_xml.base_url.as_ref()
+        connectors.tsys_transit.base_url.as_ref()
     }
 
     fn get_auth_header(
@@ -76,34 +75,40 @@ impl api::ConnectorCommon for TsysXml {
         _res: Response,
         _event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("TsysXml".to_string()).into())
+        Err(errors::ConnectorError::NotImplemented("TsysTransit".to_string()).into())
     }
 }
 
-impl api::ConnectorValidation for TsysXml {}
-impl api::ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for TsysXml {}
-impl api::ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for TsysXml {}
-impl api::ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
-    for TsysXml
+impl api::ConnectorValidation for TsysTransit {}
+impl api::ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for TsysTransit {}
+impl api::ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
+    for TsysTransit
 {
 }
-impl api::ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for TsysXml {}
-impl api::ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for TsysXml {}
-impl api::ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for TsysXml {}
-impl api::ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for TsysXml {}
-impl api::ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for TsysXml {}
-impl api::ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for TsysXml {}
+impl api::ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
+    for TsysTransit
+{
+}
+impl api::ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
+    for TsysTransit
+{
+}
+impl api::ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for TsysTransit {}
+impl api::ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for TsysTransit {}
+impl api::ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for TsysTransit {}
+impl api::ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for TsysTransit {}
+impl api::ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for TsysTransit {}
 impl
     api::ConnectorIntegration<
         PaymentMethodToken,
         PaymentMethodTokenizationData,
         PaymentsResponseData,
-    > for TsysXml
+    > for TsysTransit
 {
 }
 
 #[async_trait::async_trait]
-impl webhooks::IncomingWebhook for TsysXml {
+impl webhooks::IncomingWebhook for TsysTransit {
     fn get_webhook_object_reference_id(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -128,7 +133,7 @@ impl webhooks::IncomingWebhook for TsysXml {
     }
 }
 
-static TSYS_XML_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+static TSYS_TRANSIT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(|| {
         let default_capture_methods = vec![
             common_enums::CaptureMethod::Automatic,
@@ -146,9 +151,9 @@ static TSYS_XML_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             common_enums::CardNetwork::UnionPay,
         ];
 
-        let mut tsys_xml_supported_payment_methods = SupportedPaymentMethods::new();
+        let mut tsys_transit_supported_payment_methods = SupportedPaymentMethods::new();
 
-        tsys_xml_supported_payment_methods.add(
+        tsys_transit_supported_payment_methods.add(
             common_enums::PaymentMethod::Card,
             common_enums::PaymentMethodType::Credit,
             PaymentMethodDetails {
@@ -167,7 +172,7 @@ static TSYS_XML_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
-        tsys_xml_supported_payment_methods.add(
+        tsys_transit_supported_payment_methods.add(
             common_enums::PaymentMethod::Card,
             common_enums::PaymentMethodType::Debit,
             PaymentMethodDetails {
@@ -186,28 +191,28 @@ static TSYS_XML_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
-        tsys_xml_supported_payment_methods
+        tsys_transit_supported_payment_methods
     });
 
-static TSYS_XML_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "TsysXml",
+static TSYS_TRANSIT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "TsysTransit",
     description: "TSYS XML (TransIT) is a TSYS gateway integration using the TransIT XML API for card processing.",
     connector_type: common_enums::HyperswitchConnectorCategory::PaymentGateway,
     integration_status: common_enums::ConnectorIntegrationStatus::Beta,
 };
 
-static TSYS_XML_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
+static TSYS_TRANSIT_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
 
-impl api::ConnectorSpecifications for TsysXml {
+impl api::ConnectorSpecifications for TsysTransit {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&TSYS_XML_CONNECTOR_INFO)
+        Some(&TSYS_TRANSIT_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&*TSYS_XML_SUPPORTED_PAYMENT_METHODS)
+        Some(&*TSYS_TRANSIT_SUPPORTED_PAYMENT_METHODS)
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
-        Some(&TSYS_XML_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&TSYS_TRANSIT_SUPPORTED_WEBHOOK_FLOWS)
     }
 }

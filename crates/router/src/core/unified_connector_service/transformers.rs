@@ -20,7 +20,7 @@ use external_services::grpc_client::unified_connector_service::UnifiedConnectorS
 use hyperswitch_domain_models::{
     mandates,
     mandates::{MandateData, MandateDataType},
-    router_data::{AccessToken, ErrorResponse, RouterData},
+    router_data::{AccessToken, ErrorResponse, L2L3Data, RouterData},
     router_flow_types::{
         payments::{Authorize, Capture, PSync, SetupMandate},
         refunds::{Execute, RSync},
@@ -95,30 +95,49 @@ fn build_ucs_order_details(
 
 fn build_ucs_l2_l3_data(
     order_details: &[payments_grpc::OrderDetailsWithAmount],
+    l2_l3_data: Option<&L2L3Data>,
     merchant_order_reference_id: Option<String>,
     shipping_cost: Option<MinorUnit>,
     duty_amount: Option<MinorUnit>,
     order_tax_amount: Option<MinorUnit>,
 ) -> Option<payments_grpc::L2l3Data> {
+    let order_date = l2_l3_data
+        .and_then(|data| data.get_order_date())
+        .map(|date| date.assume_utc().unix_timestamp());
+    let discount_amount = l2_l3_data.and_then(|data| data.get_discount_amount());
+    let shipping_amount_tax = l2_l3_data.and_then(|data| data.get_shipping_amount_tax());
+    let customer_tax_registration_id = l2_l3_data
+        .and_then(|data| data.get_customer_tax_registration_id())
+        .map(|tax_id| tax_id.peek().to_owned().into());
+    let merchant_tax_registration_id = l2_l3_data
+        .and_then(|data| data.get_merchant_tax_registration_id())
+        .map(|tax_id| tax_id.peek().to_owned().into());
+
     let order_info = (!order_details.is_empty()
         || merchant_order_reference_id.is_some()
+        || order_date.is_some()
+        || discount_amount.is_some()
         || shipping_cost.is_some()
         || duty_amount.is_some())
     .then_some(payments_grpc::OrderInfo {
-        order_date: None,
+        order_date,
         order_details: order_details.to_vec(),
         merchant_order_reference_id,
-        discount_amount: None,
+        discount_amount: discount_amount.map(|amount| amount.get_amount_as_i64()),
         shipping_cost: shipping_cost.map(|amount| amount.get_amount_as_i64()),
         duty_amount: duty_amount.map(|amount| amount.get_amount_as_i64()),
     });
 
-    let tax_info = order_tax_amount.map(|tax| payments_grpc::TaxInfo {
+    let tax_info = (order_tax_amount.is_some()
+        || shipping_amount_tax.is_some()
+        || customer_tax_registration_id.is_some()
+        || merchant_tax_registration_id.is_some())
+    .then_some(payments_grpc::TaxInfo {
         tax_status: None,
-        customer_tax_registration_id: None,
-        merchant_tax_registration_id: None,
-        shipping_amount_tax: None,
-        order_tax_amount: Some(tax.get_amount_as_i64()),
+        customer_tax_registration_id,
+        merchant_tax_registration_id,
+        shipping_amount_tax: shipping_amount_tax.map(|amount| amount.get_amount_as_i64()),
+        order_tax_amount: order_tax_amount.map(|tax| tax.get_amount_as_i64()),
     });
 
     if order_info.is_none() && tax_info.is_none() {
@@ -319,6 +338,7 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_ref());
         let l2_l3_data = build_ucs_l2_l3_data(
             &order_details,
+            router_data.l2_l3_data.as_deref(),
             router_data.request.merchant_order_reference_id.clone(),
             router_data.request.shipping_cost,
             router_data
@@ -1172,6 +1192,29 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .as_ref()
             .map(ConnectorState::foreign_from);
 
+        let mut capture_metadata = router_data.request.metadata.clone();
+        if let Some(order_tax_amount) = router_data.request.order_tax_amount {
+            let order_tax_amount =
+                serde_json::Value::Number(order_tax_amount.get_amount_as_i64().into());
+            match capture_metadata.as_mut() {
+                Some(serde_json::Value::Object(metadata)) => {
+                    metadata.insert("order_tax_amount".to_string(), order_tax_amount);
+                }
+                Some(metadata) => {
+                    let original_metadata = std::mem::take(metadata);
+                    *metadata = serde_json::json!({
+                        "metadata": original_metadata,
+                        "order_tax_amount": order_tax_amount,
+                    });
+                }
+                None => {
+                    capture_metadata = Some(serde_json::json!({
+                        "order_tax_amount": order_tax_amount,
+                    }));
+                }
+            }
+        }
+
         Ok(Self {
             connector_transaction_id,
             merchant_capture_id: Some(router_data.connector_request_reference_id.clone()),
@@ -1183,9 +1226,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 currency: currency.into(),
             }),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
-            metadata: router_data
-                .request
-                .metadata
+            metadata: capture_metadata
                 .as_ref()
                 .map(serde_json::to_string)
                 .transpose()
@@ -1427,6 +1468,7 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_ref());
         let l2_l3_data = build_ucs_l2_l3_data(
             &order_details,
+            router_data.l2_l3_data.as_deref(),
             router_data.request.merchant_order_reference_id.clone(),
             router_data.request.shipping_cost,
             router_data

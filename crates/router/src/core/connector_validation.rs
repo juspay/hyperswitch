@@ -574,7 +574,7 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 tsys::transformers::TsysAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            api_enums::Connector::TsysXml => {
+            api_enums::Connector::TsysTransit => {
                 // UCS-only connector — auth validation is performed by the
                 // unified connector service over gRPC.
                 Ok(())

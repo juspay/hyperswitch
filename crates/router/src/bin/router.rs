@@ -7,7 +7,7 @@ use router::{
 };
 
 // 256 MiB per worker stack. Default 2 MiB overflows on deeply nested generic
-// dispatch paths for UCS-only connectors (tsys_xml /payments).
+// dispatch paths for UCS-only connectors (tsys_transit /payments).
 // Actix worker threads pick up `RUST_MIN_STACK` from the environment — see
 // scripts/start-router.sh for the launch wrapper that exports it.
 const WORKER_STACK_SIZE: usize = 256 * 1024 * 1024;
