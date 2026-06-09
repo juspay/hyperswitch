@@ -4795,10 +4795,12 @@ pub fn flat_pms_to_legacy_for_surcharge(
     }
 
     map.into_iter()
-        .map(|(payment_method, payment_method_types)| ResponsePaymentMethodsEnabled {
-            payment_method,
-            payment_method_types,
-        })
+        .map(
+            |(payment_method, payment_method_types)| ResponsePaymentMethodsEnabled {
+                payment_method,
+                payment_method_types,
+            },
+        )
         .collect()
 }
 

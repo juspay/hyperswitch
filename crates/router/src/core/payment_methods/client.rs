@@ -269,7 +269,7 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
                     last_used_at: Some(pm.last_used_at),
                     payment_method_data,
                     surcharge_details: None,
-            });
+                });
             }
         }
 
