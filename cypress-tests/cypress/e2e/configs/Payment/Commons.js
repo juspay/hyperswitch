@@ -3325,38 +3325,6 @@ export const connectorDetails = {
         },
       },
     }),
-    ClientSessionReplayConfirm: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "The provided client_secret has expired",
-            code: "IR_08",
-          },
-        },
-      },
-    }),
-    ClientSessionUpdatePayment: getCustomExchange({
-      Request: {
-        amount: 7000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({
