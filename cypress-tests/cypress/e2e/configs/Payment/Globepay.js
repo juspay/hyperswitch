@@ -5,10 +5,12 @@ const requiredFields = {
       payment_method_types: [
         {
           payment_method_type: "ali_pay",
+          payment_experience: "qr_code_information",
           eligible_connectors: ["globepay"],
         },
         {
           payment_method_type: "we_chat_pay",
+          payment_experience: "qr_code_information",
           eligible_connectors: ["globepay"],
         },
       ],
