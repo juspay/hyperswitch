@@ -1421,6 +1421,10 @@ impl Customers {
             route = route
                 .service(web::resource("").route(web::post().to(customers::customers_create)))
                 .service(
+                    web::resource("/migrate/global-id")
+                        .route(web::post().to(customers::migrate::migrate_global_id)),
+                )
+                .service(
                     web::resource("/{id}")
                         .route(web::put().to(customers::customers_update))
                         .route(web::get().to(customers::customers_retrieve))
