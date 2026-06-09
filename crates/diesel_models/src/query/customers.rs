@@ -1,7 +1,15 @@
+#[cfg(feature = "v2")]
+use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::id_type;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+#[cfg(feature = "v2")]
+use diesel::{NullableExpressionMethods, QueryDsl};
+#[cfg(feature = "v2")]
+use error_stack::{report, ResultExt};
 
 use super::generics;
+#[cfg(feature = "v2")]
+use crate::customers::CustomerGlobalIdMigrationRow;
 #[cfg(feature = "v1")]
 use crate::schema::customers::dsl;
 #[cfg(feature = "v2")]
@@ -32,6 +40,76 @@ pub struct CustomerListConstraints {
 }
 
 impl Customer {
+    #[cfg(feature = "v2")]
+    fn global_id_migration_select() -> (
+        crate::schema_v2::customers::merchant_id,
+        crate::schema_v2::customers::customer_id,
+        diesel::dsl::Nullable<crate::schema_v2::customers::id>,
+        crate::schema_v2::customers::version,
+    ) {
+        (
+            dsl::merchant_id,
+            dsl::customer_id,
+            dsl::id.nullable(),
+            dsl::version,
+        )
+    }
+
+    #[cfg(feature = "v2")]
+    pub async fn find_optional_by_merchant_id_customer_id_for_global_id_migration(
+        conn: &PgPooledConn,
+        merchant_id: &id_type::MerchantId,
+        customer_id: &id_type::CustomerId,
+    ) -> StorageResult<Option<CustomerGlobalIdMigrationRow>> {
+        let query = dsl::customers
+            .filter(
+                dsl::merchant_id
+                    .eq(merchant_id.to_owned())
+                    .and(dsl::customer_id.eq(Some(customer_id.get_string_repr().to_owned()))),
+            )
+            .select(Self::global_id_migration_select());
+
+        match query
+            .first_async::<CustomerGlobalIdMigrationRow>(conn)
+            .await
+        {
+            Ok(row) => Ok(Some(row)),
+            Err(diesel::result::Error::NotFound) => Ok(None),
+            Err(error) => Err(error)
+                .change_context(errors::DatabaseError::Others)
+                .attach_printable("Error while finding customer for global id migration"),
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    pub async fn update_global_id_by_merchant_id_customer_id_for_v1(
+        conn: &PgPooledConn,
+        merchant_id: &id_type::MerchantId,
+        customer_id: &id_type::CustomerId,
+        new_id: id_type::GlobalCustomerId,
+    ) -> StorageResult<CustomerGlobalIdMigrationRow> {
+        let predicate = dsl::merchant_id
+            .eq(merchant_id.to_owned())
+            .and(dsl::customer_id.eq(Some(customer_id.get_string_repr().to_owned())))
+            .and(dsl::version.eq(common_enums::ApiVersion::V1));
+
+        let query = diesel::update(dsl::customers.filter(predicate))
+            .set(dsl::id.eq(new_id))
+            .returning(Self::global_id_migration_select());
+
+        match query
+            .get_result_async::<CustomerGlobalIdMigrationRow>(conn)
+            .await
+        {
+            Ok(row) => Ok(row),
+            Err(diesel::result::Error::NotFound) => Err(report!(errors::DatabaseError::NotFound))
+                .attach_printable("No v1 customer found while updating global id"),
+            Err(error) => Err(error)
+                .change_context(errors::DatabaseError::Others)
+                .attach_printable("Error while updating customer global id"),
+        }
+    }
+
     #[cfg(feature = "v2")]
     pub async fn update_by_id(
         conn: &PgPooledConn,
