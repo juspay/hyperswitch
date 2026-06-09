@@ -228,6 +228,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
 
             api_enums::Connector::Phonepe => Self::Phonepe,
             api_enums::Connector::Paytm => Self::Paytm,
+            api_enums::Connector::Payconex => Self::Payconex,
         })
     }
 }
