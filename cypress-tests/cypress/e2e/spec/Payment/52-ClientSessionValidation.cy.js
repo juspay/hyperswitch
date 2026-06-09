@@ -55,7 +55,7 @@ describe("Client Session Validation", () => {
     it("Confirm with valid SDK Authorization", () => {
       const confirmData = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
-      ]["ClientSessionValidConfirm"];
+      ]["No3DSAutoCapture"];
 
       cy.confirmWithSdkAuthTest(
         fixtures.confirmBody,
@@ -71,7 +71,7 @@ describe("Client Session Validation", () => {
     it("Retrieve Payment", () => {
       const confirmData = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
-      ]["ClientSessionValidConfirm"];
+      ]["No3DSAutoCapture"];
 
       cy.retrievePaymentCallTest({ globalState, data: confirmData });
     });

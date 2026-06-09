@@ -997,8 +997,6 @@ export const connectorDetails = {
         },
       },
     },
-    ClientSessionValidConfirm:
-      commonConnectorDetails.card_pm.ClientSessionValidConfirm,
     ClientSessionInvalidConfirm:
       commonConnectorDetails.card_pm.ClientSessionInvalidConfirm,
     ClientSessionReplayConfirm:
