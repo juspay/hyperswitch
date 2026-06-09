@@ -4321,9 +4321,10 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         let payment_attempt = state
             .store
-            .find_payment_attempt_by_attempt_id_processor_merchant_id(
-                &payment_intent.active_attempt.get_id(),
+            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                &payment_intent.payment_id,
                 platform.get_processor().get_account().get_id(),
+                &payment_intent.active_attempt.get_id(),
                 platform.get_processor().get_account().storage_scheme,
                 platform.get_processor().get_key_store(),
             )
@@ -7018,8 +7019,8 @@ where
     F: Send + Clone + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let merchant_id = processor.get_account().get_id();
-    let blocklist_enabled_key = merchant_id.get_blocklist_guard_key();
+    let processor_merchant_id = processor.get_account().get_id();
+    let blocklist_enabled_key = processor_merchant_id.get_blocklist_guard_key();
     let blocklist_guard_enabled = state
         .store
         .find_config_by_key_unwrap_or(&blocklist_enabled_key, Some("false".to_string()))

@@ -4644,6 +4644,8 @@ pub fn bank_transfer_next_steps_check(
                 != Some(diesel_models::enums::PaymentMethodType::PixAutomaticoQr)
             && payment_attempt.payment_method_type
                 != Some(diesel_models::enums::PaymentMethodType::PixAutomaticoPush)
+            && payment_attempt.payment_method_type
+                != Some(diesel_models::enums::PaymentMethodType::PixEmv)
         {
             let bank_transfer_next_steps: Option<api_models::payments::BankTransferNextStepsData> =
                 payment_attempt
@@ -6959,6 +6961,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             show_card_terms: config.show_card_terms,
             is_setup_mandate_flow: config.is_setup_mandate_flow,
             color_icon_card_cvc_error: config.color_icon_card_cvc_error,
+            show_merchant_name: config.show_merchant_name,
         }
     }
 }
@@ -7036,6 +7039,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             show_card_terms: config.show_card_terms,
             is_setup_mandate_flow: config.is_setup_mandate_flow,
             color_icon_card_cvc_error: config.color_icon_card_cvc_error,
+            show_merchant_name: config.show_merchant_name,
         }
     }
 }

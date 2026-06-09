@@ -8731,6 +8731,17 @@
           {
             "type": "object",
             "required": [
+              "pix_emv"
+            ],
+            "properties": {
+              "pix_emv": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "pix_automatico_push"
             ],
             "properties": {
@@ -9114,6 +9125,17 @@
                     "nullable": true
                   }
                 }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix_emv"
+            ],
+            "properties": {
+              "pix_emv": {
+                "type": "object"
               }
             }
           },
@@ -11248,6 +11270,7 @@
           "paysafe",
           "paystack",
           "paytm",
+          "payconex",
           "payu",
           "peachpayments",
           "payjustnow",
@@ -15117,6 +15140,7 @@
               "$ref": "#/components/schemas/FrmPaymentMethodType"
             },
             "description": "payment method types(credit, debit) that can be used in the payment. This field is deprecated. It has not been removed to provide backward compatibility.",
+            "deprecated": true,
             "nullable": true
           },
           "flow": {
@@ -21066,6 +21090,11 @@
             "type": "string",
             "description": "Hex color for the CVC icon during error state",
             "nullable": true
+          },
+          "show_merchant_name": {
+            "type": "boolean",
+            "description": "Flag to display the merchant name in the payment link",
+            "nullable": true
           }
         }
       },
@@ -21246,6 +21275,13 @@
           "color_icon_card_cvc_error": {
             "type": "string",
             "description": "Hex color for the CVC icon during error state",
+            "nullable": true
+          },
+          "show_merchant_name": {
+            "type": "boolean",
+            "description": "Flag to display the merchant name in the payment link",
+            "default": true,
+            "example": true,
             "nullable": true
           }
         }
@@ -22568,14 +22604,6 @@
             ],
             "nullable": true
           },
-          "bank": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MaskedBankDetails"
-              }
-            ],
-            "nullable": true
-          },
           "created": {
             "type": "string",
             "format": "date-time",
@@ -22612,6 +22640,19 @@
                 "$ref": "#/components/schemas/NetworkTokenResponse"
               }
             ],
+            "nullable": true
+          },
+          "connector_tokens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectorTokenDetails"
+            },
+            "description": "The connector token details if available",
+            "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`.",
             "nullable": true
           }
         }
@@ -22871,14 +22912,12 @@
           },
           {
             "type": "object",
-            "required": [
-              "payment_method_token"
-            ],
             "properties": {
               "payment_method_token": {
                 "type": "string",
-                "description": "The payment method token associated with the payment method session",
-                "example": "token_9wcXDRVkfEtLEsSnYKgQ"
+                "description": "The payment method token associated with the payment method session.\nIf not provided, a new token will be generated.",
+                "example": "token_9wcXDRVkfEtLEsSnYKgQ",
+                "nullable": true
               }
             }
           }
@@ -29312,6 +29351,7 @@
           "paysafe",
           "paystack",
           "paytm",
+          "payconex",
           "payu",
           "peachpayments",
           "payjustnow",

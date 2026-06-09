@@ -206,8 +206,6 @@ impl DisputeInterface for MockDb {
         &self,
         dispute: storage::DisputeNew,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
-        let evidence = dispute.evidence.ok_or(errors::StorageError::MockDbError)?;
-
         let mut locked_disputes = self.disputes.lock().await;
 
         if locked_disputes
@@ -216,8 +214,6 @@ impl DisputeInterface for MockDb {
         {
             Err(errors::StorageError::MockDbError)?;
         }
-
-        let now = common_utils::date_time::now();
 
         let new_dispute = storage::Dispute {
             dispute_id: dispute.dispute_id,
@@ -235,11 +231,11 @@ impl DisputeInterface for MockDb {
             challenge_required_by: dispute.challenge_required_by,
             connector_created_at: dispute.connector_created_at,
             connector_updated_at: dispute.connector_updated_at,
-            created_at: now,
-            modified_at: now,
+            created_at: dispute.created_at,
+            modified_at: dispute.modified_at,
             connector: dispute.connector,
             profile_id: dispute.profile_id,
-            evidence,
+            evidence: dispute.evidence,
             merchant_connector_id: dispute.merchant_connector_id,
             dispute_amount: dispute.dispute_amount,
             organization_id: dispute.organization_id,
@@ -561,7 +557,7 @@ mod tests {
                 connector_created_at: Some(datetime!(2019-01-02 0:00)),
                 connector_updated_at: Some(datetime!(2019-01-03 0:00)),
                 connector: "connector".into(),
-                evidence: Some(Secret::from(Value::String("evidence".into()))),
+                evidence: Secret::from(Value::String("evidence".into())),
                 profile_id: Some(common_utils::generate_profile_id_of_default_length()),
                 merchant_connector_id: None,
                 dispute_amount: MinorUnit::new(1040),
@@ -569,6 +565,8 @@ mod tests {
                 dispute_currency: Some(Currency::default()),
                 processor_merchant_id: Some(dispute_ids.merchant_id),
                 created_by: None,
+                created_at: common_utils::date_time::now(),
+                modified_at: common_utils::date_time::now(),
             }
         }
 
