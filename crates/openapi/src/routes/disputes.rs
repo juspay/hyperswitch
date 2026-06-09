@@ -44,7 +44,6 @@ pub async fn retrieve_dispute() {}
 )]
 pub async fn retrieve_disputes_list() {}
 
-
 /// Disputes - Accept Dispute
 /// Accepts a dispute
 #[utoipa::path(
@@ -62,7 +61,6 @@ pub async fn retrieve_disputes_list() {}
     security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn accept_dispute() {}
-
 
 /// Disputes - Attach Evidence to Dispute
 /// Attaches an uploaded evidence file to a dispute
