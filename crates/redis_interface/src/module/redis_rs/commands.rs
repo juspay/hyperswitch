@@ -243,11 +243,14 @@ impl super::RedisConnectionPool {
         let tenant_aware_keys: Vec<String> =
             keys.iter().map(|key| key.tenant_aware_key(self)).collect();
 
-        let futures = tenant_aware_keys.iter().map(|redis_key| {
-            let mut conn = self.pool.clone();
-            let key = redis_key.clone();
-            async move { track_redis_call(RedisOperation::GetKey, conn.get::<_, Option<V>>(&key)).await }
-        });
+        let futures =
+            tenant_aware_keys.iter().map(|redis_key| {
+                let mut conn = self.pool.clone();
+                let key = redis_key.clone();
+                async move {
+                    track_redis_call(RedisOperation::GetKey, conn.get::<_, Option<V>>(&key)).await
+                }
+            });
 
         let results = futures::future::try_join_all(futures)
             .await
