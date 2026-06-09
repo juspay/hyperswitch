@@ -16344,14 +16344,9 @@
       "HyperswitchVaultSessionDetails": {
         "type": "object",
         "required": [
-          "payment_method_session_id",
           "sdk_authorization"
         ],
         "properties": {
-          "payment_method_session_id": {
-            "type": "string",
-            "description": "Session ID for Hyperswitch Vault"
-          },
           "sdk_authorization": {
             "type": "string",
             "description": "Base64-encoded SDK authorization token for the Hyperswitch Vault session"
