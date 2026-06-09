@@ -807,7 +807,6 @@ impl PaymentMethodsController for PmCards<'_> {
                 .clone(),
         );
 
-
         let payload = encode_vault_fingerprint_request(
             should_trigger_fingerprint_migration,
             key_store.merchant_id.clone(),
