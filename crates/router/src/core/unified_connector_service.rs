@@ -2131,10 +2131,8 @@ pub fn handle_unified_connector_service_response_for_payment_setup_recurring(
         status_code,
         connector_customer_id,
         connector_response,
-        amount_captured: response.captured_amount,
-        minor_amount_captured: response
-            .captured_amount
-            .map(common_utils::types::MinorUnit::new),
+        amount_captured: None,
+        minor_amount_captured: None,
     })
 }
 
