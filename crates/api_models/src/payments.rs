@@ -3150,6 +3150,7 @@ mod payment_method_data_serde {
                     | PaymentMethodData::Voucher(_)
                     | PaymentMethodData::Card(_)
                     | PaymentMethodData::NetworkToken(_)
+                    | PaymentMethodData::ProxyCard(_)
                     | PaymentMethodData::MandatePayment
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::Wallet(_) => {
@@ -3229,7 +3230,7 @@ pub struct ProxyPaymentMethodDataRequest {
 #[serde(rename_all = "snake_case")]
 pub enum ProxyPaymentMethodData {
     #[schema(title = "ProxyCardData")]
-    VaultDataCard(Box<ProxyCardData>),
+    ProxyCard(Box<ProxyCardData>),
     VaultToken(VaultToken),
 }
 
@@ -3487,6 +3488,10 @@ pub enum PaymentMethodData {
     MobilePayment(MobilePaymentData),
     #[schema(title = "NetworkToken")]
     NetworkToken(NetworkTokenData),
+    /// Vault card data used for external vault proxy payments.
+    /// When this variant is used, the payment will be routed through the external vault proxy flow.
+    #[schema(title = "ProxyCard")]
+    ProxyCard(Box<ProxyCardData>),
 }
 
 pub trait GetAddressFromPaymentMethodData {
@@ -3513,7 +3518,8 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             | Self::OpenBanking(_)
             | Self::MandatePayment
             | Self::MobilePayment(_)
-            | Self::NetworkToken(_) => None,
+            | Self::NetworkToken(_)
+            | Self::ProxyCard(_) => None,
         }
     }
 }
@@ -3538,6 +3544,7 @@ impl PaymentMethodData {
             Self::MobilePayment(_) => Some(api_enums::PaymentMethod::MobilePayment),
             Self::NetworkToken(_) => Some(api_enums::PaymentMethod::NetworkToken),
             Self::CardToken(_) | Self::MandatePayment => None,
+            Self::ProxyCard(_) => Some(api_enums::PaymentMethod::Card),
         }
     }
 }
@@ -10178,18 +10185,9 @@ pub struct VgsSessionDetails {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 pub struct HyperswitchVaultSessionDetails {
-    /// Session ID for Hyperswitch Vault
+    /// Base64-encoded SDK authorization token for the Hyperswitch Vault session
     #[schema(value_type = String)]
-    pub payment_method_session_id: Secret<String>,
-    /// Client secret for Hyperswitch Vault
-    #[schema(value_type = String)]
-    pub client_secret: Secret<String>,
-    /// Publishable key for Hyperswitch Vault
-    #[schema(value_type = String)]
-    pub publishable_key: Secret<String>,
-    /// Profile ID for Hyperswitch Vault
-    #[schema(value_type = String)]
-    pub profile_id: Secret<String>,
+    pub sdk_authorization: Secret<String>,
 }
 
 #[derive(

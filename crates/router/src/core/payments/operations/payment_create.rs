@@ -730,6 +730,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             external_authentication_data: request.three_ds_data.clone(),
             client_session_id,
             vault_session_details: None,
+            external_vault_pmd: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

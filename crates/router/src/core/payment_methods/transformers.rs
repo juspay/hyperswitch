@@ -17,7 +17,9 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::mandates;
 #[cfg(feature = "v1")]
-use hyperswitch_domain_models::payment_methods::PaymentMethodWithRawData;
+use hyperswitch_domain_models::payment_methods::{
+    PaymentMethodWithRawData, VaultCardData, VaultPaymentMethodData,
+};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{payment_method_data, sdk_auth::SdkAuthorization};
 #[cfg(feature = "v1")]
@@ -1411,6 +1413,8 @@ pub struct DomainPaymentMethodWrapper(pub domain::PaymentMethod);
 #[cfg(feature = "v1")]
 pub struct DomainPaymentMethodDataWrapper(pub domain::PaymentMethodData);
 
+/// Vault token data returned by the internal PM service for a proxy card (repeat CIT flow).
+/// Fields are vault token references (opaque strings), not real card data.
 #[cfg(feature = "v1")]
 impl DomainPaymentMethodWrapper {
     pub async fn transform_pm_mod_retrieve_response(
@@ -1779,6 +1783,12 @@ impl
                     ))),
                 }
             }
+            payment_methods::types::RawPaymentMethodData::ProxyCard(_proxy_card_data) => {
+                // ProxyCard (vault token reference) should not be converted to domain PaymentMethodData.
+                // It is handled separately via VaultPaymentMethodData in fetch_payment_method_from_modular_service.
+                Err(error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("ProxyCard should not be converted via DomainPaymentMethodDataWrapper; use vault_payment_method_token_data instead"))
+            }
         }
     }
 }
@@ -1940,15 +1950,32 @@ pub async fn fetch_payment_method_from_modular_service(
     .await
     .attach_printable("Failed to transform payment method retrieve response")?;
 
-    let raw_payment_method_data = pm_response
-        .raw_payment_method_data
-        .map(|raw_data| DomainPaymentMethodDataWrapper::try_from((raw_data, pmd_card_token)))
-        .transpose()
-        .attach_printable("Failed to convert raw payment method data")?;
+    // Split raw data based on variant:
+    // - ProxyCard → vault_payment_method_token_data (raw_payment_method_data stays None)
+    // - Card / CardWithNT / BankDebit → raw_payment_method_data (vault_payment_method_token_data stays None)
+    let (raw_payment_method_data, vault_payment_method_token_data) =
+        match pm_response.raw_payment_method_data {
+            Some(payment_methods::types::RawPaymentMethodData::ProxyCard(proxy_card)) => {
+                let vault_data = VaultPaymentMethodData::VaultCardData(VaultCardData {
+                    card_number: proxy_card.card_number,
+                    card_exp_year: proxy_card.card_exp_year,
+                    card_exp_month: proxy_card.card_exp_month,
+                });
+                (None, Some(vault_data))
+            }
+            Some(other_raw) => {
+                let domain_wrapper =
+                    DomainPaymentMethodDataWrapper::try_from((other_raw, pmd_card_token))
+                        .attach_printable("Failed to convert raw payment method data")?;
+                (Some(domain_wrapper.0), None)
+            }
+            None => (None, None),
+        };
 
     let pm_wrapper = PaymentMethodWithRawData {
         payment_method: payment_method.0,
-        raw_payment_method_data: raw_payment_method_data.map(|wrapper| wrapper.0),
+        raw_payment_method_data,
+        vault_payment_method_token_data,
     };
     Ok(pm_wrapper)
 }
@@ -2022,7 +2049,7 @@ pub async fn create_payment_method_in_modular_service(
         payment_method_type,
         metadata: None,
         customer_id,
-        payment_method_data,
+        payment_method_data: Some(payment_method_data),
         billing: billing_address,
         network_tokenization: is_network_tokenization_enabled.then_some(
             common_types::payment_methods::NetworkTokenization {
@@ -2031,6 +2058,7 @@ pub async fn create_payment_method_in_modular_service(
         ),
         storage_type: Some(common_enums::StorageType::Persistent),
         modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
+        proxy_card_data: None,
     };
 
     //Create modular service call
@@ -2043,6 +2071,47 @@ pub async fn create_payment_method_in_modular_service(
     .await?;
 
     //Convert PMResponse to PaymentMethodWithRawData
+    let payment_method_with_raw_data = DomainPaymentMethodWrapper::try_from(pm_response)?;
+
+    Ok(payment_method_with_raw_data.0)
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+pub async fn create_proxy_card_payment_method_in_modular_service(
+    state: &routes::SessionState,
+    provider_merchant_id: &id_type::MerchantId,
+    processor_merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+    payment_method: common_enums::PaymentMethod,
+    payment_method_type: Option<common_enums::PaymentMethodType>,
+    vault_card: hyperswitch_domain_models::payment_method_data::ExternalVaultCard,
+    billing_address: Option<hyperswitch_domain_models::address::Address>,
+    customer_id: id_type::CustomerId,
+) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
+    // Proxy flow: the card comes from `proxy_card_data`, so `payment_method_data` is None.
+    let payment_method_request = CreatePaymentMethodV1Request {
+        merchant_id: provider_merchant_id.clone(),
+        payment_method,
+        payment_method_type,
+        metadata: None,
+        customer_id,
+        payment_method_data: None,
+        billing: billing_address,
+        network_tokenization: None,
+        storage_type: Some(common_enums::StorageType::Persistent),
+        modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
+        proxy_card_data: Some(vault_card),
+    };
+
+    let pm_response = create_pm_modular_service_call(
+        state,
+        processor_merchant_id,
+        profile_id,
+        payment_method_request,
+    )
+    .await?;
+
     let payment_method_with_raw_data = DomainPaymentMethodWrapper::try_from(pm_response)?;
 
     Ok(payment_method_with_raw_data.0)
