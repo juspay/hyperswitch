@@ -99,7 +99,7 @@ impl From<PayconexPaymentStatus> for common_enums::AttemptStatus {
         match item {
             PayconexPaymentStatus::Succeeded => Self::Charged,
             PayconexPaymentStatus::Failed => Self::Failure,
-            PayconexPaymentStatus::Processing => Self::Authorizing,
+            PayconexPaymentStatus::Processing => Self::Pending,
         }
     }
 }
