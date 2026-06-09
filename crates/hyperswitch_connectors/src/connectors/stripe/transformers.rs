@@ -1537,6 +1537,7 @@ fn create_stripe_payment_method(
             ),
             payment_method_data::BankTransferData::PixAutomaticoPush { .. }
             | payment_method_data::BankTransferData::PixAutomaticoQr {}
+            | payment_method_data::BankTransferData::PixEmv {}
             | payment_method_data::BankTransferData::Pse {}
             | payment_method_data::BankTransferData::LocalBankTransfer { .. }
             | payment_method_data::BankTransferData::InstantBankTransfer {}
@@ -4805,6 +4806,7 @@ impl
                     ))
                 }
                 payment_method_data::BankTransferData::Pix { .. }
+                | payment_method_data::BankTransferData::PixEmv {}
                 | payment_method_data::BankTransferData::PixAutomaticoPush { .. }
                 | payment_method_data::BankTransferData::PixAutomaticoQr {}
                 | payment_method_data::BankTransferData::Pse {}

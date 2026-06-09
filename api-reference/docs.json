@@ -98,14 +98,6 @@
                     ]
                   },
                   {
-                    "group": "Mandates",
-                    "pages": [
-                      "v1/mandates/mandates--revoke-mandate",
-                      "v1/mandates/mandates--retrieve-mandate",
-                      "v1/mandates/mandates--customer-mandates-list"
-                    ]
-                  },
-                  {
                     "group": "Refunds",
                     "pages": [
                       "v1/refunds/refunds--create",
@@ -148,6 +140,14 @@
               {
                 "group": "Deprecated APIs",
                 "pages": [
+                  {
+                    "group": "Mandates",
+                    "pages": [
+                      "v1/mandates/mandates--revoke-mandate",
+                      "v1/mandates/mandates--retrieve-mandate",
+                      "v1/mandates/mandates--customer-mandates-list"
+                    ]
+                  },
                   {
                     "group": "Customers",
                     "pages": [

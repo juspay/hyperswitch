@@ -177,6 +177,9 @@ pub const DEFAULT_BACKGROUND_COLOR: &str = "#212E46";
 pub const DEFAULT_PRODUCT_IMG: &str =
     "https://live.hyperswitch.io/payment-link-assets/cart_placeholder.png";
 
+/// Show merchant name by default for payment links
+pub const DEFAULT_SHOW_MERCHANT_NAME: bool = true;
+
 /// Default SDK Layout
 pub const DEFAULT_SDK_LAYOUT: &str = "tabs";
 
