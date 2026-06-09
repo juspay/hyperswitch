@@ -1,9 +1,3 @@
-//! OpenTelemetry metrics for Redis operations.
-//!
-//! Mirrors the `track_database_call` pattern in `diesel_models`: every Redis
-//! command routes its future through [`track_redis_call`], which records a
-//! call-count counter and a latency histogram tagged by [`RedisOperation`].
-
 use router_env::{counter_metric, global_meter, histogram_metric_f64};
 
 global_meter!(GLOBAL_METER, "ROUTER_API");
