@@ -8940,7 +8940,7 @@ impl PaymentEligibilityData {
                 profile_id,
                 payment_token.clone().expose().as_str(),
                 Some(payment_method_type),
-                None, // CVC token data is not passed in create api
+                None, // CVC is not collected during the eligibility check
             )
             .await
             .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
