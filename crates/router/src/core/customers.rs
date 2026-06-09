@@ -247,8 +247,6 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             pii::SecretSerdeValue::new(serde_json::Value::Object(map))
         });
 
-        let cell_id_based_customer_id =
-            generate_global_customer_id(&state.conf.cell_information.id);
 
         Ok(domain::Customer::new(
             merchant_reference_id
@@ -273,7 +271,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             document_details_encrypted,
             initiator.and_then(|initiator| initiator.to_created_by()),
             initiator.and_then(|initiator| initiator.to_created_by()),
-            cell_id_based_customer_id,
+            generate_global_customer_id(&state.conf.cell_information.id),
         ))
     }
 
