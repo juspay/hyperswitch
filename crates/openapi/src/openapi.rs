@@ -162,7 +162,6 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::disputes::retrieve_dispute,
         routes::disputes::retrieve_disputes_list,
         routes::disputes::retrieve_disputes_list_profile,
-        routes::disputes::fetch_disputes,
         routes::disputes::get_disputes_filters,
         routes::disputes::get_disputes_filters_profile,
         routes::disputes::accept_dispute,

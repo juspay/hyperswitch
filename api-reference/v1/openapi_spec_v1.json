@@ -4651,40 +4651,6 @@
         ]
       }
     },
-    "/disputes/{connector_id}/fetch": {
-      "get": {
-        "tags": [
-          "Disputes"
-        ],
-        "summary": "Disputes - Fetch Disputes from Connector",
-        "description": "Fetches disputes from the connector for a given connector_id",
-        "operationId": "Fetch Disputes from Connector",
-        "parameters": [
-          {
-            "name": "connector_id",
-            "in": "path",
-            "description": "The identifier for connector",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The disputes were fetched successfully"
-          },
-          "404": {
-            "description": "Connector does not exist in our records"
-          }
-        },
-        "security": [
-          {
-            "api_key": []
-          }
-        ]
-      }
-    },
     "/disputes/filter": {
       "get": {
         "tags": [
@@ -4708,6 +4674,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -4735,6 +4704,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -4770,12 +4742,22 @@
             }
           },
           "404": {
-            "description": "Dispute does not exist in our records"
+            "description": "Dispute does not exist in our records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -4785,8 +4767,8 @@
         "tags": [
           "Disputes"
         ],
-        "summary": "Disputes - Submit Dispute Evidence",
-        "description": "Submits evidence for a dispute",
+        "summary": "Disputes - Uploads Dispute Evidence",
+        "description": "Uploads evidence for a dispute",
         "operationId": "Submit Dispute Evidence",
         "requestBody": {
           "content": {
@@ -4810,12 +4792,22 @@
             }
           },
           "404": {
-            "description": "Dispute does not exist in our records"
+            "description": "Dispute does not exist in our records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       },
@@ -4824,7 +4816,7 @@
           "Disputes"
         ],
         "summary": "Disputes - Attach Evidence to Dispute",
-        "description": "Attaches an evidence file to a dispute",
+        "description": "Attaches an uploaded evidence file to a dispute",
         "operationId": "Attach Evidence to Dispute",
         "requestBody": {
           "description": "A multipart/form-data request with a `file` field containing the evidence file.",
@@ -4849,12 +4841,22 @@
             }
           },
           "400": {
-            "description": "Bad Request"
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       },
@@ -4886,6 +4888,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -4924,12 +4929,22 @@
             }
           },
           "404": {
-            "description": "Dispute does not exist in our records"
+            "description": "Dispute does not exist in our records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
           }
         },
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -4940,8 +4955,19 @@
           "Disputes"
         ],
         "summary": "Disputes - Get Disputes Aggregate",
-        "description": "Gets aggregate data for disputes",
+        "description": "Gets a count of disputes grouped by their status for a merchant within a time range",
         "operationId": "Get Disputes Aggregate",
+        "parameters": [
+          {
+            "name": "start_time",
+            "in": "query",
+            "description": "The start time for the aggregate query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Disputes aggregate retrieved successfully",
@@ -4957,6 +4983,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -4967,8 +4996,19 @@
           "Disputes"
         ],
         "summary": "Disputes - Get Disputes Aggregate for Profiles",
-        "description": "Gets aggregate data for disputes for the given profiles",
+        "description": "Gets a count of disputes grouped by their status for the given profiles within a time range",
         "operationId": "Get Disputes Aggregate for Profiles",
+        "parameters": [
+          {
+            "name": "start_time",
+            "in": "query",
+            "description": "The start time for the aggregate query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Disputes aggregate retrieved successfully",
@@ -4984,6 +5024,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
