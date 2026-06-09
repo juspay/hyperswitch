@@ -1519,6 +1519,12 @@ max_retry_count_for_thirty_day = 20
 merchant_ids = "merchant_123, merchant_234"     # Comma-separated list of allowed merchant IDs
 connector_names = "stripe, adyen"               # Comma-separated list of allowed connector names
 
+[connector_clone_config]
+connector_names = "stripe, adyen"               # Comma-separated list of cloneable connector names
+
+[connector_clone_config.cloneable_payment_method_types]
+card = "credit, debit"                          # <payment_method> = comma-separated cloneable payment_method_types
+
 [infra_values]
 cluster = "CLUSTER"
 version = "HOSTNAME"

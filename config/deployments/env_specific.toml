@@ -406,6 +406,12 @@ base_url = "http://localhost:8080" # base url to call hyperswitch vault service
 merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
 connector_names = "connector_names"     # Comma-separated list of allowed connector names
 
+[connector_clone_config]
+connector_names = "connector_names"     # Comma-separated list of cloneable connector names
+
+[connector_clone_config.cloneable_payment_method_types]
+payment_method = "payment_method_types" # <payment_method> = comma-separated cloneable payment_method_types
+
 [grpc_client.unified_connector_service]
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds

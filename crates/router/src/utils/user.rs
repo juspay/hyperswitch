@@ -508,3 +508,88 @@ pub async fn build_cloned_connector_create_request(
         additional_merchant_data,
     })
 }
+
+#[cfg(feature = "v1")]
+pub async fn build_profile_clone_connector_create_request(
+    source_mca: DomainMerchantConnectorAccount,
+    destination_profile_id: id_type::ProfileId,
+    destination_connector_label: Option<String>,
+    cloneable_payment_method_types: &std::collections::HashMap<
+        common_enums::PaymentMethod,
+        std::collections::HashSet<common_enums::PaymentMethodType>,
+    >,
+) -> UserResult<admin_api::MerchantConnectorCreate> {
+    let source_mca_name = source_mca
+        .connector_name
+        .parse::<connector_enums::Connector>()
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Invalid connector name received")?;
+
+    let payment_methods_enabled = source_mca
+        .payment_methods_enabled
+        .clone()
+        .map(|data| {
+            let val = data.into_iter().map(|secret| secret.expose()).collect();
+            serde_json::Value::Array(val)
+                .parse_value::<Vec<admin_api::PaymentMethodsEnabled>>("PaymentMethods")
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Unable to deserialize PaymentMethods")
+        })
+        .transpose()?
+        .map(|payment_methods| {
+            payment_methods
+                .into_iter()
+                .filter_map(|mut payment_method| {
+                    let allowed_subtypes =
+                        cloneable_payment_method_types.get(&payment_method.payment_method)?;
+                    payment_method.payment_method_types =
+                        payment_method.payment_method_types.map(|subtypes| {
+                            subtypes
+                                .into_iter()
+                                .filter(|subtype| {
+                                    allowed_subtypes.contains(&subtype.payment_method_type)
+                                })
+                                .collect::<Vec<_>>()
+                        });
+                    match &payment_method.payment_method_types {
+                        Some(subtypes) if subtypes.is_empty() => None,
+                        _ => Some(payment_method),
+                    }
+                })
+                .collect::<Vec<_>>()
+        });
+
+    let connector_webhook_details = source_mca
+        .connector_webhook_details
+        .map(|webhook_details| {
+            serde_json::Value::parse_value(
+                webhook_details.expose(),
+                "MerchantConnectorWebhookDetails",
+            )
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Unable to deserialize connector_webhook_details")
+        })
+        .transpose()?;
+
+    Ok(admin_api::MerchantConnectorCreate {
+        connector_type: source_mca.connector_type,
+        connector_name: source_mca_name,
+        connector_label: destination_connector_label.or(source_mca.connector_label.clone()),
+        merchant_connector_id: None,
+        connector_account_details: Some(source_mca.connector_account_details.clone().into_inner()),
+        test_mode: source_mca.test_mode,
+        disabled: source_mca.disabled,
+        payment_methods_enabled,
+        metadata: source_mca.metadata,
+        business_country: source_mca.business_country,
+        business_label: source_mca.business_label.clone(),
+        business_sub_label: source_mca.business_sub_label.clone(),
+        frm_configs: None,
+        connector_webhook_details,
+        profile_id: Some(destination_profile_id),
+        pm_auth_config: None,
+        connector_wallets_details: None,
+        status: Some(source_mca.status),
+        additional_merchant_data: None,
+    })
+}

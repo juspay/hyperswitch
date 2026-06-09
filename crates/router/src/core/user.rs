@@ -3996,6 +3996,125 @@ pub async fn clone_connector(
 }
 
 #[cfg(feature = "v1")]
+pub async fn clone_connector_within_merchant(
+    state: SessionState,
+    user_from_token: auth::UserFromToken,
+    request: user_api::CloneConnectorWithinMerchantRequest,
+) -> UserResponse<api_models::admin::MerchantConnectorResponse> {
+    let Some(connector_clone_config) = &state.conf.connector_clone_config else {
+        return Err(UserErrors::InvalidCloneConnectorOperation(
+            "Connector cloning is not enabled".to_string(),
+        )
+        .into());
+    };
+
+    // Restricted to predefined org/merchant admins
+    let is_allowed_role = matches!(
+        user_from_token.role_id.as_str(),
+        common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN
+            | consts::user_role::ROLE_ID_MERCHANT_ADMIN
+    );
+    fp_utils::when(is_allowed_role.not(), || {
+        Err(UserErrors::InvalidCloneConnectorOperation(
+            "Connector cloning is restricted to organization and merchant admins".to_string(),
+        ))
+    })?;
+
+    fp_utils::when(
+        request.source_profile_id == request.destination_profile_id,
+        || {
+            Err(UserErrors::InvalidCloneConnectorOperation(
+                "Source and destination profiles cannot be the same".to_string(),
+            ))
+        },
+    )?;
+
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            &user_from_token.merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
+            "Merchant account not found".to_string(),
+        ))?;
+
+    let source_mca = state
+        .store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            &user_from_token.merchant_id,
+            &request.source_mca_id,
+            &key_store,
+        )
+        .await
+        .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
+            "Source merchant connector account not found".to_string(),
+        ))?;
+
+    fp_utils::when(source_mca.profile_id != request.source_profile_id, || {
+        Err(UserErrors::InvalidCloneConnectorOperation(
+            "Source connector does not belong to the provided source profile".to_string(),
+        ))
+    })?;
+
+    let source_connector = source_mca
+        .connector_name
+        .parse::<connector_enums::Connector>()
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Invalid connector name received")?;
+
+    fp_utils::when(
+        connector_clone_config
+            .connector_names
+            .contains(&source_connector)
+            .not(),
+        || {
+            Err(UserErrors::InvalidCloneConnectorOperation(
+                "Cloning is not allowed for this connector".to_string(),
+            ))
+        },
+    )?;
+
+    let merchant_connector_create = utils::user::build_profile_clone_connector_create_request(
+        source_mca,
+        request.destination_profile_id.clone(),
+        request.connector_label,
+        &connector_clone_config.cloneable_payment_method_types,
+    )
+    .await?;
+
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id(&user_from_token.merchant_id, &key_store)
+        .await
+        .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
+            "Merchant account not found".to_string(),
+        ))?;
+
+    let platform = domain::Platform::new(
+        merchant_account.clone(),
+        key_store.clone(),
+        merchant_account.clone(),
+        key_store.clone(),
+        None,
+    );
+
+    admin::create_connector(
+        state,
+        merchant_connector_create,
+        platform.get_processor().clone(),
+        Some(request.destination_profile_id),
+    )
+    .await
+    .map_err(|e| {
+        let message = e.current_context().error_message();
+        e.change_context(UserErrors::ErrorCloningConnector(message))
+    })
+    .attach_printable("Failed to create cloned connector")
+}
+
+#[cfg(feature = "v1")]
 pub async fn issue_embedded_token(
     state: SessionState,
     processor: domain::Processor,

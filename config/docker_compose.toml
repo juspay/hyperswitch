@@ -1391,6 +1391,12 @@ reopen_workflow_buffer_time_in_seconds = 60  # time in seconds to be added in sc
 merchant_ids = "merchant_123, merchant_234"     # Comma-separated list of allowed merchant IDs
 connector_names = "stripe, adyen"               # Comma-separated list of allowed connector names
 
+[connector_clone_config]
+connector_names = "stripe, adyen"               # Comma-separated list of cloneable connector names
+
+[connector_clone_config.cloneable_payment_method_types]
+card = "credit, debit"                          # <payment_method> = comma-separated cloneable payment_method_types
+
 [infra_values]
 cluster = "CLUSTER"         # value of CLUSTER from deployment
 version = "HOSTNAME"        # value of HOSTNAME from deployment which tells its version

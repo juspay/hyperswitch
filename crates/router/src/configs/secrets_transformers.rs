@@ -635,6 +635,7 @@ pub(crate) async fn fetch_raw_secrets(
         merchant_advice_codes: conf.merchant_advice_codes,
         debit_routing_config: conf.debit_routing_config,
         clone_connector_allowlist: conf.clone_connector_allowlist,
+        connector_clone_config: conf.connector_clone_config,
         merchant_id_auth: conf.merchant_id_auth,
         internal_merchant_id_profile_id_auth: conf.internal_merchant_id_profile_id_auth,
         infra_values: conf.infra_values,

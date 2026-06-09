@@ -180,6 +180,7 @@ pub struct Settings<S: SecretState> {
     pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
     pub merchant_advice_codes: MerchantAdviceCodeLookupConfig,
     pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
+    pub connector_clone_config: Option<ConnectorCloneConfig>,
     pub merchant_id_auth: MerchantIdAuthSettings,
     pub internal_merchant_id_profile_id_auth: InternalMerchantIdProfileIdAuthSettings,
     #[serde(default)]
@@ -228,6 +229,16 @@ pub struct CloneConnectorAllowlistConfig {
     pub merchant_ids: HashSet<id_type::MerchantId>,
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_names: HashSet<enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ConnectorCloneConfig {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_names: HashSet<enums::Connector>,
+    #[serde(deserialize_with = "deserialize_hashmap")]
+    pub cloneable_payment_method_types:
+        HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
