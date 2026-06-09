@@ -646,4 +646,66 @@ export const connectorDetails = {
       },
     },
   },
+  bank_debit_pm: {
+    PaymentIntent: (paymentMethodType) => {
+      if (paymentMethodType !== "Ach") {
+        return {
+          Configs: {
+            TRIGGER_SKIP: true,
+          },
+        };
+      }
+      return {
+        Request: {
+          currency: "USD",
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+    Ach: {
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "ach",
+        payment_method_data: {
+          bank_debit: {
+            ach_bank_debit: {
+              account_number: "000123456789",
+              routing_number: "121042882",
+              bank_account_holder_name: "John Doe",
+              bank_type: "checking",
+            },
+          },
+        },
+        billing: {
+          address: {
+            first_name: "John",
+            last_name: "Doe",
+            line1: "123 Main St",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+          },
+          phone: {
+            number: "4155551234",
+            country_code: "+1",
+          },
+          email: "a@gmail.com",
+        },
+        email: "a@gmail.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+  },
 };

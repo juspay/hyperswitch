@@ -709,6 +709,7 @@ pub struct TokenizedBankInsensitiveValues {
     pub bank_country_code: Option<api::enums::CountryAlpha2>,
     pub bank_city: Option<String>,
     pub bank_branch: Option<String>,
+    pub ispb: Option<String>,
     pub payout_method_type: Option<PaymentMethodType>,
 }
 
@@ -810,6 +811,7 @@ impl Vaultable for api::BankPayout {
                 bank_country_code: b.bank_country_code.to_owned(),
                 bank_city: b.bank_city.to_owned(),
                 bank_branch: None,
+                ispb: None,
                 payout_method_type: Some(PaymentMethodType::Ach),
             },
             Self::Bacs(b) => TokenizedBankInsensitiveValues {
@@ -818,6 +820,7 @@ impl Vaultable for api::BankPayout {
                 bank_country_code: b.bank_country_code.to_owned(),
                 bank_city: b.bank_city.to_owned(),
                 bank_branch: None,
+                ispb: None,
                 payout_method_type: Some(PaymentMethodType::Bacs),
             },
             Self::Sepa(bank_details) => TokenizedBankInsensitiveValues {
@@ -826,6 +829,7 @@ impl Vaultable for api::BankPayout {
                 bank_country_code: bank_details.bank_country_code.to_owned(),
                 bank_city: bank_details.bank_city.to_owned(),
                 bank_branch: None,
+                ispb: None,
                 payout_method_type: Some(PaymentMethodType::Sepa),
             },
             Self::Pix(bank_details) => TokenizedBankInsensitiveValues {
@@ -834,6 +838,7 @@ impl Vaultable for api::BankPayout {
                 bank_country_code: None,
                 bank_city: None,
                 bank_branch: bank_details.bank_branch.to_owned(),
+                ispb: bank_details.ispb.to_owned(),
                 payout_method_type: Some(PaymentMethodType::Pix),
             },
             Self::Trustly(bank_details) => TokenizedBankInsensitiveValues {
@@ -842,6 +847,7 @@ impl Vaultable for api::BankPayout {
                 bank_city: None,
                 bank_branch: None,
                 bank_country_code: Some(bank_details.country_code.to_owned()),
+                ispb: None,
                 payout_method_type: Some(PaymentMethodType::Trustly),
             },
             Self::OpenBanking(_) => TokenizedBankInsensitiveValues {
@@ -850,6 +856,7 @@ impl Vaultable for api::BankPayout {
                 bank_city: None,
                 bank_branch: None,
                 bank_country_code: None,
+                ispb: None,
                 payout_method_type: Some(PaymentMethodType::OpenBanking),
             },
         };
@@ -943,6 +950,7 @@ impl Vaultable for api::BankPayout {
                     pix_key: Some(pix_key),
                     tax_id,
                     emv: bank_sensitive_data.emv,
+                    ispb: bank_insensitive_data.ispb,
                 })
             }
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
@@ -1079,6 +1087,7 @@ impl Vaultable for api::BankTransferPayout {
                 bank_country_code: b.bank_country_code.to_owned(),
                 bank_city: b.bank_city.to_owned(),
                 bank_branch: None,
+                ispb: None,
                 payout_method_type: Some(PaymentMethodType::Ach),
             },
             Self::Bacs(b) => TokenizedBankInsensitiveValues {
@@ -1087,6 +1096,7 @@ impl Vaultable for api::BankTransferPayout {
                 bank_country_code: b.bank_country_code.to_owned(),
                 bank_city: b.bank_city.to_owned(),
                 bank_branch: None,
+                ispb: None,
                 payout_method_type: Some(PaymentMethodType::Bacs),
             },
             Self::Sepa(bank_details) => TokenizedBankInsensitiveValues {
@@ -1095,6 +1105,7 @@ impl Vaultable for api::BankTransferPayout {
                 bank_country_code: bank_details.bank_country_code.to_owned(),
                 bank_city: bank_details.bank_city.to_owned(),
                 bank_branch: None,
+                ispb: None,
                 payout_method_type: Some(PaymentMethodType::Sepa),
             },
             Self::Pix(bank_details) => TokenizedBankInsensitiveValues {
@@ -1103,6 +1114,7 @@ impl Vaultable for api::BankTransferPayout {
                 bank_country_code: None,
                 bank_city: None,
                 bank_branch: bank_details.bank_branch.to_owned(),
+                ispb: bank_details.ispb.to_owned(),
                 payout_method_type: Some(PaymentMethodType::Pix),
             },
             Self::PixKey(_) => TokenizedBankInsensitiveValues {
@@ -1111,6 +1123,7 @@ impl Vaultable for api::BankTransferPayout {
                 bank_country_code: None,
                 bank_city: None,
                 bank_branch: None,
+                ispb: None,
                 payout_method_type: Some(PaymentMethodType::PixKey),
             },
             Self::PixEmv(_) => TokenizedBankInsensitiveValues {
@@ -1119,6 +1132,7 @@ impl Vaultable for api::BankTransferPayout {
                 bank_country_code: None,
                 bank_city: None,
                 bank_branch: None,
+                ispb: None,
                 payout_method_type: Some(PaymentMethodType::PixEmv),
             },
             Self::Trustly(bank_details) => TokenizedBankInsensitiveValues {
@@ -1127,6 +1141,7 @@ impl Vaultable for api::BankTransferPayout {
                 bank_city: None,
                 bank_branch: None,
                 bank_country_code: Some(bank_details.bank_country_code.to_owned()),
+                ispb: None,
                 payout_method_type: Some(PaymentMethodType::Trustly),
             },
             Self::OpenBanking(_) => TokenizedBankInsensitiveValues {
@@ -1135,6 +1150,7 @@ impl Vaultable for api::BankTransferPayout {
                 bank_city: None,
                 bank_branch: None,
                 bank_country_code: None,
+                ispb: None,
                 payout_method_type: Some(PaymentMethodType::OpenBanking),
             },
         };
@@ -1221,6 +1237,7 @@ impl Vaultable for api::BankTransferPayout {
                 bank_branch: bank_insensitive_data.bank_branch,
                 bank_name: bank_insensitive_data.bank_name,
                 tax_id: bank_sensitive_data.tax_id,
+                ispb: bank_insensitive_data.ispb,
             }),
             Some(PaymentMethodType::PixKey) => Self::PixKey(payouts::PixKeyBankTransfer {
                 pix_key: bank_sensitive_data.pix_key.ok_or(
@@ -2229,6 +2246,13 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
             Err(errors::ApiErrorResponse::NotImplemented {
                 message: errors::NotImplementedMessage::Reason(
                     "AuthBankDebit Token not implemented".to_string(),
+                ),
+            })?
+        }
+        storage::PaymentTokenData::TemporaryCardToken(_) => {
+            Err(errors::ApiErrorResponse::NotImplemented {
+                message: errors::NotImplementedMessage::Reason(
+                    "TemporaryCardToken does not have a vaulted payment method".to_string(),
                 ),
             })?
         }

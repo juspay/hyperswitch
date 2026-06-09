@@ -903,19 +903,20 @@ impl RequiredField {
                 },
             ),
             Self::PixKey => (
-                "payment_method_data.bank_transfer.pix.pix_key".to_string(),
+                "payment_method_data.bank_transfer.pix_emv.pix_key".to_string(),
                 RequiredFieldInfo {
-                    required_field: "payment_method_data.bank_transfer.pix.pix_key".to_string(),
+                    required_field: "payment_method_data.bank_transfer.pix_emv.pix_key".to_string(),
                     display_name: "pix_key".to_string(),
                     field_type: FieldType::UserPixKey,
                     value: None,
                 },
             ),
             Self::PixSourceBankAccountId => (
-                "payment_method_data.bank_transfer.pix.source_bank_account_id".to_string(),
+                "payment_method_data.bank_transfer.pix_emv.source_bank_account_id".to_string(),
                 RequiredFieldInfo {
-                    required_field: "payment_method_data.bank_transfer.pix.source_bank_account_id"
-                        .to_string(),
+                    required_field:
+                        "payment_method_data.bank_transfer.pix_emv.source_bank_account_id"
+                            .to_string(),
                     display_name: "source_bank_account_id".to_string(),
                     field_type: FieldType::UserSourceBankAccountId,
                     value: None,
@@ -3789,7 +3790,7 @@ fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, Connect
         (
             enums::PaymentMethodType::EftDebitOrder,
             connectors(vec![(
-                Connector::Sanlam,
+                Connector::AbsaSanlam,
                 RequiredFieldFinal {
                     mandate: HashMap::new(),
                     non_mandate: HashMap::new(),

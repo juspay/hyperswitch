@@ -57,16 +57,26 @@ pub mod routes {
             web::scope("/v2/analytics")
                 .app_data(web::Data::new(state))
                 .service(
-                    web::scope("/profile").service(
-                        web::resource("report/payments")
-                            .route(web::post().to(generate_profile_payment_report)),
-                    ),
+                    web::scope("/profile")
+                        .service(
+                            web::resource("report/payments")
+                                .route(web::post().to(generate_profile_payment_report)),
+                        )
+                        .service(
+                            web::resource("payment_intents/aggregate")
+                                .route(web::get().to(get_profile_payment_intent_aggregate)),
+                        ),
                 )
                 .service(
-                    web::scope("/merchant").service(
-                        web::resource("report/payments")
-                            .route(web::post().to(generate_merchant_payment_report)),
-                    ),
+                    web::scope("/merchant")
+                        .service(
+                            web::resource("report/payments")
+                                .route(web::post().to(generate_merchant_payment_report)),
+                        )
+                        .service(
+                            web::resource("payment_intents/aggregate")
+                                .route(web::get().to(get_merchant_payment_intent_aggregate)),
+                        ),
                 )
                 .service(
                     web::scope("/org").service(
@@ -203,6 +213,10 @@ pub mod routes {
                         .service(
                             web::resource("metrics/sankey")
                                 .route(web::post().to(get_merchant_sankey)),
+                        )
+                        .service(
+                            web::resource("payment_intents/aggregate")
+                                .route(web::get().to(get_merchant_payment_intent_aggregate)),
                         )
                         .service(
                             web::resource("metrics/auth_events/sankey")
@@ -454,6 +468,10 @@ pub mod routes {
                                 .service(
                                     web::resource("metrics/sankey")
                                         .route(web::post().to(get_profile_sankey)),
+                                )
+                                .service(
+                                    web::resource("payment_intents/aggregate")
+                                        .route(web::get().to(get_profile_payment_intent_aggregate)),
                                 )
                                 .service(
                                     web::resource("metrics/auth_events/sankey")
@@ -718,6 +736,81 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
+                allow_connected: true,
+                allow_platform: false,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_merchant_payment_intent_aggregate(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        query: web::Query<TimeRange>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetPaymentIntentsAggregate;
+        let payload = query.into_inner();
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req, _| async move {
+                let auth_info = auth.platform.to_merchant_level_auth_info();
+                let status_with_count = state
+                    .pool
+                    .get_intent_status_with_count(&auth_info, &req)
+                    .await
+                    .change_context(AnalyticsError::UnknownError)?;
+                Ok(ApplicationResponse::Json(
+                    api_models::payments::PaymentsAggregateResponse { status_with_count },
+                ))
+            },
+            &auth::JWTAuth {
+                permission: Permission::MerchantPaymentRead,
+                allow_connected: true,
+                allow_platform: false,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    pub async fn get_profile_payment_intent_aggregate(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        query: web::Query<TimeRange>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetPaymentIntentsAggregate;
+        let payload = query.into_inner();
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: AuthenticationData, req, _| async move {
+                #[cfg(feature = "v1")]
+                let profile_id = auth
+                    .profile
+                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                    .change_context(AnalyticsError::AccessForbiddenError)?
+                    .get_id()
+                    .clone();
+                #[cfg(feature = "v2")]
+                let profile_id = auth.profile.get_id().clone();
+                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
+                let status_with_count = state
+                    .pool
+                    .get_intent_status_with_count(&auth_info, &req)
+                    .await
+                    .change_context(AnalyticsError::UnknownError)?;
+                Ok(ApplicationResponse::Json(
+                    api_models::payments::PaymentsAggregateResponse { status_with_count },
+                ))
+            },
+            &auth::JWTAuth {
+                permission: Permission::ProfilePaymentRead,
                 allow_connected: true,
                 allow_platform: false,
             },

@@ -3097,6 +3097,7 @@ pub enum RelayType {
     Capture,
     IncrementalAuthorization,
     Void,
+    UnreferencedRefund,
 }
 
 #[derive(
@@ -9593,6 +9594,10 @@ pub enum PermissionGroup {
     UsersManage,
     AccountView,
     AccountManage,
+    WebhooksView,
+    WebhooksManage,
+    ApiKeysView,
+    ApiKeysManage,
     InternalManage,
     ThemeView,
     ThemeManage,
@@ -9616,6 +9621,8 @@ pub enum ParentGroup {
     Analytics,
     Users,
     Account,
+    Webhook,
+    ApiKeys,
     Internal,
     Theme,
     ReconSources,

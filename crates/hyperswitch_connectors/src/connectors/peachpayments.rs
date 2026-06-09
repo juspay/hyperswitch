@@ -12,7 +12,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -47,11 +46,7 @@ use hyperswitch_interfaces::{
 use hyperswitch_masking::{ExposeInterface, Mask, Secret};
 use transformers as peachpayments;
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::{self, is_mandate_supported, PaymentMethodDataType},
-};
+use crate::{constants::headers, types::ResponseRouterData, utils};
 
 const REFUND: &str = "Refund";
 #[derive(Clone)]
@@ -179,18 +174,6 @@ impl ConnectorValidation for Peachpayments {
         _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<(), errors::ConnectorError> {
         Ok(())
-    }
-
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::CardWithLimitedDetails,
-        ]);
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
