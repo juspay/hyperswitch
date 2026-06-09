@@ -172,6 +172,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
             }),
+            state: None,
         })
     }
 }
@@ -724,6 +725,14 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
                 .map(payments_grpc::PaymentExperience::foreign_from)
                 .map(Into::into),
             merchant_request_id: None,
+            // Send the payment method type so connectors that need it on sync
+            // (e.g. Adyen, to build connector_response) can populate it.
+            payment_method_type: router_data
+                .request
+                .payment_method_type
+                .map(payments_grpc::PaymentMethodType::foreign_try_from)
+                .transpose()?
+                .map(|payment_method_type| payment_method_type.into()),
         })
     }
 }
@@ -2189,7 +2198,21 @@ impl
                     resource_id: connector_transaction_id,
                     redirection_data: Box::new(redirection_data),
                     mandate_reference: Box::new(None),
-                    connector_metadata: None,
+                    connector_metadata: response.connector_feature_data.clone().and_then(
+                        |secret| {
+                            let exposed = secret.expose();
+                            serde_json::from_str(&exposed)
+                                .map_err(|e| {
+                                    tracing::warn!(
+                                        serialization_error = ?e,
+                                        metadata = ?response.connector_feature_data,
+                                        "Failed to parse connector_metadata as JSON value"
+                                    );
+                                    e
+                                })
+                                .ok()
+                        },
+                    ),
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: None,
                     connector_response_reference_id: response.merchant_order_id.clone(),
@@ -2632,7 +2655,10 @@ impl
                 status_code,
                 attempt_status,
                 connector_transaction_id: connector_transaction_id.get_optional_response_id(),
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(
+                    response.merchant_recurring_payment_id.clone(),
+                )
+                .filter(|s| !s.is_empty()),
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
@@ -2682,7 +2708,7 @@ impl
                     connector_metadata,
                     network_txn_id: response.network_transaction_id,
                     network_txn_link_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(response.merchant_recurring_payment_id.clone()),
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: None,
@@ -4880,6 +4906,8 @@ impl transformers::ForeignTryFrom<payments_grpc::ClientAuthenticationTokenData> 
                         .transpose()?,
                     // todo UCS
                     data_user_id_token: None,
+                    currency: None,
+                    intent: None,
                 };
 
                 Ok(Self::Paypal(Box::new(paypal_session_token_response)))
@@ -5279,7 +5307,19 @@ impl
                         )
                     }
                     _ => (
-                        None,
+                        response.connector_feature_data.clone().and_then(|secret| {
+                            let exposed = secret.expose();
+                            serde_json::from_str(&exposed)
+                                .map_err(|e| {
+                                    tracing::warn!(
+                                        serialization_error = ?e,
+                                        metadata = ?response.connector_feature_data,
+                                        "Failed to parse connector_metadata as JSON value"
+                                    );
+                                    e
+                                })
+                                .ok()
+                        }),
                         Some(RedirectForm::foreign_try_from(redirection_data)).transpose()?,
                     ),
                 },
@@ -5782,6 +5822,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
             merchant_request_id: None,
+            connector_order_id: None,
         })
     }
 }
@@ -5850,6 +5891,7 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             payment_method_type,
             connector_feature_data: None,
             merchant_request_id: None,
+            connector_order_id: None,
         })
     }
 }
@@ -5891,7 +5933,10 @@ impl transformers::ForeignTryFrom<payments_grpc::RefundResponse>
                     .and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status: None,
-                connector_transaction_id: None,
+                connector_transaction_id: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.connector_transaction_id.clone()),
                 connector_response_reference_id: None,
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
@@ -6321,6 +6366,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
+            description: router_data.description.clone(),
         })
     }
 }
@@ -6438,6 +6484,7 @@ impl
                 .as_ref()
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
+            description: router_data.description.clone(),
         })
     }
 }
@@ -7006,7 +7053,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixBankTransfer>
             bank_branch: item.bank_branch.clone(),
             bank_account_number: item.bank_account_number.clone(),
             tax_id: item.tax_id.clone(),
-            ispb: None,
+            ispb: item.ispb.clone().map(Secret::new),
         })
     }
 }
@@ -7025,7 +7072,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixAccountBankTransfer>
             bank_branch: item.bank_branch.clone(),
             bank_account_number: Some(item.bank_account_number.clone()),
             tax_id: item.tax_id.clone(),
-            ispb: None,
+            ispb: item.ispb.clone().map(Secret::new),
         })
     }
 }

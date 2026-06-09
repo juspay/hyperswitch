@@ -8,12 +8,19 @@ use crate::schema::customers::dsl;
 use crate::schema_v2::customers::dsl;
 use crate::{
     customers::{Customer, CustomerNew, CustomerUpdateInternal},
-    errors, PgPooledConn, StorageResult,
+    errors, kv, PgPooledConn, StorageResult,
 };
 
 impl CustomerNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Customer> {
         generics::generic_insert(conn, self).await
+    }
+
+    pub async fn generate_drainer_insert_query(
+        self,
+        conn: &mut PgPooledConn,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_insert_query(conn, self).await
     }
 }
 
@@ -324,5 +331,31 @@ impl Customer {
             (customer_id.to_owned(), merchant_id.to_owned()),
         )
         .await
+    }
+}
+
+impl CustomerUpdateInternal {
+    #[cfg(feature = "v1")]
+    pub async fn generate_drainer_update_query(
+        self,
+        conn: &mut PgPooledConn,
+        customer_id: id_type::CustomerId,
+        merchant_id: id_type::MerchantId,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_update_query_by_id::<<Customer as HasTable>::Table, _, _>(
+            conn,
+            (customer_id, merchant_id),
+            self,
+        )
+        .await
+    }
+
+    #[cfg(feature = "v2")]
+    pub async fn generate_drainer_update_query(
+        self,
+        conn: &mut PgPooledConn,
+        id: id_type::GlobalCustomerId,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_update_query_by_id::<<Customer as HasTable>::Table, _, _>(conn, id, self).await
     }
 }

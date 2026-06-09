@@ -52,7 +52,10 @@ impl From<error_stack::Report<RedisError>> for StorageError {
 
 impl From<diesel::result::Error> for StorageError {
     fn from(err: diesel::result::Error) -> Self {
-        Self::from(error_stack::report!(DatabaseError::from(err)))
+        use common_utils::errors::ErrorSwitchFrom;
+
+        let database_error = DatabaseError::switch_from(&err);
+        Self::from(error_stack::report!(err).change_context(database_error))
     }
 }
 

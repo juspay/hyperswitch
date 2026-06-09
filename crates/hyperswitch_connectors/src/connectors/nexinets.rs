@@ -13,7 +13,6 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::PaymentIntent;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
-    payment_method_data::PaymentMethodData,
     payments::payment_attempt::PaymentAttempt,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -57,9 +56,7 @@ use transformers as nexinets;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{
-        is_mandate_supported, to_connector_meta, PaymentMethodDataType, PaymentsSyncRequestData,
-    },
+    utils::{to_connector_meta, PaymentsSyncRequestData},
 };
 
 #[derive(Debug, Clone)]
@@ -182,23 +179,7 @@ impl ConnectorCommon for Nexinets {
     }
 }
 
-impl ConnectorValidation for Nexinets {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::PaypalRedirect,
-            PaymentMethodDataType::ApplePay,
-            PaymentMethodDataType::Eps,
-            PaymentMethodDataType::Giropay,
-            PaymentMethodDataType::Ideal,
-        ]);
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Nexinets {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Nexinets {}
 
