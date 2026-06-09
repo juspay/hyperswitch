@@ -139,9 +139,7 @@ use crate::{
             DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         },
         errors::{self, CustomResult, RouterResponse, RouterResult},
-        payment_methods::{
-            cards, network_tokenization, transformers as pm_transformers, utils as pm_utils,
-        },
+        payment_methods::{cards, network_tokenization, transformers as pm_transformers},
         payments::helpers::{
             get_applepay_metadata, is_applepay_predecrypted_flow_supported,
             is_googlepay_predecrypted_flow_supported,
@@ -8917,28 +8915,39 @@ impl PaymentEligibilityData {
         payment_method_type: common_enums::PaymentMethod,
         profile_id: &id_type::ProfileId,
     ) -> CustomResult<Option<domain::EligibilityPaymentMethodData>, errors::ApiErrorResponse> {
-        let pm_modular_dimensions = Dimensions::new().with_organization_id(
-            platform
-                .get_processor()
-                .get_account()
-                .organization_id
-                .clone(),
-        );
+        let payment_method_info = state
+            .store
+            .find_payment_method(
+                platform.get_provider().get_key_store(),
+                &payment_token.clone().expose(),
+                platform.get_provider().get_account().storage_scheme,
+            )
+            .await
+            .ok();
 
-        let is_modular_flow = pm_utils::get_organization_eligibility_config_for_pm_modular_service(
-            state,
-            &pm_modular_dimensions,
-        )
-        .await;
+        let dimensions = Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+        let feature_config = core_utils::get_feature_config(state, platform, &dimensions).await;
+        let is_modular_payment_method_flow = payment_method_info.as_ref().is_some_and(|pm| {
+            feature_config.should_use_modular_pm_path(
+                Some(pm.version),
+                pm.compatibility_updated_at,
+                Some(pm.last_modified),
+            )
+        });
 
-        if is_modular_flow {
-            // Modular path: payment_token IS the payment_method_id in the modular service.
+        if is_modular_payment_method_flow {
+            let payment_method_id = payment_method_info
+                .as_ref()
+                .map(|pm| pm.get_id().clone())
+                .ok_or(errors::ApiErrorResponse::PaymentMethodNotFound)?;
             logger::info!("Resolving payment token via PM Modular Service for eligibility check");
             let pm_response = pm_transformers::fetch_payment_method_from_modular_service(
                 state,
                 platform,
                 profile_id,
-                payment_token.clone().expose().as_str(),
+                &payment_method_id,
                 Some(payment_method_type),
                 None, // CVC is not collected during the eligibility check
             )
@@ -8950,7 +8959,7 @@ impl PaymentEligibilityData {
                 .raw_payment_method_data
                 .map(domain::EligibilityPaymentMethodData::from))
         } else {
-            // Legacy path: resolve via Redis token → DB → locker.
+            // Legacy path: resolve the Redis token → DB → locker.
             Self::resolve_payment_token_via_db(state, platform, payment_token, payment_method_type)
                 .await
         }
