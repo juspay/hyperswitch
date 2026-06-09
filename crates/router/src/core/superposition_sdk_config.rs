@@ -1,223 +1,144 @@
-use std::collections::HashMap;
-
 use api_models::{
-    admin::PaymentMethodsEnabled,
-    enums::{self as api_enums, Connector},
-    payment_methods::RequestPaymentMethodTypes,
+    enums as api_enums,
     superposition_sdk_config::{
-        DynamicFields, PaymentMethodGroup, PaymentMethodTypeWithFields, SuperPositionConfigResponse,
+        SdkPaymentMethod, SdkPaymentMethodType, SuperPositionConfigResponse,
     },
 };
-use common_utils::{
-    ext_traits::StringExt,
-    id_type::{MerchantId, ProfileId},
-};
-use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount;
-use hyperswitch_masking::ExposeInterface;
+use common_utils::ext_traits::AsyncExt;
+use error_stack::ResultExt;
 use serde_json::Map;
 
 use crate::{
-    configs,
     consts::superposition::DYNAMIC_FIELDS,
-    core::errors::{self, RouterResponse, StorageErrorExt},
+    core::{
+        errors::{self, RouterResponse, StorageErrorExt},
+        payment_methods::cards::{build_merchant_enabled_pms_context, MerchantEnabledPmsContext},
+        payments::helpers,
+    },
     routes::SessionState,
     types::domain,
 };
 
-/// Type alias for required fields grouped by payment method type.
-type RequiredFieldsByPmType = HashMap<
-    api_enums::PaymentMethodType,
-    HashMap<String, api_models::payment_methods::RequiredFieldInfo>,
->;
-
-/// Type alias for grouped payment method data.
-type GroupedPaymentMethods = HashMap<api_enums::PaymentMethod, RequiredFieldsByPmType>;
-
-/// Builds a superset of required fields from common, mandate, and non-mandate fields.
-///
-/// All field values are set to `None` for configuration responses.
-fn build_superset_required_fields(
-    common: &HashMap<String, api_models::payment_methods::RequiredFieldInfo>,
-    mandate: &HashMap<String, api_models::payment_methods::RequiredFieldInfo>,
-    non_mandate: &HashMap<String, api_models::payment_methods::RequiredFieldInfo>,
-) -> HashMap<String, api_models::payment_methods::RequiredFieldInfo> {
-    let mut superset = HashMap::with_capacity(common.len() + mandate.len() + non_mandate.len());
-
-    // Insert common fields directly
-    for (key, field) in common {
-        superset.insert(key.clone(), field.for_config());
-    }
-
-    // Merge mandate fields (don't overwrite existing entries)
-    for (key, field) in mandate {
-        superset
-            .entry(key.clone())
-            .or_insert_with(|| field.for_config());
-    }
-
-    // Merge non-mandate fields (don't overwrite existing entries)
-    for (key, field) in non_mandate {
-        superset
-            .entry(key.clone())
-            .or_insert_with(|| field.for_config());
-    }
-
-    superset
-}
-
-/// Processes payment methods from an MCA and groups required fields.
-fn process_mca_payment_methods(
-    mca: &MerchantConnectorAccount,
-    required_fields_config: &configs::settings::RequiredFields,
-    grouped_data: &mut GroupedPaymentMethods,
-) {
-    if let Some(payment_methods_enabled) = &mca.payment_methods_enabled {
-        for pm_secret in payment_methods_enabled {
-            match serde_json::from_value::<PaymentMethodsEnabled>(pm_secret.clone().expose()) {
-                Ok(pm_enabled) => {
-                    if let Some(pm_types) = &pm_enabled.payment_method_types {
-                        for pm_type in pm_types {
-                            process_payment_method_type(
-                                pm_enabled.payment_method,
-                                pm_type,
-                                &mca.connector_name,
-                                required_fields_config,
-                                grouped_data,
-                            );
-                        }
-                    }
-                }
-                Err(e) => {
-                    router_env::logger::debug!(error=%e, "Failed to deserialize payment methods enabled");
-                }
-            }
-        }
-    }
-}
-
-/// Processes a single payment method type and adds its required fields to the grouped data.
-fn process_payment_method_type(
-    payment_method: api_enums::PaymentMethod,
-    pm_type: &RequestPaymentMethodTypes,
-    connector_name: &str,
-    required_fields_config: &configs::settings::RequiredFields,
-    grouped_data: &mut GroupedPaymentMethods,
-) {
-    let payment_method_type = pm_type.payment_method_type;
-
-    if let Ok(connector) =
-        StringExt::<Connector>::parse_enum(connector_name.to_string(), "Connector").inspect_err(
-            |err| {
-                router_env::logger::warn!(
-                    error=%err,
-                    connector=%connector_name,
-                    "Failed to parse connector name to Connector enum"
-                );
-            },
-        )
-    {
-        if let Some(required_field_final) = required_fields_config
-            .0
-            .get(&payment_method)
-            .and_then(|pm_type_map| pm_type_map.0.get(&payment_method_type))
-            .and_then(|connector_fields| connector_fields.fields.get(&connector))
-        {
-            let superset = build_superset_required_fields(
-                &required_field_final.common,
-                &required_field_final.mandate,
-                &required_field_final.non_mandate,
-            );
-
-            grouped_data
-                .entry(payment_method)
-                .or_default()
-                .entry(payment_method_type)
-                .or_default()
-                .extend(superset);
-        } else {
-            router_env::logger::debug!(
-                payment_method=?payment_method,
-                payment_method_type=?payment_method_type,
-                connector=%connector_name,
-                "No required fields found in config"
-            );
-        }
-    }
-}
-
-/// Converts grouped payment method data into the response structure.
-fn convert_to_response(grouped_data: GroupedPaymentMethods) -> DynamicFields {
-    let payment_methods = grouped_data
-        .into_iter()
-        .map(|(payment_method, pm_types_map)| PaymentMethodGroup {
-            payment_method,
-            payment_method_types: pm_types_map
-                .into_iter()
-                .map(
-                    |(payment_method_type, fields_map)| PaymentMethodTypeWithFields {
-                        payment_method_type,
-                        required_fields: fields_map,
-                    },
-                )
-                .collect(),
-        })
-        .collect();
-
-    DynamicFields { payment_methods }
-}
-
-async fn get_dynamic_fields(
-    state: &SessionState,
-    platform: &domain::Platform,
-    profile_id: &ProfileId,
-    merchant_id: &MerchantId,
-) -> error_stack::Result<DynamicFields, errors::ApiErrorResponse> {
-    let key_store = platform.get_processor().get_key_store();
-
-    // Fetch all enabled merchant connector accounts for the merchant
-    let all_mcas = state
-        .store
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            merchant_id,
-            false,
-            key_store,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-    // Group required fields by payment method
-    let mut grouped_data: GroupedPaymentMethods = HashMap::new();
-
-    for mca in all_mcas.iter() {
-        // Filter MCAs by profile ID
-        if mca.profile_id == *profile_id {
-            process_mca_payment_methods(mca, &state.conf.required_fields, &mut grouped_data);
-        }
-    }
-
-    Ok(convert_to_response(grouped_data))
-}
-
 pub async fn get_superposition_sdk_config(
     state: SessionState,
     platform: domain::Platform,
-    profile_id: ProfileId,
+    client_secret: String,
 ) -> RouterResponse<SuperPositionConfigResponse> {
     let merchant_account = platform.get_processor().get_account();
+    let db = &*state.store;
+    let payment_intent = helpers::verify_payment_intent_time_and_client_secret(
+        &state,
+        &platform,
+        Some(client_secret),
+    )
+    .await?;
 
-    let dynamic_fields =
-        get_dynamic_fields(&state, &platform, &profile_id, merchant_account.get_id()).await?;
+    let payment_attempt = payment_intent
+        .as_ref()
+        .async_map(|pi| async {
+            db.find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                &pi.payment_id,
+                &pi.processor_merchant_id,
+                &pi.active_attempt.get_id(),
+                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_key_store(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::PaymentNotFound)
+        })
+        .await
+        .transpose()?;
 
-    // we want resolve config with filters which is not yet available in any version of superposition yet. so we are commenting it for future usecase
+    let shipping_address = payment_intent
+        .as_ref()
+        .async_map(|pi| async {
+            helpers::get_address_by_id(
+                &state,
+                pi.shipping_address_id.clone(),
+                platform.get_processor().get_key_store(),
+                &pi.payment_id,
+                platform.get_processor().get_account().get_id(),
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+        })
+        .await
+        .transpose()?
+        .flatten();
 
-    // let resolved_configs = state
-    //     .superposition_service
-    //     .as_ref()
-    //     .async_map(|sp| async move { sp.as_ref().resolve_full_config(None, None).await })
-    //     .await
-    //     .transpose()
-    //     .change_context(errors::ApiErrorResponse::InternalServerError)
-    //     .attach_printable("Failed to resolve superposition sdk config")?;
+    let billing_address = payment_intent
+        .as_ref()
+        .async_map(|pi| async {
+            helpers::get_address_by_id(
+                &state,
+                pi.billing_address_id.clone(),
+                platform.get_processor().get_key_store(),
+                &pi.payment_id,
+                platform.get_processor().get_account().get_id(),
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+        })
+        .await
+        .transpose()?
+        .flatten();
+
+    let customer = payment_intent
+        .as_ref()
+        .async_and_then(|pi| async {
+            pi.customer_id
+                .as_ref()
+                .async_and_then(|cust| async {
+                    db.find_customer_by_customer_id_merchant_id(
+                        cust,
+                        &pi.merchant_id,
+                        platform.get_provider().get_key_store(),
+                        platform.get_provider().get_account().storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+                    .ok()
+                })
+                .await
+        })
+        .await;
+
+    let setup_future_usage = payment_intent.as_ref().and_then(|pi| pi.setup_future_usage);
+
+    let is_cit_transaction = payment_attempt
+        .as_ref()
+        .map(|pa| pa.mandate_details.is_some())
+        .unwrap_or(false)
+        || setup_future_usage
+            .map(|future_usage| future_usage == common_enums::FutureUsage::OffSession)
+            .unwrap_or(false);
+
+    let profile_id = payment_intent
+        .as_ref()
+        .and_then(|pi| pi.profile_id.clone())
+        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Profile id not found".to_string(),
+        })?;
+
+    let business_profile = db
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+
+    let merchant_enabled_context = Box::pin(build_merchant_enabled_pms_context(
+        &state,
+        &platform,
+        &business_profile,
+        payment_intent.as_ref(),
+        payment_attempt.as_ref(),
+        billing_address.as_ref(),
+        shipping_address.as_ref(),
+        customer.as_ref(),
+        is_cit_transaction,
+    ))
+    .await?;
 
     // Build dimension filter for superposition context
     let mut dimension_filter = Map::new();
@@ -233,9 +154,17 @@ pub async fn get_superposition_sdk_config(
         "organization_id".to_string(),
         serde_json::Value::String(merchant_account.get_org_id().get_string_repr().to_string()),
     );
+    dimension_filter.insert(
+        "connector".to_string(),
+        serde_json::Value::Array(
+            merchant_enabled_context
+                .get_eligible_connectors()
+                .into_iter()
+                .map(serde_json::Value::String)
+                .collect(),
+        ),
+    );
 
-    // NOTE: We intentionally ignore Superposition errors to prevent them from blocking dynamic fields functionality.
-    // This will be removed in future once the superposition service is stable.
     let raw_configs = state
         .superposition_service
         .get_cached_config(
@@ -243,17 +172,154 @@ pub async fn get_superposition_sdk_config(
             Some(dimension_filter.clone()),
         )
         .await
-        .inspect_err(|err| {
-            router_env::logger::warn!(error=%err, "Failed to fetch cached superposition config");
-        })
-        .ok();
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed to fetch superposition config for dimension filter: {dimension_filter:?}"
+            )
+        })?;
+
+    let payment_methods = translate_to_sdk_payment_methods(&state, &merchant_enabled_context)?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         SuperPositionConfigResponse {
             raw_configs,
             resolved_configs: None,
             context_used: dimension_filter,
-            dynamic_fields: Some(dynamic_fields),
+            payment_methods: Some(payment_methods),
         },
     ))
+}
+
+fn translate_to_sdk_payment_methods(
+    state: &SessionState,
+    pms_ctx: &MerchantEnabledPmsContext,
+) -> error_stack::Result<Vec<SdkPaymentMethod>, errors::ApiErrorResponse> {
+    let mut payment_methods = vec![];
+
+    // 1. Payment experiences (wallets, paylater, etc.)
+    for (payment_method, pmt_map) in &pms_ctx.payment_experiences_consolidated_hm {
+        let mut payment_method_types = vec![];
+        for (payment_method_type, pe_map) in pmt_map {
+            for (payment_experience, connectors) in pe_map {
+                payment_method_types.push(SdkPaymentMethodType {
+                    payment_method_type: *payment_method_type,
+                    payment_experience: Some(*payment_experience),
+                    eligible_connectors: connectors.clone(),
+                    card_networks: None,
+                    bank_names: None,
+                    bank_debits: None,
+                    bank_transfers: None,
+                });
+            }
+        }
+        if !payment_method_types.is_empty() {
+            payment_methods.push(SdkPaymentMethod {
+                payment_method: *payment_method,
+                payment_method_types,
+            });
+        }
+    }
+
+    // 2. Card networks (cards)
+    for (payment_method, pmt_map) in &pms_ctx.card_networks_consolidated_hm {
+        let mut payment_method_types = vec![];
+        for (payment_method_type, card_network_map) in pmt_map {
+            let mut card_networks = vec![];
+            let mut eligible_connectors = std::collections::HashSet::new();
+            for (card_network, connectors) in card_network_map {
+                card_networks.push(card_network.clone());
+                for connector in connectors {
+                    eligible_connectors.insert(connector.clone());
+                }
+            }
+            payment_method_types.push(SdkPaymentMethodType {
+                payment_method_type: *payment_method_type,
+                payment_experience: None,
+                eligible_connectors: eligible_connectors.into_iter().collect(),
+                card_networks: Some(card_networks),
+                bank_names: None,
+                bank_debits: None,
+                bank_transfers: None,
+            });
+        }
+        if !payment_method_types.is_empty() {
+            payment_methods.push(SdkPaymentMethod {
+                payment_method: *payment_method,
+                payment_method_types,
+            });
+        }
+    }
+
+    // 3. Banks (bank redirect)
+    let mut bank_redirect_types = vec![];
+    for (payment_method_type, connectors) in &pms_ctx.banks_consolidated_hm {
+        let bank_names = crate::core::payment_methods::cards::get_banks(
+            state,
+            *payment_method_type,
+            connectors.clone(),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        bank_redirect_types.push(SdkPaymentMethodType {
+            payment_method_type: *payment_method_type,
+            payment_experience: None,
+            eligible_connectors: connectors.clone(),
+            card_networks: None,
+            bank_names: Some(bank_names),
+            bank_debits: None,
+            bank_transfers: None,
+        });
+    }
+    if !bank_redirect_types.is_empty() {
+        payment_methods.push(SdkPaymentMethod {
+            payment_method: api_enums::PaymentMethod::BankRedirect,
+            payment_method_types: bank_redirect_types,
+        });
+    }
+
+    // 4. Bank debits
+    let mut bank_debit_types = vec![];
+    for (payment_method_type, connectors) in &pms_ctx.bank_debits_consolidated_hm {
+        bank_debit_types.push(SdkPaymentMethodType {
+            payment_method_type: *payment_method_type,
+            payment_experience: None,
+            eligible_connectors: connectors.clone(),
+            card_networks: None,
+            bank_names: None,
+            bank_debits: Some(api_models::payment_methods::BankDebitTypes {
+                eligible_connectors: connectors.clone(),
+            }),
+            bank_transfers: None,
+        });
+    }
+    if !bank_debit_types.is_empty() {
+        payment_methods.push(SdkPaymentMethod {
+            payment_method: api_enums::PaymentMethod::BankDebit,
+            payment_method_types: bank_debit_types,
+        });
+    }
+
+    // 5. Bank transfers
+    let mut bank_transfer_types = vec![];
+    for (payment_method_type, connectors) in &pms_ctx.bank_transfer_consolidated_hm {
+        bank_transfer_types.push(SdkPaymentMethodType {
+            payment_method_type: *payment_method_type,
+            payment_experience: None,
+            eligible_connectors: connectors.clone(),
+            card_networks: None,
+            bank_names: None,
+            bank_debits: None,
+            bank_transfers: Some(api_models::payment_methods::BankTransferTypes {
+                eligible_connectors: connectors.clone(),
+            }),
+        });
+    }
+    if !bank_transfer_types.is_empty() {
+        payment_methods.push(SdkPaymentMethod {
+            payment_method: api_enums::PaymentMethod::BankTransfer,
+            payment_method_types: bank_transfer_types,
+        });
+    }
+
+    Ok(payment_methods)
 }
