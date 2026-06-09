@@ -73,40 +73,6 @@ export const connectorDetails = {
         },
       },
     },
-    SepaNo3DSAutoCapture: {
-      Request: {
-        payment_method: "bank_debit",
-        payment_method_type: "sepa",
-        payment_method_data: {
-          bank_debit: {
-            sepa_bank_debit: sepaBankDebitDetails,
-          },
-        },
-        billing: {
-          address: {
-            line1: "Calle de Alcalá",
-            line2: "45",
-            city: "Madrid",
-            state: "Madrid",
-            zip: "28014",
-            country: "ES",
-            first_name: "joseph",
-            last_name: "Doe",
-          },
-          email: "johndoe@mail.com",
-        },
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-          payment_method: "bank_debit",
-          attempt_count: 1,
-        },
-      },
-    },
   },
   pm_list: {
     PmListResponse: {
