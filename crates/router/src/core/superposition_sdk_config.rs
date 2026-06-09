@@ -12,7 +12,9 @@ use crate::{
     consts::superposition::DYNAMIC_FIELDS,
     core::{
         errors::{self, RouterResponse, StorageErrorExt},
-        payment_methods::cards::{build_merchant_enabled_pms_context, MerchantEnabledPmsContext},
+        payment_methods::cards::{
+            build_merchant_enabled_pms_context, get_banks, MerchantEnabledPmsContext,
+        },
         payments::helpers,
     },
     routes::SessionState,
@@ -254,12 +256,8 @@ fn translate_to_sdk_payment_methods(
     // 3. Banks (bank redirect)
     let mut bank_redirect_types = vec![];
     for (payment_method_type, connectors) in &pms_ctx.banks_consolidated_hm {
-        let bank_names = crate::core::payment_methods::cards::get_banks(
-            state,
-            *payment_method_type,
-            connectors.clone(),
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let bank_names = get_banks(state, *payment_method_type, connectors.clone())
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
         bank_redirect_types.push(SdkPaymentMethodType {
             payment_method_type: *payment_method_type,
             payment_experience: None,
