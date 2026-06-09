@@ -1603,6 +1603,7 @@ pub fn build_unified_connector_service_payment_method(
                                 social_security_number: boleto_data
                                     .social_security_number
                                     .map(|ssn| ssn.expose()),
+                                expiration_date: boleto_data.due_date.clone(),
                             },
                         )),
                     })
