@@ -12,11 +12,6 @@ counter_metric!(REDIS_CALLS_COUNT, GLOBAL_METER);
 histogram_metric_f64!(REDIS_CALL_TIME, GLOBAL_METER);
 
 /// The Redis operation being performed, used as the `operation` metric label.
-///
-/// One variant per command function that directly issues a Redis call; shared
-/// by both the `redis_rs` and `fred` backends. Pure delegating wrappers (e.g.
-/// `serialize_and_set_key` → `set_key`) reuse the inner call's variant and have
-/// none of their own to avoid double counting.
 #[derive(Debug)]
 pub enum RedisOperation {
     SetKey,
