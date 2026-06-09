@@ -247,7 +247,6 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             pii::SecretSerdeValue::new(serde_json::Value::Object(map))
         });
 
-
         Ok(domain::Customer::new(
             merchant_reference_id
                 .to_owned()
