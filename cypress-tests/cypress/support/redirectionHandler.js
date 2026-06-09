@@ -399,51 +399,74 @@ function payLaterRedirection(
             break;
 
           case "airwallex":
-            // Airwallex Klarna PayLater - follows similar pattern to other Klarna flows
             cy.log(`Handling Airwallex ${paymentMethodType} pay_later flow`);
 
             // Wait for the page to load
             cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
 
-            // Airwallex Klarna redirects to standard Klarna playground
-            // Verify we landed on a Klarna page
-            cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
-              const bodyText = $body.text();
-              const klarnaIndicators = [
-                /klarna/i,
-                /playground/i,
-                /buy now.*pay later/i,
-                /continue.*klarna/i,
-                /smoooth/i,
-              ];
-
-              const hasKlarnaIndicator = klarnaIndicators.some((pattern) =>
-                pattern.test(bodyText)
-              );
-
-              if (hasKlarnaIndicator) {
-                cy.log(
-                  "Successfully navigated to Klarna page - verified redirection"
-                );
-              } else {
-                // Check URL as fallback
-                cy.url().then((url) => {
+            if (paymentMethodType === "atome") {
+              // Atome redirects to sandbox-gateway.apaylater.net
+              cy.url().then((url) => {
+                try {
+                  const urlObj = new URL(url);
+                  const hostname = urlObj.hostname;
                   if (
-                    url.includes("klarna") ||
-                    url.includes("playground") ||
-                    url.includes("airwallex")
+                    hostname === "apaylater.net" ||
+                    hostname.endsWith(".apaylater.net")
                   ) {
                     cy.log(
-                      "URL indicates Klarna redirect - verified navigation"
+                      "Successfully navigated to Atome page - verified redirection"
                     );
                   } else {
                     cy.log(
-                      `Warning: URL (${url}) does not contain expected Klarna indicators`
+                      `Warning: URL (${url}) does not contain expected Atome indicators`
                     );
                   }
-                });
-              }
-            });
+                } catch {
+                  cy.log(`Warning: Could not parse URL: ${url}`);
+                }
+              });
+            } else {
+              // Airwallex Klarna redirects to standard Klarna playground
+              // Verify we landed on a Klarna page
+              cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
+                const bodyText = $body.text();
+                const klarnaIndicators = [
+                  /klarna/i,
+                  /playground/i,
+                  /buy now.*pay later/i,
+                  /continue.*klarna/i,
+                  /smoooth/i,
+                ];
+
+                const hasKlarnaIndicator = klarnaIndicators.some((pattern) =>
+                  pattern.test(bodyText)
+                );
+
+                if (hasKlarnaIndicator) {
+                  cy.log(
+                    "Successfully navigated to Klarna page - verified redirection"
+                  );
+                } else {
+                  // Check URL as fallback
+                  cy.url().then((url) => {
+                    if (
+                      url.includes("klarna") ||
+                      url.includes("playground") ||
+                      url.includes("airwallex")
+                    ) {
+                      cy.log(
+                        "URL indicates Klarna redirect - verified navigation"
+                      );
+                    } else {
+                      cy.log(
+                        `Warning: URL (${url}) does not contain expected Klarna indicators`
+                      );
+                    }
+                  });
+                }
+              });
+            }
 
             verifyUrl = false; // Don't complete payment, just verify navigation
             break;
@@ -1238,10 +1261,32 @@ function bankRedirectRedirection(
             }
             break;
 
+          case "airwallex":
+            if (paymentMethodType === "paypal") {
+              cy.log("Handling Airwallex PayPal wallet redirect");
+              cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+              verifyUrl = false;
+            } else if (paymentMethodType === "skrill") {
+              cy.log("Handling Airwallex Skrill wallet redirect");
+              cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+              cy.get("button#approve", { timeout: constants.TIMEOUT })
+                .should("be.visible")
+                .click();
+              verifyUrl = true;
+            } else {
+              throw new Error(
+                `Unsupported Airwallex payment method type: ${paymentMethodType}`
+              );
+            }
+            break;
+
           case "paypal":
             if (["eps", "ideal", "giropay"].includes(paymentMethodType)) {
               cy.get('button[name="Successful"][value="SUCCEEDED"]').click();
               verifyUrl = true;
+            } else if (paymentMethodType === "paypal") {
+              cy.url().should("include", "sandbox.paypal.com");
+              verifyUrl = false;
             } else {
               throw new Error(
                 `Unsupported Paypal payment method type: ${paymentMethodType}`
@@ -1580,6 +1625,10 @@ function bankRedirectRedirection(
                 });
                 verifyUrl = false;
                 break;
+              case "paypal":
+                cy.url().should("include", "sandbox.paypal.com");
+                verifyUrl = false;
+                break;
               default:
                 throw new Error(
                   `Unsupported GlobalPay payment method type: ${paymentMethodType}`
@@ -1590,7 +1639,12 @@ function bankRedirectRedirection(
           case "loonio":
             switch (paymentMethodType) {
               case "interac":
-                cy.contains("p", "Pay with Interac e-transfer").click();
+                cy.log("Handling Loonio Interac bank redirect flow");
+                cy.contains("button", "Back to Cashier", {
+                  timeout: constants.TIMEOUT / 3,
+                })
+                  .should("be.visible")
+                  .click();
 
                 verifyUrl = true;
                 break;
@@ -2553,6 +2607,82 @@ function voucherRedirection(
                 break;
               default:
                 cy.log(`Unhandled Adyen voucher type: ${paymentMethodType}`);
+                verifyUrl = false;
+            }
+            break;
+          case "dlocal":
+            switch (paymentMethodType) {
+              case "oxxo":
+                // Dlocal Oxxo returns a redirect URL via ticket.image_url.
+                // Visit the page, inspect for interactive elements,
+                // and attempt to complete payment.
+                cy.log(`Dlocal Oxxo voucher — visiting redirect URL`);
+
+                // Suppress potential JS errors from sandbox/test pages
+                cy.on("uncaught:exception", () => false);
+
+                cy.get("body", { timeout: constants.TIMEOUT })
+                  .should("exist")
+                  .then(($body) => {
+                    const bodyText = $body.text().toLowerCase();
+
+                    // Determine if this is an interactive payment page
+                    const hasPayButton =
+                      $body.find('button:visible, input[type="submit"]:visible')
+                        .length > 0;
+                    const hasInteractiveElements = [
+                      /pay/i,
+                      /confirm/i,
+                      /continue/i,
+                      /submit/i,
+                    ].some((pat) => pat.test(bodyText));
+
+                    if (hasPayButton || hasInteractiveElements) {
+                      cy.log(
+                        `Interactive Oxxo page detected — attempting to complete payment`
+                      );
+
+                      // Generic button click strategy
+                      cy.get("body").then(($b) => {
+                        const buttons = $b.find("button:visible");
+                        for (let i = 0; i < buttons.length; i++) {
+                          const btnText = buttons[i].innerText.toLowerCase();
+                          if (
+                            /pay|confirm|continue|submit|complete/i.test(
+                              btnText
+                            )
+                          ) {
+                            cy.wrap(buttons[i]).click({ force: true });
+                            cy.log(`Clicked payment button: ${btnText}`);
+                            break;
+                          }
+                        }
+                      });
+
+                      // If there's a form, try to fill any visible inputs
+                      cy.get("body").then(($b) => {
+                        const inputs = $b.find(
+                          "input:visible:not([type='hidden'])"
+                        );
+                        if (inputs.length > 0) {
+                          cy.log(
+                            `Found ${inputs.length} visible input(s) on Oxxo page`
+                          );
+                        }
+                      });
+
+                      verifyUrl = true;
+                    } else {
+                      // No interactive elements — display-only page (e.g. static barcode/image)
+                      cy.log(
+                        `Dlocal Oxxo page has no clickable payment buttons — display-only voucher`
+                      );
+                      verifyUrl = false;
+                    }
+                  });
+                break;
+              default:
+                cy.log(`Unhandled dlocal voucher type: ${paymentMethodType}`);
                 verifyUrl = false;
             }
             break;
