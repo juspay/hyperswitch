@@ -155,6 +155,7 @@ pub struct PaymentIntent {
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
     pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_applicable: Option<bool>,
 }
 
 impl PaymentIntent {
@@ -904,6 +905,7 @@ pub struct PaymentIntent {
     pub enable_partial_authorization: primitive_wrappers::EnablePartialAuthorizationBool,
     /// Denotes the surcharge strategy for this payment.
     pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_applicable: Option<bool>,
 }
 
 #[cfg(feature = "v2")]

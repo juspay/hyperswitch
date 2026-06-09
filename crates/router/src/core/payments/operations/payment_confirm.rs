@@ -2823,6 +2823,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .profile_acquirer_id
                             .clone(),
                         surcharge_strategy: payment_data.payment_intent.surcharge_strategy,
+                        external_surcharge_applicable: payment_data
+                            .payment_intent
+                            .external_surcharge_applicable,
                     })),
                     &m_key_store,
                     storage_scheme,
