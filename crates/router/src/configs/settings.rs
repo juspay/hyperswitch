@@ -166,7 +166,6 @@ pub struct Settings<S: SecretState> {
     pub decision: Option<DecisionConfig>,
     pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
     pub grpc_client: GrpcClientSettings,
-    #[cfg(feature = "v2")]
     pub cell_information: CellInformation,
     pub network_tokenization_supported_card_networks: NetworkTokenizationSupportedCardNetworks,
     pub alt_id_required_card_networks_and_connector: AltIdRequiredCardNetworksAndConnector,
@@ -1380,6 +1379,20 @@ pub struct ServerTls {
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct CellInformation {
     pub id: id_type::CellId,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct CellInformation {
+    pub id: String,
+}
+#[cfg(feature = "v1")]
+impl Default for CellInformation {
+    fn default() -> Self {
+        Self {
+            id: String::from("defid"),
+        }
+    }
 }
 
 #[cfg(feature = "v2")]

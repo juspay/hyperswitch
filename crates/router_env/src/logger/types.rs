@@ -116,6 +116,8 @@ pub enum Flow {
     CustomersDelete,
     /// Customers get mandates flow.
     CustomersGetMandates,
+    /// Customers global id migration flow.
+    CustomersGlobalIdMigration,
     /// Create an Ephemeral Key.
     EphemeralKeyCreate,
     /// Delete an Ephemeral Key.

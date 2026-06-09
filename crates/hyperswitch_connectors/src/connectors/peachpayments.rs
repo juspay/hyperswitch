@@ -463,6 +463,34 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: peachpayments::PeachpaymentsErrorResponse = res
+            .response
+            .parse_struct("PeachpaymentsErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.error_ref.clone(),
+            message: response.message.clone(),
+            reason: Some(response.message.clone()),
+            attempt_status: Some(enums::AttemptStatus::Authorized),
+            connector_transaction_id: None,
+            connector_response_reference_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            connector_metadata: None,
+        })
+    }
 }
 
 impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Peachpayments {
@@ -561,6 +589,34 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pe
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: peachpayments::PeachpaymentsErrorResponse = res
+            .response
+            .parse_struct("PeachpaymentsErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.error_ref.clone(),
+            message: response.message.clone(),
+            reason: Some(response.message.clone()),
+            attempt_status: Some(enums::AttemptStatus::Authorized),
+            connector_transaction_id: None,
+            connector_response_reference_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            connector_metadata: None,
+        })
     }
 }
 
