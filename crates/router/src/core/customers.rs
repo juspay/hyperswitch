@@ -1729,8 +1729,8 @@ mod tests {
         ];
 
         for (customer_id_str, expected) in test_cases {
-            let customer_id = id_type::CustomerId::wrap(customer_id_str.to_string())
-                .expect("valid customer id");
+            let customer_id =
+                id_type::CustomerId::wrap(customer_id_str.to_string()).expect("valid customer id");
 
             assert_eq!(
                 is_customer_id_in_global_format(&customer_id, cell_id),
