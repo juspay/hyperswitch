@@ -672,12 +672,12 @@ impl AuthenticationInterface for MockDb {
         &self,
         previous_state: Authentication,
         authentication_update: AuthenticationUpdate,
-        _merchant_key_store: &MerchantKeyStore,
-        _state: &common_utils::types::keymanager::KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        state: &common_utils::types::keymanager::KeyManagerState,
         _storage_scheme: common_enums::MerchantStorageScheme,
     ) -> CustomResult<Authentication, errors::StorageError> {
         let mut authentications = self.authentications.lock().await;
-        let auth_to_update = authentications
+        let item = authentications
             .iter_mut()
             .find(|auth| {
                 auth.merchant_id == previous_state.merchant_id
@@ -689,169 +689,29 @@ impl AuthenticationInterface for MockDb {
                 previous_state.authentication_id.get_string_repr()
             )))?;
 
-        match authentication_update {
-            AuthenticationUpdate::PreAuthenticationVersionCallUpdate {
-                maximum_supported_3ds_version,
-                message_version,
-            } => {
-                auth_to_update.maximum_supported_version = Some(maximum_supported_3ds_version);
-                auth_to_update.message_version = Some(message_version);
-            }
-            AuthenticationUpdate::PreAuthenticationThreeDsMethodCall {
-                threeds_server_transaction_id,
-                three_ds_method_data,
-                three_ds_method_url,
-                acquirer_bin,
-                acquirer_merchant_id,
-                connector_metadata,
-            } => {
-                auth_to_update.threeds_server_transaction_id = Some(threeds_server_transaction_id);
-                auth_to_update.three_ds_method_data = three_ds_method_data;
-                auth_to_update.three_ds_method_url = three_ds_method_url;
-                auth_to_update.acquirer_bin = acquirer_bin;
-                auth_to_update.acquirer_merchant_id = acquirer_merchant_id;
-                auth_to_update.connector_metadata = connector_metadata;
-            }
-            AuthenticationUpdate::PreAuthenticationUpdate {
-                threeds_server_transaction_id,
-                maximum_supported_3ds_version,
-                connector_authentication_id,
-                three_ds_method_data,
-                three_ds_method_url,
-                message_version,
-                connector_metadata,
-                authentication_status,
-                acquirer_bin,
-                acquirer_merchant_id,
-                directory_server_id,
-                acquirer_country_code,
-                billing_address,
-                shipping_address,
-                browser_info,
-                email,
-                scheme_id,
-                merchant_category_code,
-                merchant_country_code,
-                billing_country,
-                shipping_country,
-                earliest_supported_version,
-                latest_supported_version,
-            } => {
-                auth_to_update.threeds_server_transaction_id = Some(threeds_server_transaction_id);
-                auth_to_update.maximum_supported_version = Some(maximum_supported_3ds_version);
-                auth_to_update.connector_authentication_id = Some(connector_authentication_id);
-                auth_to_update.three_ds_method_data = three_ds_method_data;
-                auth_to_update.three_ds_method_url = three_ds_method_url;
-                auth_to_update.message_version = Some(message_version);
-                auth_to_update.connector_metadata = connector_metadata;
-                auth_to_update.authentication_status = authentication_status;
-                auth_to_update.acquirer_bin = acquirer_bin;
-                auth_to_update.acquirer_merchant_id = acquirer_merchant_id;
-                auth_to_update.directory_server_id = directory_server_id;
-                auth_to_update.acquirer_country_code = acquirer_country_code;
-                auth_to_update.billing_address = *billing_address;
-                auth_to_update.shipping_address = *shipping_address;
-                auth_to_update.browser_info = *browser_info;
-                auth_to_update.email = email;
-                auth_to_update.scheme_name = scheme_id;
-                auth_to_update.mcc = merchant_category_code;
-                auth_to_update.merchant_country_code = merchant_country_code;
-                auth_to_update.billing_country = billing_country;
-                auth_to_update.shipping_country = shipping_country;
-                auth_to_update.earliest_supported_version = earliest_supported_version;
-                auth_to_update.latest_supported_version = latest_supported_version;
-            }
-            AuthenticationUpdate::AuthenticationUpdate {
-                trans_status,
-                authentication_type,
-                acs_url,
-                challenge_request,
-                acs_reference_number,
-                acs_trans_id,
-                acs_signed_content,
-                connector_metadata,
-                authentication_status,
-                ds_trans_id,
-                eci,
-                challenge_code,
-                challenge_cancel,
-                challenge_code_reason,
-                message_extension,
-                challenge_request_key,
-                device_type,
-                device_brand,
-                device_os,
-                device_display,
-            } => {
-                auth_to_update.trans_status = Some(trans_status);
-                auth_to_update.authentication_type = Some(authentication_type);
-                auth_to_update.acs_url = acs_url;
-                auth_to_update.challenge_request = challenge_request;
-                auth_to_update.acs_reference_number = acs_reference_number;
-                auth_to_update.acs_trans_id = acs_trans_id;
-                auth_to_update.acs_signed_content = acs_signed_content;
-                auth_to_update.connector_metadata = connector_metadata;
-                auth_to_update.authentication_status = authentication_status;
-                auth_to_update.ds_trans_id = ds_trans_id;
-                auth_to_update.eci = eci;
-                auth_to_update.challenge_code = challenge_code;
-                auth_to_update.challenge_cancel = challenge_cancel;
-                auth_to_update.challenge_code_reason = challenge_code_reason;
-                auth_to_update.message_extension = message_extension;
-                auth_to_update.challenge_request_key = challenge_request_key;
-                auth_to_update.device_type = device_type;
-                auth_to_update.device_brand = device_brand;
-                auth_to_update.device_os = device_os;
-                auth_to_update.device_display = device_display;
-            }
-            AuthenticationUpdate::PostAuthenticationUpdate {
-                trans_status,
-                eci,
-                authentication_status,
-                challenge_cancel,
-                challenge_code_reason,
-            } => {
-                auth_to_update.trans_status = Some(trans_status);
-                auth_to_update.eci = eci;
-                auth_to_update.authentication_status = authentication_status;
-                auth_to_update.challenge_cancel = challenge_cancel;
-                auth_to_update.challenge_code_reason = challenge_code_reason;
-            }
-            AuthenticationUpdate::ErrorUpdate {
-                error_message,
-                error_code,
-                authentication_status,
-                connector_authentication_id,
-            } => {
-                auth_to_update.error_message = error_message;
-                auth_to_update.error_code = error_code;
-                auth_to_update.authentication_status = authentication_status;
-                auth_to_update.connector_authentication_id = connector_authentication_id;
-            }
-            AuthenticationUpdate::PostAuthorizationUpdate {
-                authentication_lifecycle_status,
-            } => {
-                auth_to_update.authentication_lifecycle_status = authentication_lifecycle_status;
-            }
-            AuthenticationUpdate::AuthenticationStatusUpdate {
-                trans_status,
-                authentication_status,
-            } => {
-                auth_to_update.trans_status = Some(trans_status);
-                auth_to_update.authentication_status = authentication_status;
-            }
-            AuthenticationUpdate::AcquirerDetailsUpdate {
-                acquirer_bin,
-                acquirer_merchant_id,
-                acquirer_country_code,
-            } => {
-                auth_to_update.acquirer_bin = acquirer_bin;
-                auth_to_update.acquirer_merchant_id = acquirer_merchant_id;
-                auth_to_update.acquirer_country_code = acquirer_country_code;
-            }
-        }
+        // Apply the update the same way the real stores do, reusing the diesel
+        // changeset instead of re-implementing the variant -> field mapping here.
+        let diesel_authentication_new = previous_state
+            .clone()
+            .construct_new()
+            .await
+            .change_context(errors::StorageError::EncryptionError)?;
 
-        auth_to_update.modified_at = common_utils::date_time::now();
-        Ok(auth_to_update.clone())
+        let updated_authentication =
+            diesel_models::authentication::AuthenticationUpdateInternal::from(
+                diesel_models::authentication::AuthenticationUpdate::from(authentication_update),
+            )
+            .apply_changeset(diesel_authentication_new);
+
+        *item = Authentication::convert_back(
+            state,
+            updated_authentication,
+            merchant_key_store.key.get_inner(),
+            merchant_key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(errors::StorageError::DecryptionError)?;
+
+        Ok(item.clone())
     }
 }
