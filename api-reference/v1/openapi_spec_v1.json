@@ -30965,7 +30965,7 @@
             "description": "Identification for the profile acquirer to be used for this payment.",
             "nullable": true
           },
-          "surcharge_strategy": {
+          "external_surcharge_strategy": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/SurchargeStrategy"
@@ -31524,7 +31524,7 @@
             "description": "Identification for the profile acquirer to be used for this payment.",
             "nullable": true
           },
-          "surcharge_strategy": {
+          "external_surcharge_strategy": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/SurchargeStrategy"
@@ -33281,7 +33281,7 @@
             "description": "Identification for the profile acquirer to be used for this payment.",
             "nullable": true
           },
-          "surcharge_strategy": {
+          "external_surcharge_strategy": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/SurchargeStrategy"
@@ -34792,7 +34792,7 @@
             "description": "Identification for the profile acquirer to be used for this payment.",
             "nullable": true
           },
-          "surcharge_strategy": {
+          "external_surcharge_strategy": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/SurchargeStrategy"
