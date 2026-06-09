@@ -536,7 +536,7 @@ export const CONNECTOR_LISTS = {
       "paypal",
       "stripe",
     ],
-    BANK_DEBIT: ["adyen", "novalnet", "payload", "wellsfargo"], // payload verified as working
+    BANK_DEBIT: ["adyen", "novalnet", "payload", "wellsfargo", "stax"], // payload verified as working
     INESPAY_BANK_SIMULATION: ["inespay"],
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
     BANK_REDIRECT_MANDATE: ["adyen"],
@@ -594,7 +594,7 @@ export const CONNECTOR_LISTS = {
     AFFIRM_PAY_LATER: ["affirm"],
     EXTEND_AUTHORIZATION: ["adyen", "paypal"],
     GIFT_CARD: ["adyen"],
-    VOUCHER: ["adyen"],
+    VOUCHER: ["adyen", "dlocal"],
     RELAY_OPERATIONS: ["bankofamerica"],
     PAY_LATER: [
       "klarna",
