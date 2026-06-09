@@ -3107,22 +3107,20 @@ function payoutLinkRedirection(
   fillInputById('input[id="sepa.bic"]', BIC, "BIC");
 
   // Click Save (first submission)
-  cy.get('button[type="submit"], input[type="submit"], button:contains("Save"), #submit', {
+  cy.get('button:contains("Save")', {
     timeout: 30000,
   })
     .should("be.visible")
-    .first()
     .click({ force: true });
   cy.task("cli_log", "Clicked Save button (first submission)");
 
   cy.wait(10000);
 
   // Click Submit (second submission after page re-stabilization)
-  cy.get('button[type="submit"], input[type="submit"], button:contains("Submit"), #submit', {
+  cy.get('button:contains("Submit")', {
     timeout: 30000,
   })
     .should("be.visible")
-    .first()
     .click({ force: true });
   cy.task("cli_log", "Clicked Submit button (second submission)");
 
