@@ -12,8 +12,6 @@ use common_utils::{
     request::{Headers, Method, RequestBuilder},
     types::keymanager::KeyManagerState,
 };
-#[cfg(feature = "v1")]
-use external_services::http_client;
 use common_utils::{
     ext_traits::{AsyncExt, Encode, StringExt},
     id_type,
@@ -21,6 +19,8 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
+use external_services::http_client;
 use hyperswitch_domain_models::mandates;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payment_methods::{

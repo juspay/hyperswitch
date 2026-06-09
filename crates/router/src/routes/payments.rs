@@ -2429,7 +2429,7 @@ where
                         header_payload,
                         None,
                     ))
-                    .await
+                    .await;
                 } else {
                     let (payment_data, _req, connector_http_status_code, external_latency) =
                         Box::pin(payments::payments_operation_core::<
