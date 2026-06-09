@@ -2979,7 +2979,7 @@ function paymentLinkCardRedirection(
           return;
         }
 
-        inputs.each((_, input) => {
+        inputs.each((_idx, input) => {
           const $input = Cypress.$(input);
           const placeholder = ($input.attr("placeholder") || "").toLowerCase();
           const ariaLabel = ($input.attr("aria-label") || "").toLowerCase();
@@ -3180,7 +3180,7 @@ function payoutLinkRedirection(
               );
             }
           }
-        } catch (_) {
+        } catch (_err) {
           // cross-origin iframe — skip
         }
       });
@@ -3203,7 +3203,7 @@ function payoutLinkRedirection(
   // same-origin iframe.
   function clickButtonByText(text) {
     cy.get("body").then(($body) => {
-      const $btn = $body.find("button").filter((_, el) => {
+      const $btn = $body.find("button").filter((i, el) => {
         return el.textContent.trim() === text;
       });
       if ($btn.length > 0) {
@@ -3228,7 +3228,7 @@ function payoutLinkRedirection(
           if (doc && doc.body) {
             const $inner = Cypress.$(doc.body)
               .find("button")
-              .filter((_, el) => el.textContent.trim() === text);
+              .filter((i, el) => el.textContent.trim() === text);
             if ($inner.length > 0) {
               found = true;
               cy.wrap($inner)
@@ -3240,7 +3240,7 @@ function payoutLinkRedirection(
               );
             }
           }
-        } catch (_) {
+        } catch (_err) {
           // cross-origin iframe — skip
         }
       });
@@ -3284,13 +3284,13 @@ function payoutLinkRedirection(
       const mainText = $body.text().toLowerCase();
 
       let iframeText = "";
-      $body.find("iframe").each((_, iframe) => {
+      $body.find("iframe").each((_idx, iframe) => {
         try {
           const doc = iframe.contentDocument || iframe.contentWindow?.document;
           if (doc && doc.body) {
             iframeText += " " + doc.body.innerText.toLowerCase();
           }
-        } catch (_) {
+        } catch (_err) {
           // cross-origin iframe — skip
         }
       });
@@ -3362,7 +3362,7 @@ function payoutLinkCardRedirection(
           return;
         }
 
-        inputs.each((_, input) => {
+        inputs.each((_idx, input) => {
           const $input = Cypress.$(input);
           const placeholder = ($input.attr("placeholder") || "").toLowerCase();
           const ariaLabel = ($input.attr("aria-label") || "").toLowerCase();
