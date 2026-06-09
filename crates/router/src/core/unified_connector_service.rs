@@ -3180,7 +3180,7 @@ pub async fn call_unified_connector_service_for_surcharge_calculate(
             .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
             .map(|c| c.into()),
         surcharge_strategy: payments_surcharge_calculate_data
-            .surcharge_strategy
+            .external_surcharge_strategy
             .as_ref()
             .map(|s| payments_grpc::SurchargeStrategy::foreign_from(*s).into()),
     };

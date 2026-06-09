@@ -222,7 +222,7 @@ pub struct PaymentIntentUpdateFields {
     pub active_attempt_id_type: Option<common_enums::ActiveAttemptIDType>,
     pub active_attempts_group_id: Option<id_type::GlobalAttemptGroupId>,
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
-    pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
 }
 
@@ -271,7 +271,7 @@ pub struct PaymentIntentUpdateFields {
     pub shipping_cost: Option<MinorUnit>,
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
-    pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
 }
 
@@ -502,7 +502,7 @@ pub struct PaymentIntentUpdateInternal {
     pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
-    pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
 }
 
@@ -559,7 +559,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
-                surcharge_strategy: None,
+                external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
             }),
 
@@ -611,7 +611,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
-                surcharge_strategy: None,
+                external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
             }),
             PaymentIntentUpdate::SyncUpdate {
@@ -661,7 +661,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
-                surcharge_strategy: None,
+                external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
             }),
             PaymentIntentUpdate::CaptureUpdate {
@@ -711,7 +711,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
-                surcharge_strategy: None,
+                external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
             }),
             PaymentIntentUpdate::SessionIntentUpdate {
@@ -764,7 +764,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
-                surcharge_strategy: None,
+                external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
             }),
             PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
@@ -807,7 +807,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     active_attempt_id_type,
                     active_attempts_group_id,
                     profile_acquirer_id,
-                    surcharge_strategy,
+                    external_surcharge_strategy,
                     external_surcharge_applicable,
                 } = *boxed_intent;
                 Ok(Self {
@@ -859,7 +859,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     enable_partial_authorization,
                     state_metadata: None,
                     profile_acquirer_id,
-                    surcharge_strategy,
+                    external_surcharge_strategy,
                     external_surcharge_applicable,
                 })
             }
@@ -912,7 +912,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
-                surcharge_strategy: None,
+                external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
             }),
             PaymentIntentUpdate::VoidUpdate { status, updated_by } => Ok(Self {
@@ -959,7 +959,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
-                surcharge_strategy: None,
+                external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
             }),
             PaymentIntentUpdate::AttemptGroupUpdate {
@@ -1009,7 +1009,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
-                surcharge_strategy: None,
+                external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
             }),
             PaymentIntentUpdate::SplitPaymentStatusUpdate { status, updated_by } => Ok(Self {
@@ -1055,7 +1055,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 enable_partial_authorization: None,
                 state_metadata: None,
                 profile_acquirer_id: None,
-                surcharge_strategy: None,
+                external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
             }),
         }
@@ -1112,7 +1112,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_amount_tax: value.shipping_amount_tax,
                 duty_amount: value.duty_amount,
                 installment_options: value.installment_options,
-                surcharge_strategy: None,
+                external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
                 ..Default::default()
             },
@@ -1331,7 +1331,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_cost: None,
                 installment_options: None,
                 profile_acquirer_id: None,
-                surcharge_strategy: None,
+                external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
             },
             PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => Self {
@@ -1386,7 +1386,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_cost: None,
                 installment_options: None,
                 profile_acquirer_id: None,
-                surcharge_strategy: None,
+                external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
             },
         }
@@ -1495,7 +1495,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                         .installment_options
                         .map(common_types::payments::InstallmentOptions),
                     profile_acquirer_id: value.profile_acquirer_id,
-                    surcharge_strategy: None,
+                    external_surcharge_strategy: None,
                     external_surcharge_applicable: None,
                 }))
             }
@@ -1680,7 +1680,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             state_metadata,
             installment_options,
             profile_acquirer_id,
-            surcharge_strategy,
+            external_surcharge_strategy,
             external_surcharge_applicable,
         } = value;
         Self {
@@ -1737,7 +1737,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             installment_options: installment_options
                 .map(common_types::payments::InstallmentOptions),
             profile_acquirer_id,
-            surcharge_strategy,
+            external_surcharge_strategy,
             external_surcharge_applicable,
         }
     }
@@ -2124,7 +2124,7 @@ impl behaviour::Conversion for PaymentIntent {
             is_payment_id_from_merchant,
             enable_partial_authorization,
             profile_acquirer_id,
-            surcharge_strategy,
+            external_surcharge_strategy,
             external_surcharge_applicable,
         } = self;
         Ok(DieselPaymentIntent {
@@ -2238,7 +2238,7 @@ impl behaviour::Conversion for PaymentIntent {
             state_metadata: None,
             installment_options: None,
             profile_acquirer_id,
-            surcharge_strategy,
+            external_surcharge_strategy,
             external_surcharge_applicable,
         })
     }
@@ -2394,7 +2394,7 @@ impl behaviour::Conversion for PaymentIntent {
                     .enable_partial_authorization
                     .unwrap_or(false.into()),
                 profile_acquirer_id: storage_model.profile_acquirer_id,
-                surcharge_strategy: storage_model.surcharge_strategy,
+                external_surcharge_strategy: storage_model.external_surcharge_strategy,
                 external_surcharge_applicable: storage_model.external_surcharge_applicable,
             })
         }
@@ -2508,7 +2508,7 @@ impl behaviour::Conversion for PaymentIntent {
             state_metadata: None,
             installment_options: None,
             profile_acquirer_id: self.profile_acquirer_id,
-            surcharge_strategy: self.surcharge_strategy,
+            external_surcharge_strategy: self.external_surcharge_strategy,
             external_surcharge_applicable: self.external_surcharge_applicable,
         })
     }
@@ -2602,7 +2602,7 @@ impl behaviour::Conversion for PaymentIntent {
                 .installment_options
                 .map(common_types::payments::InstallmentOptions),
             profile_acquirer_id: self.profile_acquirer_id,
-            surcharge_strategy: self.surcharge_strategy,
+            external_surcharge_strategy: self.external_surcharge_strategy,
             external_surcharge_applicable: self.external_surcharge_applicable,
         })
     }
@@ -2721,7 +2721,7 @@ impl behaviour::Conversion for PaymentIntent {
                 state_metadata: storage_model.state_metadata,
                 installment_options: storage_model.installment_options.map(|o| o.0),
                 profile_acquirer_id: storage_model.profile_acquirer_id,
-                surcharge_strategy: storage_model.surcharge_strategy,
+                external_surcharge_strategy: storage_model.external_surcharge_strategy,
                 external_surcharge_applicable: storage_model.external_surcharge_applicable,
             })
         }
@@ -2813,7 +2813,7 @@ impl behaviour::Conversion for PaymentIntent {
                 .installment_options
                 .map(common_types::payments::InstallmentOptions),
             profile_acquirer_id: self.profile_acquirer_id,
-            surcharge_strategy: self.surcharge_strategy,
+            external_surcharge_strategy: self.external_surcharge_strategy,
             external_surcharge_applicable: self.external_surcharge_applicable,
         })
     }

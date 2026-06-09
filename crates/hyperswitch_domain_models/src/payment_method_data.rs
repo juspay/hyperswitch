@@ -361,6 +361,13 @@ impl EligibilityPaymentMethodData {
     pub fn is_eligible_for_profile_config_blocklist(&self) -> bool {
         matches!(self, Self::Card(_))
     }
+
+    pub fn get_card_iin(&self) -> Option<String> {
+        match self {
+            Self::Card(card) => Some(card.card_number.get_card_isin()),
+            _ => None,
+        }
+    }
 }
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]

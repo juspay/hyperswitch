@@ -1598,7 +1598,7 @@ pub struct PaymentsRequest {
 
     /// The strategy to use when applying surcharge for this payment.
     #[schema(value_type = Option<SurchargeStrategy>)]
-    pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]

@@ -1349,6 +1349,18 @@ pub struct ExternalSurchargeDetails {
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
 }
 
+impl ExternalSurchargeDetails {
+    pub fn matches_payment_method(
+        &self,
+        payment_method: Option<common_enums::PaymentMethod>,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
+    ) -> bool {
+        payment_method == Some(self.payment_method)
+            && (self.payment_method_type.is_none()
+                || self.payment_method_type == payment_method_type)
+    }
+}
+
 #[cfg(feature = "v1")]
 impl
     From<(
@@ -1800,7 +1812,7 @@ pub struct PaymentsSurchargeCalculationData {
     /// Country in ISO alpha-2 format (optional, defaults to USA)
     pub country: Option<common_enums::CountryAlpha2>,
     /// Strategy for surcharge application (optional, defaults to Apply)
-    pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
 #[derive(Debug, Clone)]

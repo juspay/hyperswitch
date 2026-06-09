@@ -154,8 +154,14 @@ pub struct PaymentIntent {
     pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
-    pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SurchargeMode {
+    Internal,
+    External,
 }
 
 impl PaymentIntent {
@@ -167,6 +173,17 @@ impl PaymentIntent {
     #[cfg(feature = "v2")]
     pub fn get_id(&self) -> &id_type::GlobalPaymentId {
         &self.id
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_surcharge_mode(&self) -> Option<SurchargeMode> {
+        if self.surcharge_applicable.unwrap_or(false) {
+            Some(SurchargeMode::Internal)
+        } else if self.external_surcharge_applicable.unwrap_or(false) {
+            Some(SurchargeMode::External)
+        } else {
+            None
+        }
     }
 
     #[cfg(feature = "v2")]
@@ -904,7 +921,7 @@ pub struct PaymentIntent {
     /// Denotes whether merchant requested for partial authorization to be enabled for this payment.
     pub enable_partial_authorization: primitive_wrappers::EnablePartialAuthorizationBool,
     /// Denotes the surcharge strategy for this payment.
-    pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
 }
 
@@ -1114,7 +1131,8 @@ impl PaymentIntent {
                 .enable_partial_authorization
                 .unwrap_or(false.into()),
             profile_acquirer_id: None,
-            surcharge_strategy: None,
+            external_surcharge_strategy: None,
+            external_surcharge_applicable: None,
         })
     }
 

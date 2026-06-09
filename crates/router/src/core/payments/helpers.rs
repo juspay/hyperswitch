@@ -4672,7 +4672,7 @@ mod tests {
             state_metadata: None,
             installment_options: None,
             profile_acquirer_id: None,
-            surcharge_strategy: None,
+            external_surcharge_strategy: None,
             external_surcharge_applicable: None,
         };
         let req_cs = Some("1".to_string());
@@ -4766,7 +4766,7 @@ mod tests {
             state_metadata: None,
             installment_options: None,
             profile_acquirer_id: None,
-            surcharge_strategy: None,
+            external_surcharge_strategy: None,
             external_surcharge_applicable: None,
         };
         let req_cs = Some("1".to_string());
@@ -4858,7 +4858,7 @@ mod tests {
             state_metadata: None,
             installment_options: None,
             profile_acquirer_id: None,
-            surcharge_strategy: None,
+            external_surcharge_strategy: None,
             external_surcharge_applicable: None,
         };
         let req_cs = Some("1".to_string());

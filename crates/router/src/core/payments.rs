@@ -2267,97 +2267,83 @@ async fn populate_surcharge_details<F>(
 where
     F: Send + Clone,
 {
-    if payment_data
-        .payment_intent
-        .surcharge_applicable
-        .unwrap_or(false)
-    {
-        logger::debug!("payment_intent.surcharge_applicable = true");
-        if let Some(surcharge_details) = payment_data.payment_attempt.get_surcharge_details() {
-            // if retry payment, surcharge would have been populated from the previous attempt. Use the same surcharge
+    let surcharge_mode = payment_data.payment_intent.get_surcharge_mode();
+
+    if surcharge_mode == Some(domain_payments::SurchargeMode::Internal) {
+        if let Some(attempt_surcharge) = payment_data.payment_attempt.get_surcharge_details() {
             let surcharge_details =
-                types::SurchargeDetails::from((&surcharge_details, &payment_data.payment_attempt));
+                types::SurchargeDetails::from((&attempt_surcharge, &payment_data.payment_attempt));
             payment_data.surcharge_details = Some(surcharge_details);
             return Ok(());
         }
-        let raw_card_key = payment_data
-            .payment_method_data
-            .as_ref()
-            .and_then(helpers::get_key_params_for_surcharge_details)
-            .map(|(payment_method, payment_method_type, card_network)| {
-                types::SurchargeKey::PaymentMethodData(
-                    payment_method,
-                    payment_method_type,
-                    card_network,
-                )
-            });
-        let saved_card_key = payment_data.token.clone().map(types::SurchargeKey::Token);
-
-        let surcharge_key = raw_card_key
-            .or(saved_card_key)
-            .get_required_value("payment_method_data or payment_token")?;
-        logger::debug!(surcharge_key_confirm =? surcharge_key);
-
-        let calculated_surcharge_details =
-            match types::SurchargeMetadata::get_individual_surcharge_detail_from_redis(
-                state,
-                surcharge_key,
-                &payment_data.payment_attempt.attempt_id,
-            )
-            .await
-            {
-                Ok(surcharge_details) => Some(surcharge_details),
-                Err(err) if err.current_context() == &RedisError::NotFound => None,
-                Err(err) => {
-                    Err(err).change_context(errors::ApiErrorResponse::InternalServerError)?
-                }
-            };
-
-        payment_data.surcharge_details = calculated_surcharge_details.clone();
-
-        //Update payment_attempt net_amount with surcharge details
-        payment_data
-            .payment_attempt
-            .net_amount
-            .set_surcharge_details(calculated_surcharge_details);
-    } else {
-        let surcharge_details = match payment_data.payment_attempt.get_surcharge_details() {
-            Some(surcharge_details) => {
-                logger::debug!("surcharge sent in payments create request");
-                Some(types::SurchargeDetails::from((
-                    &surcharge_details,
-                    &payment_data.payment_attempt,
-                )))
-            }
-            None if payment_data
-                .payment_intent
-                .external_surcharge_applicable
-                .unwrap_or(false) =>
-            {
-                load_external_surcharge_from_redis(state, &payment_data.payment_attempt)
-                    .await
-                    .filter(|cache_entry| {
-                        // Only apply the external surcharge when /confirm uses the same
-                        // payment method / subtype that /eligibility calculated against.
-                        payment_data.payment_attempt.payment_method
-                            == Some(cache_entry.payment_method)
-                            && (cache_entry.payment_method_type.is_none()
-                                || payment_data.payment_attempt.payment_method_type
-                                    == cache_entry.payment_method_type)
-                    })
-                    .map(|cache_entry| {
-                        types::SurchargeDetails::from((&cache_entry, &payment_data.payment_attempt))
-                    })
-            }
-            None => None,
-        };
-        payment_data
-            .payment_attempt
-            .net_amount
-            .set_surcharge_details(surcharge_details.clone());
-        payment_data.surcharge_details = surcharge_details;
     }
+
+    let surcharge_details = match surcharge_mode {
+        Some(domain_payments::SurchargeMode::Internal) => {
+            resolve_internal_surcharge_from_dss(state, payment_data).await?
+        }
+        Some(domain_payments::SurchargeMode::External) => {
+            load_external_surcharge_from_redis(state, &payment_data.payment_attempt)
+                .await
+                .filter(|external| {
+                    external.matches_payment_method(
+                        payment_data.payment_attempt.payment_method,
+                        payment_data.payment_attempt.payment_method_type,
+                    )
+                })
+                .map(|external| {
+                    types::SurchargeDetails::from((&external, &payment_data.payment_attempt))
+                })
+        }
+        None => None,
+    };
+
+    payment_data
+        .payment_attempt
+        .net_amount
+        .set_surcharge_details(surcharge_details.clone());
+    payment_data.surcharge_details = surcharge_details;
     Ok(())
+}
+
+#[cfg(feature = "v1")]
+async fn resolve_internal_surcharge_from_dss<F>(
+    state: &SessionState,
+    payment_data: &PaymentData<F>,
+) -> RouterResult<Option<types::SurchargeDetails>>
+where
+    F: Send + Clone,
+{
+    logger::debug!("payment_intent.surcharge_applicable = true");
+    let raw_card_key = payment_data
+        .payment_method_data
+        .as_ref()
+        .and_then(helpers::get_key_params_for_surcharge_details)
+        .map(|(payment_method, payment_method_type, card_network)| {
+            types::SurchargeKey::PaymentMethodData(
+                payment_method,
+                payment_method_type,
+                card_network,
+            )
+        });
+    let saved_card_key = payment_data.token.clone().map(types::SurchargeKey::Token);
+
+    let surcharge_key = raw_card_key
+        .or(saved_card_key)
+        .get_required_value("payment_method_data or payment_token")?;
+    logger::debug!(surcharge_key_confirm =? surcharge_key);
+
+    match types::SurchargeMetadata::get_individual_surcharge_detail_from_redis(
+        state,
+        surcharge_key,
+        &payment_data.payment_attempt.attempt_id,
+    )
+    .await
+    {
+        Ok(surcharge_details) => Ok(Some(surcharge_details)),
+        Err(err) if err.current_context() == &RedisError::NotFound => Ok(None),
+        Err(err) => Err(err).change_context(errors::ApiErrorResponse::InternalServerError),
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -12669,11 +12655,11 @@ pub async fn payments_submit_eligibility_check(
 struct SurchargeCalculationInputs {
     amount: MinorUnit,
     currency: Option<storage_enums::Currency>,
-    surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     active_attempt_id: String,
     card_iin: Option<String>,
-    postal_code: Option<Secret<String>>,
-    billing_country: Option<common_enums::CountryAlpha2>,
+    // Merged billing address: request fields win, payment_intent fills the gaps.
+    billing_address: Option<hyperswitch_domain_models::address::Address>,
     payment_method: common_enums::PaymentMethod,
     payment_method_type: Option<common_enums::PaymentMethodType>,
 }
@@ -12683,60 +12669,47 @@ impl SurchargeCalculationInputs {
     fn from_eligibility_data(
         data: &PaymentEligibilityData,
         req: &api_models::payments::PaymentsEligibilityCheckRequest,
-        req_postal_code: Option<Secret<String>>,
-        req_billing_country: Option<common_enums::CountryAlpha2>,
     ) -> Self {
         let pi_billing_address: Option<hyperswitch_domain_models::address::Address> =
             data.payment_intent.billing_details.as_ref().and_then(|b| {
-                b.clone()
+                match b
+                    .clone()
                     .deserialize_inner_value(|value| value.parse_value("Address"))
-                    .ok()
-                    .map(|enc| enc.into_inner())
+                {
+                    Ok(enc) => Some(enc.into_inner()),
+                    Err(err) => {
+                        logger::warn!(
+                            error=?err,
+                            "eligibility: failed to deserialize payment_intent billing_details; proceeding without PI billing fallback"
+                        );
+                        None
+                    }
+                }
             });
-        let postal_code = req_postal_code.or_else(|| {
-            pi_billing_address
-                .as_ref()
-                .and_then(|addr| addr.address.as_ref())
-                .and_then(|det| det.zip.clone())
-        });
-        let billing_country = req_billing_country.or_else(|| {
-            pi_billing_address
-                .as_ref()
-                .and_then(|addr| addr.address.as_ref())
-                .and_then(|det| det.country)
-        });
-        let card_iin = match &data.payment_method_data {
-            Some(domain::EligibilityPaymentMethodData::Card(card)) => {
-                Some(card.card_number.get_card_isin())
-            }
-            _ => None,
+        let req_billing_address: Option<hyperswitch_domain_models::address::Address> = req
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.billing.clone())
+            .map(Into::into);
+        let billing_address = match req_billing_address {
+            Some(req_billing) => Some(req_billing.unify_address(pi_billing_address.as_ref())),
+            None => pi_billing_address,
         };
+        let card_iin = data
+            .payment_method_data
+            .as_ref()
+            .and_then(domain::EligibilityPaymentMethodData::get_card_iin);
         Self {
             amount: data.payment_intent.amount,
             currency: data.payment_intent.currency,
-            surcharge_strategy: data.payment_intent.surcharge_strategy,
+            external_surcharge_strategy: data.payment_intent.external_surcharge_strategy,
             active_attempt_id: data.payment_intent.active_attempt.get_id().clone(),
             card_iin,
-            postal_code,
-            billing_country,
+            billing_address,
             payment_method: req.payment_method_type,
             payment_method_type: req.payment_method_subtype,
         }
     }
-}
-
-#[cfg(all(feature = "oltp", feature = "v1"))]
-fn extract_request_billing_overrides(
-    req: &api_models::payments::PaymentsEligibilityRequest,
-) -> (Option<Secret<String>>, Option<common_enums::CountryAlpha2>) {
-    let billing_address = req
-        .payment_method_data
-        .as_ref()
-        .and_then(|pmd| pmd.billing.as_ref())
-        .and_then(|billing| billing.address.as_ref());
-    let postal_code = billing_address.and_then(|addr| addr.zip.clone());
-    let country = billing_address.and_then(|addr| addr.country);
-    (postal_code, country)
 }
 
 #[cfg(all(feature = "oltp", feature = "v1"))]
@@ -12836,7 +12809,6 @@ async fn calculate_external_surcharge(
     payment_intent: storage::PaymentIntent,
     inputs: SurchargeCalculationInputs,
 ) -> RouterResult<Option<api_models::payment_methods::SurchargeDetailsResponse>> {
-    let mut payment_intent = Some(payment_intent);
     let surcharge_details = match (surcharge_connector_id, inputs.card_iin, inputs.currency) {
         (Some(surcharge_connector_id), Some(card_iin), Some(currency)) => {
             let processor = platform.get_processor();
@@ -12865,15 +12837,19 @@ async fn calculate_external_surcharge(
             )
             .await;
 
+            let billing_details = inputs
+                .billing_address
+                .as_ref()
+                .and_then(|addr| addr.address.as_ref());
             let surcharge_data =
                 hyperswitch_domain_models::router_request_types::PaymentsSurchargeCalculationData {
                     amount: inputs.amount,
                     currency,
-                    postal_code: inputs.postal_code,
+                    postal_code: billing_details.and_then(|det| det.zip.clone()),
                     card_iin,
                     previous_connector_surcharge_id,
-                    country: inputs.billing_country,
-                    surcharge_strategy: inputs.surcharge_strategy,
+                    country: billing_details.and_then(|det| det.country),
+                    external_surcharge_strategy: inputs.external_surcharge_strategy,
                 };
             let connector_name = surcharge_mca.connector_name.clone();
             let mca_type = helpers::MerchantConnectorAccountType::DbVal(Box::new(surcharge_mca));
@@ -12891,7 +12867,9 @@ async fn calculate_external_surcharge(
             {
                 Ok(resp) => {
                     let surcharge_amount = resp.surcharge_amount;
-                    if let Err(err) = store_external_surcharge_in_redis(
+                    // Both writes must succeed: without Redis the cached surcharge can't be
+                    // applied on /confirm, and without the flag /confirm wouldn't even try.
+                    store_external_surcharge_in_redis(
                         state,
                         payment_id,
                         &merchant_id,
@@ -12900,37 +12878,26 @@ async fn calculate_external_surcharge(
                         inputs.payment_method_type,
                     )
                     .await
-                    {
-                        logger::warn!(
-                            error=?err,
-                            "eligibility: failed to write surcharge to Redis; confirm will not auto-apply surcharge"
-                        );
-                    }
-                    // Mark the intent so /confirm knows to look for a cached external surcharge.
-                    if let Some(pi) = payment_intent.take() {
-                        if let Err(err) = state
-                            .store
-                            .update_payment_intent(
-                                pi,
-                                storage::PaymentIntentUpdate::ExternalSurchargeApplicableUpdate {
-                                    external_surcharge_applicable: true,
-                                    updated_by: storage_scheme.to_string(),
-                                },
-                                &key_store,
-                                storage_scheme,
-                            )
-                            .await
-                        {
-                            logger::warn!(
-                                error=?err,
-                                "eligibility: failed to set external_surcharge_applicable on payment_intent"
-                            );
-                        }
-                    }
+                    .attach_printable("eligibility: failed to write surcharge to Redis")?;
+                    state
+                        .store
+                        .update_payment_intent(
+                            payment_intent,
+                            storage::PaymentIntentUpdate::ExternalSurchargeApplicableUpdate {
+                                external_surcharge_applicable: true,
+                                updated_by: storage_scheme.to_string(),
+                            },
+                            &key_store,
+                            storage_scheme,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "eligibility: failed to set external_surcharge_applicable on payment_intent",
+                        )?;
                     Some(build_surcharge_response(surcharge_amount, currency))
                 }
                 Err(err) => {
-                    // Surcharge is best-effort; log and continue without it.
                     logger::warn!(error=?err, "Surcharge calculation failed; proceeding without surcharge");
                     None
                 }
@@ -12948,7 +12915,6 @@ pub async fn payments_submit_eligibility(
     req: api_models::payments::PaymentsEligibilityRequest,
     payment_id: id_type::PaymentId,
 ) -> RouterResponse<api_models::payments::PaymentsEligibilityResponse> {
-    let (req_postal_code, req_billing_country) = extract_request_billing_overrides(&req);
     let eligibility_req: api_models::payments::PaymentsEligibilityCheckRequest = req.into();
     let payment_eligibility_data = Box::pin(PaymentEligibilityData::from_request(
         &state,
@@ -12974,8 +12940,6 @@ pub async fn payments_submit_eligibility(
     let surcharge_inputs = SurchargeCalculationInputs::from_eligibility_data(
         &payment_eligibility_data,
         &eligibility_req,
-        req_postal_code,
-        req_billing_country,
     );
     let surcharge_connector_id = business_profile
         .surcharge_connector_details

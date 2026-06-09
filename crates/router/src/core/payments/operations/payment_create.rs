@@ -1980,7 +1980,7 @@ impl PaymentCreate {
             state_metadata: None,
             installment_options: request.installment_options.clone(),
             profile_acquirer_id: request.profile_acquirer_id.clone(),
-            surcharge_strategy: request.surcharge_strategy,
+            external_surcharge_strategy: request.external_surcharge_strategy,
             external_surcharge_applicable: None,
         })
     }

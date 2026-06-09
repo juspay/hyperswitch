@@ -7262,7 +7262,7 @@ impl
                 .map(|country| country.into()),
             surcharge_strategy: router_data
                 .request
-                .surcharge_strategy
+                .external_surcharge_strategy
                 .map(|s| payments_grpc::SurchargeStrategy::foreign_from(s).into()),
         })
     }
