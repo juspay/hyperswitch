@@ -103,11 +103,16 @@ fn to_grpc_customer_document_details<F, Req, Res>(
                 common_types::customers::DocumentKind::Cnpj => {
                     i32::from(payments_grpc::DocumentKind::Cnpj)
                 }
-                // Non-Brazilian document (e.g. Philippine PSN). Carried as the proto
-                // OTHER type; UCS keeps it and forwards document_number as-is, validated
-                // by the connector per country.
+                // Generic non-Brazilian document. Carried as the proto OTHER type; UCS
+                // keeps it and forwards document_number as-is, validated by the connector
+                // per country.
                 common_types::customers::DocumentKind::Other => {
                     i32::from(payments_grpc::DocumentKind::Other)
+                }
+                // Philippine PhilSys Number — mapped to the dedicated proto PSN type so the
+                // connector (dLocal/GCash) can validate it as a 12-digit national ID.
+                common_types::customers::DocumentKind::Psn => {
+                    i32::from(payments_grpc::DocumentKind::Psn)
                 }
             };
             payments_grpc::CustomerDocumentDetails {
