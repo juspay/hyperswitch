@@ -1,4 +1,4 @@
-crates/redis_interface/Cargo.toml[package]
+[package]
 name = "redis_interface"
 description = "A user-friendly interface to Redis"
 version = "0.1.0"
