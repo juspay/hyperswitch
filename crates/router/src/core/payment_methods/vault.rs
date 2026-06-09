@@ -2026,10 +2026,10 @@ async fn get_fingerprint_id_from_vault<D: serde::Serialize>(
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode Vaulting data to string")?;
 
-    let payload = pm_types::VaultFingerprintRequest { key, data }
+    let payload = pm_types::VaultFingerprintRequestNew { key, data }
         .encode_to_vec()
         .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode VaultFingerprintRequest")?;
+        .attach_printable("Failed to encode VaultFingerprintRequestNew")?;
 
     let resp = call_to_vault::<pm_types::GetVaultFingerprint>(state, payload, None)
         .await

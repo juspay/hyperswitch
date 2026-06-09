@@ -778,6 +778,7 @@ impl PaymentMethodsController for PmCards<'_> {
         bank_debit_data: api_models::payment_methods::BankDebitDetail,
         key_store: &domain::MerchantKeyStore,
         customer_id: &id_type::CustomerId,
+        key: Option<String>,
     ) -> errors::CustomResult<
         (
             domain::PaymentMethodResponse,
@@ -806,26 +807,14 @@ impl PaymentMethodsController for PmCards<'_> {
                 .clone(),
         );
 
-        let data = if should_trigger_fingerprint_migration {
-            let fingerprint_data = pmd.to_fingerprint_data();
-            serde_json::to_string(&fingerprint_data)
-        } else {
-            serde_json::to_string(&pmd)
-        }
-        .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode Vaulting data to string")?;
 
-        let payload = pm_types::VaultFingerprintRequest {
-            key: hyperswitch_domain_models::vault::V1VaultEntityId::new(
-                // The merchant_id should belong to the Provider
-                key_store.merchant_id.clone(),
-                customer_id.to_owned(),
-            ),
-            data,
-        }
-        .encode_to_vec()
-        .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode VaultFingerprintRequest")?;
+        let payload = encode_vault_fingerprint_request(
+            should_trigger_fingerprint_migration,
+            key_store.merchant_id.clone(),
+            customer_id.to_owned(),
+            &pmd,
+            key,
+        )?;
 
         let resp = vault::call_to_vault::<pm_types::GetVaultFingerprint>(self.state, payload, None)
             .await
@@ -905,6 +894,7 @@ impl PaymentMethodsController for PmCards<'_> {
         wallet_data: api_models::payment_methods::WalletDetail,
         key_store: &domain::MerchantKeyStore,
         customer_id: &id_type::CustomerId,
+        key: Option<String>,
     ) -> errors::CustomResult<
         (
             domain::PaymentMethodResponse,
@@ -932,21 +922,13 @@ impl PaymentMethodsController for PmCards<'_> {
             api_models::payment_methods::PaymentMethodCreateData::Wallet(wallet_data).clone(),
         );
 
-        let data = serde_json::to_string(&pmd)
-            .change_context(errors::VaultError::RequestEncodingFailed)
-            .attach_printable("Failed to encode Vaulting data to string")?;
-
-        let payload = pm_types::VaultFingerprintRequest {
-            key: hyperswitch_domain_models::vault::V1VaultEntityId::new(
-                // The merchant_id should belong to the Provider
-                key_store.merchant_id.clone(),
-                customer_id.to_owned(),
-            ),
-            data,
-        }
-        .encode_to_vec()
-        .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode VaultFingerprintRequest")?;
+        let payload = encode_vault_fingerprint_request(
+            should_trigger_fingerprint_migration,
+            key_store.merchant_id.clone(),
+            customer_id.to_owned(),
+            &pmd,
+            key,
+        )?;
 
         let resp = vault::call_to_vault::<pm_types::GetVaultFingerprint>(self.state, payload, None)
             .await
@@ -1622,6 +1604,18 @@ impl PaymentMethodsController for PmCards<'_> {
             .map(serde_json::to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        let customer_obj = db
+            .find_customer_by_customer_id_merchant_id(
+                &customer_id,
+                &merchant_id,
+                self.provider.get_key_store(),
+                self.provider.get_account().storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::CustomerNotFound)
+            .attach_printable("Customer not found in db")?;
+
         let response = match payment_method {
             #[cfg(feature = "payouts")]
             api_enums::PaymentMethod::BankTransfer => {
@@ -1681,6 +1675,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     bank_debit_data,
                     self.provider.get_key_store(),
                     &customer_id,
+                    customer_obj.get_global_customer_id().clone(),
                 ))
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1916,6 +1911,45 @@ pub fn encode_add_vault_request(
         .encode_to_vec()
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode AddVaultRequest")
+    }
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub fn encode_vault_fingerprint_request(
+    should_trigger_fingerprint_migration: bool,
+    merchant_id: id_type::MerchantId,
+    customer_id: id_type::CustomerId,
+    pmd: &hyperswitch_domain_models::vault::PaymentMethodVaultingData,
+    key: Option<String>,
+) -> errors::CustomResult<Vec<u8>, errors::VaultError> {
+    if should_trigger_fingerprint_migration {
+        let key = key
+            .get_required_value("Customer key is required")
+            .change_context(errors::VaultError::MissingRequiredField {
+                field_name: "Customer key",
+            })?;
+
+        let data = serde_json::to_string(&pmd.clone().to_fingerprint_data())
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode Vaulting data to string")?;
+
+        pm_types::VaultFingerprintRequestNew { data, key }
+            .encode_to_vec()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode VaultFingerprintRequestNew")
+    } else {
+        let data = serde_json::to_string(&pmd)
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode Vaulting data to string")?;
+
+        pm_types::VaultFingerprintRequest {
+            data,
+            key: hyperswitch_domain_models::vault::V1VaultEntityId::new(merchant_id, customer_id),
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode VaultFingerprintRequest")
     }
 }
 
