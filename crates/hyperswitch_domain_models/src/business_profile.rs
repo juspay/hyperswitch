@@ -113,6 +113,16 @@ impl ExternalVaultDetails {
             Self::Skip => false,
         }
     }
+
+    /// Returns the external vault connector account id when external vault is enabled.
+    pub fn get_vault_connector_id(
+        &self,
+    ) -> Option<common_utils::id_type::MerchantConnectorAccountId> {
+        match self {
+            Self::ExternalVaultEnabled(details) => Some(details.vault_connector_id.clone()),
+            Self::Skip => None,
+        }
+    }
 }
 
 #[cfg(feature = "v1")]
