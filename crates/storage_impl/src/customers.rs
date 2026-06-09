@@ -157,7 +157,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         &self,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
-    ) -> CustomResult<Option<customers::CustomerGlobalIdMigrationRow>, StorageError> {
+    ) -> CustomResult<customers::CustomerGlobalIdMigrationRow, StorageError> {
         self.router_store
             .find_customer_for_global_id_migration(customer_id, merchant_id)
             .await
@@ -651,9 +651,9 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         &self,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
-    ) -> CustomResult<Option<customers::CustomerGlobalIdMigrationRow>, StorageError> {
+    ) -> CustomResult<customers::CustomerGlobalIdMigrationRow, StorageError> {
         let conn = pg_connection_read(self).await?;
-        customers::Customer::find_optional_by_merchant_id_customer_id_for_global_id_migration(
+        customers::Customer::find_by_merchant_id_customer_id_for_global_id_migration(
             &conn,
             merchant_id,
             customer_id,
@@ -958,19 +958,22 @@ impl domain::CustomerInterface for MockDb {
         &self,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
-    ) -> CustomResult<Option<customers::CustomerGlobalIdMigrationRow>, StorageError> {
+    ) -> CustomResult<customers::CustomerGlobalIdMigrationRow, StorageError> {
         let customers = self.customers.lock().await;
-        Ok(customers.iter().find_map(|customer| {
-            let row_customer_id = customer.customer_id.as_ref()?.get_string_repr();
-            (customer.merchant_id == *merchant_id
-                && row_customer_id == customer_id.get_string_repr())
-            .then(|| customers::CustomerGlobalIdMigrationRow {
-                merchant_id: customer.merchant_id.clone(),
-                customer_id: Some(row_customer_id.to_owned()),
-                id: Some(customer.id.get_string_repr().to_owned()),
-                version: customer.version,
+        customers
+            .iter()
+            .find_map(|customer| {
+                let row_customer_id = customer.customer_id.as_ref()?.get_string_repr();
+                (customer.merchant_id == *merchant_id
+                    && row_customer_id == customer_id.get_string_repr())
+                .then(|| customers::CustomerGlobalIdMigrationRow {
+                    merchant_id: customer.merchant_id.clone(),
+                    customer_id: Some(row_customer_id.to_owned()),
+                    id: Some(customer.id.get_string_repr().to_owned()),
+                    version: customer.version,
+                })
             })
-        }))
+            .ok_or_else(|| StorageError::ValueNotFound("customer".to_string()).into())
     }
 
     #[cfg(feature = "v2")]

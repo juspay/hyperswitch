@@ -41,11 +41,11 @@ pub struct CustomerListConstraints {
 
 impl Customer {
     #[cfg(feature = "v2")]
-    pub async fn find_optional_by_merchant_id_customer_id_for_global_id_migration(
+    pub async fn find_by_merchant_id_customer_id_for_global_id_migration(
         conn: &PgPooledConn,
         merchant_id: &id_type::MerchantId,
         customer_id: &id_type::CustomerId,
-    ) -> StorageResult<Option<CustomerGlobalIdMigrationRow>> {
+    ) -> StorageResult<CustomerGlobalIdMigrationRow> {
         let customer_id = Some(customer_id.get_string_repr().to_owned());
 
         let query = dsl::customers
@@ -62,8 +62,9 @@ impl Customer {
             .first_async::<CustomerGlobalIdMigrationRow>(conn)
             .await
         {
-            Ok(row) => Ok(Some(row)),
-            Err(diesel::result::Error::NotFound) => Ok(None),
+            Ok(row) => Ok(row),
+            Err(diesel::result::Error::NotFound) => Err(report!(errors::DatabaseError::NotFound))
+                .attach_printable("No customer found for global id migration"),
             Err(error) => Err(error)
                 .change_context(errors::DatabaseError::Others)
                 .attach_printable("Error while finding customer for global id migration"),

@@ -9,7 +9,6 @@ use api_models::customers::migrate::{
 use common_enums::ApiVersion;
 use common_utils::id_type;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::customer::CustomerInterface;
 use router_env::{instrument, logger, tracing, Flow};
 
 use crate::{
@@ -19,7 +18,8 @@ use crate::{
 };
 
 pub const MAX_CUSTOMER_GLOBAL_ID_MIGRATION_FILE_SIZE: usize = 1024 * 1024;
-pub const MAX_CUSTOMER_GLOBAL_ID_MIGRATION_RECORDS: usize = 5000;
+pub const MAX_CUSTOMER_GLOBAL_ID_MIGRATION_RECORDS: usize = 500;
+pub const MAX_CUSTOMER_GLOBAL_ID_MIGRATION_PARALLELISM: usize = 10;
 
 type MigrationStepResult<T> = Result<T, Box<CustomerGlobalIdMigrationRowResult>>;
 
@@ -60,14 +60,29 @@ async fn migrate_customer_global_id(
     let rows = parse_customer_global_id_migration_csv(csv_bytes)?;
     let total_rows = rows.len();
     let mut results = Vec::with_capacity(total_rows);
+    let mut rows = rows.into_iter();
 
-    for row in rows {
-        let result = match row {
-            Ok(row) => process_fetched_row(row.fetch(&state).await, &state).await,
-            Err(result) => *result,
-        };
-        log_row_result(&result);
-        results.push(result);
+    loop {
+        let row_chunk = rows
+            .by_ref()
+            .take(MAX_CUSTOMER_GLOBAL_ID_MIGRATION_PARALLELISM)
+            .collect::<Vec<_>>();
+
+        if row_chunk.is_empty() {
+            break;
+        }
+
+        let chunk_results = futures::future::join_all(row_chunk.into_iter().map(|row| async {
+            let result = match row {
+                Ok(row) => process_fetched_row(row.fetch(&state).await, &state).await,
+                Err(result) => *result,
+            };
+            log_row_result(&result);
+            result
+        }))
+        .await;
+
+        results.extend(chunk_results);
     }
 
     let updated_count = results
@@ -256,17 +271,24 @@ impl MigrationRow<Parsed> {
             .find_customer_for_global_id_migration(&self.customer_id, &self.merchant_id)
             .await
         {
-            Ok(Some(row)) => {
+            Ok(row) => {
                 let mut next = self.transition::<Fetched>();
                 next.old_id = row.id;
                 next.version = Some(row.version);
                 Ok(next)
             }
-            Ok(None) => Err(Box::new(self.result(
-                CustomerGlobalIdMigrationStatus::NotFound,
-                None,
-                "Customer not found for merchant_id and customer_id".to_string(),
-            ))),
+            Err(error)
+                if matches!(
+                    error.current_context(),
+                    errors::StorageError::ValueNotFound(_)
+                ) =>
+            {
+                Err(Box::new(self.result(
+                    CustomerGlobalIdMigrationStatus::NotFound,
+                    None,
+                    "Customer not found for merchant_id and customer_id".to_string(),
+                )))
+            }
             Err(error) => Err(Box::new(self.result(
                 CustomerGlobalIdMigrationStatus::UpdateFailed,
                 None,

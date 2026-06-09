@@ -777,7 +777,7 @@ where
         &self,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
-    ) -> CustomResult<Option<storage_types::CustomerGlobalIdMigrationRow>, Self::Error>;
+    ) -> CustomResult<storage_types::CustomerGlobalIdMigrationRow, Self::Error>;
 
     #[cfg(feature = "v2")]
     async fn update_customer_global_id_for_migration(

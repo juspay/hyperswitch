@@ -433,7 +433,7 @@ impl CustomerInterface for KafkaStore {
         &self,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
-    ) -> CustomResult<Option<storage::CustomerGlobalIdMigrationRow>, errors::StorageError> {
+    ) -> CustomResult<storage::CustomerGlobalIdMigrationRow, errors::StorageError> {
         self.diesel_store
             .find_customer_for_global_id_migration(customer_id, merchant_id)
             .await
