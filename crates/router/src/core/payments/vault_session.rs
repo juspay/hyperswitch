@@ -403,7 +403,7 @@ async fn generate_hyperswitch_vault_session_details(
 
     match connector_response.response {
         Ok(router_types::VaultResponseData::ExternalVaultCreateResponse {
-            session_id,
+            _session_id,
             client_secret,
         }) => {
             // Build the base64-encoded SDK authorization for the Hyperswitch Vault session,
@@ -439,7 +439,6 @@ async fn generate_hyperswitch_vault_session_details(
             match sdk_authorization {
                 Some(sdk_authorization) => Ok(Some(api::VaultSessionDetails::HyperswitchVault(
                     api::HyperswitchVaultSessionDetails {
-                        payment_method_session_id: session_id,
                         sdk_authorization: sdk_authorization.into(),
                     },
                 ))),

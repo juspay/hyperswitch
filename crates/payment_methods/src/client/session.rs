@@ -41,7 +41,6 @@ pub struct VgsSessionDetailsResponse {
 /// Local deserializable mirror of `api_models::payments::HyperswitchVaultSessionDetails`.
 #[derive(Debug, Clone, Deserialize)]
 pub struct HyperswitchVaultSessionDetailsResponse {
-    pub payment_method_session_id: Secret<String>,
     pub sdk_authorization: Secret<String>,
 }
 
@@ -64,7 +63,6 @@ impl From<VaultSessionDetailsResponse> for api_models::payments::VaultSessionDet
             }
             VaultSessionDetailsResponse::HyperswitchVault(hsv) => {
                 Self::HyperswitchVault(api_models::payments::HyperswitchVaultSessionDetails {
-                    payment_method_session_id: hsv.payment_method_session_id,
                     sdk_authorization: hsv.sdk_authorization,
                 })
             }

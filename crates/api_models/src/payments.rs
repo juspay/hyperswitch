@@ -10185,9 +10185,6 @@ pub struct VgsSessionDetails {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 pub struct HyperswitchVaultSessionDetails {
-    /// Session ID for Hyperswitch Vault
-    #[schema(value_type = String)]
-    pub payment_method_session_id: Secret<String>,
     /// Base64-encoded SDK authorization token for the Hyperswitch Vault session
     #[schema(value_type = String)]
     pub sdk_authorization: Secret<String>,
