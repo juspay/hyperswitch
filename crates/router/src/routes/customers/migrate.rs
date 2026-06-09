@@ -2,6 +2,10 @@ use std::marker::PhantomData;
 
 use actix_multipart::form::{bytes::Bytes as MultipartBytes, MultipartForm};
 use actix_web::{web, HttpRequest, HttpResponse};
+use api_models::customers::migrate::{
+    CustomerGlobalIdMigrationResponse, CustomerGlobalIdMigrationRowResult,
+    CustomerGlobalIdMigrationStatus,
+};
 use common_enums::ApiVersion;
 use common_utils::id_type;
 use error_stack::{report, ResultExt};
@@ -12,11 +16,6 @@ use crate::{
     core::{api_locking, errors},
     routes::{app::AppState, SessionState},
     services::{api, authentication as auth, ApplicationResponse},
-};
-
-use api_models::customers::migrate::{
-    CustomerGlobalIdMigrationResponse, CustomerGlobalIdMigrationRowResult,
-    CustomerGlobalIdMigrationStatus,
 };
 
 pub const MAX_CUSTOMER_GLOBAL_ID_MIGRATION_FILE_SIZE: usize = 1024 * 1024;
