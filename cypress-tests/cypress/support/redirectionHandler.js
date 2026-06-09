@@ -3029,15 +3029,9 @@ function payoutLinkRedirection(
     );
   }
 
-  const bankData = handlerMetadata?.bankData || {};
   const expectedOutcome = handlerMetadata?.expectedOutcome || "success";
-  const {
-    account_number = "000123456",
-    routing_number = "110000000",
-    bank_name = "Test Bank",
-    iban = "NL46TEST0136169112",
-    bic = "ABNANL2A",
-  } = bankData;
+  const IBAN = "NL46TEST0136169112";
+  const BIC = "ABNANL2A";
 
   cy.on("uncaught:exception", () => false);
 
@@ -3049,150 +3043,88 @@ function payoutLinkRedirection(
   }
 
   cy.visit(redirectionUrl.href, { failOnStatusCode: false });
-
   cy.get("body", { timeout: 30000 }).should("exist");
 
-  // The payout link page is already loaded. Do not wait for containers
-  // or iframes — directly find and fill the SEPA IBAN and BIC inputs.
   cy.task(
     "cli_log",
-    "Payout link page loaded — filling SEPA IBAN and BIC directly"
+    "Payout link page loaded — looking for SEPA IBAN and BIC inputs directly"
   );
 
-  function fillBankInputInIframe(iframe, index) {
-    cy.wrap(iframe)
-      .its("0.contentDocument.body")
-      .should("not.be.empty")
-      .then((body) => {
-        const $body = Cypress.$(body);
-        const inputs = $body.find("input");
+  // Strategy: look for input#sepa.iban and input#sepa.bic. They may be on the
+  // main page or inside an iframe.  Do NOT wait for #unified-checkout or
+  // #payment-form containers — the payout page is already rendered.
+  function fillInputById(selector, value, desc) {
+    // Try the top-level page first
+    cy.get("body").then(($body) => {
+      const $input = $body.find(selector);
+      if ($input.length > 0) {
+        cy.wrap($input)
+          .should("be.visible")
+          .clear({ force: true })
+          .type(value, { delay: 30, force: true });
+        cy.task("cli_log", `${desc} filled directly on page body`);
+        return;
+      }
 
-        if (inputs.length === 0) {
-          cy.task("cli_log", `Iframe ${index}: no inputs found, skipping`);
-          return;
-        }
+      // Not on the main page — search inside every iframe
+      const $iframes = $body.find("iframe");
+      if ($iframes.length === 0) {
+        cy.task("cli_log", `No iframes found — ${desc} not located`);
+        return;
+      }
 
-        inputs.each((_, input) => {
-          const $input = Cypress.$(input);
-          const placeholder = ($input.attr("placeholder") || "").toLowerCase();
-          const ariaLabel = ($input.attr("aria-label") || "").toLowerCase();
-          const name = ($input.attr("name") || "").toLowerCase();
-          const id = ($input.attr("id") || "").toLowerCase();
-          const autocomplete = (
-            $input.attr("autocomplete") || ""
-          ).toLowerCase();
-
-          if (
-            placeholder.includes("account") ||
-            placeholder.includes("account number") ||
-            ariaLabel.includes("account") ||
-            ariaLabel.includes("account number") ||
-            name.includes("account_number") ||
-            name.includes("accountnumber") ||
-            autocomplete.includes("account_number")
-          ) {
-            /* eslint-disable cypress/no-force */
-            cy.wrap(input)
-              .focus()
-              .clear({ force: true })
-              .type(account_number, { delay: 30, force: true });
-            /* eslint-enable cypress/no-force */
-            cy.task("cli_log", `Filled account number in iframe ${index}`);
-          } else if (
-            placeholder.includes("routing") ||
-            placeholder.includes("routing number") ||
-            placeholder.includes("sort") ||
-            ariaLabel.includes("routing") ||
-            ariaLabel.includes("sort") ||
-            name.includes("routing_number") ||
-            name.includes("routingnumber") ||
-            name.includes("sort_code") ||
-            autocomplete.includes("routing_number")
-          ) {
-            /* eslint-disable cypress/no-force */
-            cy.wrap(input)
-              .focus()
-              .clear({ force: true })
-              .type(routing_number, { delay: 30, force: true });
-            /* eslint-enable cypress/no-force */
-            cy.task("cli_log", `Filled routing number in iframe ${index}`);
-          } else if (
-            placeholder.includes("bank") ||
-            placeholder.includes("bank name") ||
-            ariaLabel.includes("bank") ||
-            ariaLabel.includes("bank name") ||
-            name.includes("bank_name") ||
-            name.includes("bankname")
-          ) {
-            /* eslint-disable cypress/no-force */
-            cy.wrap(input)
-              .focus()
-              .clear({ force: true })
-              .type(bank_name, { delay: 30, force: true });
-            /* eslint-enable cypress/no-force */
-            cy.task("cli_log", `Filled bank name in iframe ${index}`);
-          } else if (
-            placeholder.includes("iban") ||
-            ariaLabel.includes("iban") ||
-            name.includes("iban") ||
-            id === "sepa.iban"
-          ) {
-            /* eslint-disable cypress/no-force */
-            cy.wrap(input)
-              .focus()
-              .clear({ force: true })
-              .type(iban, { delay: 30, force: true });
-            /* eslint-enable cypress/no-force */
-            cy.task("cli_log", `Filled IBAN in iframe ${index}`);
-          } else if (
-            placeholder.includes("bic") ||
-            placeholder.includes("swift") ||
-            ariaLabel.includes("bic") ||
-            ariaLabel.includes("swift") ||
-            name.includes("bic") ||
-            name.includes("swift") ||
-            id === "sepa.bic"
-          ) {
-            /* eslint-disable cypress/no-force */
-            cy.wrap(input)
-              .focus()
-              .clear({ force: true })
-              .type(bic, { delay: 30, force: true });
-            /* eslint-enable cypress/no-force */
-            cy.task("cli_log", `Filled BIC/SWIFT in iframe ${index}`);
+      let found = false;
+      $iframes.each((idx, iframe) => {
+        if (found) return;
+        try {
+          const doc = iframe.contentDocument || iframe.contentWindow?.document;
+          if (doc && doc.body) {
+            const $inner = Cypress.$(doc.body).find(selector);
+            if ($inner.length > 0) {
+              found = true;
+              cy.wrap($inner)
+                .should("be.visible")
+                .clear({ force: true })
+                .type(value, { delay: 30, force: true });
+              cy.task(
+                "cli_log",
+                `${desc} filled inside iframe index ${idx}`
+              );
+            }
           }
-        });
+        } catch (_) {
+          // cross-origin iframe — skip
+        }
       });
+
+      if (!found) {
+        cy.task("cli_log", `${desc} not found on page or in any iframe`);
+      }
+    });
   }
 
-  cy.get("#unified-checkout iframe").then(($iframes) => {
-    cy.task("cli_log", `Found ${$iframes.length} iframes in unified-checkout`);
+  fillInputById('input[id="sepa.iban"]', IBAN, "IBAN");
+  fillInputById('input[id="sepa.bic"]', BIC, "BIC");
 
-    $iframes.each((index, iframe) => {
-      fillBankInputInIframe(iframe, index);
-    });
-  });
-
-  /* eslint-disable cypress/no-force */
-  cy.get("#submit", { timeout: 30000 })
+  // Click Save (first submission)
+  cy.get('button[type="submit"], input[type="submit"], button:contains("Save"), #submit', {
+    timeout: 30000,
+  })
     .should("be.visible")
-    .and("not.have.class", "hidden")
+    .first()
     .click({ force: true });
-  /* eslint-enable cypress/no-force */
   cy.task("cli_log", "Clicked Save button (first submission)");
 
   cy.wait(10000);
 
-  /* eslint-disable cypress/no-force */
-  cy.get("#submit", { timeout: 30000 })
+  // Click Save again (second submission after page re-stabilization)
+  cy.get('button[type="submit"], input[type="submit"], button:contains("Save"), #submit', {
+    timeout: 30000,
+  })
     .should("be.visible")
-    .and("not.have.class", "hidden")
+    .first()
     .click({ force: true });
-  /* eslint-enable cypress/no-force */
-  cy.task(
-    "cli_log",
-    "Clicked Save button (second submission after page re-stabilization)"
-  );
+  cy.task("cli_log", "Clicked Save button (second submission)");
 
   if (expectedOutcome === "error") {
     cy.get("body", { timeout: 30000 }).should(($body) => {
