@@ -460,20 +460,16 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
 fn get_three_ds_data(
     item: &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>,
 ) -> Option<PeachpaymentsThreeDSData> {
-    if let Some(authentication_data) = &item.router_data.request.authentication_data {
-        Some(PeachpaymentsThreeDSData {
-            cavv: Some(authentication_data.cavv.clone()),
-            ds_trans_id: authentication_data.ds_trans_id.clone(),
-            three_d_s_version: authentication_data
-                .message_version
-                .clone()
-                .map(|version| format!("{}.{}", version.get_major(), version.get_minor(),)),
-            eci: authentication_data.eci.clone(),
-            authentication_status: authentication_data.transaction_status.clone(),
-        })
-    } else {
-        None
-    }
+    item.router_data.request.authentication_data.as_ref().map(|authentication_data| PeachpaymentsThreeDSData {
+        cavv: Some(authentication_data.cavv.clone()),
+        ds_trans_id: authentication_data.ds_trans_id.clone(),
+        three_d_s_version: authentication_data
+            .message_version
+            .clone()
+            .map(|version| format!("{}.{}", version.get_major(), version.get_minor(),)),
+        eci: authentication_data.eci.clone(),
+        authentication_status: authentication_data.transaction_status.clone(),
+    })
 }
 
 impl
