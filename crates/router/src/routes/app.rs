@@ -186,6 +186,12 @@ impl SessionState {
             ExecutionMode::Shadow => Some(true),
             ExecutionMode::NotApplicable => None,
         };
+        // UCS selects the proxy to route through based on this header
+        let proxy_name = match unified_connector_service_execution_mode {
+            ExecutionMode::Primary => Some("primary"),
+            ExecutionMode::Shadow => Some("shadow"),
+            ExecutionMode::NotApplicable => None,
+        };
         // For shadow mode, disable event publishing in UCS
         let config_override = match unified_connector_service_execution_mode {
             ExecutionMode::Shadow => Some(
@@ -202,6 +208,7 @@ impl SessionState {
             .tenant_id(tenant_id)
             .request_id(request_id)
             .shadow_mode(shadow_mode)
+            .proxy_name(proxy_name)
             .config_override(config_override)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
@@ -1413,6 +1420,10 @@ impl Customers {
         {
             route = route
                 .service(web::resource("").route(web::post().to(customers::customers_create)))
+                .service(
+                    web::resource("/migrate/global-id")
+                        .route(web::post().to(customers::migrate::migrate_global_id)),
+                )
                 .service(
                     web::resource("/{id}")
                         .route(web::put().to(customers::customers_update))

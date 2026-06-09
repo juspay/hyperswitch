@@ -2850,10 +2850,7 @@ where
 
     // Dispatch on the resolved connector call type, mirroring `payments_operation_core`: the
     // prerequisites and the unified-connector-service decision both happen inside the match arm.
-    // `choose_connector` returns `Retryable` even for a single configured connector (the normal
-    // confirm flow applies retry logic on top); the proxy flow does not retry, so it just takes the
-    // first eligible connector. `SessionMultiple` and an unresolved (`None`) call type are not
-    // supported.
+    // The external vault proxy flow currently supports only a single, predetermined connector.
     let (connector, merchant_connector_account, router_data) = match connector {
         Some(ConnectorCallType::PreDetermined(connector_routing_data)) => {
             let connector = connector_routing_data.connector_data;
@@ -2904,9 +2901,7 @@ where
                 .next()
                 .ok_or_else(|| {
                     error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "No eligible connector resolved for external vault proxy",
-                        )
+                        .attach_printable("No eligible connector resolved for external vault proxy")
                 })?
                 .connector_data;
 
@@ -4909,9 +4904,10 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         let payment_attempt = state
             .store
-            .find_payment_attempt_by_attempt_id_processor_merchant_id(
-                &payment_intent.active_attempt.get_id(),
+            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                &payment_intent.payment_id,
                 platform.get_processor().get_account().get_id(),
+                &payment_intent.active_attempt.get_id(),
                 platform.get_processor().get_account().storage_scheme,
                 platform.get_processor().get_key_store(),
             )

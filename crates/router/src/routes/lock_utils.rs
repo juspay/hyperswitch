@@ -123,6 +123,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CustomersUpdate
             | Flow::CustomersDelete
             | Flow::CustomersGetMandates
+            | Flow::CustomersGlobalIdMigration
             | Flow::CustomersList
             | Flow::CustomersListWithConstraints => Self::Customers,
             Flow::EphemeralKeyCreate | Flow::EphemeralKeyDelete => Self::Ephemeral,

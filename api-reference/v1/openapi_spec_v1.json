@@ -16434,6 +16434,7 @@
           "paysafe",
           "paystack",
           "paytm",
+          "payconex",
           "payu",
           "peachpayments",
           "payjustnow",
@@ -22688,27 +22689,12 @@
       "HyperswitchVaultSessionDetails": {
         "type": "object",
         "required": [
-          "payment_method_session_id",
-          "client_secret",
-          "publishable_key",
-          "profile_id"
+          "sdk_authorization"
         ],
         "properties": {
-          "payment_method_session_id": {
+          "sdk_authorization": {
             "type": "string",
-            "description": "Session ID for Hyperswitch Vault"
-          },
-          "client_secret": {
-            "type": "string",
-            "description": "Client secret for Hyperswitch Vault"
-          },
-          "publishable_key": {
-            "type": "string",
-            "description": "Publishable key for Hyperswitch Vault"
-          },
-          "profile_id": {
-            "type": "string",
-            "description": "Profile ID for Hyperswitch Vault"
+            "description": "Base64-encoded SDK authorization token for the Hyperswitch Vault session"
           }
         }
       },
@@ -28110,6 +28096,11 @@
             "type": "string",
             "description": "Hex color for the CVC icon during error state",
             "nullable": true
+          },
+          "show_merchant_name": {
+            "type": "boolean",
+            "description": "Flag to display the merchant name in the payment link",
+            "nullable": true
           }
         }
       },
@@ -28290,6 +28281,13 @@
           "color_icon_card_cvc_error": {
             "type": "string",
             "description": "Hex color for the CVC icon during error state",
+            "nullable": true
+          },
+          "show_merchant_name": {
+            "type": "boolean",
+            "description": "Flag to display the merchant name in the payment link",
+            "default": true,
+            "example": true,
             "nullable": true
           }
         }
@@ -29009,6 +29007,18 @@
             "properties": {
               "network_token": {
                 "$ref": "#/components/schemas/NetworkTokenData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "ProxyCard",
+            "required": [
+              "proxy_card"
+            ],
+            "properties": {
+              "proxy_card": {
+                "$ref": "#/components/schemas/ProxyCardData"
               }
             }
           }
@@ -38333,6 +38343,90 @@
           "contract_default"
         ]
       },
+      "ProxyCardData": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name",
+          "card_cvc",
+          "bin_number",
+          "last_four"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The token which refers to the card number",
+            "example": "token_card_number"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "24"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "example": "242"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "bin_number": {
+            "type": "string",
+            "description": "The first six digit of the card number",
+            "example": "424242"
+          },
+          "last_four": {
+            "type": "string",
+            "description": "The last four digit of the card number",
+            "example": "4242"
+          }
+        }
+      },
       "RankingAlgorithm": {
         "type": "string",
         "enum": [
@@ -39997,6 +40091,7 @@
           "paysafe",
           "paystack",
           "paytm",
+          "payconex",
           "payu",
           "peachpayments",
           "payjustnow",

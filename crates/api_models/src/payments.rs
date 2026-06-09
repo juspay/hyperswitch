@@ -10210,9 +10210,6 @@ pub struct VgsSessionDetails {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 pub struct HyperswitchVaultSessionDetails {
-    /// Session ID for Hyperswitch Vault
-    #[schema(value_type = String)]
-    pub payment_method_session_id: Secret<String>,
     /// Base64-encoded SDK authorization token for the Hyperswitch Vault session
     #[schema(value_type = String)]
     pub sdk_authorization: Secret<String>,
@@ -12377,6 +12374,7 @@ pub struct PaymentLinkDetails {
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
     pub color_icon_card_cvc_error: Option<String>,
+    pub show_merchant_name: Option<bool>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]

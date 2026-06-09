@@ -430,8 +430,8 @@ async fn generate_hyperswitch_vault_session_details(
             let sdk_authorization =
                 Option::<hyperswitch_domain_models::sdk_auth::SdkAuthorization>::from(
                     hyperswitch_domain_models::sdk_auth::SdkAuthorizationContext {
-                        publishable_key: vault_publishable_key.expose(),
                         platform: platform.to_owned(),
+                        publishable_key: vault_publishable_key.expose(),
                         profile_id: id_type::ProfileId::try_from(std::borrow::Cow::from(
                             vault_profile_id.expose(),
                         ))
@@ -457,7 +457,6 @@ async fn generate_hyperswitch_vault_session_details(
             match sdk_authorization {
                 Some(sdk_authorization) => Ok(Some(api::VaultSessionDetails::HyperswitchVault(
                     api::HyperswitchVaultSessionDetails {
-                        payment_method_session_id: session_id,
                         sdk_authorization: sdk_authorization.into(),
                     },
                 ))),
