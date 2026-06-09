@@ -1,0 +1,85 @@
+//! OpenTelemetry metrics for Redis operations.
+//!
+//! Mirrors the `track_database_call` pattern in `diesel_models`: every Redis
+//! command routes its future through [`track_redis_call`], which records a
+//! call-count counter and a latency histogram tagged by [`RedisOperation`].
+
+use router_env::{counter_metric, global_meter, histogram_metric_f64};
+
+global_meter!(GLOBAL_METER, "ROUTER_API");
+
+counter_metric!(REDIS_CALLS_COUNT, GLOBAL_METER);
+histogram_metric_f64!(REDIS_CALL_TIME, GLOBAL_METER);
+
+/// The Redis operation being performed, used as the `operation` metric label.
+///
+/// One variant per command function that directly issues a Redis call; shared
+/// by both the `redis_rs` and `fred` backends. Pure delegating wrappers (e.g.
+/// `serialize_and_set_key` → `set_key`) reuse the inner call's variant and have
+/// none of their own to avoid double counting.
+#[derive(Debug)]
+pub enum RedisOperation {
+    SetKey,
+    SetKeyWithoutModifyingTtl,
+    SetKeyWithExpiry,
+    SerializeAndSetKeyWithExpiry,
+    SetMultipleKeysIfNotExist,
+    SetKeyIfNotExistsWithExpiry,
+    SetKeyIfNotExistsAndGetValue,
+    GetKey,
+    GetMultipleKeys,
+    Exists,
+    DeleteKey,
+    SetExpiry,
+    SetExpireAt,
+    GetTtl,
+    SetHashFields,
+    SetHashFieldIfNotExist,
+    IncrementFieldsInHash,
+    GetHashField,
+    GetHashFields,
+    Hscan,
+    Scan,
+    Sadd,
+    StreamAppendEntry,
+    StreamDeleteEntries,
+    StreamTrimEntries,
+    StreamAcknowledgeEntries,
+    StreamGetLength,
+    StreamReadEntries,
+    StreamReadWithOptions,
+    AppendElementsToList,
+    GetListElements,
+    GetListLength,
+    LpopListElements,
+    ConsumerGroupCreate,
+    ConsumerGroupDestroy,
+    ConsumerGroupDeleteConsumer,
+    ConsumerGroupSetLastId,
+    ConsumerGroupSetMessageOwner,
+    EvaluateRedisScript,
+}
+
+/// Time a Redis future and record call-count + latency, tagged by operation.
+#[inline]
+pub async fn track_redis_call<Fut, U>(operation: RedisOperation, future: Fut) -> U
+where
+    Fut: std::future::Future<Output = U>,
+{
+    let start = std::time::Instant::now();
+    let output = future.await;
+    let time_elapsed = start.elapsed();
+
+    router_env::logger::debug!(
+        redis_operation = ?operation,
+        execution_time = ?time_elapsed,
+        "Redis operation executed"
+    );
+
+    let attributes = router_env::metric_attributes!(("operation", format!("{operation:?}")));
+
+    REDIS_CALLS_COUNT.add(1, attributes);
+    REDIS_CALL_TIME.record(time_elapsed.as_secs_f64(), attributes);
+
+    output
+}
