@@ -9803,6 +9803,10 @@ Cypress.Commands.add("paymentUpdateClientAuthTest", (globalState, data) => {
             data.Response.body.payment_method_data
           );
         }
+      } else if (data.Response?.body?.error) {
+        expect(response.body).to.have.property("error");
+        expect(response.body.error.type).to.eq(data.Response.body.error.type);
+        expect(response.body.error.code).to.eq(data.Response.body.error.code);
       }
     });
   });
