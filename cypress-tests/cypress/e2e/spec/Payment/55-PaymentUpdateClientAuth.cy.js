@@ -72,9 +72,7 @@ describe("Payment Update via Client Authentication Tests", () => {
           return;
         }
 
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentUpdateClientAuth"];
+        const data = PaymentUpdateClientAuthConfigs.HappyPath;
 
         cy.paymentUpdateClientAuthTest(globalState, data);
 

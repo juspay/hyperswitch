@@ -997,20 +997,6 @@ export const connectorDetails = {
         },
       },
     },
-    PaymentUpdateClientAuth: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_confirmation",
-        },
-      },
-    }),
   },
   bank_transfer_pm: {
     Ach: {

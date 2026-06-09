@@ -2,6 +2,28 @@
 // These configurations are connector-agnostic and used for error-case testing.
 
 export const PaymentUpdateClientAuthConfigs = {
+  // Happy path: Successful update with client auth (when enabled)
+  HappyPath: {
+    Request: {
+      payment_method: "card",
+      payment_method_data: {
+        card: {
+          card_number: "378282246310005",
+          card_exp_month: "10",
+          card_exp_year: "50",
+          card_holder_name: "morino",
+          card_cvc: "737",
+        },
+      },
+    },
+    Response: {
+      status: 200,
+      body: {
+        status: "requires_confirmation",
+      },
+    },
+  },
+
   // Error case: Feature disabled (config not set or set to false)
   FeatureDisabled: {
     Request: {
