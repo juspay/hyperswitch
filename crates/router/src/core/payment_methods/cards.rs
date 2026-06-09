@@ -1982,11 +1982,13 @@ pub fn parse_add_vault_response(
         resp.parse_struct("AddVaultResponseNew")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Failed to parse data into AddVaultResponseNew")
-            .map(|parsed: pm_types::AddVaultResponseNew| pm_types::AddVaultResponse {
-                entity_id: None,
-                vault_id: parsed.vault_id,
-                fingerprint_id: parsed.fingerprint_id,
-            })
+            .map(
+                |parsed: pm_types::AddVaultResponseNew| pm_types::AddVaultResponse {
+                    entity_id: None,
+                    vault_id: parsed.vault_id,
+                    fingerprint_id: parsed.fingerprint_id,
+                },
+            )
     } else {
         resp.parse_struct("AddVaultResponse")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
@@ -2031,7 +2033,6 @@ pub fn encode_vault_retrieve_request(
     }
 }
 
-
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub fn encode_vault_retrieve_request(
@@ -2064,7 +2065,6 @@ pub fn encode_vault_retrieve_request(
         .change_context(errors::ApiErrorResponse::InternalServerError)
     }
 }
-
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
@@ -3875,10 +3875,18 @@ pub async fn build_merchant_enabled_pms_context(
                 &intermediate.payment_method_type,
                 &skip_pre_routing,
             ) {
+                let merchant_connector_id = id_type::MerchantConnectorAccountId::wrap(
+                    intermediate.merchant_connector_id.clone(),
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "invalid merchant_connector_id received in payment methods list",
+                )?;
+
                 let connector_data = helpers::get_connector_data_with_token(
                     state,
                     intermediate.connector.to_string(),
-                    None,
+                    Some(merchant_connector_id),
                     intermediate.payment_method_type,
                 )
                 .change_context(errors::ApiErrorResponse::InternalServerError)

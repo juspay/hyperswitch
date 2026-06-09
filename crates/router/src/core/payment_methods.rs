@@ -80,8 +80,8 @@ use super::{
 use crate::{
     configs::settings,
     core::{
-        configs::dimension_state, payment_methods::transformers as pm_transforms, payment_methods::utils as payment_method_utils,
-        tokenization as tokenization_core,
+        configs::dimension_state, payment_methods::transformers as pm_transforms,
+        payment_methods::utils as payment_method_utils, tokenization as tokenization_core,
     },
     headers,
     routes::{self, payment_methods as pm_routes},
@@ -1699,8 +1699,8 @@ impl LockerOperations for GenericLocker {
             platform.get_provider().get_account().get_id().clone(),
             customer_id,
             vault_id.get_string_repr(),
-        ).change_context(errors::VaultError::RequestEncodingFailed)?;
-
+        )
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
 
         let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
             .await

@@ -201,6 +201,15 @@ pub struct Customer {
     pub customer_id: Option<common_utils::id_type::GlobalCustomerId>,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, diesel::Queryable, serde::Serialize, serde::Deserialize)]
+pub struct CustomerGlobalIdMigrationRow {
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub customer_id: Option<String>,
+    pub id: Option<String>,
+    pub version: ApiVersion,
+}
+
 #[cfg(feature = "v1")]
 #[derive(
     Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,
