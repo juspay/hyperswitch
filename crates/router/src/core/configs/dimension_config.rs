@@ -685,18 +685,18 @@ impl DatabaseBackedConfig for IncomingWebhookDisabledEvents {
 }
 
 config! {
-    superposition_key = SAVE_APPLE_PAY_DECRYPTED_DATA,
+    superposition_key = SAVE_WALLET_DECRYPTED_DATA,
     output = bool,
     default = false,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     targeting_key = id_type::CustomerId
 }
 
-impl DatabaseBackedConfig for SaveApplePayDecryptedData {
-    const KEY: &'static str = "save_apple_pay_decrypted_data";
+impl DatabaseBackedConfig for SaveWalletDecryptedData {
+    const KEY: &'static str = "save_wallet_decrypted_data";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        // Matches the existing key format: "save_apple_pay_decrypted_data_{merchant_id}"
+        // Matches the existing key format: "save_wallet_decrypted_data_{merchant_id}"
         dimensions
             .get_processor_merchant_id()
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))

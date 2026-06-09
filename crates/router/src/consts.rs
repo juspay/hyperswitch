@@ -415,8 +415,8 @@ pub mod superposition {
     pub const THREEDS_ROUTING_REGION_UAS: &str = "threeds_routing_region_uas";
     /// disabled webhook events configuration key per merchant and connector
     pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "incoming_webhook_disabled_events";
-    /// save apple pay decrypted data in locker
-    pub const SAVE_APPLE_PAY_DECRYPTED_DATA: &str = "save_apple_pay_decrypted_data";
+    /// save wallet decrypted data in locker
+    pub const SAVE_WALLET_DECRYPTED_DATA: &str = "save_wallet_decrypted_data";
 }
 
 #[cfg(test)]

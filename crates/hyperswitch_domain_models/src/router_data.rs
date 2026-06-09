@@ -468,6 +468,10 @@ impl PaymentMethodToken {
     pub fn is_apple_pay_decrypt(&self) -> bool {
         matches!(self, Self::ApplePayDecrypt(_))
     }
+
+    pub fn is_google_pay_decrypt(&self) -> bool {
+        matches!(self, Self::GooglePayDecrypt(_))
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]

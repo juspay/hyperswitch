@@ -860,13 +860,13 @@ where
                         }
                     },
                     None => {
-                        let should_save_apple_pay_decrypted_data = save_payment_method_data
+                        let should_save_wallet_decrypted_data = save_payment_method_data
                             .payment_method_token
                             .as_ref()
-                            .map(|pmt| pmt.is_apple_pay_decrypt())
+                            .map(|pmt| pmt.is_apple_pay_decrypt() || pmt.is_google_pay_decrypt())
                             .unwrap_or(false)
                             && dimensions
-                                .get_save_apple_pay_decrypted_data(
+                                .get_save_wallet_decrypted_data(
                                     state.store.as_ref(),
                                     state.superposition_service.as_ref(),
                                     Some(&customer_id),
@@ -876,7 +876,7 @@ where
                             .map(|payment_method_type_value| {
                                 payment_method_type_value
                                     .should_check_for_customer_saved_payment_method_type(
-                                        should_save_apple_pay_decrypted_data,
+                                        should_save_wallet_decrypted_data,
                                     )
                             })
                             .unwrap_or(false)
@@ -937,7 +937,7 @@ where
                                 if pm == PaymentMethod::Card
                                     || pm == PaymentMethod::BankDebit
                                     || (pm == PaymentMethod::Wallet
-                                        && should_save_apple_pay_decrypted_data)
+                                        && should_save_wallet_decrypted_data)
                                 {
                                     Some(resp.payment_method_id)
                                 } else {

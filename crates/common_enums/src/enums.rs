@@ -2470,9 +2470,9 @@ pub enum PaymentMethodType {
 impl PaymentMethodType {
     pub fn should_check_for_customer_saved_payment_method_type(
         self,
-        is_apple_pay_decrypt: bool,
+        is_wallet_decrypt: bool,
     ) -> bool {
-        if is_apple_pay_decrypt {
+        if is_wallet_decrypt {
             // return false if the payment method is Apple Pay and the decryption is successful, else exhibit the existing behaviour
             !matches!(self, Self::ApplePay)
         } else {
