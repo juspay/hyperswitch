@@ -112,6 +112,8 @@ pub struct EcommerceCardPaymentOnlyTransactionData {
     pub trace_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transaction_link_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub three_d_s_data: Option<PeachpaymentsThreeDSData>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -152,6 +154,8 @@ pub struct EcommerceNetworkTokenPaymentOnlyTransactionData {
     pub trace_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transaction_link_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub three_d_s_data: Option<PeachpaymentsThreeDSData>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -168,6 +172,21 @@ pub enum DccMode {
     NoDcc,
     OptInDcc,
     OptOutDcc,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PeachpaymentsThreeDSData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cavv: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ds_trans_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    three_d_s_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    eci: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    authentication_status: Option<common_enums::TransactionStatus>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -201,8 +220,7 @@ pub struct RoutingReference {
 #[serde(rename_all = "camelCase")]
 pub struct CardDetails {
     pub pan: CardNumber,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cardholder_name: Option<Secret<String>>,
+    pub cardholder_name: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expiry_year: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -439,6 +457,25 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
     }
 }
 
+fn get_three_ds_data(
+    item: &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+) -> Option<PeachpaymentsThreeDSData> {
+    item.router_data
+        .request
+        .authentication_data
+        .as_ref()
+        .map(|authentication_data| PeachpaymentsThreeDSData {
+            cavv: Some(authentication_data.cavv.clone()),
+            ds_trans_id: authentication_data.ds_trans_id.clone(),
+            three_d_s_version: authentication_data
+                .message_version
+                .clone()
+                .map(|version| format!("{}.{}", version.get_major(), version.get_minor(),)),
+            eci: authentication_data.eci.clone(),
+            authentication_status: authentication_data.transaction_status.clone(),
+        })
+}
+
 impl
     TryFrom<(
         &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>,
@@ -452,6 +489,15 @@ impl
             NetworkTokenData,
         ),
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() && item.router_data.request.authentication_data.is_none()
+        {
+            return Err(errors::ConnectorError::NotSupported {
+                message: "3DS flow".to_string(),
+                connector: "Peachpayments",
+            }
+            .into());
+        }
+
         let amount_in_cents = item.amount;
 
         let connector_merchant_config =
@@ -514,6 +560,7 @@ impl
                 pre_auth_inc_ext_capture_flow,
                 trace_id: None,
                 transaction_link_id: None,
+                three_d_s_data: get_three_ds_data(item),
             },
         );
 
@@ -538,13 +585,15 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
     fn try_from(
         (item, req_card): (&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card),
     ) -> Result<Self, Self::Error> {
-        if item.router_data.is_three_ds() {
+        if item.router_data.is_three_ds() && item.router_data.request.authentication_data.is_none()
+        {
             return Err(errors::ConnectorError::NotSupported {
                 message: "3DS flow".to_string(),
                 connector: "Peachpayments",
             }
             .into());
         }
+
         let amount_in_cents = item.amount;
 
         let connector_merchant_config =
@@ -561,7 +610,11 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
 
         let card = CardDetails {
             pan: req_card.card_number.clone(),
-            cardholder_name: req_card.card_holder_name.clone(),
+            cardholder_name: req_card.card_holder_name.clone().ok_or_else(|| {
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_holder_name",
+                }
+            })?,
             expiry_year: Some(req_card.get_card_expiry_year_2_digit()?),
             expiry_month: Some(req_card.card_exp_month.clone()),
             cvv: Some(req_card.card_cvc.clone()),
@@ -607,6 +660,7 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
                 cof_data,
                 trace_id: None,
                 transaction_link_id: None,
+                three_d_s_data: get_three_ds_data(item),
             });
 
         // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
@@ -653,7 +707,12 @@ impl
 
         let card = CardDetails {
             pan: card_with_limited_details.card_number.clone(),
-            cardholder_name: card_with_limited_details.card_holder_name.clone(),
+            cardholder_name: card_with_limited_details
+                .card_holder_name
+                .clone()
+                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_holder_name",
+                })?,
             expiry_year: card_with_limited_details.get_card_expiry_year_2_digit()?,
             expiry_month: card_with_limited_details.card_exp_month.clone(),
             cvv: None,
@@ -699,6 +758,7 @@ impl
                 cof_data,
                 trace_id: None,
                 transaction_link_id: None,
+                three_d_s_data: get_three_ds_data(item),
             });
 
         // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
