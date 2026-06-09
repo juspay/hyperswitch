@@ -60,11 +60,8 @@ describe("Real Time Payment", () => {
     });
 
     it("Handle Redirection", () => {
-      const connectorId = globalState.get("connectorId");
-      if (connectorId === "iatapay") {
-        const expected_redirection = fixtures.confirmBody["return_url"];
-        cy.handleRedirection(globalState, expected_redirection);
-      }
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      cy.handleRedirection(globalState, expected_redirection);
     });
 
     it("Retrieve Payment", () => {
