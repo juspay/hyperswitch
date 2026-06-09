@@ -271,10 +271,6 @@ describe("Payout Link", () => {
     });
 
     it("Visit payout page and verify SDK loads", function () {
-      if (!globalState.get("payoutLinkUrl")) {
-        cy.task("cli_log", "Skipping: No payout link URL available");
-        this.skip();
-      }
       cy.initiatePayoutLinkTest({}, globalState);
     });
 

@@ -3184,34 +3184,37 @@ function payoutLinkRedirection(
     });
     cy.task("cli_log", "Payout page shows error indicator as expected");
   } else {
-    cy.contains(
-      /succeeded|success|payout successful|thank you|requires_fulfillment|saved/i,
-      {
-        timeout: 30000,
-      }
-    ).should("exist");
+    // Board requirement: after Submit, screen must show "Payout Processing"
+    // and the payout status must be "requires_fulfillment".
+    cy.contains("Payout Processing", { timeout: 30000 }).should("be.visible");
+    cy.task("cli_log", 'Screen shows "Payout Processing"');
 
     cy.get("body").then(($body) => {
       const bodyText = $body.text().toLowerCase();
-      const hasSuccess =
-        bodyText.includes("succeeded") ||
-        bodyText.includes("success") ||
-        bodyText.includes("payout successful") ||
-        bodyText.includes("thank you") ||
-        bodyText.includes("requires_fulfillment") ||
-        bodyText.includes("saved") ||
-        $body.find('[class*="success"]').length > 0;
+      const hasPayoutProcessing = bodyText.includes("payout processing");
+      const hasRequiresFulfillment = bodyText.includes("requires_fulfillment");
       const hasError =
         (bodyText.includes("error") && bodyText.includes("bank")) ||
         bodyText.includes("declined") ||
         bodyText.includes("invalid") ||
         $body.find('[class*="error"]').length > 0;
 
-      if (hasSuccess) {
-        cy.task("cli_log", "Payout page shows success indicator");
-      } else if (hasError) {
+      if (hasPayoutProcessing) {
+        cy.task(
+          "cli_log",
+          'Confirmed: page shows "Payout Processing"'
+        );
+      }
+      if (hasRequiresFulfillment) {
+        cy.task(
+          "cli_log",
+          'Confirmed: page shows "requires_fulfillment"'
+        );
+      }
+      if (hasError) {
         cy.task("cli_log", "Payout page shows error indicator");
-      } else {
+      }
+      if (!hasPayoutProcessing && !hasRequiresFulfillment && !hasError) {
         cy.task(
           "cli_log",
           "Payout page status unclear after submission - checking URL"
