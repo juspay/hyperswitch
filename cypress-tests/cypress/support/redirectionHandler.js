@@ -155,9 +155,7 @@ function cryptoRedirection(
       cy.get("body").then(($body) => {
         const loginLink = $body
           .find('a[href*="login"]:visible, button:visible')
-          .filter((_, el) =>
-            /log\s*in|sign\s*in|account/i.test(el.innerText)
-          )
+          .filter((_, el) => /log\s*in|sign\s*in|account/i.test(el.innerText))
           .first();
 
         if (loginLink.length > 0) {
@@ -191,7 +189,9 @@ function cryptoRedirection(
 
       cy.wait(2000);
 
-      cy.get('input[type="password"], input[name="password"]', { timeout: 10000 })
+      cy.get('input[type="password"], input[name="password"]', {
+        timeout: 10000,
+      })
         .should("be.visible")
         .clear()
         .type("venkatkarthik123@", { delay: 50 });
