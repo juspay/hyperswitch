@@ -34,7 +34,7 @@ describe("FRM - Fraud Risk Management Tests", () => {
   });
 
   context("FRM with Signifyd - Create FRM Connector + Payment", () => {
-    it("create-frm-connector-signifyd-and-confirm-payment-test", () => {
+    it("create-frm-connector-signifyd-and-approve-payment", () => {
       let shouldContinue = true;
 
       cy.step("Create FRM Connector (Signifyd)", () => {
@@ -58,7 +58,7 @@ describe("FRM - Fraud Risk Management Tests", () => {
         }
       });
 
-      cy.step("Create and Confirm Payment with FRM", () => {
+      cy.step("Create and Confirm Payment with FRM (Approve)", () => {
         if (!shouldContinue) {
           cy.task(
             "cli_log",
@@ -67,7 +67,7 @@ describe("FRM - Fraud Risk Management Tests", () => {
           return;
         }
 
-        const data = getConnectorDetails("signifyd")["card_pm"]["FRM"];
+        const data = getConnectorDetails("signifyd")["card_pm"]["FRMApprove"];
 
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
@@ -92,7 +92,123 @@ describe("FRM - Fraud Risk Management Tests", () => {
       });
     });
 
-    after("Delete FRM connector", () => {
+    it("create-frm-connector-signifyd-and-decline-payment", () => {
+      let shouldContinue = true;
+
+      cy.step("Create FRM Connector (Signifyd)", () => {
+        cy.createNamedConnectorCallTest(
+          "payment_vas",
+          fixtures.createConnectorBody,
+          {},
+          globalState,
+          "signifyd",
+          "signifyd_frm",
+          "profile",
+          "frmConnector"
+        );
+
+        if (
+          !utils.should_continue_further({
+            Response: { status: 200, body: {} },
+          })
+        ) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Create and Confirm Payment with FRM (Decline)", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Create and Confirm Payment with FRM"
+          );
+          return;
+        }
+
+        const data = getConnectorDetails("signifyd")["card_pm"]["FRMDecline"];
+
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Payment to Verify Status", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+
+        cy.retrievePaymentCallTest(globalState);
+      });
+    });
+
+    it("create-frm-connector-signifyd-and-hold-payment", () => {
+      let shouldContinue = true;
+
+      cy.step("Create FRM Connector (Signifyd)", () => {
+        cy.createNamedConnectorCallTest(
+          "payment_vas",
+          fixtures.createConnectorBody,
+          {},
+          globalState,
+          "signifyd",
+          "signifyd_frm",
+          "profile",
+          "frmConnector"
+        );
+
+        if (
+          !utils.should_continue_further({
+            Response: { status: 200, body: {} },
+          })
+        ) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Create and Confirm Payment with FRM (Hold)", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Create and Confirm Payment with FRM"
+          );
+          return;
+        }
+
+        const data = getConnectorDetails("signifyd")["card_pm"]["FRMHold"];
+
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Payment to Verify Status", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+
+        cy.retrievePaymentCallTest(globalState);
+      });
+    });
+
+    afterEach("Delete FRM connector", () => {
       const frmMcaId = globalState.get("frmConnectorId");
       if (frmMcaId) {
         cy.request({
@@ -114,173 +230,4 @@ describe("FRM - Fraud Risk Management Tests", () => {
       }
     });
   });
-
-  context("FRM with Riskified - Create FRM Connector + Payment", () => {
-    it("create-frm-connector-riskified-and-confirm-payment-test", () => {
-      let shouldContinue = true;
-
-      cy.step("Create FRM Connector (Riskified)", () => {
-        cy.createNamedConnectorCallTest(
-          "payment_vas",
-          fixtures.createConnectorBody,
-          {},
-          globalState,
-          "riskified",
-          "riskified_frm",
-          "profile",
-          "frmConnector"
-        );
-
-        if (
-          !utils.should_continue_further({
-            Response: { status: 200, body: {} },
-          })
-        ) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("Create and Confirm Payment with FRM", () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Create and Confirm Payment with FRM"
-          );
-          return;
-        }
-
-        const data = getConnectorDetails("riskified")["card_pm"]["FRM"];
-
-        cy.createConfirmPaymentTest(
-          fixtures.createConfirmPaymentBody,
-          data,
-          "no_three_ds",
-          "automatic",
-          globalState
-        );
-
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("Retrieve Payment to Verify Status", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Payment");
-          return;
-        }
-
-        cy.retrievePaymentCallTest(globalState);
-      });
-    });
-
-    after("Delete FRM connector", () => {
-      const frmMcaId = globalState.get("frmConnectorId");
-      if (frmMcaId) {
-        cy.request({
-          method: "DELETE",
-          url: `${globalState.get("baseUrl")}/account/${globalState.get(
-            "merchantId"
-          )}/connectors/${frmMcaId}`,
-          headers: {
-            Accept: "application/json",
-            "api-key": globalState.get("adminApiKey"),
-          },
-          failOnStatusCode: false,
-        }).then((response) => {
-          cy.task(
-            "cli_log",
-            "FRM Riskified connector delete status: " + response.status
-          );
-        });
-      }
-    });
-  });
-
-  context(
-    "FRM with CyberSource Decision Manager - Create FRM Connector + Payment",
-    () => {
-      it("create-frm-connector-cybersourcedm-and-confirm-payment-test", () => {
-        let shouldContinue = true;
-
-        cy.step("Create FRM Connector (CyberSource DM)", () => {
-          cy.createNamedConnectorCallTest(
-            "payment_vas",
-            fixtures.createConnectorBody,
-            {},
-            globalState,
-            "cybersourcedecisionmanager",
-            "cybersourcedm_frm",
-            "profile",
-            "frmConnector"
-          );
-
-          if (
-            !utils.should_continue_further({
-              Response: { status: 200, body: {} },
-            })
-          ) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("Create and Confirm Payment with FRM", () => {
-          if (!shouldContinue) {
-            cy.task(
-              "cli_log",
-              "Skipping step: Create and Confirm Payment with FRM"
-            );
-            return;
-          }
-
-          const data = getConnectorDetails("cybersourcedecisionmanager")[
-            "card_pm"
-          ]["FRM"];
-
-          cy.createConfirmPaymentTest(
-            fixtures.createConfirmPaymentBody,
-            data,
-            "no_three_ds",
-            "automatic",
-            globalState
-          );
-
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("Retrieve Payment to Verify Status", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Retrieve Payment");
-            return;
-          }
-
-          cy.retrievePaymentCallTest(globalState);
-        });
-      });
-
-      after("Delete FRM connector", () => {
-        const frmMcaId = globalState.get("frmConnectorId");
-        if (frmMcaId) {
-          cy.request({
-            method: "DELETE",
-            url: `${globalState.get("baseUrl")}/account/${globalState.get(
-              "merchantId"
-            )}/connectors/${frmMcaId}`,
-            headers: {
-              Accept: "application/json",
-              "api-key": globalState.get("adminApiKey"),
-            },
-            failOnStatusCode: false,
-          }).then((response) => {
-            cy.task(
-              "cli_log",
-              "FRM CyberSourceDM connector delete status: " + response.status
-            );
-          });
-        }
-      });
-    }
-  );
 });

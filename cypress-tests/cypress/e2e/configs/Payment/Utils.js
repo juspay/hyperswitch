@@ -24,7 +24,6 @@ import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
 import { connectorDetails as commonConnectorDetails } from "./Commons.js";
 import { connectorDetails as cryptopayConnectorDetails } from "./Cryptopay.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
-import { connectorDetails as cybersourcedecisionmanagerConnectorDetails } from "./Cybersourcedecisionmanager.js";
 import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
 import { connectorDetails as deutschebankConnectorDetails } from "./Deutschebank.js";
 import { connectorDetails as dlocalConnectorDetails } from "./Dlocal.js";
@@ -62,7 +61,6 @@ import { connectorDetails as payuConnectorDetails } from "./Payu.js";
 import { connectorDetails as peachpaymentsConnectorDetails } from "./Peachpayments.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
-import { connectorDetails as riskifiedConnectorDetails } from "./Riskified.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
 import { connectorDetails as signifydConnectorDetails } from "./Signifyd.js";
 import { connectorDetails as silverflowConnectorDetails } from "./Silverflow.js";
@@ -104,7 +102,6 @@ const connectorDetails = {
   commons: commonConnectorDetails,
   cryptopay: cryptopayConnectorDetails,
   cybersource: cybersourceConnectorDetails,
-  cybersourcedecisionmanager: cybersourcedecisionmanagerConnectorDetails,
   dlocal: dlocalConnectorDetails,
   datatrans: datatransConnectorDetails,
   deutschebank: deutschebankConnectorDetails,
@@ -140,7 +137,6 @@ const connectorDetails = {
   peachpayments: peachpaymentsConnectorDetails,
   powertranz: powertranzConnectorDetails,
   redsys: redsysConnectorDetails,
-  riskified: riskifiedConnectorDetails,
   shift4: shift4ConnectorDetails,
   signifyd: signifydConnectorDetails,
   silverflow: silverflowConnectorDetails,
@@ -638,7 +634,7 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     POLL_CONFIG: ["stripe"],
-    FRM: ["signifyd", "riskified", "cybersourcedecisionmanager"],
+    FRM: ["signifyd"],
     // Add more inclusion lists
   },
 };
