@@ -3107,22 +3107,69 @@ function payoutLinkRedirection(
   fillInputById('input[id="sepa.bic"]', BIC, "BIC");
 
   // Click Save (first submission)
-  cy.get('button:contains("Save")', {
-    timeout: 30000,
-  })
-    .should("be.visible")
-    .click({ force: true });
-  cy.task("cli_log", "Clicked Save button (first submission)");
+  // The payout-link SDK may render the button inside an iframe, so try the
+  // main page first; if the element isn’t there, search inside every
+  // same-origin iframe.
+  // The payout-link SDK may render the button inside an iframe, so try the
+  // main page first; if the element isn't there, search inside every
+  // same-origin iframe.
+  function clickButtonByText(text) {
+    cy.get("body").then(($body) => {
+      const $btn = $body.find("button").filter((_, el) => {
+        return el.textContent.trim() === text;
+      });
+      if ($btn.length > 0) {
+        cy.wrap($btn)
+          .should("be.visible")
+          .click({ force: true });
+        cy.task("cli_log", `Clicked "${text}" button on page body`);
+        return;
+      }
+
+      const $iframes = $body.find("iframe");
+      if ($iframes.length === 0) {
+        cy.task("cli_log", `No iframes found — "${text}" button not located`);
+        return;
+      }
+
+      let found = false;
+      $iframes.each((idx, iframe) => {
+        if (found) return;
+        try {
+          const doc = iframe.contentDocument || iframe.contentWindow?.document;
+          if (doc && doc.body) {
+            const $inner = Cypress.$(doc.body)
+              .find("button")
+              .filter((_, el) => el.textContent.trim() === text);
+            if ($inner.length > 0) {
+              found = true;
+              cy.wrap($inner)
+                .should("be.visible")
+                .click({ force: true });
+              cy.task(
+                "cli_log",
+                `Clicked "${text}" button inside iframe index ${idx}`
+              );
+            }
+          }
+        } catch (_) {
+          // cross-origin iframe — skip
+        }
+      });
+
+      if (!found) {
+        cy.task("cli_log", `"${text}" button not found on page or in any iframe`);
+      }
+    });
+  }
+
+  clickButtonByText("Save");
+  cy.task("cli_log", "Save button clicked (first submission)");
 
   cy.wait(10000);
 
-  // Click Submit (second submission after page re-stabilization)
-  cy.get('button:contains("Submit")', {
-    timeout: 30000,
-  })
-    .should("be.visible")
-    .click({ force: true });
-  cy.task("cli_log", "Clicked Submit button (second submission)");
+  clickButtonByText("Submit");
+  cy.task("cli_log", "Submit button clicked (second submission)");
 
   if (expectedOutcome === "error") {
     cy.get("body", { timeout: 30000 }).should(($body) => {
