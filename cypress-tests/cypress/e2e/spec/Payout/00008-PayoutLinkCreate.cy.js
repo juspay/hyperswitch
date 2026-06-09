@@ -15,6 +15,14 @@ describe("Payout Link", () => {
         if (!globalState.get("payoutsExecution")) {
           shouldContinue = false;
         }
+
+        if (
+          !utils.CONNECTOR_LISTS.INCLUDE.PAYOUT_LINK.includes(
+            globalState.get("connectorId")
+          )
+        ) {
+          shouldContinue = false;
+        }
       })
       .then(() => {
         if (!shouldContinue) {
