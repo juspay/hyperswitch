@@ -1238,30 +1238,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             )?;
 
             if let Some(payment_method_ref) = self.get_payment_method_reference(req) {
-                let payment_method_ref_to_use = match req.payment_token.as_deref() {
-                    Some(payment_token) if payment_token == payment_method_ref => {
-                        let token_data = helpers::retrieve_payment_token_data(
-                            state,
-                            payment_method_ref.to_string(),
-                            req.payment_method,
-                        )
-                        .await?;
-
-                        match token_data {
-                            storage::PaymentTokenData::Permanent(card_token_data)
-                            | storage::PaymentTokenData::PermanentCard(card_token_data) => {
-                                card_token_data
-                                    .payment_method_id
-                                    .as_deref()
-                                    .unwrap_or(payment_method_ref)
-                                    .to_owned()
-                            }
-                            _ => payment_method_ref.to_owned(),
-                        }
-                    }
-                    _ => payment_method_ref.to_owned(),
-                };
-
                 logger::debug!(
                         "Organization is enabled for modular service, fetching payment method from PM Modular Service"
                     );
@@ -1270,7 +1246,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         state,
                         req,
                         platform,
-                        &payment_method_ref_to_use,
+                        payment_method_ref,
                     )
                     .await?;
 
@@ -2335,6 +2311,7 @@ impl PaymentConfirm {
             platform,
             &profile_id,
             payment_method_ref,
+            req.payment_method,
             card_token_data,
         )
         .await?;

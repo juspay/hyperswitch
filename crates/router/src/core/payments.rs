@@ -8939,6 +8939,7 @@ impl PaymentEligibilityData {
                 platform,
                 profile_id,
                 payment_token.clone().expose().as_str(),
+                Some(payment_method_type),
                 None, // CVC token data is not passed in create api
             )
             .await

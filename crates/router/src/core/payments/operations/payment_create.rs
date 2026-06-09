@@ -1346,6 +1346,7 @@ impl PaymentCreate {
             platform,
             &profile_id,
             payment_method_ref,
+            req.payment_method,
             None, // CVC token data is not passed in create api
         )
         .await?;
