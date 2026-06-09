@@ -162,6 +162,12 @@ pub enum ConnectorSpecificConfig {
     },
     /// Revolv3 connector configuration
     Revolv3 { api_key: Secret<String> },
+    /// Payconex connector configuration
+    Payconex {
+        api_key: Secret<String>,
+        account_id: Secret<String>,
+        base_url: Option<String>,
+    },
     /// Fiservcommercehub connector configuration
     Fiservcommercehub {
         api_key: Secret<String>,
@@ -1455,6 +1461,14 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     merchant_id: key1.peek().clone(),
                 }),
                 _ => Err(err("AbsaSanlam requires BodyKey auth type")),
+            },
+            Connector::Payconex => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payconex {
+                    api_key: api_key.clone(),
+                    account_id: key1.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err("Payconex requires BodyKey auth type")),
             },
             // --- Unsupported connectors ---
             _ => Err(
