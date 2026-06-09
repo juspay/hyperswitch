@@ -294,7 +294,7 @@ impl TryFrom<(&BankDebitData, &types::TokenizationRouterData)> for CustomerBankA
                     country_code,
                     account_number: account_number.clone(),
                     bank_code: routing_number.clone(),
-                    account_type: AccountType::from(bank_type),
+                    account_type: AccountType::try_from(bank_type)?,
                     account_holder_name,
                 };
                 Ok(Self::USBankAccount(us_bank_account))
@@ -332,11 +332,22 @@ impl TryFrom<(&BankDebitData, &types::TokenizationRouterData)> for CustomerBankA
     }
 }
 
-impl From<common_enums::BankType> for AccountType {
-    fn from(item: common_enums::BankType) -> Self {
+impl TryFrom<common_enums::BankType> for AccountType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: common_enums::BankType) -> Result<Self, Self::Error> {
         match item {
-            common_enums::BankType::Checking => Self::Checking,
-            common_enums::BankType::Savings => Self::Savings,
+            common_enums::BankType::Checking => Ok(Self::Checking),
+            common_enums::BankType::Savings => Ok(Self::Savings),
+            common_enums::BankType::Transmission
+            | common_enums::BankType::Current
+            | common_enums::BankType::Bond
+            | common_enums::BankType::SubscriptionShare => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "bank_type".to_string(),
+                    connector: "Gocardless",
+                }
+                .into())
+            }
         }
     }
 }

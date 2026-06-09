@@ -411,10 +411,47 @@ impl TryFrom<&BankNames> for MultisafepayBankNames {
             | BankNames::TsbBank
             | BankNames::Absa
             | BankNames::TescoBank
-            | BankNames::UlsterBank => Err(Into::into(errors::ConnectorError::NotSupported {
-                message: String::from("BankRedirect"),
-                connector: "Multisafepay",
-            })),
+            | BankNames::UlsterBank
+            | BankNames::AccessBank
+            | BankNames::Albaraka
+            | BankNames::ChinaConstructionBank
+            | BankNames::Discovery
+            | BankNames::EnlBank
+            | BankNames::FirstNationalBank
+            | BankNames::GotymeBank
+            | BankNames::HabibOverseas
+            | BankNames::HbzBank
+            | BankNames::Investec
+            | BankNames::JpMorganChase
+            | BankNames::MtnBanking
+            | BankNames::Olympus
+            | BankNames::OldMutual
+            | BankNames::PermanentBank
+            | BankNames::SocieteGenerale
+            | BankNames::StandardBank
+            | BankNames::StateBankOfIndia
+            | BankNames::Ubank
+            | BankNames::VbsMutualBank
+            | BankNames::BankZero
+            | BankNames::BidvestBank
+            | BankNames::BidvestBankAlliances
+            | BankNames::FbcFidelityBank
+            | BankNames::FinbondEpe
+            | BankNames::FinbondMutualBank
+            | BankNames::Ithala
+            | BankNames::PeoplesBankPepBank
+            | BankNames::PeoplesBank
+            | BankNames::PostBank
+            | BankNames::Nedbank
+            | BankNames::Capitec
+            | BankNames::CapitecBusiness
+            | BankNames::AfricanBank
+            | BankNames::AfricanBankBusiness => {
+                Err(Into::into(errors::ConnectorError::NotSupported {
+                    message: String::from("BankRedirect"),
+                    connector: "Multisafepay",
+                }))
+            }
         }
     }
 }

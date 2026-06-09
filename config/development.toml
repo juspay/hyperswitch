@@ -1324,7 +1324,7 @@ soft_kill = false
 enabled = true
 
 [events]
-source = "logs"
+source = "kafka"
 emit_external_service_call_events = false
 
 [events.kafka]
@@ -1353,7 +1353,7 @@ supported_connectors = "adyen"
 adyen = "Star,Pulse,Accel,Nyce"
 
 [analytics]
-source = "sqlx"
+source = "clickhouse"
 forex_enabled = false
 
 [analytics.clickhouse]

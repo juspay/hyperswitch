@@ -1141,6 +1141,15 @@ impl TryFrom<Option<common_enums::BankType>> for AccountType {
             Some(bank_type) => match bank_type {
                 common_enums::BankType::Checking => Ok(Self::C),
                 common_enums::BankType::Savings => Ok(Self::S),
+                common_enums::BankType::Transmission
+                | common_enums::BankType::Current
+                | common_enums::BankType::Bond
+                | common_enums::BankType::SubscriptionShare => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "bank_type".to_string(),
+                        connector: "Wellsfargo",
+                    })?
+                }
             },
         }
     }
