@@ -3117,14 +3117,14 @@ function payoutLinkRedirection(
 
   cy.wait(10000);
 
-  // Click Save again (second submission after page re-stabilization)
-  cy.get('button[type="submit"], input[type="submit"], button:contains("Save"), #submit', {
+  // Click Submit (second submission after page re-stabilization)
+  cy.get('button[type="submit"], input[type="submit"], button:contains("Submit"), #submit', {
     timeout: 30000,
   })
     .should("be.visible")
     .first()
     .click({ force: true });
-  cy.task("cli_log", "Clicked Save button (second submission)");
+  cy.task("cli_log", "Clicked Submit button (second submission)");
 
   if (expectedOutcome === "error") {
     cy.get("body", { timeout: 30000 }).should(($body) => {
