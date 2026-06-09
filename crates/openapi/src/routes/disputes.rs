@@ -63,21 +63,6 @@ pub async fn retrieve_disputes_list() {}
 )]
 pub async fn accept_dispute() {}
 
-/// Disputes - Uploads Dispute Evidence
-/// Uploads evidence for a dispute
-#[utoipa::path(
-    post,
-    path = "/disputes/evidence",
-    request_body = SubmitEvidenceRequest,
-    responses(
-        (status = 200, description = "The dispute evidence submitted successfully", body = DisputeResponse),
-        (status = 404, description = "Dispute does not exist in our records", body = GenericErrorResponseOpenApi)
-    ),
-    tag = "Disputes",
-    operation_id = "Submit Dispute Evidence",
-    security(("api_key" = []), ("jwt_key" = []))
-)]
-pub async fn submit_dispute_evidence() {}
 
 /// Disputes - Attach Evidence to Dispute
 /// Attaches an uploaded evidence file to a dispute
@@ -98,6 +83,22 @@ pub async fn submit_dispute_evidence() {}
     security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn attach_dispute_evidence() {}
+
+/// Disputes - Uploads Dispute Evidence
+/// Uploads evidence for a dispute
+#[utoipa::path(
+    post,
+    path = "/disputes/evidence",
+    request_body = SubmitEvidenceRequest,
+    responses(
+        (status = 200, description = "The dispute evidence submitted successfully", body = DisputeResponse),
+        (status = 404, description = "Dispute does not exist in our records", body = GenericErrorResponseOpenApi)
+    ),
+    tag = "Disputes",
+    operation_id = "Submit Dispute Evidence",
+    security(("api_key" = []), ("jwt_key" = []))
+)]
+pub async fn submit_dispute_evidence() {}
 
 /// Disputes - Retrieve Dispute Evidence
 /// Retrieves evidence for a dispute
