@@ -165,18 +165,14 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
 
     #[cfg(feature = "v2")]
     #[instrument(skip_all)]
-    async fn update_customer_global_id_by_merchant_id_customer_id_for_v1(
+    async fn update_customer_global_id_for_migration(
         &self,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         new_id: id_type::GlobalCustomerId,
     ) -> CustomResult<customers::CustomerGlobalIdMigrationRow, StorageError> {
         self.router_store
-            .update_customer_global_id_by_merchant_id_customer_id_for_v1(
-                customer_id,
-                merchant_id,
-                new_id,
-            )
+            .update_customer_global_id_for_migration(customer_id, merchant_id, new_id)
             .await
     }
 
@@ -671,24 +667,19 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
 
     #[cfg(feature = "v2")]
     #[instrument(skip_all)]
-    async fn update_customer_global_id_by_merchant_id_customer_id_for_v1(
+    async fn update_customer_global_id_for_migration(
         &self,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         new_id: id_type::GlobalCustomerId,
     ) -> CustomResult<customers::CustomerGlobalIdMigrationRow, StorageError> {
         let conn = pg_connection_write(self).await?;
-        customers::Customer::update_global_id_by_merchant_id_customer_id_for_v1(
-            &conn,
-            merchant_id,
-            customer_id,
-            new_id,
-        )
-        .await
-        .map_err(|error| {
-            let new_err = diesel_error_to_data_error(*error.current_context());
-            error.change_context(new_err)
-        })
+        customers::Customer::update_global_id_for_migration(&conn, merchant_id, customer_id, new_id)
+            .await
+            .map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })
     }
 
     #[cfg(feature = "v1")]
@@ -983,7 +974,7 @@ impl domain::CustomerInterface for MockDb {
     }
 
     #[cfg(feature = "v2")]
-    async fn update_customer_global_id_by_merchant_id_customer_id_for_v1(
+    async fn update_customer_global_id_for_migration(
         &self,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,

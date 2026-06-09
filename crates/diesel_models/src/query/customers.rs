@@ -41,33 +41,22 @@ pub struct CustomerListConstraints {
 
 impl Customer {
     #[cfg(feature = "v2")]
-    fn global_id_migration_select() -> (
-        crate::schema_v2::customers::merchant_id,
-        crate::schema_v2::customers::customer_id,
-        diesel::dsl::Nullable<crate::schema_v2::customers::id>,
-        crate::schema_v2::customers::version,
-    ) {
-        (
-            dsl::merchant_id,
-            dsl::customer_id,
-            dsl::id.nullable(),
-            dsl::version,
-        )
-    }
-
-    #[cfg(feature = "v2")]
     pub async fn find_optional_by_merchant_id_customer_id_for_global_id_migration(
         conn: &PgPooledConn,
         merchant_id: &id_type::MerchantId,
         customer_id: &id_type::CustomerId,
     ) -> StorageResult<Option<CustomerGlobalIdMigrationRow>> {
+        let customer_id = Some(customer_id.get_string_repr().to_owned());
+
         let query = dsl::customers
-            .filter(
-                dsl::merchant_id
-                    .eq(merchant_id.to_owned())
-                    .and(dsl::customer_id.eq(Some(customer_id.get_string_repr().to_owned()))),
-            )
-            .select(Self::global_id_migration_select());
+            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .filter(dsl::customer_id.eq(customer_id))
+            .select((
+                dsl::merchant_id,
+                dsl::customer_id,
+                dsl::id.nullable(),
+                dsl::version,
+            ));
 
         match query
             .first_async::<CustomerGlobalIdMigrationRow>(conn)
@@ -82,20 +71,27 @@ impl Customer {
     }
 
     #[cfg(feature = "v2")]
-    pub async fn update_global_id_by_merchant_id_customer_id_for_v1(
+    pub async fn update_global_id_for_migration(
         conn: &PgPooledConn,
         merchant_id: &id_type::MerchantId,
         customer_id: &id_type::CustomerId,
         new_id: id_type::GlobalCustomerId,
     ) -> StorageResult<CustomerGlobalIdMigrationRow> {
-        let predicate = dsl::merchant_id
-            .eq(merchant_id.to_owned())
-            .and(dsl::customer_id.eq(Some(customer_id.get_string_repr().to_owned())))
-            .and(dsl::version.eq(common_enums::ApiVersion::V1));
+        let customer_id = Some(customer_id.get_string_repr().to_owned());
 
-        let query = diesel::update(dsl::customers.filter(predicate))
-            .set(dsl::id.eq(new_id))
-            .returning(Self::global_id_migration_select());
+        let query = diesel::update(
+            dsl::customers
+                .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+                .filter(dsl::customer_id.eq(customer_id))
+                .filter(dsl::version.eq(common_enums::ApiVersion::V1)),
+        )
+        .set(dsl::id.eq(new_id))
+        .returning((
+            dsl::merchant_id,
+            dsl::customer_id,
+            dsl::id.nullable(),
+            dsl::version,
+        ));
 
         match query
             .get_result_async::<CustomerGlobalIdMigrationRow>(conn)

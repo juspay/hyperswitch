@@ -440,18 +440,14 @@ impl CustomerInterface for KafkaStore {
     }
 
     #[cfg(feature = "v2")]
-    async fn update_customer_global_id_by_merchant_id_customer_id_for_v1(
+    async fn update_customer_global_id_for_migration(
         &self,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         new_id: id_type::GlobalCustomerId,
     ) -> CustomResult<storage::CustomerGlobalIdMigrationRow, errors::StorageError> {
         self.diesel_store
-            .update_customer_global_id_by_merchant_id_customer_id_for_v1(
-                customer_id,
-                merchant_id,
-                new_id,
-            )
+            .update_customer_global_id_for_migration(customer_id, merchant_id, new_id)
             .await
     }
 

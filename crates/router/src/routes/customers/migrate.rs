@@ -331,7 +331,7 @@ impl MigrationRow<Generated> {
         match self.new_id.clone() {
             Some(new_id) => match state
                 .store
-                .update_customer_global_id_by_merchant_id_customer_id_for_v1(
+                .update_customer_global_id_for_migration(
                     &self.customer_id,
                     &self.merchant_id,
                     new_id,
