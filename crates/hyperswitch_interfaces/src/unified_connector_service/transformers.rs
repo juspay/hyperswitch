@@ -285,7 +285,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                     mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata: None,
                     network_txn_id: response.network_transaction_id.clone(),
-                    network_txn_link_id: None,
+                    network_txn_link_id: response.network_txn_link_id.clone(),
                     connector_response_reference_id: response.merchant_transaction_id,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
@@ -792,7 +792,11 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                 }
                 .attach_printable("Failed to parse currency from UCS Nmi redirect form")?;
                 Ok(Self::Nmi {
-                    amount: amount_money.minor_amount.to_string(),
+                    amount: common_utils::types::MinorUnit::new(amount_money.minor_amount)
+                        .to_major_unit_as_f64(currency)
+                        .change_context(UnifiedConnectorServiceError::ParsingFailed)?
+                        .get_amount_as_f64()
+                        .to_string(),
                     currency,
                     public_key: hyperswitch_masking::Secret::new(
                         nmi.public_key
