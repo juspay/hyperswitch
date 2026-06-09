@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.25.0-hotfix7
+
+### Features
+
+- **ucs:** UCS shadow-diff parity fixes ([#12640](https://github.com/juspay/hyperswitch/pull/12640)) ([`2dbb2a7`](https://github.com/juspay/hyperswitch/commit/2dbb2a7b0e76de3643afa9f2c1970a7285c22000))
+
+**Full Changelog:** [`2026.05.25.0-hotfix6...2026.05.25.0-hotfix7`](https://github.com/juspay/hyperswitch/compare/2026.05.25.0-hotfix6...2026.05.25.0-hotfix7)
+
+- - -
+
 ## 2026.05.25.0-hotfix6
 
 ### Bug Fixes
