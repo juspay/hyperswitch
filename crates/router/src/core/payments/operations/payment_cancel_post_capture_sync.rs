@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
+use common_utils::id_type;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
@@ -28,10 +29,10 @@ use crate::{
 pub struct PaymentCancelPostCaptureSync;
 
 type PaymentCancelPostCaptureSyncOperation<'b, F> =
-    BoxedOperation<'b, F, api::PaymentsCancelPostCaptureSyncBody, PaymentData<F>>;
+    BoxedOperation<'b, F, id_type::PaymentId, PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPostCaptureSyncBody>
+impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, id_type::PaymentId>
     for PaymentCancelPostCaptureSync
 {
     #[instrument(skip_all)]
@@ -39,20 +40,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
         &'a self,
         state: &'a SessionState,
         payment_id: &api::PaymentIdType,
-        _request: &api::PaymentsCancelPostCaptureSyncBody,
+        _request: &id_type::PaymentId,
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         _payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
-    ) -> RouterResult<
-        operations::GetTrackerResponse<
-            'a,
-            F,
-            api::PaymentsCancelPostCaptureSyncBody,
-            PaymentData<F>,
-        >,
-    > {
+    ) -> RouterResult<operations::GetTrackerResponse<'a, F, id_type::PaymentId, PaymentData<F>>>
+    {
         let db = &*state.store;
 
         let merchant_id = platform.get_processor().get_account().get_id();
@@ -213,7 +208,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
     async fn validate_request_with_state(
         &self,
         _state: &SessionState,
-        _request: &api::PaymentsCancelPostCaptureSyncBody,
+        _request: &id_type::PaymentId,
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
     ) -> RouterResult<()> {
@@ -238,7 +233,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
 }
 
 #[async_trait]
-impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureSyncBody, PaymentData<F>>
+impl<F: Clone + Send + Sync> Domain<F, id_type::PaymentId, PaymentData<F>>
     for PaymentCancelPostCaptureSync
 {
     #[instrument(skip_all)]
@@ -282,7 +277,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureSyncBody, P
         &'a self,
         _processor: &domain::Processor,
         state: &SessionState,
-        _request: &api::PaymentsCancelPostCaptureSyncBody,
+        _request: &id_type::PaymentId,
         _payment_intent: &storage::PaymentIntent,
     ) -> errors::CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
@@ -302,7 +297,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureSyncBody, P
 }
 
 #[async_trait]
-impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelPostCaptureSyncBody>
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, id_type::PaymentId>
     for PaymentCancelPostCaptureSync
 {
     #[instrument(skip_all)]
@@ -323,14 +318,13 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelPostCa
     }
 }
 
-impl<F: Send + Clone + Sync>
-    ValidateRequest<F, api::PaymentsCancelPostCaptureSyncBody, PaymentData<F>>
+impl<F: Send + Clone + Sync> ValidateRequest<F, id_type::PaymentId, PaymentData<F>>
     for PaymentCancelPostCaptureSync
 {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        request: &api::PaymentsCancelPostCaptureSyncBody,
+        request: &id_type::PaymentId,
         processor: &'a domain::Processor,
     ) -> RouterResult<(
         PaymentCancelPostCaptureSyncOperation<'b, F>,
@@ -340,7 +334,7 @@ impl<F: Send + Clone + Sync>
             Box::new(self),
             operations::ValidateResult {
                 merchant_id: processor.get_account().get_id().to_owned(),
-                payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.to_owned()),
+                payment_id: api::PaymentIdType::PaymentIntentId(request.to_owned()),
                 storage_scheme: processor.get_account().storage_scheme,
                 requeue: false,
             },

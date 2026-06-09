@@ -69,9 +69,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
             .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
             .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
-        let request_body = api::PaymentsCancelPostCaptureSyncBody {
-            payment_id: tracking_data.payment_id.clone(),
-        };
+        let request_body = tracking_data.payment_id.clone();
 
         let (payment_data, _, _, _) = Box::pin(payment_flows::payments_operation_core::<
             api::PostCaptureVoidSync,

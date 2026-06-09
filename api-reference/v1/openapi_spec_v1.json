@@ -30304,19 +30304,6 @@
           }
         }
       },
-      "PaymentsCancelPostCaptureSyncBody": {
-        "type": "object",
-        "description": "Request to cancel a payment when the payment is already captured",
-        "required": [
-          "payment_id"
-        ],
-        "properties": {
-          "payment_id": {
-            "type": "string",
-            "description": "The identifier for the payment"
-          }
-        }
-      },
       "PaymentsCancelRequest": {
         "type": "object",
         "properties": {

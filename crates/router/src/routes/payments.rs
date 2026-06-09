@@ -1848,13 +1848,12 @@ pub async fn payments_cancel_post_capture_retrieve(
 
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
 
-    let payload = payment_types::PaymentsCancelPostCaptureSyncBody { payment_id };
-    let locking_action = payload.get_locking_input(flow.clone());
+    let locking_action = payment_id.get_locking_input(flow.clone());
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        payload,
+        payment_id,
         |state, auth: auth::AuthenticationData, req, req_state| {
             payments::payments_core::<
                 api_types::PostCaptureVoidSync,
@@ -3199,7 +3198,7 @@ impl GetLockingInput for payment_types::PaymentsCancelPostCaptureRequest {
 }
 
 #[cfg(feature = "v1")]
-impl GetLockingInput for payment_types::PaymentsCancelPostCaptureSyncBody {
+impl GetLockingInput for common_utils::id_type::PaymentId {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
     where
         F: types::FlowMetric,
@@ -3207,7 +3206,7 @@ impl GetLockingInput for payment_types::PaymentsCancelPostCaptureSyncBody {
     {
         api_locking::LockAction::Hold {
             input: api_locking::LockingInput {
-                unique_locking_key: self.payment_id.get_string_repr().to_owned(),
+                unique_locking_key: self.get_string_repr().to_owned(),
                 api_identifier: lock_utils::ApiIdentifier::from(flow),
                 override_lock_retries: None,
             },
