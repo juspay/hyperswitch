@@ -1051,6 +1051,21 @@ function bankRedirectRedirection(
     return;
   }
 
+  // Stripe wallet redirects (AliPay, AmazonPay, Cashapp, RevolutPay, WeChatPay) point to
+  // external wallet pages that cannot be automated in CI. Skip the redirect visit entirely
+  // and rely on the payment status (requires_customer_action) verified in the retrieve step.
+  if (
+    connectorId === "stripe" &&
+    ["alipay", "amazon_pay", "cashapp", "revolut_pay", "we_chat_pay"].includes(
+      paymentMethodType
+    )
+  ) {
+    cy.log(
+      `Skipping external redirect for Stripe ${paymentMethodType} wallet — not automatable`
+    );
+    return;
+  }
+
   cy.visit(redirectionUrl.href);
   waitForRedirect(redirectionUrl.href); // Wait for the first redirect
 
@@ -1323,20 +1338,6 @@ function bankRedirectRedirection(
                 });
               });
               verifyUrl = true;
-            } else if (
-              [
-                "alipay",
-                "amazon_pay",
-                "cashapp",
-                "revolut_pay",
-                "we_chat_pay",
-              ].includes(paymentMethodType)
-            ) {
-              // Stripe wallet redirects (AliPay, AmazonPay, Cashapp, RevolutPay, WeChatPay)
-              // External wallet pages cannot be fully automated; verify page loads
-              cy.log(`Handling Stripe ${paymentMethodType} wallet redirect`);
-              cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
-              verifyUrl = false;
             } else {
               throw new Error(
                 `Unsupported Stripe payment method type: ${paymentMethodType}`
