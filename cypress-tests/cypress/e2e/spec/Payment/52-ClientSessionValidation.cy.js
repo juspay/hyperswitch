@@ -152,7 +152,7 @@ describe("Client Session Validation", () => {
       it("Confirm without sdk_authorization - legacy fallback", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["ClientSessionMissingConfirm"];
+        ]["No3DSAutoCapture"];
 
         cy.confirmWithSdkAuthTest(
           fixtures.confirmBody,
@@ -169,7 +169,7 @@ describe("Client Session Validation", () => {
       it("Retrieve Payment", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["ClientSessionMissingConfirm"];
+        ]["No3DSAutoCapture"];
 
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
       });
