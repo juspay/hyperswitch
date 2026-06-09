@@ -772,6 +772,21 @@ where
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<Customer>, Self::Error>;
 
+    #[cfg(feature = "v2")]
+    async fn find_customer_for_global_id_migration(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+    ) -> CustomResult<storage_types::CustomerGlobalIdMigrationRow, Self::Error>;
+
+    #[cfg(feature = "v2")]
+    async fn update_customer_global_id_for_migration(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        new_id: id_type::GlobalCustomerId,
+    ) -> CustomResult<storage_types::CustomerGlobalIdMigrationRow, Self::Error>;
+
     #[cfg(feature = "v1")]
     #[allow(clippy::too_many_arguments)]
     async fn update_customer_by_customer_id_merchant_id(
