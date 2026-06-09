@@ -118,6 +118,29 @@ pub async fn list_customer_payment_method_api() {}
 )]
 pub async fn list_customer_payment_method_api_client() {}
 
+/// List payment methods for a Payment (client SDK endpoint)
+///
+/// Returns a combined flat list of merchant-enabled payment methods and customer saved payment
+/// methods for the given payment. Authenticated via SDK Authorization (publishable key + client
+/// secret). Card entries include per-network surcharge details when surcharge rules are configured.
+#[utoipa::path(
+    get,
+    path = "/payments/{payment_id}/client",
+    params (
+        ("payment_id" = String, Path, description = "The unique identifier for the Payment"),
+    ),
+    responses(
+        (status = 200, description = "Payment methods retrieved for the given payment", body = ClientPaymentMethodsListResponse),
+        (status = 400, description = "Invalid Data"),
+        (status = 404, description = "Payment not found")
+    ),
+    tag = "Payment Methods",
+    operation_id = "List Payment Methods for a Payment (Client)",
+    security(("publishable_key__client_secret" = []))
+)]
+#[cfg(feature = "v1")]
+pub async fn list_payment_methods_for_payments_client() {}
+
 /// Payment Method - Retrieve
 ///
 /// Retrieves a payment method of a customer.
