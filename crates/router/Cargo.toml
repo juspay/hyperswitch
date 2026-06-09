@@ -91,8 +91,8 @@ ring = "0.17.14"
 rust_decimal = { version = "1.37.1", features = ["serde-with-float", "serde-with-str"] }
 rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
 
-unified-connector-service-client = { git = "https://github.com/juspay/hyperswitch-prism", rev = "1b83744ff6a8ed86b24a98867a8bdae8bd7d8001", package = "rust-grpc-client" }
-unified-connector-service-cards = { git = "https://github.com/juspay/hyperswitch-prism", rev = "1b83744ff6a8ed86b24a98867a8bdae8bd7d8001", package = "ucs_cards" }
+unified-connector-service-client = { git = "https://github.com/juspay/hyperswitch-prism", rev = "4482e7547fd486a5c8fa22e6798f30b03d9aeb47", package = "rust-grpc-client" }
+unified-connector-service-cards = { git = "https://github.com/juspay/hyperswitch-prism", rev = "4482e7547fd486a5c8fa22e6798f30b03d9aeb47", package = "ucs_cards" }
 rustc-hash = "1.1.0"
 rustls = "0.22"
 rustls-pemfile = "2"
