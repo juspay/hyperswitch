@@ -12658,7 +12658,6 @@ struct SurchargeCalculationInputs {
     external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     active_attempt_id: String,
     card_iin: Option<String>,
-    // Merged billing address: request fields win, payment_intent fills the gaps.
     billing_address: Option<hyperswitch_domain_models::address::Address>,
     payment_method: common_enums::PaymentMethod,
     payment_method_type: Option<common_enums::PaymentMethodType>,
