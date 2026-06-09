@@ -482,7 +482,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 
     fn get_5xx_error_response(
-         &self,
+        &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
@@ -609,7 +609,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pe
     }
 
     fn get_5xx_error_response(
-         &self,
+        &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {

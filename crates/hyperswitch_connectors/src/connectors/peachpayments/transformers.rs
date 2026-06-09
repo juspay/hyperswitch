@@ -593,7 +593,7 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
             }
             .into());
         }
-        
+
         let amount_in_cents = item.amount;
 
         let connector_merchant_config =
@@ -707,11 +707,12 @@ impl
 
         let card = CardDetails {
             pan: card_with_limited_details.card_number.clone(),
-            cardholder_name: card_with_limited_details.card_holder_name.clone().ok_or_else(|| {
-                errors::ConnectorError::MissingRequiredField {
+            cardholder_name: card_with_limited_details
+                .card_holder_name
+                .clone()
+                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
                     field_name: "card_holder_name",
-                }
-            })?,
+                })?,
             expiry_year: card_with_limited_details.get_card_expiry_year_2_digit()?,
             expiry_month: card_with_limited_details.card_exp_month.clone(),
             cvv: None,
