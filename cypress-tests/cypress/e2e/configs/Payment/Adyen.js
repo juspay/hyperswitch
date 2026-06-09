@@ -1650,9 +1650,13 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 500,
         body: {
-          status: "succeeded",
+          error: {
+            type: "api",
+            message: "Something went wrong",
+            code: "HE_00",
+          },
         },
       },
     }),
