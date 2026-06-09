@@ -638,7 +638,6 @@ Cypress.Commands.add("merchantRetrieveCall", (globalState, options = {}) => {
         "payment_response_hash_key"
       ).to.not.be.null;
       expect(response.body.publishable_key, "publishable_key").to.not.be.null;
-      cy.log("HI");
       expect(response.body.default_profile, "default_profile").to.not.be.null;
       expect(response.body.organization_id, "organization_id").to.not.be.null;
       globalState.set("organizationId", response.body.organization_id);
@@ -1172,7 +1171,10 @@ Cypress.Commands.add("apiKeyListCall", (globalState) => {
         if (base_url.includes("sandbox") || base_url.includes("integ")) {
           expect(response.body[key]).to.have.property("key_id").include("snd_")
             .and.not.empty;
-        } else if (base_url.includes("localhost")) {
+        } else if (
+          base_url.includes("localhost") ||
+          base_url.includes("host.docker.internal")
+        ) {
           expect(response.body[key]).to.have.property("key_id").include("dev_")
             .and.not.empty;
         }
@@ -5510,10 +5512,15 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "handleVoucherRedirection",
   (globalState, paymentMethodType, expectedRedirection) => {
-    const DISPLAY_ONLY_VOUCHERS = ["boleto", "oxxo", "alfamart", "indomaret"];
-    if (DISPLAY_ONLY_VOUCHERS.includes(paymentMethodType)) {
+    const connectorId = globalState.get("connectorId");
+    const DISPLAY_ONLY_VOUCHERS = {
+      adyen: ["boleto", "oxxo", "alfamart", "indomaret"],
+      dlocal: ["boleto", "alfamart", "indomaret"],
+    };
+    const connectorDisplayOnly = DISPLAY_ONLY_VOUCHERS[connectorId] || [];
+    if (connectorDisplayOnly.includes(paymentMethodType)) {
       cy.log(
-        `Skipping cy.visit() for display-only voucher: ${paymentMethodType}`
+        `Skipping cy.visit() for display-only voucher: ${paymentMethodType} (connector: ${connectorId})`
       );
       return;
     }
@@ -5538,7 +5545,6 @@ Cypress.Commands.add(
       return;
     }
 
-    const connectorId = globalState.get("connectorId");
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
 
@@ -5632,7 +5638,6 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState, order = 0) => {
           expect(cardInfo.card_holder_name, "card_holder_name").to.not.be.null;
         }
 
-        // Validate last_used_at timestamp
         expect(new Date(lastUsedAt).getTime(), "last_used_at").to.be.lessThan(
           Date.now()
         ).and.to.not.be.null;
@@ -7294,7 +7299,10 @@ Cypress.Commands.add(
         "api-key": adminApiKey,
         "X-Merchant-Id": merchantId,
       },
-      body: refundManualUpdateRequestBody,
+      body: {
+        merchant_id: merchantId,
+        ...refundManualUpdateRequestBody.Request,
+      },
       failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);

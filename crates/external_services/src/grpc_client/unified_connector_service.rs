@@ -334,7 +334,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .tokenize(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PaymentMethodTokenizeFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -367,7 +372,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .create_client_authentication_token(request)
             .await
-            .change_context(UnifiedConnectorServiceError::CreateSdkSessionTokenFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -398,7 +408,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .incremental_authorization(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PaymentIncrementalAuthorizationFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -428,7 +443,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .create(request)
             .await
-            .change_context(UnifiedConnectorServiceError::CreateConnectorCustomerFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -459,7 +479,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .create_order(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PaymentCreateOrderFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -491,7 +516,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .pre_authenticate(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PaymentPreAuthenticateFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -523,7 +553,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .authenticate(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PaymentAuthenticateFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -554,7 +589,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .create_server_session_authentication_token(request)
             .await
-            .change_context(UnifiedConnectorServiceError::CreateSessionTokenFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -586,7 +626,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .post_authenticate(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PaymentPostAuthenticateFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -618,7 +663,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .authorize(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PaymentAuthorizeFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -648,7 +698,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .get(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PaymentGetFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -678,7 +733,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .capture(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PaymentCaptureFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -709,7 +769,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .setup_recurring(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PaymentSetupRecurringFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -740,7 +805,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .charge(request)
             .await
-            .change_context(UnifiedConnectorServiceError::RecurringPaymentChargeFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -770,7 +840,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .void(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PaymentVoidFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -800,7 +875,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .handle_event(request)
             .await
-            .change_context(UnifiedConnectorServiceError::IncomingWebhookHandleEventFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -864,7 +944,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .refund(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PaymentRefundFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -893,7 +978,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .get(request)
             .await
-            .change_context(UnifiedConnectorServiceError::RefundSyncFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -926,7 +1016,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .create(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PayoutCreateFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -958,7 +1053,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .create_server_authentication_token(request)
             .await
-            .change_context(UnifiedConnectorServiceError::CreateAccessTokenFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -991,7 +1091,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .transfer(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PayoutTransferFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -1024,7 +1129,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .get(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PayoutGetFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -1057,7 +1167,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .void(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PayoutVoidFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -1090,7 +1205,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .stage(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PayoutStageFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -1124,7 +1244,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .create_recipient(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PayoutCreateRecipientFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -1158,7 +1283,12 @@ impl UnifiedConnectorServiceClient {
             .clone()
             .enroll_disburse_account(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PayoutEnrollDisburseAccountFailure)
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
@@ -1203,6 +1333,7 @@ fn build_grpc_headers_internal(
         merchant_reference_id,
         resource_id,
         shadow_mode,
+        proxy_name,
         config_override,
     } = grpc_headers;
 
@@ -1316,6 +1447,13 @@ fn build_grpc_headers_internal(
                 common_utils_consts::X_UNIFIED_CONNECTOR_SERVICE_MODE,
                 &shadow_mode.to_string(),
             )?,
+        );
+    }
+
+    if let Some(proxy_name) = proxy_name {
+        metadata.append(
+            common_utils_consts::X_PROXY_NAME,
+            parse(common_utils_consts::X_PROXY_NAME, proxy_name)?,
         );
     }
 
