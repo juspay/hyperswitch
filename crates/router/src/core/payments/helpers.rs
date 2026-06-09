@@ -2601,7 +2601,22 @@ pub async fn should_execute_based_on_rollout(
                 .unwrap_or_default())
         }
         Err(err) => {
-            logger::error!(error = ?err, "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false.");
+            // ValueNotFound may be an expected outcome when a rollout configuration has not
+            // been provisioned. Treat it as a warning to avoid generating misleading errors.
+            match err.current_context() {
+                errors::StorageError::ValueNotFound(_) => {
+                    logger::warn!(
+                        error = ?err,
+                        "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
+                    );
+                }
+                _ => {
+                    logger::error!(
+                        error = ?err,
+                        "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
+                    );
+                }
+            }
             Ok(RolloutExecutionResult::default())
         }
     }
