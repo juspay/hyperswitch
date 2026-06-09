@@ -675,8 +675,9 @@ impl
                 SantanderDocumentKind::Cnpj,
                 Some(customer_document_details.document_number),
             ),
-            // Santander is Brazil-only (CPF/CNPJ); `Other` is not expected here.
-            common_types::customers::DocumentKind::Other => (
+            // Santander is Brazil-only (CPF/CNPJ); `Other`/`Psn` are not expected here.
+            common_types::customers::DocumentKind::Other
+            | common_types::customers::DocumentKind::Psn => (
                 SantanderDocumentKind::Cpf,
                 Some(customer_document_details.document_number),
             ),
@@ -823,8 +824,9 @@ impl
             common_types::customers::DocumentKind::Cnpj => {
                 (None, Some(customer_document_details.document_number))
             }
-            // Santander is Brazil-only (CPF/CNPJ); `Other` is not expected here.
-            common_types::customers::DocumentKind::Other => {
+            // Santander is Brazil-only (CPF/CNPJ); `Other`/`Psn` are not expected here.
+            common_types::customers::DocumentKind::Other
+            | common_types::customers::DocumentKind::Psn => {
                 (Some(customer_document_details.document_number), None)
             }
         };
@@ -1295,8 +1297,9 @@ impl From<common_types::customers::DocumentKind> for SantanderDocumentKind {
         match item {
             common_types::customers::DocumentKind::Cnpj => Self::Cnpj,
             common_types::customers::DocumentKind::Cpf => Self::Cpf,
-            // Santander is Brazil-only (CPF/CNPJ); `Other` is not expected here.
-            common_types::customers::DocumentKind::Other => Self::Cpf,
+            // Santander is Brazil-only (CPF/CNPJ); `Other`/`Psn` are not expected here.
+            common_types::customers::DocumentKind::Other
+            | common_types::customers::DocumentKind::Psn => Self::Cpf,
         }
     }
 }
@@ -2353,8 +2356,9 @@ impl
                 common_types::customers::DocumentKind::Cnpj => {
                     (None, Some(details.document_number.clone()))
                 }
-                // Santander is Brazil-only (CPF/CNPJ); `Other` is not expected here.
-                common_types::customers::DocumentKind::Other => {
+                // Santander is Brazil-only (CPF/CNPJ); `Other`/`Psn` are not expected here.
+                common_types::customers::DocumentKind::Other
+                | common_types::customers::DocumentKind::Psn => {
                     (Some(details.document_number.clone()), None)
                 }
             })
@@ -2628,8 +2632,9 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
             common_types::customers::DocumentKind::Cnpj => {
                 (None, Some(customer_document_details.document_number))
             }
-            // Santander is Brazil-only (CPF/CNPJ); `Other` is not expected here.
-            common_types::customers::DocumentKind::Other => {
+            // Santander is Brazil-only (CPF/CNPJ); `Other`/`Psn` are not expected here.
+            common_types::customers::DocumentKind::Other
+            | common_types::customers::DocumentKind::Psn => {
                 (Some(customer_document_details.document_number), None)
             }
         };

@@ -74,7 +74,7 @@ http = "0.2.12"
 url = { version = "2.5.4", features = ["serde"] }
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 
-unified-connector-service-client = { git = "https://github.com/juspay/hyperswitch-prism", rev = "1b83744ff6a8ed86b24a98867a8bdae8bd7d8001", package = "rust-grpc-client" }
+unified-connector-service-client = { git = "https://github.com/juspay/hyperswitch-prism", rev = "b5da6133e497d3fe6146691262f438cfcf99d58e", package = "rust-grpc-client" }
 open-feature = { version = "0.2.5", optional = true }
 superposition_provider = { version = "0.102.0", optional = true}
 superposition_types = "0.102.0"
