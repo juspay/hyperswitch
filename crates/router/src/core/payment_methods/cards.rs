@@ -1608,7 +1608,7 @@ impl PaymentMethodsController for PmCards<'_> {
         let customer_obj = db
             .find_customer_by_customer_id_merchant_id(
                 &customer_id,
-                &merchant_id,
+                merchant_id,
                 self.provider.get_key_store(),
                 self.provider.get_account().storage_scheme,
             )
