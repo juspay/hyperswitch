@@ -1440,13 +1440,9 @@ export const connectorDetails = {
       },
     },
     Response: {
-      status: 500,
+      status: 200,
       body: {
-        error: {
-          type: "server_not_available",
-          code: "HE_00",
-          message: "Something went wrong",
-        },
+        status: "requires_confirmation",
       },
     },
     ResponseCustom: {
