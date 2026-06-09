@@ -4,6 +4,31 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.09.0
+
+### Features
+
+- **ucs:** Send x-proxy-name header so UCS selects the proxy based on… ([#12530](https://github.com/juspay/hyperswitch/pull/12530)) ([`c610470`](https://github.com/juspay/hyperswitch/commit/c6104704e77eca3dbe22e41e42f9c09d8ee4808e))
+
+### Bug Fixes
+
+- **cypress:** Update Fiuu error message expectations ([#12633](https://github.com/juspay/hyperswitch/pull/12633)) ([`88af11e`](https://github.com/juspay/hyperswitch/commit/88af11e881fc6e5985e0999049a3bca5ead0d0ba))
+
+### Refactors
+
+- **core:** Move db defaults to app side for dispute and gateway_status_map ([#12485](https://github.com/juspay/hyperswitch/pull/12485)) ([`784c00b`](https://github.com/juspay/hyperswitch/commit/784c00bd12bbf75e75d8457e5cbe811f4e8d9e4e))
+- **payment_attempt:** Standardize lookup and update methods to use payment_id + processor_merchant_id + attempt_id ([#12549](https://github.com/juspay/hyperswitch/pull/12549)) ([`68e5b75`](https://github.com/juspay/hyperswitch/commit/68e5b754a7bdfd2330d8e6717682ac52acbaedbb))
+
+### Testing
+
+- **cypress:**
+  - Add Oxxo Voucher Payment coverage for dlocal ([#12578](https://github.com/juspay/hyperswitch/pull/12578)) ([`a3aa9be`](https://github.com/juspay/hyperswitch/commit/a3aa9be4962bece0ab4fa7a32bf84e79b88eddb1))
+  - Add ACH bank debit payment coverage for Stax connector ([#12619](https://github.com/juspay/hyperswitch/pull/12619)) ([`eed1692`](https://github.com/juspay/hyperswitch/commit/eed169226a1bbb5ad3173d56edda0a02d1cffdcf))
+
+**Full Changelog:** [`2026.06.08.0...2026.06.09.0`](https://github.com/juspay/hyperswitch/compare/2026.06.08.0...2026.06.09.0)
+
+- - -
+
 ## 2026.06.08.0
 
 ### Features
