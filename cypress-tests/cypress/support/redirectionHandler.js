@@ -3174,13 +3174,10 @@ function payoutLinkRedirection(
                 .should("be.visible")
                 .clear({ force: true })
                 .type(value, { delay: 30, force: true });
-              cy.task(
-                "cli_log",
-                `${desc} filled inside iframe index ${idx}`
-              );
+              cy.task("cli_log", `${desc} filled inside iframe index ${idx}`);
             }
           }
-        } catch (_err) {
+        } catch {
           // cross-origin iframe — skip
         }
       });
@@ -3207,9 +3204,7 @@ function payoutLinkRedirection(
         return el.textContent.trim() === text;
       });
       if ($btn.length > 0) {
-        cy.wrap($btn)
-          .should("be.visible")
-          .click({ force: true });
+        cy.wrap($btn).should("be.visible").click({ force: true });
         cy.task("cli_log", `Clicked "${text}" button on page body`);
         return;
       }
@@ -3231,22 +3226,23 @@ function payoutLinkRedirection(
               .filter((i, el) => el.textContent.trim() === text);
             if ($inner.length > 0) {
               found = true;
-              cy.wrap($inner)
-                .should("be.visible")
-                .click({ force: true });
+              cy.wrap($inner).should("be.visible").click({ force: true });
               cy.task(
                 "cli_log",
                 `Clicked "${text}" button inside iframe index ${idx}`
               );
             }
           }
-        } catch (_err) {
+        } catch {
           // cross-origin iframe — skip
         }
       });
 
       if (!found) {
-        cy.task("cli_log", `"${text}" button not found on page or in any iframe`);
+        cy.task(
+          "cli_log",
+          `"${text}" button not found on page or in any iframe`
+        );
       }
     });
   }
@@ -3290,7 +3286,7 @@ function payoutLinkRedirection(
           if (doc && doc.body) {
             iframeText += " " + doc.body.innerText.toLowerCase();
           }
-        } catch (_err) {
+        } catch {
           // cross-origin iframe — skip
         }
       });
