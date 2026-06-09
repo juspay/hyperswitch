@@ -443,7 +443,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             None,
             initiator.and_then(|initiator| initiator.to_created_by()),
             initiator.and_then(|initiator| initiator.to_created_by()),
-            customers::generate_cell_id_based_customer_id(&self.state.conf.micro_services.cell_id),
+            customers::generate_global_customer_id(&self.state.conf.cell_information.id),
         );
 
         db.insert_customer(

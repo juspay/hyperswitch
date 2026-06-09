@@ -25,6 +25,7 @@ use crate::{
     consts,
     core::{
         configs::dimension_state,
+        customers,
         errors::{self, RouterResult, StorageErrorExt},
         payment_methods::{
             cards,
@@ -1016,7 +1017,7 @@ pub(super) async fn get_or_create_customer_details(
                     platform
                         .get_initiator()
                         .and_then(|initiator| initiator.to_created_by()), // Same as created_by on creation
-                    None,
+                    customers::generate_global_customer_id(&state.conf.cell_information.id),
                 );
 
                 Ok(Some(

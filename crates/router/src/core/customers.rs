@@ -47,10 +47,9 @@ use crate::{
 
 pub const REDACTED: &str = "Redacted";
 
-pub fn generate_cell_id_based_customer_id(cell_id: &str) -> Option<String> {
+pub fn generate_global_customer_id(cell_id: &str) -> String {
     let prefix = format!("{}_cus", cell_id);
-    let generated_id = common_utils::generate_time_ordered_id(&prefix);
-    Some(generated_id)
+    common_utils::generate_time_ordered_id(&prefix)
 }
 
 pub fn is_customer_id_in_global_format(customer_id: &id_type::CustomerId, cell_id: &str) -> bool {
@@ -249,7 +248,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         });
 
         let cell_id_based_customer_id =
-            generate_cell_id_based_customer_id(&state.conf.micro_services.cell_id);
+            generate_global_customer_id(&state.conf.cell_information.id);
 
         Ok(domain::Customer::new(
             merchant_reference_id
@@ -1712,4 +1711,32 @@ async fn sync_connector_customer_for_migrated_customer(
     .switch()?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_customer_id_in_global_format() {
+        let cell_id = "12345";
+
+        let test_cases = [
+            ("12345sbjabjbd", false),
+            ("12345_cus_13igbfejs", true),
+            ("12354_cus_12iufbeksjeb", false),
+            ("efbc2_cus_217846821", false),
+        ];
+
+        for (customer_id_str, expected) in test_cases {
+            let customer_id = id_type::CustomerId::wrap(customer_id_str.to_string())
+                .expect("valid customer id");
+
+            assert_eq!(
+                is_customer_id_in_global_format(&customer_id, cell_id),
+                expected,
+                "failed for customer_id={customer_id_str}",
+            );
+        }
+    }
 }

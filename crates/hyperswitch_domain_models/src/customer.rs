@@ -110,7 +110,7 @@ impl Customer {
         document_details: OptionalEncryptableValue,
         created_by: Option<CreatedBy>,
         last_modified_by: Option<CreatedBy>,
-        id: Option<String>,
+        id: String,
     ) -> Self {
         let now = date_time::now();
         Self {
@@ -133,7 +133,7 @@ impl Customer {
             document_details,
             created_by,
             last_modified_by,
-            id,
+            id: Some(id),
         }
     }
 
@@ -198,7 +198,7 @@ impl Customer {
     }
 
     #[cfg(feature = "v1")]
-    pub fn get_cell_customer_id(&self) -> &Option<String> {
+    pub fn get_global_customer_id(&self) -> &Option<String> {
         &self.id
     }
 }

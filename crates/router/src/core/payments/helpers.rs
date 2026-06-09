@@ -1972,19 +1972,6 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
         .customer_id
         .or(payment_data.payment_intent.customer_id.clone());
 
-    // Validate that the customer_id is not in GlobalCustomerId format
-    if let Some(ref customer_id) = customer_id {
-        if customers::is_customer_id_in_global_format(
-            customer_id,
-            &state.conf.micro_services.cell_id,
-        ) {
-            Err(report!(errors::StorageError::InvalidDataFormat(format!(
-                "customer_id '{}' format is not supported",
-                customer_id.get_string_repr()
-            ))))?
-        }
-    }
-
     let db = &*state.store;
     let key_manager_state = &state.into();
     let optional_customer = match customer_id {
@@ -2124,6 +2111,17 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     }
                 }
                 None => {
+                    // Validate that the customer_id is not in GlobalCustomerId format
+                    if customers::is_customer_id_in_global_format(
+                        &customer_id,
+                        &state.conf.cell_information.id,
+                    ) {
+                        Err(report!(errors::StorageError::InvalidDataFormat(format!(
+                            "customer_id '{}' format is not supported",
+                            &customer_id.get_string_repr()
+                        ))))?
+                    }
+
                     let new_customer = domain::Customer::new(
                         customer_id,
                         merchant_id.to_owned(),
@@ -2147,9 +2145,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         document_details,
                         initiator.and_then(|initiator| initiator.to_created_by()),
                         initiator.and_then(|initiator| initiator.to_created_by()),
-                        customers::generate_cell_id_based_customer_id(
-                            &state.conf.micro_services.cell_id,
-                        ),
+                        customers::generate_global_customer_id(&state.conf.cell_information.id),
                     );
                     metrics::CUSTOMER_CREATED.add(1, &[]);
                     db.insert_customer(new_customer, key_store, storage_scheme)
