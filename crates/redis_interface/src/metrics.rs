@@ -1,13 +1,18 @@
-use router_env::{counter_metric, global_meter, histogram_metric_f64};
+//! OpenTelemetry metrics for Redis operations, gated behind the `metrics` feature.
 
-global_meter!(GLOBAL_METER, "ROUTER_API");
+#[cfg(feature = "metrics")]
+use router_env::{global_meter, histogram_metric_f64};
 
-counter_metric!(REDIS_CALLS_COUNT, GLOBAL_METER);
+#[cfg(feature = "metrics")]
+global_meter!(GLOBAL_METER, "REDIS");
+
+// The histogram's `_count` series carries the call count, so no separate counter is needed.
+#[cfg(feature = "metrics")]
 histogram_metric_f64!(REDIS_CALL_TIME, GLOBAL_METER);
 
 /// The Redis operation being performed, used as the `operation` metric label.
 #[derive(Debug)]
-pub enum RedisOperation {
+pub(crate) enum RedisOperation {
     SetKey,
     SetKeyWithoutModifyingTtl,
     SetKeyWithExpiry,
@@ -49,9 +54,10 @@ pub enum RedisOperation {
     EvaluateRedisScript,
 }
 
-/// Time a Redis future and record call-count + latency, tagged by operation.
+/// Times a Redis future and records its latency, tagged by operation.
+#[cfg(feature = "metrics")]
 #[inline]
-pub async fn track_redis_call<Fut, U>(operation: RedisOperation, future: Fut) -> U
+pub(crate) async fn track_redis_call<Fut, U>(operation: RedisOperation, future: Fut) -> U
 where
     Fut: std::future::Future<Output = U>,
 {
@@ -66,9 +72,17 @@ where
     );
 
     let attributes = router_env::metric_attributes!(("operation", format!("{operation:?}")));
-
-    REDIS_CALLS_COUNT.add(1, attributes);
     REDIS_CALL_TIME.record(time_elapsed.as_secs_f64(), attributes);
 
     output
+}
+
+/// No-op pass-through when the `metrics` feature is disabled.
+#[cfg(not(feature = "metrics"))]
+#[inline]
+pub(crate) async fn track_redis_call<Fut, U>(_operation: RedisOperation, future: Fut) -> U
+where
+    Fut: std::future::Future<Output = U>,
+{
+    future.await
 }

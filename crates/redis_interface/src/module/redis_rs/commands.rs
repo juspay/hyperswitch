@@ -246,13 +246,7 @@ impl super::RedisConnectionPool {
         let futures = tenant_aware_keys.iter().map(|redis_key| {
             let mut conn = self.pool.clone();
             let key = redis_key.clone();
-            async move {
-                track_redis_call(
-                    RedisOperation::GetMultipleKeys,
-                    conn.get::<_, Option<V>>(&key),
-                )
-                .await
-            }
+            async move { track_redis_call(RedisOperation::GetKey, conn.get::<_, Option<V>>(&key)).await }
         });
 
         let results = futures::future::try_join_all(futures)
@@ -602,15 +596,8 @@ impl super::RedisConnectionPool {
 
         // Only set expiry if the field was actually set
         if matches!(result, HsetnxReply::KeySet) {
-            track_redis_call(
-                RedisOperation::SetHashFieldIfNotExist,
-                conn.expire::<_, ()>(
-                    key.tenant_aware_key(self),
-                    ttl.unwrap_or(self.config.default_hash_ttl).into(),
-                ),
-            )
-            .await
-            .change_context(errors::RedisError::SetExpiryFailed)?;
+            self.set_expiry(key, ttl.unwrap_or(self.config.default_hash_ttl).into())
+                .await?;
         }
 
         Ok(result)

@@ -255,10 +255,7 @@ impl super::RedisConnectionPool {
             keys.iter().map(|key| key.tenant_aware_key(self)).collect();
 
         let futures = tenant_aware_keys.iter().map(|redis_key| {
-            track_redis_call(
-                RedisOperation::GetMultipleKeys,
-                self.pool.get::<Option<V>, _>(redis_key),
-            )
+            track_redis_call(RedisOperation::GetKey, self.pool.get::<Option<V>, _>(redis_key))
         });
 
         let results = futures::future::try_join_all(futures)
