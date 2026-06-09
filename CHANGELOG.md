@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.08.0-hotfix1
+
+### Bug Fixes
+
+- **connector:** [ADYEN] Remove PMT check in function get_shopper_email ([#12671](https://github.com/juspay/hyperswitch/pull/12671)) ([`04beed8`](https://github.com/juspay/hyperswitch/commit/04beed86178be637dc685e4a72f96e61af3aab85))
+
+**Full Changelog:** [`2026.06.08.0...2026.06.08.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.06.08.0...2026.06.08.0-hotfix1)
+
+- - -
+
 ## 2026.06.08.0
 
 ### Features
