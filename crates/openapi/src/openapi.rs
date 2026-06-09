@@ -89,6 +89,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_complete_authorize,
         routes::payments::payments_post_session_tokens,
         routes::payments::payments_update_metadata,
+        routes::payments::payments_submit_eligibility_check,
         routes::payments::payments_submit_eligibility,
 
         // Routes for relay
@@ -614,8 +615,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::EligibilityCard,
         api_models::payments::EligibilityPaymentMethodData,
         api_models::payments::EligibilityPaymentMethodDataRequest,
-        api_models::payments::PaymentsEligibilityRequest,
-        api_models::payments::PaymentsEligibilityResponse,
+        api_models::payments::PaymentsEligibilityCheckRequest,
+        api_models::payments::PaymentsEligibilityCheckResponse,
         api_models::payments::PaymentsCreateResponseOpenApi,
         api_models::errors::types::GenericErrorResponseOpenApi,
         api_models::payments::PaymentRetrieveBody,
@@ -775,6 +776,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::SurchargeDetailsResponse,
         api_models::payment_methods::SurchargeResponse,
         api_models::payment_methods::SurchargePercentage,
+        api_models::enums::SurchargeStrategy,
+        api_models::payments::PaymentsEligibilityRequest,
+        api_models::payments::PaymentsEligibilityResponse,
         api_models::payment_methods::PaymentMethodCollectLinkRequest,
         api_models::payment_methods::PaymentMethodCollectLinkResponse,
         api_models::payment_methods::CardType,

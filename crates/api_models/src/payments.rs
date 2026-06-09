@@ -1596,6 +1596,10 @@ pub struct PaymentsRequest {
     /// Identification for the profile acquirer to be used for this payment.
     #[schema(value_type = Option<String>)]
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
+
+    /// The strategy to use when applying surcharge for this payment.
+    #[schema(value_type = Option<SurchargeStrategy>)]
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -10533,6 +10537,8 @@ pub struct SdkNextAction {
     /// The type of next action
     #[smithy(value_type = "NextActionCall")]
     pub next_action: NextActionCall,
+    /// Whether the SDK should block the confirm call for user.
+    pub should_block_confirm: Option<bool>,
 }
 
 #[derive(
@@ -12542,7 +12548,7 @@ pub struct ClickToPaySessionResponse {
 
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, Clone, ToSchema)]
-pub struct PaymentsEligibilityRequest {
+pub struct PaymentsEligibilityCheckRequest {
     /// The identifier for the payment
     /// Added in the payload for ApiEventMetrics, populated from the path param
     #[serde(skip)]
@@ -12569,7 +12575,7 @@ pub struct PaymentsEligibilityRequest {
 }
 
 #[cfg(feature = "v1")]
-impl PaymentsEligibilityRequest {
+impl PaymentsEligibilityCheckRequest {
     /// Validates that either payment_token or payment_method_data is provided
     pub fn validate_payment_method_input(
         &self,
@@ -12778,12 +12784,71 @@ pub struct EligibilityPaymentMethodDataRequest {
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsEligibilityCheckResponse {
+    /// The identifier for the payment
+    #[schema(value_type = String)]
+    pub payment_id: id_type::PaymentId,
+    /// Next action to be performed by the SDK
+    pub sdk_next_action: SdkNextAction,
+}
+
+/// Request body for the eligibility endpoint.
+/// Combines eligibility checks with external surcharge calculation in a single call.
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, ToSchema)]
+pub struct PaymentsEligibilityRequest {
+    /// The identifier for the payment
+    /// Added in the payload for ApiEventMetrics, populated from the path param
+    #[serde(skip)]
+    pub payment_id: id_type::PaymentId,
+    /// Token used for client side verification
+    #[schema(value_type = String, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
+    pub client_secret: Option<Secret<String>>,
+    /// The payment method to be used for the payment
+    #[schema(value_type = PaymentMethod, example = "card")]
+    pub payment_method_type: api_enums::PaymentMethod,
+    /// The payment method type to be used for the payment
+    #[schema(value_type = Option<PaymentMethodType>)]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
+    /// The payment instrument data for eligibility check and surcharge BIN lookup
+    #[serde(with = "eligibility_payment_method_data_serde", default)]
+    pub payment_method_data: Option<EligibilityPaymentMethodDataRequest>,
+    /// The browser information for the payment
+    #[schema(value_type = Option<BrowserInformation>)]
+    pub browser_info: Option<BrowserInformation>,
+    /// The payment token to look up the saved payment method
+    #[schema(value_type = String, example = "token_abc123xyz")]
+    pub payment_token: Option<Secret<String>>,
+}
+
+#[cfg(feature = "v1")]
+impl From<PaymentsEligibilityRequest> for PaymentsEligibilityCheckRequest {
+    fn from(req: PaymentsEligibilityRequest) -> Self {
+        Self {
+            payment_id: req.payment_id,
+            client_secret: req.client_secret,
+            payment_method_type: req.payment_method_type,
+            payment_method_subtype: req.payment_method_subtype,
+            payment_method_data: req.payment_method_data,
+            browser_info: req.browser_info,
+            payment_token: req.payment_token,
+        }
+    }
+}
+
+/// Response body for the eligibility endpoint.
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsEligibilityResponse {
     /// The identifier for the payment
     #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,
     /// Next action to be performed by the SDK
     pub sdk_next_action: SdkNextAction,
+    /// Surcharge details if an external surcharge was calculated. None if eligibility was denied
+    /// or no surcharge connector is configured for this merchant.
+    #[schema(value_type = Option<SurchargeDetailsResponse>)]
+    pub surcharge_details: Option<payment_methods::SurchargeDetailsResponse>,
 }
 
 #[cfg(feature = "v1")]

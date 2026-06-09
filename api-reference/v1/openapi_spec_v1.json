@@ -1664,18 +1664,76 @@
         ]
       }
     },
+    "/payments/{payment_id}/eligibility_check": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Submit Eligibility Check Data",
+        "operationId": "Submit Eligibility Check data for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsEligibilityCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Eligibility Check submit is successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsEligibilityCheckResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/payments/{payment_id}/eligibility": {
       "post": {
         "tags": [
           "Payments"
         ],
         "summary": "Payments - Submit Eligibility Data",
+        "description": "Runs eligibility checks (blocklist, card testing guard) and calculates an external surcharge\nin a single call. Intended to be called by the SDK before the final confirm step.\n\n- If eligibility is denied the response will contain `sdk_next_action: deny` and no surcharge details.\n- If the merchant has no surcharge connector configured, `surcharge_details` will be `null`.\n- Surcharge calculation is best-effort: if the external call fails the payment still proceeds\nwith `surcharge_details: null`.",
         "operationId": "Submit Eligibility data for a Payment",
         "parameters": [
           {
             "name": "payment_id",
             "in": "path",
-            "description": "The identifier for payment",
+            "description": "The identifier for the payment",
             "required": true,
             "schema": {
               "type": "string"
@@ -1694,7 +1752,7 @@
         },
         "responses": {
           "200": {
-            "description": "Eligibility submit is successful",
+            "description": "Eligibility and surcharge checks successful",
             "content": {
               "application/json": {
                 "schema": {
@@ -1705,6 +1763,16 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -30893,6 +30961,14 @@
             "type": "string",
             "description": "Identification for the profile acquirer to be used for this payment.",
             "nullable": true
+          },
+          "external_surcharge_strategy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeStrategy"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -31443,6 +31519,14 @@
           "profile_acquirer_id": {
             "type": "string",
             "description": "Identification for the profile acquirer to be used for this payment.",
+            "nullable": true
+          },
+          "external_surcharge_strategy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeStrategy"
+              }
+            ],
             "nullable": true
           }
         }
@@ -32270,7 +32354,7 @@
           }
         }
       },
-      "PaymentsEligibilityRequest": {
+      "PaymentsEligibilityCheckRequest": {
         "type": "object",
         "required": [
           "client_secret",
@@ -32317,7 +32401,7 @@
           }
         }
       },
-      "PaymentsEligibilityResponse": {
+      "PaymentsEligibilityCheckResponse": {
         "type": "object",
         "required": [
           "payment_id",
@@ -32330,6 +32414,79 @@
           },
           "sdk_next_action": {
             "$ref": "#/components/schemas/SdkNextAction"
+          }
+        }
+      },
+      "PaymentsEligibilityRequest": {
+        "type": "object",
+        "description": "Request body for the eligibility endpoint.\nCombines eligibility checks with external surcharge calculation in a single call.",
+        "required": [
+          "client_secret",
+          "payment_method_type",
+          "payment_token"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "Token used for client side verification",
+            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EligibilityPaymentMethodDataRequest"
+              }
+            ],
+            "nullable": true
+          },
+          "browser_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_token": {
+            "type": "string",
+            "description": "The payment token to look up the saved payment method",
+            "example": "token_abc123xyz"
+          }
+        }
+      },
+      "PaymentsEligibilityResponse": {
+        "type": "object",
+        "description": "Response body for the eligibility endpoint.",
+        "required": [
+          "payment_id",
+          "sdk_next_action"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "sdk_next_action": {
+            "$ref": "#/components/schemas/SdkNextAction"
+          },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeDetailsResponse"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -33119,6 +33276,14 @@
           "profile_acquirer_id": {
             "type": "string",
             "description": "Identification for the profile acquirer to be used for this payment.",
+            "nullable": true
+          },
+          "external_surcharge_strategy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeStrategy"
+              }
+            ],
             "nullable": true
           }
         },
@@ -34622,6 +34787,14 @@
           "profile_acquirer_id": {
             "type": "string",
             "description": "Identification for the profile acquirer to be used for this payment.",
+            "nullable": true
+          },
+          "external_surcharge_strategy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeStrategy"
+              }
+            ],
             "nullable": true
           }
         }
@@ -40972,6 +41145,11 @@
         "properties": {
           "next_action": {
             "$ref": "#/components/schemas/NextActionCall"
+          },
+          "should_block_confirm": {
+            "type": "boolean",
+            "description": "Whether the SDK should block the confirm call for user.",
+            "nullable": true
           }
         }
       },
@@ -42287,6 +42465,14 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "SurchargeStrategy": {
+        "type": "string",
+        "description": "Strategy for applying external surcharge",
+        "enum": [
+          "apply",
+          "waive"
+        ]
       },
       "SwishQrData": {
         "type": "object"
