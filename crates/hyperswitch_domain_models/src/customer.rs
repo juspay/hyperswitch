@@ -58,7 +58,7 @@ pub struct Customer {
     pub document_details: OptionalEncryptableValue,
     pub created_by: Option<CreatedBy>,
     pub last_modified_by: Option<CreatedBy>,
-    id: Option<String>,
+    key: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -110,7 +110,7 @@ impl Customer {
         document_details: OptionalEncryptableValue,
         created_by: Option<CreatedBy>,
         last_modified_by: Option<CreatedBy>,
-        id: String,
+        key: String,
     ) -> Self {
         let now = date_time::now();
         Self {
@@ -133,7 +133,7 @@ impl Customer {
             document_details,
             created_by,
             last_modified_by,
-            id: Some(id),
+            key: Some(key),
         }
     }
 
@@ -199,7 +199,7 @@ impl Customer {
 
     #[cfg(feature = "v1")]
     pub fn get_global_customer_id(&self) -> &Option<String> {
-        &self.id
+        &self.key
     }
 }
 
@@ -231,7 +231,7 @@ impl behaviour::Conversion for Customer {
             last_modified_by: self
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
-            id: self.id,
+            id: self.key,
         })
     }
 
@@ -316,14 +316,14 @@ impl behaviour::Conversion for Customer {
             last_modified_by: item
                 .last_modified_by
                 .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
-            id: item.id,
+            key: item.id,
         })
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
         Ok(diesel_models::customers::CustomerNew {
-            id: self.id,
+            id: self.key,
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
             name: self.name.map(Encryption::from),
