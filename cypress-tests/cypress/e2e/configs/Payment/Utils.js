@@ -623,6 +623,7 @@ export const CONNECTOR_LISTS = {
     L2L3DATA: ["checkout", "nuvei", "worldpayvantiv"],
     REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
     MANUAL_PAYMENT_UPDATE: ["stripe"],
+    PAZE_DECRYPT: ["cybersource", "adyen"],
     STEP_UP_RETRY: [
       "cybersource",
       "checkout",

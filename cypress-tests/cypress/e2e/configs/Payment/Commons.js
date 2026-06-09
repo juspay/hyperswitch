@@ -1459,6 +1459,30 @@ export const connectorDetails = {
         },
       },
     }),
+    PazeDecrypt: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paze",
+        payment_method_data: {
+          wallet: {
+            paze: {
+              complete_response: "PLACEHOLDER_PAZE_ENCRYPTED_DATA",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 501,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "Selected payment method through the connector is not implemented",
+            code: "IR_00",
+          },
+        },
+      },
+    }),
   },
   pay_later_pm: {
     PaymentIntent: (paymentMethodType) =>

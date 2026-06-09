@@ -1636,6 +1636,49 @@ export const connectorDetails = {
         },
       },
     }),
+    PazeDecrypt: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paze",
+        payment_method_data: {
+          wallet: {
+            paze: {
+              complete_response:
+                "eyJlbmNyeXB0ZWREYXRhIjp7ImNpcGhlcnRleHQiOiJCYWxseUhvbWVyb2IiLCJpdiI6IjEyMzQ1Njc4OTAifSwic2lnbmF0dXJlIjoic2lnIiwidmVyc2lvbiI6IkVDdjEiLCJoZWFkZXIiOnsiYXBwbGljYXRpb25EYXRhIjoiYXBwIiwiZXBoZW1QdWJsaWNLZXkiOiJrZXkiLCJ0cmFuc2FjdGlvbklkIjoidHhpZCJ9fQ==",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 500,
+        body: {
+          error: {
+            type: "api",
+            message: "Something went wrong",
+            code: "HE_00",
+          },
+        },
+      },
+    }),
+    PazeDecryptInvalid: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paze",
+        payment_method_data: {
+          wallet: {
+            paze: {
+              complete_response: "invalid_base64_or_corrupted_data",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 500,
+        body: {
+          status: "failed",
+        },
+      },
+    }),
   },
 
   gift_card_pm: {
