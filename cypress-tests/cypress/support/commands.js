@@ -5107,7 +5107,7 @@ Cypress.Commands.add(
       "three_ds",
       { redirectionUrl, expectedUrl },
       connectorId,
-      null
+      globalState.get("paymentMethodType")
     );
   }
 );
@@ -5368,10 +5368,15 @@ Cypress.Commands.add(
                     response.body[key]
                   );
                 }
-                if (response.body.connector === "iatapay")
+                if (response.body.connector === "iatapay") {
                   expect(response.body)
                     .to.have.property("next_action")
                     .to.have.property("redirect_to_url");
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.redirect_to_url
+                  );
+                }
                 break;
 
               default:

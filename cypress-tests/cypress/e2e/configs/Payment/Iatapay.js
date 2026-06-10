@@ -106,6 +106,23 @@ export const connectorDetails = {
         },
       },
     },
+    DuitNowRetrieve: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["realTimePayment"],
+          value: "connector_2",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 6000,
+          amount_received: 6000,
+          amount_capturable: 0,
+        },
+      },
+    },
   },
   card_pm: {
     ZeroAuthMandate: {

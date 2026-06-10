@@ -2697,6 +2697,7 @@ pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::De
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn construct_vault_router_data<F>(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -2707,6 +2708,7 @@ pub async fn construct_vault_router_data<F>(
     connector_vault_id: Option<String>,
     connector_customer_id: Option<String>,
     should_generate_multiple_tokens: Option<bool>,
+    storage_type: Option<common_enums::StorageType>,
 ) -> RouterResult<VaultRouterDataV2<F>> {
     let connector_auth_type = merchant_connector_account
         .get_connector_account_details()
@@ -2726,6 +2728,7 @@ pub async fn construct_vault_router_data<F>(
             connector_vault_id,
             connector_customer_id,
             should_generate_multiple_tokens,
+            storage_type,
         },
         response: Ok(types::VaultResponseData::default()),
     };
