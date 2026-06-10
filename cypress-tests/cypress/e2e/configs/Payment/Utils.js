@@ -13,6 +13,7 @@ import { connectorDetails as bamboraConnectorDetails } from "./Bambora.js";
 import { connectorDetails as bamboraapacConnectorDetails } from "./Bamboraapac.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as barclaycardConnectorDetails } from "./Barclaycard.js";
+import { connectorDetails as bitpayConnectorDetails } from "./Bitpay.js";
 import { connectorDetails as billwerkConnectorDetails } from "./Billwerk.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
@@ -93,6 +94,7 @@ const connectorDetails = {
   bamboraapac: bamboraapacConnectorDetails,
   barclaycard: barclaycardConnectorDetails,
   bankofamerica: bankOfAmericaConnectorDetails,
+  bitpay: bitpayConnectorDetails,
   billwerk: billwerkConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
   braintree: braintreeConnectorDetails,
@@ -614,6 +616,7 @@ export const CONNECTOR_LISTS = {
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     STEP_UP_AUTH: ["cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
+    PAYMENT_RESPONSE_HASH: ["stripe"],
     MULTIPLE_CAPTURE: ["adyen", "checkout"],
     USE_BILLING_AS_PAYMENT_METHOD_BILLING: ["bankofamerica"],
     MIT_WITH_LIMITED_CARD_DATA: ["peachpayments"],
@@ -633,6 +636,7 @@ export const CONNECTOR_LISTS = {
     CLEAR_PAN_RETRY: ["bankofamerica"],
     L2L3DATA: ["checkout", "nuvei", "worldpayvantiv"],
     REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
+    REFUND_TYPE: ["stripe", "adyen", "checkout"],
     MANUAL_PAYMENT_UPDATE: ["stripe"],
     STEP_UP_RETRY: [
       "cybersource",

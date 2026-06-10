@@ -1338,6 +1338,54 @@ impl
     }
 }
 
+/// Surcharge calculated during /eligibility and cached for /confirm to consume.
+/// The payment_method / payment_method_type carried here are the ones the surcharge
+/// was calculated against; /confirm must match them before applying.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ExternalSurchargeDetails {
+    pub surcharge_amount: MinorUnit,
+    pub tax_amount: Option<MinorUnit>,
+    pub payment_method: common_enums::PaymentMethod,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+}
+
+impl ExternalSurchargeDetails {
+    pub fn matches_payment_method(
+        &self,
+        payment_method: Option<common_enums::PaymentMethod>,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
+    ) -> bool {
+        payment_method == Some(self.payment_method)
+            && (self.payment_method_type.is_none()
+                || self.payment_method_type == payment_method_type)
+    }
+}
+
+#[cfg(feature = "v1")]
+impl
+    From<(
+        &ExternalSurchargeDetails,
+        &payments::payment_attempt::PaymentAttempt,
+    )> for SurchargeDetails
+{
+    fn from(
+        (external_surcharge_details, payment_attempt): (
+            &ExternalSurchargeDetails,
+            &payments::payment_attempt::PaymentAttempt,
+        ),
+    ) -> Self {
+        let surcharge_amount = external_surcharge_details.surcharge_amount;
+        let tax_on_surcharge_amount = external_surcharge_details.tax_amount.unwrap_or_default();
+        Self {
+            original_amount: payment_attempt.net_amount.get_order_amount(),
+            surcharge: common_utils::types::Surcharge::Fixed(surcharge_amount),
+            tax_on_surcharge: None,
+            surcharge_amount,
+            tax_on_surcharge_amount,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UcsAuthenticationData {
     pub eci: Option<String>,
@@ -1763,17 +1811,8 @@ pub struct PaymentsSurchargeCalculationData {
     pub previous_connector_surcharge_id: Option<String>,
     /// Country in ISO alpha-2 format (optional, defaults to USA)
     pub country: Option<common_enums::CountryAlpha2>,
-    /// wave strategy for surcharge application (optional, defaults to Apply)
-    pub surcharge_strategy: Option<SurchargeStrategy>,
-}
-
-#[derive(Debug, Default, Clone)]
-pub enum SurchargeStrategy {
-    /// Apply the calculated surcharge to the payment
-    #[default]
-    Apply,
-    /// Do not apply the surcharge, just return the calculated amount
-    Waive,
+    /// Strategy for surcharge application (optional, defaults to Apply)
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
 #[derive(Debug, Clone)]

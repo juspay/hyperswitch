@@ -2389,102 +2389,138 @@ where
             | api_models::enums::PaymentType::RecurringMandate
             | api_models::enums::PaymentType::NewMandate
             | api_models::enums::PaymentType::Installment => {
-                let (payment_data, _req, connector_http_status_code, external_latency) =
-                    Box::pin(payments::payments_operation_core::<
-                        api_types::Authorize,
+                // The external vault proxy flow is non-PCI: only vault card data
+                // (`PaymentMethodData::ProxyCard`) is allowed at the connector. When the
+                // confirm request carries it, route to the external vault proxy core directly
+                // using the confirm request itself — no conversion to a dedicated proxy request.
+                let is_proxy_card = req
+                    .payment_method_data
+                    .as_ref()
+                    .and_then(|pmd| pmd.payment_method_data.as_ref())
+                    .map(|data| {
+                        matches!(data, api_models::payments::PaymentMethodData::ProxyCard(_))
+                    })
+                    .unwrap_or(false);
+
+                if is_proxy_card {
+                    Box::pin(payments::external_vault_proxy_for_payments_core::<
+                        api_types::ExternalVaultProxy,
+                        payment_types::PaymentsResponse,
                         _,
                         _,
                         _,
-                        payments::PaymentData<api_types::Authorize>,
+                        payments::PaymentData<api_types::ExternalVaultProxy>,
                     >(
-                        &state,
-                        req_state.clone(),
-                        &platform,
-                        profile_id.clone(),
-                        operation.clone(),
-                        req.clone(),
-                        payments::CallConnectorAction::Trigger,
-                        None,
+                        state,
+                        req_state,
+                        platform,
+                        profile_id,
+                        payments::PaymentExternalVaultProxyConfirm,
+                        req,
                         auth_flow,
-                        eligible_routable_connectors.clone(),
-                        header_payload.clone(),
-                        &dimensions,
-                    ))
-                    .await?;
-
-                let connector = payment_data.get_payment_attempt_connector();
-
-                if let Some(connector_name) = connector {
-                    let connector_data = api_types::ConnectorData::get_connector_by_name(
-                        &state.conf.connectors,
-                        connector_name,
-                        api_types::GetToken::Connector,
+                        payments::CallConnectorAction::Trigger,
+                        header_payload,
                         None,
-                    )?;
-                    let should_continue_further = connector_data
-                        .connector
-                        .is_payment_recurrence_operation_needed(
-                            &payment_data.payment_intent.clone(),
-                        )
-                        .unwrap_or(false);
-                    if should_continue_further {
-                        logger::info!(
+                    ))
+                    .await
+                } else {
+                    let (payment_data, _req, connector_http_status_code, external_latency) =
+                        Box::pin(payments::payments_operation_core::<
+                            api_types::Authorize,
+                            _,
+                            _,
+                            _,
+                            payments::PaymentData<api_types::Authorize>,
+                        >(
+                            &state,
+                            req_state.clone(),
+                            &platform,
+                            profile_id.clone(),
+                            operation.clone(),
+                            req.clone(),
+                            payments::CallConnectorAction::Trigger,
+                            None,
+                            auth_flow,
+                            eligible_routable_connectors.clone(),
+                            header_payload.clone(),
+                            &dimensions,
+                        ))
+                        .await?;
+
+                    let connector = payment_data.get_payment_attempt_connector();
+
+                    if let Some(connector_name) = connector {
+                        let connector_data = api_types::ConnectorData::get_connector_by_name(
+                            &state.conf.connectors,
+                            connector_name,
+                            api_types::GetToken::Connector,
+                            None,
+                        )?;
+                        let should_continue_further = connector_data
+                            .connector
+                            .is_payment_recurrence_operation_needed(
+                                &payment_data.payment_intent.clone(),
+                            )
+                            .unwrap_or(false);
+                        if should_continue_further {
+                            logger::info!(
                             "Re-invoking payments_operation_core | should_continue_further: {} | payment_id: {:?}",
                             should_continue_further,
                             payment_data.get_payment_intent().payment_id,
                         );
-                        let (pd, _req, connector_status_code, ext_latency) =
-                            Box::pin(payments::payments_operation_core::<
-                                api_types::SetupMandate,
-                                _,
-                                _,
-                                _,
-                                payments::PaymentData<api_types::SetupMandate>,
-                            >(
-                                &state,
-                                req_state,
-                                &platform,
-                                profile_id,
-                                PaymentRecurrence,
-                                req,
-                                payments::CallConnectorAction::Trigger,
-                                None,
+                            let (pd, _req, connector_status_code, ext_latency) =
+                                Box::pin(payments::payments_operation_core::<
+                                    api_types::SetupMandate,
+                                    _,
+                                    _,
+                                    _,
+                                    payments::PaymentData<api_types::SetupMandate>,
+                                >(
+                                    &state,
+                                    req_state,
+                                    &platform,
+                                    profile_id,
+                                    PaymentRecurrence,
+                                    req,
+                                    payments::CallConnectorAction::Trigger,
+                                    None,
+                                    auth_flow,
+                                    eligible_routable_connectors,
+                                    header_payload.clone(),
+                                    &dimensions,
+                                ))
+                                .await?;
+                            let total_ext_latency = match (external_latency, ext_latency) {
+                                (Some(l1), Some(l2)) => Some(l1 + l2),
+                                (Some(l), None) | (None, Some(l)) => Some(l),
+                                (None, None) => None,
+                            };
+                            return payment_types::PaymentsResponse::generate_response(
+                                pd,
                                 auth_flow,
-                                eligible_routable_connectors,
-                                header_payload.clone(),
-                                &dimensions,
-                            ))
-                            .await?;
-                        let total_ext_latency = match (external_latency, ext_latency) {
-                            (Some(l1), Some(l2)) => Some(l1 + l2),
-                            (Some(l), None) | (None, Some(l)) => Some(l),
-                            (None, None) => None,
-                        };
-                        return payment_types::PaymentsResponse::generate_response(
-                            pd,
-                            auth_flow,
-                            &state.base_url,
-                            operation,
-                            &state.conf.connector_request_reference_id_config,
-                            connector_status_code,
-                            total_ext_latency,
-                            header_payload.x_hs_latency,
-                            &platform,
-                        );
+                                &state.base_url,
+                                operation,
+                                &state.conf.connector_request_reference_id_config,
+                                connector_status_code,
+                                total_ext_latency,
+                                header_payload.x_hs_latency,
+                                &platform,
+                            );
+                        }
                     }
-                }
 
-                payment_types::PaymentsResponse::generate_response(
-                    payment_data,
-                    auth_flow,
-                    &state.base_url,
-                    operation,
-                    &state.conf.connector_request_reference_id_config,
-                    connector_http_status_code,
-                    external_latency,
-                    header_payload.x_hs_latency,
-                    &platform,
-                )
+                    payment_types::PaymentsResponse::generate_response(
+                        payment_data,
+                        auth_flow,
+                        &state.base_url,
+                        operation,
+                        &state.conf.connector_request_reference_id_config,
+                        connector_http_status_code,
+                        external_latency,
+                        header_payload.x_hs_latency,
+                        &platform,
+                    )
+                }
             }
             api_models::enums::PaymentType::SetupMandate => {
                 payments::payments_core::<
@@ -2825,6 +2861,53 @@ pub async fn retrieve_extended_card_info(
             allow_connected_scope_operation: true,
             allow_platform_self_operation: false,
         }),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "oltp", feature = "v1"))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsSubmitCheckEligibility, payment_id))]
+pub async fn payments_submit_eligibility_check(
+    state: web::Data<app::AppState>,
+    http_req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsEligibilityCheckRequest>,
+    path: web::Path<common_utils::id_type::PaymentId>,
+) -> impl Responder {
+    let flow = Flow::PaymentsSubmitCheckEligibility;
+    let payment_id = path.into_inner();
+    let mut payload = json_payload.into_inner();
+    payload.payment_id = payment_id.clone();
+
+    let api_auth = auth::ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: false,
+    };
+
+    let (auth_type, _auth_flow) =
+        match auth::check_sdk_auth_and_get_auth(http_req.headers(), &payload, api_auth) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(report!(err)),
+        };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &http_req,
+        payment_id,
+        |state, auth: auth::AuthenticationData, payment_id, _| {
+            let mut payload = payload.clone();
+            if let Some(client_secret) = auth.client_secret {
+                payload.client_secret = Some(Secret::new(client_secret));
+            }
+            payments::payments_submit_eligibility_check(
+                state,
+                auth.platform,
+                payload.clone(),
+                payment_id,
+            )
+        },
+        &*auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await
