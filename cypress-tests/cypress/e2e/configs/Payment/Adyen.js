@@ -1735,39 +1735,6 @@ export const connectorDetails = {
         },
       },
     }),
-    MomoWalletMandateCIT: getCustomExchange({
-      Request: {
-        payment_method: "wallet",
-        payment_method_type: "momo",
-        payment_method_data: {
-          wallet: {
-            momo_redirect: {},
-          },
-        },
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "2024-01-01T00:00:00Z",
-          online: {
-            ip_address: "10.0.0.1",
-            user_agent: "test",
-          },
-        },
-        mandate_data: getMandateData("VND"),
-        setup_future_usage: "off_session",
-        currency: "VND",
-        return_url: "https://example.com",
-        billing: {
-          email: "test@example.com",
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          payment_method_status: null,
-        },
-      },
-    }),
     TwintWalletMandateCIT: getCustomExchange({
       Configs: {
         TRIGGER_SKIP: true,
@@ -1955,26 +1922,6 @@ export const connectorDetails = {
         payment_method_type: "gcash",
         setup_future_usage: "off_session",
         currency: "PHP",
-        billing: {
-          email: "test@example.com",
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    }),
-    MomoWalletMITAutoCapture: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "wallet",
-        payment_method_type: "momo",
-        setup_future_usage: "off_session",
-        currency: "VND",
         billing: {
           email: "test@example.com",
         },
