@@ -1125,7 +1125,7 @@ BUCKET_3_FEATURES = [
     ("Outgoing Webhook Custom Headers", "Custom HTTP headers for outgoing webhooks", "POST /business_profile (custom headers)", "business_profile.rs:outgoing_webhook_custom_http_headers", "covered", "Cypress spec 28-BusinessProfileConfigs (updateBusinessProfileWebhookCustomHeaders)"),
     ("Webhook Details", "Webhook URL and event configuration", "POST /business_profile (webhook_details)", "business_profile.rs:webhook_details", "covered", "Cypress specs 44-PaymentWebhook 45-RefundWebhook"),
     ("Card Testing Guard", "Anti-card-testing fraud detection", "POST /payments (internal fraud guard)", "business_profile.rs:card_testing_guard_config", "not_covered", ""),
-    ("Payment Response Hash", "Sign payment response for integrity verification", "POST /payments (hash in response)", "business_profile.rs:enable_payment_response_hash", "not_covered", ""),
+    ("Payment Response Hash", "Sign payment response for integrity verification", "POST /payments (hash in response)", "business_profile.rs:enable_payment_response_hash", "covered", "Cypress spec 52-PaymentResponseHash (PR #12226)"),
     ("Redirect Method", "POST vs GET for merchant redirect", "POST /payments (redirect behavior)", "business_profile.rs:redirect_to_merchant_with_http_post", "covered", "Cypress spec 52-MerchantRedirectMethod (PR #12200)"),
     ("Session Expiry", "Client secret / session expiry time", "POST /payments (session timeout)", "business_profile.rs:session_expiry", "not_covered", ""),
     ("Reconciliation", "Payment reconciliation feature", "Recon API endpoints", "business_profile.rs:is_recon_enabled", "not_covered", ""),
