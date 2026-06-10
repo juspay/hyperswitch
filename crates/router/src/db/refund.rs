@@ -561,10 +561,7 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
-                    let lookup_id = format!(
-                        "ref_inter_ref_{}_{internal_reference_id}",
-                        processor_merchant_id.get_string_repr()
-                    );
+                    let lookup_id = diesel_refund::Refund::construct_lookup_id_processor_merchant_id_internal_reference_id(processor_merchant_id, internal_reference_id);
                     let lookup = fallback_reverse_lookup_not_found!(
                         self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                             .await,
