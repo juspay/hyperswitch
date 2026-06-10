@@ -1962,7 +1962,7 @@ pub async fn fetch_payment_method_from_modular_service(
     .attach_printable("Failed to transform payment method retrieve response")?;
 
     // The external vault proxy card response may not carry the expiry month/year. In that case fall
-    // back to the locker card detail (`payment_method_data`) expiry returned in the same response.
+    // back to the additional payment method data stored in the payment methods table (`payment_method_data`) expiry returned in the same response.
     let (fallback_exp_month, fallback_exp_year) = match &pm_response.payment_method_data {
         Some(payment_methods::types::PaymentMethodResponseData::Card(card)) => {
             (card.expiry_month.clone(), card.expiry_year.clone())

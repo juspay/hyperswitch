@@ -35,10 +35,6 @@ pub struct PaymentMethodResponseItemV1 {
     pub is_default: bool,
     pub billing: Option<api_models::payments::Address>,
     pub network_tokenization: Option<NetworkTokenResponse>,
-    // The modular (v2) customer PML response does not always include this field; default to
-    // `false` when absent so deserialization of the v1 bridge shape stays tolerant.
-    #[serde(default)]
-    pub psp_tokenization_enabled: bool,
     pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
     pub network_transaction_id: Option<String>,
 }
