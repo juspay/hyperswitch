@@ -9422,6 +9422,12 @@ impl PaymentEligibilityData {
                 platform.get_provider().get_account().storage_scheme,
             )
             .await
+            .inspect_err(|err| {
+                logger::error!(
+                    error=?err,
+                    "Failed to find payment method for payment token during eligibility check, proceeding with legacy token resolution"
+                );
+            })
             .ok();
 
         let dimensions = Dimensions::new()
