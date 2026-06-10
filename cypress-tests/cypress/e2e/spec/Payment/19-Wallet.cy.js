@@ -1096,7 +1096,7 @@ describe("Stripe AliPay Wallet tests", () => {
     it("confirm-alipay-with-invalid-currency-should-fail", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
-      ]["AliPayInvalidCurrency"];
+      ]["PaymentIntent"]("AliPay", "INR");
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -1370,7 +1370,7 @@ describe("Stripe AmazonPay Wallet tests", () => {
     it("confirm-amazonpay-with-invalid-currency-should-fail", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
-      ]["AmazonPayInvalidCurrency"];
+      ]["PaymentIntent"]("AmazonPay", "INR");
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -1644,7 +1644,7 @@ describe("Stripe Cashapp Wallet tests", () => {
     it("confirm-cashapp-with-invalid-currency-should-fail", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
-      ]["CashappInvalidCurrency"];
+      ]["PaymentIntent"]("Cashapp", "INR");
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -1918,7 +1918,7 @@ describe("Stripe RevolutPay Wallet tests", () => {
     it("confirm-revolutpay-with-invalid-currency-should-fail", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
-      ]["RevolutPayInvalidCurrency"];
+      ]["PaymentIntent"]("RevolutPay", "INR");
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -2094,7 +2094,7 @@ describe("Stripe WeChatPay Wallet tests", () => {
     it("confirm-wechatpay-with-invalid-currency-should-fail", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "wallet_pm"
-      ]["WeChatPayInvalidCurrency"];
+      ]["PaymentIntent"]("WeChatPay", "INR");
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,

@@ -1457,7 +1457,7 @@ export const connectorDetails = {
     },
   },
   wallet_pm: {
-    PaymentIntent: (walletType) => {
+    PaymentIntent: (walletType, overrideCurrency) => {
       const currencyMap = {
         AliPay: "USD",
         AmazonPay: "USD",
@@ -1467,7 +1467,7 @@ export const connectorDetails = {
       };
       return {
         Request: {
-          currency: currencyMap[walletType] || "USD",
+          currency: overrideCurrency || currencyMap[walletType] || "USD",
           amount: 1000,
         },
         Response: {
