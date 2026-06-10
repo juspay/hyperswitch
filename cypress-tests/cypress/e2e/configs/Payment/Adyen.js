@@ -87,32 +87,30 @@ const getMandateData = (currency) => ({
 });
 
 
-const makeBilling = (country, phone = null) => ({
+const billing = {
   address: {
     line1: "123",
     line2: "Test Street",
     city: "Test City",
     zip: "12345",
-    country,
     first_name: "John",
     last_name: "Doe",
   },
   email: testEmail,
-  ...(phone && { phone }),
-});
+};
 
-const billingUS = makeBilling("US");
-const billingUSPhone = makeBilling("US", { number: "4155552671", country_code: "+1" });
-const billingNL = makeBilling("NL", { number: "9123456789", country_code: "+31" });
-const billingBE = makeBilling("BE", { number: "9123456789", country_code: "+32" });
-const billingGB = makeBilling("GB", { number: "9123456789", country_code: "+44" });
-const billingGBNoPhone = makeBilling("GB");
-const billingSE = makeBilling("SE", { number: "9123456789", country_code: "+46" });
-const billingSG = makeBilling("SG", { number: "91234567", country_code: "+65" });
-const billingJP = makeBilling("JP", { number: "312345678", country_code: "+81" });
-const billingFR = makeBilling("FR", { number: "612345678", country_code: "+33" });
-const billingMX = makeBilling("MX");
-const billingID = makeBilling("ID");
+const billingUS = { ...billing, address: { ...billing.address, country: "US" } };
+const billingUSPhone = { ...billing, address: { ...billing.address, country: "US" }, phone: { number: "4155552671", country_code: "+1" } };
+const billingNL = { ...billing, address: { ...billing.address, country: "NL" }, phone: { number: "9123456789", country_code: "+31" } };
+const billingBE = { ...billing, address: { ...billing.address, country: "BE" }, phone: { number: "9123456789", country_code: "+32" } };
+const billingGB = { ...billing, address: { ...billing.address, country: "GB" }, phone: { number: "9123456789", country_code: "+44" } };
+const billingGBNoPhone = { ...billing, address: { ...billing.address, country: "GB" } };
+const billingSE = { ...billing, address: { ...billing.address, country: "SE" }, phone: { number: "9123456789", country_code: "+46" } };
+const billingSG = { ...billing, address: { ...billing.address, country: "SG" }, phone: { number: "91234567", country_code: "+65" } };
+const billingJP = { ...billing, address: { ...billing.address, country: "JP" }, phone: { number: "312345678", country_code: "+81" } };
+const billingFR = { ...billing, address: { ...billing.address, country: "FR" }, phone: { number: "612345678", country_code: "+33" } };
+const billingMX = { ...billing, address: { ...billing.address, country: "MX" } };
+const billingID = { ...billing, address: { ...billing.address, country: "ID" } };
 
 export const connectorDetails = {
   card_pm: {
