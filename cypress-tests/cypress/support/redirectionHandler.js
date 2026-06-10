@@ -61,7 +61,8 @@ export function handleRedirection(
       threeDsRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
-        resolvedConnectorId
+        resolvedConnectorId,
+        paymentMethodType
       );
       break;
     case "upi":
@@ -1981,7 +1982,12 @@ function bankRedirectRedirection(
   });
 }
 
-function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
+function threeDsRedirection(
+  redirectionUrl,
+  expectedUrl,
+  connectorId,
+  paymentMethodType
+) {
   let responseContentType = null;
 
   // First check what type of response we get from the redirect URL
@@ -2046,6 +2052,26 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
     cy.log("Submitted OTP");
     // Wait for redirect URL to load
     cy.url({ timeout: CONSTANTS.TIMEOUT }).should("include", expectedUrl);
+
+    verifyReturnUrl(redirectionUrl, expectedUrl, true);
+    return;
+  }
+
+  if (connectorId === "iatapay" && paymentMethodType === "duit_now") {
+    cy.log("Starting iatapay RealTimePayment redirection flow for DuitNow");
+
+    cy.get(".iatapay-button.iatapay-button--secondary", {
+      timeout: CONSTANTS.TIMEOUT,
+    })
+      .should("be.visible")
+      .click();
+
+    cy.log("Clicked Simulate button");
+
+    cy.url({ timeout: CONSTANTS.TIMEOUT }).should(
+      "include",
+      expectedUrl.hostname
+    );
 
     verifyReturnUrl(redirectionUrl, expectedUrl, true);
     return;
