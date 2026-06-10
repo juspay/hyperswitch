@@ -322,7 +322,7 @@ describe("Wallet tests", () => {
           if (
             shouldIncludeConnector(
               connector,
-              CONNECTOR_LISTS.INCLUDE.GLOBEPAY_WALLET
+              CONNECTOR_LISTS.INCLUDE.WECHATPAY_WALLET
             )
           ) {
             skip = true;
@@ -420,7 +420,7 @@ describe("Wallet tests", () => {
           if (
             shouldIncludeConnector(
               connector,
-              CONNECTOR_LISTS.INCLUDE.GLOBEPAY_WALLET
+              CONNECTOR_LISTS.INCLUDE.ALIPAY_WALLET
             )
           ) {
             skip = true;
