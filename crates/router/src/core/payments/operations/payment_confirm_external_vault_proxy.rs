@@ -685,16 +685,14 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                     api_key,
                     api_secret,
                     ..
-                } => (api_key, api_secret),
-                _ => {
-                    return Err(error_stack::report!(
-                        errors::ApiErrorResponse::InternalServerError
-                    )
-                    .attach_printable(
-                        "Unexpected auth type for hyperswitch external vault connector; expected SignatureKey",
-                    ))
-                }
-            };
+                } => Ok((api_key, api_secret)),
+                _ => Err(error_stack::report!(
+                    errors::ApiErrorResponse::InternalServerError
+                )
+                .attach_printable(
+                    "Unexpected auth type for hyperswitch external vault connector; expected SignatureKey",
+                )),
+            }?;
 
             let temporary_token = vault_card.card_number.clone().expose();
             let permanent_pm_id = pm_transformers::get_permanent_pm_id_from_temporary_token(
