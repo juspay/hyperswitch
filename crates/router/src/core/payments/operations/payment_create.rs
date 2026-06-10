@@ -1348,6 +1348,7 @@ impl PaymentCreate {
             &profile_id,
             payment_method_ref,
             None, // CVC token data is not passed in create api
+            true, // fetch raw card detail from the internal vault
         )
         .await?;
         logger::info!("Payment method fetched from PM Modular Service.");
