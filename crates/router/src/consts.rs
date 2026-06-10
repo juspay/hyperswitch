@@ -127,6 +127,9 @@ pub const POLL_ID_TTL: i64 = 900;
 // 15 minutes = 900 seconds
 pub const AUTHENTICATION_ELIGIBILITY_CHECK_DATA_TTL: i64 = 900;
 
+// TTL for external surcharge details stored in Redis (15 minutes)
+pub const EXTERNAL_SURCHARGE_TTL: i64 = 900;
+
 // Prefix key for storing authentication eligibility check data in redis
 pub const AUTHENTICATION_ELIGIBILITY_CHECK_DATA_KEY: &str = "AUTH_ELIGIBILITY_CHECK_DATA_";
 
@@ -176,6 +179,9 @@ pub const DEFAULT_BACKGROUND_COLOR: &str = "#212E46";
 /// Default product Img Link
 pub const DEFAULT_PRODUCT_IMG: &str =
     "https://live.hyperswitch.io/payment-link-assets/cart_placeholder.png";
+
+/// Show merchant name by default for payment links
+pub const DEFAULT_SHOW_MERCHANT_NAME: bool = true;
 
 /// Default SDK Layout
 pub const DEFAULT_SDK_LAYOUT: &str = "tabs";
