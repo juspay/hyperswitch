@@ -1614,7 +1614,7 @@ impl RevenueRecoveryOutgoingWebhook {
                     outgoing_webhook_content,
                     payment_intent.created_at,
                     webhook_recipient,
-                    None, // Todo: Extend Revenue Recovery to Include Webhook Resource Context for Connector Notify Support
+                    None, // Extend Revenue Recovery to Include Webhook Resource Context for Connector Notify Support
                     profile,
                 )
                 .await

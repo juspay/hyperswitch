@@ -90,23 +90,27 @@ impl Event {
         primary_object_id: &str,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
-            conn,
-            dsl::event_id
-                .nullable()
-                .eq(dsl::initial_attempt_id) // Filter initial attempts only
-                .and(dsl::merchant_id.eq(merchant_id.to_owned()))
-                .and(dsl::primary_object_id.eq(primary_object_id.to_owned()))
-                .and(
-                    dsl::recipient
-                        .eq(event_recipient.map(|r| r.to_string()))
-                        .or(dsl::recipient.is_null()),
-                ),
-            None,
-            None,
-            Some(dsl::created_at.desc()),
-        )
-        .await
+        let mut query = Self::table()
+            .filter(
+                dsl::event_id
+                    .nullable()
+                    .eq(dsl::initial_attempt_id) // Filter initial attempts only
+                    .and(dsl::merchant_id.eq(merchant_id.to_owned()))
+                    .and(dsl::primary_object_id.eq(primary_object_id.to_owned())),
+            )
+            .order(dsl::created_at.desc())
+            .into_boxed();
+
+        if let Some(recipient) = event_recipient {
+            query = query.filter(dsl::recipient.eq(recipient.to_string()));
+        };
+
+        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
+            .await
+            .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
+            .attach_printable("Error filtering events by constraints")
     }
 
     pub async fn find_initial_attempt_by_merchant_id_initial_attempt_id(
@@ -177,21 +181,25 @@ impl Event {
         initial_attempt_id: &str,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
-            conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
-                .and(dsl::initial_attempt_id.eq(initial_attempt_id.to_owned()))
-                .and(
-                    dsl::recipient
-                        .eq(event_recipient.map(|r| r.to_string()))
-                        .or(dsl::recipient.is_null()),
-                ),
-            None,
-            None,
-            Some(dsl::created_at.desc()),
-        )
-        .await
+        let mut query = Self::table()
+            .filter(
+                dsl::merchant_id
+                    .eq(merchant_id.to_owned())
+                    .and(dsl::initial_attempt_id.eq(initial_attempt_id.to_owned()))
+            )
+            .order(dsl::created_at.desc())
+            .into_boxed();
+
+           if let Some(recipient) = event_recipient {
+            query = query.filter(dsl::recipient.eq(recipient.to_string()));
+        };
+
+        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
+            .await
+            .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
+            .attach_printable("Error filtering events by constraints")
     }
 
     pub async fn list_initial_attempts_by_initiator_merchant_id_primary_object_id(
@@ -299,9 +307,10 @@ impl Event {
     ) -> StorageResult<Vec<Self>> {
         // Fallback on merchant_id for rows with NULL initiator_merchant_id to
         // handle events created during staggered rollout by older code.
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
-            conn,
-            dsl::initial_attempt_id
+
+         let mut query = Self::table()
+            .filter(
+                 dsl::initial_attempt_id
                 .eq(initial_attempt_id.to_owned())
                 .and(
                     dsl::initiator_merchant_id
@@ -309,17 +318,21 @@ impl Event {
                         .or(dsl::initiator_merchant_id
                             .is_null()
                             .and(dsl::merchant_id.eq(initiator_merchant_id.to_owned()))),
-                )
-                .and(
-                    dsl::recipient
-                        .eq(event_recipient.map(|r| r.to_string()))
-                        .or(dsl::recipient.is_null()),
                 ),
-            None,
-            None,
-            Some(dsl::created_at.desc()),
-        )
-        .await
+            )
+            .order(dsl::created_at.desc())
+            .into_boxed();
+
+        if let Some(recipient) = event_recipient {
+            query = query.filter(dsl::recipient.eq(recipient.to_string()));
+        };
+
+        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
+            .await
+            .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
+            .attach_printable("Error filtering events by constraints")
     }
 
     pub async fn list_initial_attempts_by_profile_id_primary_object_id(
@@ -328,23 +341,29 @@ impl Event {
         primary_object_id: &str,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
-            conn,
-            dsl::event_id
+
+         let mut query = Self::table()
+            .filter(
+                dsl::event_id
                 .nullable()
                 .eq(dsl::initial_attempt_id) // Filter initial attempts only
                 .and(dsl::business_profile_id.eq(profile_id.to_owned()))
                 .and(dsl::primary_object_id.eq(primary_object_id.to_owned()))
-                .and(
-                    dsl::recipient
-                        .eq(event_recipient.map(|r| r.to_string()))
-                        .or(dsl::recipient.is_null()),
-                ),
-            None,
-            None,
-            Some(dsl::created_at.desc()),
-        )
-        .await
+            )
+            .order(dsl::created_at.desc())
+            .into_boxed();
+
+           if let Some(recipient) = event_recipient {
+            query = query.filter(dsl::recipient.eq(recipient.to_string()));
+        };
+
+        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
+            .await
+            .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
+            .attach_printable("Error filtering events by constraints")
+
     }
 
     pub async fn find_initial_attempt_by_profile_id_initial_attempt_id(

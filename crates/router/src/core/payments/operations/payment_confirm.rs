@@ -867,65 +867,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .net_amount
             .set_order_tax_amount(order_tax_amount);
 
-        // If the SDK passed surcharge details from a prior /eligibility call (external surcharge
-        // via InterPayments), apply them to net_amount now so that populate_surcharge_details
-        // picks them up in the non-DSS path and persists them with the attempt.
-        let resolved_surcharge = if request.surcharge_details.is_some() {
-            request.surcharge_details
-        } else {
-            // Try to load the latest surcharge calculated during eligibility from Redis
-            let redis_key = helpers::get_external_surcharge_redis_key(&payment_attempt.payment_id);
-            match state.store.get_redis_conn() {
-                Ok(redis_conn) => {
-                    match redis_conn
-                        .get_and_deserialize_key::<api_models::payments::RequestSurchargeDetails>(
-                            &redis_key.as_str().into(),
-                            "RequestSurchargeDetails",
-                        )
-                        .await
-                    {
-                        Ok(surcharge) => {
-                            logger::info!(
-                                payment_id = %payment_attempt.payment_id.get_string_repr(),
-                                surcharge_amount = %surcharge.surcharge_amount.get_amount_as_i64(),
-                                "Loaded external surcharge from Redis for confirm"
-                            );
-                            Some(surcharge)
-                        }
-                        Err(err) => {
-                            if matches!(
-                                err.current_context(),
-                                redis_interface::errors::RedisError::NotFound
-                            ) {
-                                logger::info!(
-                                    payment_id = %payment_attempt.payment_id.get_string_repr(),
-                                    "confirm: no external surcharge found in Redis; proceeding without surcharge"
-                                );
-                            } else {
-                                logger::warn!(error=?err, "Failed to fetch external surcharge from Redis");
-                            }
-                            None
-                        }
-                    }
-                }
-                Err(err) => {
-                    logger::warn!(error=?err, "Could not get redis conn to fetch external surcharge");
-                    None
-                }
-            }
-        };
-
-        if let Some(ref req_surcharge) = resolved_surcharge {
-            let surcharge_details =
-                hyperswitch_domain_models::router_request_types::SurchargeDetails::from((
-                    req_surcharge,
-                    &payment_attempt,
-                ));
-            payment_attempt
-                .net_amount
-                .set_surcharge_details(Some(surcharge_details));
-        }
-
         payment_attempt.connector_mandate_detail = Some(
             DieselConnectorMandateReferenceId::foreign_from(ConnectorMandateReferenceId::new(
                 None,

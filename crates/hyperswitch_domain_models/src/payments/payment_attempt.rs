@@ -2174,7 +2174,7 @@ pub enum PaymentAttemptUpdate {
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     },
     ExternalSurchargeUpdate {
-        external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
+        external_surcharge_details: common_types::payments::ExternalSurchargeDetails,
         updated_by: String,
     },
 }

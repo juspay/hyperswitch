@@ -633,10 +633,6 @@ pub enum PaymentIntentUpdate {
         status: storage_enums::IntentStatus,
         updated_by: String,
     },
-    SurchargeStrategyUpdate {
-        surcharge_strategy: Option<common_enums::SurchargeStrategy>,
-        updated_by: String,
-    },
 }
 
 #[cfg(feature = "v2")]

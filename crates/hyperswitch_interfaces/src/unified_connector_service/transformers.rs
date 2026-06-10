@@ -1127,7 +1127,6 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             | Self::PayoutStageFailure
             | Self::PayoutCreateRecipientFailure
             | Self::SurchargeCalculateFailure
-            | Self::SurchargeCalculateFailure
             | Self::PayoutEnrollDisburseAccountFailure
             | Self::NotifyConnectorFailure => ConnectorError::ResponseHandlingFailed,
         }
