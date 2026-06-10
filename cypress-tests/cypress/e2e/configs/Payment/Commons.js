@@ -816,6 +816,39 @@ export const payment_methods_enabled = [
         recurring_enabled: false,
         installment_payment_enabled: false,
       },
+      {
+        payment_method_type: "afterpay_clearpay",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "alma",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "walley",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
     ],
   },
 ];
@@ -1655,8 +1688,10 @@ export const connectorDetails = {
             number: "612345678",
             country_code: "+33",
           },
+          email: "test@test.com",
           address: {
-            line1: "123 Rue de Test",
+            line1: "123",
+            line2: "Rue de Test",
             city: "Paris",
             state: "Ile-de-France",
             zip: "75001",
@@ -1667,7 +1702,8 @@ export const connectorDetails = {
         },
         shipping: {
           address: {
-            line1: "123 Rue de Test",
+            line1: "123",
+            line2: "Rue de Test",
             city: "Paris",
             state: "Ile-de-France",
             zip: "75001",
@@ -1676,6 +1712,102 @@ export const connectorDetails = {
             last_name: "Dupont",
           },
         },
+      },
+    }),
+    PayBright: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "pay_bright",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            pay_bright_redirect: {},
+          },
+        },
+        billing: {
+          phone: {
+            number: "4165551234",
+            country_code: "+1",
+          },
+          email: "test@test.com",
+          address: {
+            line1: "123",
+            line2: "Test Street",
+            city: "Toronto",
+            state: "Ontario",
+            zip: "M5V 2L7",
+            country: "CA",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "123",
+            line2: "Test Street",
+            city: "Toronto",
+            state: "Ontario",
+            zip: "M5V 2L7",
+            country: "CA",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+    }),
+    Walley: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "walley",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            walley_redirect: {},
+          },
+        },
+        billing: {
+          phone: {
+            number: "0701234567",
+            country_code: "+46",
+          },
+          email: "test@test.com",
+          address: {
+            line1: "123",
+            line2: "Test Street",
+            city: "Stockholm",
+            state: "Stockholm",
+            zip: "11122",
+            country: "SE",
+            first_name: "Johan",
+            last_name: "Andersson",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "123",
+            line2: "Test Street",
+            city: "Stockholm",
+            state: "Stockholm",
+            zip: "11122",
+            country: "SE",
+            first_name: "Johan",
+            last_name: "Andersson",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
       },
     }),
     Atome: getCustomExchange({

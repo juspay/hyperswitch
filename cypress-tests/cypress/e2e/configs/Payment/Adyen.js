@@ -2268,6 +2268,293 @@ export const connectorDetails = {
         },
       },
     }),
+    AfterpayClearpayAutoCapture: getCustomExchange({
+      Request: {
+        currency: "GBP",
+        capture_method: "automatic",
+        billing: {
+          email: "test@test.com",
+          address: {
+            line1: "123",
+            line2: "Test St",
+            city: "London",
+            state: "London",
+            zip: "SW1A 1AA",
+            country: "GB",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "123",
+            line2: "Test St",
+            city: "London",
+            state: "London",
+            zip: "SW1A 1AA",
+            country: "GB",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    AfterpayClearpay: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "afterpay_clearpay",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            afterpay_clearpay_redirect: {},
+          },
+        },
+        currency: "GBP",
+        billing: {
+          email: "test@test.com",
+          address: {
+            line1: "123",
+            line2: "Test St",
+            city: "London",
+            state: "London",
+            zip: "SW1A 1AA",
+            country: "GB",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "123",
+            line2: "Test St",
+            city: "London",
+            state: "London",
+            zip: "SW1A 1AA",
+            country: "GB",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    AlmaAutoCapture: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        capture_method: "automatic",
+        billing: {
+          phone: {
+            number: "612345678",
+            country_code: "+33",
+          },
+          email: "test@test.com",
+          address: {
+            line1: "123",
+            line2: "Rue de Test",
+            city: "Paris",
+            state: "Ile-de-France",
+            zip: "75001",
+            country: "FR",
+            first_name: "Jean",
+            last_name: "Dupont",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "123",
+            line2: "Rue de Test",
+            city: "Paris",
+            state: "Ile-de-France",
+            zip: "75001",
+            country: "FR",
+            first_name: "Jean",
+            last_name: "Dupont",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    Alma: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "alma",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            alma_redirect: {},
+          },
+        },
+        currency: "EUR",
+        billing: {
+          phone: {
+            number: "612345678",
+            country_code: "+33",
+          },
+          email: "test@test.com",
+          address: {
+            line1: "123",
+            line2: "Rue de Test",
+            city: "Paris",
+            state: "Ile-de-France",
+            zip: "75001",
+            country: "FR",
+            first_name: "Jean",
+            last_name: "Dupont",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "123",
+            line2: "Rue de Test",
+            city: "Paris",
+            state: "Ile-de-France",
+            zip: "75001",
+            country: "FR",
+            first_name: "Jean",
+            last_name: "Dupont",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    WalleyAutoCapture: getCustomExchange({
+      Request: {
+        currency: "SEK",
+        capture_method: "automatic",
+        billing: {
+          phone: {
+            number: "0701234567",
+            country_code: "+46",
+          },
+          email: "test@test.com",
+          address: {
+            line1: "123",
+            line2: "Test Street",
+            city: "Stockholm",
+            state: "Stockholm",
+            zip: "11122",
+            country: "SE",
+            first_name: "Johan",
+            last_name: "Andersson",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "123",
+            line2: "Test Street",
+            city: "Stockholm",
+            state: "Stockholm",
+            zip: "11122",
+            country: "SE",
+            first_name: "Johan",
+            last_name: "Andersson",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    Walley: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "walley",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            walley_redirect: {},
+          },
+        },
+        currency: "SEK",
+        billing: {
+          phone: {
+            number: "0701234567",
+            country_code: "+46",
+          },
+          email: "test@test.com",
+          address: {
+            line1: "123",
+            line2: "Test Street",
+            city: "Stockholm",
+            state: "Stockholm",
+            zip: "11122",
+            country: "SE",
+            first_name: "Johan",
+            last_name: "Andersson",
+          },
+        },
+        shipping: {
+          address: {
+            line1: "123",
+            line2: "Test Street",
+            city: "Stockholm",
+            state: "Stockholm",
+            zip: "11122",
+            country: "SE",
+            first_name: "Johan",
+            last_name: "Andersson",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
     CaptureOnWrongStatus: getCustomExchange({
       Request: {
         amount_to_capture: 6000,
