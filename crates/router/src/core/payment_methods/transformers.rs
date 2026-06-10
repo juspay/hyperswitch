@@ -16,7 +16,7 @@ use common_utils::{
     ext_traits::{AsyncExt, Encode, StringExt},
     id_type,
     pii::{Email, SecretSerdeValue},
-    request::{RequestContent, Method},
+    request::{Method, RequestContent},
 };
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
