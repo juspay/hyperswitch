@@ -1836,6 +1836,55 @@ pub async fn payments_cancel_post_capture(
     .await
 }
 
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCancelPostCaptureSync, payment_id))]
+pub async fn payments_cancel_post_capture_retrieve(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<common_utils::id_type::PaymentId>,
+) -> impl Responder {
+    let flow = Flow::PaymentsCancelPostCaptureSync;
+    let payment_id = path.into_inner();
+
+    tracing::Span::current().record("payment_id", payment_id.get_string_repr());
+
+    let locking_action = payment_id.get_locking_input(flow.clone());
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payment_id,
+        |state, auth: auth::AuthenticationData, req, req_state| {
+            payments::payments_core::<
+                api_types::PostCaptureVoidSync,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::PostCaptureVoidSync>,
+            >(
+                state,
+                req_state,
+                auth.platform,
+                auth.profile.map(|profile| profile.get_id().clone()),
+                payments::PaymentCancelPostCaptureSync,
+                req,
+                api::AuthFlow::Merchant,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+                HeaderPayload::default(),
+            )
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: false,
+        }),
+        locking_action,
+    ))
+    .await
+}
+
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn payments_list(
@@ -2389,20 +2438,27 @@ where
             | api_models::enums::PaymentType::RecurringMandate
             | api_models::enums::PaymentType::NewMandate
             | api_models::enums::PaymentType::Installment => {
-                // The external vault proxy flow is non-PCI: only vault card data
-                // (`PaymentMethodData::ProxyCard`) is allowed at the connector. When the
-                // confirm request carries it, route to the external vault proxy core directly
-                // using the confirm request itself — no conversion to a dedicated proxy request.
-                let is_proxy_card = req
+                // The external vault proxy flow is non-PCI: the card is vaulted in an external
+                // vault. Two confirm shapes route here:
+                //   - `VaultDataCard`: inline vault card data.
+                //   - `VaultCardTokenData`: a saved card referenced by the top-level
+                //     `payment_token`; its vault tokens are retrieved from the modular PM service.
+                // In both cases the confirm request itself is used to call the proxy core
+                // directly — no conversion to a dedicated proxy request.
+                let should_call_external_vault_proxy = req
                     .payment_method_data
                     .as_ref()
                     .and_then(|pmd| pmd.payment_method_data.as_ref())
                     .map(|data| {
-                        matches!(data, api_models::payments::PaymentMethodData::ProxyCard(_))
+                        matches!(
+                            data,
+                            api_models::payments::PaymentMethodData::ProxyCard(_)
+                                | api_models::payments::PaymentMethodData::VaultCardTokenData(_)
+                        )
                     })
                     .unwrap_or(false);
 
-                if is_proxy_card {
+                if should_call_external_vault_proxy {
                     Box::pin(payments::external_vault_proxy_for_payments_core::<
                         api_types::ExternalVaultProxy,
                         payment_types::PaymentsResponse,
@@ -3224,6 +3280,23 @@ impl GetLockingInput for payment_types::PaymentsCancelPostCaptureRequest {
         api_locking::LockAction::Hold {
             input: api_locking::LockingInput {
                 unique_locking_key: self.payment_id.get_string_repr().to_owned(),
+                api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl GetLockingInput for common_utils::id_type::PaymentId {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: self.get_string_repr().to_owned(),
                 api_identifier: lock_utils::ApiIdentifier::from(flow),
                 override_lock_retries: None,
             },
