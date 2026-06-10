@@ -11013,6 +11013,15 @@ pub struct PaymentsCancelPostCaptureRequest {
     pub cancellation_reason: Option<String>,
 }
 
+/// Tracking data for the post_capture_void_sync workflow stored in process_tracker
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct PaymentsPostCaptureVoidSyncTrackingData {
+    /// The identifier for the payment
+    pub payment_id: id_type::PaymentId,
+    /// The identifier for the merchant
+    pub merchant_id: id_type::MerchantId,
+}
+
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 /// Request constructed internally for extending authorization
 pub struct PaymentsExtendAuthorizationRequest {

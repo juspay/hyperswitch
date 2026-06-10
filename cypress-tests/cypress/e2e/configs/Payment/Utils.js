@@ -459,7 +459,7 @@ export const CONNECTOR_LISTS = {
       "mollie",
       "zift",
     ],
-    MANDATE_ID_TEST: ["airwallex", "payload", "gigadat", "loonio"],
+    MANDATE_ID_TEST: ["airwallex", "payload", "gigadat", "loonio", "redsys"],
     // Add more exclusion lists
   },
 
