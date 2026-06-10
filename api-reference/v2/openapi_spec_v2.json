@@ -21889,6 +21889,18 @@
                 "$ref": "#/components/schemas/ProxyCardData"
               }
             }
+          },
+          {
+            "type": "object",
+            "title": "VaultCardTokenData",
+            "required": [
+              "vault_card_token_data"
+            ],
+            "properties": {
+              "vault_card_token_data": {
+                "$ref": "#/components/schemas/CardToken"
+              }
+            }
           }
         ]
       },
