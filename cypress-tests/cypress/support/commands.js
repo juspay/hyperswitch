@@ -3706,133 +3706,142 @@ Cypress.Commands.add(
       headers["x-connected-merchant-id"] = connectedMerchantId;
     }
 
-    cy.request({
-      method: "GET",
-      url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true&expand_attempts=true`,
-      headers: headers,
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-      storeRequestId(response.headers["x-request-id"], globalState);
+    return cy
+      .request({
+        method: "GET",
+        url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true&expand_attempts=true`,
+        headers: headers,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+        storeRequestId(response.headers["x-request-id"], globalState);
 
-      cy.wrap(response).then(() => {
-        if (response.status === 200) {
-          expect(response.headers["content-type"]).to.include(
-            "application/json"
-          );
-          expect(response.body.payment_id).to.equal(payment_id);
-          expect(response.body.amount).to.equal(
-            globalState.get("paymentAmount")
-          );
-          expect(response.body.profile_id, "profile_id").to.not.be.null;
-          expect(response.body.billing, "billing_address").to.not.be.null;
-          expect(response.body.customer, "customer").to.not.be.empty;
-
-          if (expectedIntentStatus) {
-            expect(
-              response.body.status,
-              "payment status should match stored intent_status"
-            ).to.equal(expectedIntentStatus);
-          }
-
-          if (
-            ["succeeded", "processing", "requires_customer_action"].includes(
-              response.body.status
-            )
-          ) {
-            const expectedConnector = getOriginalConnectorName(
-              globalState.get("connectorId")
+        return cy.wrap(response).then(() => {
+          if (response.status === 200) {
+            expect(response.headers["content-type"]).to.include(
+              "application/json"
             );
-            expect(response.body.connector, "connector").to.equal(
-              expectedConnector
+            expect(response.body.payment_id).to.equal(payment_id);
+            expect(response.body.amount).to.equal(
+              globalState.get("paymentAmount")
             );
-            expect(response.body.payment_method_data, "payment_method_data").to
-              .not.be.empty;
-            expect(response.body.payment_method, "payment_method").to.not.be
-              .null;
-            expect(
-              response.body.merchant_connector_id,
-              "connector_id"
-            ).to.equal(merchant_connector_id);
-          }
+            expect(response.body.profile_id, "profile_id").to.not.be.null;
+            expect(response.body.billing, "billing_address").to.not.be.null;
+            expect(response.body.customer, "customer").to.not.be.empty;
 
-          if (
-            response.body.payment_method_id &&
-            typeof response.body.payment_method_id === "string"
-          ) {
-            // Validate the payment_method_id format
-            expect(
-              response.body.payment_method_id,
-              "payment_method_id"
-            ).to.include("pm_").and.to.not.be.null;
-
-            // Whenever, CIT Confirmations gets a payment status of `processing`, it does not yield the `payment_method_id` and hence the `paymentMethodId` in the `globalState` gets the value of `null`. And hence while confirming MIT, it yields an `error.message` of `"Json deserialize error: invalid type: null, expected a string at line 1 column 182"` which is basically because of the `null` value in `recurring_details.data` with `recurring_details.type` as `payment_method_id`. However, we get the `payment_method_id` while PSync, so we can assign it to the `globalState` here.
-            globalState.set("paymentMethodId", response.body.payment_method_id);
-
-            globalState.set(
-              "networkTransactionId",
-              response.body.network_transaction_id
-            );
-
-            const allowedActiveStatuses = [
-              "succeeded",
-              "requires_capture",
-              "partially_captured",
-            ];
-
-            // If capture method is manual, 'processing' status also means 'active'
-            // for the payment method's usability.
-            if (response.body.capture_method === "manual") {
-              allowedActiveStatuses.push("processing");
+            if (expectedIntentStatus) {
+              expect(
+                response.body.status,
+                "payment status should match stored intent_status"
+              ).to.equal(expectedIntentStatus);
             }
 
-            const expectedStatus = allowedActiveStatuses.includes(
-              response.body.status
-            )
-              ? "active"
-              : "inactive";
+            if (
+              ["succeeded", "processing", "requires_customer_action"].includes(
+                response.body.status
+              )
+            ) {
+              const expectedConnector = getOriginalConnectorName(
+                globalState.get("connectorId")
+              );
+              expect(response.body.connector, "connector").to.equal(
+                expectedConnector
+              );
+              expect(response.body.payment_method_data, "payment_method_data")
+                .to.not.be.empty;
+              expect(response.body.payment_method, "payment_method").to.not.be
+                .null;
+              expect(
+                response.body.merchant_connector_id,
+                "connector_id"
+              ).to.equal(merchant_connector_id);
+            }
 
-            // Validate the status
-            expect(
-              response.body.payment_method_status,
-              "payment_method_status"
-            ).to.equal(expectedStatus);
-          }
+            if (
+              response.body.payment_method_id &&
+              typeof response.body.payment_method_id === "string"
+            ) {
+              // Validate the payment_method_id format
+              expect(
+                response.body.payment_method_id,
+                "payment_method_id"
+              ).to.include("pm_").and.to.not.be.null;
 
-          if (autoretries) {
-            expect(response.body).to.have.property("attempts");
-            expect(response.body.attempts).to.be.an("array").and.not.empty;
-            expect(response.body.attempts.length).to.equal(attempt);
-            expect(response.body.attempts[0].attempt_id).to.include(
-              `${payment_id}_`
-            );
-            for (const key in response.body.attempts) {
-              if (
-                response.body.attempts[key].attempt_id ===
-                  `${payment_id}_${attempt}` &&
-                response.body.status === "succeeded"
-              ) {
-                expect(response.body.attempts[key].status).to.equal("charged");
-              } else if (
-                response.body.attempts[key].attempt_id ===
-                  `${payment_id}_${attempt}` &&
-                response.body.status === "requires_customer_action"
-              ) {
-                expect(response.body.attempts[key].status).to.equal(
-                  "authentication_pending"
-                );
-              } else {
-                expect(response.body.attempts[key].status).to.equal("failure");
+              // Whenever, CIT Confirmations gets a payment status of `processing`, it does not yield the `payment_method_id` and hence the `paymentMethodId` in the `globalState` gets the value of `null`. And hence while confirming MIT, it yields an `error.message` of `"Json deserialize error: invalid type: null, expected a string at line 1 column 182"` which is basically because of the `null` value in `recurring_details.data` with `recurring_details.type` as `payment_method_id`. However, we get the `payment_method_id` while PSync, so we can assign it to the `globalState` here.
+              globalState.set(
+                "paymentMethodId",
+                response.body.payment_method_id
+              );
+
+              globalState.set(
+                "networkTransactionId",
+                response.body.network_transaction_id
+              );
+
+              const allowedActiveStatuses = [
+                "succeeded",
+                "requires_capture",
+                "partially_captured",
+              ];
+
+              // If capture method is manual, 'processing' status also means 'active'
+              // for the payment method's usability.
+              if (response.body.capture_method === "manual") {
+                allowedActiveStatuses.push("processing");
+              }
+
+              const expectedStatus = allowedActiveStatuses.includes(
+                response.body.status
+              )
+                ? "active"
+                : "inactive";
+
+              // Validate the status
+              expect(
+                response.body.payment_method_status,
+                "payment_method_status"
+              ).to.equal(expectedStatus);
+            }
+
+            if (autoretries) {
+              expect(response.body).to.have.property("attempts");
+              expect(response.body.attempts).to.be.an("array").and.not.empty;
+              expect(response.body.attempts.length).to.equal(attempt);
+              expect(response.body.attempts[0].attempt_id).to.include(
+                `${payment_id}_`
+              );
+              for (const key in response.body.attempts) {
+                if (
+                  response.body.attempts[key].attempt_id ===
+                    `${payment_id}_${attempt}` &&
+                  response.body.status === "succeeded"
+                ) {
+                  expect(response.body.attempts[key].status).to.equal(
+                    "charged"
+                  );
+                } else if (
+                  response.body.attempts[key].attempt_id ===
+                    `${payment_id}_${attempt}` &&
+                  response.body.status === "requires_customer_action"
+                ) {
+                  expect(response.body.attempts[key].status).to.equal(
+                    "authentication_pending"
+                  );
+                } else {
+                  expect(response.body.attempts[key].status).to.equal(
+                    "failure"
+                  );
+                }
               }
             }
+          } else {
+            throw new Error(
+              `Retrieve Payment Call Failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
+            );
           }
-        } else {
-          throw new Error(
-            `Retrieve Payment Call Failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
-          );
-        }
+        });
       });
-    });
   }
 );
 
