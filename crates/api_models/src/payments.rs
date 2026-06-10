@@ -269,7 +269,7 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -629,7 +629,7 @@ pub struct PaymentsIntentResponse {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -775,7 +775,7 @@ pub struct RevenueRecoveryGetIntentResponse {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -2176,7 +2176,7 @@ pub struct PaymentAttemptResponse {
     pub connector_payment_id: Option<common_utils::types::ConnectorTransactionId>,
 
     /// Identifier for Payment Method used for the payment attempt
-    #[schema(value_type = Option<String>, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    #[schema(value_type = Option<String>, example = "0a_pm_01926c58bc6e77c09e809964e72af8c8")]
     pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
 
     /// Value passed in X-CLIENT-SOURCE header during payments confirm request by the client
@@ -7699,7 +7699,7 @@ pub struct PaymentsListResponseItem {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_pay_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_pay_01926c58bc6e77c09e809964e72af8c8",
         value_type = String,
     )]
     pub id: id_type::GlobalPaymentId,
@@ -7717,7 +7717,7 @@ pub struct PaymentsListResponseItem {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = Option<String>
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -7835,7 +7835,7 @@ pub struct RecoveryPaymentsListResponseItem {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_pay_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_pay_01926c58bc6e77c09e809964e72af8c8",
         value_type = String,
     )]
     pub id: id_type::GlobalPaymentId,
@@ -7852,7 +7852,7 @@ pub struct RecoveryPaymentsListResponseItem {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = Option<String>
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -8083,7 +8083,7 @@ pub struct PaymentsRequest {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -8436,7 +8436,7 @@ pub struct PaymentsResponse {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_pay_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_pay_01926c58bc6e77c09e809964e72af8c8",
         value_type = String,
     )]
     pub id: id_type::GlobalPaymentId,
@@ -8451,7 +8451,7 @@ pub struct PaymentsResponse {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,

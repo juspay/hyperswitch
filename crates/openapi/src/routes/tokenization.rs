@@ -12,7 +12,7 @@ use utoipa::OpenApi;
         content = GenericTokenizationRequest,
         examples(("Create a token with customer_id" = (
             value = json!({
-                "customer_id": "12345_cus_0196d94b9c207333a297cbcf31f2e8c8",
+                "customer_id": "0a_cus_0196d94b9c207333a297cbcf31f2e8c8",
                 "token_request": {
                     "payment_method_data": {
                         "card": {
@@ -46,8 +46,8 @@ pub async fn create_token_vault_api() {}
         content = DeleteTokenDataRequest,
         examples(("Delete a token entry with customer_id and session_id" = (
             value = json!({
-                "customer_id": "12345_cus_0196d94b9c207333a297cbcf31f2e8c8",
-                "session_id": "12345_pms_01926c58bc6e77c09e809964e72af8c8",
+                "customer_id": "0a_cus_0196d94b9c207333a297cbcf31f2e8c8",
+                "session_id": "0a_pms_01926c58bc6e77c09e809964e72af8c8",
             })
         )))
     ),
