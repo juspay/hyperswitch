@@ -52,11 +52,24 @@ pub fn generate_global_customer_id(cell_id: &str) -> String {
     common_utils::generate_time_ordered_id(&prefix)
 }
 
-pub fn is_customer_id_in_global_format(customer_id: &id_type::CustomerId, cell_id: &str) -> bool {
-    customer_id
-        .get_string_repr()
-        .split_once('_')
-        .is_some_and(|(prefix, _)| prefix == cell_id)
+pub fn is_global_customer_id_format(input: &str) -> bool {
+    let mut parts = input.split('_');
+    match (parts.next(), parts.next(), parts.next(), parts.next()) {
+        (Some(cell_id), Some(entity), Some(uuid), None) => {
+            !cell_id.is_empty()
+                && cell_id
+                    .chars()
+                    .all(|character| character.is_ascii_lowercase() || character.is_ascii_digit())
+                && entity == "cus"
+                && uuid.len() == 32
+                && uuid::Uuid::parse_str(uuid).is_ok()
+        }
+        _ => false,
+    }
+}
+
+pub fn is_customer_id_in_global_format(customer_id: &id_type::CustomerId) -> bool {
+    is_global_customer_id_format(customer_id.get_string_repr())
 }
 
 #[instrument(skip(state))]
@@ -1716,13 +1729,13 @@ mod tests {
 
     #[test]
     fn test_is_customer_id_in_global_format() {
-        let cell_id = "0a";
-
         let test_cases = [
             ("0asbjabjbd", false),
-            ("0a_cus_13igbfejs", true),
+            ("0a_cus_12345678123456781234567812345678", true),
+            ("abc12_cus_12345678123456781234567812345678", true),
             ("1b_cus_12iufbeksjeb", false),
             ("efbc2_cus_217846821", false),
+            ("0a_pm_12345678123456781234567812345678", false),
         ];
 
         for (customer_id_str, expected) in test_cases {
@@ -1730,7 +1743,7 @@ mod tests {
                 id_type::CustomerId::wrap(customer_id_str.to_string()).expect("valid customer id");
 
             assert_eq!(
-                is_customer_id_in_global_format(&customer_id, cell_id),
+                is_customer_id_in_global_format(&customer_id),
                 expected,
                 "failed for customer_id={customer_id_str}",
             );
