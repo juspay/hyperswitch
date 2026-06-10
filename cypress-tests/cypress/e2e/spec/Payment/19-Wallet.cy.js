@@ -123,10 +123,7 @@ describe("Wallet tests", () => {
           const connector = globalState.get("connectorId");
 
           if (
-            shouldIncludeConnector(
-              connector,
-              CONNECTOR_LISTS.INCLUDE.TRUSTLY
-            )
+            shouldIncludeConnector(connector, CONNECTOR_LISTS.INCLUDE.TRUSTLY)
           ) {
             skip = true;
             return;
@@ -222,10 +219,7 @@ describe("Wallet tests", () => {
           const connector = globalState.get("connectorId");
 
           if (
-            shouldIncludeConnector(
-              connector,
-              CONNECTOR_LISTS.INCLUDE.MIFINITY
-            )
+            shouldIncludeConnector(connector, CONNECTOR_LISTS.INCLUDE.MIFINITY)
           ) {
             skip = true;
             return;
@@ -321,10 +315,7 @@ describe("Wallet tests", () => {
           const connector = globalState.get("connectorId");
 
           if (
-            shouldIncludeConnector(
-              connector,
-              CONNECTOR_LISTS.INCLUDE.PAYPAL
-            )
+            shouldIncludeConnector(connector, CONNECTOR_LISTS.INCLUDE.PAYPAL)
           ) {
             skip = true;
             return;
