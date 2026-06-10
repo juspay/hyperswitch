@@ -634,7 +634,7 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     POLL_CONFIG: ["stripe"],
-    FRM: ["signifyd"],
+    FRM: ["stripe"],
     // Add more inclusion lists
   },
 };

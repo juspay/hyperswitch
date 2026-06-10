@@ -1251,11 +1251,9 @@ Cypress.Commands.add(
           connectorName
         );
         if (!authDetails) {
-          cy.task(
-            "cli_log",
-            `WARNING: No credentials found for ${connectorName} in creds.json — connector creation may fail`
+          throw new Error(
+            `No credentials found for ${connectorName} in creds.json — skipping connector creation`
           );
-          return;
         }
         createConnectorBody.connector_account_details =
           authDetails.connector_account_details;
