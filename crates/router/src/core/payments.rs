@@ -4518,11 +4518,8 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
     }
 }
 
-
-fn set_decrypted_wallet_payment_method_data<F, D>(
-    token: &PaymentMethodToken,
-    payment_data: &mut D,
-) where
+fn set_decrypted_wallet_payment_method_data<F, D>(token: &PaymentMethodToken, payment_data: &mut D)
+where
     F: Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F>,
 {
