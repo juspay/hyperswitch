@@ -23,19 +23,24 @@ const nlBillingAddress = {
 
 export const connectorDetails = {
   crypto_pm: {
-    PaymentIntent: {
+    PaymentIntent: getCustomExchange({
       Request: {
         currency: "EUR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_payment_method",
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_19",
+          },
         },
       },
-    },
+    }),
     CryptoCurrency: getCustomExchange({
       Configs: {
         TRIGGER_SKIP: true,
@@ -51,18 +56,11 @@ export const connectorDetails = {
         },
         billing: nlBillingAddress,
       },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
-            code: "IR_19",
-          },
-        },
-      },
     }),
-    CryptoCurrencyManualCapture: {
+    CryptoCurrencyManualCapture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "crypto",
         payment_method_type: "crypto_currency",
@@ -74,16 +72,6 @@ export const connectorDetails = {
         },
         billing: nlBillingAddress,
       },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "No eligible connector was found for the current payment method configuration",
-            code: "IR_19",
-          },
-        },
-      },
-    },
+    }),
   },
 };

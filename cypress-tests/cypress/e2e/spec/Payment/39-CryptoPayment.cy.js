@@ -5,10 +5,25 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 let globalState;
 
 describe("Crypto Payment", () => {
+  let shouldContinue = true;
+
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
+      if (
+        !utils.CONNECTOR_LISTS.INCLUDE.CRYPTO_PAYMENT.includes(
+          globalState.get("connectorId")
+        )
+      ) {
+        shouldContinue = false;
+      }
     });
+  });
+
+  beforeEach(function () {
+    if (!shouldContinue) {
+      this.skip();
+    }
   });
 
   after("flush global state", () => {
