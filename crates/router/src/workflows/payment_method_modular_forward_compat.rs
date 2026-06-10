@@ -129,7 +129,9 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
                     payment_method_utils::get_should_trigger_fingerprint_migration(
                         state,
                         None,
-                        hyperswitch_domain_models::platform::ProviderMerchantId::from(merchant_id.clone()),
+                        hyperswitch_domain_models::platform::ProviderMerchantId::from(
+                            merchant_id.clone(),
+                        ),
                     )
                     .await;
 
