@@ -2696,21 +2696,6 @@ pub struct CardToken {
     pub card_cvc: Option<Secret<String>>,
 }
 
-/// Card token data for the external vault proxy flow with an already-saved card. The card details
-/// (number/expiry) are resolved from the saved payment method's external vault tokens; this carries
-/// the CVC / card holder name to combine with them.
-#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct CardTokenData {
-    /// The card holder's name
-    #[schema(value_type = Option<String>, example = "John Test")]
-    pub card_holder_name: Option<Secret<String>>,
-
-    /// The CVC number for the card
-    #[schema(value_type = Option<String>)]
-    pub card_cvc: Option<Secret<String>>,
-}
-
 #[derive(
     Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
@@ -3513,7 +3498,7 @@ pub enum PaymentMethodData {
     /// tokens are retrieved from the modular PM service; this variant carries the CVC / card
     /// holder name to combine with those tokens. Routed through the external vault proxy flow.
     #[schema(title = "VaultCardTokenData")]
-    VaultCardTokenData(CardTokenData),
+    VaultCardTokenData(CardToken),
 }
 
 pub trait GetAddressFromPaymentMethodData {
