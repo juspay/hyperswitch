@@ -26,6 +26,32 @@ describe("FRM - Fraud Risk Management Tests", () => {
         if (skip) {
           this.skip();
         }
+      })
+      .then(() => {
+        if (skip) return;
+        // Set frm_routing_algorithm on merchant account so Hyperswitch knows to use Signifyd for FRM
+        cy.request({
+          method: "POST",
+          url: `${globalState.get("baseUrl")}/accounts/${globalState.get("merchantId")}`,
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "api-key": globalState.get("adminApiKey"),
+          },
+          body: {
+            merchant_id: globalState.get("merchantId"),
+            frm_routing_algorithm: {
+              data: "signifyd",
+              type: "single",
+            },
+          },
+          failOnStatusCode: false,
+        }).then((response) => {
+          cy.task(
+            "cli_log",
+            "Set frm_routing_algorithm status: " + response.status
+          );
+        });
       });
   });
 
@@ -88,7 +114,7 @@ describe("FRM - Fraud Risk Management Tests", () => {
           return;
         }
 
-        cy.retrievePaymentCallTest(globalState);
+        cy.retrievePaymentCallTest({ globalState });
       });
     });
 
@@ -146,7 +172,7 @@ describe("FRM - Fraud Risk Management Tests", () => {
           return;
         }
 
-        cy.retrievePaymentCallTest(globalState);
+        cy.retrievePaymentCallTest({ globalState });
       });
     });
 
@@ -204,7 +230,7 @@ describe("FRM - Fraud Risk Management Tests", () => {
           return;
         }
 
-        cy.retrievePaymentCallTest(globalState);
+        cy.retrievePaymentCallTest({ globalState });
       });
     });
 

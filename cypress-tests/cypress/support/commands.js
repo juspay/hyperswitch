@@ -1247,8 +1247,13 @@ Cypress.Commands.add(
     if (connectorType === "payment_vas") {
       createConnectorBody.frm_configs = [
         {
-          gateway: getOriginalConnectorName(connectorName),
-          payment_methods: [],
+          gateway: getOriginalConnectorName(globalState.get("connectorId")),
+          payment_methods: [
+            {
+              payment_method: "card",
+              flow: "post",
+            },
+          ],
         },
       ];
       delete createConnectorBody.payment_methods_enabled;

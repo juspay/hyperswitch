@@ -8,6 +8,18 @@ const successfulNo3DSCardDetails = {
   card_cvc: "999",
 };
 
+const orderDetails = [
+  {
+    product_name: "Test Product",
+    quantity: 1,
+    amount: 6540,
+  },
+];
+
+const frmMetadata = {
+  order_channel: "web",
+};
+
 export const connectorDetails = {
   card_pm: {
     FRMApprove: getCustomExchange({
@@ -20,9 +32,8 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
         email: "testapproved@signifyd.com",
-        frm_metadata: {
-          enabled: true,
-        },
+        frm_metadata: frmMetadata,
+        order_details: orderDetails,
       },
       Response: {
         status: 200,
@@ -41,9 +52,8 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
         email: "testdeclined@signifyd.com",
-        frm_metadata: {
-          enabled: true,
-        },
+        frm_metadata: frmMetadata,
+        order_details: orderDetails,
       },
       Response: {
         status: 200,
@@ -62,14 +72,13 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
         email: "testpending@signifyd.com",
-        frm_metadata: {
-          enabled: true,
-        },
+        frm_metadata: frmMetadata,
+        order_details: orderDetails,
       },
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "requires_merchant_action",
         },
       },
     }),
