@@ -175,4 +175,56 @@ describe("Client Session Validation", () => {
       });
     }
   );
+
+  context(
+    "Expired SDK Authorization - Confirm after session TTL expires",
+    () => {
+      let shouldContinue = true;
+
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
+
+      it("Create Payment Intent with 60s session expiry", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
+
+        const createBody = {
+          ...fixtures.createPaymentBody,
+          session_expiry: 60,
+        };
+
+        cy.createPaymentIntentTest(
+          createBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("Wait for Redis session TTL to expire", () => {
+        cy.wait(61000); // Wait 61 seconds for Redis TTL to expire
+      });
+
+      it("Confirm with expired sdk_authorization - expect 401", () => {
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ClientSessionInvalidConfirm"];
+
+        cy.confirmWithSdkAuthTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+      });
+    }
+  );
 });
