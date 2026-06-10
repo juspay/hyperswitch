@@ -710,6 +710,7 @@ pub enum WalletDetail {
     },
 }
 
+#[cfg(feature = "v1")]
 impl From<ApplePayPredecryptData> for WalletDetail {
     fn from(data: ApplePayPredecryptData) -> Self {
         Self::ApplePayDecryptedData {
@@ -720,6 +721,7 @@ impl From<ApplePayPredecryptData> for WalletDetail {
     }
 }
 
+#[cfg(feature = "v1")]
 impl From<GPayPredecryptData> for WalletDetail {
     fn from(data: GPayPredecryptData) -> Self {
         Self::GooglePayDecryptedData {
