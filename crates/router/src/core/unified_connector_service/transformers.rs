@@ -83,43 +83,43 @@ pub fn build_upi_wait_screen_data(
         .attach_printable("Failed to serialize WaitScreenInstructions to JSON value")
 }
 
+impl ForeignFrom<common_types::customers::DocumentKind> for payments_grpc::DocumentKind {
+    fn foreign_from(document_kind: common_types::customers::DocumentKind) -> Self {
+        match document_kind {
+            common_types::customers::DocumentKind::Cpf => Self::Cpf,
+            common_types::customers::DocumentKind::Cnpj => Self::Cnpj,
+            // Philippine PhilSys Number — mapped to the dedicated proto PSN type so the
+            // connector (dLocal/GCash) can validate it as a 12-digit national ID.
+            common_types::customers::DocumentKind::Psn => Self::Psn,
+            // Generic non-Brazilian document. Carried as the proto OTHER type; UCS
+            // keeps it and forwards document_number as-is, validated by the connector
+            // per country.
+            common_types::customers::DocumentKind::Other => Self::Other,
+        }
+    }
+}
+
+impl ForeignFrom<&api_models::customers::CustomerDocumentDetails>
+    for payments_grpc::CustomerDocumentDetails
+{
+    fn foreign_from(details: &api_models::customers::CustomerDocumentDetails) -> Self {
+        Self {
+            document_type: payments_grpc::DocumentKind::foreign_from(details.document_type).into(),
+            document_number: Some(details.document_number.clone()),
+        }
+    }
+}
+
 /// Maps the optional customer identification document on a `RouterData` to the
 /// gRPC `CustomerDocumentDetails` sent to the Unified Connector Service.
-///
-/// `document_type` is encoded as the `DocumentKind` enum's `i32` discriminant
-/// (Cpf -> CPF, Cnpj -> CNPJ); `document_number` is passed through as a masked
-/// secret. Returns `None` when no document is present on the source data.
+/// Returns `None` when no document is present on the source data.
 fn to_grpc_customer_document_details<F, Req, Res>(
     router_data: &RouterData<F, Req, Res>,
 ) -> Option<payments_grpc::CustomerDocumentDetails> {
     router_data
         .customer_document_details
         .as_ref()
-        .map(|details| {
-            let document_type = match details.document_type {
-                common_types::customers::DocumentKind::Cpf => {
-                    i32::from(payments_grpc::DocumentKind::Cpf)
-                }
-                common_types::customers::DocumentKind::Cnpj => {
-                    i32::from(payments_grpc::DocumentKind::Cnpj)
-                }
-                // Philippine PhilSys Number — mapped to the dedicated proto PSN type so the
-                // connector (dLocal/GCash) can validate it as a 12-digit national ID.
-                common_types::customers::DocumentKind::Psn => {
-                    i32::from(payments_grpc::DocumentKind::Psn)
-                }
-                // Generic non-Brazilian document. Carried as the proto OTHER type; UCS
-                // keeps it and forwards document_number as-is, validated by the connector
-                // per country.
-                common_types::customers::DocumentKind::Other => {
-                    i32::from(payments_grpc::DocumentKind::Other)
-                }
-            };
-            payments_grpc::CustomerDocumentDetails {
-                document_type,
-                document_number: Some(details.document_number.clone()),
-            }
-        })
+        .map(payments_grpc::CustomerDocumentDetails::foreign_from)
 }
 
 impl transformers::ForeignTryFrom<&payments_grpc::AccessToken> for AccessToken {
