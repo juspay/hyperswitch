@@ -30,15 +30,8 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "IR_19",
-          },
-        },
+        status: 200,
+        body: {},
       },
     }),
     CryptoCurrency: getCustomExchange({
