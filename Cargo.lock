@@ -3982,7 +3982,6 @@ checksum = "32619942b8be646939eaf3db0602b39f5229b74575b67efc897811ded1db4e57"
 name = "grpc-api-types"
 version = "0.1.0"
 source = "git+https://github.com/juspay/connector-service?tag=2026.06.08.1#e4d6fadca056982c4e89f4c3d595c2631dfa2be6"
-
 dependencies = [
  "axum 0.8.4",
  "bytes 1.10.1",
