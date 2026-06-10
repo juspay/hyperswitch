@@ -656,7 +656,7 @@ export const CONNECTOR_LISTS = {
     ],
     POLL_CONFIG: ["stripe"],
     CLIENT_SESSION_VALIDATION: ["stripe"],
-    REQUIRES_CVV: ["bankofamerica"],
+    REQUIRES_CVV: [],
     // Add more inclusion lists
   },
 };
