@@ -1678,6 +1678,7 @@ export const connectorDetails = {
       },
     }),
     SyncRefund: getCustomExchange({}),
+    SyncRefundScheduled: getCustomExchange({}),
   },
   real_time_payment_pm: {
     PaymentIntent: getCustomExchange({
@@ -2141,6 +2142,31 @@ export const connectorDetails = {
       },
     }),
     SyncRefund: getCustomExchange({}),
+    SyncRefundScheduled: getCustomExchange({}),
+    RefundInstant: getCustomExchange({
+      Request: {
+        amount: 6000,
+        refund_type: "instant",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    RefundScheduled: getCustomExchange({
+      Request: {
+        amount: 6000,
+        refund_type: "scheduled",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    }),
     PartialAuth: getCustomExchange({
       Request: {
         enable_partial_authorization: true,
