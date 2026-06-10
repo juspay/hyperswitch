@@ -98,9 +98,9 @@ const billing = {
   email: testEmail,
 };
 
-const shippingUS = {
+const shippingAddress = {
   address: {
-    line1: "123 Test St",
+    line1: "123 Test Street",
     line2: "Apt 4",
     city: "San Francisco",
     state: "California",
@@ -108,58 +108,6 @@ const shippingUS = {
     country: "US",
     first_name: "John",
     last_name: "Doe",
-  },
-};
-
-const shippingSG = {
-  address: {
-    line1: "123 Test Street",
-    line2: "Unit 4",
-    city: "Singapore",
-    state: "Singapore",
-    zip: "018956",
-    country: "SG",
-    first_name: "John",
-    last_name: "Doe",
-  },
-};
-
-const shippingGB = {
-  address: {
-    line1: "123",
-    line2: "Test St",
-    city: "London",
-    state: "London",
-    zip: "SW1A 1AA",
-    country: "GB",
-    first_name: "John",
-    last_name: "Doe",
-  },
-};
-
-const shippingFR = {
-  address: {
-    line1: "123",
-    line2: "Rue de Test",
-    city: "Paris",
-    state: "Ile-de-France",
-    zip: "75001",
-    country: "FR",
-    first_name: "Jean",
-    last_name: "Dupont",
-  },
-};
-
-const shippingSE = {
-  address: {
-    line1: "123",
-    line2: "Test Street",
-    city: "Stockholm",
-    state: "Stockholm",
-    zip: "11122",
-    country: "SE",
-    first_name: "Johan",
-    last_name: "Andersson",
   },
 };
 
@@ -1867,7 +1815,7 @@ export const connectorDetails = {
           address: { ...billing.address, country: "US" },
           phone: { number: "4155552671", country_code: "+1" },
         },
-        shipping: shippingUS,
+        shipping: shippingAddress,
         order_details: [
           {
             product_name: "Test Product",
@@ -1903,7 +1851,7 @@ export const connectorDetails = {
           address: { ...billing.address, country: "US" },
           phone: { number: "4155552671", country_code: "+1" },
         },
-        shipping: shippingUS,
+        shipping: shippingAddress,
         order_details: [
           {
             product_name: "Test Product",
@@ -1962,7 +1910,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
         },
-        shipping: shippingUS,
+        shipping: shippingAddress,
         customer_acceptance: {
           acceptance_type: "online",
         },
@@ -2002,7 +1950,7 @@ export const connectorDetails = {
           address: { ...billing.address, country: "SG" },
           phone: { number: "91234567", country_code: "+65" },
         },
-        shipping: shippingSG,
+        shipping: shippingAddress,
       },
       Response: {
         status: 200,
@@ -2029,7 +1977,7 @@ export const connectorDetails = {
           address: { ...billing.address, country: "SG" },
           phone: { number: "91234567", country_code: "+65" },
         },
-        shipping: shippingSG,
+        shipping: shippingAddress,
       },
       Response: {
         status: 200,
@@ -2057,7 +2005,7 @@ export const connectorDetails = {
           address: { ...billing.address, country: "SG" },
           phone: { number: "91234567", country_code: "+65" },
         },
-        shipping: shippingSG,
+        shipping: shippingAddress,
       },
       Response: {
         status: 200,
@@ -2084,7 +2032,7 @@ export const connectorDetails = {
           address: { ...billing.address, country: "SG" },
           phone: { number: "91234567", country_code: "+65" },
         },
-        shipping: shippingSG,
+        shipping: shippingAddress,
       },
       Response: {
         status: 400,
@@ -2101,7 +2049,7 @@ export const connectorDetails = {
         currency: "GBP",
         capture_method: "automatic",
         billing: { ...billing, address: { ...billing.address, country: "GB" } },
-        shipping: shippingGB,
+        shipping: shippingAddress,
         order_details: [
           {
             product_name: "Test Product",
@@ -2129,7 +2077,7 @@ export const connectorDetails = {
         },
         currency: "GBP",
         billing: { ...billing, address: { ...billing.address, country: "GB" } },
-        shipping: shippingGB,
+        shipping: shippingAddress,
         order_details: [
           {
             product_name: "Test Product",
@@ -2154,7 +2102,7 @@ export const connectorDetails = {
           address: { ...billing.address, country: "FR" },
           phone: { number: "612345678", country_code: "+33" },
         },
-        shipping: shippingFR,
+        shipping: shippingAddress,
       },
       Response: {
         status: 200,
@@ -2179,7 +2127,7 @@ export const connectorDetails = {
           address: { ...billing.address, country: "FR" },
           phone: { number: "612345678", country_code: "+33" },
         },
-        shipping: shippingFR,
+        shipping: shippingAddress,
       },
       Response: {
         status: 200,
@@ -2197,7 +2145,7 @@ export const connectorDetails = {
           address: { ...billing.address, country: "SE" },
           phone: { number: "9123456789", country_code: "+46" },
         },
-        shipping: shippingSE,
+        shipping: shippingAddress,
         order_details: [
           {
             product_name: "Test Product",
@@ -2229,7 +2177,7 @@ export const connectorDetails = {
           address: { ...billing.address, country: "SE" },
           phone: { number: "9123456789", country_code: "+46" },
         },
-        shipping: shippingSE,
+        shipping: shippingAddress,
         order_details: [
           {
             product_name: "Test Product",
