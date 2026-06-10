@@ -710,6 +710,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::TokenizePaymentMethodRequest,
         api_models::payment_methods::CardCVCTokenStorageDetails,
         api_models::payment_methods::RawProxyCardDataResponse,
+        api_models::payments::ProxyCardData,
         api_models::payment_methods::PaymentMethodDeleteSessionResponse,
         api_models::payment_methods::CustomerDefaultPaymentMethodResponse,
         api_models::refunds::RefundListRequest,
