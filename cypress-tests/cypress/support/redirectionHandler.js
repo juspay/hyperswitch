@@ -61,7 +61,8 @@ export function handleRedirection(
       threeDsRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
-        resolvedConnectorId
+        resolvedConnectorId,
+        paymentMethodType
       );
       break;
     case "upi":
@@ -134,40 +135,97 @@ function cryptoRedirection(
   connectorId,
   paymentMethodType
 ) {
-  // Crypto payments are async → never verify return URL
   const verifyUrl = false;
 
   if (redirectionUrl && redirectionUrl.href) {
     cy.visit(redirectionUrl.href);
 
-    // Ensure redirect happened
-    waitForRedirect(redirectionUrl.href);
+    if (connectorId !== "bitpay") {
+      waitForRedirect(redirectionUrl.href);
+    }
 
     cy.wait(CONSTANTS.WAIT_TIME / 5);
 
-    //  Verify QR is present
-    cy.get("canvas.BbpsQr__canvas", { timeout: 5000 })
-      .should("exist")
-      .and("be.visible");
+    if (connectorId === "bitpay") {
+      cy.document().should("have.property", "readyState", "complete");
+      cy.wait(3000);
 
-    handleFlow(
-      redirectionUrl,
-      expectedUrl,
-      connectorId,
-      ({ paymentMethodType }) => {
-        switch (paymentMethodType) {
-          case "crypto_currency":
-            cy.log("Handling crypto currency payment redirection");
-            break;
+      cy.scrollTo("bottom");
+      cy.wait(1000);
 
-          default:
-            throw new Error(
-              `Unsupported crypto payment method type: ${paymentMethodType}`
-            );
+      cy.get("body").then(($body) => {
+        const loginLink = $body
+          .find('a[href*="login"]:visible, button:visible')
+          .filter((_, el) => /log\s*in|sign\s*in|account/i.test(el.innerText))
+          .first();
+
+        if (loginLink.length > 0) {
+          cy.wrap(loginLink).click({ force: true });
+          cy.log("Clicked login link");
+        } else {
+          cy.log("Login link not found");
         }
-      },
-      { paymentMethodType }
-    );
+      });
+
+      cy.wait(2000);
+
+      cy.get('input[type="email"], input[name="email"]', { timeout: 10000 })
+        .should("be.visible")
+        .clear()
+        .type("venkatakarthik.m@juspay.in", { delay: 50 });
+
+      cy.get("body").then(($body) => {
+        const continueBtn = $body
+          .find('button:visible, input[type="submit"]:visible')
+          .filter((_, el) =>
+            /continue|next/i.test(el.innerText || el.value || "")
+          )
+          .first();
+
+        if (continueBtn.length > 0) {
+          cy.wrap(continueBtn).click({ force: true });
+          cy.log("Clicked continue after email");
+        }
+      });
+
+      cy.wait(2000);
+
+      cy.get('input[type="password"], input[name="password"]', {
+        timeout: 10000,
+      })
+        .should("be.visible")
+        .clear()
+        .type("venkatkarthik123@", { delay: 50 });
+
+      cy.get('button[type="submit"], input[type="submit"]', { timeout: 10000 })
+        .should("be.visible")
+        .click();
+
+      cy.log("Submitted Bitpay login credentials");
+    } else {
+      cy.get("canvas.BbpsQr__canvas", { timeout: 5000 })
+        .should("exist")
+        .and("be.visible");
+
+      handleFlow(
+        redirectionUrl,
+        expectedUrl,
+        connectorId,
+        ({ paymentMethodType }) => {
+          switch (paymentMethodType) {
+            case "crypto_currency":
+              cy.log("Handling crypto currency payment redirection");
+              break;
+
+            default:
+              throw new Error(
+                `Unsupported crypto payment method type: ${paymentMethodType}`
+              );
+          }
+        },
+        { paymentMethodType }
+      );
+    }
   } else {
     cy.log("Skipping crypto redirection - no valid redirect URL provided");
   }
@@ -738,14 +796,14 @@ function affirmPayLaterRedirection(
             case "email":
               cy.get("body").then(($body) => {
                 const emailInputs = $body.find(
-                  'input[data-testid*="email"]:visible, input[type="email"]:visible, input[autocomplete="email"]:visible'
+                  'input[data-testid*="email"]:visible, input[type="email"]:visible, input[autocomplete="email"]:visible, input[data-test="email-input"]:visible'
                 );
                 if (emailInputs.length > 0) {
                   cy.wrap(emailInputs.first())
                     .click()
                     .clear()
-                    .type("venkat@gmail.com", { delay: 50 });
-                  cy.log("Entered email venkat@gmail.com");
+                    .type("venkatakarthik.m@juspay.in", { delay: 50 });
+                  cy.log("Entered email venkatakarthik.m@juspay.in");
                 }
               });
               break;
@@ -1284,6 +1342,9 @@ function bankRedirectRedirection(
             if (["eps", "ideal", "giropay"].includes(paymentMethodType)) {
               cy.get('button[name="Successful"][value="SUCCEEDED"]').click();
               verifyUrl = true;
+            } else if (paymentMethodType === "paypal") {
+              cy.url().should("include", "sandbox.paypal.com");
+              verifyUrl = false;
             } else {
               throw new Error(
                 `Unsupported Paypal payment method type: ${paymentMethodType}`
@@ -1622,6 +1683,10 @@ function bankRedirectRedirection(
                 });
                 verifyUrl = false;
                 break;
+              case "paypal":
+                cy.url().should("include", "sandbox.paypal.com");
+                verifyUrl = false;
+                break;
               default:
                 throw new Error(
                   `Unsupported GlobalPay payment method type: ${paymentMethodType}`
@@ -1632,7 +1697,12 @@ function bankRedirectRedirection(
           case "loonio":
             switch (paymentMethodType) {
               case "interac":
-                cy.contains("p", "Pay with Interac e-transfer").click();
+                cy.log("Handling Loonio Interac bank redirect flow");
+                cy.contains("button", "Back to Cashier", {
+                  timeout: constants.TIMEOUT / 3,
+                })
+                  .should("be.visible")
+                  .click();
 
                 verifyUrl = true;
                 break;
@@ -1912,7 +1982,12 @@ function bankRedirectRedirection(
   });
 }
 
-function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
+function threeDsRedirection(
+  redirectionUrl,
+  expectedUrl,
+  connectorId,
+  paymentMethodType
+) {
   let responseContentType = null;
 
   // First check what type of response we get from the redirect URL
@@ -1977,6 +2052,26 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
     cy.log("Submitted OTP");
     // Wait for redirect URL to load
     cy.url({ timeout: CONSTANTS.TIMEOUT }).should("include", expectedUrl);
+
+    verifyReturnUrl(redirectionUrl, expectedUrl, true);
+    return;
+  }
+
+  if (connectorId === "iatapay" && paymentMethodType === "duit_now") {
+    cy.log("Starting iatapay RealTimePayment redirection flow for DuitNow");
+
+    cy.get(".iatapay-button.iatapay-button--secondary", {
+      timeout: CONSTANTS.TIMEOUT,
+    })
+      .should("be.visible")
+      .click();
+
+    cy.log("Clicked Simulate button");
+
+    cy.url({ timeout: CONSTANTS.TIMEOUT }).should(
+      "include",
+      expectedUrl.hostname
+    );
 
     verifyReturnUrl(redirectionUrl, expectedUrl, true);
     return;
@@ -2595,6 +2690,82 @@ function voucherRedirection(
                 break;
               default:
                 cy.log(`Unhandled Adyen voucher type: ${paymentMethodType}`);
+                verifyUrl = false;
+            }
+            break;
+          case "dlocal":
+            switch (paymentMethodType) {
+              case "oxxo":
+                // Dlocal Oxxo returns a redirect URL via ticket.image_url.
+                // Visit the page, inspect for interactive elements,
+                // and attempt to complete payment.
+                cy.log(`Dlocal Oxxo voucher — visiting redirect URL`);
+
+                // Suppress potential JS errors from sandbox/test pages
+                cy.on("uncaught:exception", () => false);
+
+                cy.get("body", { timeout: constants.TIMEOUT })
+                  .should("exist")
+                  .then(($body) => {
+                    const bodyText = $body.text().toLowerCase();
+
+                    // Determine if this is an interactive payment page
+                    const hasPayButton =
+                      $body.find('button:visible, input[type="submit"]:visible')
+                        .length > 0;
+                    const hasInteractiveElements = [
+                      /pay/i,
+                      /confirm/i,
+                      /continue/i,
+                      /submit/i,
+                    ].some((pat) => pat.test(bodyText));
+
+                    if (hasPayButton || hasInteractiveElements) {
+                      cy.log(
+                        `Interactive Oxxo page detected — attempting to complete payment`
+                      );
+
+                      // Generic button click strategy
+                      cy.get("body").then(($b) => {
+                        const buttons = $b.find("button:visible");
+                        for (let i = 0; i < buttons.length; i++) {
+                          const btnText = buttons[i].innerText.toLowerCase();
+                          if (
+                            /pay|confirm|continue|submit|complete/i.test(
+                              btnText
+                            )
+                          ) {
+                            cy.wrap(buttons[i]).click({ force: true });
+                            cy.log(`Clicked payment button: ${btnText}`);
+                            break;
+                          }
+                        }
+                      });
+
+                      // If there's a form, try to fill any visible inputs
+                      cy.get("body").then(($b) => {
+                        const inputs = $b.find(
+                          "input:visible:not([type='hidden'])"
+                        );
+                        if (inputs.length > 0) {
+                          cy.log(
+                            `Found ${inputs.length} visible input(s) on Oxxo page`
+                          );
+                        }
+                      });
+
+                      verifyUrl = true;
+                    } else {
+                      // No interactive elements — display-only page (e.g. static barcode/image)
+                      cy.log(
+                        `Dlocal Oxxo page has no clickable payment buttons — display-only voucher`
+                      );
+                      verifyUrl = false;
+                    }
+                  });
+                break;
+              default:
+                cy.log(`Unhandled dlocal voucher type: ${paymentMethodType}`);
                 verifyUrl = false;
             }
             break;

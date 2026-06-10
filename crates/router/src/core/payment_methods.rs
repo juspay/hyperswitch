@@ -2952,10 +2952,19 @@ pub async fn create_payment_method_proxy_card_core(
 
     let key_manager_state = &(state).into();
 
-    let external_vault_source = profile
-        .external_vault_connector_details
-        .clone()
-        .map(|details| details.vault_connector_id);
+    // A proxy card is, by definition, vaulted in an external vault, so the external vault
+    // connector must be configured on the profile. Fetch it from the profile and require it —
+    // otherwise the payment method would be persisted with a `None` external vault source.
+    let external_vault_source = Some(
+        profile
+            .external_vault_connector_details
+            .clone()
+            .map(|details| details.vault_connector_id)
+            .ok_or_else(|| report!(errors::ApiErrorResponse::InternalServerError))
+            .attach_printable(
+                "external_vault_connector_details must be configured on the profile to create a proxy card payment method",
+            )?,
+    );
 
     let bin_enriched_payment_method_data = req
         .payment_method_data
@@ -4125,6 +4134,13 @@ pub async fn get_external_vault_token(
             Err(errors::ApiErrorResponse::NotImplemented {
                 message: errors::NotImplementedMessage::Reason(
                     "AuthBankDebit Token not implemented".to_string(),
+                ),
+            })?
+        }
+        storage::PaymentTokenData::TemporaryCardToken(_) => {
+            Err(errors::ApiErrorResponse::NotImplemented {
+                message: errors::NotImplementedMessage::Reason(
+                    "TemporaryCardToken does not have a vaulted payment method".to_string(),
                 ),
             })?
         }
@@ -5444,7 +5460,8 @@ pub async fn resolve_storage_type_from_token(
                 // Any token kind other than PermanentCard is invalid for retrieving a saved payment method.
                 // Only PermanentCard is currently supported; all other enum variants should be removed.
                 storage::PaymentTokenData::TemporaryGeneric(_)
-                | storage::PaymentTokenData::AuthBankDebit(_) => {
+                | storage::PaymentTokenData::AuthBankDebit(_)
+                | storage::PaymentTokenData::TemporaryCardToken(_) => {
                     Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound))
                 }
             }
@@ -6010,7 +6027,7 @@ pub async fn payment_methods_session_create(
 ) -> RouterResponse<payment_methods::PaymentMethodSessionResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
-    let provider = platform.get_provider();
+    let _provider = platform.get_provider();
 
     let customer = if let Some(customer_id) = &request.customer_id {
         let customer = db
@@ -6109,8 +6126,13 @@ pub async fn payment_methods_session_create(
 
     let sdk_authorization = Option::<hyperswitch_domain_models::sdk_auth::SdkAuthorization>::from(
         hyperswitch_domain_models::sdk_auth::SdkAuthorizationContext {
-            platform,
+            platform: platform.clone(),
             profile_id: profile.get_id().clone(),
+            publishable_key: platform
+                .get_processor()
+                .get_account()
+                .publishable_key
+                .clone(),
             client_secret: client_secret.secret.clone().expose(),
             customer_id: payment_method_session_domain_model.customer_id.clone(),
             payment_method_session_id: Some(payment_method_session_domain_model.id.clone()),
@@ -6264,6 +6286,84 @@ pub async fn payment_methods_session_retrieve(
     Ok(services::ApplicationResponse::Json(response))
 }
 
+/// Stores `card_cvc` and `card_holder_name` as a `TemporaryCardToken` in Redis under `token`.
+#[cfg(feature = "v2")]
+async fn store_cvc_and_card_holder_name_as_payment_token_in_redis(
+    state: &SessionState,
+    token: &str,
+    card_cvc: Option<Secret<String>>,
+    card_holder_name: Option<Secret<String>>,
+) -> RouterResult<()> {
+    let redis_token_data =
+        storage::PaymentTokenData::temporary_card_token(card_cvc, card_holder_name);
+    let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
+    pm_routes::ParentPaymentMethodToken::create_key_for_token(&token.to_string())
+        .insert(intent_fulfillment_time, redis_token_data, state)
+        .await?;
+    Ok(())
+}
+
+/// Extracts `(card_cvc, card_holder_name)` from a `PaymentMethodUpdateData`, returning
+/// `(None, None)` for non-card variants.
+#[cfg(feature = "v2")]
+fn extract_card_cvc_and_holder_name(
+    payment_method_data: Option<&payment_methods::PaymentMethodUpdateData>,
+) -> (Option<Secret<String>>, Option<Secret<String>>) {
+    match payment_method_data {
+        Some(payment_methods::PaymentMethodUpdateData::Card(card_update)) => (
+            card_update.card_cvc.clone(),
+            card_update.card_holder_name.clone(),
+        ),
+        _ => (None, None),
+    }
+}
+
+/// Updates the associated payment methods list in the session DB record.
+#[cfg(feature = "v2")]
+async fn update_associated_payment_methods_in_session(
+    db: &dyn StorageInterface,
+    key_store: &domain::MerchantKeyStore,
+    payment_method_session_id: &id_type::GlobalPaymentMethodSessionId,
+    payment_method_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
+    associated_payment_methods: Option<
+        Vec<common_types::payment_methods::AssociatedPaymentMethods>,
+    >,
+) -> RouterResult<hyperswitch_domain_models::payment_methods::PaymentMethodSession> {
+    let update = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {
+        associated_payment_methods,
+    };
+    db.update_payment_method_session(
+        key_store,
+        payment_method_session_id,
+        update,
+        payment_method_session,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to update payment method session with associated payment methods")
+}
+
+/// Moves `token` to the front of the existing associated payment methods list.
+/// Entries with a different token are preserved in their original order after position 0.
+#[cfg(feature = "v2")]
+fn reorder_token_to_front(
+    existing: Option<Vec<common_types::payment_methods::AssociatedPaymentMethods>>,
+    token: &str,
+) -> Option<Vec<common_types::payment_methods::AssociatedPaymentMethods>> {
+    existing.map(|mut tokens| {
+        tokens.retain(|pm| match &pm.payment_method_token {
+            common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(t) => t != token,
+        });
+        tokens.insert(
+            0,
+            common_types::payment_methods::AssociatedPaymentMethods {
+                payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(token.to_owned()),
+            },
+        );
+        tokens
+    })
+}
+
 #[cfg(feature = "v2")]
 pub async fn payment_methods_session_update_payment_method(
     state: SessionState,
@@ -6286,85 +6386,150 @@ pub async fn payment_methods_session_update_payment_method(
         })
         .attach_printable("Failed to retrieve payment methods session from db")?;
 
-    // Get the associated_pm_token_details for the payment_method_token from the request
-    payment_method_session
-        .associated_payment_methods
-        .as_ref()
-        .and_then(|payment_methods| {
-            payment_methods.iter().find(|pm| match &pm.payment_method_token {
-                common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(token) => token == &request.payment_method_token
-            })
-        })
-        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "No associated payment method found in the session".to_string(),
-        })?;
-
-    let payment_method_id = utils::retrieve_payment_method_id_from_payment_method_token_data(
-        &state,
-        request.payment_method_token.clone(),
-    )
-    .await
-    .attach_printable("Failed to retrieve payment method id from payment method token data")?;
-
-    // Insert the token as the first element in the associated payment methods list
-    let mut tokens =  payment_method_session
-        .associated_payment_methods
-        .clone()
-        .map(|tokens| tokens.into_iter().filter(|token| match &token.payment_method_token {
-            common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(token) => token != &request.payment_method_token
-        }).collect::<Vec<_>>());
-
-    tokens.as_mut().map(|tokens| tokens.insert(0, common_types::payment_methods::AssociatedPaymentMethods {
-            payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(request.payment_method_token.clone()),
-        }));
-
-    // Update payment method session with associated payment methods
-    let update_payment_method_session = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {
-        associated_payment_methods: tokens
-    };
-
-    let updated_payment_method_session = db
-        .update_payment_method_session(
-            platform.get_provider().get_key_store(),
-            &payment_method_session_id,
-            update_payment_method_session,
-            payment_method_session,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "Failed to update payment method session with associated payment methods",
-        )?;
-
-    let update_request =
-        DomainPaymentMethodUpdate::from(request.payment_method_update_request.clone());
-
-    let (update_response, _updated_payment_method) = Box::pin(update_payment_method_core(
-        &state,
-        &platform,
-        &profile,
-        update_request,
-        &payment_method_id,
-        None,
-        None,
-    ))
-    .await
-    .attach_printable("Failed to update saved payment method")?;
-
-    let response = transformers::generate_payment_method_session_response(
-        updated_payment_method_session.clone(),
-        Secret::new("CLIENT_SECRET_REDACTED".to_string()),
-        None, // sdk_authorization is not returned for non-create flows
-        None, // TODO: send associated payments response based on the expandable param
-        None,
-        updated_payment_method_session.storage_type,
-        update_response.card_cvc_token_storage,
-        update_response.payment_method_data.clone(),
-        None,
-        None,
+    // Extract card CVC and holder name from the update request (if card update)
+    let (card_cvc, card_holder_name) = extract_card_cvc_and_holder_name(
+        request
+            .payment_method_update_request
+            .payment_method_data
+            .as_ref(),
     );
 
-    Ok(services::ApplicationResponse::Json(response))
+    // If only CVC/holder name are provided (no payment_method_token), this is a
+    // temporary card token flow: store CVC in Redis and return a new token.
+    // If a token is provided, re-use it (update the CVC stored under that token).
+    let has_cvc_and_card_holder_name_only_data = card_cvc.is_some() || card_holder_name.is_some();
+
+    match request.payment_method_token.clone() {
+        None if has_cvc_and_card_holder_name_only_data => {
+            // Generate a new token, store CVC + card_holder_name in Redis
+            let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+
+            store_cvc_and_card_holder_name_as_payment_token_in_redis(
+                &state,
+                &parent_payment_method_token,
+                card_cvc,
+                card_holder_name,
+            )
+            .await?;
+
+            let associated_payment_methods = Some(vec![
+                common_types::payment_methods::AssociatedPaymentMethods {
+                    payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(
+                        parent_payment_method_token,
+                    ),
+                },
+            ]);
+
+            let updated_payment_method_session = update_associated_payment_methods_in_session(
+                db,
+                platform.get_provider().get_key_store(),
+                &payment_method_session_id,
+                payment_method_session,
+                associated_payment_methods,
+            )
+            .await?;
+
+            let response = transformers::generate_payment_method_session_response(
+                updated_payment_method_session.clone(),
+                Secret::new("CLIENT_SECRET_REDACTED".to_string()),
+                None,
+                None,
+                None,
+                updated_payment_method_session.storage_type,
+                None,
+                None,
+                None,
+                None,
+            );
+
+            Ok(services::ApplicationResponse::Json(response))
+        }
+        token_opt => {
+            // Existing saved PM flow: token must be present
+            let pm_token = token_opt.ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "payment_method_token",
+            })?;
+
+            // Validate token is associated with this session
+            payment_method_session
+                .associated_payment_methods
+                .as_ref()
+                .and_then(|payment_methods| {
+                    payment_methods.iter().find(|pm| match &pm.payment_method_token {
+                        common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(token) => token == &pm_token
+                    })
+                })
+                .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                    message: "No associated payment method found in the session".to_string(),
+                })?;
+
+            // If CVC is present, refresh the TemporaryCardToken in Redis under the same token
+            if has_cvc_and_card_holder_name_only_data {
+                store_cvc_and_card_holder_name_as_payment_token_in_redis(
+                    &state,
+                    &pm_token,
+                    card_cvc,
+                    card_holder_name,
+                )
+                .await?;
+            }
+
+            let payment_method_id =
+                utils::retrieve_payment_method_id_from_payment_method_token_data(
+                    &state,
+                    pm_token.clone(),
+                )
+                .await
+                .attach_printable(
+                    "Failed to retrieve payment method id from payment method token data",
+                )?;
+
+            // Re-order the token to the front of the associated payment methods list
+            let tokens = reorder_token_to_front(
+                payment_method_session.associated_payment_methods.clone(),
+                &pm_token,
+            );
+
+            let updated_payment_method_session = update_associated_payment_methods_in_session(
+                db,
+                platform.get_provider().get_key_store(),
+                &payment_method_session_id,
+                payment_method_session,
+                tokens,
+            )
+            .await?;
+
+            let update_request =
+                DomainPaymentMethodUpdate::from(request.payment_method_update_request);
+
+            let (update_response, _updated_payment_method) = Box::pin(update_payment_method_core(
+                &state,
+                &platform,
+                &profile,
+                update_request,
+                &payment_method_id,
+                None,
+                None,
+            ))
+            .await
+            .attach_printable("Failed to update saved payment method")?;
+
+            let response = transformers::generate_payment_method_session_response(
+                updated_payment_method_session.clone(),
+                Secret::new("CLIENT_SECRET_REDACTED".to_string()),
+                None, // sdk_authorization is not returned for non-create flows
+                None, // TODO: send associated payments response based on the expandable param
+                None,
+                updated_payment_method_session.storage_type,
+                update_response.card_cvc_token_storage,
+                update_response.payment_method_data.clone(),
+                None,
+                None,
+            );
+
+            Ok(services::ApplicationResponse::Json(response))
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
