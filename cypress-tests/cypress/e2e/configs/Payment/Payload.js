@@ -87,6 +87,12 @@ export const connectorDetails = {
       },
     },
     PaymentIntentWithBillingDescriptor: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
       Request: {
         currency: "USD",
         billing_descriptor: {
@@ -106,6 +112,12 @@ export const connectorDetails = {
       },
     },
     PaymentConfirmWithBillingDescriptor: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
