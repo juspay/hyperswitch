@@ -5,6 +5,8 @@ import {
   getIframeRedirectionConfig,
 } from "./Modifiers";
 
+const testEmail = "test@test.com";
+
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "03",
@@ -1831,21 +1833,9 @@ export const connectorDetails = {
         },
       },
     }),
-    ManualCapture: getCustomExchange({
-      Request: {
-        currency: "EUR",
-        capture_method: "manual",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
     PaymentIntent: getCustomExchange({
       Request: {
-        currency: "USD",
+        currency: "EUR",
         capture_method: "manual",
       },
       Response: {
@@ -1900,7 +1890,7 @@ export const connectorDetails = {
             number: "4155552671",
             country_code: "+1",
           },
-          email: "test@test.com",
+          email: testEmail,
         },
         shipping: {
           address: {
@@ -1959,7 +1949,7 @@ export const connectorDetails = {
             number: "4155552671",
             country_code: "+1",
           },
-          email: "test@test.com",
+          email: testEmail,
         },
         shipping: {
           address: {
@@ -2015,7 +2005,7 @@ export const connectorDetails = {
           },
         },
         billing: {
-          email: "test@test.com",
+          email: testEmail,
           phone: {
             number: "4155552671",
             country_code: "+1",
@@ -2092,7 +2082,7 @@ export const connectorDetails = {
             number: "91234567",
             country_code: "+65",
           },
-          email: "test@test.com",
+          email: testEmail,
         },
         shipping: {
           address: {
@@ -2142,7 +2132,7 @@ export const connectorDetails = {
             number: "91234567",
             country_code: "+65",
           },
-          email: "test@test.com",
+          email: testEmail,
         },
         shipping: {
           address: {
@@ -2193,7 +2183,7 @@ export const connectorDetails = {
             number: "91234567",
             country_code: "+65",
           },
-          email: "test@test.com",
+          email: testEmail,
         },
         shipping: {
           address: {
@@ -2243,7 +2233,7 @@ export const connectorDetails = {
             number: "91234567",
             country_code: "+65",
           },
-          email: "test@test.com",
+          email: testEmail,
         },
         shipping: {
           address: {
@@ -2273,7 +2263,7 @@ export const connectorDetails = {
         currency: "GBP",
         capture_method: "automatic",
         billing: {
-          email: "test@test.com",
+          email: testEmail,
           address: {
             line1: "123",
             line2: "Test St",
@@ -2324,7 +2314,7 @@ export const connectorDetails = {
         },
         currency: "GBP",
         billing: {
-          email: "test@test.com",
+          email: testEmail,
           address: {
             line1: "123",
             line2: "Test St",
@@ -2372,7 +2362,7 @@ export const connectorDetails = {
             number: "612345678",
             country_code: "+33",
           },
-          email: "test@test.com",
+          email: testEmail,
           address: {
             line1: "123",
             line2: "Rue de Test",
@@ -2420,7 +2410,7 @@ export const connectorDetails = {
             number: "612345678",
             country_code: "+33",
           },
-          email: "test@test.com",
+          email: testEmail,
           address: {
             line1: "123",
             line2: "Rue de Test",
@@ -2461,7 +2451,7 @@ export const connectorDetails = {
             number: "0701234567",
             country_code: "+46",
           },
-          email: "test@test.com",
+          email: testEmail,
           address: {
             line1: "123",
             line2: "Test Street",
@@ -2516,7 +2506,7 @@ export const connectorDetails = {
             number: "0701234567",
             country_code: "+46",
           },
-          email: "test@test.com",
+          email: testEmail,
           address: {
             line1: "123",
             line2: "Test Street",
