@@ -5382,6 +5382,8 @@ impl AttemptType {
             net_amount: old_payment_attempt.net_amount,
             external_three_ds_authentication_attempted: old_payment_attempt
                 .external_three_ds_authentication_attempted,
+            external_threeds_authentication_type: old_payment_attempt
+                .external_threeds_authentication_type,
             authentication_connector: None,
             authentication_id: None,
             mandate_data: old_payment_attempt.mandate_data,

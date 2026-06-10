@@ -2027,7 +2027,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .attach_printable("payment_method not found in payment_attempt")?,
                     payment_method_type: payment_data.payment_attempt.payment_method_type,
                     client_secret: None,
-                    profile_id: payment_data.payment_intent.profile_id.clone(),
+                    profile_id: None,
                     billing: domain_address,
                     shipping,
                     browser_information: browser_info.clone(),
@@ -2600,6 +2600,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 
         let (
             external_three_ds_authentication_attempted,
+            external_threeds_authentication_type,
             authentication_connector,
             authentication_id,
         ) = match payment_data.authentication.as_ref() {
@@ -2609,6 +2610,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         .authentication
                         .is_separate_authn_required(),
                 ),
+                authentication_store.authentication.authentication_type,
                 authentication_store
                     .authentication
                     .authentication_connector
@@ -2620,7 +2622,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         .clone(),
                 ),
             ),
-            None => (None, None, None),
+            None => (None, None, None, None),
         };
 
         let card_discovery = payment_data.get_card_discovery_for_card_payment_method();
@@ -2655,6 +2657,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         updated_by: storage_scheme.to_string(),
                         merchant_connector_id,
                         external_three_ds_authentication_attempted,
+                        external_threeds_authentication_type,
                         authentication_connector,
                         authentication_id,
                         payment_method_billing_address_id,
