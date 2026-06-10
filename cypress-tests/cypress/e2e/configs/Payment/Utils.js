@@ -536,12 +536,17 @@ export const CONNECTOR_LISTS = {
       "paypal",
       "stripe",
     ],
-    BANK_DEBIT: ["adyen", "novalnet", "payload", "wellsfargo", "stax"], // payload verified as working
-    INESPAY_BANK_SIMULATION: ["inespay"],
+    BANK_DEBIT: [
+      "adyen",
+      "inespay",
+      "novalnet",
+      "payload",
+      "stax",
+      "wellsfargo",
+    ], // payload verified as working
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
     BANK_REDIRECT_MANDATE: ["adyen"],
     BLUECODE_WALLET: ["calida"],
-    GLOBEPAY_WALLET: ["globepay"],
     ALIPAY_HK_WALLET: ["adyen"],
     PAYPAL_WALLET: [
       "airwallex",
@@ -551,8 +556,8 @@ export const CONNECTOR_LISTS = {
       "paypal",
     ],
     MIFINITY_WALLET: ["mifinity"],
-    ALIPAY_WALLET: ["multisafepay"],
-    WECHATPAY_WALLET: ["multisafepay"],
+    ALIPAY_WALLET: ["globepay", "multisafepay"],
+    WECHATPAY_WALLET: ["globepay", "multisafepay"],
     MBWAY_WALLET: ["multisafepay"],
     SKRILL_WALLET: ["paysafe"],
     PAYSAFECARD_GIFT_CARD: ["paysafe"],
