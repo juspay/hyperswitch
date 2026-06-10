@@ -9441,6 +9441,7 @@ impl PaymentEligibilityData {
                 profile_id,
                 payment_token.clone().expose().as_str(),
                 None, // CVC token data is not passed in create api
+                true, // fetch raw card detail from the internal vault
             )
             .await
             .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
