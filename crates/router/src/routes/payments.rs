@@ -2438,20 +2438,27 @@ where
             | api_models::enums::PaymentType::RecurringMandate
             | api_models::enums::PaymentType::NewMandate
             | api_models::enums::PaymentType::Installment => {
-                // The external vault proxy flow is non-PCI: only vault card data
-                // (`PaymentMethodData::ProxyCard`) is allowed at the connector. When the
-                // confirm request carries it, route to the external vault proxy core directly
-                // using the confirm request itself — no conversion to a dedicated proxy request.
-                let is_proxy_card = req
+                // The external vault proxy flow is non-PCI: the card is vaulted in an external
+                // vault. Two confirm shapes route here:
+                //   - `VaultDataCard`: inline vault card data.
+                //   - `VaultCardTokenData`: a saved card referenced by the top-level
+                //     `payment_token`; its vault tokens are retrieved from the modular PM service.
+                // In both cases the confirm request itself is used to call the proxy core
+                // directly — no conversion to a dedicated proxy request.
+                let should_call_external_vault_proxy = req
                     .payment_method_data
                     .as_ref()
                     .and_then(|pmd| pmd.payment_method_data.as_ref())
                     .map(|data| {
-                        matches!(data, api_models::payments::PaymentMethodData::ProxyCard(_))
+                        matches!(
+                            data,
+                            api_models::payments::PaymentMethodData::ProxyCard(_)
+                                | api_models::payments::PaymentMethodData::VaultCardTokenData(_)
+                        )
                     })
                     .unwrap_or(false);
 
-                if is_proxy_card {
+                if should_call_external_vault_proxy {
                     Box::pin(payments::external_vault_proxy_for_payments_core::<
                         api_types::ExternalVaultProxy,
                         payment_types::PaymentsResponse,
