@@ -9631,6 +9631,46 @@
               }
             ],
             "nullable": true
+          },
+          "discount_rules": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderPaymentDiscountRules"
+              }
+            ],
+            "nullable": true
+          },
+          "penalties": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PenaltyRules"
+              }
+            ],
+            "nullable": true
+          },
+          "collection_actions": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CollectionActions"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_constraints": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BoletoPaymentTypeConstraints"
+              }
+            ],
+            "nullable": true
+          },
+          "beneficiary": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BeneficiaryDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
