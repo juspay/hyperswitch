@@ -1670,6 +1670,9 @@ export const connectorDetails = {
       },
     }),
     KakaoPayWalletMandateCIT: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "kakao_pay",
@@ -1802,7 +1805,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "failed",
           payment_method_status: null,
         },
       },
@@ -1849,6 +1852,7 @@ export const connectorDetails = {
             go_pay_redirect: {},
           },
         },
+        browser_info: mandateBrowserInfo,
         customer_acceptance: {
           acceptance_type: "offline",
           accepted_at: "2024-01-01T00:00:00Z",
