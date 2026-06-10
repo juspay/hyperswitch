@@ -4440,11 +4440,12 @@ Cypress.Commands.add(
           );
           expect(response.body.customer, "customer").to.not.be.empty;
           expect(response.body.profile_id, "profile_id").to.not.be.null;
-          // Wallet mandates return requires_customer_action before redirect completion,
-          // so payment_method_id doesn't exist yet - exclude both failed and requires_customer_action
+          const isWalletRequiresAction =
+            response.body.status === "requires_customer_action" &&
+            response.body.payment_method === "wallet";
           if (
             response.body.status !== "failed" &&
-            response.body.status !== "requires_customer_action" &&
+            !isWalletRequiresAction &&
             response.body.setup_future_usage === "off_session"
           ) {
             expect(response.body.payment_method_id, "payment_method_id").to.not
