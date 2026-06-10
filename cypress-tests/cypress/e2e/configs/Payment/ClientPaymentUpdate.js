@@ -67,7 +67,8 @@ export const PaymentUpdateClientAuthConfigs = {
         error: {
           type: "invalid_request",
           code: "IR_09",
-          message: "The client_secret provided does not match the client_secret associated with the Payment",
+          message:
+            "The client_secret provided does not match the client_secret associated with the Payment",
         },
       },
     },
@@ -120,7 +121,8 @@ export const PaymentUpdateClientAuthConfigs = {
         error: {
           type: "invalid_request",
           code: "IR_16",
-          message: "You cannot update this payment because it has status succeeded",
+          message:
+            "You cannot update this payment because it has status succeeded",
         },
         payment_method_data: {
           card: {
