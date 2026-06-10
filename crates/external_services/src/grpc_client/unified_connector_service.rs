@@ -1310,6 +1310,75 @@ impl UnifiedConnectorServiceClient {
                 )
             })
     }
+
+    /// Performs surcharge calculation via the Surcharge Service
+    pub async fn surcharge_calculate(
+        &self,
+        surcharge_calculate_request: payments_grpc::SurchargeServiceCalculateRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::SurchargeServiceCalculateResponse>,
+    > {
+        let mut request = tonic::Request::new(surcharge_calculate_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata = build_unified_connector_service_grpc_headers_for_surcharge(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
+
+        *request.metadata_mut() = metadata;
+
+        self.surcharge_service_client
+            .clone()
+            .calculate(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::SurchargeCalculateFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="surcharge_calculate",
+                    connector_name=?connector_name,
+                    "UCS surcharge_calculate gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs notify connector via the Event Service
+    pub async fn notify_connector(
+        &self,
+        notify_connector_request: payments_grpc::NotifyConnectorRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+        event_type: payments_grpc::NotifyEventType,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::NotifyConnectorResponse>>
+    {
+        let mut request = tonic::Request::new(notify_connector_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata = build_unified_connector_service_grpc_headers_for_notify_connector(
+            connector_auth_metadata,
+            grpc_headers,
+            event_type,
+        )?;
+
+        *request.metadata_mut() = metadata;
+
+        self.event_service_client
+            .clone()
+            .notify_connector(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::NotifyConnectorFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="notify_connector",
+                    connector_name=?connector_name,
+                    "UCS notify_connector gRPC call failed"
+                )
+            })
+    }
 }
 
 /// Build the gRPC Headers for Unified Connector Service Request
