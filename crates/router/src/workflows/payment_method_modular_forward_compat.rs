@@ -81,14 +81,6 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
                 "Failed to populate id for payment method in modular compatibility PT",
             )?;
 
-        let platform = domain::Platform::new(
-            merchant_account.clone(),
-            key_store.clone(),
-            merchant_account,
-            key_store.clone(),
-            None,
-        );
-
         let business_status = if payment_method.payment_method
             != Some(common_enums::PaymentMethod::Card)
         {
@@ -137,7 +129,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
                     payment_method_utils::get_should_trigger_fingerprint_migration(
                         state,
                         None,
-                        platform.get_provider().get_provider_merchant_id(),
+                        hyperswitch_domain_models::platform::ProviderMerchantId::from(merchant_id.clone()),
                     )
                     .await;
 

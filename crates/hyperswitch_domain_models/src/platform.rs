@@ -42,6 +42,11 @@ impl ProviderMerchantId {
     }
 }
 
+impl From<common_utils::id_type::MerchantId> for ProviderMerchantId {
+    fn from(id: common_utils::id_type::MerchantId) -> Self {
+        Self(id)
+    }
+}
 /// Processor = The merchant account whose processor credentials are used
 /// to execute the operation.
 #[derive(Clone, Debug)]
