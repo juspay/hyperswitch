@@ -417,6 +417,38 @@ export const connectorDetails = {
         },
       },
     },
+    SyncRefundScheduled: {
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    RefundInstant: {
+      Request: {
+        amount: 6000,
+        refund_type: "instant",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    RefundScheduled: {
+      Request: {
+        amount: 6000,
+        refund_type: "scheduled",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
     ExtendAuthorizationNo3DSManual: {
       Request: {
         extended_authorization_days: 7,
