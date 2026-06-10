@@ -1153,6 +1153,8 @@ diesel::table! {
         net_amount -> Nullable<Int8>,
         external_three_ds_authentication_attempted -> Nullable<Bool>,
         #[max_length = 64]
+        external_threeds_authentication_type -> Nullable<Varchar>,
+        #[max_length = 64]
         authentication_connector -> Nullable<Varchar>,
         #[max_length = 64]
         authentication_id -> Nullable<Varchar>,

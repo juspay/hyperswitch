@@ -4971,19 +4971,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .authentication_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("missing authentication_id in payment_attempt")?;
-        let key_manager_state = &(state).into();
-        let authentication = state
-            .store
-            .find_authentication_by_merchant_id_authentication_id(
-                platform.get_processor().get_account().get_id(),
-                &authentication_id,
-                platform.get_processor().get_key_store(),
-                key_manager_state,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
-                id: authentication_id.get_string_repr().to_string(),
-            })?;
+
         // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector
         let authentication_merchant_connector_account = helpers::get_merchant_connector_account(
             state,
@@ -5007,8 +4995,32 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     .get_metadata()
                     .map(|metadata| metadata.expose()),
             );
+
+        let payment_external_authentication_type =
+            if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), state)
+                .await?
+            {
+                payment_attempt.external_threeds_authentication_type
+            } else {
+                let key_manager_state = &(state).into();
+                let authentication = state
+                    .store
+                    .find_authentication_by_merchant_id_authentication_id(
+                        platform.get_processor().get_account().get_id(),
+                        &authentication_id,
+                        platform.get_processor().get_key_store(),
+                        key_manager_state,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
+                        id: authentication_id.get_string_repr().to_string(),
+                    })?;
+                authentication.authentication_type
+            };
+
+        println!("kuhedu12e {:?}", payment_attempt.authentication_type);
         let response = if is_pull_mechanism_enabled
-            || authentication.authentication_type
+            || payment_external_authentication_type
                 != Some(common_enums::DecoupledAuthenticationType::Challenge)
         {
             let payment_confirm_req = api::PaymentsRequest {
@@ -12457,105 +12469,136 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .clone()
         .get_required_value("authentication_connector_details")
         .attach_printable("authentication_connector_details not configured by the merchant")?;
-    let authentication_response =
-        if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), &state)
-            .await?
-        {
-            let authentication_id = payment_attempt
-                .authentication_id
-                .clone()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("missing authentication_id in payment_attempt")?;
+    let authentication_response = if helpers::is_merchant_eligible_authentication_service(
+        platform.get_processor(),
+        &state,
+    )
+    .await?
+    {
+        let authentication_id = payment_attempt
+            .authentication_id
+            .clone()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("missing authentication_id in payment_attempt")?;
 
-            let auth_config = &state.conf.micro_services.authentication_service;
+        let auth_config = &state.conf.micro_services.authentication_service;
 
-            let req_identifier = router_env::RequestIdentifier::new("x-request-id");
-            let client = crate::core::authentication_client::AuthenticationServiceClient::new(
-                auth_config,
-                &req_identifier,
+        let req_identifier = router_env::RequestIdentifier::new("x-request-id");
+        let client = crate::core::authentication_client::AuthenticationServiceClient::new(
+            auth_config,
+            &req_identifier,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to create auth client")?;
+
+        let authenticate_req = api_models::authentication::AuthenticationAuthenticateRequest {
+            authentication_id,
+            client_secret: None,
+            sdk_information: req.sdk_information.clone(),
+            device_channel: req.device_channel,
+            threeds_method_comp_ind: req.threeds_method_comp_ind,
+        };
+
+        let response: api_models::authentication::AuthenticationAuthenticateResponse =
+            crate::core::authentication_client::AuthenticationAuthenticateFlow::call(
+                &state,
+                &client,
+                authenticate_req,
             )
+            .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to create auth client")?;
+            .attach_printable("Failed to call authentication authenticate flow")?;
 
-            let authenticate_req = api_models::authentication::AuthenticationAuthenticateRequest {
-                authentication_id,
-                client_secret: None,
-                sdk_information: req.sdk_information.clone(),
-                device_channel: req.device_channel,
-                threeds_method_comp_ind: req.threeds_method_comp_ind,
+        let attempt_update = storage::PaymentAttemptUpdate::AuthenticationUpdate {
+                status: payment_attempt.status.clone(),
+                external_three_ds_authentication_attempted: Some(true),
+                external_threeds_authentication_type: Some(
+                    if matches!(
+                        response.transaction_status,
+                        Some(common_enums::TransactionStatus::ChallengeRequired)
+                            | Some(common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication)
+                    ) {
+                        common_enums::DecoupledAuthenticationType::Challenge
+                    } else {
+                        common_enums::DecoupledAuthenticationType::Frictionless
+                    },
+                ),
+                authentication_connector: response.authentication_connector.map(|c| c.to_string()),
+                authentication_id: Some(response.authentication_id.clone()),
+                updated_by: storage_scheme.to_string(),
             };
 
-            let response =
-                crate::core::authentication_client::AuthenticationAuthenticateFlow::call(
-                    &state,
-                    &client,
-                    authenticate_req,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to call authentication authenticate flow")?;
+        db.update_payment_attempt_with_attempt_id(
+            payment_attempt.clone(),
+            attempt_update,
+            storage_scheme,
+            platform.get_processor().get_key_store(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable("Error while updating the payment_attempt")?;
 
-            authentication::AuthenticationResponse {
-                trans_status: response
-                    .transaction_status
-                    .unwrap_or(common_enums::TransactionStatus::VerificationNotPerformed),
-                acs_url: response.acs_url,
-                challenge_request: response.challenge_request,
-                acs_reference_number: response.acs_reference_number,
-                acs_trans_id: response.acs_trans_id,
-                three_dsserver_trans_id: response.three_ds_server_transaction_id,
-                acs_signed_content: response.acs_signed_content,
-                challenge_request_key: None,
-                error_message: response.error_message,
-            }
-        } else {
-            let authentication = db
-                .find_authentication_by_merchant_id_authentication_id(
-                    processor_merchant_id,
-                    &payment_attempt
-                        .authentication_id
-                        .clone()
-                        .ok_or(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("missing authentication_id in payment_attempt")?,
-                    platform.get_processor().get_key_store(),
-                    key_manager_state,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error while fetching authentication record")?;
-            Box::pin(authentication_core::perform_authentication(
-                &state,
-                business_profile.merchant_id,
-                authentication_connector,
-                payment_method_details.0,
-                payment_method_details.1,
-                billing_address
-                    .as_ref()
-                    .map(|address| address.into())
-                    .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "billing_address",
-                    })?,
-                shipping_address.as_ref().map(|address| address.into()),
-                browser_info,
-                merchant_connector_account,
-                Some(amount),
-                Some(currency),
-                authentication::MessageCategory::Payment,
-                req.device_channel,
-                authentication,
-                return_url,
-                req.sdk_information,
-                req.threeds_method_comp_ind,
-                optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
-                webhook_url,
-                authentication_details.three_ds_requestor_url.clone(),
-                payment_intent.psd2_sca_exemption_type,
-                payment_intent.payment_id,
-                payment_intent.force_3ds_challenge_trigger.unwrap_or(false),
+        authentication::AuthenticationResponse {
+            trans_status: response
+                .transaction_status
+                .unwrap_or(common_enums::TransactionStatus::VerificationNotPerformed),
+            acs_url: response.acs_url,
+            challenge_request: response.challenge_request,
+            acs_reference_number: response.acs_reference_number,
+            acs_trans_id: response.acs_trans_id,
+            three_dsserver_trans_id: response.three_ds_server_transaction_id,
+            acs_signed_content: response.acs_signed_content,
+            challenge_request_key: None,
+            error_message: response.error_message,
+        }
+    } else {
+        let authentication = db
+            .find_authentication_by_merchant_id_authentication_id(
+                processor_merchant_id,
+                &payment_attempt
+                    .authentication_id
+                    .clone()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("missing authentication_id in payment_attempt")?,
                 platform.get_processor().get_key_store(),
-            ))
-            .await?
-        };
+                key_manager_state,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while fetching authentication record")?;
+        Box::pin(authentication_core::perform_authentication(
+            &state,
+            business_profile.merchant_id,
+            authentication_connector,
+            payment_method_details.0,
+            payment_method_details.1,
+            billing_address
+                .as_ref()
+                .map(|address| address.into())
+                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "billing_address",
+                })?,
+            shipping_address.as_ref().map(|address| address.into()),
+            browser_info,
+            merchant_connector_account,
+            Some(amount),
+            Some(currency),
+            authentication::MessageCategory::Payment,
+            req.device_channel,
+            authentication,
+            return_url,
+            req.sdk_information,
+            req.threeds_method_comp_ind,
+            optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
+            webhook_url,
+            authentication_details.three_ds_requestor_url.clone(),
+            payment_intent.psd2_sca_exemption_type,
+            payment_intent.payment_id,
+            payment_intent.force_3ds_challenge_trigger.unwrap_or(false),
+            platform.get_processor().get_key_store(),
+        ))
+        .await?
+    };
     Ok(services::ApplicationResponse::Json(
         api_models::payments::PaymentsExternalAuthenticationResponse {
             transaction_status: authentication_response.trans_status,

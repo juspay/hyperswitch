@@ -576,18 +576,21 @@ impl TryFrom<&NetceteraRouterData<&ConnectorAuthenticationRouterData>>
             .clone()
             .parse_value("NetceteraMetaData")
             .change_context(ConnectorError::RequestEncodingFailed)?;
+
+        // println!("qefr3qrq {:?}", request.webhook_url);
+        // println!("qefrdqwdqwd3qrq {:?}", request.return_url.clone());
         let merchant_data = netcetera_types::MerchantData {
             merchant_configuration_id: connector_meta_data.merchant_configuration_id,
             mcc: connector_meta_data.mcc,
             merchant_country_code: connector_meta_data.merchant_country_code,
             merchant_name: connector_meta_data.merchant_name,
-            notification_url: request.return_url.clone(),
+            notification_url: Some("https://google.com".to_string()), //request.return_url.clone(),
             three_ds_requestor_id: connector_meta_data.three_ds_requestor_id,
             three_ds_requestor_name: connector_meta_data.three_ds_requestor_name,
             white_list_status: None,
             trust_list_status: None,
             seller_info: None,
-            results_response_notification_url: Some(request.webhook_url),
+            results_response_notification_url: Some("https://30ed-2401-4900-1c3e-1b2-b8ec-a376-1a8b-74ae.ngrok-free.app/webhooks/sahkal11111/mca_M7FXcNVPSj3qkpmnNWZw".to_string()),
         };
         let browser_information = match request.device_channel {
             api_models::payments::DeviceChannel::Browser => {
