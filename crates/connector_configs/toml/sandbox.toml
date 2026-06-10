@@ -5275,6 +5275,42 @@ api_secret = "Developer Id"
 [tsys.connector_webhook_details]
 merchant_secret = "Source verification key"
 
+[tsys_transit]
+[[tsys_transit.credit]]
+payment_method_type = "Mastercard"
+[[tsys_transit.credit]]
+payment_method_type = "Visa"
+[[tsys_transit.credit]]
+payment_method_type = "AmericanExpress"
+[[tsys_transit.credit]]
+payment_method_type = "JCB"
+[[tsys_transit.credit]]
+payment_method_type = "DinersClub"
+[[tsys_transit.credit]]
+payment_method_type = "Discover"
+[[tsys_transit.credit]]
+payment_method_type = "UnionPay"
+[[tsys_transit.debit]]
+payment_method_type = "Mastercard"
+[[tsys_transit.debit]]
+payment_method_type = "Visa"
+[[tsys_transit.debit]]
+payment_method_type = "AmericanExpress"
+[[tsys_transit.debit]]
+payment_method_type = "JCB"
+[[tsys_transit.debit]]
+payment_method_type = "DinersClub"
+[[tsys_transit.debit]]
+payment_method_type = "Discover"
+[[tsys_transit.debit]]
+payment_method_type = "UnionPay"
+[tsys_transit.connector_auth.SignatureKey]
+api_key = "Device Id"
+key1 = "Transaction Key"
+api_secret = "Developer Id"
+[tsys_transit.connector_webhook_details]
+merchant_secret = "Source verification key"
+
 [volt]
 [[volt.bank_redirect]]
 payment_method_type = "open_banking_uk"
@@ -8280,7 +8316,7 @@ key1 = "Username"
 [[envoy_payout.bank_transfer]]
   payment_method_type = "ach"
 
-  
+
 [vgs]
 [vgs.connector_auth.SignatureKey]
   api_key="Client Id"
