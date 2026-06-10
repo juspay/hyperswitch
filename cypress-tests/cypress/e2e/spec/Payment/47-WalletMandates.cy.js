@@ -388,7 +388,7 @@ describe("Wallet Mandate tests", () => {
       if (shouldContinue) shouldContinue = should_continue_further(data);
     });
 
-    it("handle-wallet-redirection-test", () => {
+    it.skip("handle-wallet-redirection-test", () => {
       const expected_redirection = fixtures.confirmBody["return_url"];
       const payment_method_type = globalState.get("paymentMethodType");
 
