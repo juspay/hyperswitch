@@ -1170,17 +1170,7 @@ pub(crate) async fn get_payment_method_create_request(
                                 client_secret: None,
                                 payment_method_data: Some(
                                     payment_methods::PaymentMethodCreateData::Wallet(
-                                        payment_methods::WalletDetail::ApplePayDecryptedData {
-                                            application_primary_account_number: decrypted_data
-                                                .application_primary_account_number
-                                                .clone(),
-                                            expiry_month: decrypted_data
-                                                .application_expiration_month
-                                                .clone(),
-                                            expiry_year: decrypted_data
-                                                .application_expiration_year
-                                                .clone(),
-                                        },
+                                        decrypted_data.clone().into(),
                                     ),
                                 ),
                                 billing: payment_method_billing_address.cloned().map(From::from),
@@ -1216,13 +1206,7 @@ pub(crate) async fn get_payment_method_create_request(
                                 client_secret: None,
                                 payment_method_data: Some(
                                     payment_methods::PaymentMethodCreateData::Wallet(
-                                        payment_methods::WalletDetail::GooglePayDecryptedData {
-                                            application_primary_account_number: decrypted_data
-                                                .application_primary_account_number
-                                                .clone(),
-                                            expiry_month: decrypted_data.card_exp_month.clone(),
-                                            expiry_year: decrypted_data.card_exp_year.clone(),
-                                        },
+                                        decrypted_data.clone().into(),
                                     ),
                                 ),
                                 billing: payment_method_billing_address.cloned().map(From::from),

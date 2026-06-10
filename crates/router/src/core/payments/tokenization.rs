@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use ::payment_methods::controller::PaymentMethodsController;
-use common_enums::{ConnectorMandateStatus, PaymentMethod};
+use common_enums::{ConnectorMandateStatus, PaymentMethod, WalletDecryptedToken};
 use common_types::{self, callback_mapper::CallbackMapperData};
 use common_utils::{
     crypto::Encryptable,
@@ -857,18 +857,25 @@ where
                         }
                     },
                     None => {
+                        let wallet_decrypt_preference = save_payment_method_data
+                            .payment_method_token
+                            .as_ref()
+                            .map(|pmt| {
+                                if pmt.is_apple_pay_decrypt() {
+                                    WalletDecryptedToken::ApplePay
+                                } else if pmt.is_google_pay_decrypt() {
+                                    WalletDecryptedToken::GooglePay
+                                } else {
+                                    WalletDecryptedToken::None
+                                }
+                            })
+                            .unwrap_or(WalletDecryptedToken::None);
+
                         let customer_saved_pm_option = if payment_method_type
                             .map(|payment_method_type_value| {
                                 payment_method_type_value
                                     .should_check_for_customer_saved_payment_method_type(
-                                        save_payment_method_data
-                                            .payment_method_token
-                                            .as_ref()
-                                            .is_some_and(|pmt| pmt.is_apple_pay_decrypt()),
-                                        save_payment_method_data
-                                            .payment_method_token
-                                            .as_ref()
-                                            .is_some_and(|pmt| pmt.is_google_pay_decrypt()),
+                                        wallet_decrypt_preference,
                                     )
                             })
                             .unwrap_or(false)

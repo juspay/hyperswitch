@@ -4518,6 +4518,48 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
     }
 }
 
+
+fn set_decrypted_wallet_payment_method_data<F, D>(
+    token: &PaymentMethodToken,
+    payment_data: &mut D,
+) where
+    F: Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F>,
+{
+    let wallet_data = payment_data
+        .get_payment_method_data()
+        .and_then(|pmd| pmd.get_wallet_data());
+
+    if let Some(wallet_data) = wallet_data {
+        let updated_pmd = match (token, wallet_data) {
+            (
+                PaymentMethodToken::ApplePayDecrypt(decrypted_data),
+                domain::WalletData::ApplePay(apple_pay_data),
+            ) => Some(domain::PaymentMethodData::Wallet(
+                domain::WalletData::ApplePay(domain::ApplePayWalletData {
+                    payment_data: common_payments_types::ApplePayPaymentData::Decrypted(
+                        (**decrypted_data).clone(),
+                    ),
+                    ..apple_pay_data.clone()
+                }),
+            )),
+            (
+                PaymentMethodToken::GooglePayDecrypt(decrypted_data),
+                domain::WalletData::GooglePay(google_pay_data),
+            ) => Some(domain::PaymentMethodData::Wallet(
+                domain::WalletData::GooglePay(domain::GooglePayWalletData {
+                    tokenization_data: common_payments_types::GpayTokenizationData::Decrypted(
+                        (**decrypted_data).clone(),
+                    ),
+                    ..google_pay_data.clone()
+                }),
+            )),
+            _ => None,
+        };
+        updated_pmd.map(|pmd| payment_data.set_payment_method_data(Some(pmd)));
+    }
+}
+
 #[cfg(feature = "v1")]
 pub async fn get_decrypted_wallet_pm_token_and_set_pm_data<F, Req, D>(
     operation: &BoxedOperation<'_, F, Req, D>,
@@ -4576,37 +4618,7 @@ where
                     .await
                     .attach_printable("Failed to decrypt Wallet token")?;
 
-                if let Some(domain::PaymentMethodData::Wallet(ref wallet_data)) =
-                    payment_data.get_payment_method_data()
-                {
-                    let updated_pmd = match (&token, wallet_data) {
-                        (
-                            PaymentMethodToken::ApplePayDecrypt(decrypted_data),
-                            domain::WalletData::ApplePay(apple_pay_data),
-                        ) => Some(domain::PaymentMethodData::Wallet(
-                            domain::WalletData::ApplePay(domain::ApplePayWalletData {
-                                payment_data: common_payments_types::ApplePayPaymentData::Decrypted(
-                                    (**decrypted_data).clone(),
-                                ),
-                                ..apple_pay_data.clone()
-                            }),
-                        )),
-                        (
-                            PaymentMethodToken::GooglePayDecrypt(decrypted_data),
-                            domain::WalletData::GooglePay(google_pay_data),
-                        ) => Some(domain::PaymentMethodData::Wallet(
-                            domain::WalletData::GooglePay(domain::GooglePayWalletData {
-                                tokenization_data:
-                                    common_payments_types::GpayTokenizationData::Decrypted(
-                                        (**decrypted_data).clone(),
-                                    ),
-                                ..google_pay_data.clone()
-                            }),
-                        )),
-                        _ => None,
-                    };
-                    updated_pmd.map(|pmd| payment_data.set_payment_method_data(Some(pmd)));
-                }
+                set_decrypted_wallet_payment_method_data(&token, payment_data);
 
                 Some(token)
             }

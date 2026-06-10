@@ -6,7 +6,9 @@ use std::{
 };
 
 use cards::CardNumber;
-use common_types::payments::{BillingFrequency, InstallmentInterestRate};
+use common_types::payments::{
+    ApplePayPredecryptData, BillingFrequency, GPayPredecryptData, InstallmentInterestRate,
+};
 #[cfg(feature = "v1")]
 use common_utils::crypto::OptionalEncryptableName;
 use common_utils::{
@@ -706,6 +708,26 @@ pub enum WalletDetail {
         #[schema(value_type = String)]
         expiry_year: hyperswitch_masking::Secret<String>,
     },
+}
+
+impl From<ApplePayPredecryptData> for WalletDetail {
+    fn from(data: ApplePayPredecryptData) -> Self {
+        Self::ApplePayDecryptedData {
+            application_primary_account_number: data.application_primary_account_number,
+            expiry_month: data.application_expiration_month,
+            expiry_year: data.application_expiration_year,
+        }
+    }
+}
+
+impl From<GPayPredecryptData> for WalletDetail {
+    fn from(data: GPayPredecryptData) -> Self {
+        Self::GooglePayDecryptedData {
+            application_primary_account_number: data.application_primary_account_number,
+            expiry_month: data.card_exp_month,
+            expiry_year: data.card_exp_year,
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
