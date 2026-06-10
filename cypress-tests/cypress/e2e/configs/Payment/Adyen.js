@@ -1877,7 +1877,6 @@ export const connectorDetails = {
         },
       },
     }),
-
   },
 
   gift_card_pm: {
