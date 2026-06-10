@@ -1716,12 +1716,12 @@ mod tests {
 
     #[test]
     fn test_is_customer_id_in_global_format() {
-        let cell_id = "12345";
+        let cell_id = "0a";
 
         let test_cases = [
-            ("12345sbjabjbd", false),
-            ("12345_cus_13igbfejs", true),
-            ("12354_cus_12iufbeksjeb", false),
+            ("0asbjabjbd", false),
+            ("0a_cus_13igbfejs", true),
+            ("1b_cus_12iufbeksjeb", false),
             ("efbc2_cus_217846821", false),
         ];
 
