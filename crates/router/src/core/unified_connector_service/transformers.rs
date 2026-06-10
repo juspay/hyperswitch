@@ -4813,7 +4813,10 @@ impl transformers::ForeignTryFrom<payments_grpc::SdkNextAction> for SdkNextActio
             payments_grpc::SdkNextAction::PostSessionTokens => NextActionCall::PostSessionTokens,
         };
 
-        Ok(Self { next_action })
+        Ok(Self {
+            next_action,
+            should_block_confirm: None,
+        })
     }
 }
 
@@ -7300,18 +7303,17 @@ impl
                 .map(|country| country.into()),
             surcharge_strategy: router_data
                 .request
-                .surcharge_strategy
-                .clone()
+                .external_surcharge_strategy
                 .map(|s| payments_grpc::SurchargeStrategy::foreign_from(s).into()),
         })
     }
 }
 
-impl ForeignFrom<router_request_types::SurchargeStrategy> for payments_grpc::SurchargeStrategy {
-    fn foreign_from(strategy: router_request_types::SurchargeStrategy) -> Self {
+impl ForeignFrom<common_enums::SurchargeStrategy> for payments_grpc::SurchargeStrategy {
+    fn foreign_from(strategy: common_enums::SurchargeStrategy) -> Self {
         match strategy {
-            router_request_types::SurchargeStrategy::Apply => Self::Apply,
-            router_request_types::SurchargeStrategy::Waive => Self::Waive,
+            common_enums::SurchargeStrategy::Apply => Self::Apply,
+            common_enums::SurchargeStrategy::Waive => Self::Waive,
         }
     }
 }
