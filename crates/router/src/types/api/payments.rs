@@ -43,9 +43,9 @@ pub use hyperswitch_domain_models::router_flow_types::payments::{
     Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
     CreateConnectorCustomer, CreateOrder, ExtendAuthorization, ExternalVaultProxy, GenerateQr,
     IncrementalAuthorization, InitPayment, PSync, PaymentCreateIntent, PaymentGetIntent,
-    PaymentMethodToken, PaymentUpdateIntent, PostCaptureVoid, PostProcessing, PostSessionTokens,
-    PreProcessing, PushNotification, RecordAttempt, Reject, SdkSessionUpdate, Session,
-    SetupMandate, UpdateMetadata, Void, PostCaptureVoidSync, PreAuthorizeVoid,
+    PaymentMethodToken, PaymentUpdateIntent, PostCaptureVoid, PostCaptureVoidSync, PostProcessing,
+    PostSessionTokens, PreAuthorizeVoid, PreProcessing, PushNotification, RecordAttempt, Reject,
+    SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
 };
 pub use hyperswitch_interfaces::api::payments::{
     ConnectorCustomer, MandateSetup, Payment, PaymentApprove, PaymentAuthorize,
