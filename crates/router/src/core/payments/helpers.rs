@@ -1,5 +1,43 @@
 use std::{borrow::Cow, collections::HashSet, net::IpAddr, ops::Deref, str::FromStr};
 
+use once_cell::sync::OnceLock;
+use crate::configs::settings::DeprecatedFieldsConfig;
+
+static DEPRECATED_FIELDS_CONFIG: OnceLock<DeprecatedFieldsConfig> = OnceLock::new();
+
+pub fn init_deprecated_fields_config(config: DeprecatedFieldsConfig) {
+    let _ = DEPRECATED_FIELDS_CONFIG.set(config);
+}
+
+pub fn validate_deprecated_fields(
+    request: &api::PaymentsRequest,
+    merchant_id: &str,
+) -> Result<(), errors::ApiErrorResponse> {
+    let Some(config) = DEPRECATED_FIELDS_CONFIG.get() else {
+        return Ok(());
+    };
+    if config.excluded_merchant_ids.iter().any(|id| id == merchant_id) {
+        return Ok(());
+    }
+    for def in &config.deprecated_fields {
+        let has_field = match def.field_name.as_str() {
+            "mandate_id" => request.mandate_id.is_some(),
+            _ => false,
+        };
+        if has_field {
+            return Err(errors::ApiErrorResponse::DeprecatedField {
+                field_name: def.field_name.clone(),
+                alternative: def.alternative.clone(),
+                alternative_suggestion: format!(
+                    "Please use '{}' instead.",
+                    def.alternative
+                ),
+            });
+        }
+    }
+    Ok(())
+}
+
 pub use ::payment_methods::helpers::{
     populate_bin_details_for_payment_method_create,
     validate_payment_method_type_against_payment_method,

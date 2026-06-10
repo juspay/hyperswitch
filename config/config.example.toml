@@ -1382,6 +1382,16 @@ redis_ttl_buffer_in_seconds= 300 # buffer time in seconds to be added to redis t
 merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
 connector_names = "connector_names"     # Comma-separated list of allowed connector names
 
+[deprecated_fields]
+# Merchant IDs excluded from deprecated field validation
+excluded_merchant_ids = []
+
+# Deprecated fields configuration
+# Each entry specifies a deprecated field and its recommended alternative
+# [[deprecated_fields.deprecated_fields]]
+# field_name = "mandate_id"
+# alternative = "mandate_data"
+
 [infra_values]
 cluster = "CLUSTER"         # value of CLUSTER from deployment
 version = "HOSTNAME"        # value of HOSTNAME from deployment which tells its version

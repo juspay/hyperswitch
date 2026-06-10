@@ -194,6 +194,21 @@ pub struct Settings<S: SecretState> {
     pub comparison_service: Option<ComparisonServiceConfig>,
     pub authentication_service_enabled_connectors: AuthenticationServiceEnabledConnectors,
     pub save_payment_method_on_session: OnSessionConfig,
+    #[serde(default)]
+    pub deprecated_fields: DeprecatedFieldsConfig,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct DeprecatedFieldsConfig {
+    pub excluded_merchant_ids: Vec<String>,
+    pub deprecated_fields: Vec<DeprecatedFieldDef>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default, PartialEq)]
+pub struct DeprecatedFieldDef {
+    pub field_name: String,
+    pub alternative: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
