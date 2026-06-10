@@ -1325,6 +1325,7 @@ pub struct PaymentsRequest {
     pub client_secret: Option<String>,
 
     /// Passing this object during payments creates a mandate. The mandate_type sub object is passed by the server.
+    #[schema(deprecated)]
     #[smithy(value_type = "Option<MandateData>")]
     pub mandate_data: Option<MandateData>,
 
@@ -1334,7 +1335,7 @@ pub struct PaymentsRequest {
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
 
     /// A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data
-    #[schema(max_length = 64, example = "mandate_iwer89rnjef349dni3")]
+    #[schema(max_length = 64, example = "mandate_iwer89rnjef349dni3", deprecated)]
     #[remove_in(PaymentsUpdateRequest)]
     #[smithy(value_type = "Option<String>")]
     pub mandate_id: Option<String>,
@@ -1366,14 +1367,14 @@ pub struct PaymentsRequest {
 
     /// Business country of the merchant for this payment.
     /// To be deprecated soon. Pass the profile_id instead
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<CountryAlpha2>, example = "US", deprecated)]
     #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest)]
     #[smithy(value_type = "Option<CountryAlpha2>")]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     /// Business label of the merchant for this payment.
     /// To be deprecated soon. Pass the profile_id instead
-    #[schema(example = "food")]
+    #[schema(example = "food", deprecated)]
     #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest)]
     #[smithy(value_type = "Option<String>")]
     pub business_label: Option<String>,
@@ -1595,8 +1596,8 @@ pub struct PaymentsRequest {
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
 
     /// The strategy to use when applying surcharge for this payment.
-    #[schema(value_type = Option<String>)]
-    pub surcharge_strategy: Option<common_enums::SurchargeStrategy>,
+    #[schema(value_type = Option<SurchargeStrategy>)]
+    pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -3176,6 +3177,7 @@ mod payment_method_data_serde {
                     | PaymentMethodData::Voucher(_)
                     | PaymentMethodData::Card(_)
                     | PaymentMethodData::NetworkToken(_)
+                    | PaymentMethodData::ProxyCard(_)
                     | PaymentMethodData::MandatePayment
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::Wallet(_) => {
@@ -3255,7 +3257,7 @@ pub struct ProxyPaymentMethodDataRequest {
 #[serde(rename_all = "snake_case")]
 pub enum ProxyPaymentMethodData {
     #[schema(title = "ProxyCardData")]
-    VaultDataCard(Box<ProxyCardData>),
+    ProxyCard(Box<ProxyCardData>),
     VaultToken(VaultToken),
 }
 
@@ -3513,6 +3515,10 @@ pub enum PaymentMethodData {
     MobilePayment(MobilePaymentData),
     #[schema(title = "NetworkToken")]
     NetworkToken(NetworkTokenData),
+    /// Vault card data used for external vault proxy payments.
+    /// When this variant is used, the payment will be routed through the external vault proxy flow.
+    #[schema(title = "ProxyCard")]
+    ProxyCard(Box<ProxyCardData>),
 }
 
 pub trait GetAddressFromPaymentMethodData {
@@ -3539,7 +3545,8 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             | Self::OpenBanking(_)
             | Self::MandatePayment
             | Self::MobilePayment(_)
-            | Self::NetworkToken(_) => None,
+            | Self::NetworkToken(_)
+            | Self::ProxyCard(_) => None,
         }
     }
 }
@@ -3564,6 +3571,7 @@ impl PaymentMethodData {
             Self::MobilePayment(_) => Some(api_enums::PaymentMethod::MobilePayment),
             Self::NetworkToken(_) => Some(api_enums::PaymentMethod::NetworkToken),
             Self::CardToken(_) | Self::MandatePayment => None,
+            Self::ProxyCard(_) => Some(api_enums::PaymentMethod::Card),
         }
     }
 }
@@ -3721,6 +3729,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::DanamonVaBankTransfer { .. } => api_enums::PaymentMethodType::DanamonVa,
             Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
             Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
+            Self::PixEmv { .. } => api_enums::PaymentMethodType::PixEmv,
             Self::PixAutomaticoQr {} => api_enums::PaymentMethodType::PixAutomaticoQr,
             Self::PixAutomaticoPush { .. } => api_enums::PaymentMethodType::PixAutomaticoPush,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
@@ -4766,6 +4775,8 @@ pub enum BankTransferData {
         expiry_date: Option<PrimitiveDateTime>,
     },
     #[smithy(nested_value_type)]
+    PixEmv {},
+    #[smithy(nested_value_type)]
     PixAutomaticoQr {},
     #[smithy(nested_value_type)]
     PixAutomaticoPush {
@@ -4902,6 +4913,7 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
             }
             Self::LocalBankTransfer { .. }
             | Self::Pix { .. }
+            | Self::PixEmv {}
             | Self::PixAutomaticoPush { .. }
             | Self::PixAutomaticoQr {}
             | Self::Pse {}
@@ -7189,7 +7201,6 @@ pub struct PaymentsResponse {
 
     /// A unique identifier for a customer provided by the connector.
     #[schema(value_type = Option<String>, example = "cus_Rnm2pDKGyQi506")]
-    #[serde(skip_serializing_if = "Option::is_none")]
     #[smithy(value_type = "Option<String>")]
     pub connector_customer_id: Option<String>,
 
@@ -7241,11 +7252,12 @@ pub struct PaymentsResponse {
     pub captures: Option<Vec<CaptureResponse>>,
 
     /// A unique identifier to link the payment to a mandate, can be used instead of payment_method_data, in case of setting up recurring payments
-    #[schema(max_length = 255, example = "mandate_iwer89rnjef349dni3")]
+    #[schema(max_length = 255, example = "mandate_iwer89rnjef349dni3", deprecated)]
     #[smithy(value_type = "Option<String>")]
     pub mandate_id: Option<String>,
 
     /// Provided mandate information for creating a mandate
+    #[schema(deprecated)]
     #[smithy(value_type = "Option<MandateData>")]
     pub mandate_data: Option<MandateData>,
 
@@ -7675,6 +7687,11 @@ pub struct PaymentsResponse {
     pub installment_data: Option<common_types::payments::InstallmentData>,
 
     /// A connector-specific identifier representing the stored payment instrument
+    #[schema(
+        value_type = Option<String>,
+        max_length = 255
+    )]
+    #[smithy(value_type = "Option<String>")]
     pub sender_payment_instrument_id: Option<String>,
 }
 
@@ -10216,18 +10233,9 @@ pub struct VgsSessionDetails {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 pub struct HyperswitchVaultSessionDetails {
-    /// Session ID for Hyperswitch Vault
+    /// Base64-encoded SDK authorization token for the Hyperswitch Vault session
     #[schema(value_type = String)]
-    pub payment_method_session_id: Secret<String>,
-    /// Client secret for Hyperswitch Vault
-    #[schema(value_type = String)]
-    pub client_secret: Secret<String>,
-    /// Publishable key for Hyperswitch Vault
-    #[schema(value_type = String)]
-    pub publishable_key: Secret<String>,
-    /// Profile ID for Hyperswitch Vault
-    #[schema(value_type = String)]
-    pub profile_id: Secret<String>,
+    pub sdk_authorization: Secret<String>,
 }
 
 #[derive(
@@ -10573,10 +10581,7 @@ pub struct SdkNextAction {
     /// The type of next action
     #[smithy(value_type = "NextActionCall")]
     pub next_action: NextActionCall,
-    /// Whether the SDK should block the confirm call until the merchant explicitly unblocks it.
-    /// true when a surcharge processor is enabled (surcharge must be shown to user before confirm),
-    /// false otherwise.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Whether the SDK should block the confirm call for user.
     pub should_block_confirm: Option<bool>,
 }
 
@@ -12394,6 +12399,7 @@ pub struct PaymentLinkDetails {
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
     pub color_icon_card_cvc_error: Option<String>,
+    pub show_merchant_name: Option<bool>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -12859,6 +12865,21 @@ pub struct PaymentsEligibilityRequest {
     pub payment_token: Option<Secret<String>>,
 }
 
+#[cfg(feature = "v1")]
+impl From<PaymentsEligibilityRequest> for PaymentsEligibilityCheckRequest {
+    fn from(req: PaymentsEligibilityRequest) -> Self {
+        Self {
+            payment_id: req.payment_id,
+            client_secret: req.client_secret,
+            payment_method_type: req.payment_method_type,
+            payment_method_subtype: req.payment_method_subtype,
+            payment_method_data: req.payment_method_data,
+            browser_info: req.browser_info,
+            payment_token: req.payment_token,
+        }
+    }
+}
+
 /// Response body for the eligibility endpoint.
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -12870,7 +12891,7 @@ pub struct PaymentsEligibilityResponse {
     pub sdk_next_action: SdkNextAction,
     /// Surcharge details if an external surcharge was calculated. None if eligibility was denied
     /// or no surcharge connector is configured for this merchant.
-    #[schema(value_type = Option<String>)]
+    #[schema(value_type = Option<SurchargeDetailsResponse>)]
     pub surcharge_details: Option<payment_methods::SurchargeDetailsResponse>,
 }
 

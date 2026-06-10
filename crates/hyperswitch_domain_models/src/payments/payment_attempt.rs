@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-#[cfg(all(feature = "v1", feature = "olap"))]
+#[cfg(feature = "v1")]
 use api_models::enums::Connector;
 #[cfg(feature = "v1")]
 use api_models::payments::Amount;
@@ -107,16 +107,6 @@ pub trait PaymentAttemptInterface {
         this: PaymentAttempt,
         payment_attempt: PaymentAttemptUpdate,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
-
-    #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_connector_transaction_id_payment_id_processor_merchant_id(
-        &self,
-        connector_transaction_id: &ConnectorTransactionId,
-        payment_id: &id_type::PaymentId,
-        processor_merchant_id: &id_type::MerchantId,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-        merchant_key_store: &MerchantKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]

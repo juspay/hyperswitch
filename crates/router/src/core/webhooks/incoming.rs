@@ -1793,7 +1793,7 @@ pub async fn get_or_update_dispute_object(
                 connector_created_at: dispute_details.created_at,
                 connector_updated_at: dispute_details.updated_at,
                 profile_id: Some(business_profile.get_id().to_owned()),
-                evidence: None,
+                evidence: hyperswitch_masking::Secret::new(serde_json::json!({})),
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                 dispute_amount: StringMinorUnitForConnector::convert_back(
                     &StringMinorUnitForConnector,
@@ -1818,6 +1818,8 @@ pub async fn get_or_update_dispute_object(
                     .created_by
                     .as_ref()
                     .map(|created_by| created_by.to_string()),
+                created_at: common_utils::date_time::now(),
+                modified_at: common_utils::date_time::now(),
             };
             state
                 .store

@@ -277,6 +277,8 @@ pub enum BankTransferAdditionalData {
     MandiriVa {},
     #[smithy(value_type = "PixBankTransferAdditionalData")]
     Pix(Box<PixBankTransferAdditionalData>),
+    #[smithy(nested_value_type)]
+    PixEmv {},
     #[smithy(value_type = "PixAutomaticoPushAdditionalData")]
     PixAutomaticoPush(Box<PixAutomaticoPushAdditionalData>),
     #[smithy(nested_value_type)]

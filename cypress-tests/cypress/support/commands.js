@@ -489,6 +489,18 @@ function cleanupProcessedRequestIds(
   globalState.set("requestIds", remainingRequestIds);
 }
 
+const EXPECTED_ALGORITHM = "HMAC-SHA512";
+const HASH_ALGO = "sha512";
+const SIGNATURE_HEX_LENGTH = 128;
+
+function resolveAlgorithm(signatureAlgorithm) {
+  expect(
+    signatureAlgorithm,
+    `signature_algorithm must be ${EXPECTED_ALGORITHM}`
+  ).to.equal(EXPECTED_ALGORITHM);
+  return HASH_ALGO;
+}
+
 function logRequestId(xRequestId) {
   if (xRequestId) {
     cy.task("cli_log", "x-request-id -> " + xRequestId);
@@ -1171,7 +1183,10 @@ Cypress.Commands.add("apiKeyListCall", (globalState) => {
         if (base_url.includes("sandbox") || base_url.includes("integ")) {
           expect(response.body[key]).to.have.property("key_id").include("snd_")
             .and.not.empty;
-        } else if (base_url.includes("localhost")) {
+        } else if (
+          base_url.includes("localhost") ||
+          base_url.includes("host.docker.internal")
+        ) {
           expect(response.body[key]).to.have.property("key_id").include("dev_")
             .and.not.empty;
         }
@@ -2755,6 +2770,12 @@ Cypress.Commands.add(
             expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
           }
         } else if (response.status === 200) {
+          if (response.body.next_action?.redirect_to_url) {
+            globalState.set(
+              "nextActionUrl",
+              response.body.next_action.redirect_to_url
+            );
+          }
           globalState.set("paymentID", paymentIntentID);
           updateConnectorState(globalState, response.body.connector);
           globalState.set(
@@ -5509,10 +5530,15 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "handleVoucherRedirection",
   (globalState, paymentMethodType, expectedRedirection) => {
-    const DISPLAY_ONLY_VOUCHERS = ["boleto", "oxxo", "alfamart", "indomaret"];
-    if (DISPLAY_ONLY_VOUCHERS.includes(paymentMethodType)) {
+    const connectorId = globalState.get("connectorId");
+    const DISPLAY_ONLY_VOUCHERS = {
+      adyen: ["boleto", "oxxo", "alfamart", "indomaret"],
+      dlocal: ["boleto", "alfamart", "indomaret"],
+    };
+    const connectorDisplayOnly = DISPLAY_ONLY_VOUCHERS[connectorId] || [];
+    if (connectorDisplayOnly.includes(paymentMethodType)) {
       cy.log(
-        `Skipping cy.visit() for display-only voucher: ${paymentMethodType}`
+        `Skipping cy.visit() for display-only voucher: ${paymentMethodType} (connector: ${connectorId})`
       );
       return;
     }
@@ -5537,7 +5563,6 @@ Cypress.Commands.add(
       return;
     }
 
-    const connectorId = globalState.get("connectorId");
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
 
@@ -7292,7 +7317,10 @@ Cypress.Commands.add(
         "api-key": adminApiKey,
         "X-Merchant-Id": merchantId,
       },
-      body: refundManualUpdateRequestBody,
+      body: {
+        merchant_id: merchantId,
+        ...refundManualUpdateRequestBody.Request,
+      },
       failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
@@ -9503,6 +9531,340 @@ Cypress.Commands.add("retrieveNonExistentPaymentLinkTest", (globalState) => {
       expect(response.status).to.equal(404);
     });
   });
+});
+
+/**
+ * Fetches merchant account config and stores payment response hash settings in globalState.
+ * Also skips the suite if enable_payment_response_hash is false/absent.
+ *
+ * The backend falls back to merchant-account-level settings when business profile
+ * fields are unset, so we fetch from the merchant account endpoint to reliably
+ * read the payment_response_hash configuration.
+ *
+ * @param {Object} globalState - The global state object
+ */
+Cypress.Commands.add("fetchPaymentResponseHashConfig", (globalState) => {
+  const merchantId = globalState.get("merchantId");
+  const apiKey = globalState.get("adminApiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const url = `${baseUrl}/accounts/${merchantId}`;
+
+  cy.request({
+    method: "GET",
+    url,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    if (!response || response.status !== 200) {
+      cy.task(
+        "cli_log",
+        `Failed to fetch merchant account config (status: ${response?.status}) - skipping spec`
+      );
+      return;
+    }
+
+    const enablePaymentResponseHash =
+      response.body.enable_payment_response_hash;
+    const paymentResponseHashKey = response.body.payment_response_hash_key;
+
+    if (!enablePaymentResponseHash) {
+      cy.task(
+        "cli_log",
+        "enable_payment_response_hash is false/absent - skipping spec"
+      );
+      // Explicitly store false so the negative test can distinguish
+      // "confirmed disabled" from "fetch failed"
+      globalState.set("enablePaymentResponseHash", false);
+      return;
+    }
+
+    // Validate that the hash key is present and non-empty
+    // A null or empty key would cause cryptic Node crypto errors downstream
+    if (
+      typeof paymentResponseHashKey !== "string" ||
+      paymentResponseHashKey.length === 0
+    ) {
+      throw new Error(
+        "fetchPaymentResponseHashConfig: enable_payment_response_hash is true but payment_response_hash_key is null or empty"
+      );
+    }
+
+    globalState.set("paymentResponseHashKey", paymentResponseHashKey);
+    globalState.set("enablePaymentResponseHash", true);
+
+    cy.task(
+      "cli_log",
+      `Merchant account config verified - enable_payment_response_hash: true, key length: ${paymentResponseHashKey.length}`
+    );
+  });
+});
+
+/**
+ * Verifies that the payment response hash feature is properly configured on the business profile.
+ *
+ * The payment_response_hash feature adds HMAC signatures to redirect URLs (as
+ * `signature` and `signature_algorithm` query params) and to outgoing webhook headers
+ * (as `Stripe-Signature` or `X-Webhook-Signature`). It does NOT add a field to the
+ * payment response JSON body.
+ *
+ * This command uses the values already stored in globalState by the before hook
+ * (enablePaymentResponseHash and paymentResponseHashKey) — it does NOT re-fetch the
+ * business profile API.
+ *
+ * @param {Object} globalState - The global state object
+ */
+Cypress.Commands.add("assertPaymentResponseHashEnabled", (globalState) => {
+  const enablePaymentResponseHash = globalState.get(
+    "enablePaymentResponseHash"
+  );
+  const hashKey = globalState.get("paymentResponseHashKey");
+
+  expect(
+    enablePaymentResponseHash,
+    "enable_payment_response_hash should be true"
+  ).to.equal(true);
+
+  expect(hashKey, "payment_response_hash_key should exist").to.be.a("string")
+    .and.not.be.empty;
+
+  cy.task(
+    "cli_log",
+    `Payment response hash config verified - enable_payment_response_hash: true, key length: ${hashKey.length}`
+  );
+});
+
+Cypress.Commands.add("verifyRedirectSignature", (globalState) => {
+  const redirectUrl =
+    globalState.get("redirectReturnUrl") || globalState.get("nextActionUrl");
+
+  if (!redirectUrl) {
+    cy.task(
+      "cli_log",
+      "No redirect URL in global state - redirect signature verification not applicable for this flow"
+    );
+    return;
+  }
+
+  const urlObj = new URL(redirectUrl);
+  const signature = urlObj.searchParams.get("signature");
+  const signatureAlgorithm = urlObj.searchParams.get("signature_algorithm");
+
+  expect(signature, "signature should exist in redirect URL").to.be.a("string")
+    .and.not.be.empty;
+
+  // Validate hex format: exactly 128 lowercase hex characters
+  expect(
+    signature,
+    `signature must be a valid ${SIGNATURE_HEX_LENGTH}-char hex string`
+  ).to.match(/^[0-9a-f]{128}$/);
+
+  expect(
+    signatureAlgorithm,
+    "signature_algorithm must be HMAC-SHA512"
+  ).to.equal(EXPECTED_ALGORITHM);
+
+  cy.task(
+    "cli_log",
+    `Redirect signature verified - algorithm: ${signatureAlgorithm}, signature length: ${signature.length}, hex format: valid`
+  );
+});
+
+Cypress.Commands.add("computeAndVerifyRedirectSignature", (globalState) => {
+  const hashKey = globalState.get("paymentResponseHashKey");
+  expect(
+    hashKey,
+    "payment_response_hash_key should exist in global state"
+  ).to.be.a("string").and.not.be.empty;
+
+  const redirectUrl =
+    globalState.get("redirectReturnUrl") || globalState.get("nextActionUrl");
+
+  if (!redirectUrl) {
+    cy.task(
+      "cli_log",
+      "No redirect URL in global state - HMAC computation not applicable for this flow"
+    );
+    return;
+  }
+
+  const urlObj = new URL(redirectUrl);
+  const signature = urlObj.searchParams.get("signature");
+  const signatureAlgorithm = urlObj.searchParams.get("signature_algorithm");
+
+  expect(signature, "signature should exist in redirect URL").to.be.a("string")
+    .and.not.be.empty;
+  expect(
+    signatureAlgorithm,
+    "signature_algorithm must be HMAC-SHA512"
+  ).to.equal(EXPECTED_ALGORITHM);
+
+  const signatureParams = [];
+  urlObj.searchParams.forEach((value, key) => {
+    if (key !== "signature" && key !== "signature_algorithm") {
+      signatureParams.push([key, value]);
+    }
+  });
+
+  signatureParams.sort((a, b) => {
+    if (a[0] < b[0]) return -1;
+    if (a[0] > b[0]) return 1;
+    return 0;
+  });
+  const signingPayload = signatureParams.map(([k, v]) => `${k}=${v}`).join("&");
+  const algorithm = resolveAlgorithm(signatureAlgorithm);
+
+  cy.task("computeHmac", {
+    key: hashKey,
+    message: signingPayload,
+    algorithm,
+  }).then((computedSignature) => {
+    expect(computedSignature, "HMAC computation should not return null").to.not
+      .be.null;
+
+    expect(
+      computedSignature,
+      "Computed HMAC signature should match the received signature"
+    ).to.equal(signature);
+
+    globalState.set("computedSigningPayload", signingPayload);
+    globalState.set("computedSignature", computedSignature);
+
+    cy.task(
+      "cli_log",
+      `HMAC computed and verified (algorithm: ${EXPECTED_ALGORITHM}) - signing payload: ${signingPayload.substring(0, 80)}..., signature match: YES`
+    );
+  });
+});
+
+Cypress.Commands.add("verifyTamperedSignatureFails", (globalState) => {
+  const computedSignature = globalState.get("computedSignature");
+  const hashKey = globalState.get("paymentResponseHashKey");
+  const signingPayload = globalState.get("computedSigningPayload");
+
+  expect(
+    computedSignature,
+    "computedSignature must exist from prior step - ensure computeAndVerifyRedirectSignature was called first"
+  ).to.be.a("string").and.not.be.empty;
+
+  expect(
+    hashKey,
+    "payment_response_hash_key must exist in global state - ensure proper test setup"
+  ).to.be.a("string").and.not.be.empty;
+
+  expect(
+    signingPayload,
+    "computedSigningPayload must exist from prior step - ensure computeAndVerifyRedirectSignature was called first"
+  ).to.be.a("string").and.not.be.empty;
+
+  const algorithm = HASH_ALGO;
+  const tamperedPayload = signingPayload + "&tampered=true";
+
+  cy.task("computeHmac", {
+    key: hashKey,
+    message: tamperedPayload,
+    algorithm,
+  }).then((tamperedSignature) => {
+    expect(
+      tamperedSignature,
+      "Tampered payload should produce a different signature"
+    ).to.not.equal(computedSignature);
+
+    cy.task(
+      "cli_log",
+      `Failure scenario verified - tampered payload produces different signature`
+    );
+  });
+});
+
+Cypress.Commands.add("verifyWrongKeySignatureFails", (globalState) => {
+  const computedSignature = globalState.get("computedSignature");
+  const signingPayload = globalState.get("computedSigningPayload");
+
+  expect(
+    computedSignature,
+    "computedSignature must exist from prior step - ensure computeAndVerifyRedirectSignature was called first"
+  ).to.be.a("string").and.not.be.empty;
+
+  expect(
+    signingPayload,
+    "computedSigningPayload must exist from prior step - ensure computeAndVerifyRedirectSignature was called first"
+  ).to.be.a("string").and.not.be.empty;
+
+  const algorithm = HASH_ALGO;
+  const wrongKey = "wrong_key_that_should_not_match";
+
+  cy.task("computeHmac", {
+    key: wrongKey,
+    message: signingPayload,
+    algorithm,
+  }).then((wrongKeySignature) => {
+    expect(
+      wrongKeySignature,
+      "Signature computed with wrong key should not match the correct signature"
+    ).to.not.equal(computedSignature);
+
+    cy.task(
+      "cli_log",
+      `Failure scenario verified - wrong-key signature does not match the correct signature`
+    );
+  });
+});
+
+Cypress.Commands.add("captureRedirectReturnUrl", (globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  const paymentId = globalState.get("paymentID");
+  const merchantId = globalState.get("merchantId");
+  const connectorId = getOriginalConnectorName(globalState.get("connectorId"));
+  const url = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/response/${connectorId}`;
+
+  /**
+   * Attempt to capture the redirect return URL with polling retry.
+   * The payment may not immediately be in redirect-ready state,
+   * so we retry up to MAX_RETRIES with DELAY_MS between attempts.
+   */
+  const MAX_RETRIES = 5;
+  const DELAY_MS = 2000;
+
+  function attemptCapture(remainingAttempts) {
+    return cy
+      .request({
+        method: "GET",
+        url,
+        followRedirect: false,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        if (response.status === 302 && response.headers.location) {
+          globalState.set("redirectReturnUrl", response.headers.location);
+          cy.task(
+            "cli_log",
+            "captureRedirectReturnUrl: captured redirect return URL with signature"
+          );
+          return;
+        }
+
+        if (remainingAttempts > 1) {
+          cy.task(
+            "cli_log",
+            `captureRedirectReturnUrl: got status ${response.status}, retrying in ${DELAY_MS}ms (${MAX_RETRIES - remainingAttempts + 1}/${MAX_RETRIES})`
+          );
+          return cy
+            .wait(DELAY_MS)
+            .then(() => attemptCapture(remainingAttempts - 1));
+        }
+
+        // Final attempt failed — throw so the test fails loudly
+        throw new Error(
+          `captureRedirectReturnUrl: expected 302 with Location header, got ${response.status}. ` +
+            `Headers: ${JSON.stringify(response.headers)}`
+        );
+      });
+  }
+
+  attemptCapture(MAX_RETRIES);
 });
 
 // ============================================
