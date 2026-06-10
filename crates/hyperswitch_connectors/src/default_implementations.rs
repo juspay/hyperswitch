@@ -1599,6 +1599,7 @@ default_imp_for_cancel_post_capture_sync!(
     connectors::Opennode,
     connectors::Nmi,
     connectors::Paybox,
+    connectors::Payconex,
     connectors::Payeezy,
     connectors::Payjustnow,
     connectors::Payjustnowinstore,
