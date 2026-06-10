@@ -88,12 +88,7 @@ impl ForeignFrom<common_types::customers::DocumentKind> for payments_grpc::Docum
         match document_kind {
             common_types::customers::DocumentKind::Cpf => Self::Cpf,
             common_types::customers::DocumentKind::Cnpj => Self::Cnpj,
-            // Philippine PhilSys Number — mapped to the dedicated proto PSN type so the
-            // connector (dLocal/GCash) can validate it as a 12-digit national ID.
             common_types::customers::DocumentKind::Psn => Self::Psn,
-            // Generic non-Brazilian document. Carried as the proto OTHER type; UCS
-            // keeps it and forwards document_number as-is, validated by the connector
-            // per country.
             common_types::customers::DocumentKind::Other => Self::Other,
         }
     }
@@ -6306,11 +6301,9 @@ impl ForeignFrom<&router_request_types::CustomerDetails> for payments_grpc::Cust
             email: customer.email.clone().map(|e| e.expose().expose().into()),
             phone_number: customer.phone.clone().map(|s| s.expose()),
             phone_country_code: customer.phone_country_code.clone(),
-            // CustomerDetails does not carry these proto fields; placeholders for now.
             first_name: None,
             last_name: None,
             salutation: None,
-            // Payout CustomerDetails does not carry an identification document.
             customer_document_details: None,
         }
     }

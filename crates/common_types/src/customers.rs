@@ -57,7 +57,6 @@ pub enum DocumentKind {
     Psn,
     /// Generic / other non-Brazilian national document. Carried through to the connector
     /// without a Brazil-specific checksum; the connector/PSP validates the value per country.
-    /// Kept last as the catch-all.
     Other,
 }
 
@@ -71,8 +70,6 @@ impl DocumentKind {
             Self::Cpf => self.validate_cpf(doc_number),
             Self::Cnpj => self.validate_cnpj(doc_number),
             Self::Psn => self.validate_psn(doc_number),
-            // Other non-Brazilian documents are passed through; the connector/PSP
-            // validates them per country.
             Self::Other => Ok(()),
         }
     }

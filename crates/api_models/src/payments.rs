@@ -4810,7 +4810,6 @@ impl DocumentDetails {
         match self.document_type {
             DocumentKind::Cpf => (Some(self.document_number.clone()), None),
             DocumentKind::Cnpj => (None, Some(self.document_number.clone())),
-            // Not a Brazilian CPF/CNPJ (Other / Philippine PSN) — no split applies.
             DocumentKind::Psn | DocumentKind::Other => (None, None),
         }
     }
