@@ -136,7 +136,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          amount_received: 100,
+          amount_received: 6000,
         },
       },
     },
