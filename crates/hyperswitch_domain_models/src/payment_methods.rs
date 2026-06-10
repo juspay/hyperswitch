@@ -992,6 +992,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_details: self.customer_details.map(|val| val.into()),
             auxiliary_fingerprint_id: self.auxiliary_fingerprint_id,
             compatibility_updated_at: self.compatibility_updated_at,
+            external_vault_source: self.external_vault_source,
         })
     }
 }
@@ -1121,9 +1122,26 @@ impl super::behaviour::Conversion for PaymentMethodSession {
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
+pub struct VaultCardData {
+    pub card_number: Secret<String>,
+    pub card_exp_year: Option<Secret<String>>,
+    pub card_exp_month: Option<Secret<String>>,
+}
+
+/// Domain-level vault payment method token data (populated only for the repeat CIT / proxy-card
+/// path where the PM service returns vault token references instead of real card data).
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug)]
+pub enum VaultPaymentMethodData {
+    VaultCardData(VaultCardData),
+}
+
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug)]
 pub struct PaymentMethodWithRawData {
     pub payment_method: PaymentMethod,
     pub raw_payment_method_data: Option<domain_payment_method_data::PaymentMethodData>,
+    pub vault_payment_method_token_data: Option<VaultPaymentMethodData>,
 }
 
 #[async_trait::async_trait]

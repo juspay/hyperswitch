@@ -3536,6 +3536,118 @@ impl<F: Send + Clone> Operation<F, types::SetupMandateRequestData> for &PaymentR
     }
 }
 
+#[cfg(feature = "v1")]
+impl
+    Operation<
+        hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+        types::ExternalVaultProxyPaymentsData,
+    > for &PaymentResponse
+{
+    type Data = PaymentData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>;
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+            Self::Data,
+            types::ExternalVaultProxyPaymentsData,
+        > + Send
+              + Sync),
+    > {
+        Ok(*self)
+    }
+}
+
+#[cfg(feature = "v1")]
+impl
+    Operation<
+        hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+        types::ExternalVaultProxyPaymentsData,
+    > for PaymentResponse
+{
+    type Data = PaymentData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>;
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+            Self::Data,
+            types::ExternalVaultProxyPaymentsData,
+        > + Send
+              + Sync),
+    > {
+        Ok(self)
+    }
+}
+
+#[cfg(feature = "v1")]
+#[async_trait]
+impl
+    PostUpdateTracker<
+        hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+        PaymentData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>,
+        types::ExternalVaultProxyPaymentsData,
+    > for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        state: &'b SessionState,
+        processor: &domain::Processor,
+        payment_data: PaymentData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>,
+        router_data: types::RouterData<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+            types::ExternalVaultProxyPaymentsData,
+            types::PaymentsResponseData,
+        >,
+        locale: &Option<String>,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
+            RoutableConnectorChoice,
+        >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+    ) -> RouterResult<PaymentData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>>
+    where
+        hyperswitch_domain_models::router_flow_types::ExternalVaultProxy: 'b + Send + Sync,
+    {
+        Box::pin(payment_response_update_tracker(
+            state,
+            payment_data,
+            router_data,
+            processor,
+            locale,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
+        ))
+        .await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn update_modular_pm_and_mandate<'b>(
+        &self,
+        state: &SessionState,
+        resp: &types::RouterData<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+            types::ExternalVaultProxyPaymentsData,
+            types::PaymentsResponseData,
+        >,
+        _platform: &domain::Platform,
+        payment_data: &mut PaymentData<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+        >,
+        _business_profile: &domain::Profile,
+        request_payment_method_data: Option<&domain::PaymentMethodData>,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        hyperswitch_domain_models::router_flow_types::ExternalVaultProxy: 'b + Clone + Send + Sync,
+    {
+        update_modular_pm_and_mandate_impl(state, resp, request_payment_method_data, payment_data)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update modular payment method and mandate")
+    }
+}
+
 #[cfg(feature = "v2")]
 impl<F: Send + Clone> Operation<F, types::SetupMandateRequestData> for PaymentResponse {
     type Data = PaymentConfirmData<F>;
