@@ -134,40 +134,97 @@ function cryptoRedirection(
   connectorId,
   paymentMethodType
 ) {
-  // Crypto payments are async → never verify return URL
   const verifyUrl = false;
 
   if (redirectionUrl && redirectionUrl.href) {
     cy.visit(redirectionUrl.href);
 
-    // Ensure redirect happened
-    waitForRedirect(redirectionUrl.href);
+    if (connectorId !== "bitpay") {
+      waitForRedirect(redirectionUrl.href);
+    }
 
     cy.wait(CONSTANTS.WAIT_TIME / 5);
 
-    //  Verify QR is present
-    cy.get("canvas.BbpsQr__canvas", { timeout: 5000 })
-      .should("exist")
-      .and("be.visible");
+    if (connectorId === "bitpay") {
+      cy.document().should("have.property", "readyState", "complete");
+      cy.wait(3000);
 
-    handleFlow(
-      redirectionUrl,
-      expectedUrl,
-      connectorId,
-      ({ paymentMethodType }) => {
-        switch (paymentMethodType) {
-          case "crypto_currency":
-            cy.log("Handling crypto currency payment redirection");
-            break;
+      cy.scrollTo("bottom");
+      cy.wait(1000);
 
-          default:
-            throw new Error(
-              `Unsupported crypto payment method type: ${paymentMethodType}`
-            );
+      cy.get("body").then(($body) => {
+        const loginLink = $body
+          .find('a[href*="login"]:visible, button:visible')
+          .filter((_, el) => /log\s*in|sign\s*in|account/i.test(el.innerText))
+          .first();
+
+        if (loginLink.length > 0) {
+          cy.wrap(loginLink).click({ force: true });
+          cy.log("Clicked login link");
+        } else {
+          cy.log("Login link not found");
         }
-      },
-      { paymentMethodType }
-    );
+      });
+
+      cy.wait(2000);
+
+      cy.get('input[type="email"], input[name="email"]', { timeout: 10000 })
+        .should("be.visible")
+        .clear()
+        .type("venkatakarthik.m@juspay.in", { delay: 50 });
+
+      cy.get("body").then(($body) => {
+        const continueBtn = $body
+          .find('button:visible, input[type="submit"]:visible')
+          .filter((_, el) =>
+            /continue|next/i.test(el.innerText || el.value || "")
+          )
+          .first();
+
+        if (continueBtn.length > 0) {
+          cy.wrap(continueBtn).click({ force: true });
+          cy.log("Clicked continue after email");
+        }
+      });
+
+      cy.wait(2000);
+
+      cy.get('input[type="password"], input[name="password"]', {
+        timeout: 10000,
+      })
+        .should("be.visible")
+        .clear()
+        .type("venkatkarthik123@", { delay: 50 });
+
+      cy.get('button[type="submit"], input[type="submit"]', { timeout: 10000 })
+        .should("be.visible")
+        .click();
+
+      cy.log("Submitted Bitpay login credentials");
+    } else {
+      cy.get("canvas.BbpsQr__canvas", { timeout: 5000 })
+        .should("exist")
+        .and("be.visible");
+
+      handleFlow(
+        redirectionUrl,
+        expectedUrl,
+        connectorId,
+        ({ paymentMethodType }) => {
+          switch (paymentMethodType) {
+            case "crypto_currency":
+              cy.log("Handling crypto currency payment redirection");
+              break;
+
+            default:
+              throw new Error(
+                `Unsupported crypto payment method type: ${paymentMethodType}`
+              );
+          }
+        },
+        { paymentMethodType }
+      );
+    }
   } else {
     cy.log("Skipping crypto redirection - no valid redirect URL provided");
   }
@@ -738,14 +795,14 @@ function affirmPayLaterRedirection(
             case "email":
               cy.get("body").then(($body) => {
                 const emailInputs = $body.find(
-                  'input[data-testid*="email"]:visible, input[type="email"]:visible, input[autocomplete="email"]:visible'
+                  'input[data-testid*="email"]:visible, input[type="email"]:visible, input[autocomplete="email"]:visible, input[data-test="email-input"]:visible'
                 );
                 if (emailInputs.length > 0) {
                   cy.wrap(emailInputs.first())
                     .click()
                     .clear()
-                    .type("venkat@gmail.com", { delay: 50 });
-                  cy.log("Entered email venkat@gmail.com");
+                    .type("venkatakarthik.m@juspay.in", { delay: 50 });
+                  cy.log("Entered email venkatakarthik.m@juspay.in");
                 }
               });
               break;
