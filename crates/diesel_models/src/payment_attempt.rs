@@ -1128,8 +1128,7 @@ impl PaymentAttemptUpdateInternal {
             net_amount: source.net_amount,
             external_three_ds_authentication_attempted: source
                 .external_three_ds_authentication_attempted,
-            external_threeds_authentication_type: source
-                .external_threeds_authentication_type,
+            external_threeds_authentication_type: source.external_threeds_authentication_type,
             authentication_connector: source.authentication_connector,
             authentication_id: source.authentication_id,
             fingerprint_id: source.fingerprint_id,

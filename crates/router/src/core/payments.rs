@@ -4971,7 +4971,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .authentication_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("missing authentication_id in payment_attempt")?;
-        
+
         // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector
 
         let authentication_merchant_connector_account = helpers::get_merchant_connector_account(
@@ -4997,29 +4997,30 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     .map(|metadata| metadata.expose()),
             );
 
-        let payment_external_authentication_type =  if helpers::is_merchant_eligible_authentication_service(
-        platform.get_processor(),
-        &state,
-    )
-    .await? {
-        payment_attempt.external_threeds_authentication_type
-    }
-    else {
-        let key_manager_state = &(state).into();
-        let authentication = state
-            .store
-            .find_authentication_by_merchant_id_authentication_id(
-                platform.get_processor().get_account().get_id(),
-                &authentication_id,
-                platform.get_processor().get_key_store(),
-                key_manager_state,
+        let payment_external_authentication_type =
+            if helpers::is_merchant_eligible_authentication_service(
+                platform.get_processor(),
+                &state,
             )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
-                id: authentication_id.get_string_repr().to_string(),
-            })?;
-        authentication.authentication_type
-    };
+            .await?
+            {
+                payment_attempt.external_threeds_authentication_type
+            } else {
+                let key_manager_state = &(state).into();
+                let authentication = state
+                    .store
+                    .find_authentication_by_merchant_id_authentication_id(
+                        platform.get_processor().get_account().get_id(),
+                        &authentication_id,
+                        platform.get_processor().get_key_store(),
+                        key_manager_state,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
+                        id: authentication_id.get_string_repr().to_string(),
+                    })?;
+                authentication.authentication_type
+            };
         let response = if is_pull_mechanism_enabled
             || payment_external_authentication_type
                 != Some(common_enums::DecoupledAuthenticationType::Challenge)
@@ -12510,25 +12511,24 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .attach_printable("Failed to call authentication authenticate flow")?;
 
         let attempt_update = storage::PaymentAttemptUpdate::AuthenticationUpdate {
-                status: payment_attempt.status.clone(),
-                external_three_ds_authentication_attempted: Some(true),
-                external_threeds_authentication_type: response
-                    .transaction_status
-                    .as_ref()
-                    .and_then(|transaction_status| match transaction_status {
-                        common_enums::TransactionStatus::ChallengeRequired
-                        | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
-                            Some(common_enums::DecoupledAuthenticationType::Challenge)
-                        }
-                        common_enums::TransactionStatus::Success => {
-                            Some(common_enums::DecoupledAuthenticationType::Frictionless)
-                        }
-                        _ => None,
-                    }),
-                authentication_connector: response.authentication_connector.map(|c| c.to_string()),
-                authentication_id: Some(response.authentication_id.clone()),
-                updated_by: storage_scheme.to_string(),
-            };
+            status: payment_attempt.status.clone(),
+            external_three_ds_authentication_attempted: Some(true),
+            external_threeds_authentication_type: response.transaction_status.as_ref().and_then(
+                |transaction_status| match transaction_status {
+                    common_enums::TransactionStatus::ChallengeRequired
+                    | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
+                        Some(common_enums::DecoupledAuthenticationType::Challenge)
+                    }
+                    common_enums::TransactionStatus::Success => {
+                        Some(common_enums::DecoupledAuthenticationType::Frictionless)
+                    }
+                    _ => None,
+                },
+            ),
+            authentication_connector: response.authentication_connector.map(|c| c.to_string()),
+            authentication_id: Some(response.authentication_id.clone()),
+            updated_by: storage_scheme.to_string(),
+        };
 
         db.update_payment_attempt_with_attempt_id(
             payment_attempt.clone(),

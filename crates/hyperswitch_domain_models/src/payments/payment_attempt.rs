@@ -2956,8 +2956,7 @@ impl behaviour::Conversion for PaymentAttempt {
             net_amount: Some(self.net_amount.get_total_amount()),
             external_three_ds_authentication_attempted: self
                 .external_three_ds_authentication_attempted,
-            external_threeds_authentication_type: self
-                .external_threeds_authentication_type,
+            external_threeds_authentication_type: self.external_threeds_authentication_type,
             authentication_connector: self.authentication_connector,
             authentication_id: self.authentication_id,
             mandate_data: self.mandate_data.map(Into::into),
@@ -3207,8 +3206,7 @@ impl behaviour::Conversion for PaymentAttempt {
             net_amount: Some(self.net_amount.get_total_amount()),
             external_three_ds_authentication_attempted: self
                 .external_three_ds_authentication_attempted,
-            external_threeds_authentication_type: self
-                .external_threeds_authentication_type,
+            external_threeds_authentication_type: self.external_threeds_authentication_type,
             authentication_connector: self.authentication_connector,
             authentication_id: self.authentication_id,
             mandate_data: self.mandate_data.map(Into::into),
