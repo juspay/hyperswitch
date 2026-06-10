@@ -3829,7 +3829,7 @@
               "examples": {
                 "Create a payment method session with customer_id": {
                   "value": {
-                    "customer_id": "12345_cus_abcdefghijklmnopqrstuvwxyz"
+                    "customer_id": "0a_cus_abcdefghijklmnopqrstuvwxyz"
                   }
                 }
               }
@@ -3888,7 +3888,7 @@
               "examples": {
                 "Create a payment method session with customer_id": {
                   "value": {
-                    "customer_id": "12345_cus_abcdefghijklmnopqrstuvwxyz"
+                    "customer_id": "0a_cus_abcdefghijklmnopqrstuvwxyz"
                   }
                 }
               }
@@ -5003,7 +5003,7 @@
               "examples": {
                 "Create a token with customer_id": {
                   "value": {
-                    "customer_id": "12345_cus_0196d94b9c207333a297cbcf31f2e8c8",
+                    "customer_id": "0a_cus_0196d94b9c207333a297cbcf31f2e8c8",
                     "token_request": {
                       "payment_method_data": {
                         "card": {
@@ -5066,8 +5066,8 @@
               "examples": {
                 "Delete a token entry with customer_id and session_id": {
                   "value": {
-                    "customer_id": "12345_cus_0196d94b9c207333a297cbcf31f2e8c8",
-                    "session_id": "12345_pms_01926c58bc6e77c09e809964e72af8c8"
+                    "customer_id": "0a_cus_0196d94b9c207333a297cbcf31f2e8c8",
+                    "session_id": "0a_pms_01926c58bc6e77c09e809964e72af8c8"
                   }
                 }
               }
@@ -12661,7 +12661,7 @@
           "id": {
             "type": "string",
             "description": "Unique identifier for the customer",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -12818,7 +12818,7 @@
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -12995,7 +12995,7 @@
           "id": {
             "type": "string",
             "description": "Unique identifier for the customer",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -13076,7 +13076,7 @@
           "default_payment_method_id": {
             "type": "string",
             "description": "The identifier for the default payment method.",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_pm_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true,
             "maxLength": 64
           },
@@ -13161,7 +13161,7 @@
           "default_payment_method_id": {
             "type": "string",
             "description": "The unique identifier of the payment method",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_pm_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true
           },
           "tax_registration_id": {
@@ -13363,12 +13363,12 @@
           "customer_id": {
             "type": "string",
             "description": "Customer ID for which the tokenization is requested",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8"
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8"
           },
           "session_id": {
             "type": "string",
             "description": "Session ID associated with the tokenization request",
-            "example": "12345_pms_01926c58bc6e77c09e809964e72af8c8"
+            "example": "0a_pms_01926c58bc6e77c09e809964e72af8c8"
           }
         }
       },
@@ -13381,7 +13381,7 @@
           "id": {
             "type": "string",
             "description": "Unique identifier returned by the tokenization service",
-            "example": "12345_tok_01926c58bc6e77c09e809964e72af8c8"
+            "example": "0a_tok_01926c58bc6e77c09e809964e72af8c8"
           }
         }
       },
@@ -15292,7 +15292,7 @@
           "customer_id": {
             "type": "string",
             "description": "Customer ID for which the tokenization is requested",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8"
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8"
           },
           "token_request": {
             "type": "object",
@@ -15311,7 +15311,7 @@
           "id": {
             "type": "string",
             "description": "Unique identifier returned by the tokenization service",
-            "example": "12345_tok_01926c58bc6e77c09e809964e72af8c8"
+            "example": "0a_tok_01926c58bc6e77c09e809964e72af8c8"
           },
           "created_at": {
             "type": "string",
@@ -18744,12 +18744,12 @@
           "payment_method_id": {
             "type": "string",
             "description": "The payment method ID that was checked",
-            "example": "12345_pm_019959146f92737389eb6927ce1eb7dc"
+            "example": "0a_pm_019959146f92737389eb6927ce1eb7dc"
           },
           "customer_id": {
             "type": "string",
             "description": "The customer ID associated with the payment method",
-            "example": "12345_cus_0195dc62bb8e7312a44484536da76aef"
+            "example": "0a_cus_0195dc62bb8e7312a44484536da76aef"
           }
         }
       },
@@ -20710,7 +20710,7 @@
           "payment_method_id": {
             "type": "string",
             "description": "Identifier for Payment Method used for the payment attempt",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_pm_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true
           },
           "client_source": {
@@ -21582,7 +21582,7 @@
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -22198,7 +22198,7 @@
           "id": {
             "type": "string",
             "description": "The unique identifier of the Payment method",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+            "example": "0a_pm_01926c58bc6e77c09e809964e72af8c8"
           }
         }
       },
@@ -22225,7 +22225,7 @@
           "id": {
             "type": "string",
             "description": "The payment method ID associated with the token",
-            "example": "12345_pm_019959146f92737389eb6927ce1eb7dc"
+            "example": "0a_pm_019959146f92737389eb6927ce1eb7dc"
           },
           "payment_method_token": {
             "type": "string",
@@ -22284,7 +22284,7 @@
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           }
@@ -22415,7 +22415,7 @@
           "id": {
             "type": "string",
             "description": "The unique identifier of the Payment method",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+            "example": "0a_pm_01926c58bc6e77c09e809964e72af8c8"
           },
           "merchant_id": {
             "type": "string",
@@ -22425,7 +22425,7 @@
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -22572,12 +22572,12 @@
           "id": {
             "type": "string",
             "description": "The unique identifier of the payment method.",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+            "example": "0a_pm_01926c58bc6e77c09e809964e72af8c8"
           },
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -22780,12 +22780,12 @@
         "properties": {
           "id": {
             "type": "string",
-            "example": "12345_pms_01926c58bc6e77c09e809964e72af8c8"
+            "example": "0a_pms_01926c58bc6e77c09e809964e72af8c8"
           },
           "customer_id": {
             "type": "string",
             "description": "The customer id for which the payment methods session is to be created",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true
           },
           "billing": {
@@ -22852,7 +22852,7 @@
           "associated_token_id": {
             "type": "string",
             "description": "The token-id created if there is tokenization_data present",
-            "example": "12345_tok_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_tok_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true
           },
           "storage_type": {
@@ -23572,7 +23572,7 @@
           "customer_id": {
             "type": "string",
             "description": "The identifier for the customer",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -23976,7 +23976,7 @@
           "customer_id": {
             "type": "string",
             "description": "The identifier for the customer",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -24110,7 +24110,7 @@
           "id": {
             "type": "string",
             "description": "Unique identifier for the payment",
-            "example": "12345_pay_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_pay_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -24127,7 +24127,7 @@
           "customer_id": {
             "type": "string",
             "description": "The identifier for the customer",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true,
             "maxLength": 64,
             "minLength": 32
@@ -24370,7 +24370,7 @@
           "customer_id": {
             "type": "string",
             "description": "The identifier for the customer",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -24589,7 +24589,7 @@
           "id": {
             "type": "string",
             "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
-            "example": "12345_pay_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_pay_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -24602,7 +24602,7 @@
           "customer_id": {
             "type": "string",
             "description": "The identifier for the customer",
-            "example": "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+            "example": "0a_cus_01926c58bc6e77c09e809964e72af8c8",
             "maxLength": 64,
             "minLength": 32
           },
@@ -31659,7 +31659,7 @@
           "payment_method_id": {
             "type": "string",
             "description": "The unique identifier of the payment method.",
-            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8"
+            "example": "0a_pm_01926c58bc6e77c09e809964e72af8c8"
           },
           "token_type": {
             "$ref": "#/components/schemas/TokenDataType"
