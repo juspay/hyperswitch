@@ -1645,14 +1645,7 @@ export const connectorDetails = {
             paypal_redirect: {},
           },
         },
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "2024-01-01T00:00:00Z",
-          online: {
-            ip_address: "10.0.0.1",
-            user_agent: "test",
-          },
-        },
+        customer_acceptance: customerAcceptance,
         mandate_data: getMandateData("USD"),
         setup_future_usage: "off_session",
         currency: "USD",
@@ -1681,14 +1674,7 @@ export const connectorDetails = {
             kakao_pay_redirect: {},
           },
         },
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "2024-01-01T00:00:00Z",
-          online: {
-            ip_address: "10.0.0.1",
-            user_agent: "test",
-          },
-        },
+        customer_acceptance: customerAcceptance,
         mandate_data: getMandateData("KRW"),
         setup_future_usage: "off_session",
         currency: "KRW",
@@ -1714,14 +1700,7 @@ export const connectorDetails = {
             gcash_redirect: {},
           },
         },
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "2024-01-01T00:00:00Z",
-          online: {
-            ip_address: "10.0.0.1",
-            user_agent: "test",
-          },
-        },
+        customer_acceptance: customerAcceptance,
         mandate_data: getMandateData("PHP"),
         setup_future_usage: "off_session",
         currency: "PHP",
@@ -1750,14 +1729,7 @@ export const connectorDetails = {
             twint_redirect: {},
           },
         },
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "2024-01-01T00:00:00Z",
-          online: {
-            ip_address: "10.0.0.1",
-            user_agent: "test",
-          },
-        },
+        customer_acceptance: customerAcceptance,
         mandate_data: getMandateData("CHF"),
         setup_future_usage: "off_session",
         currency: "CHF",
@@ -1774,42 +1746,6 @@ export const connectorDetails = {
         },
       },
     }),
-    VippsWalletMandateCIT: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "wallet",
-        payment_method_type: "vipps",
-        payment_method_data: {
-          wallet: {
-            vipps_redirect: {},
-          },
-        },
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "2024-01-01T00:00:00Z",
-          online: {
-            ip_address: "10.0.0.1",
-            user_agent: "test",
-          },
-        },
-        mandate_data: getMandateData("NOK"),
-        setup_future_usage: "off_session",
-        currency: "NOK",
-        return_url: "https://example.com",
-        billing: {
-          email: "test@example.com",
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          payment_method_status: null,
-        },
-      },
-    }),
     DanaWalletMandateCIT: getCustomExchange({
       Request: {
         payment_method: "wallet",
@@ -1819,14 +1755,7 @@ export const connectorDetails = {
             dana_redirect: {},
           },
         },
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "2024-01-01T00:00:00Z",
-          online: {
-            ip_address: "10.0.0.1",
-            user_agent: "test",
-          },
-        },
+        customer_acceptance: customerAcceptance,
         mandate_data: getMandateData("IDR"),
         setup_future_usage: "off_session",
         currency: "IDR",
@@ -1853,14 +1782,7 @@ export const connectorDetails = {
           },
         },
         browser_info: mandateBrowserInfo,
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "2024-01-01T00:00:00Z",
-          online: {
-            ip_address: "10.0.0.1",
-            user_agent: "test",
-          },
-        },
+        customer_acceptance: customerAcceptance,
         mandate_data: getMandateData("IDR"),
         setup_future_usage: "off_session",
         currency: "IDR",
