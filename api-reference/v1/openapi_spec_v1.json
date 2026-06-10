@@ -19690,7 +19690,9 @@
         "description": "Represents the type of identification document used for validation.",
         "enum": [
           "cpf",
-          "cnpj"
+          "cnpj",
+          "psn",
+          "other"
         ]
       },
       "DokuBankTransferInstructions": {
