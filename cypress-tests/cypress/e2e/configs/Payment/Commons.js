@@ -1698,6 +1698,41 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
     }),
+    PaymentIntentWithBillingDescriptor: getCustomExchange({
+      Request: {
+        currency: "USD",
+        billing_descriptor: {
+          name: "Juspay",
+          phone: "8056594427",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          billing_descriptor: {
+            name: "Juspay",
+            phone: "8056594427",
+          },
+        },
+      },
+    }),
+    PaymentConfirmWithBillingDescriptor: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
     "3DSManualCapture": getCustomExchange({
       Request: {
         payment_method: "card",
