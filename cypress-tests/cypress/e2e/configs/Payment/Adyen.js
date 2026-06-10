@@ -1664,6 +1664,7 @@ export const connectorDetails = {
     }),
     KakaoPayWalletMandateCIT: getCustomExchange({
       Configs: {
+        // KakaoPay redirects to the KakaoPay mobile app; cannot be completed in a headless CI browser
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -1719,6 +1720,7 @@ export const connectorDetails = {
     }),
     TwintWalletMandateCIT: getCustomExchange({
       Configs: {
+        // Twint uses a QR-code scanned via a Swiss banking app; cannot be automated in a headless CI browser
         TRIGGER_SKIP: true,
       },
       Request: {
