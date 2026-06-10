@@ -1740,13 +1740,6 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
     }),
-          card: successfulThreeDSTestCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-    }),
     "3DSAutoCapture": getCustomExchange({
       Request: {
         payment_method: "card",
