@@ -60,6 +60,7 @@ import { connectorDetails as paysafeConnectorDetails } from "./Paysafe.js";
 import { connectorDetails as payuConnectorDetails } from "./Payu.js";
 import { connectorDetails as peachpaymentsConnectorDetails } from "./Peachpayments.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
+import { connectorDetails as rapydConnectorDetails } from "./Rapyd.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
 import { connectorDetails as signifydConnectorDetails } from "./Signifyd.js";
@@ -136,6 +137,7 @@ const connectorDetails = {
   payu: payuConnectorDetails,
   peachpayments: peachpaymentsConnectorDetails,
   powertranz: powertranzConnectorDetails,
+  rapyd: rapydConnectorDetails,
   redsys: redsysConnectorDetails,
   shift4: shift4ConnectorDetails,
   signifyd: signifydConnectorDetails,
@@ -532,16 +534,25 @@ export const CONNECTOR_LISTS = {
       "paypal",
       "stripe",
     ],
-    BANK_DEBIT: ["adyen", "novalnet", "payload"], // payload verified as working
+    BANK_DEBIT: ["adyen", "novalnet", "payload", "wellsfargo", "stax"], // payload verified as working
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
     BANK_REDIRECT_MANDATE: ["adyen"],
     BLUECODE_WALLET: ["calida"],
     ALIPAY_HK_WALLET: ["adyen"],
-    PAYPAL_WALLET: ["novalnet", "paypal"],
+    PAYPAL_WALLET: [
+      "airwallex",
+      "globalpay",
+      "multisafepay",
+      "novalnet",
+      "paypal",
+    ],
     MIFINITY_WALLET: ["mifinity"],
+    ALIPAY_WALLET: ["multisafepay"],
+    WECHATPAY_WALLET: ["multisafepay"],
+    MBWAY_WALLET: ["multisafepay"],
     SKRILL_WALLET: ["paysafe"],
     PAYSAFECARD_GIFT_CARD: ["paysafe"],
-    PAYPAL_MANDATE: ["paypal"],
+    PAYPAL_MANDATE: ["globalpay", "paypal"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [
       "adyen",
@@ -579,6 +590,7 @@ export const CONNECTOR_LISTS = {
     AFFIRM_PAY_LATER: ["affirm"],
     EXTEND_AUTHORIZATION: ["adyen", "paypal"],
     GIFT_CARD: ["adyen"],
+    VOUCHER: ["adyen", "dlocal"],
     RELAY_OPERATIONS: ["bankofamerica"],
     PAY_LATER: [
       "klarna",
@@ -593,9 +605,11 @@ export const CONNECTOR_LISTS = {
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     STEP_UP_AUTH: ["cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
+    PAYMENT_RESPONSE_HASH: ["stripe"],
     MULTIPLE_CAPTURE: ["adyen", "checkout"],
     USE_BILLING_AS_PAYMENT_METHOD_BILLING: ["bankofamerica"],
     MIT_WITH_LIMITED_CARD_DATA: ["peachpayments"],
+    EXTENDED_CARD_INFO: ["stripe"],
     PAYMENT_LINK_CARD: ["stripe"],
     ORDER_DETAILS: [
       "stripe",
@@ -611,6 +625,7 @@ export const CONNECTOR_LISTS = {
     CLEAR_PAN_RETRY: ["bankofamerica"],
     L2L3DATA: ["checkout", "nuvei", "worldpayvantiv"],
     REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
+    REFUND_TYPE: ["stripe", "adyen", "checkout"],
     MANUAL_PAYMENT_UPDATE: ["stripe"],
     STEP_UP_RETRY: [
       "cybersource",

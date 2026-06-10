@@ -123,6 +123,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CustomersUpdate
             | Flow::CustomersDelete
             | Flow::CustomersGetMandates
+            | Flow::CustomersGlobalIdMigration
             | Flow::CustomersList
             | Flow::CustomersListWithConstraints => Self::Customers,
             Flow::EphemeralKeyCreate | Flow::EphemeralKeyDelete => Self::Ephemeral,
@@ -187,6 +188,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsRetrieveUsingMerchantReferenceId
             | Flow::PaymentAttemptsList
             | Flow::RecoveryPaymentsCreate
+            | Flow::PaymentsSubmitCheckEligibility
             | Flow::PaymentsSubmitEligibility => Self::Payments,
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -208,7 +210,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RefundsFilters
             | Flow::RefundsAggregate
             | Flow::RefundsManualUpdate => Self::Refunds,
-            Flow::Relay | Flow::RelayRetrieve => Self::Relay,
+            Flow::Relay | Flow::RelayRetrieve | Flow::RelayUnreferencedRefund => Self::Relay,
             Flow::FrmFulfillment
             | Flow::IncomingWebhookReceive
             | Flow::IncomingRelayWebhookReceive

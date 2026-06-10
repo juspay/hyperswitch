@@ -948,7 +948,7 @@ pub fn build_redirection_form(
               (PreEscaped(format!("<script>
                 {logging_template}
                 window.addEventListener(\"message\", function(event) {{
-                    if (event.origin === \"https://centinelapistag.cardinalcommerce.com\" || event.origin === \"https://centinelapi.cardinalcommerce.com\") {{
+                    if (event.origin.endsWith(\"cardinaltrusted.com\") || event.origin.endsWith(\"cardinalcommerce.com\")) {{
                       window.location.href = window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/cybersource?referenceId={reference_id}\");
                     }}
                   }}, false);
@@ -1112,7 +1112,7 @@ pub fn build_redirection_form(
               (PreEscaped(format!("<script>
                 {logging_template}
                 window.addEventListener(\"message\", function(event) {{
-                    if (event.origin === \"https://centinelapistag.cardinalcommerce.com\" || event.origin === \"https://centinelapi.cardinalcommerce.com\") {{
+                    if (event.origin.endsWith(\"cardinaltrusted.com\") || event.origin.endsWith(\"cardinalcommerce.com\")) {{
                       window.location.href = window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/cybersource?referenceId={reference_id}\");
                     }}
                   }}, false);

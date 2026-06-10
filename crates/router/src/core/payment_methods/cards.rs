@@ -3667,10 +3667,18 @@ pub async fn build_merchant_enabled_pms_context(
                 &intermediate.payment_method_type,
                 &skip_pre_routing,
             ) {
+                let merchant_connector_id = id_type::MerchantConnectorAccountId::wrap(
+                    intermediate.merchant_connector_id.clone(),
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "invalid merchant_connector_id received in payment methods list",
+                )?;
+
                 let connector_data = helpers::get_connector_data_with_token(
                     state,
                     intermediate.connector.to_string(),
-                    None,
+                    Some(merchant_connector_id),
                     intermediate.payment_method_type,
                 )
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4150,10 +4158,17 @@ pub async fn build_merchant_enabled_pms_context(
     };
 
     // ---- sdk_next_action ----
+    let has_surcharge_processor = business_profile
+        .surcharge_connector_details
+        .as_ref()
+        .and_then(|details| details.surcharge_connector_id.as_ref())
+        .is_some();
+
     let sdk_next_action = payment_method_utils::get_sdk_next_action_for_payment_method_list(
         state,
         &dimensions,
         payment_intent.and_then(|pi| pi.customer_id.as_ref()),
+        has_surcharge_processor,
     )
     .await;
 
@@ -4184,7 +4199,7 @@ pub async fn list_payment_methods(
     let db = &*state.store;
     let payment_intent = if let Some(cs) = &req.client_secret {
         if cs.starts_with("pm_") {
-            validate_payment_method_and_client_secret(cs, db, &platform).await?;
+            validate_payment_method_and_client_secret(cs, db, platform.get_provider()).await?;
             None
         } else {
             helpers::verify_payment_intent_time_and_client_secret(
@@ -4648,7 +4663,7 @@ pub fn should_collect_shipping_or_billing_details_from_wallet_connector(
 async fn validate_payment_method_and_client_secret(
     cs: &String,
     db: &dyn db::StorageInterface,
-    platform: &domain::Platform,
+    provider: &domain::Provider,
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
     let pm_vec = cs.split("_secret").collect::<Vec<&str>>();
     let pm_id = pm_vec
@@ -4659,9 +4674,9 @@ async fn validate_payment_method_and_client_secret(
 
     let payment_method = db
         .find_payment_method(
-            platform.get_provider().get_key_store(),
+            provider.get_key_store(),
             pm_id,
-            platform.get_provider().get_account().storage_scheme,
+            provider.get_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -5267,7 +5282,7 @@ pub async fn list_customer_payment_method(
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
             platform.get_processor().get_account().get_id(),
             true,
-            platform.get_provider().get_key_store(),
+            platform.get_processor().get_key_store(),
         )
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {

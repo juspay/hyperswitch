@@ -279,7 +279,7 @@ pub async fn profile_update(
                 profile_id: profile_id.clone(),
                 required_permission: permissions::Permission::ProfileAccountWrite,
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             req.headers(),
         ),
