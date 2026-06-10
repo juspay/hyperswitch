@@ -7,7 +7,7 @@ use api_models::customers::migrate::{
     CustomerGlobalIdMigrationStatus,
 };
 use common_enums::ApiVersion;
-use common_utils::{consts, id_type};
+use common_utils::id_type;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, logger, tracing, Flow};
 
@@ -433,7 +433,7 @@ fn is_global_customer_id_format(id: &str) -> bool {
     let mut parts = id.split('_');
     match (parts.next(), parts.next(), parts.next(), parts.next()) {
         (Some(cell_id), Some(entity), Some(uuid), None) => {
-            cell_id.len() == usize::from(consts::CELL_IDENTIFIER_LENGTH)
+            !cell_id.is_empty()
                 && cell_id
                     .chars()
                     .all(|character| character.is_ascii_lowercase() || character.is_ascii_digit())
