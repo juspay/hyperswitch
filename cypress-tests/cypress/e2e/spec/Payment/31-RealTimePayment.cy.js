@@ -67,9 +67,25 @@ describe("Real Time Payment", () => {
     it("Retrieve Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "real_time_payment_pm"
-      ]["DuitNow"];
+      ]["DuitNowRetrieve"];
 
-      cy.retrievePaymentCallTest({ globalState, data });
+      cy.retrievePaymentCallTest({
+        globalState,
+        data,
+        expectedIntentStatus: "succeeded",
+      });
+    });
+
+    it("Sync Payment", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "real_time_payment_pm"
+      ]["DuitNowRetrieve"];
+
+      cy.retrievePaymentCallTest({
+        globalState,
+        data,
+        expectedIntentStatus: "succeeded",
+      });
     });
   });
 });
