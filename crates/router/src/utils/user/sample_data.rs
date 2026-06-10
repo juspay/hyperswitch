@@ -301,6 +301,8 @@ pub async fn generate_sample_data(
             state_metadata: None,
             installment_options: None,
             profile_acquirer_id: None,
+            external_surcharge_strategy: None,
+            external_surcharge_applicable: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());

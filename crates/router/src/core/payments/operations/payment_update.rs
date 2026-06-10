@@ -581,6 +581,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             external_authentication_data: None,
             client_session_id: None,
             vault_session_details: None,
+            external_vault_pmd: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -1112,6 +1113,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     shipping_cost,
                     installment_options: payment_data.payment_intent.installment_options.clone(),
                     profile_acquirer_id: payment_data.payment_intent.profile_acquirer_id.clone(),
+                    external_surcharge_strategy: payment_data
+                        .payment_intent
+                        .external_surcharge_strategy,
+                    external_surcharge_applicable: payment_data
+                        .payment_intent
+                        .external_surcharge_applicable,
                 })),
                 key_store,
                 storage_scheme,
