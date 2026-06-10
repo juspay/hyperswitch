@@ -2,18 +2,18 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
+use common_utils::id_type;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::mandates;
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state,
+        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, PaymentData},
     },
-    routes::{app::ReqState, metrics, SessionState},
+    routes::{app::ReqState, SessionState},
     services,
     types::{
         self as core_types,
@@ -25,39 +25,33 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
-#[operation(operations = "all", flow = "cancel_post_capture")]
-pub struct PaymentCancelPostCapture;
+#[operation(operations = "all", flow = "cancel_post_capture_sync")]
+pub struct PaymentCancelPostCaptureSync;
 
-type PaymentCancelPostCaptureOperation<'b, F> =
-    BoxedOperation<'b, F, api::PaymentsCancelPostCaptureRequest, PaymentData<F>>;
+type PaymentCancelPostCaptureSyncOperation<'b, F> =
+    BoxedOperation<'b, F, id_type::PaymentId, PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPostCaptureRequest>
-    for PaymentCancelPostCapture
+impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, id_type::PaymentId>
+    for PaymentCancelPostCaptureSync
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a SessionState,
         payment_id: &api::PaymentIdType,
-        request: &api::PaymentsCancelPostCaptureRequest,
+        _request: &id_type::PaymentId,
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         _payment_method_fetch_data: operations::PaymentMethodFetchData,
-        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
         _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
-    ) -> RouterResult<
-        operations::GetTrackerResponse<
-            'a,
-            F,
-            api::PaymentsCancelPostCaptureRequest,
-            PaymentData<F>,
-        >,
-    > {
+    ) -> RouterResult<operations::GetTrackerResponse<'a, F, id_type::PaymentId, PaymentData<F>>>
+    {
         let db = &*state.store;
 
-        let processor_merchant_id = platform.get_processor().get_account().get_id();
+        let merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -66,7 +60,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
         let payment_intent = db
             .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payment_id,
-                processor_merchant_id,
+                merchant_id,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
             )
@@ -78,14 +72,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             &[
                 enums::IntentStatus::Succeeded,
                 enums::IntentStatus::PartiallyCaptured,
+                enums::IntentStatus::PartiallyCapturedAndCapturable,
             ],
             "cancel_post_capture",
         )?;
 
-        let mut payment_attempt = db
+        let payment_attempt = db
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_intent.payment_id,
-                processor_merchant_id,
+                merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
                 platform.get_processor().get_key_store(),
@@ -98,7 +93,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             payment_intent.shipping_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
+            merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -108,7 +103,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             payment_intent.billing_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
+            merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -118,17 +113,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             payment_attempt.payment_method_billing_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
+            merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
 
         let currency = payment_attempt.currency.get_required_value("currency")?;
         let amount = payment_attempt.get_total_amount().into();
-
-        payment_attempt
-            .cancellation_reason
-            .clone_from(&request.cancellation_reason);
 
         let profile_id = payment_intent
             .profile_id
@@ -219,31 +210,33 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
     async fn validate_request_with_state(
         &self,
         _state: &SessionState,
-        _request: &api::PaymentsCancelPostCaptureRequest,
+        _request: &id_type::PaymentId,
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
     ) -> RouterResult<()> {
-        // Validates that no refunds have been issued against the payment before allowing post-capture void
-        let is_refund_issued = payment_data
-            .refunds
-            .iter()
-            .any(|refund| refund.is_refund_applied());
-        crate::utils::when(is_refund_issued, || {
+        let is_post_capture_void_pending = payment_data
+            .payment_intent
+            .state_metadata
+            .as_ref()
+            .map(|state_metadata| state_metadata.post_capture_void.is_some())
+            .unwrap_or(false);
+
+        if !is_post_capture_void_pending {
             Err(error_stack::report!(
                 errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Post-capture void cannot be performed after a refund has been issued"
+                    message: "Post-capture sync is allowed only after a post-capture void has been initiated"
                         .into()
                 }
-            ))
-        })?;
+            ))?
+        };
 
         Ok(())
     }
 }
 
 #[async_trait]
-impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureRequest, PaymentData<F>>
-    for PaymentCancelPostCapture
+impl<F: Clone + Send + Sync> Domain<F, id_type::PaymentId, PaymentData<F>>
+    for PaymentCancelPostCaptureSync
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -253,11 +246,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureRequest, Pa
         _request: Option<payments::CustomerDetails>,
         _provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
-        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
-        _mandate_type: Option<mandates::MandateTransactionType>,
+        _dimensions: &operations::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<payments::mandates::MandateTransactionType>,
     ) -> errors::CustomResult<
         (
-            PaymentCancelPostCaptureOperation<'a, F>,
+            PaymentCancelPostCaptureSyncOperation<'a, F>,
             Option<domain::Customer>,
         ),
         errors::StorageError,
@@ -275,7 +268,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureRequest, Pa
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
-        PaymentCancelPostCaptureOperation<'a, F>,
+        PaymentCancelPostCaptureSyncOperation<'a, F>,
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
@@ -286,7 +279,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureRequest, Pa
         &'a self,
         _processor: &domain::Processor,
         state: &SessionState,
-        _request: &api::PaymentsCancelPostCaptureRequest,
+        _request: &id_type::PaymentId,
         _payment_intent: &storage::PaymentIntent,
     ) -> errors::CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
@@ -297,63 +290,17 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureRequest, Pa
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
-        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
     ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }
-    #[instrument(skip_all)]
-    async fn add_task_to_process_tracker<'a>(
-        &'a self,
-        state: &'a SessionState,
-        payment_attempt: &storage::PaymentAttempt,
-        requeue: bool,
-        schedule_time: Option<time::PrimitiveDateTime>,
-    ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
-        match schedule_time {
-            Some(stime) => {
-                if !requeue {
-                    // Here, increment the count of added tasks every time a post capture void is requested
-                    metrics::TASKS_ADDED_COUNT.add(
-                        1,
-                        router_env::metric_attributes!(("flow", format!("{:#?}", self))),
-                    );
-                    payments::add_process_post_capture_void_sync_task(
-                        &*state.store,
-                        payment_attempt,
-                        stime,
-                        state.conf.application_source,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while adding task to process tracker")
-                } else {
-                    // When the requeue is true, we reset the tasks count as we reset the task every time it is requeued
-                    metrics::TASKS_RESET_COUNT.add(
-                        1,
-                        router_env::metric_attributes!(("flow", format!("{:#?}", self))),
-                    );
-                    payments::reset_process_sync_task(
-                        &*state.store,
-                        payment_attempt,
-                        stime,
-                        "PAYMENTS_POST_CAPTURE_VOID_SYNC",
-                        storage::ProcessTrackerRunner::PaymentsPostCaptureVoidSyncWorkflow,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while updating task in process tracker")
-                }
-            }
-            None => Ok(()),
-        }
-    }
 }
 
 #[async_trait]
-impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelPostCaptureRequest>
-    for PaymentCancelPostCapture
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, id_type::PaymentId>
+    for PaymentCancelPostCaptureSync
 {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
@@ -364,8 +311,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelPostCa
         payment_data: PaymentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-    ) -> RouterResult<(PaymentCancelPostCaptureOperation<'b, F>, PaymentData<F>)>
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+    ) -> RouterResult<(PaymentCancelPostCaptureSyncOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
@@ -373,24 +320,23 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelPostCa
     }
 }
 
-impl<F: Send + Clone + Sync>
-    ValidateRequest<F, api::PaymentsCancelPostCaptureRequest, PaymentData<F>>
-    for PaymentCancelPostCapture
+impl<F: Send + Clone + Sync> ValidateRequest<F, id_type::PaymentId, PaymentData<F>>
+    for PaymentCancelPostCaptureSync
 {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        request: &api::PaymentsCancelPostCaptureRequest,
+        request: &id_type::PaymentId,
         processor: &'a domain::Processor,
     ) -> RouterResult<(
-        PaymentCancelPostCaptureOperation<'b, F>,
+        PaymentCancelPostCaptureSyncOperation<'b, F>,
         operations::ValidateResult,
     )> {
         Ok((
             Box::new(self),
             operations::ValidateResult {
                 merchant_id: processor.get_account().get_id().to_owned(),
-                payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.to_owned()),
+                payment_id: api::PaymentIdType::PaymentIntentId(request.to_owned()),
                 storage_scheme: processor.get_account().storage_scheme,
                 requeue: false,
             },

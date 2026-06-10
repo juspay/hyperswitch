@@ -23,6 +23,8 @@ pub enum Derives {
     CancelPreAuthorize,
     CancelPreAuthorizeData,
     CancelPostCaptureData,
+    CancelPostCaptureSync,
+    CancelPostCaptureSyncData,
     CaptureData,
     CompleteAuthorizeData,
     RejectData,
@@ -94,6 +96,10 @@ impl Conversion {
             Derives::AuthorizeData => syn::Ident::new("PaymentsAuthorizeData", Span::call_site()),
             Derives::Sync => syn::Ident::new("PaymentsRetrieveRequest", Span::call_site()),
             Derives::SyncData => syn::Ident::new("PaymentsSyncData", Span::call_site()),
+            Derives::CancelPostCaptureSync => syn::Ident::new("PaymentId", Span::call_site()),
+            Derives::CancelPostCaptureSyncData => {
+                syn::Ident::new("PaymentsCancelPostCaptureSyncData", Span::call_site())
+            }
             Derives::Cancel => syn::Ident::new("PaymentsCancelRequest", Span::call_site()),
             Derives::CancelData => syn::Ident::new("PaymentsCancelData", Span::call_site()),
             Derives::ApproveData => syn::Ident::new("PaymentsApproveData", Span::call_site()),
@@ -477,6 +483,7 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                     PaymentsPostSessionTokensData,
                     PaymentsUpdateMetadataData,
                     PaymentsCancelPostCaptureData,
+                    PaymentsCancelPostCaptureSyncData,
                     PaymentsPreAuthorizeCancelData,
                     PaymentsExtendAuthorizationData,
 
@@ -496,6 +503,7 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                         PaymentsUpdateMetadataRequest,
                         PaymentsCancelPostCaptureRequest,
                         PaymentsExtendAuthorizationRequest,
+                        PaymentId,
                     }
                 };
                 #trait_derive

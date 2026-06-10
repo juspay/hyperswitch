@@ -1945,6 +1945,56 @@ pub async fn payments_cancel_post_capture(
     .await
 }
 
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCancelPostCaptureSync, payment_id))]
+pub async fn payments_cancel_post_capture_retrieve(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<common_utils::id_type::PaymentId>,
+) -> impl Responder {
+    let flow = Flow::PaymentsCancelPostCaptureSync;
+    let payment_id = path.into_inner();
+
+    tracing::Span::current().record("payment_id", payment_id.get_string_repr());
+
+    let locking_action = payment_id.get_locking_input(flow.clone());
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payment_id,
+        |state, auth: auth::AuthenticationData, req, req_state| {
+            payments::payments_core::<
+                api_types::PostCaptureVoidSync,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::PostCaptureVoidSync>,
+            >(
+                state,
+                req_state,
+                auth.platform,
+                auth.profile.map(|profile| profile.get_id().clone()),
+                payments::PaymentCancelPostCaptureSync,
+                req,
+                api::AuthFlow::Merchant,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+                HeaderPayload::default(),
+                None,
+            )
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: false,
+        }),
+        locking_action,
+    ))
+    .await
+}
+
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn payments_list(
@@ -3340,6 +3390,23 @@ impl GetLockingInput for payment_types::PaymentsCancelPostCaptureRequest {
         api_locking::LockAction::Hold {
             input: api_locking::LockingInput {
                 unique_locking_key: self.payment_id.get_string_repr().to_owned(),
+                api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl GetLockingInput for common_utils::id_type::PaymentId {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: self.get_string_repr().to_owned(),
                 api_identifier: lock_utils::ApiIdentifier::from(flow),
                 override_lock_retries: None,
             },

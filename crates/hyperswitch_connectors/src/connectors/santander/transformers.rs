@@ -676,6 +676,11 @@ impl
                 SantanderDocumentKind::Cnpj,
                 Some(customer_document_details.document_number),
             ),
+            common_types::customers::DocumentKind::Psn
+            | common_types::customers::DocumentKind::Other => (
+                SantanderDocumentKind::Cpf,
+                Some(customer_document_details.document_number),
+            ),
         };
 
         let order_id = value
@@ -818,6 +823,10 @@ impl
             }
             common_types::customers::DocumentKind::Cnpj => {
                 (None, Some(customer_document_details.document_number))
+            }
+            common_types::customers::DocumentKind::Psn
+            | common_types::customers::DocumentKind::Other => {
+                (Some(customer_document_details.document_number), None)
             }
         };
 
@@ -1287,6 +1296,8 @@ impl From<common_types::customers::DocumentKind> for SantanderDocumentKind {
         match item {
             common_types::customers::DocumentKind::Cnpj => Self::Cnpj,
             common_types::customers::DocumentKind::Cpf => Self::Cpf,
+            common_types::customers::DocumentKind::Psn
+            | common_types::customers::DocumentKind::Other => Self::Cpf,
         }
     }
 }
@@ -2363,6 +2374,10 @@ impl
                 common_types::customers::DocumentKind::Cnpj => {
                     (None, Some(details.document_number.clone()))
                 }
+                common_types::customers::DocumentKind::Psn
+                | common_types::customers::DocumentKind::Other => {
+                    (Some(details.document_number.clone()), None)
+                }
             })
             .ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name: "customer.document_details",
@@ -2633,6 +2648,10 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
             }
             common_types::customers::DocumentKind::Cnpj => {
                 (None, Some(customer_document_details.document_number))
+            }
+            common_types::customers::DocumentKind::Psn
+            | common_types::customers::DocumentKind::Other => {
+                (Some(customer_document_details.document_number), None)
             }
         };
 

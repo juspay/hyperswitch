@@ -41,8 +41,8 @@ use hyperswitch_domain_models::router_flow_types::{
         Capture, CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge,
         CreateConnectorCustomer, CreateOrder, ExtendAuthorization, ExternalVaultProxy, GenerateQr,
         IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid, PostProcessing,
-        PostSessionTokens, PreAuthorizeVoid, PreProcessing, PushNotification, Reject,
-        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
+        PostSessionTokens, PreProcessing, PushNotification, Reject, SdkSessionUpdate, Session,
+        SetupMandate, UpdateMetadata, Void, PostCaptureVoidSync, PreAuthorizeVoid,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -83,12 +83,13 @@ pub use hyperswitch_domain_models::{
         PaymentsCompleteSurchargeData, PaymentsExtendAuthorizationData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
-        PaymentsPreAuthorizeCancelData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSurchargeCalculationData, PaymentsSyncData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PushNotificationRequestData,
-        RefundsData, ResponseId, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
-        SetupMandateRequestData, SplitRefundsRequest, SubmitEvidenceRequestData, SyncRequestType,
-        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData,
+        PaymentsSurchargeCalculationData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, PushNotificationRequestData, RefundsData, ResponseId,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        SplitRefundsRequest, SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
+        VaultRequestData, VerifyWebhookSourceRequestData, PaymentsCancelPostCaptureSyncData,
+        PaymentsPreAuthorizeCancelData,
     },
     router_response_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
@@ -200,6 +201,8 @@ pub type PaymentsPreAuthorizeVoidRouterData =
     RouterData<PreAuthorizeVoid, PaymentsPreAuthorizeCancelData, PaymentsResponseData>;
 pub type PaymentsCancelPostCaptureRouterData =
     RouterData<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>;
+pub type PaymentsCancelPostCaptureSyncRouterData =
+    RouterData<PostCaptureVoidSync, PaymentsCancelPostCaptureSyncData, PaymentsResponseData>;
 pub type PaymentsRejectRouterData = RouterData<Reject, PaymentsRejectData, PaymentsResponseData>;
 pub type PaymentsApproveRouterData = RouterData<Approve, PaymentsApproveData, PaymentsResponseData>;
 pub type PaymentsSessionRouterData = RouterData<Session, PaymentsSessionData, PaymentsResponseData>;
@@ -222,6 +225,12 @@ pub type PaymentsCancelResponseRouterData<R> =
     ResponseRouterData<Void, R, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsCancelPostCaptureResponseRouterData<R> =
     ResponseRouterData<PostCaptureVoid, R, PaymentsCancelPostCaptureData, PaymentsResponseData>;
+pub type PaymentsCancelPostCaptureSyncResponseRouterData<R> = ResponseRouterData<
+    PostCaptureVoidSync,
+    R,
+    PaymentsCancelPostCaptureSyncData,
+    PaymentsResponseData,
+>;
 pub type PaymentsExtendAuthorizationResponseRouterData<R> = ResponseRouterData<
     ExtendAuthorization,
     R,
@@ -564,6 +573,7 @@ impl Capturable for PaymentsCancelData {
         }
     }
 }
+impl Capturable for PaymentsCancelPostCaptureSyncData {}
 impl Capturable for PaymentsPreAuthorizeCancelData {}
 impl Capturable for PaymentsCancelPostCaptureData {
     fn get_captured_amount<F>(

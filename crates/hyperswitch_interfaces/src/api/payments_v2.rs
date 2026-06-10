@@ -8,8 +8,8 @@ use hyperswitch_domain_models::{
             CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer,
             CreateOrder, ExtendAuthorization, ExternalVaultProxy, GenerateQr,
             IncrementalAuthorization, PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing,
-            PostSessionTokens, PreAuthorizeVoid, PreProcessing, PushNotification, Reject,
-            SdkSessionUpdate, Session, SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
+            PostSessionTokens, PreProcessing, PushNotification, Reject, SdkSessionUpdate, Session,
+            SettlementSplitCreate, SetupMandate, UpdateMetadata, Void, PostCaptureVoidSync, PreAuthorizeVoid,
         },
         Authenticate, GiftCardBalanceCheck, PostAuthenticate, PreAuthenticate,
     },
@@ -22,10 +22,10 @@ use hyperswitch_domain_models::{
         PaymentsCompleteSurchargeData, PaymentsExtendAuthorizationData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
-        PaymentsPreAuthorizeCancelData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSurchargeCalculationData, PaymentsSyncData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PushNotificationRequestData,
-        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SetupMandateRequestData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData,
+        PaymentsSurchargeCalculationData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, PushNotificationRequestData, SdkPaymentsSessionUpdateData,
+        SettlementSplitRequestData, SetupMandateRequestData, PaymentsCancelPostCaptureSyncData, PaymentsPreAuthorizeCancelData,
     },
     router_response_types::{
         CompleteRefundSurchrgeResponseData, CompleteSurchargeResponseData,
@@ -73,6 +73,17 @@ pub trait PaymentPostCaptureVoidV2:
     PostCaptureVoid,
     PaymentFlowData,
     PaymentsCancelPostCaptureData,
+    PaymentsResponseData,
+>
+{
+}
+
+/// trait PaymentPostCaptureVoidSyncV2
+pub trait PaymentPostCaptureVoidSyncV2:
+    ConnectorIntegrationV2<
+    PostCaptureVoidSync,
+    PaymentFlowData,
+    PaymentsCancelPostCaptureSyncData,
     PaymentsResponseData,
 >
 {
@@ -376,6 +387,7 @@ pub trait PaymentV2:
     + PaymentCaptureV2
     + PaymentVoidV2
     + PaymentPostCaptureVoidV2
+    + PaymentPostCaptureVoidSyncV2
     + PaymentPreAuthorizeVoidV2
     + PaymentApproveV2
     + PaymentRejectV2

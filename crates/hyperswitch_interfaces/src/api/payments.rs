@@ -6,9 +6,9 @@ use hyperswitch_domain_models::{
             Approve, Authorize, AuthorizeSessionToken, CalculateSurcharge, CalculateTax, Capture,
             CompleteAuthorize, CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer,
             ExtendAuthorization, GenerateQr, IncrementalAuthorization, PSync, PaymentMethodToken,
-            PostCaptureVoid, PostProcessing, PostSessionTokens, PreAuthorizeVoid, PreProcessing,
-            PushNotification, Reject, SdkSessionUpdate, Session, SettlementSplitCreate,
-            SetupMandate, UpdateMetadata, Void,
+            PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, PushNotification,
+            Reject, SdkSessionUpdate, Session, SettlementSplitCreate, SetupMandate, UpdateMetadata,
+            Void, PostCaptureVoidSync, PreAuthorizeVoid,
         },
         Authenticate, CreateOrder, ExternalVaultProxy, GiftCardBalanceCheck, PostAuthenticate,
         PreAuthenticate,
@@ -22,10 +22,10 @@ use hyperswitch_domain_models::{
         PaymentsCompleteSurchargeData, PaymentsExtendAuthorizationData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
-        PaymentsPreAuthorizeCancelData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSurchargeCalculationData, PaymentsSyncData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PushNotificationRequestData,
-        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SetupMandateRequestData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData,
+        PaymentsSurchargeCalculationData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, PushNotificationRequestData, SdkPaymentsSessionUpdateData,
+        SettlementSplitRequestData, SetupMandateRequestData, PaymentsCancelPostCaptureSyncData, PaymentsPreAuthorizeCancelData,
     },
     router_response_types::{
         CompleteRefundSurchrgeResponseData, CompleteSurchargeResponseData,
@@ -51,6 +51,7 @@ pub trait Payment:
     + PaymentCapture
     + PaymentVoid
     + PaymentPostCaptureVoid
+    + PaymentPostCaptureVoidSync
     + PaymentPreAuthorizeVoid
     + PaymentApprove
     + PaymentReject
@@ -112,6 +113,16 @@ pub trait PaymentVoid:
 /// trait PaymentPostCaptureVoid
 pub trait PaymentPostCaptureVoid:
     api::ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentPostCaptureVoidSync
+pub trait PaymentPostCaptureVoidSync:
+    api::ConnectorIntegration<
+    PostCaptureVoidSync,
+    PaymentsCancelPostCaptureSyncData,
+    PaymentsResponseData,
+>
 {
 }
 

@@ -255,7 +255,7 @@ pub struct CustomerResponse {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = String
     )]
     pub id: id_type::GlobalCustomerId,
@@ -296,7 +296,7 @@ pub struct CustomerResponse {
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
     /// The identifier for the default payment method.
-    #[schema(value_type = Option<String>, max_length = 64, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    #[schema(value_type = Option<String>, max_length = 64, example = "0a_pm_01926c58bc6e77c09e809964e72af8c8")]
     pub default_payment_method_id: Option<id_type::GlobalPaymentMethodId>,
     /// The customer's tax registration number.
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
@@ -342,7 +342,7 @@ pub struct CustomerDeleteResponse {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = String
     )]
     pub id: id_type::GlobalCustomerId,
@@ -447,7 +447,7 @@ pub struct CustomerUpdateRequest {
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
     /// The unique identifier of the payment method
-    #[schema(value_type = Option<String>, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    #[schema(value_type = Option<String>, example = "0a_pm_01926c58bc6e77c09e809964e72af8c8")]
     pub default_payment_method_id: Option<id_type::GlobalPaymentMethodId>,
     /// The customer's tax registration number.
     #[schema(max_length = 255, value_type = Option<String>, example = "123456789")]
