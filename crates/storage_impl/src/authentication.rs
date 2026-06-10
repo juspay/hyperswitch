@@ -689,8 +689,6 @@ impl AuthenticationInterface for MockDb {
                 previous_state.authentication_id.get_string_repr()
             )))?;
 
-        // Apply the update the same way the real stores do, reusing the diesel
-        // changeset instead of re-implementing the variant -> field mapping here.
         let diesel_authentication_new = previous_state
             .clone()
             .construct_new()
