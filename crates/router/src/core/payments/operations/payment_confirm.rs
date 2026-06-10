@@ -2147,18 +2147,17 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     )
                  );
 
-                let tokenized_data = if updated_authentication_status.is_success() {
-                    Some(crate::core::payment_methods::vault::get_tokenized_data(state, authentication_id.get_string_repr(), false, platform.get_provider().get_key_store().key.get_inner()).await?)
-                } else {
-                    None
-                };
+                let cryptogram = sync_response.authentication_details.and_then(|authentication_details| authentication_details.three_ds_data.and_then(|data| data.authentication_cryptogram)).ok_or(errors::ApiErrorResponse::MissingRequiredField{field_name:"authentication_cryptogram"})?;
 
-                    let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-                        cavv: tokenized_data.map(|tokenized_data| hyperswitch_masking::Secret::new(tokenized_data.value1)),
-                    authentication:authentication_domain_model
-                    };
+                let authentication_store =
+                        hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
+                            cavv: match cryptogram {
+                                api_models::authentication::Cryptogram::Cavv { authentication_cryptogram } => Some(authentication_cryptogram),
+                            },
+                            authentication:authentication_domain_model
+                        };
 
-                    payment_data.authentication = Some(authentication_store.clone());
+                payment_data.authentication = Some(authentication_store);
                 //If authentication is not successful, skip the payment connector flows and mark the payment as failure
                 if updated_authentication_status != api_models::enums::AuthenticationStatus::Success
                 {

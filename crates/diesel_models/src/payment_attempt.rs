@@ -135,7 +135,6 @@ pub struct PaymentAttempt {
     #[diesel(deserialize_as = RequiredFromNullable<MinorUnit>)]
     pub net_amount: MinorUnit,
     pub external_three_ds_authentication_attempted: Option<bool>,
-    pub external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<id_type::AuthenticationId>,
     pub fingerprint_id: Option<String>,
@@ -172,6 +171,7 @@ pub struct PaymentAttempt {
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     pub network_transaction_link_id: Option<String>,
     pub sender_payment_instrument_id: Option<String>,
+    pub external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
@@ -260,7 +260,6 @@ pub struct PaymentAttempt {
     pub unified_message: Option<String>,
     pub net_amount: Option<MinorUnit>,
     pub external_three_ds_authentication_attempted: Option<bool>,
-    pub external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<id_type::AuthenticationId>,
     pub mandate_data: Option<storage_enums::MandateDetails>,
@@ -310,6 +309,7 @@ pub struct PaymentAttempt {
     pub network_transaction_link_id: Option<String>,
     /// A connector-specific identifier representing the stored payment instrument
     pub sender_payment_instrument_id: Option<String>,
+    pub external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
 }
 
 #[cfg(feature = "v1")]
@@ -524,7 +524,6 @@ pub struct PaymentAttemptNew {
     pub unified_message: Option<String>,
     pub net_amount: Option<MinorUnit>,
     pub external_three_ds_authentication_attempted: Option<bool>,
-    pub external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<id_type::AuthenticationId>,
     pub mandate_data: Option<storage_enums::MandateDetails>,
@@ -564,6 +563,7 @@ pub struct PaymentAttemptNew {
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     pub network_transaction_link_id: Option<String>,
     pub sender_payment_instrument_id: Option<String>,
+    pub external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
 }
 
 #[cfg(feature = "v1")]

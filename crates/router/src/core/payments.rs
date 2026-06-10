@@ -4998,11 +4998,8 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             );
 
         let payment_external_authentication_type =
-            if helpers::is_merchant_eligible_authentication_service(
-                platform.get_processor(),
-                &state,
-            )
-            .await?
+            if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), state)
+                .await?
             {
                 payment_attempt.external_threeds_authentication_type
             } else {
@@ -12510,7 +12507,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 .attach_printable("Failed to call authentication authenticate flow")?;
 
             let attempt_update = storage::PaymentAttemptUpdate::AuthenticationUpdate {
-                status: payment_attempt.status.clone(),
+                status: payment_attempt.status,
                 external_three_ds_authentication_attempted: Some(true),
                 external_threeds_authentication_type: response
                     .transaction_status
