@@ -39,9 +39,12 @@ export const PaymentUpdateClientAuthConfigs = {
       },
     },
     Response: {
-      status: 200,
+      status: 500,
       body: {
-        status: "requires_confirmation",
+        error: {
+          type: "api_error",
+          message: "Client auth for payment update is not enabled",
+        },
       },
     },
   },
@@ -66,7 +69,6 @@ export const PaymentUpdateClientAuthConfigs = {
       body: {
         error: {
           type: "invalid_request",
-          code: "IR_09",
           message:
             "The client_secret provided does not match the client_secret associated with the Payment",
         },
@@ -94,7 +96,6 @@ export const PaymentUpdateClientAuthConfigs = {
       body: {
         error: {
           type: "invalid_request",
-          code: "IR_18",
           message: "Unauthorised access to update customer",
         },
       },
@@ -120,27 +121,8 @@ export const PaymentUpdateClientAuthConfigs = {
       body: {
         error: {
           type: "invalid_request",
-          code: "IR_16",
           message:
             "You cannot update this payment because it has status succeeded",
-        },
-        payment_method_data: {
-          card: {
-            last4: "1111",
-            card_type: null,
-            card_network: null,
-            card_issuer: null,
-            card_issuing_country: null,
-            card_isin: "411111",
-            card_extended_bin: null,
-            card_exp_month: "08",
-            card_exp_year: "30",
-            card_holder_name: "Joseph Doe",
-            payment_checks: null,
-            authentication_data: null,
-            auth_code: null,
-          },
-          billing: null,
         },
       },
     },

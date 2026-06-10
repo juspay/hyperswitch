@@ -645,7 +645,7 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     POLL_CONFIG: ["stripe"],
-    PAYMENT_UPDATE_CLIENT_AUTH: ["deutschebank", "stripe"],
+    PAYMENT_UPDATE_CLIENT_AUTH: ["stripe"],
   },
 };
 
