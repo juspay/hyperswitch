@@ -16,7 +16,7 @@ describe("Payment Update via Client Authentication Tests", () => {
         connector = globalState.get("connectorId");
 
         if (
-          utils.shouldExcludeConnector(
+          utils.shouldIncludeConnector(
             connector,
             utils.CONNECTOR_LISTS.INCLUDE.PAYMENT_UPDATE_CLIENT_AUTH
           )
