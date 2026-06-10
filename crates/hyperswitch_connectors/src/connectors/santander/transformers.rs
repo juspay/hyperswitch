@@ -1801,7 +1801,7 @@ fn convert_pix_data_to_value(
 
     let qr_code_info = QrCodeInformation::QrCodeUrl {
         image_data_url: image_data_url.clone(),
-        qr_code_url: None,
+        qr_code_url: Some(image_data_url),
         display_to_timestamp: None,
         expiry_type: variant,
         raw_qr_data: Some(data),
