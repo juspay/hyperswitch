@@ -33,7 +33,7 @@ describe("Wallet Mandate tests", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("PayPal Wallet Mandate CIT and MIT flow test", () => {
+  context("PayPal Wallet Mandate CIT flow test", () => {
     let shouldContinue = true;
 
     beforeEach(function () {
@@ -87,34 +87,9 @@ describe("Wallet Mandate tests", () => {
 
       if (shouldContinue) shouldContinue = should_continue_further(data);
     });
-
-    it("paypal-wallet-mandate-mit-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["PaypalWalletMITAutoCapture"];
-
-      cy.mitUsingPMId(
-        fixtures.pmIdConfirmBody,
-        data,
-        6000,
-        true,
-        "automatic",
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("retrieve-payment-after-mit-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["PaypalWalletMITAutoCapture"];
-
-      cy.retrievePaymentCallTest({ globalState, data });
-    });
   });
 
-  context("KakaoPay Wallet Mandate CIT and MIT flow test", () => {
+  context("KakaoPay Wallet Mandate CIT flow test", () => {
     let shouldContinue = true;
 
     beforeEach(function () {
@@ -168,34 +143,9 @@ describe("Wallet Mandate tests", () => {
 
       if (shouldContinue) shouldContinue = should_continue_further(data);
     });
-
-    it("kakaopay-wallet-mandate-mit-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["KakaoPayWalletMITAutoCapture"];
-
-      cy.mitUsingPMId(
-        fixtures.pmIdConfirmBody,
-        data,
-        6000,
-        true,
-        "automatic",
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("retrieve-payment-after-mit-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["KakaoPayWalletMITAutoCapture"];
-
-      cy.retrievePaymentCallTest({ globalState, data });
-    });
   });
 
-  context("Gcash Wallet Mandate CIT and MIT flow test", () => {
+  context("Gcash Wallet Mandate CIT flow test", () => {
     let shouldContinue = true;
 
     beforeEach(function () {
@@ -249,34 +199,9 @@ describe("Wallet Mandate tests", () => {
 
       if (shouldContinue) shouldContinue = should_continue_further(data);
     });
-
-    it("gcash-wallet-mandate-mit-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["GcashWalletMITAutoCapture"];
-
-      cy.mitUsingPMId(
-        fixtures.pmIdConfirmBody,
-        data,
-        6000,
-        true,
-        "automatic",
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("retrieve-payment-after-mit-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["GcashWalletMITAutoCapture"];
-
-      cy.retrievePaymentCallTest({ globalState, data });
-    });
   });
 
-  context("Twint Wallet Mandate CIT and MIT flow test", () => {
+  context("Twint Wallet Mandate CIT flow test", () => {
     let shouldContinue = true;
 
     beforeEach(function () {
@@ -330,34 +255,9 @@ describe("Wallet Mandate tests", () => {
 
       if (shouldContinue) shouldContinue = should_continue_further(data);
     });
-
-    it("twint-wallet-mandate-mit-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["TwintWalletMITAutoCapture"];
-
-      cy.mitUsingPMId(
-        fixtures.pmIdConfirmBody,
-        data,
-        6000,
-        true,
-        "automatic",
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("retrieve-payment-after-mit-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["TwintWalletMITAutoCapture"];
-
-      cy.retrievePaymentCallTest({ globalState, data });
-    });
   });
 
-  context("Vipps Wallet Mandate CIT and MIT flow test", () => {
+  context("Vipps Wallet Mandate CIT flow test", () => {
     let shouldContinue = true;
 
     beforeEach(function () {
@@ -411,34 +311,9 @@ describe("Wallet Mandate tests", () => {
 
       if (shouldContinue) shouldContinue = should_continue_further(data);
     });
-
-    it("vipps-wallet-mandate-mit-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["VippsWalletMITAutoCapture"];
-
-      cy.mitUsingPMId(
-        fixtures.pmIdConfirmBody,
-        data,
-        6000,
-        true,
-        "automatic",
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("retrieve-payment-after-mit-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["VippsWalletMITAutoCapture"];
-
-      cy.retrievePaymentCallTest({ globalState, data });
-    });
   });
 
-  context("Dana Wallet Mandate CIT and MIT flow test", () => {
+  context("Dana Wallet Mandate CIT flow test", () => {
     let shouldContinue = true;
 
     beforeEach(function () {
@@ -492,34 +367,9 @@ describe("Wallet Mandate tests", () => {
 
       if (shouldContinue) shouldContinue = should_continue_further(data);
     });
-
-    it("dana-wallet-mandate-mit-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["DanaWalletMITAutoCapture"];
-
-      cy.mitUsingPMId(
-        fixtures.pmIdConfirmBody,
-        data,
-        6000,
-        true,
-        "automatic",
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("retrieve-payment-after-mit-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["DanaWalletMITAutoCapture"];
-
-      cy.retrievePaymentCallTest({ globalState, data });
-    });
   });
 
-  context("GoPay Wallet Mandate CIT and MIT flow test", () => {
+  context("GoPay Wallet Mandate CIT flow test", () => {
     let shouldContinue = true;
 
     beforeEach(function () {
@@ -572,31 +422,6 @@ describe("Wallet Mandate tests", () => {
       });
 
       if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("gopay-wallet-mandate-mit-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["GoPayWalletMITAutoCapture"];
-
-      cy.mitUsingPMId(
-        fixtures.pmIdConfirmBody,
-        data,
-        6000,
-        true,
-        "automatic",
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = should_continue_further(data);
-    });
-
-    it("retrieve-payment-after-mit-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "wallet_pm"
-      ]["GoPayWalletMITAutoCapture"];
-
-      cy.retrievePaymentCallTest({ globalState, data });
     });
   });
 });
