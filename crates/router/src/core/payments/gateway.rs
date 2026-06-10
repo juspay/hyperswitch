@@ -11,6 +11,7 @@ pub mod generate_qr_gateway;
 pub mod incremental_authorization_gateway;
 pub mod payment_method_token_create_gateway;
 pub mod post_authenticate_gateway;
+pub mod post_capture_void_sync_gateway;
 pub mod pre_authenticate_gateway;
 pub mod psync_gateway;
 pub mod push_notification_gateway;
