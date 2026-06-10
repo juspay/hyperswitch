@@ -86,6 +86,217 @@ const getMandateData = (currency) => ({
   },
 });
 
+
+
+const billingJapan = {
+  address: {
+    line1: "1-1 Test",
+    city: "Tokyo",
+    state: "Tokyo",
+    zip: "1000001",
+    country: "JP",
+    first_name: "Test",
+    last_name: "User",
+  },
+  phone: {
+    number: "312345678",
+    country_code: "+81",
+  },
+  email: "test@example.com",
+};
+
+const billingSingapore = {
+  address: {
+    line1: "123 Test Street",
+    line2: "Unit 4",
+    city: "Singapore",
+    state: "Singapore",
+    zip: "018956",
+    country: "SG",
+    first_name: "John",
+    last_name: "Doe",
+  },
+  phone: {
+    number: "91234567",
+    country_code: "+65",
+  },
+  email: testEmail,
+};
+
+const billingUsHarrison = {
+  address: {
+    line1: "1467",
+    line2: "Harrison Street",
+    line3: "Harrison Street",
+    city: "San Francisco",
+    state: "California",
+    zip: "94122",
+    country: "US",
+    first_name: "joseph",
+    last_name: "Doe",
+  },
+};
+
+const billingNetherlands = {
+  address: {
+    line1: "1467",
+    line2: "Harrison Street",
+    line3: "Harrison Street",
+    city: "San Fransico",
+    state: "California",
+    zip: "94122",
+    country: "NL",
+    first_name: "joseph",
+    last_name: "Doe",
+  },
+  phone: {
+    number: "9123456789",
+    country_code: "+31",
+  },
+};
+
+const billingBelgium = {
+  address: {
+    line1: "1 Main St",
+    line2: "Apt 4",
+    city: "Brussels",
+    zip: "1000",
+    country: "BE",
+    first_name: "John",
+    last_name: "Doe",
+  },
+  email: "test@example.com",
+  phone: {
+    number: "9123456789",
+    country_code: "+32",
+  },
+};
+
+const billingUkLondon = {
+  address: {
+    line1: "1 Main St",
+    city: "London",
+    zip: "SW1A 1AA",
+    country: "GB",
+    first_name: "John",
+    last_name: "Doe",
+  },
+  email: "test@example.com",
+  phone: {
+    number: "9123456789",
+    country_code: "+44",
+  },
+};
+
+const billingSwedenStockholm = {
+  address: {
+    line1: "1 Main St",
+    city: "Stockholm",
+    zip: "11122",
+    country: "SE",
+    first_name: "John",
+    last_name: "Doe",
+  },
+  email: "test@example.com",
+  phone: {
+    number: "9123456789",
+    country_code: "+46",
+  },
+};
+
+const billingUsTestSt = {
+  address: {
+    line1: "123 Test St",
+    line2: "Apt 4",
+    city: "San Francisco",
+    state: "California",
+    zip: "94122",
+    country: "US",
+    first_name: "John",
+    last_name: "Doe",
+  },
+  phone: {
+    number: "4155552671",
+    country_code: "+1",
+  },
+  email: testEmail,
+};
+
+const billingUkLondonTest = {
+  email: testEmail,
+  address: {
+    line1: "123",
+    line2: "Test St",
+    city: "London",
+    state: "London",
+    zip: "SW1A 1AA",
+    country: "GB",
+    first_name: "John",
+    last_name: "Doe",
+  },
+};
+
+const billingFrance = {
+  phone: {
+    number: "612345678",
+    country_code: "+33",
+  },
+  email: testEmail,
+  address: {
+    line1: "123",
+    line2: "Rue de Test",
+    city: "Paris",
+    state: "Ile-de-France",
+    zip: "75001",
+    country: "FR",
+    first_name: "Jean",
+    last_name: "Dupont",
+  },
+};
+
+const billingSwedenStockholmTest = {
+  phone: {
+    number: "0701234567",
+    country_code: "+46",
+  },
+  email: testEmail,
+  address: {
+    line1: "123",
+    line2: "Test Street",
+    city: "Stockholm",
+    state: "Stockholm",
+    zip: "11122",
+    country: "SE",
+    first_name: "Johan",
+    last_name: "Andersson",
+  },
+};
+
+const billingMexico = {
+  address: {
+    line1: "123 Test St",
+    city: "Mexico City",
+    state: "Mexico",
+    zip: "06600",
+    country: "MX",
+    first_name: "Test",
+    last_name: "User",
+  },
+  email: "test@example.com",
+};
+
+const billingIndonesia = {
+  address: {
+    line1: "Jl Test 123",
+    city: "Jakarta",
+    state: "DKI Jakarta",
+    zip: "10110",
+    country: "ID",
+    first_name: "Test",
+    last_name: "User",
+  },
+  email: "test@example.com",
+};
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -1004,19 +1215,7 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Francisco",
-            state: "California",
-            zip: "94122",
-            country: "US",
-            first_name: "joseph",
-            last_name: "Doe",
-          },
-        },
+        billing: billingUsHarrison,
         partner_merchant_identifier_details: {
           partner_details: {
             name: "TestPartner",
@@ -1160,23 +1359,7 @@ export const connectorDetails = {
             },
           },
         },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "NL",
-            first_name: "joseph",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "9123456789",
-            country_code: "+31",
-          },
-        },
+        billing: billingNetherlands,
       },
       Response: {
         status: 200,
@@ -1197,23 +1380,7 @@ export const connectorDetails = {
           },
           browser_info: mandateBrowserInfo,
           currency: "EUR",
-          billing: {
-            address: {
-              line1: "1467",
-              line2: "Harrison Street",
-              line3: "Harrison Street",
-              city: "San Fransico",
-              state: "California",
-              zip: "94122",
-              country: "NL",
-              first_name: "joseph",
-              last_name: "Doe",
-            },
-            phone: {
-              number: "9123456789",
-              country_code: "+31",
-            },
-          },
+          billing: billingNetherlands,
           mandate_data: getMandateData("EUR"),
           payment_type: "new_mandate",
           setup_future_usage: "off_session",
@@ -1240,22 +1407,7 @@ export const connectorDetails = {
           },
         },
         currency: "EUR",
-        billing: {
-          address: {
-            line1: "1 Main St",
-            line2: "Apt 4",
-            city: "Brussels",
-            zip: "1000",
-            country: "BE",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          email: "test@example.com",
-          phone: {
-            number: "9123456789",
-            country_code: "+32",
-          },
-        },
+        billing: billingBelgium,
       },
       Response: {
         status: 200,
@@ -1278,22 +1430,7 @@ export const connectorDetails = {
           },
           browser_info: mandateBrowserInfo,
           currency: "EUR",
-          billing: {
-            address: {
-              line1: "1 Main St",
-              line2: "Apt 4",
-              city: "Brussels",
-              zip: "1000",
-              country: "BE",
-              first_name: "John",
-              last_name: "Doe",
-            },
-            email: "test@example.com",
-            phone: {
-              number: "9123456789",
-              country_code: "+32",
-            },
-          },
+          billing: billingBelgium,
           mandate_data: getMandateData("EUR"),
           payment_type: "new_mandate",
           setup_future_usage: "off_session",
@@ -1318,21 +1455,7 @@ export const connectorDetails = {
           },
         },
         currency: "GBP",
-        billing: {
-          address: {
-            line1: "1 Main St",
-            city: "London",
-            zip: "SW1A 1AA",
-            country: "GB",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          email: "test@example.com",
-          phone: {
-            number: "9123456789",
-            country_code: "+44",
-          },
-        },
+        billing: billingUkLondon,
       },
       Response: {
         status: 200,
@@ -1353,21 +1476,7 @@ export const connectorDetails = {
           },
           browser_info: mandateBrowserInfo,
           currency: "GBP",
-          billing: {
-            address: {
-              line1: "1 Main St",
-              city: "London",
-              zip: "SW1A 1AA",
-              country: "GB",
-              first_name: "John",
-              last_name: "Doe",
-            },
-            email: "test@example.com",
-            phone: {
-              number: "9123456789",
-              country_code: "+44",
-            },
-          },
+          billing: billingUkLondon,
           mandate_data: getMandateData("GBP"),
           payment_type: "new_mandate",
           setup_future_usage: "off_session",
@@ -1392,21 +1501,7 @@ export const connectorDetails = {
           },
         },
         currency: "EUR",
-        billing: {
-          address: {
-            line1: "1 Main St",
-            city: "Stockholm",
-            zip: "11122",
-            country: "SE",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          email: "test@example.com",
-          phone: {
-            number: "9123456789",
-            country_code: "+46",
-          },
-        },
+        billing: billingSwedenStockholm,
       },
       Response: {
         status: 200,
@@ -1430,21 +1525,7 @@ export const connectorDetails = {
           },
           browser_info: mandateBrowserInfo,
           currency: "EUR",
-          billing: {
-            address: {
-              line1: "1 Main St",
-              city: "Stockholm",
-              zip: "11122",
-              country: "SE",
-              first_name: "John",
-              last_name: "Doe",
-            },
-            email: "test@example.com",
-            phone: {
-              number: "9123456789",
-              country_code: "+46",
-            },
-          },
+          billing: billingSwedenStockholm,
           mandate_data: getMandateData("EUR"),
           payment_type: "new_mandate",
           setup_future_usage: "off_session",
@@ -1734,19 +1815,7 @@ export const connectorDetails = {
             pay_safe_card: {},
           },
         },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Francisco",
-            state: "California",
-            zip: "94122",
-            country: "US",
-            first_name: "joseph",
-            last_name: "Doe",
-          },
-        },
+        billing: billingUsHarrison,
         return_url: "https://example.com",
       },
       Response: {
@@ -1875,23 +1944,7 @@ export const connectorDetails = {
         customer_acceptance: {
           acceptance_type: "online",
         },
-        billing: {
-          address: {
-            line1: "123 Test St",
-            line2: "Apt 4",
-            city: "San Francisco",
-            state: "California",
-            zip: "94122",
-            country: "US",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "4155552671",
-            country_code: "+1",
-          },
-          email: testEmail,
-        },
+        billing: billingUsTestSt,
         shipping: {
           address: {
             line1: "123 Test St",
@@ -1934,23 +1987,7 @@ export const connectorDetails = {
         customer_acceptance: {
           acceptance_type: "online",
         },
-        billing: {
-          address: {
-            line1: "123 Test St",
-            line2: "Apt 4",
-            city: "San Francisco",
-            state: "California",
-            zip: "94122",
-            country: "US",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "4155552671",
-            country_code: "+1",
-          },
-          email: testEmail,
-        },
+        billing: billingUsTestSt,
         shipping: {
           address: {
             line1: "123 Test St",
@@ -2067,23 +2104,7 @@ export const connectorDetails = {
             amount: 6000,
           },
         ],
-        billing: {
-          address: {
-            line1: "123 Test Street",
-            line2: "Unit 4",
-            city: "Singapore",
-            state: "Singapore",
-            zip: "018956",
-            country: "SG",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "91234567",
-            country_code: "+65",
-          },
-          email: testEmail,
-        },
+        billing: billingSingapore,
         shipping: {
           address: {
             line1: "123 Test Street",
@@ -2117,23 +2138,7 @@ export const connectorDetails = {
         customer_acceptance: {
           acceptance_type: "online",
         },
-        billing: {
-          address: {
-            line1: "123 Test Street",
-            line2: "Unit 4",
-            city: "Singapore",
-            state: "Singapore",
-            zip: "018956",
-            country: "SG",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "91234567",
-            country_code: "+65",
-          },
-          email: testEmail,
-        },
+        billing: billingSingapore,
         shipping: {
           address: {
             line1: "123 Test Street",
@@ -2168,23 +2173,7 @@ export const connectorDetails = {
             amount: 6000,
           },
         ],
-        billing: {
-          address: {
-            line1: "123 Test Street",
-            line2: "Unit 4",
-            city: "Singapore",
-            state: "Singapore",
-            zip: "018956",
-            country: "SG",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "91234567",
-            country_code: "+65",
-          },
-          email: testEmail,
-        },
+        billing: billingSingapore,
         shipping: {
           address: {
             line1: "123 Test Street",
@@ -2218,23 +2207,7 @@ export const connectorDetails = {
         customer_acceptance: {
           acceptance_type: "online",
         },
-        billing: {
-          address: {
-            line1: "123 Test Street",
-            line2: "Unit 4",
-            city: "Singapore",
-            state: "Singapore",
-            zip: "018956",
-            country: "SG",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "91234567",
-            country_code: "+65",
-          },
-          email: testEmail,
-        },
+        billing: billingSingapore,
         shipping: {
           address: {
             line1: "123 Test Street",
@@ -2262,19 +2235,7 @@ export const connectorDetails = {
       Request: {
         currency: "GBP",
         capture_method: "automatic",
-        billing: {
-          email: testEmail,
-          address: {
-            line1: "123",
-            line2: "Test St",
-            city: "London",
-            state: "London",
-            zip: "SW1A 1AA",
-            country: "GB",
-            first_name: "John",
-            last_name: "Doe",
-          },
-        },
+        billing: billingUkLondonTest,
         shipping: {
           address: {
             line1: "123",
@@ -2313,19 +2274,7 @@ export const connectorDetails = {
           },
         },
         currency: "GBP",
-        billing: {
-          email: testEmail,
-          address: {
-            line1: "123",
-            line2: "Test St",
-            city: "London",
-            state: "London",
-            zip: "SW1A 1AA",
-            country: "GB",
-            first_name: "John",
-            last_name: "Doe",
-          },
-        },
+        billing: billingUkLondonTest,
         shipping: {
           address: {
             line1: "123",
@@ -2357,23 +2306,7 @@ export const connectorDetails = {
       Request: {
         currency: "EUR",
         capture_method: "automatic",
-        billing: {
-          phone: {
-            number: "612345678",
-            country_code: "+33",
-          },
-          email: testEmail,
-          address: {
-            line1: "123",
-            line2: "Rue de Test",
-            city: "Paris",
-            state: "Ile-de-France",
-            zip: "75001",
-            country: "FR",
-            first_name: "Jean",
-            last_name: "Dupont",
-          },
-        },
+        billing: billingFrance,
         shipping: {
           address: {
             line1: "123",
@@ -2405,23 +2338,7 @@ export const connectorDetails = {
           },
         },
         currency: "EUR",
-        billing: {
-          phone: {
-            number: "612345678",
-            country_code: "+33",
-          },
-          email: testEmail,
-          address: {
-            line1: "123",
-            line2: "Rue de Test",
-            city: "Paris",
-            state: "Ile-de-France",
-            zip: "75001",
-            country: "FR",
-            first_name: "Jean",
-            last_name: "Dupont",
-          },
-        },
+        billing: billingFrance,
         shipping: {
           address: {
             line1: "123",
@@ -2446,23 +2363,7 @@ export const connectorDetails = {
       Request: {
         currency: "SEK",
         capture_method: "automatic",
-        billing: {
-          phone: {
-            number: "0701234567",
-            country_code: "+46",
-          },
-          email: testEmail,
-          address: {
-            line1: "123",
-            line2: "Test Street",
-            city: "Stockholm",
-            state: "Stockholm",
-            zip: "11122",
-            country: "SE",
-            first_name: "Johan",
-            last_name: "Andersson",
-          },
-        },
+        billing: billingSwedenStockholmTest,
         shipping: {
           address: {
             line1: "123",
@@ -2501,23 +2402,7 @@ export const connectorDetails = {
           },
         },
         currency: "SEK",
-        billing: {
-          phone: {
-            number: "0701234567",
-            country_code: "+46",
-          },
-          email: testEmail,
-          address: {
-            line1: "123",
-            line2: "Test Street",
-            city: "Stockholm",
-            state: "Stockholm",
-            zip: "11122",
-            country: "SE",
-            first_name: "Johan",
-            last_name: "Andersson",
-          },
-        },
+        billing: billingSwedenStockholmTest,
         shipping: {
           address: {
             line1: "123",
@@ -2643,18 +2528,7 @@ export const connectorDetails = {
             oxxo: null,
           },
         },
-        billing: {
-          address: {
-            line1: "123 Test St",
-            city: "Mexico City",
-            state: "Mexico",
-            zip: "06600",
-            country: "MX",
-            first_name: "Test",
-            last_name: "User",
-          },
-          email: "test@example.com",
-        },
+        billing: billingMexico,
         currency: voucherCurrencyMap.Oxxo,
       },
       Response: {
@@ -2679,18 +2553,7 @@ export const connectorDetails = {
             },
           },
         },
-        billing: {
-          address: {
-            line1: "Jl Test 123",
-            city: "Jakarta",
-            state: "DKI Jakarta",
-            zip: "10110",
-            country: "ID",
-            first_name: "Test",
-            last_name: "User",
-          },
-          email: "test@example.com",
-        },
+        billing: billingIndonesia,
         currency: voucherCurrencyMap.Alfamart,
       },
       Response: {
@@ -2715,18 +2578,7 @@ export const connectorDetails = {
             },
           },
         },
-        billing: {
-          address: {
-            line1: "Jl Test 123",
-            city: "Jakarta",
-            state: "DKI Jakarta",
-            zip: "10110",
-            country: "ID",
-            first_name: "Test",
-            last_name: "User",
-          },
-          email: "test@example.com",
-        },
+        billing: billingIndonesia,
         currency: voucherCurrencyMap.Indomaret,
       },
       Response: {
@@ -2751,22 +2603,7 @@ export const connectorDetails = {
             },
           },
         },
-        billing: {
-          address: {
-            line1: "1-1 Test",
-            city: "Tokyo",
-            state: "Tokyo",
-            zip: "1000001",
-            country: "JP",
-            first_name: "Test",
-            last_name: "User",
-          },
-          phone: {
-            number: "312345678",
-            country_code: "+81",
-          },
-          email: "test@example.com",
-        },
+        billing: billingJapan,
         currency: voucherCurrencyMap.SevenEleven,
       },
       Response: {
@@ -2791,22 +2628,7 @@ export const connectorDetails = {
             },
           },
         },
-        billing: {
-          address: {
-            line1: "1-1 Test",
-            city: "Tokyo",
-            state: "Tokyo",
-            zip: "1000001",
-            country: "JP",
-            first_name: "Test",
-            last_name: "User",
-          },
-          phone: {
-            number: "312345678",
-            country_code: "+81",
-          },
-          email: "test@example.com",
-        },
+        billing: billingJapan,
         currency: voucherCurrencyMap.Lawson,
       },
       Response: {
@@ -2831,22 +2653,7 @@ export const connectorDetails = {
             },
           },
         },
-        billing: {
-          address: {
-            line1: "1-1 Test",
-            city: "Tokyo",
-            state: "Tokyo",
-            zip: "1000001",
-            country: "JP",
-            first_name: "Test",
-            last_name: "User",
-          },
-          phone: {
-            number: "312345678",
-            country_code: "+81",
-          },
-          email: "test@example.com",
-        },
+        billing: billingJapan,
         currency: voucherCurrencyMap.MiniStop,
       },
       Response: {
@@ -2871,22 +2678,7 @@ export const connectorDetails = {
             },
           },
         },
-        billing: {
-          address: {
-            line1: "1-1 Test",
-            city: "Tokyo",
-            state: "Tokyo",
-            zip: "1000001",
-            country: "JP",
-            first_name: "Test",
-            last_name: "User",
-          },
-          phone: {
-            number: "312345678",
-            country_code: "+81",
-          },
-          email: "test@example.com",
-        },
+        billing: billingJapan,
         currency: voucherCurrencyMap.FamilyMart,
       },
       Response: {
@@ -2911,22 +2703,7 @@ export const connectorDetails = {
             },
           },
         },
-        billing: {
-          address: {
-            line1: "1-1 Test",
-            city: "Tokyo",
-            state: "Tokyo",
-            zip: "1000001",
-            country: "JP",
-            first_name: "Test",
-            last_name: "User",
-          },
-          phone: {
-            number: "312345678",
-            country_code: "+81",
-          },
-          email: "test@example.com",
-        },
+        billing: billingJapan,
         currency: voucherCurrencyMap.Seicomart,
       },
       Response: {
@@ -2951,22 +2728,7 @@ export const connectorDetails = {
             },
           },
         },
-        billing: {
-          address: {
-            line1: "1-1 Test",
-            city: "Tokyo",
-            state: "Tokyo",
-            zip: "1000001",
-            country: "JP",
-            first_name: "Test",
-            last_name: "User",
-          },
-          phone: {
-            number: "312345678",
-            country_code: "+81",
-          },
-          email: "test@example.com",
-        },
+        billing: billingJapan,
         currency: voucherCurrencyMap.PayEasy,
       },
       Response: {
@@ -2987,18 +2749,7 @@ export const connectorDetails = {
             oxxo: "oxxo",
           },
         },
-        billing: {
-          address: {
-            line1: "123 Test St",
-            city: "Mexico City",
-            state: "Mexico",
-            zip: "06600",
-            country: "MX",
-            first_name: "Test",
-            last_name: "User",
-          },
-          email: "test@example.com",
-        },
+        billing: billingMexico,
         currency: voucherCurrencyMap.Oxxo,
       },
       Response: {
