@@ -2410,7 +2410,7 @@ where
                     .unwrap_or(false);
 
                 if should_call_external_vault_proxy {
-                    return Box::pin(payments::external_vault_proxy_for_payments_core::<
+                    Box::pin(payments::external_vault_proxy_for_payments_core::<
                         api_types::ExternalVaultProxy,
                         payment_types::PaymentsResponse,
                         _,
@@ -2429,7 +2429,7 @@ where
                         header_payload,
                         None,
                     ))
-                    .await;
+                    .await
                 } else {
                     let (payment_data, _req, connector_http_status_code, external_latency) =
                         Box::pin(payments::payments_operation_core::<

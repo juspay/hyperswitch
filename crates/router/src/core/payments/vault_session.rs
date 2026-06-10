@@ -399,6 +399,7 @@ pub async fn generate_vault_session_details(
 }
 
 #[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
 async fn generate_hyperswitch_vault_session_details(
     state: &SessionState,
     platform: &domain::Platform,

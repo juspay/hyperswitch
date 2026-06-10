@@ -214,17 +214,35 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
                 ),
             ),
             Some(api_models::payments::PaymentMethodData::VaultCardTokenData(token_data)) => {
-                payment_method_wrapper
+                match payment_method_wrapper
                     .as_ref()
                     .and_then(|wrapper| wrapper.vault_payment_method_token_data.as_ref())
-                    .and_then(|vault_data| match vault_data {
-                        VaultPaymentMethodData::VaultCardData(vault_card) => Some(
+                {
+                    Some(VaultPaymentMethodData::VaultCardData(vault_card)) => {
+                        // Card expiry is carried on the vault tokens and the CVC on the request.
+                        // Both are required to authorize through the external vault proxy, so error
+                        // out explicitly rather than forwarding empty strings that fail downstream
+                        // connector validation.
+                        let card_exp_month = vault_card
+                            .card_exp_month
+                            .clone()
+                            .get_required_value("card_exp_month")?;
+                        let card_exp_year = vault_card
+                            .card_exp_year
+                            .clone()
+                            .get_required_value("card_exp_year")?;
+                        let card_cvc = token_data
+                            .card_cvc
+                            .clone()
+                            .get_required_value("card_cvc")?;
+
+                        Some(
                             hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
                                 Box::new(hyperswitch_domain_models::payment_method_data::ExternalVaultCard {
                                     card_number: vault_card.card_number.clone(),
-                                    card_exp_month: vault_card.card_exp_month.clone().unwrap_or_default(),
-                                    card_exp_year: vault_card.card_exp_year.clone().unwrap_or_default(),
-                                    card_cvc: token_data.card_cvc.clone().unwrap_or_default(),
+                                    card_exp_month,
+                                    card_exp_year,
+                                    card_cvc,
                                     bin_number: None,
                                     last_four: None,
                                     card_issuer: None,
@@ -237,8 +255,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
                                     co_badged_card_data: None,
                                 }),
                             ),
-                        ),
-                    })
+                        )
+                    }
+                    None => None,
+                }
             }
             _ => None,
         };
@@ -514,67 +534,74 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                 _ => None,
             });
 
-        // Not a token flow — nothing to fetch up front.
-        let Some(card_token) = card_token else {
-            return Ok(PaymentMethodFetchData::default());
+        // A fetch is only needed for the saved-card token flow, and only when the org is eligible
+        // for the modular PM service. Every other case has nothing to fetch up front.
+        let fetch_data = match card_token {
+            Some(card_token) if feature_config.is_payment_method_modular_allowed => {
+                // 1. Resolve the payment_token to the actual stored payment_method_id via Redis.
+                //    This uses the same key construction as the regular Confirm flow's
+                //    fetch_payment_method (`pm_token_{token}_{payment_method}_hyperswitch`).
+                let payment_token = req
+                    .payment_token
+                    .clone()
+                    .get_required_value("payment_token")
+                    .attach_printable("payment_token is required for the vault card token flow")?;
+
+                let token_data =
+                    helpers::retrieve_payment_token_data(state, payment_token, req.payment_method)
+                        .await?;
+
+                let payment_method_id = match token_data {
+                    storage::PaymentTokenData::Permanent(card_token_data)
+                    | storage::PaymentTokenData::PermanentCard(card_token_data) => {
+                        card_token_data.payment_method_id
+                    }
+                    _ => None,
+                }
+                .get_required_value("payment_method_id")
+                .attach_printable("could not resolve a payment_method_id from the payment_token")?;
+
+                // 2. Retrieve the external vault tokens for that payment method from the modular PM
+                //    service.
+                let profile_id = platform
+                    .get_processor()
+                    .get_account()
+                    .get_default_profile()
+                    .clone()
+                    .get_required_value("profile_id")
+                    .attach_printable(
+                        "profile_id is required to fetch external vault tokens from the modular service",
+                    )?;
+
+                let payment_method_with_raw_data =
+                    pm_transformers::fetch_payment_method_from_modular_service(
+                        state,
+                        platform,
+                        &profile_id,
+                        &payment_method_id,
+                        Some(card_token),
+                        // External vault proxy cards are not in the internal vault; requesting raw
+                        // detail fails. The external vault token reference is returned without it.
+                        false,
+                    )
+                    .await
+                    .attach_printable(
+                        "Failed to fetch external vault token data from the modular PM service",
+                    )?;
+
+                PaymentMethodFetchData::from_modular(payment_method_with_raw_data)
+            }
+            Some(_) => {
+                router_env::logger::info!(
+                    "Organization is not eligible for PM Modular Service; skipping external vault token fetch."
+                );
+                PaymentMethodFetchData::default()
+            }
+            // Not a token flow — nothing to fetch up front.
+            None => PaymentMethodFetchData::default(),
         };
 
-        if !feature_config.is_payment_method_modular_allowed {
-            router_env::logger::info!(
-                "Organization is not eligible for PM Modular Service; skipping external vault token fetch."
-            );
-            return Ok(PaymentMethodFetchData::default());
-        }
-
-        // 1. Resolve the payment_token to the actual stored payment_method_id via Redis. This uses
-        //    the same key construction as the regular Confirm flow's fetch_payment_method
-        //    (`pm_token_{token}_{payment_method}_hyperswitch`).
-        let payment_token = req
-            .payment_token
-            .clone()
-            .get_required_value("payment_token")
-            .attach_printable("payment_token is required for the vault card token flow")?;
-
-        let token_data =
-            helpers::retrieve_payment_token_data(state, payment_token, req.payment_method).await?;
-
-        let payment_method_id = match token_data {
-            storage::PaymentTokenData::Permanent(card_token_data)
-            | storage::PaymentTokenData::PermanentCard(card_token_data) => {
-                card_token_data.payment_method_id
-            }
-            _ => None,
-        }
-        .get_required_value("payment_method_id")
-        .attach_printable("could not resolve a payment_method_id from the payment_token")?;
-
-        // 2. Retrieve the external vault tokens for that payment method from the modular PM service.
-        let profile_id = platform
-            .get_processor()
-            .get_account()
-            .get_default_profile()
-            .clone()
-            .get_required_value("profile_id")
-            .attach_printable(
-                "profile_id is required to fetch external vault tokens from the modular service",
-            )?;
-
-        let payment_method_with_raw_data =
-            pm_transformers::fetch_payment_method_from_modular_service(
-                state,
-                platform,
-                &profile_id,
-                &payment_method_id,
-                Some(card_token),
-                // External vault proxy cards are not in the internal vault; requesting raw detail
-                // fails. The external vault token reference is returned without it.
-                false,
-            )
-            .await?;
-
-        Ok(PaymentMethodFetchData::from_modular(
-            payment_method_with_raw_data,
-        ))
+        Ok(fetch_data)
     }
 
     #[cfg(feature = "v1")]

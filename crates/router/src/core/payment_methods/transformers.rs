@@ -9,14 +9,14 @@ use common_enums::CardNetwork;
 #[cfg(feature = "v1")]
 use common_utils::{
     crypto::Encryptable,
-    request::{Headers, Method, RequestBuilder},
+    request::{Headers, RequestBuilder},
     types::keymanager::KeyManagerState,
 };
 use common_utils::{
     ext_traits::{AsyncExt, Encode, StringExt},
     id_type,
     pii::{Email, SecretSerdeValue},
-    request::RequestContent,
+    request::{RequestContent, Method},
 };
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
@@ -451,7 +451,7 @@ where
 
     let url = locker.get_host(endpoint_path);
 
-    let mut request = services::Request::new(services::Method::Post, &url);
+    let mut request = services::Request::new(Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.add_header(headers::X_TENANT_ID, tenant_id.get_string_repr().into());
 
@@ -794,7 +794,7 @@ pub fn mk_get_card_request(
 
     let mut url = locker.host.to_owned();
     url.push_str("/card/getCard");
-    let mut request = services::Request::new(services::Method::Post, &url);
+    let mut request = services::Request::new(Method::Post, &url);
     request.set_body(RequestContent::FormUrlEncoded(Box::new(get_card_req)));
     Ok(request)
 }
