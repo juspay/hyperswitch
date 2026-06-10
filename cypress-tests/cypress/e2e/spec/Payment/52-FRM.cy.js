@@ -49,8 +49,15 @@ describe("FRM - Fraud Risk Management Tests", () => {
         }).then((response) => {
           cy.task(
             "cli_log",
-            "Set frm_routing_algorithm status: " + response.status
+            "Set frm_routing_algorithm status: " +
+              response.status +
+              " body: " +
+              JSON.stringify(response.body)
           );
+          expect(
+            response.status,
+            "frm_routing_algorithm update should return 200"
+          ).to.equal(200);
         });
       });
   });
