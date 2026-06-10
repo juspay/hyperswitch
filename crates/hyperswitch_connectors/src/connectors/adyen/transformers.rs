@@ -1361,6 +1361,10 @@ impl TryFrom<&common_enums::BankNames> for OpenBankingUKIssuer {
             | common_enums::BankNames::N26
             | common_enums::BankNames::Absa
             | common_enums::BankNames::NationaleNederlanden
+            | common_enums::BankNames::FirstNationalBank
+            | common_enums::BankNames::DiscoveryBank
+            | common_enums::BankNames::Nedbank
+            | common_enums::BankNames::TymeBank
             | common_enums::BankNames::KasikornBank => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Adyen"),
@@ -2333,7 +2337,8 @@ fn get_social_security_number(voucher_data: &VoucherData) -> Option<Secret<Strin
         | VoucherData::MiniStop { .. }
         | VoucherData::FamilyMart { .. }
         | VoucherData::Seicomart { .. }
-        | VoucherData::PayEasy { .. } => None,
+        | VoucherData::PayEasy { .. }
+        | VoucherData::OneForYou(_) => None,
     }
 }
 
@@ -2419,7 +2424,8 @@ impl TryFrom<(&VoucherData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMetho
             VoucherData::Efecty
             | VoucherData::PagoEfectivo
             | VoucherData::RedCompra
-            | VoucherData::RedPagos => Err(errors::ConnectorError::NotImplemented(
+            | VoucherData::RedPagos
+            | VoucherData::OneForYou(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
             .into()),
@@ -2705,7 +2711,12 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
             | WalletData::WeChatPayQr(_)
             | WalletData::CashappQr(_)
             | WalletData::Mifinity(_)
-            | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
+            | WalletData::RevolutPay(_)
+            | WalletData::MpesaRedirect {}
+            | WalletData::BlinkByEmtelRedirect {}
+            | WalletData::McbJuiceRedirect {}
+            | WalletData::ScanToPayRedirect {}
+            | WalletData::MaucasRedirect {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
             .into()),
@@ -2827,7 +2838,14 @@ impl
             PayLaterData::KlarnaSdk { .. }
             | PayLaterData::BreadpayRedirect {}
             | PayLaterData::FlexitiRedirect {}
-            | PayLaterData::PayjustnowRedirect {} => Err(errors::ConnectorError::NotImplemented(
+            | PayLaterData::PayjustnowRedirect {}
+            | PayLaterData::PayflexRedirect {}
+            | PayLaterData::ZeroPayRedirect {}
+            | PayLaterData::FloatRedirect {}
+            | PayLaterData::HappyPayRedirect {}
+            | PayLaterData::MobicredRedirect { .. }
+            | PayLaterData::RcsRedirect { .. }
+            | PayLaterData::APlusRedirect {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
             .into()),
@@ -2995,6 +3013,10 @@ impl TryFrom<(&BankTransferData, &PaymentsAuthorizeRouterData)> for AdyenPayment
             | BankTransferData::PixEmv { .. }
             | BankTransferData::PixAutomaticoPush { .. }
             | BankTransferData::PixAutomaticoQr {}
+            | BankTransferData::CapitecPay { .. }
+            | BankTransferData::PayShap { .. }
+            | BankTransferData::NedbankDirectEft {}
+            | BankTransferData::PeachEft {}
             | BankTransferData::Pse {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
@@ -3764,6 +3786,10 @@ impl
             | BankTransferData::PixAutomaticoPush { .. }
             | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::PixEmv {}
+            | BankTransferData::CapitecPay { .. }
+            | BankTransferData::PayShap { .. }
+            | BankTransferData::NedbankDirectEft {}
+            | BankTransferData::PeachEft {}
             | BankTransferData::IndonesianBankTransfer { .. } => (None, None),
         };
         let application_info = get_application_info(item);

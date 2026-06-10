@@ -11,6 +11,7 @@ import type {
 import silverflowApp from "./Connectors/Silverflow.ts";
 import celeroApp from "./Connectors/Celero.ts";
 import affirmApp from "./Connectors/Affirm.ts";
+import peachpaymentsApp from "./Connectors/Peachpayments.ts";
 
 // TODO: Update to import from TypeScript version once fully tested
 // import silverflowApp from "./Silverflow";
@@ -23,6 +24,7 @@ const mockRouters: MockRouters = {
   silverflow: silverflowApp,
   celero: celeroApp,
   affirm: affirmApp,
+  peachpayments: peachpaymentsApp,
 };
 
 // Create a router

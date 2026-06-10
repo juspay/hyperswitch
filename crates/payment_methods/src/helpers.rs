@@ -107,6 +107,13 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Breadpay
                 | api_enums::PaymentMethodType::Flexiti
                 | api_enums::PaymentMethodType::Payjustnow
+                | api_enums::PaymentMethodType::Payflex
+                | api_enums::PaymentMethodType::ZeroPay
+                | api_enums::PaymentMethodType::Float
+                | api_enums::PaymentMethodType::HappyPay
+                | api_enums::PaymentMethodType::Mobicred
+                | api_enums::PaymentMethodType::Rcs
+                | api_enums::PaymentMethodType::APlus
         ),
         api_enums::PaymentMethod::Wallet => matches!(
             payment_method_type,
@@ -136,6 +143,11 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Mifinity
                 | api_enums::PaymentMethodType::Paze
                 | api_enums::PaymentMethodType::RevolutPay
+                | api_enums::PaymentMethodType::Mpesa
+                | api_enums::PaymentMethodType::BlinkByEmtel
+                | api_enums::PaymentMethodType::McbJuice
+                | api_enums::PaymentMethodType::ScanToPay
+                | api_enums::PaymentMethodType::Maucas
         ),
         api_enums::PaymentMethod::BankRedirect => matches!(
             payment_method_type,
@@ -184,6 +196,10 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::InstantBankTransferFinland
                 | api_enums::PaymentMethodType::InstantBankTransferPoland
                 | api_enums::PaymentMethodType::IndonesianBankTransfer
+                | api_enums::PaymentMethodType::CapitecPay
+                | api_enums::PaymentMethodType::PayShap
+                | api_enums::PaymentMethodType::NedbankDirectEft
+                | api_enums::PaymentMethodType::PeachEft
         ),
         api_enums::PaymentMethod::BankDebit => matches!(
             payment_method_type,
@@ -197,6 +213,7 @@ pub fn validate_payment_method_type_against_payment_method(
         api_enums::PaymentMethod::Crypto => matches!(
             payment_method_type,
             api_enums::PaymentMethodType::CryptoCurrency
+                | api_enums::PaymentMethodType::MoneyBadger
         ),
         api_enums::PaymentMethod::Reward => matches!(
             payment_method_type,
@@ -232,6 +249,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::FamilyMart
                 | api_enums::PaymentMethodType::Seicomart
                 | api_enums::PaymentMethodType::PayEasy
+                | api_enums::PaymentMethodType::OneForYou
         ),
         api_enums::PaymentMethod::GiftCard => {
             matches!(

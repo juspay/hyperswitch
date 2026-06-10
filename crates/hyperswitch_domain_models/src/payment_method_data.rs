@@ -884,6 +884,13 @@ pub enum PayLaterData {
     AtomeRedirect {},
     BreadpayRedirect {},
     PayjustnowRedirect {},
+    PayflexRedirect {},
+    ZeroPayRedirect {},
+    FloatRedirect {},
+    HappyPayRedirect {},
+    MobicredRedirect { password: Option<Secret<String>> },
+    RcsRedirect { card_number: Option<Secret<String>> },
+    APlusRedirect {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -922,6 +929,11 @@ pub enum WalletData {
     SwishQr(SwishQrData),
     Mifinity(MifinityData),
     RevolutPay(RevolutPayData),
+    MpesaRedirect {},
+    BlinkByEmtelRedirect {},
+    McbJuiceRedirect {},
+    ScanToPayRedirect {},
+    MaucasRedirect {},
 }
 
 impl WalletData {
@@ -1321,6 +1333,13 @@ pub enum VoucherData {
     FamilyMart(Box<JCSVoucherData>),
     Seicomart(Box<JCSVoucherData>),
     PayEasy(Box<JCSVoucherData>),
+    OneForYou(Box<OneForYouVoucherData>),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct OneForYouVoucherData {
+    /// The 1Voucher PIN collected from the shopper
+    pub voucher_pin: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -1736,6 +1755,15 @@ pub enum BankTransferData {
     IndonesianBankTransfer {
         bank_name: Option<common_enums::BankNames>,
     },
+    CapitecPay {
+        account_type: Option<common_enums::CapitecPayAccountType>,
+        account_id: Option<Secret<String>>,
+    },
+    PayShap {
+        bank: Option<common_enums::BankNames>,
+    },
+    NedbankDirectEft {},
+    PeachEft {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -2420,6 +2448,13 @@ impl From<api_models::payments::WalletData> for WalletData {
             }
             api_models::payments::WalletData::BluecodeRedirect {} => Self::BluecodeRedirect {},
             api_models::payments::WalletData::RevolutPay(_) => Self::RevolutPay(RevolutPayData {}),
+            api_models::payments::WalletData::MpesaRedirect {} => Self::MpesaRedirect {},
+            api_models::payments::WalletData::BlinkByEmtelRedirect {} => {
+                Self::BlinkByEmtelRedirect {}
+            }
+            api_models::payments::WalletData::McbJuiceRedirect {} => Self::McbJuiceRedirect {},
+            api_models::payments::WalletData::ScanToPayRedirect {} => Self::ScanToPayRedirect {},
+            api_models::payments::WalletData::MaucasRedirect {} => Self::MaucasRedirect {},
         }
     }
 }
@@ -2534,6 +2569,17 @@ impl From<api_models::payments::PayLaterData> for PayLaterData {
             api_models::payments::PayLaterData::PayjustnowRedirect {} => {
                 Self::PayjustnowRedirect {}
             }
+            api_models::payments::PayLaterData::PayflexRedirect {} => Self::PayflexRedirect {},
+            api_models::payments::PayLaterData::ZeroPayRedirect {} => Self::ZeroPayRedirect {},
+            api_models::payments::PayLaterData::FloatRedirect {} => Self::FloatRedirect {},
+            api_models::payments::PayLaterData::HappyPayRedirect {} => Self::HappyPayRedirect {},
+            api_models::payments::PayLaterData::MobicredRedirect { password } => {
+                Self::MobicredRedirect { password }
+            }
+            api_models::payments::PayLaterData::RcsRedirect { card_number } => {
+                Self::RcsRedirect { card_number }
+            }
+            api_models::payments::PayLaterData::APlusRedirect {} => Self::APlusRedirect {},
         }
     }
 }
@@ -2719,6 +2765,11 @@ impl From<api_models::payments::VoucherData> for VoucherData {
             api_models::payments::VoucherData::RedCompra => Self::RedCompra,
             api_models::payments::VoucherData::RedPagos => Self::RedPagos,
             api_models::payments::VoucherData::Oxxo => Self::Oxxo,
+            api_models::payments::VoucherData::OneForYou(one_for_you_data) => {
+                Self::OneForYou(Box::new(OneForYouVoucherData {
+                    voucher_pin: one_for_you_data.voucher_pin,
+                }))
+            }
         }
     }
 }
@@ -2787,6 +2838,12 @@ impl From<VoucherData> for api_models::payments::VoucherData {
             VoucherData::RedCompra => Self::RedCompra,
             VoucherData::RedPagos => Self::RedPagos,
             VoucherData::Oxxo => Self::Oxxo,
+            // The voucher PIN is not echoed back in responses
+            VoucherData::OneForYou(_) => {
+                Self::OneForYou(Box::new(api_models::payments::OneForYouVoucherData {
+                    voucher_pin: None,
+                }))
+            }
         }
     }
 }
@@ -3087,6 +3144,18 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
             api_models::payments::BankTransferData::IndonesianBankTransfer { bank_name } => {
                 Self::IndonesianBankTransfer { bank_name }
             }
+            api_models::payments::BankTransferData::CapitecPay {
+                account_type,
+                account_id,
+            } => Self::CapitecPay {
+                account_type,
+                account_id,
+            },
+            api_models::payments::BankTransferData::PayShap { bank } => Self::PayShap { bank },
+            api_models::payments::BankTransferData::NedbankDirectEft {} => {
+                Self::NedbankDirectEft {}
+            }
+            api_models::payments::BankTransferData::PeachEft {} => Self::PeachEft {},
         }
     }
 }
@@ -3155,6 +3224,18 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
             BankTransferData::IndonesianBankTransfer { bank_name } => {
                 Self::IndonesianBankTransfer { bank_name }
             }
+            BankTransferData::CapitecPay {
+                account_type,
+                account_id,
+            } => Self::CapitecPay(Box::new(
+                api_models::payments::additional_info::CapitecPayAdditionalData {
+                    account_type,
+                    account_id: account_id.map(MaskedBankAccount::from),
+                },
+            )),
+            BankTransferData::PayShap { bank } => Self::PayShap { bank },
+            BankTransferData::NedbankDirectEft {} => Self::NedbankDirectEft {},
+            BankTransferData::PeachEft {} => Self::PeachEft {},
         }
     }
 }
@@ -3378,6 +3459,11 @@ impl GetPaymentMethodType for WalletData {
             Self::SwishQr(_) => api_enums::PaymentMethodType::Swish,
             Self::Mifinity(_) => api_enums::PaymentMethodType::Mifinity,
             Self::RevolutPay(_) => api_enums::PaymentMethodType::RevolutPay,
+            Self::MpesaRedirect {} => api_enums::PaymentMethodType::Mpesa,
+            Self::BlinkByEmtelRedirect {} => api_enums::PaymentMethodType::BlinkByEmtel,
+            Self::McbJuiceRedirect {} => api_enums::PaymentMethodType::McbJuice,
+            Self::ScanToPayRedirect {} => api_enums::PaymentMethodType::ScanToPay,
+            Self::MaucasRedirect {} => api_enums::PaymentMethodType::Maucas,
         }
     }
 }
@@ -3396,6 +3482,13 @@ impl GetPaymentMethodType for PayLaterData {
             Self::AtomeRedirect {} => api_enums::PaymentMethodType::Atome,
             Self::BreadpayRedirect {} => api_enums::PaymentMethodType::Breadpay,
             Self::PayjustnowRedirect {} => api_enums::PaymentMethodType::Payjustnow,
+            Self::PayflexRedirect {} => api_enums::PaymentMethodType::Payflex,
+            Self::ZeroPayRedirect {} => api_enums::PaymentMethodType::ZeroPay,
+            Self::FloatRedirect {} => api_enums::PaymentMethodType::Float,
+            Self::HappyPayRedirect {} => api_enums::PaymentMethodType::HappyPay,
+            Self::MobicredRedirect { .. } => api_enums::PaymentMethodType::Mobicred,
+            Self::RcsRedirect { .. } => api_enums::PaymentMethodType::Rcs,
+            Self::APlusRedirect {} => api_enums::PaymentMethodType::APlus,
         }
     }
 }
@@ -3478,6 +3571,10 @@ impl GetPaymentMethodType for BankTransferData {
             Self::IndonesianBankTransfer { .. } => {
                 api_enums::PaymentMethodType::IndonesianBankTransfer
             }
+            Self::CapitecPay { .. } => api_enums::PaymentMethodType::CapitecPay,
+            Self::PayShap { .. } => api_enums::PaymentMethodType::PayShap,
+            Self::NedbankDirectEft {} => api_enums::PaymentMethodType::NedbankDirectEft,
+            Self::PeachEft {} => api_enums::PaymentMethodType::PeachEft,
         }
     }
 }
@@ -3526,6 +3623,7 @@ impl GetPaymentMethodType for VoucherData {
             Self::FamilyMart(_) => api_enums::PaymentMethodType::FamilyMart,
             Self::Seicomart(_) => api_enums::PaymentMethodType::Seicomart,
             Self::PayEasy(_) => api_enums::PaymentMethodType::PayEasy,
+            Self::OneForYou(_) => api_enums::PaymentMethodType::OneForYou,
         }
     }
 }

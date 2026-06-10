@@ -181,12 +181,14 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | BankTransferData::PixAutomaticoPush { .. }
                 | BankTransferData::PixAutomaticoQr {}
                 | BankTransferData::PixEmv {}
-                | BankTransferData::LocalBankTransfer { .. } => {
-                    Err(errors::ConnectorError::NotImplemented(
-                        "Selected payment method through Facilitapay".to_string(),
-                    )
-                    .into())
-                }
+                | BankTransferData::LocalBankTransfer { .. }
+                | BankTransferData::CapitecPay { .. }
+                | BankTransferData::PayShap { .. }
+                | BankTransferData::NedbankDirectEft {}
+                | BankTransferData::PeachEft {} => Err(errors::ConnectorError::NotImplemented(
+                    "Selected payment method through Facilitapay".to_string(),
+                )
+                .into()),
             },
             PaymentMethodData::Card(_)
             | PaymentMethodData::CardRedirect(_)

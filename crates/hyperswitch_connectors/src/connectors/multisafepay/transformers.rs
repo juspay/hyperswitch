@@ -411,6 +411,10 @@ impl TryFrom<&BankNames> for MultisafepayBankNames {
             | BankNames::TsbBank
             | BankNames::Absa
             | BankNames::TescoBank
+            | BankNames::FirstNationalBank
+            | BankNames::DiscoveryBank
+            | BankNames::Nedbank
+            | BankNames::TymeBank
             | BankNames::UlsterBank => Err(Into::into(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Multisafepay",
@@ -554,7 +558,12 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
                 | WalletData::Mifinity(_)
-                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
+                | WalletData::RevolutPay(_)
+                | WalletData::MpesaRedirect {}
+                | WalletData::BlinkByEmtelRedirect {}
+                | WalletData::McbJuiceRedirect {}
+                | WalletData::ScanToPayRedirect {}
+                | WalletData::MaucasRedirect {} => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?,
             },
@@ -626,7 +635,12 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
                 | WalletData::Mifinity(_)
-                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
+                | WalletData::RevolutPay(_)
+                | WalletData::MpesaRedirect {}
+                | WalletData::BlinkByEmtelRedirect {}
+                | WalletData::McbJuiceRedirect {}
+                | WalletData::ScanToPayRedirect {}
+                | WalletData::MaucasRedirect {} => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?,
             }),
@@ -810,7 +824,12 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
                 | WalletData::Mifinity(_)
-                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
+                | WalletData::RevolutPay(_)
+                | WalletData::MpesaRedirect {}
+                | WalletData::BlinkByEmtelRedirect {}
+                | WalletData::McbJuiceRedirect {}
+                | WalletData::ScanToPayRedirect {}
+                | WalletData::MaucasRedirect {} => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?,
             },
@@ -827,7 +846,14 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                         | PayLaterData::AlmaRedirect {}
                         | PayLaterData::AtomeRedirect {}
                         | PayLaterData::BreadpayRedirect {}
-                        | PayLaterData::PayjustnowRedirect {} => {
+                        | PayLaterData::PayjustnowRedirect {}
+                        | PayLaterData::PayflexRedirect {}
+                        | PayLaterData::ZeroPayRedirect {}
+                        | PayLaterData::FloatRedirect {}
+                        | PayLaterData::HappyPayRedirect {}
+                        | PayLaterData::MobicredRedirect { .. }
+                        | PayLaterData::RcsRedirect { .. }
+                        | PayLaterData::APlusRedirect {} => {
                             Err(errors::ConnectorError::NotImplemented(
                                 utils::get_unimplemented_payment_method_error_message(
                                     "multisafepay",

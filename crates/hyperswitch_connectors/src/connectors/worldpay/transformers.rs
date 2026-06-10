@@ -186,6 +186,11 @@ fn fetch_payment_instrument(
             | WalletData::SwishQr(_)
             | WalletData::WeChatPayQr(_)
             | WalletData::Mifinity(_)
+            | WalletData::MpesaRedirect {}
+            | WalletData::BlinkByEmtelRedirect {}
+            | WalletData::McbJuiceRedirect {}
+            | WalletData::ScanToPayRedirect {}
+            | WalletData::MaucasRedirect {}
             | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("worldpay"),
             )

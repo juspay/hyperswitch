@@ -318,6 +318,11 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Venmo
             | api_enums::PaymentMethodType::Mifinity
             | api_enums::PaymentMethodType::RevolutPay
+            | api_enums::PaymentMethodType::Mpesa
+            | api_enums::PaymentMethodType::BlinkByEmtel
+            | api_enums::PaymentMethodType::McbJuice
+            | api_enums::PaymentMethodType::ScanToPay
+            | api_enums::PaymentMethodType::Maucas
             | api_enums::PaymentMethodType::Bluecode => Self::Wallet,
             api_enums::PaymentMethodType::Affirm
             | api_enums::PaymentMethodType::Alma
@@ -328,7 +333,14 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Atome
             | api_enums::PaymentMethodType::Walley
             | api_enums::PaymentMethodType::Breadpay
-            | api_enums::PaymentMethodType::Payjustnow => Self::PayLater,
+            | api_enums::PaymentMethodType::Payjustnow
+            | api_enums::PaymentMethodType::Payflex
+            | api_enums::PaymentMethodType::ZeroPay
+            | api_enums::PaymentMethodType::Float
+            | api_enums::PaymentMethodType::HappyPay
+            | api_enums::PaymentMethodType::Mobicred
+            | api_enums::PaymentMethodType::Rcs
+            | api_enums::PaymentMethodType::APlus => Self::PayLater,
             api_enums::PaymentMethodType::Giropay
             | api_enums::PaymentMethodType::Ideal
             | api_enums::PaymentMethodType::Sofort
@@ -353,7 +365,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             api_enums::PaymentMethodType::UpiCollect
             | api_enums::PaymentMethodType::UpiIntent
             | api_enums::PaymentMethodType::UpiQr => Self::Upi,
-            api_enums::PaymentMethodType::CryptoCurrency => Self::Crypto,
+            api_enums::PaymentMethodType::CryptoCurrency
+            | api_enums::PaymentMethodType::MoneyBadger => Self::Crypto,
             api_enums::PaymentMethodType::Ach
             | api_enums::PaymentMethodType::Sepa
             | api_enums::PaymentMethodType::SepaGuarenteedDebit
@@ -380,6 +393,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::FamilyMart
             | api_enums::PaymentMethodType::Seicomart
             | api_enums::PaymentMethodType::PayEasy
+            | api_enums::PaymentMethodType::OneForYou
             | api_enums::PaymentMethodType::RedPagos => Self::Voucher,
             api_enums::PaymentMethodType::Pse
             | api_enums::PaymentMethodType::Multibanco
@@ -400,6 +414,10 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::PixAutomaticoQr
             | api_enums::PaymentMethodType::PixKey
             | api_enums::PaymentMethodType::PixEmv
+            | api_enums::PaymentMethodType::CapitecPay
+            | api_enums::PaymentMethodType::PayShap
+            | api_enums::PaymentMethodType::NedbankDirectEft
+            | api_enums::PaymentMethodType::PeachEft
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex
             | api_enums::PaymentMethodType::PaySafeCard

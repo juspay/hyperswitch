@@ -114,12 +114,14 @@ impl TryFrom<&ItaubankRouterData<&types::PaymentsAuthorizeRouterData>> for Itaub
                     | BankTransferData::PixAutomaticoPush { .. }
                     | BankTransferData::PixAutomaticoQr {}
                     | BankTransferData::PixEmv {}
-                    | BankTransferData::LocalBankTransfer { .. } => {
-                        Err(errors::ConnectorError::NotImplemented(
-                            "Selected payment method through itaubank".to_string(),
-                        )
-                        .into())
-                    }
+                    | BankTransferData::LocalBankTransfer { .. }
+                    | BankTransferData::CapitecPay { .. }
+                    | BankTransferData::PayShap { .. }
+                    | BankTransferData::NedbankDirectEft {}
+                    | BankTransferData::PeachEft {} => Err(errors::ConnectorError::NotImplemented(
+                        "Selected payment method through itaubank".to_string(),
+                    )
+                    .into()),
                 }
             }
             PaymentMethodData::Card(_)

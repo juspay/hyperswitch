@@ -413,7 +413,12 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                 | WalletData::CashappQr(_)
                 | WalletData::SwishQr(_)
                 | WalletData::Mifinity(_)
-                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
+                | WalletData::RevolutPay(_)
+                | WalletData::MpesaRedirect {}
+                | WalletData::BlinkByEmtelRedirect {}
+                | WalletData::McbJuiceRedirect {}
+                | WalletData::ScanToPayRedirect {}
+                | WalletData::MaucasRedirect {} => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                 ))?,
             },
@@ -2677,10 +2682,19 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                         | WalletData::SwishQr(_)
                         | WalletData::AmazonPay(_)
                         | WalletData::Mifinity(_)
-                        | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
-                            utils::get_unimplemented_payment_method_error_message("Cybersource"),
-                        )
-                        .into()),
+                        | WalletData::RevolutPay(_)
+                        | WalletData::MpesaRedirect {}
+                        | WalletData::BlinkByEmtelRedirect {}
+                        | WalletData::McbJuiceRedirect {}
+                        | WalletData::ScanToPayRedirect {}
+                        | WalletData::MaucasRedirect {} => {
+                            Err(errors::ConnectorError::NotImplemented(
+                                utils::get_unimplemented_payment_method_error_message(
+                                    "Cybersource",
+                                ),
+                            )
+                            .into())
+                        }
                     },
                     // If connector_mandate_id is present MandatePayment will be the PMD, the case will be handled in the first `if` clause.
                     // This is a fallback implementation in the event of catastrophe.

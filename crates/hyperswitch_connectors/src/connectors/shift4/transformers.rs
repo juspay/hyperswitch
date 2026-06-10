@@ -359,12 +359,17 @@ impl TryFrom<&PayLaterData> for PaymentMethodType {
             | PayLaterData::FlexitiRedirect { .. }
             | PayLaterData::KlarnaSdk { .. }
             | PayLaterData::BreadpayRedirect { .. }
-            | PayLaterData::PayjustnowRedirect { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Shift4"),
-                )
-                .into())
-            }
+            | PayLaterData::PayjustnowRedirect { .. }
+            | PayLaterData::PayflexRedirect { .. }
+            | PayLaterData::ZeroPayRedirect { .. }
+            | PayLaterData::FloatRedirect { .. }
+            | PayLaterData::HappyPayRedirect { .. }
+            | PayLaterData::MobicredRedirect { .. }
+            | PayLaterData::RcsRedirect { .. }
+            | PayLaterData::APlusRedirect {} => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Shift4"),
+            )
+            .into()),
         }
     }
 }
@@ -475,7 +480,12 @@ impl TryFrom<&WalletData> for PaymentMethodType {
             | WalletData::CashappQr(_)
             | WalletData::SwishQr(_)
             | WalletData::Mifinity(_)
-            | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
+            | WalletData::RevolutPay(_)
+            | WalletData::MpesaRedirect {}
+            | WalletData::BlinkByEmtelRedirect {}
+            | WalletData::McbJuiceRedirect {}
+            | WalletData::ScanToPayRedirect {}
+            | WalletData::MaucasRedirect {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Shift4"),
             )
             .into()),
@@ -529,6 +539,10 @@ impl TryFrom<&BankTransferData> for Shift4PaymentMethod {
             | BankTransferData::InstantBankTransferFinland { .. }
             | BankTransferData::InstantBankTransferPoland { .. }
             | BankTransferData::IndonesianBankTransfer { .. }
+            | BankTransferData::CapitecPay { .. }
+            | BankTransferData::PayShap { .. }
+            | BankTransferData::NedbankDirectEft {}
+            | BankTransferData::PeachEft {}
             | BankTransferData::LocalBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Shift4"),
@@ -556,7 +570,8 @@ impl TryFrom<&VoucherData> for PaymentMethodType {
             | VoucherData::MiniStop { .. }
             | VoucherData::FamilyMart { .. }
             | VoucherData::Seicomart { .. }
-            | VoucherData::PayEasy { .. } => Err(errors::ConnectorError::NotImplemented(
+            | VoucherData::PayEasy { .. }
+            | VoucherData::OneForYou(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Shift4"),
             )
             .into()),

@@ -299,6 +299,34 @@ pub enum BankTransferAdditionalData {
         #[smithy(value_type = "Option<BankNames>")]
         bank_name: Option<common_enums::BankNames>,
     },
+    #[smithy(value_type = "CapitecPayAdditionalData")]
+    CapitecPay(Box<CapitecPayAdditionalData>),
+    #[smithy(nested_value_type)]
+    PayShap {
+        #[schema(value_type = Option<BankNames>, example = "first_national_bank")]
+        #[smithy(value_type = "Option<BankNames>")]
+        bank: Option<common_enums::BankNames>,
+    },
+    #[smithy(nested_value_type)]
+    NedbankDirectEft {},
+    #[smithy(nested_value_type)]
+    PeachEft {},
+}
+
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct CapitecPayAdditionalData {
+    /// The type of identifier used by the shopper's Capitec Pay account
+    #[schema(value_type = Option<CapitecPayAccountType>, example = "cellphone")]
+    #[smithy(value_type = "Option<CapitecPayAccountType>")]
+    pub account_type: Option<common_enums::CapitecPayAccountType>,
+
+    /// Partially masked identifier value
+    #[schema(value_type = Option<String>, example = "**** 4567")]
+    #[smithy(value_type = "Option<String>")]
+    pub account_id: Option<MaskedBankAccount>,
 }
 
 #[derive(

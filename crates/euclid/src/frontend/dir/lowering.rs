@@ -35,6 +35,13 @@ impl From<enums::PayLaterType> for global_enums::PaymentMethodType {
             enums::PayLaterType::Atome => Self::Atome,
             enums::PayLaterType::Breadpay => Self::Breadpay,
             enums::PayLaterType::Payjustnow => Self::Payjustnow,
+            enums::PayLaterType::Payflex => Self::Payflex,
+            enums::PayLaterType::ZeroPay => Self::ZeroPay,
+            enums::PayLaterType::Float => Self::Float,
+            enums::PayLaterType::HappyPay => Self::HappyPay,
+            enums::PayLaterType::Mobicred => Self::Mobicred,
+            enums::PayLaterType::Rcs => Self::Rcs,
+            enums::PayLaterType::APlus => Self::APlus,
         }
     }
 }
@@ -69,6 +76,11 @@ impl From<enums::WalletType> for global_enums::PaymentMethodType {
             enums::WalletType::Mifinity => Self::Mifinity,
             enums::WalletType::Paze => Self::Paze,
             enums::WalletType::RevolutPay => Self::RevolutPay,
+            enums::WalletType::Mpesa => Self::Mpesa,
+            enums::WalletType::BlinkByEmtel => Self::BlinkByEmtel,
+            enums::WalletType::McbJuice => Self::McbJuice,
+            enums::WalletType::ScanToPay => Self::ScanToPay,
+            enums::WalletType::Maucas => Self::Maucas,
         }
     }
 }
@@ -112,6 +124,7 @@ impl From<enums::VoucherType> for global_enums::PaymentMethodType {
             enums::VoucherType::Seicomart => Self::Seicomart,
             enums::VoucherType::PayEasy => Self::PayEasy,
             enums::VoucherType::Oxxo => Self::Oxxo,
+            enums::VoucherType::OneForYou => Self::OneForYou,
         }
     }
 }
@@ -141,6 +154,10 @@ impl From<enums::BankTransferType> for global_enums::PaymentMethodType {
             enums::BankTransferType::InstantBankTransferFinland => Self::InstantBankTransferFinland,
             enums::BankTransferType::InstantBankTransferPoland => Self::InstantBankTransferPoland,
             enums::BankTransferType::IndonesianBankTransfer => Self::IndonesianBankTransfer,
+            enums::BankTransferType::CapitecPay => Self::CapitecPay,
+            enums::BankTransferType::PayShap => Self::PayShap,
+            enums::BankTransferType::NedbankDirectEft => Self::NedbankDirectEft,
+            enums::BankTransferType::PeachEft => Self::PeachEft,
         }
     }
 }
@@ -221,6 +238,7 @@ impl From<enums::CryptoType> for global_enums::PaymentMethodType {
     fn from(value: enums::CryptoType) -> Self {
         match value {
             enums::CryptoType::CryptoCurrency => Self::CryptoCurrency,
+            enums::CryptoType::MoneyBadger => Self::MoneyBadger,
         }
     }
 }

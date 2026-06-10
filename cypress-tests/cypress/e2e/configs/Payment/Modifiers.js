@@ -229,6 +229,29 @@ const CURRENCY_MAP = {
   Vipps: "NOK",
   Dana: "IDR",
   GoPay: "IDR",
+  // South African payment methods (Peach Payments)
+  CapitecPay: "ZAR",
+  PayShap: "ZAR",
+  NedbankDirectEft: "ZAR",
+  PeachEft: "ZAR",
+  Payflex: "ZAR",
+  ZeroPay: "ZAR",
+  Float: "ZAR",
+  HappyPay: "ZAR",
+  Mobicred: "ZAR",
+  Rcs: "ZAR",
+  APlus: "ZAR",
+  ScanToPay: "ZAR",
+  OneForYou: "ZAR",
+  MoneyBadger: "ZAR",
+
+  // Kenyan payment methods
+  Mpesa: "KES",
+
+  // Mauritian payment methods
+  BlinkByEmtel: "MUR",
+  McbJuice: "MUR",
+  Maucas: "MUR",
 };
 
 export const getCurrency = (paymentMethodType) => {

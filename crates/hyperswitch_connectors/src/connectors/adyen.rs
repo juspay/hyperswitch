@@ -364,7 +364,25 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::OpenBanking
                 | PaymentMethodType::NetworkToken
                 | PaymentMethodType::PixAutomaticoPush
-                | PaymentMethodType::PixAutomaticoQr => {
+                | PaymentMethodType::PixAutomaticoQr
+                | PaymentMethodType::CapitecPay
+                | PaymentMethodType::PayShap
+                | PaymentMethodType::NedbankDirectEft
+                | PaymentMethodType::PeachEft
+                | PaymentMethodType::Payflex
+                | PaymentMethodType::ZeroPay
+                | PaymentMethodType::Float
+                | PaymentMethodType::HappyPay
+                | PaymentMethodType::Mobicred
+                | PaymentMethodType::Rcs
+                | PaymentMethodType::APlus
+                | PaymentMethodType::Mpesa
+                | PaymentMethodType::BlinkByEmtel
+                | PaymentMethodType::McbJuice
+                | PaymentMethodType::ScanToPay
+                | PaymentMethodType::Maucas
+                | PaymentMethodType::OneForYou
+                | PaymentMethodType::MoneyBadger => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },

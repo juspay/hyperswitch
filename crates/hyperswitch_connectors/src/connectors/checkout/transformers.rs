@@ -147,7 +147,12 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                 | WalletData::SwishQr(_)
                 | WalletData::WeChatPayQr(_)
                 | WalletData::Mifinity(_)
-                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
+                | WalletData::RevolutPay(_)
+                | WalletData::MpesaRedirect {}
+                | WalletData::BlinkByEmtelRedirect {}
+                | WalletData::McbJuiceRedirect {}
+                | WalletData::ScanToPayRedirect {}
+                | WalletData::MaucasRedirect {} => Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 )
                 .into()),

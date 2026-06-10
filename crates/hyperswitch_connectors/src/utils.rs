@@ -6885,6 +6885,23 @@ pub enum PaymentMethodDataType {
     InstantBankTransferPoland,
     RevolutPay,
     IndonesianBankTransfer,
+    CapitecPay,
+    PayShap,
+    NedbankDirectEft,
+    PeachEft,
+    PayflexRedirect,
+    ZeroPayRedirect,
+    FloatRedirect,
+    HappyPayRedirect,
+    MobicredRedirect,
+    RcsRedirect,
+    APlusRedirect,
+    MpesaRedirect,
+    BlinkByEmtelRedirect,
+    McbJuiceRedirect,
+    ScanToPayRedirect,
+    MaucasRedirect,
+    OneForYou,
 }
 
 impl From<PaymentMethodData> for PaymentMethodDataType {
@@ -6949,6 +6966,13 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::WalletData::SwishQr(_) => Self::SwishQr,
                 payment_method_data::WalletData::Mifinity(_) => Self::Mifinity,
                 payment_method_data::WalletData::RevolutPay(_) => Self::RevolutPay,
+                payment_method_data::WalletData::MpesaRedirect {} => Self::MpesaRedirect,
+                payment_method_data::WalletData::BlinkByEmtelRedirect {} => {
+                    Self::BlinkByEmtelRedirect
+                }
+                payment_method_data::WalletData::McbJuiceRedirect {} => Self::McbJuiceRedirect,
+                payment_method_data::WalletData::ScanToPayRedirect {} => Self::ScanToPayRedirect,
+                payment_method_data::WalletData::MaucasRedirect {} => Self::MaucasRedirect,
             },
             PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 payment_method_data::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
@@ -6966,6 +6990,15 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::PayLaterData::PayjustnowRedirect {} => {
                     Self::PayjustnowRedirect
                 }
+                payment_method_data::PayLaterData::PayflexRedirect {} => Self::PayflexRedirect,
+                payment_method_data::PayLaterData::ZeroPayRedirect {} => Self::ZeroPayRedirect,
+                payment_method_data::PayLaterData::FloatRedirect {} => Self::FloatRedirect,
+                payment_method_data::PayLaterData::HappyPayRedirect {} => Self::HappyPayRedirect,
+                payment_method_data::PayLaterData::MobicredRedirect { .. } => {
+                    Self::MobicredRedirect
+                }
+                payment_method_data::PayLaterData::RcsRedirect { .. } => Self::RcsRedirect,
+                payment_method_data::PayLaterData::APlusRedirect {} => Self::APlusRedirect,
             },
             PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
                 payment_method_data::BankRedirectData::BancontactCard { .. } => {
@@ -7071,6 +7104,12 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::BankTransferData::IndonesianBankTransfer { .. } => {
                     Self::IndonesianBankTransfer
                 }
+                payment_method_data::BankTransferData::CapitecPay { .. } => Self::CapitecPay,
+                payment_method_data::BankTransferData::PayShap { .. } => Self::PayShap,
+                payment_method_data::BankTransferData::NedbankDirectEft {} => {
+                    Self::NedbankDirectEft
+                }
+                payment_method_data::BankTransferData::PeachEft {} => Self::PeachEft,
             },
             PaymentMethodData::Crypto(_) => Self::Crypto,
             PaymentMethodData::MandatePayment => Self::MandatePayment,
@@ -7091,6 +7130,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::VoucherData::FamilyMart(_) => Self::FamilyMart,
                 payment_method_data::VoucherData::Seicomart(_) => Self::Seicomart,
                 payment_method_data::VoucherData::PayEasy(_) => Self::PayEasy,
+                payment_method_data::VoucherData::OneForYou(_) => Self::OneForYou,
             },
             PaymentMethodData::RealTimePayment(real_time_payment_data) => {
                 match *real_time_payment_data {

@@ -96,6 +96,13 @@ impl TryFrom<(&types::TokenizationRouterData, PayLaterData)> for SquareTokenRequ
             | PayLaterData::FlexitiRedirect { .. }
             | PayLaterData::AtomeRedirect { .. }
             | PayLaterData::BreadpayRedirect { .. }
+            | PayLaterData::PayflexRedirect { .. }
+            | PayLaterData::ZeroPayRedirect { .. }
+            | PayLaterData::FloatRedirect { .. }
+            | PayLaterData::HappyPayRedirect { .. }
+            | PayLaterData::MobicredRedirect { .. }
+            | PayLaterData::RcsRedirect { .. }
+            | PayLaterData::APlusRedirect {}
             | PayLaterData::PayjustnowRedirect { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Square"),
@@ -143,6 +150,11 @@ impl TryFrom<(&types::TokenizationRouterData, WalletData)> for SquareTokenReques
             | WalletData::CashappQr(_)
             | WalletData::SwishQr(_)
             | WalletData::Mifinity(_)
+            | WalletData::MpesaRedirect {}
+            | WalletData::BlinkByEmtelRedirect {}
+            | WalletData::McbJuiceRedirect {}
+            | WalletData::ScanToPayRedirect {}
+            | WalletData::MaucasRedirect {}
             | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Square"),
             ))?,
