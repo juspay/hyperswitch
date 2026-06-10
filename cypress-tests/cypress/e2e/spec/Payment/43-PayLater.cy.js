@@ -192,8 +192,6 @@ describe("PayLater tests", () => {
     });
   });
 
-
-
   context("Affirm - Full Payment and Refund Flow", () => {
     beforeEach(function () {
       if (
@@ -456,8 +454,6 @@ describe("PayLater tests", () => {
       });
     });
   });
-
-
 
   context("Capture on wrong status - Error test", () => {
     it("Create Payment Intent -> Confirm Payment -> Attempt Capture on requires_customer_action status", () => {

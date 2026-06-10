@@ -86,7 +86,6 @@ const getMandateData = (currency) => ({
   },
 });
 
-
 const billing = {
   address: {
     line1: "123",
@@ -1193,7 +1192,11 @@ export const connectorDetails = {
             },
           },
         },
-        billing: { ...billing, address: { ...billing.address, country: "NL" }, phone: { number: "9123456789", country_code: "+31" } },
+        billing: {
+          ...billing,
+          address: { ...billing.address, country: "NL" },
+          phone: { number: "9123456789", country_code: "+31" },
+        },
       },
       Response: {
         status: 200,
@@ -1214,7 +1217,11 @@ export const connectorDetails = {
           },
           browser_info: mandateBrowserInfo,
           currency: "EUR",
-          billing: { ...billing, address: { ...billing.address, country: "NL" }, phone: { number: "9123456789", country_code: "+31" } },
+          billing: {
+            ...billing,
+            address: { ...billing.address, country: "NL" },
+            phone: { number: "9123456789", country_code: "+31" },
+          },
           mandate_data: getMandateData("EUR"),
           payment_type: "new_mandate",
           setup_future_usage: "off_session",
@@ -1241,7 +1248,11 @@ export const connectorDetails = {
           },
         },
         currency: "EUR",
-        billing: { ...billing, address: { ...billing.address, country: "BE" }, phone: { number: "9123456789", country_code: "+32" } },
+        billing: {
+          ...billing,
+          address: { ...billing.address, country: "BE" },
+          phone: { number: "9123456789", country_code: "+32" },
+        },
       },
       Response: {
         status: 200,
@@ -1264,7 +1275,11 @@ export const connectorDetails = {
           },
           browser_info: mandateBrowserInfo,
           currency: "EUR",
-          billing: { ...billing, address: { ...billing.address, country: "BE" }, phone: { number: "9123456789", country_code: "+32" } },
+          billing: {
+            ...billing,
+            address: { ...billing.address, country: "BE" },
+            phone: { number: "9123456789", country_code: "+32" },
+          },
           mandate_data: getMandateData("EUR"),
           payment_type: "new_mandate",
           setup_future_usage: "off_session",
@@ -1289,7 +1304,11 @@ export const connectorDetails = {
           },
         },
         currency: "GBP",
-        billing: { ...billing, address: { ...billing.address, country: "GB" }, phone: { number: "9123456789", country_code: "+44" } },
+        billing: {
+          ...billing,
+          address: { ...billing.address, country: "GB" },
+          phone: { number: "9123456789", country_code: "+44" },
+        },
       },
       Response: {
         status: 200,
@@ -1310,7 +1329,11 @@ export const connectorDetails = {
           },
           browser_info: mandateBrowserInfo,
           currency: "GBP",
-          billing: { ...billing, address: { ...billing.address, country: "GB" }, phone: { number: "9123456789", country_code: "+44" } },
+          billing: {
+            ...billing,
+            address: { ...billing.address, country: "GB" },
+            phone: { number: "9123456789", country_code: "+44" },
+          },
           mandate_data: getMandateData("GBP"),
           payment_type: "new_mandate",
           setup_future_usage: "off_session",
@@ -1335,7 +1358,11 @@ export const connectorDetails = {
           },
         },
         currency: "EUR",
-        billing: { ...billing, address: { ...billing.address, country: "SE" }, phone: { number: "9123456789", country_code: "+46" } },
+        billing: {
+          ...billing,
+          address: { ...billing.address, country: "SE" },
+          phone: { number: "9123456789", country_code: "+46" },
+        },
       },
       Response: {
         status: 200,
@@ -1359,7 +1386,11 @@ export const connectorDetails = {
           },
           browser_info: mandateBrowserInfo,
           currency: "EUR",
-          billing: { ...billing, address: { ...billing.address, country: "SE" }, phone: { number: "9123456789", country_code: "+46" } },
+          billing: {
+            ...billing,
+            address: { ...billing.address, country: "SE" },
+            phone: { number: "9123456789", country_code: "+46" },
+          },
           mandate_data: getMandateData("EUR"),
           payment_type: "new_mandate",
           setup_future_usage: "off_session",
@@ -1766,7 +1797,11 @@ export const connectorDetails = {
         customer_acceptance: {
           acceptance_type: "online",
         },
-        billing: { ...billing, address: { ...billing.address, country: "US" }, phone: { number: "4155552671", country_code: "+1" } },
+        billing: {
+          ...billing,
+          address: { ...billing.address, country: "US" },
+          phone: { number: "4155552671", country_code: "+1" },
+        },
         shipping: {
           address: {
             line1: "123 Test St",
@@ -1809,7 +1844,11 @@ export const connectorDetails = {
         customer_acceptance: {
           acceptance_type: "online",
         },
-        billing: { ...billing, address: { ...billing.address, country: "US" }, phone: { number: "4155552671", country_code: "+1" } },
+        billing: {
+          ...billing,
+          address: { ...billing.address, country: "US" },
+          phone: { number: "4155552671", country_code: "+1" },
+        },
         shipping: {
           address: {
             line1: "123 Test St",
@@ -1926,7 +1965,11 @@ export const connectorDetails = {
             amount: 6000,
           },
         ],
-        billing: { ...billing, address: { ...billing.address, country: "SG" }, phone: { number: "91234567", country_code: "+65" } },
+        billing: {
+          ...billing,
+          address: { ...billing.address, country: "SG" },
+          phone: { number: "91234567", country_code: "+65" },
+        },
         shipping: {
           address: {
             line1: "123 Test Street",
@@ -1960,7 +2003,11 @@ export const connectorDetails = {
         customer_acceptance: {
           acceptance_type: "online",
         },
-        billing: { ...billing, address: { ...billing.address, country: "SG" }, phone: { number: "91234567", country_code: "+65" } },
+        billing: {
+          ...billing,
+          address: { ...billing.address, country: "SG" },
+          phone: { number: "91234567", country_code: "+65" },
+        },
         shipping: {
           address: {
             line1: "123 Test Street",
@@ -1995,7 +2042,11 @@ export const connectorDetails = {
             amount: 6000,
           },
         ],
-        billing: { ...billing, address: { ...billing.address, country: "SG" }, phone: { number: "91234567", country_code: "+65" } },
+        billing: {
+          ...billing,
+          address: { ...billing.address, country: "SG" },
+          phone: { number: "91234567", country_code: "+65" },
+        },
         shipping: {
           address: {
             line1: "123 Test Street",
@@ -2029,7 +2080,11 @@ export const connectorDetails = {
         customer_acceptance: {
           acceptance_type: "online",
         },
-        billing: { ...billing, address: { ...billing.address, country: "SG" }, phone: { number: "91234567", country_code: "+65" } },
+        billing: {
+          ...billing,
+          address: { ...billing.address, country: "SG" },
+          phone: { number: "91234567", country_code: "+65" },
+        },
         shipping: {
           address: {
             line1: "123 Test Street",
@@ -2128,7 +2183,11 @@ export const connectorDetails = {
       Request: {
         currency: "EUR",
         capture_method: "automatic",
-        billing: { ...billing, address: { ...billing.address, country: "FR" }, phone: { number: "612345678", country_code: "+33" } },
+        billing: {
+          ...billing,
+          address: { ...billing.address, country: "FR" },
+          phone: { number: "612345678", country_code: "+33" },
+        },
         shipping: {
           address: {
             line1: "123",
@@ -2160,7 +2219,11 @@ export const connectorDetails = {
           },
         },
         currency: "EUR",
-        billing: { ...billing, address: { ...billing.address, country: "FR" }, phone: { number: "612345678", country_code: "+33" } },
+        billing: {
+          ...billing,
+          address: { ...billing.address, country: "FR" },
+          phone: { number: "612345678", country_code: "+33" },
+        },
         shipping: {
           address: {
             line1: "123",
@@ -2185,7 +2248,11 @@ export const connectorDetails = {
       Request: {
         currency: "SEK",
         capture_method: "automatic",
-        billing: { ...billing, address: { ...billing.address, country: "SE" }, phone: { number: "9123456789", country_code: "+46" } },
+        billing: {
+          ...billing,
+          address: { ...billing.address, country: "SE" },
+          phone: { number: "9123456789", country_code: "+46" },
+        },
         shipping: {
           address: {
             line1: "123",
@@ -2224,7 +2291,11 @@ export const connectorDetails = {
           },
         },
         currency: "SEK",
-        billing: { ...billing, address: { ...billing.address, country: "SE" }, phone: { number: "9123456789", country_code: "+46" } },
+        billing: {
+          ...billing,
+          address: { ...billing.address, country: "SE" },
+          phone: { number: "9123456789", country_code: "+46" },
+        },
         shipping: {
           address: {
             line1: "123",
@@ -2425,7 +2496,11 @@ export const connectorDetails = {
             },
           },
         },
-        billing: { ...billing, address: { ...billing.address, country: "JP" }, phone: { number: "312345678", country_code: "+81" } },
+        billing: {
+          ...billing,
+          address: { ...billing.address, country: "JP" },
+          phone: { number: "312345678", country_code: "+81" },
+        },
         currency: voucherCurrencyMap.SevenEleven,
       },
       Response: {
@@ -2450,7 +2525,11 @@ export const connectorDetails = {
             },
           },
         },
-        billing: { ...billing, address: { ...billing.address, country: "JP" }, phone: { number: "312345678", country_code: "+81" } },
+        billing: {
+          ...billing,
+          address: { ...billing.address, country: "JP" },
+          phone: { number: "312345678", country_code: "+81" },
+        },
         currency: voucherCurrencyMap.Lawson,
       },
       Response: {
@@ -2475,7 +2554,11 @@ export const connectorDetails = {
             },
           },
         },
-        billing: { ...billing, address: { ...billing.address, country: "JP" }, phone: { number: "312345678", country_code: "+81" } },
+        billing: {
+          ...billing,
+          address: { ...billing.address, country: "JP" },
+          phone: { number: "312345678", country_code: "+81" },
+        },
         currency: voucherCurrencyMap.MiniStop,
       },
       Response: {
@@ -2500,7 +2583,11 @@ export const connectorDetails = {
             },
           },
         },
-        billing: { ...billing, address: { ...billing.address, country: "JP" }, phone: { number: "312345678", country_code: "+81" } },
+        billing: {
+          ...billing,
+          address: { ...billing.address, country: "JP" },
+          phone: { number: "312345678", country_code: "+81" },
+        },
         currency: voucherCurrencyMap.FamilyMart,
       },
       Response: {
@@ -2525,7 +2612,11 @@ export const connectorDetails = {
             },
           },
         },
-        billing: { ...billing, address: { ...billing.address, country: "JP" }, phone: { number: "312345678", country_code: "+81" } },
+        billing: {
+          ...billing,
+          address: { ...billing.address, country: "JP" },
+          phone: { number: "312345678", country_code: "+81" },
+        },
         currency: voucherCurrencyMap.Seicomart,
       },
       Response: {
@@ -2550,7 +2641,11 @@ export const connectorDetails = {
             },
           },
         },
-        billing: { ...billing, address: { ...billing.address, country: "JP" }, phone: { number: "312345678", country_code: "+81" } },
+        billing: {
+          ...billing,
+          address: { ...billing.address, country: "JP" },
+          phone: { number: "312345678", country_code: "+81" },
+        },
         currency: voucherCurrencyMap.PayEasy,
       },
       Response: {
