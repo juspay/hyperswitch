@@ -16,7 +16,8 @@ tokenization_v2 = []
 
 [dependencies]
 async-bb8-diesel = "0.2.1"
-diesel = { version = "2.2.10", features = ["postgres", "serde_json", "time", "128-column-tables"] }
+base64 = "0.22.1"
+diesel = { version = "2.2.10", features = ["postgres", "serde_json", "time", "128-column-tables", "i-implement-a-third-party-backend-and-opt-into-breaking-changes"] }
 error-stack = "0.4.1"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
