@@ -36,6 +36,8 @@ pub struct PaymentMethodResponseItemV1 {
     pub billing: Option<api_models::payments::Address>,
     pub network_tokenization: Option<NetworkTokenResponse>,
     pub psp_tokenization_enabled: bool,
+    pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
+    pub network_transaction_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -117,6 +119,15 @@ pub enum RawPaymentMethodData {
     Card(CardDetail),
     CardWithNT(RawCardWithNTDetails),
     BankDebit(BankDebitDetail),
+    ProxyCard(RawProxyCardDataResponse),
+}
+
+/// Proxy card data returned in retrieve response (vault token reference)
+#[derive(Clone, Debug, Deserialize)]
+pub struct RawProxyCardDataResponse {
+    pub card_number: Secret<String>,
+    pub card_exp_year: Option<Secret<String>>,
+    pub card_exp_month: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]

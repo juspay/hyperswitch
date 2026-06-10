@@ -13,6 +13,9 @@ use utoipa::ToSchema;
 
 use crate::payments;
 
+#[cfg(feature = "v2")]
+pub mod migrate;
+
 /// The customer details
 #[cfg(feature = "v1")]
 #[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema, SmithyModel)]
