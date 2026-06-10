@@ -786,21 +786,13 @@ impl PaymentMethodsController for PmCards<'_> {
         ),
         errors::VaultError,
     > {
-        let dimensions = dimension_state::Dimensions::new()
-            .with_provider_merchant_id(self.provider.get_provider_merchant_id());
-
         let should_trigger_fingerprint_migration =
             payment_method_utils::get_should_trigger_fingerprint_migration(
                 self.state,
-                &dimensions,
-                None,
+                Some(customer_id),
+                self.provider.get_provider_merchant_id(),
             )
             .await;
-
-        logger::info!(
-            "should_trigger_fingerprint_migration: {}",
-            should_trigger_fingerprint_migration
-        );
 
         let pmd = hyperswitch_domain_models::vault::PaymentMethodVaultingData::from(
             api_models::payment_methods::PaymentMethodCreateData::BankDebit(bank_debit_data)
@@ -901,21 +893,13 @@ impl PaymentMethodsController for PmCards<'_> {
         ),
         errors::VaultError,
     > {
-        let dimensions = dimension_state::Dimensions::new()
-            .with_provider_merchant_id(self.provider.get_provider_merchant_id());
-
         let should_trigger_fingerprint_migration =
             payment_method_utils::get_should_trigger_fingerprint_migration(
                 self.state,
-                &dimensions,
                 Some(customer_id),
+                self.provider.get_provider_merchant_id(),
             )
             .await;
-
-        logger::info!(
-            "should_trigger_fingerprint_migration in add_wallet_to_locker: {}",
-            should_trigger_fingerprint_migration
-        );
 
         let pmd = hyperswitch_domain_models::vault::PaymentMethodVaultingData::from(
             api_models::payment_methods::PaymentMethodCreateData::Wallet(wallet_data).clone(),
@@ -6246,21 +6230,13 @@ pub async fn get_bank_debit_from_hs_locker(
     customer_id: &id_type::CustomerId,
     token_ref: &str,
 ) -> errors::RouterResult<hyperswitch_domain_models::payment_method_data::BankDebitDetail> {
-    let dimensions = dimension_state::Dimensions::new()
-        .with_provider_merchant_id(provider.get_provider_merchant_id());
-
     let should_trigger_fingerprint_migration =
         payment_method_utils::get_should_trigger_fingerprint_migration(
             state,
-            &dimensions,
             Some(customer_id),
+            provider.get_provider_merchant_id(),
         )
         .await;
-
-    logger::info!(
-        "should_trigger_fingerprint_migration in get_bank_debit_from_hs_locker: {}",
-        should_trigger_fingerprint_migration
-    );
 
     let payload = encode_vault_retrieve_request(
         should_trigger_fingerprint_migration,
@@ -6297,21 +6273,13 @@ pub async fn get_wallet_from_hs_locker(
     customer_id: &id_type::CustomerId,
     token_ref: &str,
 ) -> errors::RouterResult<hyperswitch_domain_models::payment_method_data::WalletDetail> {
-    let dimensions = dimension_state::Dimensions::new()
-        .with_provider_merchant_id(provider.get_provider_merchant_id());
-
     let should_trigger_fingerprint_migration =
         payment_method_utils::get_should_trigger_fingerprint_migration(
             state,
-            &dimensions,
             Some(customer_id),
+            provider.get_provider_merchant_id(),
         )
         .await;
-
-    logger::info!(
-        "should_trigger_fingerprint_migration in get_wallet_from_hs_locker: {}",
-        should_trigger_fingerprint_migration
-    );
 
     let payload = encode_vault_retrieve_request(
         should_trigger_fingerprint_migration,

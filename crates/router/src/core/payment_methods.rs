@@ -1678,21 +1678,13 @@ impl LockerOperations for GenericLocker {
         customer_id: &id_type::GlobalCustomerId,
         _payment_method_type: Option<enums::PaymentMethod>,
     ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
-        let dimensions = dimension_state::Dimensions::new()
-            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
-
         let should_trigger_fingerprint_migration =
             payment_method_utils::get_should_trigger_fingerprint_migration(
                 state,
-                &dimensions,
                 None,
+                platform.get_provider().get_provider_merchant_id(),
             )
             .await;
-
-        logger::info!(
-            "should_trigger_fingerprint_migration: {}",
-            should_trigger_fingerprint_migration
-        );
 
         let payload = cards::encode_vault_retrieve_request(
             should_trigger_fingerprint_migration,

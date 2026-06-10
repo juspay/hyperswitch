@@ -8,8 +8,6 @@ use scheduler::{
 };
 
 #[cfg(feature = "v1")]
-use crate::core::configs::dimension_state;
-#[cfg(feature = "v1")]
 use crate::types::{domain, payment_methods as pm_types};
 use crate::{
     core::payment_methods::{cards, utils as payment_method_utils, vault},
@@ -135,21 +133,13 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
 
                 // Step 5: Upsert the card into generic locker via direct AddVault call.
 
-                let dimensions = dimension_state::Dimensions::new()
-                    .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
-
                 let should_trigger_fingerprint_migration =
                     payment_method_utils::get_should_trigger_fingerprint_migration(
                         state,
-                        &dimensions,
                         None,
+                        platform.get_provider().get_provider_merchant_id(),
                     )
                     .await;
-
-                logger::info!(
-                    "should_trigger_fingerprint_migration: {}",
-                    should_trigger_fingerprint_migration
-                );
 
                 let payload = cards::encode_add_vault_request(
                     should_trigger_fingerprint_migration,

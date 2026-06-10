@@ -14,10 +14,7 @@ use crate::core::payment_methods::add_payment_method_to_legacy_locker;
 #[cfg(feature = "v1")]
 use crate::core::payment_methods::transformers;
 use crate::{
-    core::{
-        configs::dimension_state,
-        payment_methods::{cards, utils as payment_method_utils, vault},
-    },
+    core::payment_methods::{cards, utils as payment_method_utils, vault},
     errors,
     logger::{self, error},
     routes::{app::StorageInterface, SessionState},
@@ -181,21 +178,13 @@ pub async fn backfill_legacy_locker_card(
         };
 
         if !legacy_card_exists {
-            let dimensions = dimension_state::Dimensions::new()
-                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
-
             let should_trigger_fingerprint_migration =
                 payment_method_utils::get_should_trigger_fingerprint_migration(
                     state,
-                    &dimensions,
                     None,
+                    platform.get_provider().get_provider_merchant_id(),
                 )
                 .await;
-
-            logger::info!(
-                "should_trigger_fingerprint_migration: {}",
-                should_trigger_fingerprint_migration
-            );
 
             let payload = cards::encode_vault_retrieve_request(
                 should_trigger_fingerprint_migration,
@@ -353,21 +342,13 @@ pub async fn backfill_legacy_locker_card(
         };
 
         if !legacy_card_exists {
-            let dimensions = dimension_state::Dimensions::new()
-                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
-
             let should_trigger_fingerprint_migration =
                 payment_method_utils::get_should_trigger_fingerprint_migration(
                     state,
-                    &dimensions,
                     None,
+                    platform.get_provider().get_provider_merchant_id(),
                 )
                 .await;
-
-            logger::info!(
-                "should_trigger_fingerprint_migration: {}",
-                should_trigger_fingerprint_migration
-            );
 
             let payload = cards::encode_vault_retrieve_request(
                 should_trigger_fingerprint_migration,
@@ -480,15 +461,16 @@ pub async fn run_payment_method_modular_backward_compat_backfill(
     )
     .await?;
 
+    let platform = domain::Platform::new(
+        merchant_account.clone(),
+        key_store.clone(),
+        merchant_account,
+        key_store,
+        None,
+    );
+
     #[cfg(feature = "v1")]
     {
-        let platform = domain::Platform::new(
-            merchant_account.clone(),
-            key_store.clone(),
-            merchant_account,
-            key_store,
-            None,
-        );
         backfill_legacy_locker_card(
             state,
             &platform,
@@ -501,13 +483,6 @@ pub async fn run_payment_method_modular_backward_compat_backfill(
 
     #[cfg(feature = "v2")]
     {
-        let platform = domain::Platform::new(
-            merchant_account.clone(),
-            key_store.clone(),
-            merchant_account,
-            key_store,
-            None,
-        );
         backfill_legacy_locker_card(
             state,
             &platform,

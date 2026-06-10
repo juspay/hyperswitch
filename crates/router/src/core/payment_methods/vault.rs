@@ -2054,17 +2054,13 @@ pub async fn add_payment_method_to_vault(
     customer_id: &id_type::GlobalCustomerId,
     write_mode: Option<pm_types::WriteMode>,
 ) -> CustomResult<pm_types::AddVaultResponse, errors::VaultError> {
-    let dimensions = dimension_state::Dimensions::new()
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
-
     let should_trigger_fingerprint_migration =
-        payment_method_utils::get_should_trigger_fingerprint_migration(state, &dimensions, None)
-            .await;
-
-    logger::info!(
-        "should_trigger_fingerprint_migration: {}",
-        should_trigger_fingerprint_migration
-    );
+        payment_method_utils::get_should_trigger_fingerprint_migration(
+            state,
+            None,
+            platform.get_provider().get_provider_merchant_id(),
+        )
+        .await;
 
     let payload = pm_cards::encode_add_vault_request(
         should_trigger_fingerprint_migration,
