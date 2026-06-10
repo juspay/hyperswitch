@@ -30,6 +30,9 @@ pub struct Void;
 pub struct PostCaptureVoid;
 
 #[derive(Debug, Clone)]
+pub struct PostCaptureVoidSync;
+
+#[derive(Debug, Clone)]
 pub struct Reject;
 
 #[derive(Debug, Clone)]
