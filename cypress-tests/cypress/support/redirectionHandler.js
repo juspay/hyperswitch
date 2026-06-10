@@ -1056,7 +1056,7 @@ function bankRedirectRedirection(
   // and rely on the payment status (requires_customer_action) verified in the retrieve step.
   if (
     connectorId === "stripe" &&
-    ["alipay", "amazon_pay", "cashapp", "revolut_pay", "we_chat_pay"].includes(
+    ["ali_pay", "amazon_pay", "cashapp", "revolut_pay", "we_chat_pay"].includes(
       paymentMethodType
     )
   ) {

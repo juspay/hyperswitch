@@ -1031,7 +1031,7 @@ describe("Stripe AliPay Wallet tests", () => {
 
     it("Handle wallet redirection", () => {
       const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
+      const payment_method_type = "ali_pay";
       const nextActionUrl = globalState.get("nextActionUrl");
 
       expect(
@@ -1207,7 +1207,7 @@ describe("Stripe AmazonPay Wallet tests", () => {
 
     it("Handle wallet redirection", () => {
       const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
+      const payment_method_type = "amazon_pay";
       const nextActionUrl = globalState.get("nextActionUrl");
 
       expect(
@@ -1305,7 +1305,7 @@ describe("Stripe AmazonPay Wallet tests", () => {
 
     it("Handle wallet redirection", () => {
       const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
+      const payment_method_type = "amazon_pay";
       const nextActionUrl = globalState.get("nextActionUrl");
 
       expect(
@@ -1481,7 +1481,7 @@ describe("Stripe Cashapp Wallet tests", () => {
 
     it("Handle wallet redirection", () => {
       const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
+      const payment_method_type = "cashapp";
       const nextActionUrl = globalState.get("nextActionUrl");
 
       expect(
@@ -1579,7 +1579,7 @@ describe("Stripe Cashapp Wallet tests", () => {
 
     it("Handle wallet redirection", () => {
       const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
+      const payment_method_type = "cashapp";
       const nextActionUrl = globalState.get("nextActionUrl");
 
       expect(
@@ -1755,7 +1755,7 @@ describe("Stripe RevolutPay Wallet tests", () => {
 
     it("Handle wallet redirection", () => {
       const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
+      const payment_method_type = "revolut_pay";
       const nextActionUrl = globalState.get("nextActionUrl");
 
       expect(
@@ -1853,7 +1853,7 @@ describe("Stripe RevolutPay Wallet tests", () => {
 
     it("Handle wallet redirection", () => {
       const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
+      const payment_method_type = "revolut_pay";
       const nextActionUrl = globalState.get("nextActionUrl");
 
       expect(
@@ -2029,7 +2029,7 @@ describe("Stripe WeChatPay Wallet tests", () => {
 
     it("Handle wallet redirection", () => {
       const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
+      const payment_method_type = "we_chat_pay";
       const nextActionUrl = globalState.get("nextActionUrl");
 
       expect(

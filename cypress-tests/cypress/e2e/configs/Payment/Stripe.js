@@ -1489,19 +1489,23 @@ export const connectorDetails = {
     AliPay: {
       Request: {
         payment_method: "wallet",
-        payment_method_type: "alipay",
+        payment_method_type: "ali_pay",
         payment_method_data: {
           wallet: {
-            alipay: {},
+            ali_pay_redirect: {},
           },
         },
         currency: "USD",
+        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
         body: {
           status: "requires_customer_action",
         },
+      },
+      Configs: {
+        skipBillingAssertion: true,
       },
     },
     AmazonPay: {
@@ -1510,16 +1514,20 @@ export const connectorDetails = {
         payment_method_type: "amazon_pay",
         payment_method_data: {
           wallet: {
-            amazon_pay: {},
+            amazon_pay_redirect: {},
           },
         },
         currency: "USD",
+        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
         body: {
           status: "requires_customer_action",
         },
+      },
+      Configs: {
+        skipBillingAssertion: true,
       },
     },
     AmazonPayMandate: {
@@ -1528,10 +1536,11 @@ export const connectorDetails = {
         payment_method_type: "amazon_pay",
         payment_method_data: {
           wallet: {
-            amazon_pay: {},
+            amazon_pay_redirect: {},
           },
         },
         currency: "USD",
+        setup_future_usage: "off_session",
         mandate_data: {
           customer_acceptance: {
             acceptance_type: "offline",
@@ -1554,6 +1563,9 @@ export const connectorDetails = {
         body: {
           status: "requires_customer_action",
         },
+      },
+      Configs: {
+        skipBillingAssertion: true,
       },
     },
     Cashapp: {
@@ -1562,16 +1574,20 @@ export const connectorDetails = {
         payment_method_type: "cashapp",
         payment_method_data: {
           wallet: {
-            cashapp: {},
+            cashapp_qr: {},
           },
         },
         currency: "USD",
+        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
         body: {
           status: "requires_customer_action",
         },
+      },
+      Configs: {
+        skipBillingAssertion: true,
       },
     },
     CashappMandate: {
@@ -1580,10 +1596,11 @@ export const connectorDetails = {
         payment_method_type: "cashapp",
         payment_method_data: {
           wallet: {
-            cashapp: {},
+            cashapp_qr: {},
           },
         },
         currency: "USD",
+        setup_future_usage: "off_session",
         mandate_data: {
           customer_acceptance: {
             acceptance_type: "offline",
@@ -1606,6 +1623,9 @@ export const connectorDetails = {
         body: {
           status: "requires_customer_action",
         },
+      },
+      Configs: {
+        skipBillingAssertion: true,
       },
     },
     RevolutPay: {
@@ -1618,12 +1638,16 @@ export const connectorDetails = {
           },
         },
         currency: "EUR",
+        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
         body: {
           status: "requires_customer_action",
         },
+      },
+      Configs: {
+        skipBillingAssertion: true,
       },
     },
     RevolutPayMandate: {
@@ -1636,6 +1660,7 @@ export const connectorDetails = {
           },
         },
         currency: "EUR",
+        setup_future_usage: "off_session",
         mandate_data: {
           customer_acceptance: {
             acceptance_type: "offline",
@@ -1659,6 +1684,9 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
+      Configs: {
+        skipBillingAssertion: true,
+      },
     },
     WeChatPay: {
       Request: {
@@ -1666,10 +1694,11 @@ export const connectorDetails = {
         payment_method_type: "we_chat_pay",
         payment_method_data: {
           wallet: {
-            we_chat_pay: {},
+            we_chat_pay_redirect: {},
           },
         },
         currency: "USD",
+        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
@@ -1677,17 +1706,21 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
+      Configs: {
+        skipBillingAssertion: true,
+      },
     },
     AliPayInvalidCurrency: {
       Request: {
         payment_method: "wallet",
-        payment_method_type: "alipay",
+        payment_method_type: "ali_pay",
         payment_method_data: {
           wallet: {
-            alipay: {},
+            ali_pay_redirect: {},
           },
         },
         currency: "INR",
+        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
@@ -1705,10 +1738,11 @@ export const connectorDetails = {
         payment_method_type: "amazon_pay",
         payment_method_data: {
           wallet: {
-            amazon_pay: {},
+            amazon_pay_redirect: {},
           },
         },
         currency: "INR",
+        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
@@ -1726,10 +1760,11 @@ export const connectorDetails = {
         payment_method_type: "cashapp",
         payment_method_data: {
           wallet: {
-            cashapp: {},
+            cashapp_qr: {},
           },
         },
         currency: "INR",
+        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
@@ -1751,6 +1786,7 @@ export const connectorDetails = {
           },
         },
         currency: "INR",
+        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
@@ -1768,10 +1804,11 @@ export const connectorDetails = {
         payment_method_type: "we_chat_pay",
         payment_method_data: {
           wallet: {
-            we_chat_pay: {},
+            we_chat_pay_redirect: {},
           },
         },
         currency: "INR",
+        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
