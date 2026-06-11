@@ -13463,8 +13463,11 @@ async fn calculate_external_surcharge(
     payment_intent: storage::PaymentIntent,
     inputs: SurchargeCalculationInputs,
 ) -> RouterResult<Option<api_models::payment_methods::SurchargeDetailsResponse>> {
-    let surcharge_details = match (surcharge_connector_id, inputs.card_iin.clone(), inputs.currency)
-    {
+    let surcharge_details = match (
+        surcharge_connector_id,
+        inputs.card_iin.clone(),
+        inputs.currency,
+    ) {
         (Some(surcharge_connector_id), Some(card_iin), Some(currency)) => {
             let processor = platform.get_processor();
             match run_external_surcharge_ucs(
@@ -13538,7 +13541,9 @@ async fn run_external_surcharge_ucs(
     card_iin: String,
     currency: storage_enums::Currency,
     inputs: &SurchargeCalculationInputs,
-) -> RouterResult<Option<hyperswitch_domain_models::router_response_types::SurchargeCalculationResponseData>> {
+) -> RouterResult<
+    Option<hyperswitch_domain_models::router_response_types::SurchargeCalculationResponseData>,
+> {
     let merchant_id = processor.get_account().get_id().clone();
     let storage_scheme = processor.get_account().storage_scheme;
     let key_store = processor.get_key_store();
