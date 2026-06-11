@@ -871,21 +871,26 @@ pub async fn get_sdk_next_action_for_payment_method_list(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     customer_id: Option<&common_utils::id_type::CustomerId>,
+    has_surcharge_processor: bool,
 ) -> api_models::payments::SdkNextAction {
-    let should_perform_eligibility_check = dimensions
+    let should_perform_eligibility = dimensions
         .get_should_perform_eligibility(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
             customer_id,
         )
         .await;
-    let next_action_call = if should_perform_eligibility_check {
-        api_models::payments::NextActionCall::EligibilityCheck
+
+    if should_perform_eligibility {
+        api_models::payments::SdkNextAction {
+            next_action: api_models::payments::NextActionCall::EligibilityCheck,
+            should_block_confirm: Some(has_surcharge_processor),
+        }
     } else {
-        api_models::payments::NextActionCall::Confirm
-    };
-    api_models::payments::SdkNextAction {
-        next_action: next_action_call,
+        api_models::payments::SdkNextAction {
+            next_action: api_models::payments::NextActionCall::Confirm,
+            should_block_confirm: Some(false),
+        }
     }
 }
 

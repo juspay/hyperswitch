@@ -679,7 +679,8 @@ impl<F>
                             delayed_session_token: true,
                             sdk_next_action: api_models::payments::SdkNextAction {
                                 next_action: api_models::payments::NextActionCall::Sync,
-                            },
+                            should_block_confirm: None,
+},
                             connector_reference_id: Some(item.response.payme_sale_id.to_owned()),
                             connector_sdk_public_key: Some(
                                 payme_auth_type.payme_public_key.expose(),
@@ -807,7 +808,8 @@ impl<F>
                             delayed_session_token: true,
                             sdk_next_action: api_models::payments::SdkNextAction {
                                 next_action: api_models::payments::NextActionCall::Sync,
-                            },
+                            should_block_confirm: None,
+},
                             connector_reference_id: Some(item.response.payme_sale_id.to_owned()),
                             connector_sdk_public_key: Some(
                                 payme_auth_type.payme_public_key.expose(),
