@@ -305,6 +305,11 @@ where
                         req.dispute_id.clone(),
                         req.payout_id.clone(),
                         status_code,
+                        // Direct connector call: Hyperswitch's own outbound HTTP. It's the
+                        // connector leg, and always the real (primary) execution — this path
+                        // has no access to the routing ExecutionMode and never runs as shadow.
+                        common_enums::CallType::Connector,
+                        common_enums::EventExecutionMode::Primary,
                     );
 
                     match response {

@@ -47,3 +47,6 @@ pub static DEFAULT_WEBHOOK_SETUP_CAPABILITIES:
         requires_webhook_secret: None,
         config_type: None,
     };
+
+/// `source` value for connector events emitted by Hyperswitch.
+pub const CONNECTOR_EVENT_SOURCE: &str = "hyperswitch";

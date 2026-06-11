@@ -2870,6 +2870,81 @@ pub enum ExecutionMode {
     Clone,
     Copy,
     Debug,
+    Default,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+/// Which leg of the call chain a connector event records.
+pub enum CallType {
+    /// The outbound call to the payment connector (the external processor).
+    #[default]
+    Connector,
+    /// A request at the UCS service interface — either Hyperswitch calling UCS or UCS
+    /// being invoked. Caller- and transport-agnostic.
+    Service,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+/// Execution mode as recorded on a connector event.
+///
+/// This is the two-state *observability* projection of the routing [`ExecutionMode`]:
+/// a connector event only ever belongs to a real (primary) or a shadow leg. The routing
+/// `NotApplicable` value (Direct path, UCS not involved) is itself a live/real call, so it
+/// maps to [`EventExecutionMode::Primary`] — see the `From` impl below. Keeping this distinct
+/// from the 3-variant routing enum means a connector event can never carry `not_applicable`.
+pub enum EventExecutionMode {
+    /// The real, live execution whose result is used.
+    #[default]
+    Primary,
+    /// A shadow mirror whose result is discarded (validation only).
+    Shadow,
+}
+
+impl From<ExecutionMode> for EventExecutionMode {
+    fn from(mode: ExecutionMode) -> Self {
+        match mode {
+            ExecutionMode::Shadow => Self::Shadow,
+            // Primary, plus Direct's `NotApplicable` — a direct connector call is the live leg.
+            ExecutionMode::Primary | ExecutionMode::NotApplicable => Self::Primary,
+        }
+    }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
     Eq,
     PartialOrd,
     Ord,

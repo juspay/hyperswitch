@@ -6,6 +6,8 @@ use serde::Serialize;
 use serde_json::json;
 use time::OffsetDateTime;
 
+use crate::consts::CONNECTOR_EVENT_SOURCE;
+
 /// struct ConnectorEvent
 #[derive(Debug, Serialize)]
 pub struct ConnectorEvent {
@@ -23,6 +25,13 @@ pub struct ConnectorEvent {
     pub request_id: String,
     latency: u128,
     status_code: u16,
+    /// Service that produced this event (always `hyperswitch` here).
+    source: &'static str,
+    /// Which leg this event records: the payment-connector call, or a UCS-service request.
+    call_type: common_enums::CallType,
+    /// Primary (real) execution or shadow mirror — the two-state event projection of the
+    /// routing `ExecutionMode` (see `common_enums::EventExecutionMode`).
+    execution_mode: common_enums::EventExecutionMode,
     #[serde(flatten)]
     connector_event_type: common_utils::events::ConnectorEventsType,
 }
@@ -45,6 +54,8 @@ impl ConnectorEvent {
         dispute_id: Option<String>,
         payout_id: Option<String>,
         status_code: u16,
+        call_type: common_enums::CallType,
+        execution_mode: common_enums::EventExecutionMode,
     ) -> Self {
         let connector_event_type = common_utils::events::ConnectorEventsType::new(
             payment_id, refund_id, payout_id, dispute_id,
@@ -69,6 +80,9 @@ impl ConnectorEvent {
                 .unwrap_or("NO_REQUEST_ID".to_string()),
             latency,
             status_code,
+            source: CONNECTOR_EVENT_SOURCE,
+            call_type,
+            execution_mode,
             connector_event_type,
         }
     }
