@@ -241,8 +241,7 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            code: "IR_00",
-            message: "Refund is not supported for this payment",
+            code: "IR_04",
           },
         },
       },
@@ -259,8 +258,7 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            code: "IR_00",
-            message: "Partial refund is not supported for this payment",
+            code: "IR_04",
           },
         },
       },
@@ -277,8 +275,7 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            code: "IR_00",
-            message: "Manual payment refund is not supported for this payment",
+            code: "IR_04",
           },
         },
       },
@@ -295,8 +292,7 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            code: "IR_00",
-            message: "Manual partial refund is not supported for this payment",
+            code: "IR_04",
           },
         },
       },
