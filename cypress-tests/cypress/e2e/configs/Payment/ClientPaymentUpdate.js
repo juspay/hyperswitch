@@ -42,8 +42,9 @@ export const PaymentUpdateClientAuthConfigs = {
       status: 500,
       body: {
         error: {
-          type: "api_error",
-          message: "Client auth for payment update is not enabled",
+          type: "api",
+          code: "HE_00",
+          message: "Something went wrong",
         },
       },
     },
@@ -69,6 +70,7 @@ export const PaymentUpdateClientAuthConfigs = {
       body: {
         error: {
           type: "invalid_request",
+          code: "IR_09",
           message:
             "The client_secret provided does not match the client_secret associated with the Payment",
         },
@@ -96,6 +98,7 @@ export const PaymentUpdateClientAuthConfigs = {
       body: {
         error: {
           type: "invalid_request",
+          code: "IR_18",
           message: "Unauthorised access to update customer",
         },
       },
