@@ -129,25 +129,27 @@ async fn get_payment_context(
 pub async fn get_superposition_sdk_config(
     state: SessionState,
     platform: domain::Platform,
-    client_secret: String,
+    payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResponse<SuperPositionConfigResponse> {
     let merchant_account = platform.get_processor().get_account();
     let db = &*state.store;
-    let payment_intent = helpers::verify_payment_intent_time_and_client_secret(
-        &state,
-        &platform,
-        Some(client_secret),
-    )
-    .await?;
+    let payment_intent = db
+        .find_payment_intent_by_payment_id_processor_merchant_id(
+            &payment_id,
+            merchant_account.get_id(),
+            platform.get_processor().get_key_store(),
+            merchant_account.storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-    let payment_context = get_payment_context(&state, &platform, payment_intent.as_ref()).await?;
+    let payment_context = get_payment_context(&state, &platform, Some(&payment_intent)).await?;
 
-    let profile_id = payment_intent
-        .as_ref()
-        .and_then(|pi| pi.profile_id.clone())
-        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+    let profile_id = payment_intent.profile_id.clone().ok_or(
+        errors::ApiErrorResponse::GenericNotFoundError {
             message: "Profile id not found".to_string(),
-        })?;
+        },
+    )?;
 
     let business_profile = db
         .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
@@ -160,7 +162,7 @@ pub async fn get_superposition_sdk_config(
         &state,
         &platform,
         &business_profile,
-        payment_intent.as_ref(),
+        Some(&payment_intent),
         payment_context.payment_attempt.as_ref(),
         payment_context.billing_address.as_ref(),
         payment_context.shipping_address.as_ref(),
