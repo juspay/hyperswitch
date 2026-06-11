@@ -193,6 +193,8 @@ pub enum GigadatTransactionStatus {
     StatusAborted1,
     StatusPending,
     StatusFailed,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<GigadatTransactionStatus> for enums::AttemptStatus {
@@ -207,6 +209,7 @@ impl From<GigadatTransactionStatus> for enums::AttemptStatus {
             | GigadatTransactionStatus::StatusRejected1
             | GigadatTransactionStatus::StatusAborted1
             | GigadatTransactionStatus::StatusFailed => Self::Failure,
+            GigadatTransactionStatus::Unknown => Self::Pending,
         }
     }
 }
@@ -248,6 +251,12 @@ pub fn get_gigadat_webhook_event_type(
             GigadatTransactionStatus::StatusInited | GigadatTransactionStatus::StatusPending => {
                 IncomingWebhookEvent::PaymentIntentProcessing
             }
+            GigadatTransactionStatus::Unknown => {
+                router_env::logger::warn!(
+                    "Received unknown gigadat transaction status, treating as processing"
+                );
+                IncomingWebhookEvent::PaymentIntentProcessing
+            }
         },
         #[cfg(feature = "payouts")]
         GigadatFlow::Payout => match status {
@@ -258,6 +267,12 @@ pub fn get_gigadat_webhook_event_type(
             | GigadatTransactionStatus::StatusExpired
             | GigadatTransactionStatus::StatusAborted1 => IncomingWebhookEvent::PayoutFailure,
             GigadatTransactionStatus::StatusInited | GigadatTransactionStatus::StatusPending => {
+                IncomingWebhookEvent::PayoutProcessing
+            }
+            GigadatTransactionStatus::Unknown => {
+                router_env::logger::warn!(
+                    "Received unknown gigadat transaction status, treating as processing"
+                );
                 IncomingWebhookEvent::PayoutProcessing
             }
         },
@@ -276,7 +291,10 @@ impl TryFrom<String> for GigadatTransactionStatus {
             "STATUS_ABORTED1" => Ok(Self::StatusAborted1),
             "STATUS_PENDING" => Ok(Self::StatusPending),
             "STATUS_FAILED" => Ok(Self::StatusFailed),
-            _ => Err(errors::ConnectorError::WebhookBodyDecodingFailed.into()),
+            _ => {
+                router_env::logger::warn!("Unknown gigadat transaction status string: {}", value);
+                Ok(Self::Unknown)
+            }
         }
     }
 }
@@ -343,6 +361,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, GigadatTransactionStatusResponse, T, Pa
     fn try_from(
         item: ResponseRouterData<F, GigadatTransactionStatusResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        if item.response.status == GigadatTransactionStatus::Unknown {
+            router_env::logger::warn!(
+                "Received unknown gigadat transaction status, preserving existing state"
+            );
+            return Ok(item.data);
+        }
         let connector_response = item.response.data.as_ref().map(|sync_data| {
             ConnectorResponseData::with_additional_payment_method_data(
                 AdditionalPaymentMethodConnectorResponse::BankRedirect {
@@ -411,7 +435,8 @@ impl<F> TryFrom<&GigadatRouterData<&RefundsRouterData<F>>> for GigadatRefundRequ
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
-    success: bool,
+    #[allow(dead_code)]
+    success: Option<Secret<String>>,
     data: GigadatPaymentData,
 }
 
@@ -525,7 +550,7 @@ pub struct GigadatPayoutQuoteResponse {
 pub struct GigadatPayoutData {
     pub transaction_id: String,
     #[serde(rename = "type")]
-    pub transaction_type: String,
+    pub transaction_type: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -571,6 +596,12 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, GigadatPayoutResponse>> for Payouts
     fn try_from(
         item: PayoutsResponseRouterData<F, GigadatPayoutResponse>,
     ) -> Result<Self, Self::Error> {
+        if item.response.status == GigadatPayoutStatus::Unknown {
+            router_env::logger::warn!(
+                "Received unknown gigadat payout status, preserving existing state"
+            );
+            return Ok(item.data);
+        }
         Ok(Self {
             response: Ok(PayoutsResponseData {
                 status: Some(enums::PayoutStatus::from(item.response.status)),
@@ -604,6 +635,8 @@ pub enum GigadatPayoutStatus {
     StatusAborted1,
     StatusPending,
     StatusFailed,
+    #[serde(other)]
+    Unknown,
 }
 
 #[cfg(feature = "payouts")]
@@ -618,6 +651,7 @@ impl From<GigadatPayoutStatus> for enums::PayoutStatus {
             | GigadatPayoutStatus::StatusRejected1
             | GigadatPayoutStatus::StatusAborted1
             | GigadatPayoutStatus::StatusFailed => Self::Failed,
+            GigadatPayoutStatus::Unknown => Self::RequiresFulfillment,
         }
     }
 }
@@ -628,6 +662,12 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, GigadatPayoutSyncResponse>> for Pay
     fn try_from(
         item: PayoutsResponseRouterData<F, GigadatPayoutSyncResponse>,
     ) -> Result<Self, Self::Error> {
+        if item.response.status == GigadatPayoutStatus::Unknown {
+            router_env::logger::warn!(
+                "Received unknown gigadat payout status, preserving existing state"
+            );
+            return Ok(item.data);
+        }
         Ok(Self {
             response: Ok(PayoutsResponseData {
                 status: Some(enums::PayoutStatus::from(item.response.status)),
