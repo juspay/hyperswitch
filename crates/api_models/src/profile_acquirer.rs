@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -139,10 +141,7 @@ impl
                         .ok()
                         .and_then(|code_u32| common_enums::Country::from_numeric(code_u32).ok())
                         .map(|country| country.to_alpha2())
-                        .or_else(|| {
-                            use std::str::FromStr;
-                            common_enums::CountryAlpha2::from_str(code_str).ok()
-                        })
+                        .or_else(|| common_enums::CountryAlpha2::from_str(code_str).ok())
                 }),
             is_default,
         }
@@ -165,10 +164,7 @@ impl From<&common_types::domain::AcquirerConfig> for AcquirerBucketConfigRespons
                         .ok()
                         .and_then(|code_u32| common_enums::Country::from_numeric(code_u32).ok())
                         .map(|country| country.to_alpha2())
-                        .or_else(|| {
-                            use std::str::FromStr;
-                            common_enums::CountryAlpha2::from_str(code_str).ok()
-                        })
+                        .or_else(|| common_enums::CountryAlpha2::from_str(code_str).ok())
                 },
             ),
         }
