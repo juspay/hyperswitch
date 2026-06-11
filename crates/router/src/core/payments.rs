@@ -9450,7 +9450,6 @@ impl PaymentEligibilityData {
                 payment_method_id.as_str(),
                 None, // CVC is not collected during the eligibility check
                 true, // fetch raw card detail from the internal vault
-
             )
             .await
             .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
