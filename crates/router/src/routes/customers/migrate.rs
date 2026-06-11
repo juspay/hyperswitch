@@ -12,7 +12,7 @@ use error_stack::{report, ResultExt};
 use router_env::{instrument, logger, tracing, Flow};
 
 use crate::{
-    core::{api_locking, errors},
+    core::{api_locking, customers, errors},
     routes::{app::AppState, SessionState},
     services::{api, authentication as auth, ApplicationResponse},
 };
@@ -319,7 +319,7 @@ impl MigrationRow<Fetched> {
 impl MigrationRow<V1Verified> {
     fn classify_current_id(self) -> MigrationStepResult<MigrationRow<NeedsUpdate>> {
         match self.old_id.as_deref() {
-            Some(id) if is_global_customer_id_format(id) => Err(Box::new(self.result(
+            Some(id) if customers::is_global_customer_id_format(id) => Err(Box::new(self.result(
                 CustomerGlobalIdMigrationStatus::AlreadyGlobalId,
                 None,
                 "Customer id is already in global id format".to_string(),
@@ -426,22 +426,6 @@ impl<State> MigrationRow<State> {
             new_id: new_id.map(|id| id.get_string_repr().to_owned()),
             message,
         }
-    }
-}
-
-fn is_global_customer_id_format(id: &str) -> bool {
-    let mut parts = id.split('_');
-    match (parts.next(), parts.next(), parts.next(), parts.next()) {
-        (Some(cell_id), Some(entity), Some(uuid), None) => {
-            cell_id.len() == 5
-                && cell_id
-                    .chars()
-                    .all(|character| character.is_ascii_lowercase() || character.is_ascii_digit())
-                && entity == "cus"
-                && uuid.len() == 32
-                && uuid::Uuid::parse_str(uuid).is_ok()
-        }
-        _ => false,
     }
 }
 
