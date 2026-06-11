@@ -40,10 +40,8 @@ impl ProviderMerchantId {
     pub fn inner(&self) -> &common_utils::id_type::MerchantId {
         &self.0
     }
-}
 
-impl From<common_utils::id_type::MerchantId> for ProviderMerchantId {
-    fn from(id: common_utils::id_type::MerchantId) -> Self {
+    pub fn new(id: common_utils::id_type::MerchantId) -> Self {
         Self(id)
     }
 }
