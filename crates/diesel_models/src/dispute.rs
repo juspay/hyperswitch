@@ -4,7 +4,7 @@ use common_utils::{
 };
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use hyperswitch_masking::Secret;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::dispute};
@@ -41,7 +41,7 @@ pub struct DisputeNew {
     pub modified_at: PrimitiveDateTime,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Identifiable, Queryable, Selectable)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Identifiable, Queryable, Selectable)]
 #[diesel(table_name = dispute, primary_key(dispute_id), check_for_backend(diesel::pg::Pg))]
 pub struct Dispute {
     pub dispute_id: String,
@@ -82,9 +82,33 @@ impl Dispute {
             .map(|d| d.dispute_status != common_enums::DisputeStatus::DisputeLost)
             .unwrap_or(true)
     }
+
+    pub fn generate_lookup_id_for_dispute_id(
+        merchant_id: &common_utils::id_type::MerchantId,
+        dispute_id: &str,
+    ) -> String {
+        format!(
+            "dspt_dispute_id_{}_{}",
+            merchant_id.get_string_repr(),
+            dispute_id
+        )
+    }
+
+    pub fn generate_lookup_id_for_connector_dispute_id(
+        merchant_id: &common_utils::id_type::MerchantId,
+        payment_id: &common_utils::id_type::PaymentId,
+        connector_dispute_id: &str,
+    ) -> String {
+        format!(
+            "dspt_conn_dispute_id_{}_{}_{}",
+            merchant_id.get_string_repr(),
+            payment_id.get_string_repr(),
+            connector_dispute_id
+        )
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DisputeUpdate {
     Update {
         dispute_stage: storage_enums::DisputeStage,
@@ -165,6 +189,35 @@ impl From<DisputeUpdate> for DisputeUpdateInternal {
                 connector_updated_at: None,
                 modified_at: common_utils::date_time::now(),
             },
+        }
+    }
+}
+
+impl DisputeUpdateInternal {
+    pub fn apply_changeset(self, source: Dispute) -> Dispute {
+        let Self {
+            dispute_stage,
+            dispute_status,
+            connector_status,
+            connector_reason,
+            connector_reason_code,
+            challenge_required_by,
+            connector_updated_at,
+            modified_at: _,
+            evidence,
+        } = self;
+
+        Dispute {
+            dispute_stage: dispute_stage.unwrap_or(source.dispute_stage),
+            dispute_status: dispute_status.unwrap_or(source.dispute_status),
+            connector_status: connector_status.unwrap_or(source.connector_status),
+            connector_reason: connector_reason.or(source.connector_reason),
+            connector_reason_code: connector_reason_code.or(source.connector_reason_code),
+            challenge_required_by: challenge_required_by.or(source.challenge_required_by),
+            connector_updated_at: connector_updated_at.or(source.connector_updated_at),
+            modified_at: common_utils::date_time::now(),
+            evidence: evidence.unwrap_or(source.evidence),
+            ..source
         }
     }
 }

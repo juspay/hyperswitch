@@ -1813,7 +1813,10 @@ pub async fn get_or_update_dispute_object(
             };
             state
                 .store
-                .insert_dispute(new_dispute.clone())
+                .insert_dispute(
+                    new_dispute.clone(),
+                    platform.get_processor().get_account().storage_scheme,
+                )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
         }
@@ -1837,9 +1840,13 @@ pub async fn get_or_update_dispute_object(
                 challenge_required_by: dispute_details.challenge_required_by,
                 connector_updated_at: dispute_details.updated_at,
             };
-            db.update_dispute(dispute, update_dispute)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
+            db.update_dispute(
+                dispute,
+                update_dispute,
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
         }
     }
 }
@@ -2337,6 +2344,7 @@ async fn disputes_incoming_webhook_flow(
                 platform.get_processor().get_account().get_id(),
                 &payment_attempt.payment_id,
                 &dispute_details.connector_dispute_id,
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)?;

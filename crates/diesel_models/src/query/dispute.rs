@@ -3,7 +3,7 @@ use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, T
 use super::generics;
 use crate::{
     dispute::{Dispute, DisputeNew, DisputeUpdate, DisputeUpdateInternal},
-    errors,
+    errors, kv,
     schema::dispute::dsl,
     PgPooledConn, StorageResult,
 };
@@ -11,6 +11,13 @@ use crate::{
 impl DisputeNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Dispute> {
         generics::generic_insert(conn, self).await
+    }
+
+    pub async fn generate_drainer_insert_query(
+        self,
+        conn: &mut PgPooledConn,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_insert_query(conn, self).await
     }
 }
 
@@ -144,5 +151,20 @@ impl Dispute {
             },
             result => result,
         }
+    }
+}
+
+impl DisputeUpdateInternal {
+    pub async fn generate_drainer_update_query(
+        self,
+        conn: &mut PgPooledConn,
+        dispute_id: String,
+    ) -> StorageResult<kv::SerializableQuery> {
+        kv::generate_update_query_with_predicate::<<Dispute as HasTable>::Table, _, _>(
+            conn,
+            dsl::dispute_id.eq(dispute_id),
+            self,
+        )
+        .await
     }
 }

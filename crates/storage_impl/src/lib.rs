@@ -21,6 +21,7 @@ pub mod configs;
 pub mod connection;
 pub mod customers;
 pub mod database;
+pub mod dispute;
 pub mod errors;
 pub mod invoice;
 pub mod kv_router_store;
@@ -560,5 +561,26 @@ impl UniqueConstraints for diesel_models::tokenization::Tokenization {
 
     fn table_name(&self) -> &str {
         "tokenization"
+    }
+}
+
+impl UniqueConstraints for diesel_models::Dispute {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![
+            format!(
+                "dispute_{}_{}",
+                self.merchant_id.get_string_repr(),
+                self.dispute_id
+            ),
+            format!(
+                "dispute_{}_{}_{}",
+                self.merchant_id.get_string_repr(),
+                self.payment_id.get_string_repr(),
+                self.connector_dispute_id
+            ),
+        ]
+    }
+    fn table_name(&self) -> &str {
+        "Dispute"
     }
 }
