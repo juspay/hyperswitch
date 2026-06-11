@@ -9405,11 +9405,11 @@ impl PaymentEligibilityData {
         })
     }
 
-    /// Resolves a `payment_token` to raw card data for blocklist checks, mirroring
-    /// `PaymentConfirm::fetch_payment_method`: modular organizations fetch from the
-    /// PM Modular Service directly; legacy organizations resolve the Redis token to
-    /// the payment method DB record, escalating to the modular service when the
-    /// record itself is modular, and reading raw card data from the locker otherwise.
+    /// Resolves a `payment_token` to raw card data for blocklist checks: modular
+    /// organizations fetch from the PM Modular Service directly; legacy organizations
+    /// resolve the Redis token to the payment method DB record, escalating to the
+    /// modular service when the record itself is modular, and reading raw card data
+    /// from the locker otherwise.
     async fn resolve_payment_token_to_method_data(
         state: &SessionState,
         platform: &domain::Platform,
