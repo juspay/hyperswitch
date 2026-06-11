@@ -640,13 +640,6 @@ pub struct RedsysErrorResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum CardPSD2 {
-    Y,
-    N,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ThreeDSCompInd {
     Y,
     N,
@@ -657,7 +650,7 @@ pub struct RedsysPaymentsResponse {
     #[serde(rename = "Ds_AuthorisationCode")]
     ds_authorisation_code: Option<String>,
     #[serde(rename = "Ds_Card_PSD2")]
-    ds_card_psd2: Option<CardPSD2>,
+    ds_card_psd2: Option<Secret<String>>,
     #[serde(rename = "Ds_EMV3DS")]
     ds_emv3ds: Option<RedsysEmv3DSData>,
     #[serde(rename = "Ds_Order")]
@@ -675,7 +668,7 @@ pub struct RedsysEmv3DSData {
     acs_u_r_l: Option<String>,
     creq: Option<String>,
     protocol_version: String,
-    three_d_s_info: Option<RedsysThreeDsInfo>,
+    three_d_s_info: Option<Secret<String>>,
     three_d_s_method_u_r_l: Option<String>,
     #[serde(alias = "threeds_server_transaction_id")]
     three_d_s_server_trans_i_d: Option<String>,
@@ -2089,13 +2082,13 @@ pub struct RedsysSyncResponse {
     #[serde(rename = "header")]
     header: Option<SoapHeader>,
     #[serde(rename = "@xmlns:soapenc")]
-    xmlns_soapenc: String,
+    xmlns_soapenc: Option<Secret<String>>,
     #[serde(rename = "@xmlns:soapenv")]
-    xmlns_soapenv: String,
+    xmlns_soapenv: Option<Secret<String>>,
     #[serde(rename = "@xmlns:xsd")]
-    xmlns_xsd: String,
+    xmlns_xsd: Option<Secret<String>>,
     #[serde(rename = "@xmlns:xsi")]
-    xmlns_xsi: String,
+    xmlns_xsi: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -2112,7 +2105,7 @@ pub struct SyncResponseBody {
 pub struct ConsultaOperacionesResponse {
     consultaoperacionesreturn: ConsultaOperacionesReturn,
     #[serde(rename = "@xmlns:p259")]
-    xmlns_p259: String,
+    xmlns_p259: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -2172,6 +2165,8 @@ pub enum DsState {
     W,
     /// Redirected to Iupay
     O,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -2263,7 +2258,13 @@ impl<F> TryFrom<ResponseRouterData<F, RedsysSyncResponse, PaymentsSyncData, Paym
                                 _ => common_enums::AttemptStatus::Pending,
                             }
                         }
-                        _ => item.data.status, // Fallback to existing status if Ds_State is unknown/missing
+                        Some(DsState::Unknown) => {
+                            router_env::logger::warn!(
+                                "Received unknown DsState from Redsys; preserving existing status"
+                            );
+                            item.data.status
+                        }
+                        _ => item.data.status, // Fallback to existing status if Ds_State is missing
                     };
 
                     let payment_response = Ok(PaymentsResponseData::TransactionResponse {
