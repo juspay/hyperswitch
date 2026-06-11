@@ -422,6 +422,10 @@ impl IncomingWebhook for Zsl {
         let key = auth_type.api_key.expose();
         let mer_id = auth_type.merchant_id.expose();
         let webhook_response = get_webhook_object_from_body(request.body)?;
+        if webhook_response.enctype == zsl::EncodingType::Unknown {
+            router_env::logger::warn!("Unknown ZSL encoding type encountered in webhook, preserving existing state");
+            return Ok(false);
+        }
         let signature = zsl::calculate_signature(
             webhook_response.enctype,
             zsl::ZslSignatureType::WebhookSignature {

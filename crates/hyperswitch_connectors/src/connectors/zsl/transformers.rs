@@ -123,14 +123,12 @@ pub enum ProcessCode {
     CallBack,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum EncodingType {
     #[serde(rename = "1")]
     MD5,
     #[serde(rename = "2")]
     Sha1,
-    #[serde(other)]
-    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -296,11 +294,11 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ZslPaymentsResponse {
-    process_type: Option<Secret<String>>,
-    process_code: Option<Secret<String>>,
+    process_type: ProcessType,
+    process_code: ProcessCode,
     status: String,
     mer_ref: String,
-    mer_id: Option<Secret<String>>,
+    mer_id: String,
     enctype: EncodingType,
     txn_url: String,
     signature: Secret<String>,
@@ -313,6 +311,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, ZslPaymentsResponse, T, PaymentsRespons
     fn try_from(
         item: ResponseRouterData<F, ZslPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        if item.response.enctype == EncodingType::Unknown {
+            router_env::logger::warn!("Unknown ZSL encoding type encountered in payments response, preserving existing state");
+            return Ok(item.data);
+        }
+
         if item.response.status.eq("0") && !item.response.txn_url.is_empty() {
             let auth_type = ZslAuthType::try_from(&item.data.connector_auth_type)?;
             let key: Secret<String> = auth_type.api_key;
@@ -402,22 +405,22 @@ impl<F, T> TryFrom<ResponseRouterData<F, ZslPaymentsResponse, T, PaymentsRespons
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ZslWebhookResponse {
-    pub process_type: Option<Secret<String>>,
-    pub process_code: Option<Secret<String>>,
+    pub process_type: ProcessType,
+    pub process_code: ProcessCode,
     pub status: String,
     pub txn_id: String,
     pub txn_date: String,
-    pub paid_ccy: api_models::enums::Currency,
+    pub paid_ccy: String,
     pub paid_amt: String,
-    pub consr_paid_ccy: Option<Secret<String>>,
+    pub consr_paid_ccy: Option<api_models::enums::Currency>,
     pub consr_paid_amt: String,
-    pub service_fee_ccy: Option<Secret<String>>,
-    pub service_fee: Option<Secret<String>>,
-    pub txn_amt: Option<Secret<String>>,
-    pub ccy: Option<Secret<String>>,
+    pub service_fee_ccy: Option<api_models::enums::Currency>,
+    pub service_fee: Option<String>,
+    pub txn_amt: String,
+    pub ccy: String,
     pub mer_ref: String,
-    pub mer_txn_date: Option<Secret<String>>,
-    pub mer_id: Option<Secret<String>>,
+    pub mer_txn_date: String,
+    pub mer_id: String,
     pub enctype: EncodingType,
     pub signature: Secret<String>,
 }
@@ -681,15 +684,12 @@ impl TryFrom<String> for ZslResponseStatus {
             "10105" => Ok(Self::PspSelfRedirectTagNotValid),
             "20000" => Ok(Self::InternalError20000),
             "20001" => Ok(Self::DepositTimeout),
-            _ => {
-                router_env::logger::warn!("Unknown ZSL status code encountered: {}", status);
-                Ok(Self::Unknown(status))
-            }
+            _ => Err(errors::ConnectorError::ResponseHandlingFailed.into()),
         }
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ZslResponseStatus {
     Normal,
@@ -883,29 +883,6 @@ pub enum ZslResponseStatus {
     PspSelfRedirectTagNotValid,
     InternalError20000,
     DepositTimeout,
-    Unknown(String),
-}
-
-impl std::fmt::Display for ZslResponseStatus {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Unknown(code) => write!(f, "Unknown status code: {code}"),
-            _ => {
-                let variant_name = format!("{:?}", self);
-                let converted = variant_name
-                    .chars()
-                    .enumerate()
-                    .fold(String::new(), |mut acc, (i, c)| {
-                        if c.is_uppercase() && i > 0 {
-                            acc.push('_');
-                        }
-                        acc.push(c.to_ascii_uppercase());
-                        acc
-                    });
-                write!(f, "{converted}")
-            }
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -985,7 +962,6 @@ pub fn calculate_signature(
         EncodingType::Sha1 => {
             hex::encode(digest::digest(&digest::SHA1_FOR_LEGACY_USE_ONLY, message))
         }
-        EncodingType::Unknown => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
     };
     Ok(Secret::new(encoded_data))
 }
