@@ -610,6 +610,9 @@ pub enum PayboxStatus {
 
     #[serde(rename = "Refusé")]
     Rejected,
+
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -853,6 +856,10 @@ impl From<PayboxStatus> for common_enums::RefundStatus {
             | PayboxStatus::Authorised
             | PayboxStatus::Captured
             | PayboxStatus::Rejected => Self::Failure,
+            PayboxStatus::Unknown => {
+                router_env::logger::warn!("Received unknown paybox refund status, preserving as failure");
+                Self::Failure
+            }
         }
     }
 }
@@ -863,6 +870,10 @@ impl From<PayboxStatus> for enums::AttemptStatus {
             PayboxStatus::Authorised => Self::Authorized,
             PayboxStatus::Captured | PayboxStatus::Refunded => Self::Charged,
             PayboxStatus::Rejected => Self::Failure,
+            PayboxStatus::Unknown => {
+                router_env::logger::warn!("Received unknown paybox payment status, preserving as pending");
+                Self::Pending
+            }
         }
     }
 }
