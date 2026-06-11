@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.10.0-hotfix1
+
+### Bug Fixes
+
+- **connector:** [payload] remove billing descriptor, description and attributes for ACH setup mandate flow ([#12710](https://github.com/juspay/hyperswitch/pull/12710)) ([`a553efc`](https://github.com/juspay/hyperswitch/commit/a553efc3b0bd06f92369e55a94c8751fb38f970a))
+
+**Full Changelog:** [`2026.06.10.0...2026.06.10.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.06.10.0...2026.06.10.0-hotfix1)
+
+- - -
+
 ## 2026.06.10.0
 
 ### Features
