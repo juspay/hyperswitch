@@ -49,14 +49,9 @@ export const connectorDetails = {
         billing: nlBillingAddress,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            code: "IR_19",
-          },
+          status: "requires_customer_action",
         },
       },
     }),
