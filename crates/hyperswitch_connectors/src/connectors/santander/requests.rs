@@ -209,7 +209,7 @@ pub struct SantanderPixAutomaticDestinationRequest {
     pub cpf: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cnpj: Option<Secret<String>>,
-    pub ispb_participate: Secret<String>,
+    pub ispb_participante: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -515,7 +515,7 @@ pub enum Periodicidade {
     /// Semi-annually (every 6 months)
     Semestral,
     /// Annually
-    Annual,
+    Anual,
 }
 
 /// Retry policy for failed recurring payments

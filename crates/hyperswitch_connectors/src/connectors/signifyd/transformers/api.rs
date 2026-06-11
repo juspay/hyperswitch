@@ -249,7 +249,7 @@ fn map_payment_method_kind(value: Option<PaymentMethodType>) -> PaymentMethodKin
 /// Signifyd's integer-typed `cardExpiryMonth` / `cardExpiryYear`. Mirrors HS'
 /// `CardData::get_expiry_year_as_4_digit_i32` but works on `AdditionalCardInfo`'s
 /// `Option<Secret<String>>` (the `CardData` trait targets `Card`, not
-/// `AdditionalCardInfo`). Returns `None` if missing or unparsable.
+/// `AdditionalCardInfo`). Returns `None` if missing or unparseable.
 fn parse_card_digits(value: Option<&Secret<String>>) -> Option<Secret<i32>> {
     value.and_then(|s| s.peek().trim().parse::<i32>().ok().map(Secret::new))
 }

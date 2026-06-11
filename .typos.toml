@@ -100,27 +100,6 @@ Haute-Corse = "Haute-Corse" # Is a state in France
 Fram = "Fram" # Is a state in Slovenia
 typ = "typ" # Token.io JWT header required parameter
 
-# Rust match/closure variable names (false positives)
-fo = "fo" # short variable name in match arm: Ok(fo) => Ok(fo.get_router_data()...)
-nd = "nd" # short variable name in closures: and_then(|nd| nd.decline_code...)
-
-# 3DS payment processing abbreviation
-threed = "threed" # 3DS field prefix: info_threed_secure
-
-# Gigadat payment type enum variants
-Eto = "Eto" # Gigadat transaction type: GidadatTransactionType::Eto
-ETO = "ETO" # Gigadat transaction type string match: "ETO"
-
-# Struct names that cannot be renamed without breaking internal API
-ListRountingAlgorithmsRequest = "ListRountingAlgorithmsRequest" # routing algorithm request type
-Rounting = "Rounting" # used in ListRountingAlgorithmsRequest struct
-
-# Santander connector: Portuguese field names (API contract with Brazilian bank)
-validade = "validade" # Portuguese for "validity" — field: validade_apos_vencimento
-validade_apos_vencimento = "validade_apos_vencimento" # Portuguese API field
-inicial = "inicial" # Portuguese for "initial" — field: data_inicial
-data_inicial = "data_inicial" # Portuguese API field
-
 
 [default.extend-words]
 aci = "aci" # Name of a connector
@@ -139,9 +118,6 @@ requestor = "requestor" #Used in external 3ds flows
 substituters = "substituters" # Present in `flake.nix`
 unsuccess = "unsuccess" # Used in cryptopay request
 automatico = "automatico" # Pix Automático (Portuguese for Automatic) - payment method name
-iof = "iof" # IOF = Imposto sobre Operações Financeiras (Brazilian Financial Operations Tax)
-IOF = "IOF" # IOF = Imposto sobre Operações Financeiras (Brazilian Financial Operations Tax)
-threed = "threed" # 3DS field name segment: info_threed_secure (WorldpayXML connector)
 
 [files]
 extend-exclude = [

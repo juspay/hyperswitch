@@ -297,21 +297,21 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                     error.issuer_details.as_ref().and_then(|id| {
                         id.network_details
                             .as_ref()
-                            .and_then(|and| and.decline_code.clone())
+                            .and_then(|nd| nd.decline_code.clone())
                     })
                 }),
                 network_advice_code: response.error.as_ref().and_then(|error| {
                     error.issuer_details.as_ref().and_then(|id| {
                         id.network_details
                             .as_ref()
-                            .and_then(|and| and.advice_code.clone())
+                            .and_then(|nd| nd.advice_code.clone())
                     })
                 }),
                 network_error_message: response.error.as_ref().and_then(|error| {
                     error.issuer_details.as_ref().and_then(|id| {
                         id.network_details
                             .as_ref()
-                            .and_then(|and| and.error_message.clone())
+                            .and_then(|nd| nd.error_message.clone())
                     })
                 }),
                 connector_metadata: None,
@@ -363,7 +363,7 @@ impl ForeignTryFrom<payments_grpc::MandateReference>
                     .connector_mandate_request_reference_id,
             }),
             _ => Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)
-                .attach_printable("Received Invalid MandateReference from UCS"),
+                .attach_printable("Recieved Invalid MandateReference from UCS"),
         }
     }
 }
@@ -991,19 +991,19 @@ impl UnifiedConnectorServiceError {
                 .as_ref()
                 .and_then(|ei| ei.issuer_details.as_ref())
                 .and_then(|id| id.network_details.as_ref())
-                .and_then(|and| and.decline_code.clone()),
+                .and_then(|nd| nd.decline_code.clone()),
             network_advice_code: connector_error
                 .error_info
                 .as_ref()
                 .and_then(|ei| ei.issuer_details.as_ref())
                 .and_then(|id| id.network_details.as_ref())
-                .and_then(|and| and.advice_code.clone()),
+                .and_then(|nd| nd.advice_code.clone()),
             network_error_message: connector_error
                 .error_info
                 .as_ref()
                 .and_then(|ei| ei.issuer_details.as_ref())
                 .and_then(|id| id.network_details.as_ref())
-                .and_then(|and| and.error_message.clone()),
+                .and_then(|nd| nd.error_message.clone()),
         })))
     }
 }

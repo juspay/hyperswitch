@@ -683,7 +683,7 @@ pub enum PaymentChannel {
     /// Payment made through online banking.
     InternetBanking,
     /// Payment made at a physical correspondent agent (e.g., convenience stores, partner outlets).
-    CorrespondenceBancarioFisico,
+    CorrespondenteBancarioFisico,
     /// Payment made via Santander’s call center.
     CentralDeAtendimento,
     /// Payment made via electronic file, typically for bulk company payments.
@@ -691,7 +691,7 @@ pub enum PaymentChannel {
     /// Payment made via DDA (Débito Direto Autorizado) / electronic bill presentment system.
     Dda,
     /// Payment made via digital correspondent channels (apps, kiosks, digital partners).
-    CorrespondenceBancarioDigital,
+    CorrespondenteBancarioDigital,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -949,7 +949,7 @@ pub struct SantanderPixAutomaticoDestinatario {
     /// Recipient's bank account number
     pub conta: Option<String>,
     /// ISPB code of the recipient's financial institution participant
-    pub ispb_participate: Option<String>,
+    pub ispb_participante: Option<String>,
     /// Recipient's bank branch/agency number
     pub agencia: Option<String>,
     /// Recipient's CPF (individual tax ID)
@@ -1058,7 +1058,7 @@ pub struct SantanderPixAutomaticRecResponse {
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPixAutomaticoPagador {
     /// ISPB code of the payer's financial institution participant
-    pub ispb_participate: Option<String>,
+    pub ispb_participante: Option<String>,
     /// Municipality code where the payer is located
     pub cod_mun: Option<String>,
     /// Payer's CPF (individual tax ID)

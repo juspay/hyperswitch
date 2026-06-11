@@ -4033,7 +4033,7 @@ impl ForeignTryFrom<String> for ThailandStatesAbbreviation {
             "suphanburi" => Ok(Self::SuphanBuri),
             "suratthani" => Ok(Self::SuratThani),
             "surin" => Ok(Self::Surin),
-            "take" => Ok(Self::Tak),
+            "tak" => Ok(Self::Tak),
             "trang" => Ok(Self::Trang),
             "trat" => Ok(Self::Trat),
             "ubonratchathani" => Ok(Self::UbonRatchathani),

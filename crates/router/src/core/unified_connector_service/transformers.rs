@@ -2170,17 +2170,17 @@ impl
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.decline_code.clone())
+                        .and_then(|nd| nd.decline_code.clone())
                 }),
                 network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.advice_code.clone())
+                        .and_then(|nd| nd.advice_code.clone())
                 }),
                 network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.error_message.clone())
+                        .and_then(|nd| nd.error_message.clone())
                 }),
                 connector_metadata: None,
             })
@@ -2382,17 +2382,17 @@ impl
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.decline_code.clone())
+                        .and_then(|nd| nd.decline_code.clone())
                 }),
                 network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.advice_code.clone())
+                        .and_then(|nd| nd.advice_code.clone())
                 }),
                 network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.error_message.clone())
+                        .and_then(|nd| nd.error_message.clone())
                 }),
                 connector_metadata: None,
             })
@@ -2490,17 +2490,17 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceCaptureResponse,
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.decline_code.clone())
+                        .and_then(|nd| nd.decline_code.clone())
                 }),
                 network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.advice_code.clone())
+                        .and_then(|nd| nd.advice_code.clone())
                 }),
                 network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.error_message.clone())
+                        .and_then(|nd| nd.error_message.clone())
                 }),
                 connector_metadata: None,
             })
@@ -2571,17 +2571,17 @@ impl transformers::ForeignTryFrom<payments_grpc::CustomerServiceCreateResponse>
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.decline_code.clone())
+                        .and_then(|nd| nd.decline_code.clone())
                 }),
                 network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.advice_code.clone())
+                        .and_then(|nd| nd.advice_code.clone())
                 }),
                 network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.error_message.clone())
+                        .and_then(|nd| nd.error_message.clone())
                 }),
                 connector_metadata: None,
             })
@@ -2662,17 +2662,17 @@ impl
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.decline_code.clone())
+                        .and_then(|nd| nd.decline_code.clone())
                 }),
                 network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.advice_code.clone())
+                        .and_then(|nd| nd.advice_code.clone())
                 }),
                 network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.error_message.clone())
+                        .and_then(|nd| nd.error_message.clone())
                 }),
                 connector_metadata: None,
             })
@@ -2799,17 +2799,17 @@ impl
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.decline_code.clone())
+                        .and_then(|nd| nd.decline_code.clone())
                 }),
                 network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.advice_code.clone())
+                        .and_then(|nd| nd.advice_code.clone())
                 }),
                 network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.error_message.clone())
+                        .and_then(|nd| nd.error_message.clone())
                 }),
                 connector_metadata: None,
             })
@@ -2884,17 +2884,17 @@ impl
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.decline_code.clone())
+                        .and_then(|nd| nd.decline_code.clone())
                 }),
                 network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.advice_code.clone())
+                        .and_then(|nd| nd.advice_code.clone())
                 }),
                 network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.error_message.clone())
+                        .and_then(|nd| nd.error_message.clone())
                 }),
                 connector_metadata: None,
             })
@@ -4159,17 +4159,17 @@ impl
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.decline_code.clone())
+                        .and_then(|nd| nd.decline_code.clone())
                 }),
                 network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.advice_code.clone())
+                        .and_then(|nd| nd.advice_code.clone())
                 }),
                 network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.error_message.clone())
+                        .and_then(|nd| nd.error_message.clone())
                 }),
                 connector_metadata: None,
             })
@@ -4532,17 +4532,17 @@ impl
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.decline_code.clone())
+                        .and_then(|nd| nd.decline_code.clone())
                 }),
                 network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.advice_code.clone())
+                        .and_then(|nd| nd.advice_code.clone())
                 }),
                 network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.error_message.clone())
+                        .and_then(|nd| nd.error_message.clone())
                 }),
                 connector_metadata: None,
             })
@@ -4622,17 +4622,17 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentMethodServiceTokenizeRes
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.decline_code.clone())
+                        .and_then(|nd| nd.decline_code.clone())
                 }),
                 network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.advice_code.clone())
+                        .and_then(|nd| nd.advice_code.clone())
                 }),
                 network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.error_message.clone())
+                        .and_then(|nd| nd.error_message.clone())
                 }),
                 connector_metadata: None,
             })
@@ -4689,17 +4689,17 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceIncrementalAuthor
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.decline_code.clone())
+                        .and_then(|nd| nd.decline_code.clone())
                 }),
                 network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.advice_code.clone())
+                        .and_then(|nd| nd.advice_code.clone())
                 }),
                 network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.error_message.clone())
+                        .and_then(|nd| nd.error_message.clone())
                 }),
                 connector_metadata: None,
             })
@@ -4771,17 +4771,17 @@ impl
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.decline_code.clone())
+                        .and_then(|nd| nd.decline_code.clone())
                 }),
                 network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.advice_code.clone())
+                        .and_then(|nd| nd.advice_code.clone())
                 }),
                 network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.error_message.clone())
+                        .and_then(|nd| nd.error_message.clone())
                 }),
                 connector_metadata: None,
             })
@@ -5374,17 +5374,17 @@ impl
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.decline_code.clone())
+                        .and_then(|nd| nd.decline_code.clone())
                 }),
                 network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.advice_code.clone())
+                        .and_then(|nd| nd.advice_code.clone())
                 }),
                 network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.error_message.clone())
+                        .and_then(|nd| nd.error_message.clone())
                 }),
                 connector_metadata: None,
             })
@@ -5640,17 +5640,17 @@ impl
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.decline_code.clone())
+                        .and_then(|nd| nd.decline_code.clone())
                 }),
                 network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.advice_code.clone())
+                        .and_then(|nd| nd.advice_code.clone())
                 }),
                 network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.error_message.clone())
+                        .and_then(|nd| nd.error_message.clone())
                 }),
                 connector_metadata: None,
             })
@@ -5944,17 +5944,17 @@ impl transformers::ForeignTryFrom<payments_grpc::RefundResponse>
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.decline_code.clone())
+                        .and_then(|nd| nd.decline_code.clone())
                 }),
                 network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.advice_code.clone())
+                        .and_then(|nd| nd.advice_code.clone())
                 }),
                 network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.error_message.clone())
+                        .and_then(|nd| nd.error_message.clone())
                 }),
                 connector_metadata: None,
             })
@@ -6113,17 +6113,17 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceVoidResponse, At
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.decline_code.clone())
+                        .and_then(|nd| nd.decline_code.clone())
                 }),
                 network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.advice_code.clone())
+                        .and_then(|nd| nd.advice_code.clone())
                 }),
                 network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
-                        .and_then(|and| and.error_message.clone())
+                        .and_then(|nd| nd.error_message.clone())
                 }),
                 connector_metadata: None,
             })
@@ -6175,7 +6175,7 @@ impl
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             merchant_access_token_id: Some(router_data.connector_request_reference_id.clone()),
-            // deprecated field we have to remove this/ Default to unspecified connector
+            // depricated field we have to remove this/ Default to unspecified connector
             connector: 0_i32,
             metadata: None,
             connector_feature_data: None,
@@ -6750,17 +6750,17 @@ macro_rules! impl_ucs_payout_response_transformation {
                         network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                             id.network_details
                                 .as_ref()
-                                .and_then(|and| and.decline_code.clone())
+                                .and_then(|nd| nd.decline_code.clone())
                         }),
                         network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
                             id.network_details
                                 .as_ref()
-                                .and_then(|and| and.advice_code.clone())
+                                .and_then(|nd| nd.advice_code.clone())
                         }),
                         network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
                             id.network_details
                                 .as_ref()
-                                .and_then(|and| and.error_message.clone())
+                                .and_then(|nd| nd.error_message.clone())
                         }),
                         connector_metadata: None,
                     })
