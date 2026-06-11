@@ -1003,17 +1003,14 @@ export const connectorDetails = {
         },
       },
     },
-    RequiresCVVFalseSavedCardWithoutCVV: {
+    RequiresCVVFalseSavedCardWithoutCVV: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         setup_future_usage: "off_session",
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
+    }),
     RequiresCVVPaymentIntent: {
       Request: {
         currency: "USD",
