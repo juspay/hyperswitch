@@ -639,6 +639,7 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     POLL_CONFIG: ["stripe"],
+    DELAYED_SESSION_TOKEN: ["trustpay", "payme"],
     // Add more inclusion lists
   },
 };

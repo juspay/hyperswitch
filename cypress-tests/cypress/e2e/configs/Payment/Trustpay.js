@@ -950,7 +950,7 @@ export const connectorDetails = {
         wallets: ["apple_pay", "google_pay"],
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
           session_token: [],
         },
@@ -978,7 +978,7 @@ export const connectorDetails = {
         wallets: ["apple_pay", "google_pay"],
       },
       Response: {
-        status: 404,
+        status: 400,
         body: {
           error: {
             type: "invalid_request",

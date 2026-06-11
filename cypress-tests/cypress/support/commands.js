@@ -2325,6 +2325,104 @@ Cypress.Commands.add(
   }
 );
 
+/**
+ * Call the delayed session token API for wallet payments (Apple Pay, Google Pay).
+ * Similar to sessionTokenCall but handles delayed session token responses.
+ */
+Cypress.Commands.add(
+  "delayedSessionTokenCall",
+  (sessionTokenBody, data, globalState) => {
+    const { Request: reqData, Response: resData } = data || {};
+
+    // Build request body - handle override from config
+    const body = { ...sessionTokenBody };
+    if (reqData) {
+      for (const key in reqData) {
+        body[key] = reqData[key];
+      }
+    }
+
+    // Set payment_id and client_secret from globalState unless overridden
+    if (!body.payment_id) {
+      body.payment_id = globalState.get("paymentID");
+    }
+    if (!body.client_secret) {
+      body.client_secret = globalState.get("clientSecret");
+    }
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/session_tokens`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": globalState.get("publishableKey"),
+        "x-merchant-domain": "hyperswitch - demo - store.netlify.app",
+        "x-client-platform": "web",
+      },
+      body: body,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        // Validate status code
+        if (resData?.status) {
+          expect(response.status, "status_code").to.equal(resData.status);
+        }
+
+        // Handle success case (200)
+        if (response.status === 200 && resData?.body) {
+          const expectedSessionToken = resData.body.session_token;
+          const actualSessionToken = response.body.session_token;
+
+          // Verify session_token object exists
+          expect(actualSessionToken, "session_token exists").to.exist;
+
+          // Verify expected fields
+          if (expectedSessionToken) {
+            if (expectedSessionToken.delayed_session_token !== undefined) {
+              expect(
+                actualSessionToken.delayed_session_token,
+                "delayed_session_token"
+              ).to.equal(expectedSessionToken.delayed_session_token);
+            }
+            if (expectedSessionToken.connector) {
+              expect(actualSessionToken.connector, "connector").to.equal(
+                expectedSessionToken.connector
+              );
+            }
+            if (expectedSessionToken.sdk_next_action) {
+              expect(
+                actualSessionToken.sdk_next_action,
+                "sdk_next_action"
+              ).to.deep.equal(expectedSessionToken.sdk_next_action);
+            }
+          }
+        }
+        // Handle error cases
+        else if (resData?.body?.error) {
+          if (resData.body.error.type) {
+            expect(response.body.error.type, "error.type").to.equal(
+              resData.body.error.type
+            );
+          }
+          if (resData.body.error.code) {
+            expect(response.body.error.code, "error.code").to.equal(
+              resData.body.error.code
+            );
+          }
+          if (resData.body.error.message) {
+            expect(response.body.error.message, "error.message").to.include(
+              resData.body.error.message
+            );
+          }
+        }
+      });
+    });
+  }
+);
+
 Cypress.Commands.add(
   "createPaymentIntentTest",
   (
