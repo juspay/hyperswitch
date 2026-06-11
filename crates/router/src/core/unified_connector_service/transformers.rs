@@ -18,6 +18,7 @@ use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
 use hyperswitch_domain_models::{
+    ApiModelToDieselModelConvertor,
     mandates,
     mandates::{MandateData, MandateDataType},
     router_data::{AccessToken, ErrorResponse, L2L3Data, RouterData},
@@ -111,41 +112,16 @@ fn build_ucs_order_details(
         .unwrap_or_default()
 }
 
-fn build_ucs_l2_l3_order_details(
-    order_details: Option<&[api_models::payments::OrderDetailsWithAmount]>,
-) -> Vec<payments_grpc::OrderDetailsWithAmount> {
-    order_details
-        .map(|details| {
-            details
-                .iter()
-                .map(|detail| payments_grpc::OrderDetailsWithAmount {
-                    product_name: detail.product_name.clone(),
-                    quantity: u32::from(detail.quantity),
-                    amount: detail.amount.get_amount_as_i64(),
-                    tax_rate: detail.tax_rate,
-                    total_tax_amount: detail
-                        .total_tax_amount
-                        .map(|amount| amount.get_amount_as_i64()),
-                    requires_shipping: detail.requires_shipping,
-                    product_img_link: detail.product_img_link.clone(),
-                    product_id: detail.product_id.clone(),
-                    category: detail.category.clone(),
-                    sub_category: detail.sub_category.clone(),
-                    brand: detail.brand.clone(),
-                    description: detail.description.clone(),
-                    unit_of_measure: detail.unit_of_measure.clone(),
-                    product_type: detail.product_type.as_ref().map(get_ucs_product_type),
-                    product_tax_code: detail.product_tax_code.clone(),
-                })
-                .collect()
-        })
-        .unwrap_or_default()
-}
-
 fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::L2l3Data> {
     let order_details = l2_l3_data
         .and_then(|data| data.get_order_details())
-        .map(|details| build_ucs_l2_l3_order_details(Some(details.as_slice())))
+        .map(|details| {
+            let order_details = details
+                .into_iter()
+                .map(OrderDetailsWithAmount::convert_from)
+                .collect::<Vec<_>>();
+            build_ucs_order_details(Some(order_details.as_slice()))
+        })
         .unwrap_or_default();
     let merchant_order_reference_id =
         l2_l3_data.and_then(|data| data.get_merchant_order_reference_id());
