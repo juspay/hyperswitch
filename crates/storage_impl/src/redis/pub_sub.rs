@@ -67,13 +67,22 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
             tenant: self.key_prefix.clone(),
         };
 
-        self.publisher
+        let start_time = std::time::Instant::now();
+        let result = self
+            .publisher
             .publish(
                 channel,
                 RedisValue::try_from(key).change_context(redis_errors::RedisError::PublishError)?,
             )
             .await
-            .change_context(redis_errors::RedisError::SubscribeError)
+            .change_context(redis_errors::RedisError::SubscribeError);
+        self.emit_external_service_call_event(
+            "PUBLISH",
+            || channel.to_string(),
+            result.is_ok(),
+            start_time,
+        );
+        result
     }
 
     #[inline]

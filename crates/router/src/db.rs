@@ -306,7 +306,8 @@ impl RequestIdStore for MockDb {}
 impl RequestIdStore for Store {
     fn add_request_id(&mut self, request_id: String) {
         self.request_id = Some(request_id.clone());
-        self.update_key_manager_request_id(request_id);
+        self.update_key_manager_request_id(request_id.clone());
+        self.update_redis_request_id(request_id);
     }
 
     fn get_request_id(&self) -> Option<String> {
