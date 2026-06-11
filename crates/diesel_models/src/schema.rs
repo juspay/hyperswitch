@@ -215,6 +215,10 @@ diesel::table! {
         data_kind -> BlocklistDataKind,
         metadata -> Nullable<Jsonb>,
         created_at -> Timestamp,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
@@ -1325,6 +1329,9 @@ diesel::table! {
         installment_options -> Nullable<Jsonb>,
         #[max_length = 64]
         profile_acquirer_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        external_surcharge_strategy -> Nullable<Varchar>,
+        external_surcharge_applicable -> Nullable<Bool>,
     }
 }
 

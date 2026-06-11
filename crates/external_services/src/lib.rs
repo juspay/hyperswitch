@@ -73,6 +73,9 @@ pub mod consts {
     /// Header key used to specify the payout connector name in UCS requests.
     pub(crate) const UCS_HEADER_PAYOUT_CONNECTOR: &str = "x-payout-connector";
 
+    /// Header key used to specify the surcharge connector name in UCS requests.
+    pub(crate) const UCS_HEADER_SURCHARGE_CONNECTOR: &str = "x-surcharge-connector";
+
     /// Header key used to indicate the authentication type being used.
     pub(crate) const UCS_HEADER_AUTH_TYPE: &str = "x-auth";
 

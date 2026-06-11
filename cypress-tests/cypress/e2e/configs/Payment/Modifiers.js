@@ -198,9 +198,37 @@ const CURRENCY_MAP = {
   Interac: "CAD", // Canadian payment method
   AliPayHk: "HKD", // Hong Kong payment method
   Affirm: "USD", // US BNPL payment method
+  AliPay: "CNY", // Default ISO-4217 currency; MultiSafepay sandbox overrides to EUR (see Multisafepay.js::wallet_pm.PaymentIntent)
+  WeChatPay: "CNY", // Default ISO-4217 currency; MultiSafepay sandbox overrides to EUR (see Multisafepay.js::wallet_pm.PaymentIntent)
+  Paypal: "EUR",
+  MbWay: "EUR",
   Mifinity: "EUR", // Mifinity wallet payment method
+
+  // Voucher payment methods
+  Boleto: "BRL",
+  Oxxo: "MXN",
+  Alfamart: "IDR",
+  Indomaret: "IDR",
+  SevenEleven: "JPY",
+  Lawson: "JPY",
+  MiniStop: "JPY",
+  FamilyMart: "JPY",
+  Seicomart: "JPY",
+  PayEasy: "JPY",
   Skrill: "USD", // Skrill wallet payment method
   PaySafeCard: "USD", // PaySafeCard gift card payment method
+
+  // Wallet redirect and mandate payment methods
+  PaypalRedirect: "USD",
+
+  // Wallet mandate payment methods
+  KakaoPay: "KRW",
+  Gcash: "PHP",
+  Momo: "VND",
+  Twint: "CHF",
+  Vipps: "NOK",
+  Dana: "IDR",
+  GoPay: "IDR",
 };
 
 export const getCurrency = (paymentMethodType) => {
