@@ -250,8 +250,10 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
                     authentication.merchant_connector_id.as_ref(),
                 ) {
                     let reverse_lookup = ReverseLookupNew {
-                        lookup_id: merchant_connector_id
-                            .get_authentication_connector_lookup_id(connector_auth_id),
+                        lookup_id: DieselAuthentication::get_connector_authentication_lookup_id(
+                            merchant_connector_id,
+                            connector_auth_id,
+                        ),
                         pk_id: key_str.clone(),
                         sk_id: field.clone(),
                         source: "authentication".to_string(),
@@ -411,8 +413,10 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
                     database_call().await
                 }
                 Some(merchant_connector_id) => {
-                    let lookup_id = merchant_connector_id
-                        .get_authentication_connector_lookup_id(&connector_authentication_id);
+                    let lookup_id = DieselAuthentication::get_connector_authentication_lookup_id(
+                        merchant_connector_id,
+                        &connector_authentication_id,
+                    );
                     let lookup = fallback_reverse_lookup_not_found!(
                         self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
                             .await,
@@ -536,8 +540,10 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
                         updated_authentication.merchant_connector_id.as_ref(),
                     ) {
                         let reverse_lookup = ReverseLookupNew {
-                            lookup_id: merchant_connector_id
-                                .get_authentication_connector_lookup_id(connector_auth_id),
+                            lookup_id: DieselAuthentication::get_connector_authentication_lookup_id(
+                                merchant_connector_id,
+                                connector_auth_id,
+                            ),
                             pk_id: key_str.clone(),
                             sk_id: field.clone(),
                             source: "authentication".to_string(),
