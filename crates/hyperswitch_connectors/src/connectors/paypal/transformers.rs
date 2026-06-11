@@ -2185,6 +2185,7 @@ pub struct ThreeDsCheck {
 pub enum LiabilityShift {
     Possible,
     No,
+    #[serde(other)]
     Unknown,
 }
 
@@ -3322,6 +3323,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalPaymentsCancelResponse, T, Paymen
     ) -> Result<Self, Self::Error> {
         let status = match item.response.status {
             PaypalCancelStatus::Voided => storage_enums::AttemptStatus::Voided,
+            PaypalCancelStatus::Unknown => {
+                router_env::logger::warn!("Received unknown PayPal cancel status; treating as Voided");
+                storage_enums::AttemptStatus::Voided
+            }
         };
         Ok(Self {
             status,
@@ -3619,6 +3624,8 @@ pub enum OutcomeCode {
     ACCEPTED,
     DENIED,
     NONE,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
@@ -3731,6 +3738,10 @@ impl From<OutcomeCode> for IncomingWebhookEvent {
             OutcomeCode::DENIED => Self::DisputeCancelled,
             OutcomeCode::NONE => Self::DisputeCancelled,
             OutcomeCode::ResolvedWithPayout => Self::EventNotSupported,
+            OutcomeCode::Unknown => {
+                router_env::logger::warn!("Received unknown PayPal dispute outcome code; treating as EventNotSupported");
+                Self::EventNotSupported
+            }
         }
     }
 }
