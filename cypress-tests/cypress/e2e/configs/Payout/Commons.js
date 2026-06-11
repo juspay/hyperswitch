@@ -223,7 +223,7 @@ export const connectorDetails = {
     PayoutLinkBankTransfer: getCustomExchange({
       Request: {
         payout_link: true,
-        currency: "USD",
+        currency: "EUR",
         amount: 100,
         description: "Test Payout Link Bank Transfer",
         payout_link_config: {
@@ -238,11 +238,9 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-      },
-      BankData: {
-        account_number: "000123456",
-        routing_number: "110000000",
-        bank_name: "Test Bank",
+        body: {
+          status: "requires_payout_method_data",
+        },
       },
     }),
     PayoutLinkValidationError: getCustomExchange({
@@ -280,9 +278,13 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_payout_method_data",
+          error: {
+            type: "invalid_request",
+            message: "cannot confirm a payout while creating a payout link",
+            code: "IR_06",
+          },
         },
       },
     }),

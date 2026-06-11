@@ -139,7 +139,18 @@ describe("Payout Link", () => {
     });
 
     it("retrieve-non-existent-payout-link-test", () => {
-      cy.retrieveNonExistentPayoutLinkTest(globalState);
+      const merchantId = globalState.get("merchantId");
+      cy.request({
+        method: "GET",
+        url: `${globalState.get("baseUrl")}/payout_link/${merchantId}/non_existent_payout_12345`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": globalState.get("apiKey"),
+        },
+        failOnStatusCode: false,
+      }).then((response) => {
+        expect(response.status).to.equal(404);
+      });
     });
   });
 
@@ -309,50 +320,14 @@ describe("Payout Link", () => {
     });
 
     it("Visit payout page and submit bank details", () => {
-      const bankData = {
-        iban: "NL46TEST0136169112",
-        bic: "ABNANL2A",
-      };
-      cy.handlePayoutLinkBankRedirection(globalState, bankData, "success");
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "payout_link_pm"
+      ]["PayoutLinkBankTransfer"];
+      cy.handlePayoutLinkBankRedirection(globalState, data.BankData, "success");
     });
 
     it("retrieve-payout-after-bank-submission-test", function () {
-      if (Cypress.browser.isHeadless) {
-        cy.task(
-          "cli_log",
-          "Skipping retrieve-payout-after-bank-submission-test in headless mode - bank submission was skipped"
-        );
-        this.skip();
-      }
-
-      const payoutId = globalState.get("payoutID");
-      const apiKey = globalState.get("apiKey");
-      const baseUrl = globalState.get("baseUrl");
-
-      cy.request({
-        method: "GET",
-        url: `${baseUrl}/payouts/${payoutId}`,
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": apiKey,
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-        if (Cypress.browser.isHeadless) {
-          cy.task(
-            "cli_log",
-            "Headless mode: asserting status requires_payout_method_data"
-          );
-          expect(response.body.status).to.equal("requires_payout_method_data");
-        } else {
-          cy.task(
-            "cli_log",
-            "Headed mode: asserting status requires_fulfillment"
-          );
-          expect(response.body.status).to.equal("requires_fulfillment");
-        }
-      });
+      cy.retrievePayoutAfterBankSubmissionTest(globalState);
     });
   });
 
@@ -368,30 +343,10 @@ describe("Payout Link", () => {
     it("update-business-profile-with-payout-link-config-test", () => {
       const profileBody =
         fixtures.businessProfileWithPayoutLink.bpWithPayoutLink;
-      const apiKey = globalState.get("apiKey");
-      const merchantId = globalState.get("merchantId");
-      const profileId =
-        globalState.get("profileId") || globalState.get("defaultProfileId");
-
-      cy.request({
-        method: "POST",
-        url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": apiKey,
-        },
-        body: profileBody,
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body.profile_id).to.equal(profileId);
-        if (response.body.payout_link_config) {
-          expect(response.body.payout_link_config).to.have.property(
-            "domain_name"
-          );
-        }
-      });
+      cy.updateBusinessProfileWithPayoutLinkConfigTest(
+        profileBody,
+        globalState
+      );
     });
 
     it("create-payout-link-using-profile-config-test", () => {

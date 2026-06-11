@@ -9772,6 +9772,13 @@ Cypress.Commands.add(
 // Payout Link Commands
 // ============================================
 
+/**
+ * Creates a payout with payout_link enabled.
+ * Separate from createConfirmPayoutTest because:
+ * 1. It validates payout_link object in the response (link, payout_link_id)
+ * 2. It sets profile_id instead of confirm/auto_fulfill flags
+ * 3. It handles special customer_id null deletion for validation error tests
+ */
 Cypress.Commands.add(
   "createPayoutWithLinkTest",
   (createPayoutBody, data, globalState) => {
@@ -9814,6 +9821,12 @@ Cypress.Commands.add(
           expect(response.body).to.have.property("payout_link");
           expect(response.body.payout_link).to.have.property("link");
           expect(response.body.payout_link).to.have.property("payout_link_id");
+
+          if (resData.body) {
+            for (const key in resData.body) {
+              expect(response.body[key]).to.deep.equal(resData.body[key]);
+            }
+          }
 
           globalState.set("payoutID", response.body.payout_id);
           globalState.set(
@@ -9958,12 +9971,12 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("retrieveNonExistentPayoutLinkTest", (globalState) => {
-  const merchantId = globalState.get("merchantId");
+Cypress.Commands.add("retrievePayoutAfterBankSubmissionTest", (globalState) => {
+  const payoutId = globalState.get("payoutID");
 
   cy.request({
     method: "GET",
-    url: `${globalState.get("baseUrl")}/payout_link/${merchantId}/non_existent_payout_12345`,
+    url: `${globalState.get("baseUrl")}/payouts/${payoutId}`,
     headers: {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
@@ -9973,10 +9986,45 @@ Cypress.Commands.add("retrieveNonExistentPayoutLinkTest", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.status).to.equal(404);
+      expect(response.status).to.equal(200);
+      expect(response.body.status).to.equal("requires_fulfillment");
     });
   });
 });
+
+Cypress.Commands.add(
+  "updateBusinessProfileWithPayoutLinkConfigTest",
+  (profileBody, globalState) => {
+    const apiKey = globalState.get("apiKey");
+    const merchantId = globalState.get("merchantId");
+    const profileId =
+      globalState.get("profileId") || globalState.get("defaultProfileId");
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body: profileBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.equal(200);
+        expect(response.body.profile_id).to.equal(profileId);
+        if (response.body.payout_link_config) {
+          expect(response.body.payout_link_config).to.have.property(
+            "domain_name"
+          );
+        }
+      });
+    });
+  }
+);
 
 Cypress.Commands.add(
   "handlePayoutLinkBankRedirection",
