@@ -257,6 +257,8 @@ pub enum DummyConnectorPaymentStatus {
     Failed,
     #[default]
     Processing,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<DummyConnectorPaymentStatus> for AttemptStatus {
@@ -265,6 +267,7 @@ impl From<DummyConnectorPaymentStatus> for AttemptStatus {
             DummyConnectorPaymentStatus::Succeeded => Self::Charged,
             DummyConnectorPaymentStatus::Failed => Self::Failure,
             DummyConnectorPaymentStatus::Processing => Self::AuthenticationPending,
+            DummyConnectorPaymentStatus::Unknown => Self::AuthenticationPending,
         }
     }
 }
@@ -273,10 +276,10 @@ impl From<DummyConnectorPaymentStatus> for AttemptStatus {
 pub struct PaymentsResponse {
     status: DummyConnectorPaymentStatus,
     id: String,
-    amount: MinorUnit,
-    currency: Currency,
-    created: String,
-    payment_method_type: PaymentMethodType,
+    amount: Option<Secret<String>>,
+    currency: Option<Secret<String>>,
+    created: Option<Secret<String>>,
+    payment_method_type: Option<Secret<String>>,
     next_action: Option<DummyConnectorNextAction>,
 }
 
@@ -367,6 +370,8 @@ pub enum DummyRefundStatus {
     Failed,
     #[default]
     Processing,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<DummyRefundStatus> for RefundStatus {
@@ -375,7 +380,7 @@ impl From<DummyRefundStatus> for RefundStatus {
             DummyRefundStatus::Succeeded => Self::Success,
             DummyRefundStatus::Failed => Self::Failure,
             DummyRefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+            DummyRefundStatus::Unknown => Self::Pending,
         }
     }
 }
@@ -384,10 +389,10 @@ impl From<DummyRefundStatus> for RefundStatus {
 pub struct RefundResponse {
     id: String,
     status: DummyRefundStatus,
-    currency: Currency,
-    created: String,
-    payment_amount: MinorUnit,
-    refund_amount: MinorUnit,
+    currency: Option<Secret<String>>,
+    created: Option<Secret<String>>,
+    payment_amount: Option<Secret<String>>,
+    refund_amount: Option<Secret<String>>,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
