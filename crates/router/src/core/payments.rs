@@ -12478,25 +12478,25 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("missing authentication_id in payment_attempt")?;
 
-            let auth_config = &state.conf.micro_services.authentication_service;
-
-            let req_identifier = router_env::RequestIdentifier::new("x-request-id");
-            let client = crate::core::authentication_client::AuthenticationServiceClient::new(
-                auth_config,
-                &req_identifier,
-            )
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to create auth client")?;
-
             let authenticate_req = api_models::authentication::AuthenticationAuthenticateRequest {
-                authentication_id,
+                authentication_id: authentication_id.clone(),
                 client_secret: None,
                 sdk_information: req.sdk_information.clone(),
                 device_channel: req.device_channel,
                 threeds_method_comp_ind: req.threeds_method_comp_ind,
             };
+            // If micro service is enabled we do api call else do internal function call
+            let response = if let Some(auth_config) =
+                &state.conf.micro_services.authentication_service
+            {
+                let req_identifier = router_env::RequestIdentifier::new("x-request-id");
+                let client = crate::core::authentication_client::AuthenticationServiceClient::new(
+                    auth_config,
+                    &req_identifier,
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to create auth client")?;
 
-            let response =
                 crate::core::authentication_client::AuthenticationAuthenticateFlow::call(
                     &state,
                     &client,
@@ -12504,7 +12504,21 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to call authentication authenticate flow")?;
+                .attach_printable("Failed to call authentication authenticate flow")?
+            } else {
+                crate::core::unified_authentication_service::authentication_authenticate_core(
+                    state.clone(),
+                    platform.clone(),
+                    authenticate_req,
+                    services::api::AuthFlow::Client,
+                )
+                .await?
+                .get_json_body()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to get json body from authentication authenticate response",
+                )?
+            };
 
             let attempt_update = storage::PaymentAttemptUpdate::AuthenticationUpdate {
                 status: payment_attempt.status,

@@ -1955,35 +1955,19 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     field_name: "currency",
                 }).attach_printable("Currency missing")?;
 
-                let req_identifier = router_env::RequestIdentifier::new("x-request-id");
-                let client = crate::core::authentication_client::AuthenticationServiceClient::new(
-                    auth_config,
-                    &req_identifier,
-                ).change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to create auth client")?;
-
                 let auth_req = api_models::authentication::AuthenticationCreateRequest {
-                    authentication_id: None,
-                    profile_id: None,
-                    amount: payment_data.payment_intent.amount,
-                    authentication_connector: Some(authentication_connector),
-                    currency,
-                    return_url: Some(return_url),
-                    force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
-                    psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
-                    profile_acquirer_id: None,
-                    acquirer_details: Some(authentication_acquirer_details),
-                    customer_details: None,
-                };
-
-                let auth_create_resp = crate::core::authentication_client::AuthenticationCreateFlow::call(
-                    state,
-                    &client,
-                    auth_req,
-                ).await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to call authentication create flow")?;
-                payment_data.payment_attempt.authentication_id = Some(auth_create_resp.authentication_id.clone());
+                        authentication_id: None,
+                        profile_id: None,
+                        amount: payment_data.payment_intent.amount,
+                        authentication_connector: Some(authentication_connector),
+                        currency,
+                        return_url: Some(return_url),
+                        force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
+                        psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
+                        profile_acquirer_id: None,
+                        acquirer_details: Some(authentication_acquirer_details),
+                        customer_details: None,
+                    };
 
                 let pm_data: api_models::payments::PaymentMethodData = match payment_data.payment_method_data.clone() {
                     Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card)) => {
@@ -2034,18 +2018,61 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     email: email.clone(),
                 };
 
-                let elig_resp = crate::core::authentication_client::AuthenticationEligibilityFlow::call(
-                    state,
-                    &client,
-                    (
-                        eligibility_req,
-                        auth_create_resp.authentication_id.get_string_repr().to_owned(),
-                    ),
-                ).await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to call authentication eligibility flow")?;
+                // If micro service is enabled we do api call else do internal function call
+                if let Some(auth_config) = auth_config {
+                    let req_identifier = router_env::RequestIdentifier::new("x-request-id");
+                    let client = crate::core::authentication_client::AuthenticationServiceClient::new(
+                        auth_config,
+                        &req_identifier,
+                    ).change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to create auth client")?;
 
-                (auth_create_resp, elig_resp)
+                    let auth_create_resp = crate::core::authentication_client::AuthenticationCreateFlow::call(
+                        state,
+                        &client,
+                        auth_req,
+                    ).await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to call authentication create flow")?;
+
+                    payment_data.payment_attempt.authentication_id = Some(auth_create_resp.authentication_id.clone());
+
+                    let elig_resp = crate::core::authentication_client::AuthenticationEligibilityFlow::call(
+                        state,
+                        &client,
+                        (
+                            eligibility_req,
+                            auth_create_resp.authentication_id.get_string_repr().to_owned(),
+                        ),
+                    ).await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to call authentication eligibility flow")?;
+
+                    (auth_create_resp, elig_resp)
+                } else {
+                    let auth_create_resp = crate::core::unified_authentication_service::authentication_create_core(
+                        state.clone(),
+                        platform.clone(),
+                        auth_req
+                    ).await?
+                    .get_json_body()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to get json body from authentication create response")?;
+
+                    payment_data.payment_attempt.authentication_id = Some(auth_create_resp.authentication_id.clone());
+
+                    let elig_resp = crate::core::unified_authentication_service::authentication_eligibility_core(
+                        state.clone(),
+                        platform.clone(),
+                        eligibility_req,
+                        auth_create_resp.authentication_id.clone(),
+                    ).await?
+                    .get_json_body()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to get json body from authentication eligibility response")?;
+
+                    (auth_create_resp, elig_resp)
+                }
             };
 
                 if eligibility_response.is_separate_authn_required()
@@ -2109,8 +2136,14 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     );
 
                 let sync_response = if !payment_data.payment_attempt.status.is_terminal_status() && is_pull_mechanism_enabled {
-                    {
-                        let auth_config = &state.conf.micro_services.authentication_service;
+                    let sync_req = api_models::authentication::AuthenticationSyncRequest {
+                        client_secret: None,
+                        payment_method_details: None,
+                        authentication_id: authentication_id.clone(),
+                    };
+
+                    // If micro service is enabled we do api call else do internal function call
+                    if let Some(auth_config) = &state.conf.micro_services.authentication_service {
                         let req_identifier = router_env::RequestIdentifier::new("x-request-id");
                         let client = crate::core::authentication_client::AuthenticationServiceClient::new(
                             auth_config,
@@ -2119,12 +2152,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to create auth client")?;
 
-                        let sync_req = api_models::authentication::AuthenticationSyncRequest {
-                            client_secret: None,
-                            payment_method_details: None,
-                            authentication_id: authentication_id.clone(),
-                        };
-
                         crate::core::authentication_client::AuthenticationSyncFlow::call(
                             state,
                             &client,
@@ -2132,7 +2159,17 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         ).await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to call authentication sync flow")?
-
+                    } else {
+                        crate::core::unified_authentication_service::authentication_sync_core(
+                            state.clone(),
+                            platform.clone(),
+                            services::api::AuthFlow::Merchant,
+                            sync_req,
+                        )
+                        .await?
+                        .get_json_body()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to get json body from authentication sync response")?
                     }
                 } else {
                     return Err(errors::ApiErrorResponse::InternalServerError).attach_printable("Pull mechanism disabled or terminal status during post-authentication sync")?;
