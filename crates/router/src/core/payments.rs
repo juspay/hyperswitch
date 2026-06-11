@@ -9428,7 +9428,7 @@ impl PaymentEligibilityData {
             logger::info!("Resolving payment token via PM Modular Service for eligibility check");
             // Permanent tokens carry the underlying payment_method_id; any other token
             // type (or a Redis miss) is treated as the payment_method_id itself.
-            let payment_token = payment_token.clone().expose();
+            let payment_token = payment_token.peek();
             let payment_method_id = match helpers::retrieve_payment_token_data(
                 state,
                 payment_token.clone(),
@@ -9437,10 +9437,10 @@ impl PaymentEligibilityData {
             .await
             {
                 Ok(storage::PaymentTokenData::Permanent(card_token_data))
-                | Ok(storage::PaymentTokenData::PermanentCard(card_token_data)) => {
-                    card_token_data.payment_method_id.unwrap_or(payment_token)
-                }
-                _ => payment_token,
+                | Ok(storage::PaymentTokenData::PermanentCard(card_token_data)) => card_token_data
+                    .payment_method_id
+                    .unwrap_or_else(|| payment_token.clone()),
+                _ => payment_token.clone(),
             };
 
             let pm_response = pm_transformers::fetch_payment_method_from_modular_service(
@@ -9461,7 +9461,7 @@ impl PaymentEligibilityData {
         } else {
             let token_data = helpers::retrieve_payment_token_data(
                 state,
-                payment_token.clone().expose(),
+                payment_token.peek().clone(),
                 Some(payment_method_type),
             )
             .await
