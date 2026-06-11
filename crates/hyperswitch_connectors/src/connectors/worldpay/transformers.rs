@@ -627,6 +627,7 @@ impl From<PaymentOutcome> for enums::AttemptStatus {
             }
             PaymentOutcome::Refused | PaymentOutcome::FraudHighRisk => Self::Failure,
             PaymentOutcome::ThreeDsUnavailable => Self::AuthenticationFailed,
+            PaymentOutcome::Unknown => Self::Pending,
         }
     }
 }
@@ -643,7 +644,8 @@ impl From<PaymentOutcome> for enums::RefundStatus {
             | PaymentOutcome::ThreeDsAuthenticationFailed
             | PaymentOutcome::ThreeDsChallenged
             | PaymentOutcome::SentForCancellation
-            | PaymentOutcome::ThreeDsUnavailable => Self::Failure,
+            | PaymentOutcome::ThreeDsUnavailable
+            | PaymentOutcome::Unknown => Self::Failure,
         }
     }
 }
@@ -782,10 +784,18 @@ impl<F, T>
             PaymentOutcome::FraudHighRisk => Some("Transaction marked as high risk".to_string()),
             _ => None,
         };
-        let status = if amount == 0 && worldpay_status == PaymentOutcome::Authorized {
-            enums::AttemptStatus::Charged
-        } else {
-            enums::AttemptStatus::from(worldpay_status.clone())
+        let status = match worldpay_status {
+            PaymentOutcome::Unknown => {
+                router_env::logger::warn!(
+                    "Unknown PaymentOutcome from Worldpay, preserving existing status: {:?}",
+                    router_data.data.status
+                );
+                router_data.data.status
+            }
+            _ if amount == 0 && worldpay_status == PaymentOutcome::Authorized => {
+                enums::AttemptStatus::Charged
+            }
+            _ => enums::AttemptStatus::from(worldpay_status.clone()),
         };
         let response = match (optional_error_message, error) {
             (None, None) => Ok(PaymentsResponseData::TransactionResponse {

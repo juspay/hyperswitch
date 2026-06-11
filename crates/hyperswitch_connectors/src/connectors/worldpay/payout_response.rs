@@ -13,4 +13,6 @@ pub enum PayoutOutcome {
     Refused,
     Error,
     QueryRequired,
+    #[serde(other)]
+    Unknown,
 }

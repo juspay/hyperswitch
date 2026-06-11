@@ -68,7 +68,7 @@ use requests::{
     WorldpayCompleteAuthorizationRequest, WorldpayPartialRequest, WorldpayPaymentsRequest,
 };
 use response::{
-    EventType, ResponseIdStr, WorldpayErrorResponse, WorldpayEventResponse,
+    EventType, PaymentOutcome, ResponseIdStr, WorldpayErrorResponse, WorldpayEventResponse,
     WorldpayPaymentsResponse, WorldpayWebhookEventType, WorldpayWebhookTransactionId,
     WP_CORRELATION_ID,
 };
@@ -1027,9 +1027,22 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
                         .and_then(|header_value| header_value.to_str().ok())
                         .map(|id| id.to_string())
                 });
+                let refund_status = match response.outcome {
+                    PaymentOutcome::Unknown => {
+                        router_env::logger::warn!(
+                            "Unknown PaymentOutcome from Worldpay refund, preserving existing status"
+                        );
+                        data.response
+                            .as_ref()
+                            .ok()
+                            .map(|r| r.refund_status)
+                            .unwrap_or(enums::RefundStatus::Pending)
+                    }
+                    _ => enums::RefundStatus::from(response.outcome.clone()),
+                };
                 Ok(RefundExecuteRouterData {
                     response: Ok(RefundsResponseData {
-                        refund_status: enums::RefundStatus::from(response.outcome.clone()),
+                        refund_status,
                         connector_refund_id: ResponseIdStr::foreign_try_from((
                             response,
                             optional_correlation_id,
