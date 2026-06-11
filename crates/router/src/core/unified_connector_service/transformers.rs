@@ -142,10 +142,11 @@ fn build_ucs_l2_l3_order_details(
         .unwrap_or_default()
 }
 
-fn build_ucs_l2_l3_data(
-    order_details: &[payments_grpc::OrderDetailsWithAmount],
-    l2_l3_data: Option<&L2L3Data>,
-) -> Option<payments_grpc::L2l3Data> {
+fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::L2l3Data> {
+    let order_details = l2_l3_data
+        .and_then(|data| data.get_order_details())
+        .map(|details| build_ucs_l2_l3_order_details(Some(details.as_slice())))
+        .unwrap_or_default();
     let merchant_order_reference_id =
         l2_l3_data.and_then(|data| data.get_merchant_order_reference_id());
     let order_date = l2_l3_data
@@ -172,7 +173,7 @@ fn build_ucs_l2_l3_data(
         || duty_amount.is_some())
     .then_some(payments_grpc::OrderInfo {
         order_date,
-        order_details: order_details.to_vec(),
+        order_details,
         merchant_order_reference_id,
         discount_amount: discount_amount.map(|amount| amount.get_amount_as_i64()),
         shipping_cost: shipping_cost.map(|amount| amount.get_amount_as_i64()),
@@ -430,16 +431,7 @@ impl
             .as_ref()
             .map(ConnectorState::foreign_from);
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
-        let gated_l2_l3_order_details = router_data
-            .l2_l3_data
-            .as_deref()
-            .and_then(|l2_l3_data| l2_l3_data.get_order_details());
-        let gated_l2_l3_order_details =
-            build_ucs_l2_l3_order_details(gated_l2_l3_order_details.as_deref());
-        let l2_l3_data = build_ucs_l2_l3_data(
-            &gated_l2_l3_order_details,
-            router_data.l2_l3_data.as_deref(),
-        );
+        let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -1578,16 +1570,7 @@ impl
             .as_ref()
             .map(ConnectorState::foreign_from);
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
-        let gated_l2_l3_order_details = router_data
-            .l2_l3_data
-            .as_deref()
-            .and_then(|l2_l3_data| l2_l3_data.get_order_details());
-        let gated_l2_l3_order_details =
-            build_ucs_l2_l3_order_details(gated_l2_l3_order_details.as_deref());
-        let l2_l3_data = build_ucs_l2_l3_data(
-            &gated_l2_l3_order_details,
-            router_data.l2_l3_data.as_deref(),
-        );
+        let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
