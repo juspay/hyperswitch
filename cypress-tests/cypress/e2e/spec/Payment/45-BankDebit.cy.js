@@ -5,6 +5,7 @@ import getConnectorDetails, {
   shouldIncludeConnector,
 } from "../../configs/Payment/Utils";
 import * as utils from "../../configs/Payment/Utils";
+import { isCI } from "../../../utils/RequestBodyUtils";
 
 let globalState;
 
@@ -78,6 +79,13 @@ describe("Bank Debit tests", () => {
   });
 
   context("ACH Bank Debit Create and Confirm flow test", () => {
+    before(function () {
+      if (isCI()) {
+        cy.task("cli_log", "Skipping ACH Bank Debit tests in CI environment");
+        this.skip();
+      }
+    });
+
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm ACH Bank Debit -> Retrieve Payment", () => {
       let shouldContinue = true;
 
@@ -339,6 +347,13 @@ describe("Bank Debit tests", () => {
   });
 
   context("ACH Bank Debit Mandate flow test", () => {
+    before(function () {
+      if (isCI()) {
+        cy.task("cli_log", "Skipping ACH Bank Debit Mandate tests in CI environment");
+        this.skip();
+      }
+    });
+
     it("CIT mandate creation -> MIT mandate reuse for ACH", () => {
       let shouldContinue = true;
 
