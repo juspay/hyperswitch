@@ -72,19 +72,21 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let is_external_vault_sdk_enabled = profile.is_vault_sdk_enabled();
+    let external_vault_profile =
+        helpers::resolve_external_vault_profile(state, platform, profile).await?;
+    let is_external_vault_sdk_enabled = external_vault_profile.is_vault_sdk_enabled();
 
     if is_external_vault_sdk_enabled {
-        let external_vault_source = profile
+        let external_vault_source = external_vault_profile
             .external_vault_connector_details
             .as_ref()
             .map(|details| &details.vault_connector_id);
 
         let merchant_connector_account =
             domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
-                helpers::get_merchant_connector_account_v2(
+                helpers::get_external_vault_mca_v2(
                     state,
-                    platform.get_processor(),
+                    platform.get_provider(),
                     external_vault_source,
                 )
                 .await?,
@@ -152,35 +154,35 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let is_external_vault_sdk_enabled = profile.external_vault_details.is_external_vault_enabled();
+    let external_vault_profile =
+        helpers::resolve_external_vault_profile(state, platform, profile).await?;
+    let is_external_vault_sdk_enabled = external_vault_profile
+        .external_vault_details
+        .is_external_vault_enabled();
 
     if is_external_vault_sdk_enabled {
-        // Extract the vault connector id from the profile
-        let vault_connector_id = match &profile.external_vault_details {
+        let vault_connector_id = match &external_vault_profile.external_vault_details {
             domain::ExternalVaultDetails::ExternalVaultEnabled(details) => {
-                Some(&details.vault_connector_id)
+                &details.vault_connector_id
             }
-            domain::ExternalVaultDetails::Skip => None,
+            domain::ExternalVaultDetails::Skip => return Ok(()),
         };
 
-        // Fetch the vault MCA using the vault_connector_id from profile
-        let vault_mca_type = helpers::get_merchant_connector_account(
-            state,
-            platform.get_processor(),
-            None,
-            profile.get_id(),
-            "",
-            vault_connector_id,
-        )
-        .await?;
+        let vault_mca = state
+            .store
+            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                platform.get_provider().get_account().get_id(),
+                vault_connector_id,
+                platform.get_provider().get_key_store(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: vault_connector_id.get_string_repr().to_string(),
+            })?;
 
-        let vault_mca = match vault_mca_type {
-            helpers::MerchantConnectorAccountType::DbVal(ref mca) => mca.clone(),
-            helpers::MerchantConnectorAccountType::CacheVal(_) => {
-                return Err(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Vault MCA must be a DB-backed account")
-            }
-        };
+        let vault_mca_type =
+            helpers::MerchantConnectorAccountType::DbVal(Box::new(vault_mca.clone()));
+
         let connector_customer_map = customer
             .as_ref()
             .and_then(|customer| customer.connector_customer.as_ref());
@@ -228,7 +230,7 @@ where
 
         let vault_session_details = generate_vault_session_details_v1(
             state,
-            platform.get_processor(),
+            platform.get_provider(),
             &vault_mca,
             connector_customer_id,
         )
@@ -409,7 +411,7 @@ pub async fn generate_vault_session_details(
 #[cfg(feature = "v1")]
 pub async fn generate_vault_session_details_v1(
     state: &SessionState,
-    processor: &domain::Processor,
+    provider: &domain::Provider,
     vault_mca: &domain::MerchantConnectorAccount,
     connector_customer_id: Option<String>,
 ) -> RouterResult<Option<api::VaultSessionDetails>> {
@@ -452,7 +454,7 @@ pub async fn generate_vault_session_details_v1(
         ) => {
             let connector_response = call_external_vault_create_v1(
                 state,
-                processor,
+                provider,
                 connector_name_str,
                 vault_mca,
                 connector_customer_id,
@@ -494,7 +496,7 @@ pub async fn generate_vault_session_details_v1(
 #[cfg(feature = "v1")]
 async fn call_external_vault_create_v1(
     state: &SessionState,
-    processor: &domain::Processor,
+    provider: &domain::Provider,
     connector_name: String,
     vault_mca: &domain::MerchantConnectorAccount,
     connector_customer_id: Option<String>,
@@ -516,7 +518,7 @@ where
 
     let router_data = core_utils::construct_vault_router_data(
         state,
-        processor.get_account().get_id(),
+        provider.get_account().get_id(),
         vault_mca,
         None,
         None,

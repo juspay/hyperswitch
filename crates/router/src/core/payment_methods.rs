@@ -2955,7 +2955,9 @@ pub async fn create_payment_method_proxy_card_core(
 
     let key_manager_state = &(state).into();
 
-    let external_vault_source = profile
+    let external_vault_profile =
+        payments_core::helpers::resolve_external_vault_profile(state, platform, profile).await?;
+    let external_vault_source = external_vault_profile
         .external_vault_connector_details
         .clone()
         .map(|details| details.vault_connector_id);
@@ -4728,11 +4730,13 @@ pub async fn vault_payment_method(
     pm_types::AddVaultResponse,
     Option<id_type::MerchantConnectorAccountId>,
 )> {
-    let is_external_vault_enabled = profile.is_external_vault_enabled();
+    let external_vault_profile =
+        payments_core::helpers::resolve_external_vault_profile(state, platform, profile).await?;
+    let is_external_vault_enabled = external_vault_profile.is_external_vault_enabled();
 
     match is_external_vault_enabled {
         true => {
-            let (external_vault_source, vault_token_selector) = profile
+            let (external_vault_source, vault_token_selector) = external_vault_profile
                 .external_vault_connector_details
                 .clone()
                 .map(|connector_details| {
@@ -4746,9 +4750,9 @@ pub async fn vault_payment_method(
 
             let merchant_connector_account =
                 domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
-                    payments_core::helpers::get_merchant_connector_account_v2(
+                    payments_core::helpers::get_external_vault_mca_v2(
                         state,
-                        platform.get_processor(),
+                        platform.get_provider(),
                         Some(&external_vault_source),
                     )
                     .await

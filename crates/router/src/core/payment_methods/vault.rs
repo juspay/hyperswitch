@@ -2156,6 +2156,14 @@ pub async fn retrieve_payment_method_from_vault_external(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector data")?;
 
+    access_token::create_access_token(
+        state,
+        &connector_data,
+        merchant_account.get_id(),
+        &mut old_router_data,
+    )
+    .await?;
+
     let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
         ExternalVaultRetrieveFlow,
         types::VaultRequestData,
@@ -2506,7 +2514,9 @@ pub async fn retrieve_payment_method_from_vault(
     profile: &domain::Profile,
     pm: &domain::PaymentMethod,
 ) -> RouterResult<pm_types::VaultRetrieveResponse> {
-    let is_external_vault_enabled = profile.is_external_vault_enabled();
+    let external_vault_profile =
+        payments_core::helpers::resolve_external_vault_profile(state, platform, profile).await?;
+    let is_external_vault_enabled = external_vault_profile.is_external_vault_enabled();
 
     match is_external_vault_enabled {
         true => {
@@ -2514,9 +2524,9 @@ pub async fn retrieve_payment_method_from_vault(
 
             let merchant_connector_account =
                 domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
-                    payments_core::helpers::get_merchant_connector_account_v2(
+                    payments_core::helpers::get_external_vault_mca_v2(
                         state,
-                        platform.get_processor(),
+                        platform.get_provider(),
                         external_vault_source,
                     )
                     .await
@@ -2678,7 +2688,9 @@ pub async fn delete_payment_method_data_from_vault(
     profile: &domain::Profile,
     pm: &domain::PaymentMethod,
 ) -> RouterResult<pm_types::VaultDeleteResponse> {
-    let is_external_vault_enabled = profile.is_external_vault_enabled();
+    let external_vault_profile =
+        payments_core::helpers::resolve_external_vault_profile(state, platform, profile).await?;
+    let is_external_vault_enabled = external_vault_profile.is_external_vault_enabled();
 
     let vault_id = pm
         .locker_id
@@ -2696,9 +2708,9 @@ pub async fn delete_payment_method_data_from_vault(
 
             let merchant_connector_account =
                 domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
-                    payments_core::helpers::get_merchant_connector_account_v2(
+                    payments_core::helpers::get_external_vault_mca_v2(
                         state,
-                        platform.get_processor(),
+                        platform.get_provider(),
                         external_vault_source,
                     )
                     .await

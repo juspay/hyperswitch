@@ -2862,11 +2862,11 @@ pub async fn fetch_card_details_from_locker(
         } => {
             Box::pin(fetch_card_details_from_external_vault(
                 state,
-                platform.get_processor().get_account().get_id(),
+                platform.get_provider().get_account().get_id(),
                 card_token_data,
                 co_badged_card_data,
                 payment_method_info,
-                platform.get_processor().get_key_store(),
+                platform.get_provider().get_key_store(),
                 external_vault_source,
             ))
             .await
@@ -2883,6 +2883,59 @@ pub async fn fetch_card_details_from_locker(
             .await
         }
     }
+}
+
+/// Resolve the business profile that holds the external vault configuration.
+///
+/// External vault can only be configured on the platform (provider) merchant. In a
+/// platform-connected flow the payment runs under the connected (processor) merchant,
+/// whose profile does not carry vault config, so we resolve the platform merchant's
+/// single profile. For standard merchants (provider == processor) the supplied payment
+/// profile is returned unchanged, keeping standard flows untouched.
+///
+/// The platform merchant always has exactly one profile, so the same lookup works for
+/// both v1 and v2 (v2 does not populate `default_profile`).
+pub async fn resolve_external_vault_profile(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_profile: &domain::Profile,
+) -> RouterResult<domain::Profile> {
+    let provider = platform.get_provider();
+    let processor = platform.get_processor();
+
+    if provider.get_account().get_id() == processor.get_account().get_id() {
+        return Ok(payment_profile.clone());
+    }
+
+    let profiles = state
+        .store
+        .list_profile_by_merchant_id(provider.get_key_store(), provider.get_account().get_id())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to list profiles for the platform merchant")?;
+
+    profiles.into_iter().next().ok_or_else(|| {
+        report!(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Platform merchant has no profile configured for external vault")
+    })
+}
+
+#[cfg(feature = "v2")]
+pub async fn get_external_vault_mca_v2(
+    state: &SessionState,
+    provider: &domain::Provider,
+    merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
+) -> RouterResult<domain::MerchantConnectorAccount> {
+    let merchant_connector_id = merchant_connector_id
+        .get_required_value("merchant_connector_id")
+        .attach_printable("merchant_connector_id not provided for external vault")?;
+    state
+        .store
+        .find_merchant_connector_account_by_id(merchant_connector_id, provider.get_key_store())
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_connector_id.get_string_repr().to_string(),
+        })
 }
 
 #[cfg(feature = "v1")]

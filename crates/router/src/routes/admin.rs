@@ -560,21 +560,38 @@ pub async fn connector_create(
         state,
         &req,
         payload,
-        |state, auth_data, req, _| {
+        |state, auth_data, req, _| async move {
+            if auth_data
+                .platform
+                .get_processor()
+                .get_account()
+                .merchant_account_type
+                == common_enums::MerchantAccountType::Connected
+                && api_models::enums::VaultConnectors::try_from(req.connector_name).is_ok()
+            {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message:
+                        "Vault connectors can only be configured by platform or standard merchants, not connected merchants"
+                            .to_string(),
+                }
+                .into());
+            }
             create_connector(
                 state,
                 req,
                 auth_data.platform.get_processor().clone(),
                 auth_data.profile.map(|profile| profile.get_id().clone()),
             )
+            .await
         },
         auth::auth_type(
-            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::ApiKeyAuthWithMerchantIdFromRouteAllowPlatform(merchant_id.clone()),
             &auth::JWTAndEmbeddedAuth {
                 merchant_id_from_route: Some(merchant_id.clone()),
                 permission: Some(Permission::ProfileConnectorWrite),
                 allow_connected: true,
-                allow_platform: false,
+                // Platform merchants create the external (vault) connector on themselves.
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -599,15 +616,31 @@ pub async fn connector_create(
         state,
         &req,
         payload,
-        |state, auth_data: auth::AuthenticationData, req, _| {
-            create_connector(state, req, auth_data.platform.get_processor().clone(), None)
+        |state, auth_data: auth::AuthenticationData, req, _| async move {
+            if auth_data
+                .platform
+                .get_processor()
+                .get_account()
+                .merchant_account_type
+                == common_enums::MerchantAccountType::Connected
+                && api_models::enums::VaultConnectors::try_from(req.connector_name).is_ok()
+            {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message:
+                        "Vault connectors can only be configured by platform or standard merchants, not connected merchants"
+                            .to_string(),
+                }
+                .into());
+            }
+            create_connector(state, req, auth_data.platform.get_processor().clone(), None).await
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantConnectorWrite,
                 allow_connected: true,
-                allow_platform: false,
+                // Platform merchants create the external (vault) connector on themselves.
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -760,12 +793,12 @@ pub async fn connector_list(
             list_payment_connectors(state, auth.platform.get_processor().clone(), None)
         },
         auth::auth_type(
-            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::ApiKeyAuthWithMerchantIdFromRouteAllowPlatform(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorRead,
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -800,12 +833,12 @@ pub async fn connector_list_profile(
             )
         },
         auth::auth_type(
-            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::ApiKeyAuthWithMerchantIdFromRouteAllowPlatform(merchant_id.clone()),
             &auth::JWTAndEmbeddedAuth {
                 merchant_id_from_route: Some(merchant_id),
                 permission: Some(Permission::ProfileConnectorRead),
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             req.headers(),
         ),
