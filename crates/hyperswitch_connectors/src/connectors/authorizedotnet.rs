@@ -1048,12 +1048,18 @@ impl webhooks::IncomingWebhook for Authorizedotnet {
             | authorizedotnet::AuthorizedotnetWebhookEvent::PriorAuthCapture
             | authorizedotnet::AuthorizedotnetWebhookEvent::AuthCapCreated
             | authorizedotnet::AuthorizedotnetWebhookEvent::CaptureCreated
-            | authorizedotnet::AuthorizedotnetWebhookEvent::VoidCreated => {
+            |             authorizedotnet::AuthorizedotnetWebhookEvent::VoidCreated => {
                 Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::ConnectorTransactionId(
                         authorizedotnet::get_trans_id(&details)?,
                     ),
                 ))
+            }
+            authorizedotnet::AuthorizedotnetWebhookEvent::Unknown => {
+                router_env::logger::warn!(
+                    "Unknown authorizedotnet webhook event type received"
+                );
+                Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
             }
         }
     }

@@ -588,7 +588,7 @@ pub struct AuthorizedotnetSetupMandateResponse {
     customer_profile_id: Option<String>,
     #[serde(rename = "customerPaymentProfileId")]
     customer_payment_profile_id: Option<String>,
-    validation_direct_response_list: Option<Vec<Secret<String>>>,
+    validation_direct_response_list: Option<Secret<serde_json::Value>>,
     pub messages: ResponseMessages,
 }
 
@@ -677,6 +677,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
                         ..item.data
                     })
                 }
+            }
+            ResultCode::Unknown => {
+                router_env::logger::warn!(
+                    "Unknown result code from authorizedotnet customer response"
+                );
+                Ok(item.data)
             }
         }
     }
@@ -1407,7 +1413,8 @@ pub enum TransactionResponse {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct AuthorizedotnetTransactionResponseError {
-    _supplemental_data_qualification_indicator: i64,
+    #[serde(rename = "supplementalDataQualificationIndicator")]
+    _supplemental_data_qualification_indicator: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1833,6 +1840,7 @@ impl From<AuthorizedotnetRefundStatus> for enums::RefundStatus {
             AuthorizedotnetRefundStatus::Approved | AuthorizedotnetRefundStatus::HeldForReview => {
                 Self::Pending
             }
+            AuthorizedotnetRefundStatus::Unknown => Self::Pending,
         }
     }
 }
@@ -1955,6 +1963,8 @@ pub enum SyncStatus {
     FDSPendingReview,
     #[serde(rename = "FDSAuthorizedPendingReview")]
     FDSAuthorizedPendingReview,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1965,6 +1975,8 @@ pub enum RSyncStatus {
     Declined,
     GeneralError,
     Voided,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -2012,6 +2024,7 @@ impl From<SyncStatus> for enums::AttemptStatus {
             SyncStatus::FDSPendingReview | SyncStatus::FDSAuthorizedPendingReview => {
                 Self::Unresolved
             }
+            SyncStatus::Unknown => Self::Unresolved,
         }
     }
 }
@@ -2024,6 +2037,7 @@ impl From<RSyncStatus> for enums::RefundStatus {
             RSyncStatus::Declined | RSyncStatus::GeneralError | RSyncStatus::Voided => {
                 Self::Failure
             }
+            RSyncStatus::Unknown => Self::Pending,
         }
     }
 }
@@ -2214,6 +2228,8 @@ pub enum AuthorizedotnetWebhookEvent {
     VoidCreated,
     #[serde(rename = "net.authorize.payment.refund.created")]
     RefundCreated,
+    #[serde(other)]
+    Unknown,
 }
 ///Including Unknown to map unknown webhook events
 #[derive(Debug, Deserialize)]
@@ -2258,6 +2274,7 @@ impl From<AuthorizedotnetWebhookEvent> for SyncStatus {
             AuthorizedotnetWebhookEvent::PriorAuthCapture => Self::SettledSuccessfully,
             AuthorizedotnetWebhookEvent::VoidCreated => Self::Voided,
             AuthorizedotnetWebhookEvent::RefundCreated => Self::RefundSettledSuccessfully,
+            AuthorizedotnetWebhookEvent::Unknown => Self::GeneralError,
         }
     }
 }
