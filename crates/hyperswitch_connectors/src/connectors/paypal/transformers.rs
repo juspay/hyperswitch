@@ -3336,7 +3336,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalPaymentsCancelResponse, T, Paymen
         let status = match item.response.status {
             PaypalCancelStatus::Voided => storage_enums::AttemptStatus::Voided,
             PaypalCancelStatus::Unknown => {
-                router_env::logger::warn!("Received unknown PayPal cancel status; treating as Voided");
+                router_env::logger::warn!(
+                    "Received unknown PayPal cancel status; treating as Voided"
+                );
                 storage_enums::AttemptStatus::Voided
             }
         };
@@ -3751,7 +3753,9 @@ impl From<OutcomeCode> for IncomingWebhookEvent {
             OutcomeCode::NONE => Self::DisputeCancelled,
             OutcomeCode::ResolvedWithPayout => Self::EventNotSupported,
             OutcomeCode::Unknown => {
-                router_env::logger::warn!("Received unknown PayPal dispute outcome code; treating as EventNotSupported");
+                router_env::logger::warn!(
+                    "Received unknown PayPal dispute outcome code; treating as EventNotSupported"
+                );
                 Self::EventNotSupported
             }
         }
