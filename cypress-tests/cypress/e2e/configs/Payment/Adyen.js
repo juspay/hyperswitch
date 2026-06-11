@@ -1839,7 +1839,7 @@ export const connectorDetails = {
             type: "invalid_request",
             code: "IR_39",
             message:
-              "required payment method is not configured or configured incorrectly for all configured connectors",
+              "No eligible connector was found for the current payment method configuration",
           },
         },
       },
@@ -1904,7 +1904,7 @@ export const connectorDetails = {
             type: "invalid_request",
             code: "IR_39",
             message:
-              "required payment method is not configured or configured incorrectly for all configured connectors",
+              "No eligible connector was found for the current payment method configuration",
           },
         },
       },
@@ -2019,7 +2019,7 @@ export const connectorDetails = {
             type: "invalid_request",
             code: "IR_39",
             message:
-              "required payment method is not configured or configured incorrectly for all configured connectors",
+              "No eligible connector was found for the current payment method configuration",
           },
         },
       },
