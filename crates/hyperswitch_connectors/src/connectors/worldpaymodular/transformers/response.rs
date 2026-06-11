@@ -67,7 +67,7 @@ pub struct WroldpayModularActualPsyncResponseObj {
     pub value: super::PaymentValue,
 }
 
-// Sent for settlement plays totally differnt role in worldpaymodular in webhooks and psync
+// Sent for settlement plays totally different role in worldpaymodular in webhooks and psync
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum WorldpayModularPsyncObjResponse {
