@@ -81,26 +81,90 @@ describe("Bank Debit tests", () => {
       });
   });
 
-  after("flush global state", () => {
+  afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
   context("SEPA Bank Debit Create and Confirm flow test", () => {
+    before(function () {
+      if (globalState.get("connectorId") === "inespay") {
+        this.skip();
+      }
+    });
+
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm SEPA Bank Debit -> Retrieve Payment", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent for SEPA", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["PaymentIntent"]("Sepa");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm SEPA Bank Debit", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm SEPA Bank Debit");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["Sepa"];
+        cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(
+          globalState.get("connectorId")
+        )["bank_debit_pm"]["Sepa"];
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+      });
+    });
+  });
+
+  context("Inespay SEPA Bank Debit Create and Confirm flow test", () => {
+    before(function () {
+      if (globalState.get("connectorId") !== "inespay") {
+        this.skip();
+      }
+    });
+
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm SEPA Bank Debit -> Handle Redirect -> Retrieve Payment", () => {
       runSepaPaymentFlow(globalState).then((shouldContinue) => {
         cy.step("Handle SEPA Redirect", () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Handle SEPA Redirect");
             return;
           }
-          const connectorId = globalState.get("connectorId");
-          if (connectorId === "inespay") {
-            cy.handleBankRedirectRedirection(
-              globalState,
-              "sepa",
-              fixtures.confirmBody["return_url"]
-            );
-          }
+          cy.handleBankRedirectRedirection(
+            globalState,
+            "sepa",
+            fixtures.confirmBody["return_url"]
+          );
         });
 
         cy.step("Retrieve Payment", () => {
