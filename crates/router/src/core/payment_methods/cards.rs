@@ -3667,10 +3667,18 @@ pub async fn build_merchant_enabled_pms_context(
                 &intermediate.payment_method_type,
                 &skip_pre_routing,
             ) {
+                let merchant_connector_id = id_type::MerchantConnectorAccountId::wrap(
+                    intermediate.merchant_connector_id.clone(),
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "invalid merchant_connector_id received in payment methods list",
+                )?;
+
                 let connector_data = helpers::get_connector_data_with_token(
                     state,
                     intermediate.connector.to_string(),
-                    None,
+                    Some(merchant_connector_id),
                     intermediate.payment_method_type,
                 )
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4150,10 +4158,17 @@ pub async fn build_merchant_enabled_pms_context(
     };
 
     // ---- sdk_next_action ----
+    let has_surcharge_processor = business_profile
+        .surcharge_connector_details
+        .as_ref()
+        .and_then(|details| details.surcharge_connector_id.as_ref())
+        .is_some();
+
     let sdk_next_action = payment_method_utils::get_sdk_next_action_for_payment_method_list(
         state,
         &dimensions,
         payment_intent.and_then(|pi| pi.customer_id.as_ref()),
+        has_surcharge_processor,
     )
     .await;
 

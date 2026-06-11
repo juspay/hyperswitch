@@ -1264,6 +1264,9 @@ diesel::table! {
         #[max_length = 64]
         profile_acquirer_id -> Nullable<Varchar>,
         #[max_length = 64]
+        external_surcharge_strategy -> Nullable<Varchar>,
+        external_surcharge_applicable -> Nullable<Bool>,
+        #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,
         shipping_address -> Nullable<Bytea>,
