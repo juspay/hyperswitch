@@ -131,17 +131,23 @@ pub enum CryptopayPaymentStatus {
     Unresolved,
     Refunded,
     Cancelled,
+    #[serde(other)]
+    Unknown,
 }
 
-impl From<CryptopayPaymentStatus> for enums::AttemptStatus {
-    fn from(item: CryptopayPaymentStatus) -> Self {
-        match item {
-            CryptopayPaymentStatus::New => Self::AuthenticationPending,
-            CryptopayPaymentStatus::Completed => Self::Charged,
-            CryptopayPaymentStatus::Cancelled => Self::Failure,
-            CryptopayPaymentStatus::Unresolved | CryptopayPaymentStatus::Refunded => {
-                Self::Unresolved
-            } //mapped refunded to Unresolved because refund api is not available, also merchant has done the action on the connector dashboard.
+impl CryptopayPaymentStatus {
+    fn to_attempt_status(self, existing: enums::AttemptStatus) -> enums::AttemptStatus {
+        match self {
+            Self::New => enums::AttemptStatus::AuthenticationPending,
+            Self::Completed => enums::AttemptStatus::Charged,
+            Self::Cancelled => enums::AttemptStatus::Failure,
+            Self::Unresolved | Self::Refunded => enums::AttemptStatus::Unresolved,
+            Self::Unknown => {
+                router_env::logger::warn!(
+                    "Unknown cryptopay payment status received, preserving existing status"
+                );
+                existing
+            }
         }
     }
 }
@@ -164,7 +170,12 @@ impl<F, T>
             Option<MinorUnit>,
         ),
     ) -> Result<Self, Self::Error> {
-        let status = enums::AttemptStatus::from(item.response.data.status.clone());
+        let status = item
+            .response
+            .data
+            .status
+            .clone()
+            .to_attempt_status(item.data.status);
         let response = if utils::is_payment_failure(status) {
             let payment_response = &item.response.data;
             Err(ErrorResponse {
@@ -245,26 +256,26 @@ pub struct CryptopayErrorResponse {
 pub struct CryptopayPaymentResponseData {
     pub id: String,
     pub custom_id: Option<String>,
-    pub customer_id: Option<String>,
+    pub customer_id: Option<Secret<String>>,
     pub status: CryptopayPaymentStatus,
     pub status_context: Option<String>,
     pub address: Option<Secret<String>>,
-    pub network: Option<String>,
-    pub uri: Option<String>,
+    pub network: Option<Secret<String>>,
+    pub uri: Option<Secret<String>>,
     pub price_amount: Option<StringMajorUnit>,
-    pub price_currency: Option<String>,
+    pub price_currency: Option<Secret<String>>,
     pub pay_amount: Option<StringMajorUnit>,
-    pub pay_currency: Option<String>,
-    pub fee: Option<String>,
-    pub fee_currency: Option<String>,
-    pub paid_amount: Option<String>,
+    pub pay_currency: Option<Secret<String>>,
+    pub fee: Option<Secret<String>>,
+    pub fee_currency: Option<Secret<String>>,
+    pub paid_amount: Option<Secret<String>>,
     pub name: Option<String>,
-    pub description: Option<String>,
-    pub success_redirect_url: Option<String>,
-    pub unsuccess_redirect_url: Option<String>,
+    pub description: Option<Secret<String>>,
+    pub success_redirect_url: Option<Secret<String>>,
+    pub unsuccess_redirect_url: Option<Secret<String>>,
     pub hosted_page_url: Option<Url>,
-    pub created_at: Option<String>,
-    pub expires_at: Option<String>,
+    pub created_at: Option<Secret<String>>,
+    pub expires_at: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

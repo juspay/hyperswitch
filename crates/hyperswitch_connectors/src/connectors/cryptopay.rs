@@ -494,7 +494,11 @@ impl webhooks::IncomingWebhook for Cryptopay {
             cryptopay::CryptopayPaymentStatus::Cancelled => {
                 Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
             }
-            _ => Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported),
+            cryptopay::CryptopayPaymentStatus::New
+            | cryptopay::CryptopayPaymentStatus::Refunded
+            | cryptopay::CryptopayPaymentStatus::Unknown => {
+                Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported)
+            }
         }
     }
 
