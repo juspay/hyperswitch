@@ -520,7 +520,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, SignifydPaymentsResponse, T, FraudCheck
             Some(decision) => (
                 FraudCheckStatus::from(decision.checkpoint_action),
                 decision.score.and_then(|data| data.to_i32()),
-                decision.checkpoint_action_reason.map(serde_json::Value::from),
+                decision
+                    .checkpoint_action_reason
+                    .map(serde_json::Value::from),
             ),
             None => (FraudCheckStatus::Legit, None, None),
         };
