@@ -34,9 +34,10 @@ pub trait CaptureInterface {
 mod storage {
     use error_stack::{report, ResultExt};
     use redis_interface::HsetnxReply;
-    use router_env::{instrument, logger, tracing};
+    use router_env::{instrument, tracing};
     use storage_impl::{
         redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
+        utils::find_all_combined_kv_database,
         KvSupportedEntity,
     };
 
@@ -46,7 +47,6 @@ mod storage {
         core::errors::{self, utils::RedisErrorExt, CustomResult},
         services::Store,
         types::storage::{capture::*, enums},
-        utils::db_utils,
     };
 
     #[async_trait::async_trait]
@@ -213,34 +213,22 @@ mod storage {
                     };
                     let pattern = format!("pa_{authorized_attempt_id}_capture_*");
 
-                    let mut captures = Box::pin(db_utils::try_redis_get_else_try_database_get(
-                        async {
-                            Box::pin(kv_wrapper(
-                                self,
-                                KvOperation::<Capture>::Scan(&pattern),
-                                key,
-                            ))
-                            .await?
-                            .try_into_scan()
-                        },
+                    let redis_fut = async {
+                        Box::pin(kv_wrapper(
+                            self,
+                            KvOperation::<Capture>::Scan(&pattern),
+                            key,
+                        ))
+                        .await?
+                        .try_into_scan()
+                    };
+
+                    let mut captures = Box::pin(find_all_combined_kv_database(
+                        redis_fut,
                         database_call,
+                        None,
                     ))
                     .await?;
-
-                    // If sequence 1 is missing, earlier captures may have been drained to DB
-                    // and evicted from Redis. Fetch from DB and merge to ensure completeness.
-                    let has_sequence_one = captures.iter().any(|c| c.capture_sequence == 1i16);
-                    if !has_sequence_one {
-                        logger::info!("Only a subset of captures available in the Redis store. Hence reading from Database as well");
-                        let db_drainer_captures = database_call().await?;
-                        let seen_capture_ids: std::collections::HashSet<String> =
-                            captures.iter().map(|c| c.capture_id.clone()).collect();
-                        captures.extend(
-                            db_drainer_captures
-                                .into_iter()
-                                .filter(|c| !seen_capture_ids.contains(c.capture_id.as_str())),
-                        );
-                    }
 
                     captures.sort_by_key(|c| c.capture_sequence);
 
