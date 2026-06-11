@@ -269,7 +269,7 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -629,7 +629,7 @@ pub struct PaymentsIntentResponse {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -775,7 +775,7 @@ pub struct RevenueRecoveryGetIntentResponse {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -2178,7 +2178,7 @@ pub struct PaymentAttemptResponse {
     pub connector_payment_id: Option<common_utils::types::ConnectorTransactionId>,
 
     /// Identifier for Payment Method used for the payment attempt
-    #[schema(value_type = Option<String>, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    #[schema(value_type = Option<String>, example = "0a_pm_01926c58bc6e77c09e809964e72af8c8")]
     pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
 
     /// Value passed in X-CLIENT-SOURCE header during payments confirm request by the client
@@ -3158,6 +3158,7 @@ mod payment_method_data_serde {
                     | PaymentMethodData::Card(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::ProxyCard(_)
+                    | PaymentMethodData::VaultCardTokenData(_)
                     | PaymentMethodData::MandatePayment
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::Wallet(_) => {
@@ -3499,6 +3500,12 @@ pub enum PaymentMethodData {
     /// When this variant is used, the payment will be routed through the external vault proxy flow.
     #[schema(title = "ProxyCard")]
     ProxyCard(Box<ProxyCardData>),
+    /// Vault card token data used for external vault proxy payments with an already-saved card.
+    /// The top-level `payment_token` resolves to a stored payment method whose external vault
+    /// tokens are retrieved from the modular PM service; this variant carries the CVC / card
+    /// holder name to combine with those tokens. Routed through the external vault proxy flow.
+    #[schema(title = "VaultCardTokenData")]
+    VaultCardTokenData(CardToken),
 }
 
 pub trait GetAddressFromPaymentMethodData {
@@ -3526,7 +3533,8 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             | Self::MandatePayment
             | Self::MobilePayment(_)
             | Self::NetworkToken(_)
-            | Self::ProxyCard(_) => None,
+            | Self::ProxyCard(_)
+            | Self::VaultCardTokenData(_) => None,
         }
     }
 }
@@ -3551,7 +3559,9 @@ impl PaymentMethodData {
             Self::MobilePayment(_) => Some(api_enums::PaymentMethod::MobilePayment),
             Self::NetworkToken(_) => Some(api_enums::PaymentMethod::NetworkToken),
             Self::CardToken(_) | Self::MandatePayment => None,
-            Self::ProxyCard(_) => Some(api_enums::PaymentMethod::Card),
+            Self::ProxyCard(_) | Self::VaultCardTokenData(_) => {
+                Some(api_enums::PaymentMethod::Card)
+            }
         }
     }
 }
@@ -4813,6 +4823,7 @@ impl DocumentDetails {
         match self.document_type {
             DocumentKind::Cpf => (Some(self.document_number.clone()), None),
             DocumentKind::Cnpj => (None, Some(self.document_number.clone())),
+            DocumentKind::Psn | DocumentKind::Other => (None, None),
         }
     }
 }
@@ -7705,7 +7716,7 @@ pub struct PaymentsListResponseItem {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_pay_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_pay_01926c58bc6e77c09e809964e72af8c8",
         value_type = String,
     )]
     pub id: id_type::GlobalPaymentId,
@@ -7723,7 +7734,7 @@ pub struct PaymentsListResponseItem {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = Option<String>
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -7841,7 +7852,7 @@ pub struct RecoveryPaymentsListResponseItem {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_pay_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_pay_01926c58bc6e77c09e809964e72af8c8",
         value_type = String,
     )]
     pub id: id_type::GlobalPaymentId,
@@ -7858,7 +7869,7 @@ pub struct RecoveryPaymentsListResponseItem {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = Option<String>
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -8089,7 +8100,7 @@ pub struct PaymentsRequest {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -8442,7 +8453,7 @@ pub struct PaymentsResponse {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_pay_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_pay_01926c58bc6e77c09e809964e72af8c8",
         value_type = String,
     )]
     pub id: id_type::GlobalPaymentId,
@@ -8457,7 +8468,7 @@ pub struct PaymentsResponse {
     #[schema(
         min_length = 32,
         max_length = 64,
-        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        example = "0a_cus_01926c58bc6e77c09e809964e72af8c8",
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -11017,6 +11028,15 @@ pub struct PaymentsCancelPostCaptureRequest {
     pub payment_id: id_type::PaymentId,
     /// The reason for the payment cancel
     pub cancellation_reason: Option<String>,
+}
+
+/// Tracking data for the post_capture_void_sync workflow stored in process_tracker
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct PaymentsPostCaptureVoidSyncTrackingData {
+    /// The identifier for the payment
+    pub payment_id: id_type::PaymentId,
+    /// The identifier for the merchant
+    pub merchant_id: id_type::MerchantId,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
