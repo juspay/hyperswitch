@@ -576,7 +576,6 @@ impl TryFrom<&NetceteraRouterData<&ConnectorAuthenticationRouterData>>
             .clone()
             .parse_value("NetceteraMetaData")
             .change_context(ConnectorError::RequestEncodingFailed)?;
-
         let merchant_data = netcetera_types::MerchantData {
             merchant_configuration_id: connector_meta_data.merchant_configuration_id,
             mcc: connector_meta_data.mcc,
