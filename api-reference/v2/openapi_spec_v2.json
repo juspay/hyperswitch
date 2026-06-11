@@ -10804,6 +10804,7 @@
             "type": "integer",
             "format": "int32",
             "description": "Determines the unsuccessful payment threshold for Guest IP Blocking for profile",
+            "default": 10,
             "nullable": true
           }
         }

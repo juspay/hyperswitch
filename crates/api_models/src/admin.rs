@@ -274,6 +274,7 @@ pub struct CardTestingGuardConfig {
     /// Determines if Guest IP Blocking is enabled for profile
     pub guest_ip_blocking_status: Option<CardTestingGuardStatus>,
     /// Determines the unsuccessful payment threshold for Guest IP Blocking for profile
+    #[schema(default = 10)]
     pub guest_ip_blocking_threshold: Option<i32>,
 }
 
