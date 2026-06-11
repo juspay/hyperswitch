@@ -702,6 +702,13 @@ impl TryFrom<ResponseRouterData<PSync, ZiftSyncResponse, PaymentsSyncData, Payme
     fn try_from(
         item: ResponseRouterData<PSync, ZiftSyncResponse, PaymentsSyncData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        if item.response.transaction_status == TransactionStatus::Unknown {
+            router_env::logger::warn!(
+                "Received unknown transaction status from Zift; preserving existing status"
+            );
+            return Ok(item.data);
+        }
+
         let attempt_status = match item.response.transaction_type {
             // Sale transactions
             PaymentRequestType::Sale => match item.response.transaction_status {
@@ -710,6 +717,7 @@ impl TryFrom<ResponseRouterData<PSync, ZiftSyncResponse, PaymentsSyncData, Payme
                     common_enums::AttemptStatus::Pending
                 }
                 TransactionStatus::Cancelled => common_enums::AttemptStatus::Failure,
+                TransactionStatus::Unknown => unreachable!(),
             },
 
             // Auth transactions (sale-auth)
@@ -719,6 +727,7 @@ impl TryFrom<ResponseRouterData<PSync, ZiftSyncResponse, PaymentsSyncData, Payme
                     common_enums::AttemptStatus::Pending
                 }
                 TransactionStatus::Cancelled => common_enums::AttemptStatus::Failure,
+                TransactionStatus::Unknown => unreachable!(),
             },
 
             // Capture transactions
@@ -728,7 +737,15 @@ impl TryFrom<ResponseRouterData<PSync, ZiftSyncResponse, PaymentsSyncData, Payme
                     common_enums::AttemptStatus::CaptureInitiated
                 }
                 TransactionStatus::Cancelled => common_enums::AttemptStatus::CaptureFailed,
+                TransactionStatus::Unknown => unreachable!(),
             },
+
+            PaymentRequestType::Unknown => {
+                router_env::logger::warn!(
+                    "Received unknown transaction type from Zift; preserving existing status"
+                );
+                return Ok(item.data);
+            }
         };
         let response = if attempt_status == common_enums::AttemptStatus::Failure {
             Err(ErrorResponse {
