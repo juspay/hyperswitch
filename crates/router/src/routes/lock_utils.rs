@@ -189,7 +189,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentAttemptsList
             | Flow::RecoveryPaymentsCreate
             | Flow::PaymentsSubmitCheckEligibility
-            | Flow::PaymentsSubmitEligibility => Self::Payments,
+            | Flow::PaymentsSubmitEligibility
+            | Flow::PaymentsCancelPostCaptureSync => Self::Payments,
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
             | Flow::PayoutsUpdate
