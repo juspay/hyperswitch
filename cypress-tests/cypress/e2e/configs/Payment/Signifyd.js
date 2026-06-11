@@ -20,6 +20,30 @@ const frmMetadata = {
   order_channel: "web",
 };
 
+const shippingAddress = {
+  address: {
+    line1: "1467 Harrison St",
+    city: "San Francisco",
+    state: "CA",
+    zip: "94103",
+    country: "US",
+    first_name: "John",
+    last_name: "Doe",
+  },
+};
+
+const billingAddress = {
+  address: {
+    line1: "1467 Harrison St",
+    city: "San Francisco",
+    state: "CA",
+    zip: "94103",
+    country: "US",
+    first_name: "John",
+    last_name: "Doe",
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
     FRMApprove: getCustomExchange({
@@ -34,6 +58,8 @@ export const connectorDetails = {
         email: "testapproved@signifyd.com",
         frm_metadata: frmMetadata,
         order_details: orderDetails,
+        shipping: shippingAddress,
+        billing: billingAddress,
       },
       Response: {
         status: 200,
@@ -54,6 +80,8 @@ export const connectorDetails = {
         email: "testdeclined@signifyd.com",
         frm_metadata: frmMetadata,
         order_details: orderDetails,
+        shipping: shippingAddress,
+        billing: billingAddress,
       },
       Response: {
         status: 200,
@@ -74,6 +102,8 @@ export const connectorDetails = {
         email: "testpending@signifyd.com",
         frm_metadata: frmMetadata,
         order_details: orderDetails,
+        shipping: shippingAddress,
+        billing: billingAddress,
       },
       Response: {
         status: 200,
