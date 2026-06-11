@@ -931,4 +931,62 @@ export const connectorDetails = {
       source: "paymentAttemptID",
     },
   },
+  wallet_pm: {
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    DelayedSessionToken: {
+      Request: {
+        wallets: ["apple_pay", "google_pay"],
+      },
+      Response: {
+        status: 200,
+        body: {
+          session_token: [],
+        },
+      },
+    },
+    DelayedSessionTokenMissingClientSecret: {
+      Request: {
+        wallets: ["apple_pay", "google_pay"],
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            error: {
+              type: "invalid_request",
+              code: "IR_00",
+              message: "client_secret not found",
+            },
+          },
+        },
+      },
+    },
+    DelayedSessionTokenInvalidPaymentId: {
+      Request: {
+        wallets: ["apple_pay", "google_pay"],
+      },
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_01",
+            message: "payment not found",
+          },
+        },
+      },
+    },
+  },
 };
