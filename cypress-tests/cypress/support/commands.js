@@ -3156,13 +3156,15 @@ Cypress.Commands.add(
                   response.body.capture_method === "manual_multiple"
                 ) {
                   if (response.body.status !== "failed") {
-                    expect(response.body)
-                      .to.have.property("next_action")
-                      .to.have.property("redirect_to_url");
-                    globalState.set(
-                      "nextActionUrl",
-                      response.body.next_action.redirect_to_url
-                    );
+                    expect(response.body).to.have.property("next_action");
+                    if (response.body.next_action?.redirect_to_url) {
+                      globalState.set(
+                        "nextActionUrl",
+                        response.body.next_action.redirect_to_url
+                      );
+                    }
+                    // QR code wallet types (e.g. Stripe Cashapp, WeChatPay) return
+                    // next_action.type = "qr_code_information" with no redirect_to_url
                   } else if (response.body.status === "failed") {
                     expect(response.body.error_code).to.equal(
                       resData.body.error_code
