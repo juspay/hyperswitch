@@ -206,6 +206,23 @@ pub enum ApplePayFlow {
 }
 
 impl PaymentMethodData {
+    /// Returns the card BIN (first 6-8 digits) when the payment method carries a card.
+    /// Covers raw cards and the various saved/network-token-backed card variants.
+    pub fn get_card_iin(&self) -> Option<String> {
+        match self {
+            Self::Card(card) => Some(card.card_number.get_card_isin()),
+            Self::CardWithOptionalCVC(card) => Some(card.card_number.get_card_isin()),
+            Self::CardWithNetworkTokenDetails(card) => {
+                Some(card.card_details.card_number.get_card_isin())
+            }
+            Self::CardDetailsForNetworkTransactionId(card) => {
+                Some(card.card_number.get_card_isin())
+            }
+            Self::CardWithLimitedDetails(card) => Some(card.card_number.get_card_isin()),
+            _ => None,
+        }
+    }
+
     pub fn apply_additional_payment_data(
         &self,
         additional_payment_data: api_models::payments::AdditionalPaymentData,

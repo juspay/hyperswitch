@@ -5794,6 +5794,54 @@ where
     .await?;
     *payment_data = pd;
 
+    // MIT off-session /confirm: the SDK never called /eligibility, so calculate the
+    // external surcharge inline here — after make_pm_data has populated payment_method_data
+    // (we need the saved card BIN), and before construct_router_data builds the connector
+    // request (so the connector charges the surcharged amount).
+    if payment_data.get_payment_intent().off_session == Some(true) {
+        // The saved PM's billing isn't merged into payment_data.address until
+        // construct_router_data runs later; decode it here from payment_method_info so the
+        // helper can fall back to it when the request body has no billing.
+        let saved_pm_billing = payment_data
+            .get_payment_method_info()
+            .and_then(|pm| pm.payment_method_billing_address.clone())
+            .and_then(|encryptable| {
+                let value = encryptable.into_inner().expose();
+                value
+                    .parse_value::<hyperswitch_domain_models::address::Address>(
+                        "payment_method_billing_address",
+                    )
+                    .inspect_err(|err| {
+                        logger::warn!(
+                            error=?err,
+                            "MIT confirm: failed to parse saved payment_method_billing_address"
+                        );
+                    })
+                    .ok()
+            });
+        let mit_billing = saved_pm_billing
+            .as_ref()
+            .or_else(|| payment_data.get_address().get_payment_method_billing());
+        if let Some(mit_surcharge_details) = calculate_mit_external_surcharge(
+            state,
+            platform.get_processor(),
+            business_profile,
+            payment_data.get_payment_intent(),
+            payment_data.get_payment_attempt(),
+            payment_data.get_payment_method_data(),
+            mit_billing,
+        )
+        .await
+        {
+            let mut attempt = payment_data.get_payment_attempt().clone();
+            attempt
+                .net_amount
+                .set_surcharge_details(Some(mit_surcharge_details.clone()));
+            payment_data.set_payment_attempt(attempt);
+            payment_data.set_surcharge_details(Some(mit_surcharge_details));
+        }
+    }
+
     // This is used to apply any kind of routing decision to the required data,
     // before the call to `connector` is made.
     routing_decision.map(|decision| decision.apply_routing_decision(payment_data));
@@ -13415,64 +13463,27 @@ async fn calculate_external_surcharge(
     payment_intent: storage::PaymentIntent,
     inputs: SurchargeCalculationInputs,
 ) -> RouterResult<Option<api_models::payment_methods::SurchargeDetailsResponse>> {
-    let surcharge_details = match (surcharge_connector_id, inputs.card_iin, inputs.currency) {
+    let surcharge_details = match (surcharge_connector_id, inputs.card_iin.clone(), inputs.currency)
+    {
         (Some(surcharge_connector_id), Some(card_iin), Some(currency)) => {
             let processor = platform.get_processor();
-            let merchant_id = processor.get_account().get_id().clone();
-            let storage_scheme = processor.get_account().storage_scheme;
-            let key_store = processor.get_key_store().clone();
-
-            let surcharge_mca = state
-                .store
-                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    &merchant_id,
-                    &surcharge_connector_id,
-                    &key_store,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to fetch SurchargeProcessor MCA by id")?;
-
-            let previous_connector_surcharge_id = previous_connector_surcharge_id(
-                state,
-                payment_id,
-                &merchant_id,
-                &inputs.active_attempt_id,
-                storage_scheme,
-                &key_store,
-            )
-            .await;
-
-            let billing_details = inputs
-                .billing_address
-                .as_ref()
-                .and_then(|addr| addr.address.as_ref());
-            let surcharge_data =
-                hyperswitch_domain_models::router_request_types::PaymentsSurchargeCalculationData {
-                    amount: inputs.amount,
-                    currency,
-                    postal_code: billing_details.and_then(|det| det.zip.clone()),
-                    card_iin,
-                    previous_connector_surcharge_id,
-                    country: billing_details.and_then(|det| det.country),
-                    external_surcharge_strategy: inputs.external_surcharge_strategy,
-                };
-            let connector_name = surcharge_mca.connector_name.clone();
-            let mca_type = helpers::MerchantConnectorAccountType::DbVal(Box::new(surcharge_mca));
-
-            match call_unified_connector_service_for_surcharge_calculate(
+            match run_external_surcharge_ucs(
                 state,
                 processor,
-                mca_type,
-                surcharge_data,
                 payment_id,
                 profile_id,
-                connector_name,
+                &surcharge_connector_id,
+                card_iin,
+                currency,
+                &inputs,
             )
-            .await
+            .await?
             {
-                Ok(resp) => {
+                Some(resp) => {
                     let surcharge_amount = resp.surcharge_amount;
+                    let merchant_id = processor.get_account().get_id().clone();
+                    let storage_scheme = processor.get_account().storage_scheme;
+                    let key_store = processor.get_key_store().clone();
                     // Both writes must succeed: without Redis the cached surcharge can't be
                     // applied on /confirm, and without the flag /confirm wouldn't even try.
                     store_external_surcharge_in_redis(
@@ -13503,15 +13514,218 @@ async fn calculate_external_surcharge(
                         )?;
                     Some(build_surcharge_response(surcharge_amount, currency))
                 }
-                Err(err) => {
-                    logger::warn!(error=?err, "Surcharge calculation failed; proceeding without surcharge");
-                    None
-                }
+                None => None,
             }
         }
         _ => None,
     };
     Ok(surcharge_details)
+}
+
+// Shared UCS surcharge call used by both /eligibility (which caches the result)
+// and MIT /confirm (which applies it inline). Fetches the SurchargeProcessor MCA,
+// reads the previous connector surcharge id from the active attempt, and calls UCS.
+// Returns Ok(Some(resp)) on UCS success; Ok(None) when UCS returns an error
+// (best-effort — logged inside, surcharge treated as not applicable). Hard errors
+// (MCA fetch failure) propagate via Err for the caller to decide what to do.
+#[cfg(all(feature = "oltp", feature = "v1"))]
+async fn run_external_surcharge_ucs(
+    state: &SessionState,
+    processor: &domain::Processor,
+    payment_id: &id_type::PaymentId,
+    profile_id: &id_type::ProfileId,
+    surcharge_connector_id: &id_type::MerchantConnectorAccountId,
+    card_iin: String,
+    currency: storage_enums::Currency,
+    inputs: &SurchargeCalculationInputs,
+) -> RouterResult<Option<hyperswitch_domain_models::router_response_types::SurchargeCalculationResponseData>> {
+    let merchant_id = processor.get_account().get_id().clone();
+    let storage_scheme = processor.get_account().storage_scheme;
+    let key_store = processor.get_key_store();
+
+    let surcharge_mca = state
+        .store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            &merchant_id,
+            surcharge_connector_id,
+            key_store,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch SurchargeProcessor MCA by id")?;
+
+    let previous_connector_surcharge_id = previous_connector_surcharge_id(
+        state,
+        payment_id,
+        &merchant_id,
+        &inputs.active_attempt_id,
+        storage_scheme,
+        key_store,
+    )
+    .await;
+
+    let billing_details = inputs
+        .billing_address
+        .as_ref()
+        .and_then(|addr| addr.address.as_ref());
+    let surcharge_data =
+        hyperswitch_domain_models::router_request_types::PaymentsSurchargeCalculationData {
+            amount: inputs.amount,
+            currency,
+            postal_code: billing_details.and_then(|det| det.zip.clone()),
+            card_iin,
+            previous_connector_surcharge_id,
+            country: billing_details.and_then(|det| det.country),
+            external_surcharge_strategy: inputs.external_surcharge_strategy,
+        };
+    let connector_name = surcharge_mca.connector_name.clone();
+    let mca_type = helpers::MerchantConnectorAccountType::DbVal(Box::new(surcharge_mca));
+
+    match call_unified_connector_service_for_surcharge_calculate(
+        state,
+        processor,
+        mca_type,
+        surcharge_data,
+        payment_id,
+        profile_id,
+        connector_name,
+    )
+    .await
+    {
+        Ok(resp) => Ok(Some(resp)),
+        Err(err) => {
+            logger::warn!(
+                error=?err,
+                "External surcharge calculation failed; proceeding without surcharge"
+            );
+            Ok(None)
+        }
+    }
+}
+
+// MIT off-session /confirm: no SDK called /eligibility, so calculate the external
+// surcharge inline. Best-effort: any failure (missing profile config, missing card,
+// MCA fetch error, UCS error) yields None and confirm proceeds with the original
+// amount — surcharge is never a reason to fail a recurring payment.
+#[cfg(feature = "v1")]
+async fn calculate_mit_external_surcharge(
+    state: &SessionState,
+    processor: &domain::Processor,
+    business_profile: &domain::Profile,
+    payment_intent: &storage::PaymentIntent,
+    payment_attempt: &storage::PaymentAttempt,
+    payment_method_data: Option<&domain::PaymentMethodData>,
+    payment_method_billing: Option<&hyperswitch_domain_models::address::Address>,
+) -> Option<types::SurchargeDetails> {
+    let surcharge_connector_id = business_profile
+        .surcharge_connector_details
+        .as_ref()
+        .and_then(|details| details.surcharge_connector_id.clone());
+    // For raw-card MIT: pull the BIN from the in-memory PaymentMethodData::Card variant.
+    // For PSP-tokenized MIT (e.g. Adyen storedPaymentMethodId): there's no Card variant on
+    // payment_method_data — the saved-card metadata lives on payment_attempt.payment_method_data
+    // as a JSON object with shape {"card": {"card_isin": "411111", ...}}.
+    let card_iin = payment_method_data
+        .and_then(domain::PaymentMethodData::get_card_iin)
+        .or_else(|| {
+            payment_attempt
+                .payment_method_data
+                .as_ref()
+                .and_then(|json| json.get("card"))
+                .and_then(|card| card.get("card_isin"))
+                .and_then(|isin| isin.as_str())
+                .map(String::from)
+        });
+    let currency = payment_intent.currency;
+    let payment_method = payment_attempt.payment_method;
+    let payment_method_type = payment_attempt.payment_method_type;
+    let profile_id = payment_intent.profile_id.clone();
+
+    match (
+        surcharge_connector_id,
+        card_iin,
+        currency,
+        payment_method,
+        profile_id,
+    ) {
+        (
+            Some(surcharge_connector_id),
+            Some(card_iin),
+            Some(currency),
+            Some(payment_method),
+            Some(profile_id),
+        ) => {
+            // MIT billing resolution: merge the payment_intent billing_details with the saved
+            // payment_method's billing (intent fields win per-field, saved PM fills the gaps).
+            // This also covers the case where PI billing decodes to an Address whose inner
+            // address is None (e.g. request body's `billing` was the wrong shape) — unify_address
+            // then pulls postal_code / country from the saved PM.
+            let pi_billing_address: Option<hyperswitch_domain_models::address::Address> =
+                payment_intent.billing_details.as_ref().and_then(|b| {
+                    match b
+                        .clone()
+                        .deserialize_inner_value(|value| value.parse_value("Address"))
+                    {
+                        Ok(enc) => Some(enc.into_inner()),
+                        Err(err) => {
+                            logger::warn!(
+                                error=?err,
+                                "MIT confirm: failed to deserialize payment_intent billing_details"
+                            );
+                            None
+                        }
+                    }
+                });
+            let billing_address = match (pi_billing_address, payment_method_billing) {
+                (Some(pi), Some(pm)) => Some(pi.unify_address(Some(pm))),
+                (Some(pi), None) => Some(pi),
+                (None, Some(pm)) => Some(pm.clone()),
+                (None, None) => None,
+            };
+
+            let inputs = SurchargeCalculationInputs {
+                amount: payment_intent.amount,
+                currency: Some(currency),
+                external_surcharge_strategy: payment_intent.external_surcharge_strategy,
+                active_attempt_id: payment_attempt.attempt_id.clone(),
+                card_iin: None,
+                billing_address,
+                payment_method,
+                payment_method_type,
+            };
+
+            let ucs_response = run_external_surcharge_ucs(
+                state,
+                processor,
+                &payment_attempt.payment_id,
+                &profile_id,
+                &surcharge_connector_id,
+                card_iin,
+                currency,
+                &inputs,
+            )
+            .await;
+
+            match ucs_response {
+                Ok(Some(resp)) => Some(types::SurchargeDetails {
+                    original_amount: payment_attempt.net_amount.get_order_amount(),
+                    surcharge: Surcharge::Fixed(resp.surcharge_amount),
+                    tax_on_surcharge: None,
+                    surcharge_amount: resp.surcharge_amount,
+                    tax_on_surcharge_amount: MinorUnit::new(0),
+                }),
+                Ok(None) => None,
+                Err(err) => {
+                    logger::warn!(
+                        error=?err,
+                        "MIT confirm: external surcharge calc failed; proceeding without surcharge"
+                    );
+                    None
+                }
+            }
+        }
+        _ => None,
+    }
 }
 
 #[cfg(all(feature = "oltp", feature = "v1"))]
