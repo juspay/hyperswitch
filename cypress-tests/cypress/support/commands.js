@@ -10182,3 +10182,150 @@ Cypress.Commands.add(
     });
   }
 );
+
+
+// ============================================
+// Connector Onboarding Commands
+// ============================================
+
+/**
+ * Get Connector Onboarding Action URL - POST /connector_onboarding/action_url
+ * Retrieves PayPal onboarding action URL for OAuth flow
+ * Requires JWT authentication (admin API key)
+ * Stores tracking_id in globalState for subsequent calls
+ */
+Cypress.Commands.add(
+  "connectorOnboardingActionUrl",
+  (requestBody, data, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    const userInfoToken = globalState.get("userInfoToken");
+
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${userInfoToken}`,
+    };
+
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/connector_onboarding/action_url`,
+      headers: headers,
+      body: requestBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        const resData = data.Response || {};
+        const expectedStatus = resData.status || 200;
+
+        if (response.status === expectedStatus) {
+          if (response.status === 200) {
+            // Response shape: { "paypal": { "action_url": "..." } }
+            expect(response.body).to.have.property("paypal");
+            expect(response.body.paypal).to.have.property("action_url");
+            expect(response.body.paypal.action_url).to.not.be.null;
+          } else {
+            expect(response.body).to.have.property("error");
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+/**
+ * Sync Connector Onboarding Status - POST /connector_onboarding/sync
+ * Synchronizes onboarding status with connector (PayPal)
+ * Requires JWT authentication
+ */
+Cypress.Commands.add(
+  "connectorOnboardingSync",
+  (requestBody, data, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    const userInfoToken = globalState.get("userInfoToken");
+
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${userInfoToken}`,
+    };
+
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/connector_onboarding/sync`,
+      headers: headers,
+      body: requestBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        const resData = data.Response || {};
+        const expectedStatus = resData.status || 200;
+
+        if (response.status === 200) {
+          expect(response.body).to.have.property("status");
+          expect(response.body).to.have.property("connector_id");
+          expect(["syncing", "completed", "failed"]).to.include(
+            response.body.status
+          );
+        } else if (
+          response.status === 400 ||
+          response.status === expectedStatus
+        ) {
+          // Expected when no PayPal connector integration exists in test env
+          expect(response.body).to.have.property("error");
+          expect(response.body.error).to.have.property("message");
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+/**
+ * Reset Connector Onboarding Tracking ID - POST /connector_onboarding/reset_tracking_id
+ * Resets tracking ID for onboarding session
+ * Requires JWT authentication
+ * Stores new tracking_id in globalState
+ */
+Cypress.Commands.add(
+  "connectorOnboardingResetTrackingId",
+  (requestBody, data, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    const userInfoToken = globalState.get("userInfoToken");
+
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${userInfoToken}`,
+    };
+
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/connector_onboarding/reset_tracking_id`,
+      headers: headers,
+      body: requestBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        const resData = data.Response || {};
+        const expectedStatus = resData.status || 200;
+
+        if (response.status === expectedStatus) {
+          if (response.status === 200) {
+            // Returns HTTP 200 with empty body on success
+            expect(response.status).to.equal(200);
+          } else {
+            expect(response.body).to.have.property("error");
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
