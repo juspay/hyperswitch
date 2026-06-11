@@ -655,7 +655,7 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     POLL_CONFIG: ["stripe"],
-    TAX_CONNECTOR: [],
+    TAX_CONNECTOR: ["taxjar"],
     // Add more inclusion lists
   },
 };
