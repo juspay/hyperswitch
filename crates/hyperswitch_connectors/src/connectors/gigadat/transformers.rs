@@ -182,7 +182,7 @@ pub struct GigadatPaymentData {
     pub transaction_id: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GigadatTransactionStatus {
     StatusInited,
@@ -624,7 +624,7 @@ pub struct GigadatPayoutSyncResponse {
 }
 
 #[cfg(feature = "payouts")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GigadatPayoutStatus {
     StatusInited,
