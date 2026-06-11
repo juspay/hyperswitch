@@ -9405,8 +9405,11 @@ impl PaymentEligibilityData {
         })
     }
 
-    /// Resolves a `payment_token` to raw card data for blocklist checks.
-    /// Uses modular PM service if enabled for the org, otherwise falls back to locker.
+    /// Resolves a `payment_token` to raw card data for blocklist checks, mirroring
+    /// `PaymentConfirm::fetch_payment_method`: modular organizations fetch from the
+    /// PM Modular Service directly; legacy organizations resolve the Redis token to
+    /// the payment method DB record, escalating to the modular service when the
+    /// record itself is modular, and reading raw card data from the locker otherwise.
     async fn resolve_payment_token_to_method_data(
         state: &SessionState,
         platform: &domain::Platform,
@@ -9414,46 +9417,35 @@ impl PaymentEligibilityData {
         payment_method_type: common_enums::PaymentMethod,
         profile_id: &id_type::ProfileId,
     ) -> CustomResult<Option<domain::EligibilityPaymentMethodData>, errors::ApiErrorResponse> {
-        let payment_method_info = state
-            .store
-            .find_payment_method(
-                platform.get_provider().get_key_store(),
-                &payment_token.clone().expose(),
-                platform.get_provider().get_account().storage_scheme,
-            )
-            .await
-            .inspect_err(|err| {
-                logger::error!(
-                    error=?err,
-                    "Failed to find payment method for payment token during eligibility check, proceeding with legacy token resolution"
-                );
-            })
-            .ok();
-
         let dimensions = Dimensions::new()
             .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
             .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
         let feature_config = core_utils::get_feature_config(state, platform, &dimensions).await;
-        let is_modular_payment_method_flow = payment_method_info.as_ref().is_some_and(|pm| {
-            feature_config.should_use_modular_pm_path(
-                Some(pm.version),
-                pm.compatibility_updated_at,
-                Some(pm.last_modified),
-            )
-        });
 
-        if is_modular_payment_method_flow {
-            let payment_method_id = payment_method_info
-                .as_ref()
-                .map(|pm| pm.get_id().clone())
-                .ok_or(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+        if feature_config.is_payment_method_modular_allowed {
             logger::info!("Resolving payment token via PM Modular Service for eligibility check");
+            // Permanent tokens carry the underlying payment_method_id; any other token
+            // type (or a Redis miss) is treated as the payment_method_id itself.
+            let payment_token = payment_token.clone().expose();
+            let payment_method_id = match helpers::retrieve_payment_token_data(
+                state,
+                payment_token.clone(),
+                Some(payment_method_type),
+            )
+            .await
+            {
+                Ok(storage::PaymentTokenData::Permanent(card_token_data))
+                | Ok(storage::PaymentTokenData::PermanentCard(card_token_data)) => {
+                    card_token_data.payment_method_id.unwrap_or(payment_token)
+                }
+                _ => payment_token,
+            };
+
             let pm_response = pm_transformers::fetch_payment_method_from_modular_service(
                 state,
                 platform,
                 profile_id,
-                &payment_method_id,
-                Some(payment_method_type),
+                payment_method_id.as_str(),
                 None, // CVC is not collected during the eligibility check
             )
             .await
@@ -9464,40 +9456,74 @@ impl PaymentEligibilityData {
                 .raw_payment_method_data
                 .map(domain::EligibilityPaymentMethodData::from))
         } else {
-            // Legacy path: resolve the Redis token → DB → locker.
-            Self::resolve_payment_token_via_db(state, platform, payment_token, payment_method_type)
-                .await
+            let token_data = helpers::retrieve_payment_token_data(
+                state,
+                payment_token.clone().expose(),
+                Some(payment_method_type),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::UnprocessableEntity {
+                message: "Invalid or expired payment token".to_string(),
+            })
+            .attach_printable("Failed to retrieve payment token data from storage")?;
+
+            let payment_method_record = helpers::retrieve_payment_method_from_db_with_token_data(
+                state,
+                platform.get_provider().get_key_store(),
+                &token_data,
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+            .attach_printable("Failed to retrieve payment method from DB")?;
+
+            match payment_method_record {
+                Some(payment_method)
+                    if feature_config.should_use_modular_pm_path(
+                        Some(payment_method.version),
+                        payment_method.compatibility_updated_at,
+                        Some(payment_method.last_modified),
+                    ) =>
+                {
+                    logger::debug!(
+                        "Payment method is modular, fetching payment method from PM Modular Service"
+                    );
+                    let pm_response = pm_transformers::fetch_payment_method_from_modular_service(
+                        state,
+                        platform,
+                        profile_id,
+                        payment_method.get_id(),
+                        None, // CVC is not collected during the eligibility check
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+                    .attach_printable("Failed to fetch payment method from modular service")?;
+
+                    Ok(pm_response
+                        .raw_payment_method_data
+                        .map(domain::EligibilityPaymentMethodData::from))
+                }
+                payment_method_record => {
+                    Self::read_payment_method_data_from_locker(
+                        state,
+                        platform,
+                        &token_data,
+                        payment_method_record,
+                    )
+                    .await
+                }
+            }
         }
     }
 
-    /// Legacy token resolution: Redis → DB → locker.
-    async fn resolve_payment_token_via_db(
+    /// Reads raw card data from the locker for permanent card tokens using the
+    /// prefetched token data and payment method DB record.
+    async fn read_payment_method_data_from_locker(
         state: &SessionState,
         platform: &domain::Platform,
-        payment_token: &Secret<String>,
-        payment_method_type: common_enums::PaymentMethod,
+        token_data: &storage::PaymentTokenData,
+        payment_method_record: Option<domain::PaymentMethod>,
     ) -> CustomResult<Option<domain::EligibilityPaymentMethodData>, errors::ApiErrorResponse> {
-        let token_data = helpers::retrieve_payment_token_data(
-            state,
-            payment_token.clone().expose(),
-            Some(payment_method_type),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::UnprocessableEntity {
-            message: "Invalid or expired payment token".to_string(),
-        })
-        .attach_printable("Failed to retrieve payment token data from storage")?;
-
-        let payment_method_record = helpers::retrieve_payment_method_from_db_with_token_data(
-            state,
-            platform.get_provider().get_key_store(),
-            &token_data,
-            platform.get_processor().get_account().storage_scheme,
-        )
-        .await
-        .attach_printable("Failed to retrieve payment method from DB")?;
-
-        let payment_method_data = match &token_data {
+        let payment_method_data = match token_data {
             storage::PaymentTokenData::PermanentCard(card_token) => {
                 // Read full card data from the locker using the DB record.
                 let pm_record = payment_method_record
@@ -9536,16 +9562,11 @@ impl PaymentEligibilityData {
                 ))
             }
             // Wallet and other token types: no raw card data available via this path.
-            #[cfg(feature = "v1")]
             storage::PaymentTokenData::Temporary(_)
             | storage::PaymentTokenData::TemporaryGeneric(_)
             | storage::PaymentTokenData::Permanent(_)
             | storage::PaymentTokenData::AuthBankDebit(_)
             | storage::PaymentTokenData::WalletToken(_)
-            | storage::PaymentTokenData::BankDebit(_) => None,
-            #[cfg(feature = "v2")]
-            storage::PaymentTokenData::TemporaryGeneric(_)
-            | storage::PaymentTokenData::AuthBankDebit(_)
             | storage::PaymentTokenData::BankDebit(_) => None,
         };
 

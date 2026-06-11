@@ -39,8 +39,6 @@ use router_env::logger;
 use router_env::RequestId;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "v1")]
-use crate::core::payments::helpers;
 use crate::{
     configs::settings,
     core::{
@@ -1924,28 +1922,11 @@ pub async fn fetch_payment_method_from_modular_service(
     platform: &domain::Platform,
     profile_id: &id_type::ProfileId,
     payment_method_id: &str, //Currently PM id is string in v1
-    payment_method: Option<common_enums::PaymentMethod>,
     pmd_card_token: Option<domain::CardToken>,
 ) -> CustomResult<PaymentMethodWithRawData, errors::ApiErrorResponse> {
-    let payment_method_ref_to_use = match helpers::retrieve_payment_token_data(
-        state,
-        payment_method_id.to_string(),
-        payment_method,
-    )
-    .await
-    {
-        Ok(storage::PaymentTokenData::Permanent(card_token_data))
-        | Ok(storage::PaymentTokenData::PermanentCard(card_token_data)) => card_token_data
-            .payment_method_id
-            .as_deref()
-            .unwrap_or(payment_method_id)
-            .to_owned(),
-        _ => payment_method_id.to_owned(),
-    };
-
     let payment_method_fetch_req = RetrievePaymentMethodV1Request {
         payment_method_id: api_models::payment_methods::PaymentMethodId {
-            payment_method_id: payment_method_ref_to_use,
+            payment_method_id: payment_method_id.to_owned(),
         },
         fetch_raw_detail: true,
         modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
