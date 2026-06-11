@@ -2155,7 +2155,9 @@ impl From<CheckoutDisputeTransactionType> for api_models::enums::DisputeStage {
             | CheckoutDisputeTransactionType::DisputeWon
             | CheckoutDisputeTransactionType::DisputeLost => Self::Dispute,
             CheckoutDisputeTransactionType::Unknown => {
-                router_env::logger::warn!("Unknown CheckoutDisputeTransactionType received, defaulting to Dispute");
+                router_env::logger::warn!(
+                    "Unknown CheckoutDisputeTransactionType received, defaulting to Dispute"
+                );
                 Self::Dispute
             }
         }

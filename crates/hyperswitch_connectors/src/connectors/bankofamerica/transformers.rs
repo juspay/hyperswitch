@@ -1804,9 +1804,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BankOfAmericaPaymentsResponse>>
                 Ok(map_error_response(&error_response.clone(), item, None))
             }
             BankOfAmericaPaymentsResponse::Unknown(_) => {
-                logger::warn!(
-                    "Unknown BankOfAmericaPaymentsResponse variant received in capture"
-                );
+                logger::warn!("Unknown BankOfAmericaPaymentsResponse variant received in capture");
                 Ok(item.data)
             }
         }
@@ -1835,9 +1833,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<BankOfAmericaPaymentsResponse>>
                 Ok(map_error_response(&error_response.clone(), item, None))
             }
             BankOfAmericaPaymentsResponse::Unknown(_) => {
-                logger::warn!(
-                    "Unknown BankOfAmericaPaymentsResponse variant received in cancel"
-                );
+                logger::warn!("Unknown BankOfAmericaPaymentsResponse variant received in cancel");
                 Ok(item.data)
             }
         }
@@ -2232,7 +2228,9 @@ impl TryFrom<RefundsResponseRouterData<RSync, BankOfAmericaRsyncResponse>>
                         }
                     }
                     BankofamericaRefundStatus::Unknown => {
-                        logger::warn!("Unknown BankofamericaRefundStatus variant received in refund sync");
+                        logger::warn!(
+                            "Unknown BankofamericaRefundStatus variant received in refund sync"
+                        );
                         enums::RefundStatus::Pending
                     }
                 };
