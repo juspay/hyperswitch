@@ -979,7 +979,7 @@ export const connectorDetails = {
         status: 404,
         body: {
           error: {
-            type: "not_found",
+            type: "invalid_request",
             code: "HE_02",
             message: "Payment does not exist or access forbidden",
           },
