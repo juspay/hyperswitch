@@ -35,7 +35,6 @@ pub struct PaymentMethodResponseItemV1 {
     pub is_default: bool,
     pub billing: Option<api_models::payments::Address>,
     pub network_tokenization: Option<NetworkTokenResponse>,
-    pub psp_tokenization_enabled: bool,
     pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
     pub network_transaction_id: Option<String>,
 }
