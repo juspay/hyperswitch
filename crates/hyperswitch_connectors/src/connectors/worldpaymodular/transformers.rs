@@ -323,6 +323,7 @@ impl From<PaymentOutcome> for enums::AttemptStatus {
             PaymentOutcome::SentForSettlement => Self::Charged,
             PaymentOutcome::SentForRefund => Self::AutoRefunded,
             PaymentOutcome::SentForCancellation => Self::Voided,
+            PaymentOutcome::Unknown => Self::Pending,
         }
     }
 }

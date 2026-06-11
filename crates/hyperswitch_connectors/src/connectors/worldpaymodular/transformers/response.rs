@@ -48,17 +48,11 @@ pub enum PaymentOutcome {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum RefundOutcome {
-    #[serde(alias = "Sent for Refund")]
-    SentForRefund,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorldpaymodularEventResponse {
     pub last_event: EventType,
     #[serde(rename = "_links", skip_serializing_if = "Option::is_none")]
-    pub links: Option<EventLinks>,
+    pub links: Option<Secret<serde_json::Value>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -149,12 +143,6 @@ pub struct PaymentLinks {
     pub reverse_event: Option<PaymentLink>,
     #[serde(rename = "tokens:token", skip_serializing_if = "Option::is_none")]
     pub token: Option<SecretPaymentLink>,
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-pub struct EventLinks {
-    #[serde(rename = "payments:events", skip_serializing_if = "Option::is_none")]
-    pub events: Option<String>,
 }
 
 impl PaymentLinks {
@@ -273,115 +261,6 @@ impl ForeignTryFrom<Option<PaymentLinks>> for ResponseId {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Issuer {
-    pub authorization_code: Secret<String>,
-}
-
-impl Issuer {
-    pub fn new(code: String) -> Self {
-        Self {
-            authorization_code: Secret::new(code),
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PaymentsResPaymentInstrument {
-    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
-    pub payment_instrument_type: Option<String>,
-    pub card_bin: Option<String>,
-    pub last_four: Option<String>,
-    pub category: Option<String>,
-    // pub expiry_date: Option<ExpiryDate>,
-    pub card_brand: Option<String>,
-    pub funding_type: Option<String>,
-    pub issuer_name: Option<String>,
-    pub payment_account_reference: Option<String>,
-}
-
-impl PaymentsResPaymentInstrument {
-    pub fn new() -> Self {
-        Self {
-            payment_instrument_type: None,
-            card_bin: None,
-            last_four: None,
-            category: None,
-            // expiry_date: None,
-            card_brand: None,
-            funding_type: None,
-            issuer_name: None,
-            payment_account_reference: None,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RiskFactorsInner {
-    #[serde(rename = "type")]
-    pub risk_type: RiskType,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub detail: Option<Detail>,
-    pub risk: Risk,
-}
-
-impl RiskFactorsInner {
-    pub fn new(risk_type: RiskType, risk: Risk) -> Self {
-        Self {
-            risk_type,
-            detail: None,
-            risk,
-        }
-    }
-}
-
-#[derive(
-    Clone, Copy, Default, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize,
-)]
-#[serde(rename_all = "camelCase")]
-pub enum RiskType {
-    #[default]
-    Avs,
-    Cvc,
-    RiskProfile,
-}
-
-#[derive(
-    Clone, Copy, Default, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize,
-)]
-#[serde(rename_all = "camelCase")]
-pub enum Detail {
-    #[default]
-    Address,
-    Postcode,
-}
-
-#[derive(
-    Clone, Copy, Default, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize,
-)]
-#[serde(rename_all = "camelCase")]
-pub enum Risk {
-    #[default]
-    NotChecked,
-    NotMatched,
-    NotSupplied,
-    VerificationFailed,
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-pub struct PaymentsResponseScheme {
-    pub reference: String,
-}
-
-impl PaymentsResponseScheme {
-    pub fn new(reference: String) -> Self {
-        Self { reference }
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct WorldpaymodularErrorResponse {
@@ -428,18 +307,4 @@ pub struct WorldpaymodularWebhookEventType {
     pub event_id: String,
     pub event_timestamp: String,
     pub event_details: EventDetails,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub enum WorldpaymodularWebhookStatus {
-    SentForSettlement,
-    Authorized,
-    SentForAuthorization,
-    Cancelled,
-    Error,
-    Expired,
-    Refused,
-    SentForRefund,
-    RefundFailed,
 }

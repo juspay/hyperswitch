@@ -1377,6 +1377,7 @@ fn map_boa_attempt_status(
 pub enum BankOfAmericaPaymentsResponse {
     ClientReferenceInformation(Box<BankOfAmericaClientReferenceResponse>),
     ErrorInformation(Box<BankOfAmericaErrorInformationResponse>),
+    Unknown(serde_json::Value),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1384,6 +1385,7 @@ pub enum BankOfAmericaPaymentsResponse {
 pub enum BankOfAmericaSetupMandatesResponse {
     ClientReferenceInformation(Box<BankOfAmericaClientReferenceResponse>),
     ErrorInformation(Box<BankOfAmericaErrorInformationResponse>),
+    Unknown(serde_json::Value),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -1741,6 +1743,12 @@ impl TryFrom<PaymentsResponseRouterData<BankOfAmericaPaymentsResponse>>
                     Some(enums::AttemptStatus::Failure),
                 ))
             }
+            BankOfAmericaPaymentsResponse::Unknown(_) => {
+                logger::warn!(
+                    "Unknown BankOfAmericaPaymentsResponse variant received in authorize"
+                );
+                Ok(item.data)
+            }
         }
     }
 }
@@ -1795,6 +1803,12 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BankOfAmericaPaymentsResponse>>
             BankOfAmericaPaymentsResponse::ErrorInformation(ref error_response) => {
                 Ok(map_error_response(&error_response.clone(), item, None))
             }
+            BankOfAmericaPaymentsResponse::Unknown(_) => {
+                logger::warn!(
+                    "Unknown BankOfAmericaPaymentsResponse variant received in capture"
+                );
+                Ok(item.data)
+            }
         }
     }
 }
@@ -1819,6 +1833,12 @@ impl TryFrom<PaymentsCancelResponseRouterData<BankOfAmericaPaymentsResponse>>
             }
             BankOfAmericaPaymentsResponse::ErrorInformation(ref error_response) => {
                 Ok(map_error_response(&error_response.clone(), item, None))
+            }
+            BankOfAmericaPaymentsResponse::Unknown(_) => {
+                logger::warn!(
+                    "Unknown BankOfAmericaPaymentsResponse variant received in cancel"
+                );
+                Ok(item.data)
             }
         }
     }
