@@ -1803,47 +1803,6 @@ export const connectorDetails = {
       },
     }),
     SyncRefund: getCustomExchange({}),
-    AffirmManualCapture: getCustomExchange({
-      Request: {
-        payment_method: "pay_later",
-        payment_method_type: "affirm",
-        payment_experience: "redirect_to_url",
-        payment_method_data: {
-          pay_later: {
-            affirm_redirect: {},
-          },
-        },
-        currency: "USD",
-        capture_method: "manual",
-        customer_acceptance: {
-          acceptance_type: "online",
-        },
-        billing: {
-          ...billing,
-          address: { ...billing.address, country: "US" },
-          phone: { number: "4155552671", country_code: "+1" },
-        },
-        shipping: shippingAddress,
-        order_details: [
-          {
-            product_name: "Test Product",
-            quantity: 1,
-            amount: 6000,
-          },
-        ],
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            code: "IR_39",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-          },
-        },
-      },
-    }),
     Capture: getCustomExchange({
       Request: {
         amount_to_capture: 6000,
@@ -1855,57 +1814,6 @@ export const connectorDetails = {
           amount: 6000,
           amount_capturable: 6000,
           amount_received: null,
-        },
-      },
-    }),
-    Affirm: getCustomExchange({
-      Request: {
-        payment_method: "pay_later",
-        payment_method_type: "affirm",
-        payment_experience: "redirect_to_url",
-        payment_method_data: {
-          pay_later: {
-            affirm_redirect: {},
-          },
-        },
-        billing: {
-          email: testEmail,
-          phone: {
-            number: "4155552671",
-            country_code: "+1",
-          },
-          address: {
-            line1: "123 Test St",
-            line2: "Apt 4",
-            city: "San Francisco",
-            state: "California",
-            zip: "94122",
-            country: "US",
-            first_name: "John",
-            last_name: "Doe",
-          },
-        },
-        shipping: shippingAddress,
-        customer_acceptance: {
-          acceptance_type: "online",
-        },
-        order_details: [
-          {
-            product_name: "Test Product",
-            quantity: 1,
-            amount: 6000,
-          },
-        ],
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            code: "IR_39",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-          },
         },
       },
     }),
