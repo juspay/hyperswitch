@@ -40,7 +40,7 @@ RUN cargo build \
 
 
 
-FROM public.ecr.aws/docker/library/rust:bookworm as builder
+FROM public.ecr.aws/docker/library/debian:bookworm
 
 # Placing config and binary executable in different directories
 ARG CONFIG_DIR=/local/config
