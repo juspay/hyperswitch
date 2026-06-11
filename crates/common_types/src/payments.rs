@@ -19,12 +19,19 @@ use euclid::frontend::{
     dir::{DirKeyKind, EuclidDirFilter},
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use rust_decimal::{
+    prelude::{FromPrimitive, ToPrimitive},
+    Decimal, MathematicalOps,
+};
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::domain::{AdyenSplitData, PostCaptureVoidData, XenditSplitSubMerchantData};
+use crate::{
+    consts::PERCENTAGE_BASE,
+    domain::{AdyenSplitData, PostCaptureVoidData, XenditSplitSubMerchantData},
+};
 #[derive(
     Serialize,
     Deserialize,
@@ -68,7 +75,6 @@ impl_to_sql_from_sql_json!(SplitPaymentsRequest);
     SmithyModel,
 )]
 #[diesel(sql_type = Jsonb)]
-#[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// Fee information for Split Payments to be charged on the payment being collected for Stripe
 pub struct StripeSplitPaymentRequest {
@@ -85,6 +91,11 @@ pub struct StripeSplitPaymentRequest {
     /// Identifier for the reseller's account where the funds were transferred
     #[smithy(value_type = "String")]
     pub transfer_account_id: String,
+
+    /// The Stripe account ID that these funds are intended for
+    #[schema(value_type = Option<String>, example = "acct_1234567890")]
+    #[smithy(value_type = "Option<String>")]
+    pub on_behalf_of: Option<String>,
 }
 impl_to_sql_from_sql_json!(StripeSplitPaymentRequest);
 
@@ -344,7 +355,6 @@ pub type DecisionManagerResponse = DecisionManagerRecord;
     SmithyModel,
 )]
 #[diesel(sql_type = Jsonb)]
-#[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct StripeChargeResponseData {
     /// Identifier for charge created for the payment
@@ -364,6 +374,11 @@ pub struct StripeChargeResponseData {
     /// Identifier for the reseller's account where the funds were transferred
     #[smithy(value_type = "String")]
     pub transfer_account_id: String,
+
+    /// The Stripe account ID that these funds are intended for
+    #[schema(value_type = Option<String>, example = "acct_1234567890")]
+    #[smithy(value_type = "Option<String>")]
+    pub on_behalf_of: Option<String>,
 }
 impl_to_sql_from_sql_json!(StripeChargeResponseData);
 
@@ -1005,7 +1020,7 @@ pub struct PaymentIntentStateMetadata {
 #[diesel(sql_type = Jsonb)]
 pub struct PostCaptureVoidResponse {
     /// Status of post capture void
-    #[schema(value_type = Option<PostCaptureVoidStatus>)]
+    #[schema(value_type = PostCaptureVoidStatus)]
     pub status: enums::PostCaptureVoidStatus,
     /// Connector reference id for post capture void
     pub connector_reference_id: Option<String>,
@@ -1041,7 +1056,7 @@ impl PaymentIntentStateMetadata {
     }
 
     /// Check if post capture void is pending for the payment intent
-    pub fn is_post_capture(&self) -> bool {
+    pub fn is_post_capture_void_pending(&self) -> bool {
         matches!(
             self.post_capture_void
                 .as_ref()
@@ -1077,6 +1092,13 @@ impl PaymentIntentStateMetadata {
             updated_at: date_time::now(),
         });
         self
+    }
+
+    /// Get the connector reference ID for post capture void transaction if it exists
+    pub fn get_connector_post_capture_void_transaction_id(&self) -> Option<String> {
+        self.post_capture_void
+            .as_ref()
+            .and_then(|post_capture_void| post_capture_void.connector_reference_id.clone())
     }
 }
 
@@ -1235,6 +1257,12 @@ pub struct NetworkTransactionIdAndDecryptedWalletTokenDetails {
     #[smithy(value_type = "String")]
     pub network_transaction_id: Secret<String>,
 
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub transaction_link_id: Option<String>,
+
     /// ECI indicator of the card
     pub eci: Option<String>,
 
@@ -1311,35 +1339,49 @@ impl TryFrom<Vec<NonZeroU8>> for InstallmentCounts {
 pub struct InstallmentInterestRate(f64);
 
 impl InstallmentInterestRate {
-    /// apply the interest rate to amount and ceil the result
-    pub fn apply_and_ceil_result(
+    /// Calculate the total EMI interest for a given principal and number of installments
+    pub fn calculate_emi_interest(
         &self,
         amount: MinorUnit,
+        number_of_installments: NonZeroU8,
     ) -> errors::CustomResult<MinorUnit, errors::InstallmentInterestRateError> {
-        let max_amount = i64::MAX / 10000;
-        let amount = amount.get_amount_as_i64();
-        if amount > max_amount {
-            // value gets rounded off after i64::MAX/10000
-            Err(error_stack::report!(
-                errors::InstallmentInterestRateError::UnableToApplyInterestRate
-            ))
-            .attach_printable(format!(
-                "Cannot calculate interest rate for amount greater than {max_amount}",
-            ))
+        let amount_decimal = Decimal::from_i64(amount.get_amount_as_i64())
+            .ok_or(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
+            .map_err(Report::from)
+            .attach_printable("Failed to convert amount to decimal")?;
+
+        let rate_decimal = Decimal::from_f64(self.0 / PERCENTAGE_BASE)
+            .ok_or(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
+            .map_err(Report::from)
+            .attach_printable("Failed to convert interest rate to decimal")?;
+
+        let n_decimal = Decimal::from_u8(u8::from(number_of_installments))
+            .ok_or(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
+            .map_err(Report::from)
+            .attach_printable("Failed to convert number of installments to decimal")?;
+        // Formula: Total Interest = (EMI × n) - P
+        // where:
+        //   EMI = (P × r × (1 + r)^n) / ((1 + r)^n - 1)
+        //   P = principal amount
+        //   r = interest rate
+        //   n = number of installments
+        let total_interest = if rate_decimal.is_zero() {
+            Decimal::ZERO
         } else {
-            let amount_f64 = amount
-                .to_string()
-                .parse::<f64>()
-                .change_context(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
-                .attach_printable("Failed to parse amount as f64")?;
-            let ceiled = (amount_f64 * (self.0 / 100.0)).ceil();
-            let result = ceiled
-                .to_string()
-                .parse::<i64>()
-                .change_context(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
-                .attach_printable("Failed to parse ceiled result as i64")?;
-            Ok(MinorUnit::new(result))
-        }
+            let one = Decimal::ONE;
+            let factor = (one + rate_decimal).powd(n_decimal);
+            let emi = (amount_decimal * rate_decimal * factor) / (factor - one);
+            emi * n_decimal - amount_decimal
+        };
+        // - ceil() ensures merchant always receives at least the calculated interest
+        let result = total_interest
+            .ceil()
+            .to_i64()
+            .ok_or(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
+            .map_err(Report::from)
+            .attach_printable("Failed to convert interest result to i64")?;
+
+        Ok(MinorUnit::new(result))
     }
 
     fn is_valid_precision_length(value: &str) -> bool {
@@ -1533,3 +1575,26 @@ pub enum TokenSource {
     /// Apple Pay
     ApplePay,
 }
+
+/// External surcharge details from InterPayments (stored as JSONB)
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    Eq,
+    ToSchema,
+    PartialEq,
+    serde::Serialize,
+    diesel::AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct ExternalSurchargeDetails {
+    /// sTxId from InterPayments (the last one received before confirm)
+    pub external_surcharge_id: String,
+    /// Surcharge amount in minor units
+    pub external_surcharge_amount: MinorUnit,
+    /// Whether /v1/ch/sale has been successfully called
+    pub sale_notified: bool,
+}
+
+impl_to_sql_from_sql_json!(ExternalSurchargeDetails);

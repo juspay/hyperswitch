@@ -16,7 +16,6 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -64,7 +63,7 @@ use crate::{
     types::{RefreshTokenRouterData, ResponseRouterData},
     utils::{
         self as connector_utils, convert_amount, AccessTokenRequestInfo, ForeignTryFrom,
-        PaymentMethodDataType, PaymentsAuthorizeRequestData, RefundsRequestData,
+        PaymentsAuthorizeRequestData, RefundsRequestData,
     },
 };
 
@@ -172,16 +171,7 @@ impl ConnectorCommon for Airwallex {
     }
 }
 
-impl ConnectorValidation for Airwallex {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
-        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Airwallex {}
 
 impl api::Payment for Airwallex {}
 impl api::PaymentsCompleteAuthorize for Airwallex {}
@@ -1446,8 +1436,8 @@ impl ConnectorSpecifications for Airwallex {
     fn should_call_connector_customer(
         &self,
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> bool {
-        matches!(
+    ) -> api::ConnectorCustomerAction {
+        if matches!(
             payment_attempt.setup_future_usage_applied,
             Some(enums::FutureUsage::OffSession)
         ) && payment_attempt.customer_acceptance.is_some()
@@ -1455,5 +1445,10 @@ impl ConnectorSpecifications for Airwallex {
                 payment_attempt.payment_method,
                 Some(enums::PaymentMethod::Card)
             )
+        {
+            api::ConnectorCustomerAction::CallConnectorCustomer
+        } else {
+            api::ConnectorCustomerAction::NoAction
+        }
     }
 }

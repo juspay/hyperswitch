@@ -13,7 +13,7 @@ use rdkafka::message::ToBytes;
 use router_env::logger;
 
 use crate::{
-    core::{errors::StorageErrorExt, payment_methods::cards::create_encrypted_data},
+    core::{errors::StorageErrorExt, utils::create_encrypted_data},
     routes::SessionState,
 };
 type PmMigrationResult<T> = CustomResult<ApplicationResponse<T>, errors::ApiErrorResponse>;
@@ -104,6 +104,9 @@ pub async fn update_payment_method_record(
                                 &key_manager_state,
                                 platform.get_provider().get_key_store(),
                                 pm_api::PaymentMethodsData::Card(card_data),
+                                common_utils::type_name!(
+                                    diesel_models::payment_method::PaymentMethod
+                                ),
                             )
                             .await
                             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -250,6 +253,7 @@ pub async fn update_payment_method_record(
                     connector_mandate_details_value,
                 )),
                 network_transaction_id,
+                network_transaction_link_id: None,
                 status,
                 payment_method_data: updated_payment_method_data.clone(),
                 last_modified_by: platform
@@ -339,6 +343,7 @@ pub async fn update_payment_method_record(
                     connector_mandate_details_value,
                 )),
                 network_transaction_id,
+                network_transaction_link_id: None,
                 status,
                 payment_method_data: updated_payment_method_data.clone(),
                 last_modified_by: platform
@@ -359,6 +364,7 @@ pub async fn update_payment_method_record(
             } else {
                 PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                     network_transaction_id,
+                    network_transaction_link_id: None,
                     status,
                     last_modified_by: platform
                         .get_initiator()

@@ -170,6 +170,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Pix
                 | api_enums::PaymentMethodType::PixAutomaticoPush
                 | api_enums::PaymentMethodType::PixAutomaticoQr
+                | api_enums::PaymentMethodType::PixEmv
                 | api_enums::PaymentMethodType::Pse
                 | api_enums::PaymentMethodType::PermataBankTransfer
                 | api_enums::PaymentMethodType::BcaBankTransfer
@@ -187,6 +188,7 @@ pub fn validate_payment_method_type_against_payment_method(
         api_enums::PaymentMethod::BankDebit => matches!(
             payment_method_type,
             api_enums::PaymentMethodType::Ach
+                | api_enums::PaymentMethodType::EftDebitOrder
                 | api_enums::PaymentMethodType::Sepa
                 | api_enums::PaymentMethodType::SepaGuarenteedDebit
                 | api_enums::PaymentMethodType::Bacs

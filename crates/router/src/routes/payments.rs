@@ -7,7 +7,7 @@ use actix_web::{web, Responder};
 use error_stack::report;
 use hyperswitch_domain_models::{ext_traits::OptionExt, payments::HeaderPayload};
 #[cfg(feature = "v1")]
-use hyperswitch_interfaces::api::ConnectorValidation;
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::{env, instrument, logger, tracing, types, Flow};
 
@@ -21,7 +21,7 @@ use crate::routes::payments::payments::operations::payment_recurrence::PaymentRe
 use crate::{
     self as app,
     core::{
-        configs::dimension_state::Dimensions,
+        configs::dimension_state,
         errors::{self, http_not_implemented},
         payments::{self, transformers::ToResponse, OperationSessionGetters, PaymentRedirectFlow},
     },
@@ -1690,10 +1690,18 @@ pub async fn payments_cancel(
                 HeaderPayload::default(),
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth {
-            allow_connected_scope_operation: true,
-            allow_platform_self_operation: false,
-        }),
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfilePaymentWrite,
+                allow_connected: true,
+                allow_platform: false,
+            },
+            req.headers(),
+        ),
         locking_action,
     ))
     .await
@@ -1811,6 +1819,55 @@ pub async fn payments_cancel_post_capture(
                 auth.platform,
                 auth.profile.map(|profile| profile.get_id().clone()),
                 payments::PaymentCancelPostCapture,
+                req,
+                api::AuthFlow::Merchant,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+                HeaderPayload::default(),
+            )
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: false,
+        }),
+        locking_action,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsCancelPostCaptureSync, payment_id))]
+pub async fn payments_cancel_post_capture_retrieve(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<common_utils::id_type::PaymentId>,
+) -> impl Responder {
+    let flow = Flow::PaymentsCancelPostCaptureSync;
+    let payment_id = path.into_inner();
+
+    tracing::Span::current().record("payment_id", payment_id.get_string_repr());
+
+    let locking_action = payment_id.get_locking_input(flow.clone());
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payment_id,
+        |state, auth: auth::AuthenticationData, req, req_state| {
+            payments::payments_core::<
+                api_types::PostCaptureVoidSync,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::PostCaptureVoidSync>,
+            >(
+                state,
+                req_state,
+                auth.platform,
+                auth.profile.map(|profile| profile.get_id().clone()),
+                payments::PaymentCancelPostCaptureSync,
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
@@ -2373,107 +2430,153 @@ where
                 .flat_map(|c| c.foreign_try_into())
                 .collect()
         });
-        let dimensions = Dimensions::new()
-            .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+        let dimensions = dimension_state::Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
         match req.payment_type.unwrap_or_default() {
             api_models::enums::PaymentType::Normal
             | api_models::enums::PaymentType::RecurringMandate
             | api_models::enums::PaymentType::NewMandate
             | api_models::enums::PaymentType::Installment => {
-                let (payment_data, _req, connector_http_status_code, external_latency) =
-                    Box::pin(payments::payments_operation_core::<
-                        api_types::Authorize,
+                // The external vault proxy flow is non-PCI: the card is vaulted in an external
+                // vault. Two confirm shapes route here:
+                //   - `VaultDataCard`: inline vault card data.
+                //   - `VaultCardTokenData`: a saved card referenced by the top-level
+                //     `payment_token`; its vault tokens are retrieved from the modular PM service.
+                // In both cases the confirm request itself is used to call the proxy core
+                // directly — no conversion to a dedicated proxy request.
+                let should_call_external_vault_proxy = req
+                    .payment_method_data
+                    .as_ref()
+                    .and_then(|pmd| pmd.payment_method_data.as_ref())
+                    .map(|data| {
+                        matches!(
+                            data,
+                            api_models::payments::PaymentMethodData::ProxyCard(_)
+                                | api_models::payments::PaymentMethodData::VaultCardTokenData(_)
+                        )
+                    })
+                    .unwrap_or(false);
+
+                if should_call_external_vault_proxy {
+                    Box::pin(payments::external_vault_proxy_for_payments_core::<
+                        api_types::ExternalVaultProxy,
+                        payment_types::PaymentsResponse,
                         _,
                         _,
                         _,
-                        payments::PaymentData<api_types::Authorize>,
+                        payments::PaymentData<api_types::ExternalVaultProxy>,
                     >(
-                        &state,
-                        req_state.clone(),
-                        &platform,
-                        profile_id.clone(),
-                        operation.clone(),
-                        req.clone(),
-                        payments::CallConnectorAction::Trigger,
-                        None,
+                        state,
+                        req_state,
+                        platform,
+                        profile_id,
+                        payments::PaymentExternalVaultProxyConfirm,
+                        req,
                         auth_flow,
-                        eligible_routable_connectors.clone(),
-                        header_payload.clone(),
-                        dimensions.clone(),
-                    ))
-                    .await?;
-
-                let connector = payment_data.get_payment_attempt_connector();
-
-                if let Some(connector_name) = connector {
-                    let connector_data = api_types::ConnectorData::get_connector_by_name(
-                        &state.conf.connectors,
-                        connector_name,
-                        api_types::GetToken::Connector,
+                        payments::CallConnectorAction::Trigger,
+                        header_payload,
                         None,
-                    )?;
-                    let should_continue_further = connector_data
-                        .connector
-                        .should_continue_further(&payment_data.payment_intent.clone())
-                        .unwrap_or(false);
-                    if should_continue_further {
-                        logger::info!(
+                    ))
+                    .await
+                } else {
+                    let (payment_data, _req, connector_http_status_code, external_latency) =
+                        Box::pin(payments::payments_operation_core::<
+                            api_types::Authorize,
+                            _,
+                            _,
+                            _,
+                            payments::PaymentData<api_types::Authorize>,
+                        >(
+                            &state,
+                            req_state.clone(),
+                            &platform,
+                            profile_id.clone(),
+                            operation.clone(),
+                            req.clone(),
+                            payments::CallConnectorAction::Trigger,
+                            None,
+                            auth_flow,
+                            eligible_routable_connectors.clone(),
+                            header_payload.clone(),
+                            &dimensions,
+                        ))
+                        .await?;
+
+                    let connector = payment_data.get_payment_attempt_connector();
+
+                    if let Some(connector_name) = connector {
+                        let connector_data = api_types::ConnectorData::get_connector_by_name(
+                            &state.conf.connectors,
+                            connector_name,
+                            api_types::GetToken::Connector,
+                            None,
+                        )?;
+                        let should_continue_further = connector_data
+                            .connector
+                            .is_payment_recurrence_operation_needed(
+                                &payment_data.payment_intent.clone(),
+                            )
+                            .unwrap_or(false);
+                        if should_continue_further {
+                            logger::info!(
                             "Re-invoking payments_operation_core | should_continue_further: {} | payment_id: {:?}",
                             should_continue_further,
                             payment_data.get_payment_intent().payment_id,
                         );
-                        let (pd, _req, connector_status_code, ext_latency) =
-                            Box::pin(payments::payments_operation_core::<
-                                api_types::SetupMandate,
-                                _,
-                                _,
-                                _,
-                                payments::PaymentData<api_types::SetupMandate>,
-                            >(
-                                &state,
-                                req_state,
-                                &platform,
-                                profile_id,
-                                PaymentRecurrence,
-                                req,
-                                payments::CallConnectorAction::Trigger,
-                                None,
+                            let (pd, _req, connector_status_code, ext_latency) =
+                                Box::pin(payments::payments_operation_core::<
+                                    api_types::SetupMandate,
+                                    _,
+                                    _,
+                                    _,
+                                    payments::PaymentData<api_types::SetupMandate>,
+                                >(
+                                    &state,
+                                    req_state,
+                                    &platform,
+                                    profile_id,
+                                    PaymentRecurrence,
+                                    req,
+                                    payments::CallConnectorAction::Trigger,
+                                    None,
+                                    auth_flow,
+                                    eligible_routable_connectors,
+                                    header_payload.clone(),
+                                    &dimensions,
+                                ))
+                                .await?;
+                            let total_ext_latency = match (external_latency, ext_latency) {
+                                (Some(l1), Some(l2)) => Some(l1 + l2),
+                                (Some(l), None) | (None, Some(l)) => Some(l),
+                                (None, None) => None,
+                            };
+                            return payment_types::PaymentsResponse::generate_response(
+                                pd,
                                 auth_flow,
-                                eligible_routable_connectors,
-                                header_payload.clone(),
-                                dimensions,
-                            ))
-                            .await?;
-                        let total_ext_latency = match (external_latency, ext_latency) {
-                            (Some(l1), Some(l2)) => Some(l1 + l2),
-                            (Some(l), None) | (None, Some(l)) => Some(l),
-                            (None, None) => None,
-                        };
-                        return payment_types::PaymentsResponse::generate_response(
-                            pd,
-                            auth_flow,
-                            &state.base_url,
-                            operation,
-                            &state.conf.connector_request_reference_id_config,
-                            connector_status_code,
-                            total_ext_latency,
-                            header_payload.x_hs_latency,
-                            &platform,
-                        );
+                                &state.base_url,
+                                operation,
+                                &state.conf.connector_request_reference_id_config,
+                                connector_status_code,
+                                total_ext_latency,
+                                header_payload.x_hs_latency,
+                                &platform,
+                            );
+                        }
                     }
-                }
 
-                payment_types::PaymentsResponse::generate_response(
-                    payment_data,
-                    auth_flow,
-                    &state.base_url,
-                    operation,
-                    &state.conf.connector_request_reference_id_config,
-                    connector_http_status_code,
-                    external_latency,
-                    header_payload.x_hs_latency,
-                    &platform,
-                )
+                    payment_types::PaymentsResponse::generate_response(
+                        payment_data,
+                        auth_flow,
+                        &state.base_url,
+                        operation,
+                        &state.conf.connector_request_reference_id_config,
+                        connector_http_status_code,
+                        external_latency,
+                        header_payload.x_hs_latency,
+                        &platform,
+                    )
+                }
             }
             api_models::enums::PaymentType::SetupMandate => {
                 payments::payments_core::<
@@ -2750,6 +2853,39 @@ pub async fn payments_manual_update(
     .await
 }
 
+#[cfg(all(feature = "olap", feature = "v1"))]
+/// Manually update payment status from Review to Succeeded or Failed (Dashboard API with JWT auth)
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsManualStatusUpdate, payment_id))]
+pub async fn payments_manual_status_update(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<api_models::payments::PaymentsManualStatusUpdateRequest>,
+    path: web::Path<common_utils::id_type::PaymentId>,
+) -> impl Responder {
+    let flow = Flow::PaymentsManualStatusUpdate;
+    let payload = json_payload.into_inner();
+    let payment_id = path.into_inner();
+
+    tracing::Span::current().record("payment_id", payment_id.get_string_repr());
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _req_state| {
+            payments::payments_manual_status_update(state, auth.platform, payment_id.clone(), req)
+        },
+        &auth::JWTAuth {
+            permission: Permission::ProfilePaymentWrite,
+            allow_connected: true,
+            allow_platform: true,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(feature = "v1")]
 /// Retrieve endpoint for merchant to fetch the encrypted customer payment method data
 #[instrument(skip_all, fields(flow = ?Flow::GetExtendedCardInfo, payment_id))]
@@ -2781,6 +2917,53 @@ pub async fn retrieve_extended_card_info(
             allow_connected_scope_operation: true,
             allow_platform_self_operation: false,
         }),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "oltp", feature = "v1"))]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsSubmitCheckEligibility, payment_id))]
+pub async fn payments_submit_eligibility_check(
+    state: web::Data<app::AppState>,
+    http_req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsEligibilityCheckRequest>,
+    path: web::Path<common_utils::id_type::PaymentId>,
+) -> impl Responder {
+    let flow = Flow::PaymentsSubmitCheckEligibility;
+    let payment_id = path.into_inner();
+    let mut payload = json_payload.into_inner();
+    payload.payment_id = payment_id.clone();
+
+    let api_auth = auth::ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: false,
+    };
+
+    let (auth_type, _auth_flow) =
+        match auth::check_sdk_auth_and_get_auth(http_req.headers(), &payload, api_auth) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(report!(err)),
+        };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &http_req,
+        payment_id,
+        |state, auth: auth::AuthenticationData, payment_id, _| {
+            let mut payload = payload.clone();
+            if let Some(client_secret) = auth.client_secret {
+                payload.client_secret = Some(Secret::new(client_secret));
+            }
+            payments::payments_submit_eligibility_check(
+                state,
+                auth.platform,
+                payload.clone(),
+                payment_id,
+            )
+        },
+        &*auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -3097,6 +3280,23 @@ impl GetLockingInput for payment_types::PaymentsCancelPostCaptureRequest {
         api_locking::LockAction::Hold {
             input: api_locking::LockingInput {
                 unique_locking_key: self.payment_id.get_string_repr().to_owned(),
+                api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl GetLockingInput for common_utils::id_type::PaymentId {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: self.get_string_repr().to_owned(),
                 api_identifier: lock_utils::ApiIdentifier::from(flow),
                 override_lock_retries: None,
             },

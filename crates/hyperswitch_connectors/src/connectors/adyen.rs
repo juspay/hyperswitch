@@ -99,8 +99,7 @@ use crate::{
     },
     utils::{
         convert_amount, convert_payment_authorize_router_response,
-        convert_setup_mandate_router_data_to_authorize_router_data, is_mandate_supported,
-        ForeignTryFrom, PaymentMethodDataType,
+        convert_setup_mandate_router_data_to_authorize_router_data, ForeignTryFrom,
     },
 };
 const ADYEN_API_VERSION: &str = "v68";
@@ -281,6 +280,8 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Oxxo
                 | PaymentMethodType::PaySafeCard
                 | PaymentMethodType::Pix
+                | PaymentMethodType::PixKey
+                | PaymentMethodType::PixEmv
                 | PaymentMethodType::Swish
                 | PaymentMethodType::TouchNGo
                 | PaymentMethodType::Trustly
@@ -329,6 +330,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Przelewy24
                 | PaymentMethodType::Becs
                 | PaymentMethodType::Eft
+                | PaymentMethodType::EftDebitOrder
                 | PaymentMethodType::ClassicReward
                 | PaymentMethodType::Pse
                 | PaymentMethodType::LocalBankTransfer
@@ -376,34 +378,6 @@ impl ConnectorValidation for Adyen {
                 }
             },
         }
-    }
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<PaymentMethodType>,
-        pm_data: payment_method_data::PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::ApplePay,
-            PaymentMethodDataType::GooglePay,
-            PaymentMethodDataType::PaypalRedirect,
-            PaymentMethodDataType::MomoRedirect,
-            PaymentMethodDataType::KakaoPayRedirect,
-            PaymentMethodDataType::GoPayRedirect,
-            PaymentMethodDataType::GcashRedirect,
-            PaymentMethodDataType::DanaRedirect,
-            PaymentMethodDataType::TwintRedirect,
-            PaymentMethodDataType::VippsRedirect,
-            PaymentMethodDataType::KlarnaRedirect,
-            PaymentMethodDataType::Ideal,
-            PaymentMethodDataType::OpenBankingUk,
-            PaymentMethodDataType::Trustly,
-            PaymentMethodDataType::BancontactCard,
-            PaymentMethodDataType::AchBankDebit,
-            PaymentMethodDataType::SepaBankDebit,
-            PaymentMethodDataType::BecsBankDebit,
-        ]);
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 
     fn validate_psync_reference_id(
@@ -1961,7 +1935,18 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Adyen {
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Adyen {}
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Adyen {
+    fn build_request(
+        &self,
+        _req: &RefundsRouterData<RSync>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Refund Sync flow not Implemented".to_string())
+                .into(),
+        )
+    }
+}
 
 fn get_webhook_object_from_body(
     body: &[u8],

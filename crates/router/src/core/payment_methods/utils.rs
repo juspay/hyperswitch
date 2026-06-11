@@ -14,11 +14,9 @@ use euclid::frontend::dir;
 use hyperswitch_constraint_graph as cgraph;
 use hyperswitch_masking::ExposeInterface;
 use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
-#[cfg(feature = "v1")]
-use router_env::logger;
 use storage_impl::redis::cache::{CacheKey, PM_FILTERS_CGRAPH_CACHE};
 
-use crate::{configs::settings, db::StorageInterface, routes::SessionState};
+use crate::{configs::settings, core::configs::dimension_state, routes::SessionState};
 #[cfg(feature = "v2")]
 use crate::{
     db::{
@@ -814,57 +812,85 @@ fn compile_accepted_currency_for_mca(
     ))
 }
 
-pub async fn get_merchant_config_for_eligibility_check(
-    db: &dyn StorageInterface,
-    merchant_id: &common_utils::id_type::MerchantId,
+pub async fn get_organization_eligibility_config_for_pm_modular_service(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithOrgId,
 ) -> bool {
-    let config = db
-        .find_config_by_key_unwrap_or(
-            &merchant_id.get_should_perform_eligibility_check_key(),
-            Some("false".to_string()),
+    dimensions
+        .get_should_call_pm_modular_service(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
         )
-        .await;
-    match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            logger::error!(?error);
-            false
-        }
-    }
+        .await
 }
 
-pub async fn get_organization_eligibility_config_for_pm_modular_service(
-    db: &dyn StorageInterface,
-    organization_id: &common_utils::id_type::OrganizationId,
+pub async fn get_should_schedule_modular_forward_compat(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProviderMerchantId,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
 ) -> bool {
-    let config = db
-        .find_config_by_key_unwrap_or(
-            &organization_id.get_should_call_pm_modular_service_key(),
-            Some("false".to_string()),
+    dimensions
+        .get_should_schedule_modular_forward_compat(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
         )
-        .await;
-    match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            logger::error!(?error);
-            false
-        }
-    }
+        .await
+}
+
+pub async fn get_should_schedule_modular_backward_compat(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProviderMerchantId,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
+) -> bool {
+    dimensions
+        .get_should_schedule_modular_backward_compat(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await
+}
+
+pub async fn get_should_trigger_backwards_compatibility_inline(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProviderMerchantId,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
+) -> bool {
+    dimensions
+        .get_should_trigger_backwards_compatibility_inline(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await
 }
 
 pub async fn get_sdk_next_action_for_payment_method_list(
-    db: &dyn StorageInterface,
-    merchant_id: &common_utils::id_type::MerchantId,
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
+    has_surcharge_processor: bool,
 ) -> api_models::payments::SdkNextAction {
-    let should_perform_eligibility_check =
-        get_merchant_config_for_eligibility_check(db, merchant_id).await;
-    let next_action_call = if should_perform_eligibility_check {
-        api_models::payments::NextActionCall::EligibilityCheck
+    let should_perform_eligibility = dimensions
+        .get_should_perform_eligibility(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await;
+
+    if should_perform_eligibility {
+        api_models::payments::SdkNextAction {
+            next_action: api_models::payments::NextActionCall::EligibilityCheck,
+            should_block_confirm: Some(has_surcharge_processor),
+        }
     } else {
-        api_models::payments::NextActionCall::Confirm
-    };
-    api_models::payments::SdkNextAction {
-        next_action: next_action_call,
+        api_models::payments::SdkNextAction {
+            next_action: api_models::payments::NextActionCall::Confirm,
+            should_block_confirm: Some(false),
+        }
     }
 }
 
@@ -913,6 +939,9 @@ pub(super) async fn retrieve_payment_method_id_from_payment_method_token_data(
     let payment_method_id = match payment_method_token_data {
         storage::payment_method::PaymentTokenData::PermanentCard(card) => {
             Some(card.payment_method_id)
+        }
+        storage::payment_method::PaymentTokenData::BankDebit(bank_debit) => {
+            Some(bank_debit.payment_method_id)
         }
         _ => None,
     }

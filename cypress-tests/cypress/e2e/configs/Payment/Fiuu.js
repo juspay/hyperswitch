@@ -1,4 +1,11 @@
-import { cardRequiredField, customerAcceptance } from "./Commons";
+import {
+  cardRequiredField,
+  customerAcceptance,
+  blockedPaymentErrorBodyForIssuingCountry,
+  blockedPaymentErrorBodyForDebitCard,
+  blockedPaymentErrorBodyForCardSubtype,
+  blockedPaymentErrorBodyForBinUnavailable,
+} from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "5105105105105100",
@@ -59,19 +66,6 @@ const billingAddress = {
   email: "johndoe@gmail.com",
 };
 
-const blockedPaymentErrorBody = {
-  status: 200,
-  expectBlockedPayment: true,
-  body: {
-    error: {
-      type: "blocked",
-      message: "This payment method is blocked",
-      code: "HE_03",
-      reason: "Blocked",
-    },
-  },
-};
-
 const requiredFields = {
   payment_methods: [
     {
@@ -94,6 +88,9 @@ const requiredFields = {
 export const connectorDetails = {
   real_time_payment_pm: {
     DuitNow: {
+      Configs: {
+        TRIGGER_SKIP: true, //Since fiuu follows a qr flow we are skipping the qr handling
+      },
       Request: {
         payment_method: "real_time_payment",
         payment_method_type: "duit_now",
@@ -445,10 +442,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
+          error_code: "Token not found",
+          error_message: "Token not found",
         },
       },
     },
@@ -471,10 +466,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
+          error_code: "Token not found",
+          error_message: "Token not found",
         },
       },
     },
@@ -613,10 +606,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
+          error_code: "Token not found",
+          error_message: "Token not found",
         },
       },
     },
@@ -629,10 +620,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
+          error_code: "Token not found",
+          error_message: "Token not found",
         },
       },
     },
@@ -745,10 +734,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
+          error_code: "Token not found",
+          error_message: "Token not found",
         },
       },
     },
@@ -996,6 +983,11 @@ export const connectorDetails = {
       // Fiuu webhook handler uses PaymentAttemptId for lookup, not ConnectorTransactionId
       source: "paymentAttemptID",
     },
+    RefundIdConfig: {
+      // Fiuu refund webhooks carry the connector refund ID in the RefundID field
+      path: "RefundID",
+      type: "string",
+    },
   },
   payment_method_blocking_pm: {
     BlockIssuingCountry: {
@@ -1014,7 +1006,7 @@ export const connectorDetails = {
         billing: billingAddress,
         currency: "MYR",
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForIssuingCountry,
     },
     BlockCardType: {
       Request: {
@@ -1032,7 +1024,7 @@ export const connectorDetails = {
         billing: billingAddress,
         currency: "MYR",
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForDebitCard,
     },
     BlockCardSubtype: {
       Request: {
@@ -1050,7 +1042,7 @@ export const connectorDetails = {
         currency: "MYR",
         billing: billingAddress,
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForCardSubtype,
     },
     BlockIfBinInfoUnavailable: {
       Request: {
@@ -1068,7 +1060,7 @@ export const connectorDetails = {
         billing: billingAddress,
         currency: "MYR",
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForBinUnavailable,
     },
   },
 };

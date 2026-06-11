@@ -3,17 +3,17 @@ use std::marker::PhantomData;
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::mandates;
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
-#[cfg(feature = "pm_modular")]
-use crate::core::utils;
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        utils,
     },
     routes::{app::ReqState, SessionState},
     services,
@@ -45,9 +45,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        #[cfg(feature = "pm_modular")] _payment_method_wrapper: Option<
-            operations::PaymentMethodWithRawData,
-        >,
+        _payment_method_fetch_data: operations::PaymentMethodFetchData,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsStartRequest, PaymentData<F>>,
     > {
@@ -77,6 +76,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
             &[
                 storage_enums::IntentStatus::Failed,
                 storage_enums::IntentStatus::Succeeded,
+                storage_enums::IntentStatus::Review,
             ],
             "update",
         )?;
@@ -132,14 +132,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
 
         // In case of modular payment method flow payment token in the request will belong to payment method modular service
         // hence populating token data is not required
-        #[cfg(feature = "pm_modular")]
         let token_data = {
-            let is_payment_method_modular_allowed = utils::get_feature_config(state, platform)
-                .await
-                .is_payment_method_modular_allowed;
+            let feature_config = utils::get_feature_config(state, platform, dimensions).await;
+            let should_use_modular_payment_method_flow =
+                feature_config.should_use_modular_pm_path(None, None, None);
             match (
                 payment_attempt.payment_token.clone(),
-                is_payment_method_modular_allowed,
+                should_use_modular_payment_method_flow,
             ) {
                 (Some(token), false) => Some(
                     helpers::retrieve_payment_token_data(
@@ -153,17 +152,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
                     logger::debug!("skipping token data retrieval in payment start");
                     None
                 }
-            }
-        };
-        #[cfg(not(feature = "pm_modular"))]
-        let token_data = match payment_attempt.payment_token.clone() {
-            Some(token) => Some(
-                helpers::retrieve_payment_token_data(state, token, payment_attempt.payment_method)
-                    .await?,
-            ),
-            None => {
-                logger::debug!("skipping token data retrieval in payment start");
-                None
             }
         };
 
@@ -246,6 +234,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
             is_l2_l3_enabled: false,
             external_authentication_data: None,
             client_session_id: None,
+            vault_session_details: None,
+            external_vault_pmd: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -271,6 +261,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest
         payment_data: PaymentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(PaymentSessionOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -325,7 +316,8 @@ where
         _request: Option<CustomerDetails>,
         _provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
-        _dimensions: DimensionsWithMerchantIdAndProfileId,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<mandates::MandateTransactionType>,
     ) -> CustomResult<
         (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
@@ -388,6 +380,7 @@ where
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {

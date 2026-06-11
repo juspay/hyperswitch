@@ -11,9 +11,9 @@ use common_utils::{
     fp_utils, id_type, pii, type_name,
     types::keymanager::{self as km_types, KeyManagerState, ToEncryptable},
 };
+use diesel_models::payment_method;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
 use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
-use diesel_models::{configs, payment_method};
 use error_stack::{report, FutureExt, ResultExt};
 use external_services::http_client::client;
 use hyperswitch_domain_models::merchant_connector_account::{
@@ -34,6 +34,7 @@ use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
     core::{
+        configs::dimension_state,
         connector_validation::ConnectorAuthTypeAndMetadataValidation,
         disputes,
         encryption::transfer_encryption_key,
@@ -73,26 +74,18 @@ pub fn create_merchant_publishable_key() -> String {
     )
 }
 
-pub async fn insert_merchant_configs(
-    db: &dyn StorageInterface,
-    merchant_id: &id_type::MerchantId,
+/// Insert merchant configs using Superposition for fingerprint_secret
+pub async fn insert_merchant_configs_with_superposition(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProcessorMerchantId,
 ) -> RouterResult<()> {
-    db.insert_config(configs::ConfigNew {
-        key: merchant_id.get_requires_cvv_key(),
-        config: "true".to_string(),
-    })
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Error while setting requires_cvv config")?;
+    let fingerprint_secret = utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs");
 
-    db.insert_config(configs::ConfigNew {
-        key: merchant_id.get_merchant_fingerprint_secret_key(),
-        config: utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs"),
-    })
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Error while inserting merchant fingerprint secret")?;
-
+    dimensions
+        .set_fingerprint_secret(state.superposition_service.as_ref(), &fingerprint_secret)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to create fingerprint_secret in Superposition")?;
     Ok(())
 }
 
@@ -403,9 +396,17 @@ pub async fn create_merchant_account(
         key_store.clone(),
         None,
     );
+
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
+
     add_publishable_key_to_decision_service(&state, &platform);
 
-    insert_merchant_configs(db, &merchant_id).await?;
+    Box::pin(insert_merchant_configs_with_superposition(
+        &state,
+        &dimensions,
+    ))
+    .await?;
 
     Ok(service_api::ApplicationResponse::Json(
         api::MerchantAccountResponse::foreign_try_from(merchant_account)
@@ -1625,6 +1626,8 @@ impl ConnectorTypeAndConnectorName<'_> {
             api_enums::convert_tax_connector(self.connector_name.to_string().as_str());
         let billing_connector =
             api_enums::convert_billing_connector(self.connector_name.to_string().as_str());
+        let surcharge_connector =
+            api_enums::convert_surcharge_connector(self.connector_name.to_string().as_str());
 
         if pm_auth_connector.is_some() {
             if self.connector_type != &api_enums::ConnectorType::PaymentMethodAuth
@@ -1658,6 +1661,13 @@ impl ConnectorTypeAndConnectorName<'_> {
             }
         } else if vault_connector.is_some() {
             if self.connector_type != &api_enums::ConnectorType::VaultProcessor {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid connector type given".to_string(),
+                }
+                .into());
+            }
+        } else if surcharge_connector.is_some() {
+            if self.connector_type != &api_enums::ConnectorType::SurchargeProcessor {
                 return Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid connector type given".to_string(),
                 }
@@ -3498,7 +3508,12 @@ impl ProfileCreateBridge for api::ProfileCreate {
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
             .async_map(|headers| {
-                cards::create_encrypted_data(&key_manager_state, processor.get_key_store(), headers)
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    processor.get_key_store(),
+                    headers,
+                    type_name!(payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
@@ -3681,6 +3696,9 @@ impl ProfileCreateBridge for api::ProfileCreate {
             payment_method_blocking: self.payment_method_blocking.map(ForeignInto::foreign_into),
             default_fallback_routing: None,
             version: common_types::consts::API_VERSION,
+            surcharge_connector_details: self
+                .surcharge_connector_details
+                .map(ForeignInto::foreign_into),
         }))
     }
 
@@ -3713,7 +3731,12 @@ impl ProfileCreateBridge for api::ProfileCreate {
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
             .async_map(|headers| {
-                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    headers,
+                    type_name!(payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
@@ -3834,6 +3857,9 @@ impl ProfileCreateBridge for api::ProfileCreate {
             split_txns_enabled: self.split_txns_enabled.unwrap_or_default(),
             billing_processor_id: self.billing_processor_id,
             version: common_types::consts::API_VERSION,
+            surcharge_connector_details: self
+                .surcharge_connector_details
+                .map(ForeignInto::foreign_into),
         }))
     }
 }
@@ -4035,7 +4061,12 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
             .async_map(|headers| {
-                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    headers,
+                    type_name!(payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
@@ -4197,6 +4228,9 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 payment_method_blocking: self
                     .payment_method_blocking
                     .map(ForeignInto::foreign_into),
+                surcharge_connector_details: self
+                    .surcharge_connector_details
+                    .map(ForeignInto::foreign_into),
             },
         )))
     }
@@ -4243,7 +4277,12 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
             .async_map(|headers| {
-                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    headers,
+                    type_name!(payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
@@ -4343,6 +4382,9 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 revenue_recovery_retry_algorithm_type,
                 split_txns_enabled: self.split_txns_enabled,
                 billing_processor_id: self.billing_processor_id,
+                surcharge_connector_details: self
+                    .surcharge_connector_details
+                    .map(ForeignInto::foreign_into),
             },
         )))
     }

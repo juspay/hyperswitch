@@ -3,16 +3,22 @@ pub mod refunds_validator;
 
 use std::{collections::HashSet, marker::PhantomData, str::FromStr};
 
-use api_models::enums::{Connector, DisputeStage, DisputeStatus};
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutVendorAccountDetails;
+use api_models::{
+    customers::CustomerDocumentDetails,
+    enums::{Connector, DisputeStage, DisputeStatus},
+};
 use common_enums::{IntentStatus, RequestIncrementalAuthorization};
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{
     errors::CustomResult,
-    ext_traits::AsyncExt,
-    types::{ConnectorTransactionIdTrait, MinorUnit},
+    ext_traits::{AsyncExt, Encode},
+    types::{
+        keymanager::{Identifier, KeyManagerState},
+        ConnectorTransactionIdTrait, MinorUnit,
+    },
 };
 use diesel_models::refund as diesel_refund;
 use error_stack::{report, ResultExt};
@@ -35,6 +41,7 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use maud::{html, PreEscaped};
 use regex::Regex;
 use router_env::{instrument, tracing};
+use storage_impl::StorageError;
 
 use super::payments::helpers;
 #[cfg(feature = "payouts")]
@@ -47,6 +54,7 @@ use crate::{
     configs::Settings,
     consts,
     core::{
+        configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
         payments::PaymentData,
     },
@@ -60,20 +68,46 @@ use crate::{
     utils::{generate_id, OptionExt, ValueExt},
 };
 
-#[cfg(all(feature = "v1", feature = "pm_modular"))]
 #[derive(Debug, Clone, Default)]
 pub struct FeatureConfig {
     pub is_payment_method_modular_allowed: bool,
 }
 
-#[cfg(all(feature = "v1", feature = "pm_modular"))]
+impl FeatureConfig {
+    pub fn should_use_modular_pm_path(
+        &self,
+        payment_method_version: Option<common_enums::ApiVersion>,
+        last_modified_by_modular: Option<time::PrimitiveDateTime>,
+        last_modified_by_legacy: Option<time::PrimitiveDateTime>,
+    ) -> bool {
+        (self.is_payment_method_modular_allowed
+            && matches!(
+                (last_modified_by_modular, last_modified_by_legacy),
+                (Some(last_mod_modular), Some(last_mod_legacy)) if last_mod_modular >= last_mod_legacy
+            ))
+            || payment_method_version == Some(common_enums::ApiVersion::V2)
+    }
+}
+
 pub async fn get_feature_config(
     state: &SessionState,
     platform: &domain::Platform,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> FeatureConfig {
+    let dimensions = dimensions
+        .with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .organization_id
+                .clone(),
+        )
+        .without_provider_merchant_id()
+        .without_processor_merchant_id();
+
     let is_payment_method_modular_allowed = crate::core::payment_methods::utils::get_organization_eligibility_config_for_pm_modular_service(
-        state.store.as_ref(),
-        &platform.get_processor().get_account().organization_id,
+        state,
+        &dimensions,
     )
     .await;
     FeatureConfig {
@@ -89,19 +123,18 @@ pub async fn validate_legacy_endpoint_access<E>(
 where
     E: From<errors::ApiErrorResponse> + error_stack::Context,
 {
-    #[cfg(feature = "pm_modular")]
-    {
-        let feature_config = get_feature_config(state, platform).await;
-        common_utils::fp_utils::when(feature_config.is_payment_method_modular_allowed, || {
-            Err(error_stack::report!(E::from(
-                errors::ApiErrorResponse::AccessForbidden {
-                    resource: "Deprecated route".to_string(),
-                },
-            )))
-        })?;
-    }
-    #[cfg(not(feature = "pm_modular"))]
-    let _ = (state, platform);
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
+    let feature_config = get_feature_config(state, platform, &dimensions).await;
+    common_utils::fp_utils::when(feature_config.is_payment_method_modular_allowed, || {
+        Err(error_stack::report!(E::from(
+            errors::ApiErrorResponse::AccessForbidden {
+                resource: "Deprecated route".to_string(),
+            },
+        )))
+    })?;
     Ok(())
 }
 
@@ -262,6 +295,7 @@ pub async fn construct_payout_router_data<'a, F>(
             browser_info,
             payout_connector_metadata: payout_attempt.payout_connector_metadata.to_owned(),
             additional_payout_method_data: payout_attempt.additional_payout_method_data.to_owned(),
+            source_bank_data: payout_data.source_bank_data.clone(),
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
@@ -297,6 +331,7 @@ pub async fn construct_payout_router_data<'a, F>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -475,6 +510,7 @@ pub async fn construct_refund_router_data<'a, F>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -672,6 +708,7 @@ pub async fn construct_refund_router_data<'a, F>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
 
     Ok(router_data)
@@ -1086,7 +1123,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
     state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     dispute: &storage::Dispute,
 ) -> RouterResult<types::AcceptDisputeRouterData> {
     let profile_id = payment_intent
@@ -1099,7 +1136,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor(),
+        processor,
         None,
         &profile_id,
         &dispute.connector,
@@ -1118,7 +1155,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         connector: dispute.connector.to_string(),
         tenant_id: state.tenant.tenant_id.clone(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
@@ -1153,7 +1190,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         preprocessing_id: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor(),
+            processor,
             payment_intent,
             payment_attempt,
             &dispute.connector,
@@ -1189,6 +1226,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1199,7 +1237,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
     state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     dispute: &storage::Dispute,
     submit_evidence_request_data: types::SubmitEvidenceRequestData,
 ) -> RouterResult<types::SubmitEvidenceRouterData> {
@@ -1214,7 +1252,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor(),
+        processor,
         None,
         &profile_id,
         connector_id,
@@ -1233,7 +1271,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         tenant_id: state.tenant.tenant_id.clone(),
@@ -1265,7 +1303,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         payment_method_status: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor(),
+            processor,
             payment_intent,
             payment_attempt,
             connector_id,
@@ -1300,6 +1338,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1311,7 +1350,7 @@ pub async fn construct_upload_file_router_data<'a>(
     state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     create_file_request: &api::CreateFileRequest,
     dispute_data: storage::Dispute,
     connector_id: &str,
@@ -1327,7 +1366,7 @@ pub async fn construct_upload_file_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor(),
+        processor,
         None,
         &profile_id,
         connector_id,
@@ -1346,7 +1385,7 @@ pub async fn construct_upload_file_router_data<'a>(
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         tenant_id: state.tenant.tenant_id.clone(),
@@ -1385,7 +1424,7 @@ pub async fn construct_upload_file_router_data<'a>(
         payment_method_balance: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor(),
+            processor,
             payment_intent,
             payment_attempt,
             connector_id,
@@ -1417,6 +1456,7 @@ pub async fn construct_upload_file_router_data<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1495,6 +1535,7 @@ pub async fn construct_dispute_list_router_data<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     })
 }
 
@@ -1504,7 +1545,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
     state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     dispute: &storage::Dispute,
 ) -> RouterResult<types::DisputeSyncRouterData> {
     let _db = &*state.store;
@@ -1519,7 +1560,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor(),
+        processor,
         None,
         &profile_id,
         connector_id,
@@ -1534,11 +1575,11 @@ pub async fn construct_dispute_sync_router_data<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let payment_method = payment_attempt
         .payment_method
-        .get_required_value("payment_method")?;
+        .get_required_value("payment_method_type")?;
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         tenant_id: state.tenant.tenant_id.clone(),
@@ -1573,7 +1614,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
         payment_method_balance: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor(),
+            processor,
             payment_intent,
             payment_attempt,
             connector_id,
@@ -1608,6 +1649,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1744,6 +1786,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1754,7 +1797,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
     state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     dispute: &storage::Dispute,
 ) -> RouterResult<types::DefendDisputeRouterData> {
     let _db = &*state.store;
@@ -1769,7 +1812,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor(),
+        processor,
         None,
         &profile_id,
         connector_id,
@@ -1788,7 +1831,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         tenant_id: state.tenant.tenant_id.clone(),
@@ -1823,7 +1866,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         payment_method_balance: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor(),
+            processor,
             payment_intent,
             payment_attempt,
             connector_id,
@@ -1858,6 +1901,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -1865,7 +1909,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
 #[instrument(skip_all)]
 pub async fn construct_retrieve_file_router_data<'a>(
     state: &'a SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     file_metadata: &diesel_models::file::FileMetadata,
     dispute: Option<storage::Dispute>,
     connector_id: &str,
@@ -1881,7 +1925,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor(),
+        processor,
         None,
         profile_id,
         connector_id,
@@ -1896,7 +1940,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         connector: connector_id.to_string(),
         tenant_id: state.tenant.tenant_id.clone(),
         customer_id: None,
@@ -1962,6 +2006,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         authorized_amount: None,
         customer_document_details: None,
         feature_data: None,
+        sender_payment_instrument_id: None,
     };
     Ok(router_data)
 }
@@ -2207,8 +2252,11 @@ pub async fn get_profile_id_from_business_details(
     }
 }
 
-pub fn get_poll_id(merchant_id: &common_utils::id_type::MerchantId, unique_id: String) -> String {
-    merchant_id.get_poll_id(&unique_id)
+pub fn get_poll_id(
+    processor_merchant_id: &common_utils::id_type::MerchantId,
+    unique_id: String,
+) -> String {
+    processor_merchant_id.get_poll_id(&unique_id)
 }
 
 pub fn get_external_authentication_request_poll_id(
@@ -2649,6 +2697,7 @@ pub(crate) fn validate_profile_id_from_auth_layer<T: GetProfileId + std::fmt::De
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn construct_vault_router_data<F>(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -2659,6 +2708,7 @@ pub async fn construct_vault_router_data<F>(
     connector_vault_id: Option<String>,
     connector_customer_id: Option<String>,
     should_generate_multiple_tokens: Option<bool>,
+    storage_type: Option<common_enums::StorageType>,
 ) -> RouterResult<VaultRouterDataV2<F>> {
     let connector_auth_type = merchant_connector_account
         .get_connector_account_details()
@@ -2678,6 +2728,7 @@ pub async fn construct_vault_router_data<F>(
             connector_vault_id,
             connector_customer_id,
             should_generate_multiple_tokens,
+            storage_type,
         },
         response: Ok(types::VaultResponseData::default()),
     };
@@ -2922,4 +2973,91 @@ pub fn should_proceed_with_accept_dispute(
         dispute_status,
         DisputeStatus::DisputeChallenged | DisputeStatus::DisputeOpened
     )
+}
+
+pub(crate) async fn update_intent_customer_documents(
+    payment_intent: &storage::PaymentIntent,
+    document_details: common_utils::crypto::OptionalEncryptableValue,
+    mandate_type: Option<api::MandateTransactionType>,
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    pm_document_details: common_utils::crypto::OptionalEncryptableValue,
+) -> CustomResult<common_utils::crypto::OptionalEncryptableValue, errors::ApiErrorResponse> {
+    let mut existing_intent_customer_details = payment_intent
+        .get_intent_customer_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse customer details from PaymentIntent")?;
+
+    let doc_details = match mandate_type {
+        Some(api::MandateTransactionType::NewMandateTransaction) | None => document_details,
+        Some(api::MandateTransactionType::RecurringMandateTransaction) => pm_document_details,
+    };
+
+    let decrypted_document_details = doc_details
+        .as_ref()
+        .map(|encryptable| {
+            encryptable
+                .clone()
+                .into_inner()
+                .parse_value::<CustomerDocumentDetails>("CustomerDocumentDetails")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to deserialize CustomerDocumentDetails from encrypted storage",
+                )
+        })
+        .transpose()?;
+
+    if let Some(ref mut details) = existing_intent_customer_details {
+        details.customer_document_details = decrypted_document_details;
+    }
+
+    let key_manager_state: KeyManagerState = state.into();
+    let encrypted_customer_details = existing_intent_customer_details
+        .async_map(|value| {
+            create_encrypted_data(
+                &key_manager_state,
+                key_store,
+                value,
+                common_utils::type_name!(diesel_models::PaymentIntent),
+            )
+        })
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encrypt customer details")?;
+
+    Ok(encrypted_customer_details)
+}
+
+pub async fn create_encrypted_data<T>(
+    key_manager_state: &KeyManagerState,
+    key_store: &domain::MerchantKeyStore,
+    data: T,
+    table_name: &str,
+) -> Result<Encryptable<Secret<serde_json::Value>>, error_stack::Report<StorageError>>
+where
+    T: std::fmt::Debug + serde::Serialize,
+{
+    let key = key_store.key.get_inner().peek();
+    let identifier = Identifier::Merchant(key_store.merchant_id.clone());
+
+    let encoded_data = Encode::encode_to_value(&data)
+        .change_context(StorageError::SerializationFailed)
+        .attach_printable("Unable to encode data")?;
+
+    let secret_data = Secret::<_, hyperswitch_masking::WithType>::new(encoded_data);
+
+    let encrypted_data = domain::types::crypto_operation(
+        key_manager_state,
+        table_name,
+        domain::types::CryptoOperation::Encrypt(secret_data),
+        identifier.clone(),
+        key,
+    )
+    .await
+    .and_then(|val| val.try_into_operation())
+    .change_context(StorageError::EncryptionError)
+    .attach_printable_lazy(|| format!("Unable to encrypt data for table: {}", table_name))?;
+
+    Ok(encrypted_data)
 }

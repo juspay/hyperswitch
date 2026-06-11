@@ -300,6 +300,9 @@ pub async fn generate_sample_data(
             partner_merchant_identifier_details: None,
             state_metadata: None,
             installment_options: None,
+            profile_acquirer_id: None,
+            external_surcharge_strategy: None,
+            external_surcharge_applicable: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());
@@ -396,11 +399,13 @@ pub async fn generate_sample_data(
             routing_approach: None,
             connector_request_reference_id: None,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             network_details: None,
             is_stored_credential: None,
             authorized_amount: None,
             tokenization: None,
             encrypted_payment_method_data: None,
+            sender_payment_instrument_id: None,
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {
@@ -480,7 +485,7 @@ pub async fn generate_sample_data(
                         .connector
                         .clone()
                         .unwrap_or(DummyConnector4.to_string()),
-                    evidence: None,
+                    evidence: hyperswitch_masking::Secret::new(serde_json::json!({})),
                     profile_id: payment_intent.profile_id.clone(),
                     merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                     dispute_amount: MinorUnit::new(amount * 100),
@@ -488,6 +493,8 @@ pub async fn generate_sample_data(
                     dispute_currency: Some(payment_intent.currency.unwrap_or_default()),
                     processor_merchant_id: None,
                     created_by: None,
+                    created_at: common_utils::date_time::now(),
+                    modified_at: common_utils::date_time::now(),
                 })
             } else {
                 None

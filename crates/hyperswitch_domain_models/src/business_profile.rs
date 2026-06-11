@@ -13,13 +13,13 @@ use diesel_models::business_profile::RevenueRecoveryAlgorithmData;
 use diesel_models::business_profile::{
     AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
     CardTestingGuardConfig, ExternalVaultConnectorDetails, PaymentMethodBlockingConfig,
-    WebhookDetails,
+    SurchargeConnectorDetails, WebhookDetails,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::ExposeInterface;
 use router_env::logger;
 
-use crate::{errors::api_error_response, merchant_key_store::MerchantKeyStore};
+use crate::{errors::api_error_response, merchant_key_store::MerchantKeyStore, payments};
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub struct Profile {
@@ -75,7 +75,7 @@ pub struct Profile {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: bool,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
-    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
+    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigBucket>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
@@ -83,6 +83,7 @@ pub struct Profile {
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub external_vault_details: ExternalVaultDetails,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub network_tokenization_credentials: OptionalEncryptableValue,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
@@ -102,6 +103,25 @@ impl ExternalVaultDetails {
             Self::ExternalVaultEnabled(_) => true,
             Self::Skip => false,
         }
+    }
+
+    /// Returns the external vault connector account id when external vault is enabled.
+    pub fn get_vault_connector_id(
+        &self,
+    ) -> Option<common_utils::id_type::MerchantConnectorAccountId> {
+        match self {
+            Self::ExternalVaultEnabled(details) => Some(details.vault_connector_id.clone()),
+            Self::Skip => None,
+        }
+    }
+
+    /// Returns true when the configured external vault is the hyperswitch vault (`HyperswitchSdk`).
+    pub fn is_hyperswitch_vault(&self) -> bool {
+        matches!(
+            self,
+            Self::ExternalVaultEnabled(details)
+                if details.vault_sdk == Some(common_enums::VaultSdk::HyperswitchSdk)
+        )
     }
 }
 
@@ -239,7 +259,7 @@ pub struct ProfileSetter {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: bool,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
-    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
+    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigBucket>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
@@ -247,6 +267,7 @@ pub struct ProfileSetter {
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub external_vault_details: ExternalVaultDetails,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub network_tokenization_credentials: OptionalEncryptableValue,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
@@ -318,6 +339,7 @@ impl From<ProfileSetter> for Profile {
             always_enable_overcapture: value.always_enable_overcapture,
             external_vault_details: value.external_vault_details,
             billing_processor_id: value.billing_processor_id,
+            surcharge_connector_details: value.surcharge_connector_details,
             network_tokenization_credentials: value.network_tokenization_credentials,
             payment_method_blocking: value.payment_method_blocking,
             default_fallback_routing: value.default_fallback_routing,
@@ -392,6 +414,7 @@ pub struct ProfileGeneralUpdate {
     pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub network_tokenization_credentials: OptionalEncryptableValue,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
@@ -421,8 +444,8 @@ pub enum ProfileUpdate {
     CardTestingSecretKeyUpdate {
         card_testing_secret_key: OptionalEncryptableName,
     },
-    AcquirerConfigMapUpdate {
-        acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
+    AcquirerConfigBucketUpdate {
+        acquirer_config_map: Option<common_types::domain::AcquirerConfigBucket>,
     },
     DefaultRoutingFallbackUpdate {
         default_fallback_routing: Option<pii::SecretSerdeValue>,
@@ -488,6 +511,7 @@ pub struct Profile {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -548,6 +572,7 @@ pub struct ProfileSetter {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -612,6 +637,7 @@ impl From<ProfileSetter> for Profile {
             merchant_country_code: value.merchant_country_code,
             split_txns_enabled: value.split_txns_enabled,
             billing_processor_id: value.billing_processor_id,
+            surcharge_connector_details: value.surcharge_connector_details,
         }
     }
 }
@@ -623,6 +649,14 @@ impl Profile {
             Some(_id) => is_tax_connector_enabled,
             _ => false,
         }
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_is_tax_calculation_enabled(&self, payment_intent: &payments::PaymentIntent) -> bool {
+        self.get_is_tax_connector_enabled()
+            && !payment_intent
+                .skip_external_tax_calculation
+                .unwrap_or(false)
     }
 
     #[cfg(feature = "v1")]
@@ -658,16 +692,51 @@ impl Profile {
         &self,
         network: common_enums::CardNetwork,
     ) -> Option<AcquirerConfig> {
-        // iterate over acquirer_config_map and find the acquirer config for the given network
+        // Flatten all buckets and search across them for an AcquirerConfig matching the network.
         self.acquirer_config_map
             .as_ref()
             .and_then(|acquirer_config_map| {
                 acquirer_config_map
-                    .0
-                    .iter()
-                    .find(|&(_, acquirer_config)| acquirer_config.network == network)
+                    .configs
+                    .values()
+                    .flat_map(|bucket| bucket.iter())
+                    .find(|cfg| cfg.network == network)
+                    .cloned()
             })
-            .map(|(_, acquirer_config)| acquirer_config.clone())
+    }
+
+    /// Resolve an `AcquirerConfig` for a specific `profile_acquirer_id` bucket and `network`.
+    /// Use this when the authentication record already has a `profile_acquirer_id` scoped to a
+    /// particular acquirer, so the lookup is restricted to that bucket only.
+    #[cfg(feature = "v1")]
+    pub fn get_acquirer_details_for_profile_acquirer(
+        &self,
+        profile_acquirer_id: &common_utils::id_type::ProfileAcquirerId,
+        network: common_enums::CardNetwork,
+    ) -> Option<AcquirerConfig> {
+        self.acquirer_config_map
+            .as_ref()
+            .and_then(|map| map.configs.get(profile_acquirer_id))
+            .and_then(|bucket| bucket.iter().find(|cfg| cfg.network == network).cloned())
+    }
+
+    /// Resolve an `AcquirerConfig` from the default bucket or fallback to the first bucket.
+    #[cfg(feature = "v1")]
+    pub fn get_default_acquirer_details_from_network(
+        &self,
+        network: common_enums::CardNetwork,
+    ) -> Option<AcquirerConfig> {
+        self.acquirer_config_map.as_ref().and_then(|map| {
+            // Get the default bucket from the default_acquirer_config identifier, or fallback to the first bucket
+            let default_bucket = map
+                .default_acquirer_config
+                .as_ref()
+                .and_then(|id| map.configs.get(id))
+                .or_else(|| map.configs.values().next());
+
+            default_bucket
+                .and_then(|bucket| bucket.iter().find(|cfg| cfg.network == network).cloned())
+        })
     }
 
     #[cfg(feature = "v1")]
@@ -819,6 +888,14 @@ impl Profile {
                 }
             ))
     }
+
+    /// As per RBI guidelines, Alt-ID is applicable for merchants based in India
+    pub fn is_alt_id_eligible_merchant(&self) -> bool {
+        matches!(
+            self.merchant_business_country,
+            Some(api_enums::CountryAlpha2::IN)
+        )
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -863,6 +940,7 @@ pub struct ProfileGeneralUpdate {
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]

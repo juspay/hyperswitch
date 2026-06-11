@@ -312,6 +312,7 @@ convert_connector_response_to_domain_response!(
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -926,7 +927,8 @@ impl TryFrom<enums::AttemptStatus> for ChargebeeRecordStatus {
             | enums::AttemptStatus::ConfirmationAwaited
             | enums::AttemptStatus::DeviceDataCollectionPending
             | enums::AttemptStatus::IntegrityFailure
-            | enums::AttemptStatus::Expired => Err(errors::ConnectorError::NotSupported {
+            | enums::AttemptStatus::Expired
+            | enums::AttemptStatus::CaptureReview => Err(errors::ConnectorError::NotSupported {
                 message: "Record back flow is only supported for terminal status".to_string(),
                 connector: "chargebee",
             }

@@ -111,6 +111,9 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
                     frm_id: Uuid::new_v4().simple().to_string(),
                     payment_id: payment_data.payment_intent.get_id().to_owned(),
                     merchant_id: payment_data.merchant_account.get_id().clone(),
+                    processor_merchant_id: Some(
+                        payment_data.payment_intent.processor_merchant_id.clone(),
+                    ),
                     attempt_id: payment_data.payment_attempt.attempt_id.clone(),
                     created_at: common_utils::date_time::now(),
                     frm_name: frm_connector_details.connector_name,
@@ -125,6 +128,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPre {
                     modified_at: common_utils::date_time::now(),
                     last_step: FraudCheckLastStep::Processing,
                     payment_capture_method: payment_data.payment_attempt.capture_method,
+                    created_by: None,
                 })
                 .await
             }
@@ -249,8 +253,12 @@ where
                 currency: router_data.request.currency,
                 browser_info: router_data.request.browser_info,
                 payment_method_data: router_data.request.payment_method_data,
-                email: router_data.request.email,
                 gateway: router_data.request.gateway,
+                client_ip: router_data.request.client_ip,
+                customer_id: router_data.request.customer_id,
+                email: router_data.request.email,
+                phone: router_data.request.phone,
+                phone_country_code: router_data.request.phone_country_code,
             })),
             response: FrmResponse::Checkout(router_data.response),
         })

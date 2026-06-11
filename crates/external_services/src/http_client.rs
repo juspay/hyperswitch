@@ -1,5 +1,9 @@
 use common_utils::{consts, errors::CustomResult, request::Request};
 use hyperswitch_interfaces::{errors::HttpClientError, types::Proxy};
+use quick_xml::{
+    events::{BytesDecl, BytesText, Event},
+    Writer,
+};
 use request::{HeaderExt, RequestBuilderExt};
 use router_env::{instrument, logger, tracing};
 /// client module
@@ -10,9 +14,53 @@ pub mod metrics;
 pub mod request;
 use std::{error::Error, time::Duration};
 
-use common_utils::request::RequestContent;
 pub use common_utils::request::{ContentType, Method, RequestBuilder};
+use common_utils::request::{RequestContent, XmlConfig};
 use error_stack::ResultExt;
+
+#[allow(missing_docs)]
+#[instrument(skip_all)]
+pub fn serialize_to_xml_bytes<T: serde::Serialize>(
+    item: &T,
+    config: Option<XmlConfig>,
+) -> Result<Vec<u8>, error_stack::Report<HttpClientError>> {
+    let mut xml_bytes = Vec::new();
+    let mut writer = Writer::new(std::io::Cursor::new(&mut xml_bytes));
+
+    if let Some(xml_config) = config {
+        let xml_version = xml_config.xml_version;
+        let xml_encoding = xml_config.xml_encoding.as_deref();
+        let xml_standalone = xml_config.xml_standalone.as_deref();
+        let xml_doc_type = xml_config.xml_doc_type.as_deref();
+
+        writer
+            .write_event(Event::Decl(BytesDecl::new(
+                xml_version.as_str(),
+                xml_encoding,
+                xml_standalone,
+            )))
+            .change_context(HttpClientError::BodySerializationFailed)
+            .attach_printable("Failed to write XML declaration")?;
+
+        if let Some(xml_doc_type_data) = xml_doc_type {
+            writer
+                .write_event(Event::DocType(BytesText::from_escaped(xml_doc_type_data)))
+                .change_context(HttpClientError::BodySerializationFailed)
+                .attach_printable("Failed to write XML DOCTYPE declaration")?;
+        }
+    }
+
+    let xml_body = quick_xml::se::to_string(item)
+        .change_context(HttpClientError::BodySerializationFailed)
+        .attach_printable("Failed to serialize XML body")?;
+
+    writer
+        .write_event(Event::Text(BytesText::from_escaped(xml_body)))
+        .change_context(HttpClientError::BodySerializationFailed)
+        .attach_printable("Failed to write XML body text")?;
+
+    Ok(xml_bytes)
+}
 
 #[allow(missing_docs)]
 #[instrument(skip_all)]
@@ -37,7 +85,8 @@ pub async fn send_request(
         consts::METRICS_HOST_TAG_NAME,
         url.host_str().unwrap_or_default().to_owned()
     ));
-    let request = {
+
+    let request_builder = {
         match request.method {
             Method::Get => client.get(url),
             Method::Post => {
@@ -46,9 +95,8 @@ pub async fn send_request(
                     Some(RequestContent::Json(payload)) => client.json(&payload),
                     Some(RequestContent::FormData((form, _))) => client.multipart(form),
                     Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
-                    Some(RequestContent::Xml(payload)) => {
-                        let body = quick_xml::se::to_string(&payload)
-                            .change_context(HttpClientError::BodySerializationFailed)?;
+                    Some(RequestContent::Xml(payload, config)) => {
+                        let body = serialize_to_xml_bytes(&payload, config)?;
                         client.body(body).header("Content-Type", "application/xml")
                     }
                     Some(RequestContent::RawBytes(payload)) => client.body(payload),
@@ -61,9 +109,8 @@ pub async fn send_request(
                     Some(RequestContent::Json(payload)) => client.json(&payload),
                     Some(RequestContent::FormData((form, _))) => client.multipart(form),
                     Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
-                    Some(RequestContent::Xml(payload)) => {
-                        let body = quick_xml::se::to_string(&payload)
-                            .change_context(HttpClientError::BodySerializationFailed)?;
+                    Some(RequestContent::Xml(payload, config)) => {
+                        let body = serialize_to_xml_bytes(&payload, config)?;
                         client.body(body).header("Content-Type", "application/xml")
                     }
                     Some(RequestContent::RawBytes(payload)) => client.body(payload),
@@ -76,9 +123,8 @@ pub async fn send_request(
                     Some(RequestContent::Json(payload)) => client.json(&payload),
                     Some(RequestContent::FormData((form, _))) => client.multipart(form),
                     Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
-                    Some(RequestContent::Xml(payload)) => {
-                        let body = quick_xml::se::to_string(&payload)
-                            .change_context(HttpClientError::BodySerializationFailed)?;
+                    Some(RequestContent::Xml(payload, config)) => {
+                        let body = serialize_to_xml_bytes(&payload, config)?;
                         client.body(body).header("Content-Type", "application/xml")
                     }
                     Some(RequestContent::RawBytes(payload)) => client.body(payload),
@@ -87,11 +133,16 @@ pub async fn send_request(
             }
             Method::Delete => client.delete(url),
         }
-        .add_headers(headers)
-        .timeout(Duration::from_secs(
-            option_timeout_secs.unwrap_or(consts::REQUEST_TIME_OUT),
-        ))
     };
+
+    let request = match request.query_params.as_ref() {
+        Some(params) => request_builder.query(params),
+        None => request_builder,
+    };
+
+    let request = request.add_headers(headers).timeout(Duration::from_secs(
+        option_timeout_secs.unwrap_or(consts::REQUEST_TIME_OUT),
+    ));
 
     // We cannot clone the request type, because it has Form trait which is not cloneable. So we are cloning the request builder here.
     let cloned_send_request = request.try_clone().map(|cloned_request| async {

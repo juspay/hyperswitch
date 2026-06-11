@@ -47,7 +47,6 @@ pub use hyperswitch_domain_models::router_request_types::CurrentFlowInfo;
 use hyperswitch_domain_models::{
     connector_endpoints::Connectors,
     errors::api_error_response::ApiErrorResponse,
-    payment_method_data::PaymentMethodData,
     router_data::{
         AccessToken, AccessTokenAuthenticationResponse, ConnectorAuthType, ErrorResponse,
         RouterData,
@@ -124,7 +123,6 @@ pub trait Connector:
     + revenue_recovery::RevenueRecovery
     + ExternalVault
     + Subscriptions
-    + ConnectorAccessTokenSuffix
     + WebhookRegister
 {
 }
@@ -150,8 +148,7 @@ impl<
             + UnifiedAuthenticationService
             + revenue_recovery::RevenueRecovery
             + ExternalVault
-            + Subscriptions
-            + ConnectorAccessTokenSuffix,
+            + Subscriptions,
     > Connector for T
 {
 }
@@ -401,23 +398,6 @@ pub trait ConnectorCommon {
     }
 }
 
-impl ConnectorAccessTokenSuffix for BoxedConnector {
-    fn get_access_token_key(
-        &self,
-        router_data: &dyn AccessTokenData,
-        merchant_connector_id_or_connector_name: String,
-        current_flow: Option<CurrentFlowInfo>,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        // 'self' is the BoxedConnector (the Box)
-        // We dereference it to get the 'dyn Connector' and call the method
-        self.as_ref().get_access_token_key(
-            router_data,
-            merchant_connector_id_or_connector_name,
-            current_flow,
-        )
-    }
-}
-
 /// Alternate API flow that must be made instead of the current flow.
 /// For example, PreAuthenticate flow must be made instead of Authorize flow.
 #[derive(Debug, Clone, Copy)]
@@ -445,6 +425,18 @@ pub struct PreProcessingFlowResponse<'a> {
     pub response: &'a Result<router_response_types::PaymentsResponseData, ErrorResponse>,
     /// Attempt status after the preprocessing flow
     pub attempt_status: enums::AttemptStatus,
+}
+
+/// Action to be taken for connector customer creation
+#[derive(Debug, Clone, Default)]
+pub enum ConnectorCustomerAction {
+    /// Call the connector to create a customer
+    CallConnectorCustomer,
+    /// Use a customer ID generated at connector layer
+    GeneratedCustomerId(String),
+    /// No action required
+    #[default]
+    NoAction,
 }
 
 /// The trait that provides specifications about the connector
@@ -520,9 +512,18 @@ pub trait ConnectorSpecifications {
     /// Connectors should override this method if they require to create a connector customer
     fn should_call_connector_customer(
         &self,
+        #[cfg(feature = "v1")]
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> bool {
-        false
+    ) -> ConnectorCustomerAction {
+        ConnectorCustomerAction::NoAction
+    }
+
+    /// Validate if another operation is required
+    fn is_payment_recurrence_operation_needed(
+        &self,
+        _payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    ) -> Option<bool> {
+        Some(false)
     }
 
     /// Whether SDK session token generation is enabled for this connector
@@ -883,27 +884,6 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
         }
     }
 
-    /// fn validate_mandate_payment
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<PaymentMethodType>,
-        _pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let connector = self.id();
-        match pm_type {
-            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{pm_type} mandate payment"),
-                connector,
-            }
-            .into()),
-            None => Err(errors::ConnectorError::NotSupported {
-                message: " mandate payment".to_string(),
-                connector,
-            }
-            .into()),
-        }
-    }
-
     /// fn validate_psync_reference_id
     fn validate_psync_reference_id(
         &self,
@@ -923,12 +903,19 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
         false
     }
 
-    /// Validate if another operation is required
-    fn should_continue_further(
+    /// Function to get dynamic access token key suffix from Connector
+    fn get_access_token_key(
         &self,
-        _payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
-    ) -> Option<bool> {
-        Some(false)
+        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_connector_id_or_connector_name: String,
+        _current_flow: Option<CurrentFlowInfo>,
+        _payment_method_type: Option<PaymentMethodType>,
+        _is_mit_payment: Option<bool>,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(common_utils::access_token::get_default_access_token_key(
+            merchant_id,
+            merchant_connector_id_or_connector_name,
+        ))
     }
 }
 
@@ -996,44 +983,5 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
         Ok(payment_attempt
             .get_connector_payment_id()
             .map(ToString::to_string))
-    }
-}
-
-/// Trait to provide data required for access token key generation
-/// Add methods as required
-pub trait AccessTokenData {
-    /// Get the payment method type from RouterData
-    fn get_payment_method_type(&self) -> Option<PaymentMethodType>;
-    /// Get the merchant id from RouterData
-    fn get_merchant_id(&self) -> common_utils::id_type::MerchantId;
-    /// Check if the payment is a MIT payment
-    fn is_mit_payment(&self) -> bool;
-}
-
-impl<F, Req, Res> AccessTokenData for RouterData<F, Req, Res> {
-    fn get_payment_method_type(&self) -> Option<PaymentMethodType> {
-        self.payment_method_type
-    }
-    fn get_merchant_id(&self) -> common_utils::id_type::MerchantId {
-        self.merchant_id.clone()
-    }
-    fn is_mit_payment(&self) -> bool {
-        self.recurring_mandate_payment_data.is_some()
-    }
-}
-
-/// Trait ConnectorAccessTokenSuffix
-pub trait ConnectorAccessTokenSuffix {
-    /// Function to get dynamic access token key suffix from Connector
-    fn get_access_token_key(
-        &self,
-        router_data: &dyn AccessTokenData,
-        merchant_connector_id_or_connector_name: String,
-        _current_flow: Option<CurrentFlowInfo>,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(common_utils::access_token::get_default_access_token_key(
-            &router_data.get_merchant_id(),
-            merchant_connector_id_or_connector_name,
-        ))
     }
 }

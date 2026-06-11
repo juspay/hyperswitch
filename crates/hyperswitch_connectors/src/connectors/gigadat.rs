@@ -12,7 +12,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -193,20 +192,6 @@ impl ConnectorCommon for Gigadat {
 }
 
 impl ConnectorValidation for Gigadat {
-    fn validate_mandate_payment(
-        &self,
-        _pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "validate_mandate_payment does not support cards".to_string(),
-            )
-            .into()),
-            _ => Ok(()),
-        }
-    }
-
     fn validate_psync_reference_id(
         &self,
         _data: &PaymentsSyncData,
@@ -1033,7 +1018,7 @@ impl webhooks::IncomingWebhook for Gigadat {
 
 lazy_static! {
     static ref GIGADAT_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
-        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic, enums::CaptureMethod::Manual,];
 
         let mut gigadat_supported_payment_methods = SupportedPaymentMethods::new();
         gigadat_supported_payment_methods.add(

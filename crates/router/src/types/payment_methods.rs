@@ -10,6 +10,7 @@ use common_utils::id_type;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
 use hyperswitch_masking::Secret;
+use router_env::logger;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "v2")]
@@ -48,6 +49,14 @@ pub struct VaultFingerprintResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultRequest<D> {
     pub entity_id: hyperswitch_domain_models::vault::V1VaultEntityId,
+    pub vault_id: domain::VaultId,
+    pub data: D,
+    pub ttl: i64,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AddCompatVaultRequest<D> {
+    pub entity_id: id_type::CustomerId,
     pub vault_id: domain::VaultId,
     pub data: D,
     pub ttl: i64,
@@ -159,6 +168,12 @@ pub struct VaultRetrieveRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct GenericVaultRetrieveRequest {
+    pub entity_id: id_type::CustomerId,
+    pub vault_id: domain::VaultId,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultRetrieveResponse {
     pub data: hyperswitch_domain_models::vault::PaymentMethodVaultingData,
 }
@@ -221,6 +236,7 @@ pub struct ApiPayload {
     pub card_data: Secret<String>, //encrypted card data
     pub order_data: OrderData,
     pub should_send_token: bool,
+    pub key_id: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
@@ -454,6 +470,48 @@ pub struct NetworkTokenMetaDataUpdateBody {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PanMetadataUpdateBody {
     pub card: NetworkTokenRequestorData,
+}
+
+/// Write mode for vault operations
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WriteMode {
+    Insert,
+    Upsert,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct AddVaultQueryParam {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode: Option<WriteMode>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum VaultQueryParam {
+    Add(AddVaultQueryParam),
+}
+
+impl VaultQueryParam {
+    pub fn to_query_value(&self) -> Option<serde_json::Value> {
+        match self {
+            Self::Add(params) => match serde_json::to_value(params) {
+                Ok(value) => Some(value),
+                Err(error) => {
+                    logger::error!(
+                        error = ?error,
+                        params = ?params,
+                        "Failed to serialize VaultQueryParam::Add to JSON value"
+                    );
+                    None
+                }
+            },
+        }
+    }
+}
+
+impl From<WriteMode> for VaultQueryParam {
+    fn from(mode: WriteMode) -> Self {
+        Self::Add(AddVaultQueryParam { mode: Some(mode) })
+    }
 }
 
 #[cfg(feature = "v2")]

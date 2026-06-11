@@ -18,6 +18,7 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::cards,
+        utils::create_encrypted_data,
     },
     logger,
     routes::{app::SessionStateInfo, SessionState},
@@ -128,7 +129,7 @@ impl NetworkTokenWebhookResponseExt for pm_types::PanMetadataUpdateBody {
         platform: &domain::Platform,
     ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
         let decrypted_data = self.decrypt_payment_method_data(payment_method)?;
-        handle_metadata_update(
+        Box::pin(handle_metadata_update(
             state,
             &self.card,
             payment_method
@@ -141,7 +142,7 @@ impl NetworkTokenWebhookResponseExt for pm_types::PanMetadataUpdateBody {
             platform,
             decrypted_data,
             true,
-        )
+        ))
         .await
     }
 }
@@ -179,7 +180,7 @@ impl NetworkTokenWebhookResponseExt for pm_types::NetworkTokenMetaDataUpdateBody
         platform: &domain::Platform,
     ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
         let decrypted_data = self.decrypt_payment_method_data(payment_method)?;
-        handle_metadata_update(
+        Box::pin(handle_metadata_update(
             state,
             &self.token,
             payment_method
@@ -192,7 +193,7 @@ impl NetworkTokenWebhookResponseExt for pm_types::NetworkTokenMetaDataUpdateBody
             platform,
             decrypted_data,
             true,
-        )
+        ))
         .await
     }
 }
@@ -318,10 +319,11 @@ pub async fn handle_metadata_update(
 
             let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> = pm_details
                 .async_map(|pm_card| {
-                    cards::create_encrypted_data(
+                    create_encrypted_data(
                         &key_manager_state,
                         platform.get_processor().get_key_store(),
                         pm_card,
+                        common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
                     )
                 })
                 .await

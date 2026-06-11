@@ -34,13 +34,15 @@ pub use hyperswitch_interfaces::{
     types::{ComparisonServiceConfig, Proxy},
 };
 use hyperswitch_masking::{Maskable, Secret};
-pub use payment_methods::configs::settings::{
-    BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields, EligiblePaymentMethods,
-    InstallmentConfig, Installments, Mandates, PaymentMethodAuth, PaymentMethodType,
-    RequiredFieldFinal, RequiredFields, SupportedConnectorsForMandate,
-    SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
+pub use payment_methods::configs::{
+    settings::{
+        BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields,
+        EligiblePaymentMethods, InstallmentConfig, Installments, Mandates, PaymentMethodAuth,
+        PaymentMethodType, RequiredFieldFinal, RequiredFields, SupportedConnectorsForMandate,
+        SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
+    },
+    AuthenticationServiceConfig, MicroServicesConfig,
 };
-use payment_methods::configs::MicroServicesConfig;
 use rand::seq::IteratorRandom;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
@@ -164,9 +166,9 @@ pub struct Settings<S: SecretState> {
     pub decision: Option<DecisionConfig>,
     pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
     pub grpc_client: GrpcClientSettings,
-    #[cfg(feature = "v2")]
     pub cell_information: CellInformation,
     pub network_tokenization_supported_card_networks: NetworkTokenizationSupportedCardNetworks,
+    pub alt_id_required_card_networks_and_connector: AltIdRequiredCardNetworksAndConnector,
     pub network_tokenization_service: Option<SecretStateContainer<NetworkTokenizationService, S>>,
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
     pub theme: ThemeSettings,
@@ -609,6 +611,11 @@ pub struct NetworkTokenizationSupportedCardNetworks {
     pub card_networks: HashSet<enums::CardNetwork>,
 }
 
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct AltIdRequiredCardNetworksAndConnector {
+    pub networks: HashMap<enums::CardNetwork, HashSet<enums::Connector>>,
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct NetworkTokenizationService {
     pub generate_token_url: url::Url,
@@ -621,6 +628,7 @@ pub struct NetworkTokenizationService {
     pub delete_token_url: url::Url,
     pub check_token_status_url: url::Url,
     pub webhook_source_verification_key: Secret<String>,
+    pub fetch_altid_url: url::Url,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1060,7 +1068,7 @@ pub struct NetworkTokenizationSupportedConnectors {
 #[derive(Debug, Deserialize, Clone)]
 pub struct MerchantAdviceCodeConfig {
     pub recommended_action: common_enums::RecommendedAction,
-    pub description: Option<String>,
+    pub description: String,
 }
 
 /// Domain type for merchant advice code mappings
@@ -1373,6 +1381,20 @@ pub struct CellInformation {
     pub id: id_type::CellId,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct CellInformation {
+    pub id: String,
+}
+#[cfg(feature = "v1")]
+impl Default for CellInformation {
+    fn default() -> Self {
+        Self {
+            id: String::from("00"),
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 impl Default for CellInformation {
     fn default() -> Self {
@@ -1382,7 +1404,7 @@ impl Default for CellInformation {
         // And a panic at application startup is considered acceptable.
         #[allow(clippy::expect_used)]
         let cell_id =
-            id_type::CellId::from_string("defid").expect("Failed to create a default for Cell Id");
+            id_type::CellId::from_string("00").expect("Failed to create a default for Cell Id");
         Self { id: cell_id }
     }
 }

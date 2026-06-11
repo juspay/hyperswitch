@@ -27,7 +27,7 @@ use crate::{
     types::ResponseRouterData,
     utils::{
         self, CardData, CardWithLimitedData as _, NetworkTokenData as _,
-        RouterData as OtherRouterData,
+        PaymentsAuthorizeRequestData, RouterData as OtherRouterData,
     },
 };
 
@@ -90,7 +90,7 @@ pub enum PeachpaymentsPaymentsRequest {
 #[serde(rename_all = "camelCase")]
 pub struct CardOnFileData {
     #[serde(rename = "type")]
-    pub _type: CofType,
+    pub cof_type: CofType,
     pub source: CofSource,
     pub mode: CofMode,
 }
@@ -108,6 +108,12 @@ pub struct EcommerceCardPaymentOnlyTransactionData {
     pub pre_auth_inc_ext_capture_flow: Option<PreAuthIncExtCaptureFlow>,
     #[serde(skip_serializing_if = "Option::is_none")]
     cof_data: Option<CardOnFileData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trace_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_link_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub three_d_s_data: Option<PeachpaymentsThreeDSData>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -144,6 +150,12 @@ pub struct EcommerceNetworkTokenPaymentOnlyTransactionData {
     pub rrn: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pre_auth_inc_ext_capture_flow: Option<PreAuthIncExtCaptureFlow>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trace_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_link_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub three_d_s_data: Option<PeachpaymentsThreeDSData>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -160,6 +172,21 @@ pub enum DccMode {
     NoDcc,
     OptInDcc,
     OptOutDcc,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PeachpaymentsThreeDSData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cavv: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ds_trans_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    three_d_s_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    eci: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    authentication_status: Option<common_enums::TransactionStatus>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -193,8 +220,7 @@ pub struct RoutingReference {
 #[serde(rename_all = "camelCase")]
 pub struct CardDetails {
     pub pan: CardNumber,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cardholder_name: Option<Secret<String>>,
+    pub cardholder_name: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expiry_year: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -431,6 +457,25 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
     }
 }
 
+fn get_three_ds_data(
+    item: &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+) -> Option<PeachpaymentsThreeDSData> {
+    item.router_data
+        .request
+        .authentication_data
+        .as_ref()
+        .map(|authentication_data| PeachpaymentsThreeDSData {
+            cavv: Some(authentication_data.cavv.clone()),
+            ds_trans_id: authentication_data.ds_trans_id.clone(),
+            three_d_s_version: authentication_data
+                .message_version
+                .clone()
+                .map(|version| format!("{}.{}", version.get_major(), version.get_minor(),)),
+            eci: authentication_data.eci.clone(),
+            authentication_status: authentication_data.transaction_status.clone(),
+        })
+}
+
 impl
     TryFrom<(
         &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>,
@@ -444,6 +489,15 @@ impl
             NetworkTokenData,
         ),
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() && item.router_data.request.authentication_data.is_none()
+        {
+            return Err(errors::ConnectorError::NotSupported {
+                message: "3DS flow".to_string(),
+                connector: "Peachpayments",
+            }
+            .into());
+        }
+
         let amount_in_cents = item.amount;
 
         let connector_merchant_config =
@@ -498,12 +552,15 @@ impl
                 network_token_data,
                 amount,
                 cof_data: CardOnFileData {
-                    _type: CofType::Adhoc,
+                    cof_type: CofType::Adhoc,
                     source: CofSource::Cit,
                     mode: CofMode::Initial,
                 },
                 rrn: item.router_data.request.merchant_order_reference_id.clone(),
                 pre_auth_inc_ext_capture_flow,
+                trace_id: None,
+                transaction_link_id: None,
+                three_d_s_data: get_three_ds_data(item),
             },
         );
 
@@ -528,13 +585,15 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
     fn try_from(
         (item, req_card): (&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card),
     ) -> Result<Self, Self::Error> {
-        if item.router_data.is_three_ds() {
+        if item.router_data.is_three_ds() && item.router_data.request.authentication_data.is_none()
+        {
             return Err(errors::ConnectorError::NotSupported {
                 message: "3DS flow".to_string(),
                 connector: "Peachpayments",
             }
             .into());
         }
+
         let amount_in_cents = item.amount;
 
         let connector_merchant_config =
@@ -551,7 +610,11 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
 
         let card = CardDetails {
             pan: req_card.card_number.clone(),
-            cardholder_name: req_card.card_holder_name.clone(),
+            cardholder_name: req_card.card_holder_name.clone().ok_or_else(|| {
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_holder_name",
+                }
+            })?,
             expiry_year: Some(req_card.get_card_expiry_year_2_digit()?),
             expiry_month: Some(req_card.card_exp_month.clone()),
             cvv: Some(req_card.card_cvc.clone()),
@@ -576,6 +639,16 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
             None
         };
 
+        let cof_data = if item.router_data.request.is_cit_mandate_payment() {
+            Some(CardOnFileData {
+                cof_type: CofType::Adhoc,
+                source: CofSource::Cit,
+                mode: CofMode::Initial,
+            })
+        } else {
+            None
+        };
+
         let ecommerce_data =
             EcommercePaymentOnlyTransactionData::Card(EcommerceCardPaymentOnlyTransactionData {
                 merchant_information,
@@ -584,7 +657,10 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
                 amount,
                 rrn: item.router_data.request.merchant_order_reference_id.clone(),
                 pre_auth_inc_ext_capture_flow,
-                cof_data: None,
+                cof_data,
+                trace_id: None,
+                transaction_link_id: None,
+                three_d_s_data: get_three_ds_data(item),
             });
 
         // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
@@ -631,7 +707,12 @@ impl
 
         let card = CardDetails {
             pan: card_with_limited_details.card_number.clone(),
-            cardholder_name: card_with_limited_details.card_holder_name.clone(),
+            cardholder_name: card_with_limited_details
+                .card_holder_name
+                .clone()
+                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_holder_name",
+                })?,
             expiry_year: card_with_limited_details.get_card_expiry_year_2_digit()?,
             expiry_month: card_with_limited_details.card_exp_month.clone(),
             cvv: None,
@@ -656,6 +737,16 @@ impl
             None
         };
 
+        let cof_data = if item.router_data.request.is_cit_mandate_payment() {
+            Some(CardOnFileData {
+                cof_type: CofType::Adhoc,
+                source: CofSource::Cit,
+                mode: CofMode::Initial,
+            })
+        } else {
+            None
+        };
+
         let ecommerce_data =
             EcommercePaymentOnlyTransactionData::Card(EcommerceCardPaymentOnlyTransactionData {
                 merchant_information,
@@ -664,7 +755,10 @@ impl
                 amount,
                 rrn: item.router_data.request.merchant_order_reference_id.clone(),
                 pre_auth_inc_ext_capture_flow,
-                cof_data: None,
+                cof_data,
+                trace_id: None,
+                transaction_link_id: None,
+                three_d_s_data: get_three_ds_data(item),
             });
 
         // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
@@ -943,6 +1037,7 @@ pub struct EcommerceCardPaymentOnlyResponseData {
     pub merchant_advice_code: Option<String>,
     pub description: Option<String>,
     pub trace_id: Option<String>,
+    pub transaction_link_id: Option<String>,
 }
 
 fn get_error_code(response_code: Option<&ResponseCode>) -> String {
@@ -1002,7 +1097,10 @@ pub fn get_peachpayments_response(
             redirection_data: Box::new(None),
             mandate_reference: Box::new(None),
             connector_metadata: None,
-            network_txn_id: None,
+            network_txn_id: response
+                .ecommerce_card_payment_only_transaction_data
+                .and_then(|data| data.trace_id),
+            network_txn_link_id: None,
             connector_response_reference_id: Some(response.reference_id),
             incremental_authorization_allowed: None,
             authentication_data: None,
@@ -1048,7 +1146,10 @@ pub fn get_webhook_response(
             redirection_data: Box::new(None),
             mandate_reference: Box::new(None),
             connector_metadata: None,
-            network_txn_id: None,
+            network_txn_id: transaction
+                .ecommerce_card_payment_only_transaction_data
+                .and_then(|data| data.trace_id),
+            network_txn_link_id: None,
             connector_response_reference_id: Some(transaction.reference_id.clone()),
             incremental_authorization_allowed: None,
             authentication_data: None,
@@ -1120,6 +1221,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsCaptureResponse, T, Paymen
                     })
                 }),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.reference_id),
                 incremental_authorization_allowed: None,
                 authentication_data: None,

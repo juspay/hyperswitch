@@ -12,19 +12,20 @@ use crate::user::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
     AcceptInviteFromEmailRequest, AcceptInviteResponse, AuthSelectRequest, AuthorizeResponse,
-    BeginTotpResponse, ChangePasswordRequest, CloneConnectorRequest, ConnectAccountRequest,
-    CreateInternalUserRequest, CreateTenantUserRequest, CreateUserAuthenticationMethodRequest,
-    CreateUserAuthenticationMethodResponse, EmbeddedTokenInfoResponse, ForgotPasswordRequest,
-    GetSsoAuthUrlRequest, GetUserAuthenticationMethodsRequest, GetUserDetailsResponse,
-    GetUserInternalDetailsResponse, GetUserRoleDetailsRequest, GetUserRoleDetailsResponseV2,
-    InviteUserRequest, IssueEmbeddedTokenResponse, ListUsersInternalRequest,
-    ListUsersInternalResponse, PlatformAccountCreateRequest, PlatformAccountCreateResponse,
-    ReInviteUserRequest, RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest,
-    SendVerifyEmailRequest, SignUpRequest, SignUpWithMerchantIdRequest, SsoSignInRequest,
-    SwitchMerchantRequest, SwitchOrganizationRequest, SwitchProfileRequest, TokenResponse,
-    TwoFactorAuthStatusResponse, TwoFactorStatus, UpdateUserAccountDetailsRequest,
-    UpdateUserAuthenticationMethodRequest, UserFromEmailRequest, UserMerchantAccountResponse,
-    UserMerchantCreate, UserOrgMerchantCreateRequest, VerifyEmailRequest,
+    AuthorizeTokenRequest, BeginTotpResponse, ChangePasswordRequest, CloneConnectorRequest,
+    ConnectAccountRequest, CreateInternalUserRequest, CreateTenantUserRequest,
+    CreateUserAuthenticationMethodRequest, CreateUserAuthenticationMethodResponse,
+    EmbeddedTokenInfoResponse, ForgotPasswordRequest, GetSsoAuthUrlRequest,
+    GetUserAuthenticationMethodsRequest, GetUserDetailsResponse, GetUserInternalDetailsResponse,
+    GetUserRoleDetailsRequest, GetUserRoleDetailsResponseV2, InviteUserRequest,
+    IssueEmbeddedTokenResponse, ListUsersInternalRequest, ListUsersInternalResponse,
+    PlatformAccountCreateRequest, PlatformAccountCreateResponse, ReInviteUserRequest,
+    RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest, SendVerifyEmailRequest,
+    SignUpRequest, SignUpWithMerchantIdRequest, SsoSignInRequest, SwitchMerchantRequest,
+    SwitchOrganizationRequest, SwitchProfileRequest, TokenResponse, TwoFactorAuthStatusResponse,
+    TwoFactorStatus, UpdateUserAccountDetailsRequest, UpdateUserAuthenticationMethodRequest,
+    UserFromEmailRequest, UserMerchantAccountResponse, UserMerchantCreate,
+    UserMerchantDetailsResponse, UserOrgMerchantCreateRequest, VerifyEmailRequest,
     VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
 
@@ -47,6 +48,7 @@ common_utils::impl_api_event_type!(
         PlatformAccountCreateResponse,
         UserOrgMerchantCreateRequest,
         UserMerchantAccountResponse,
+        UserMerchantDetailsResponse,
         UserMerchantCreate,
         AuthorizeResponse,
         ConnectAccountRequest,
@@ -83,7 +85,8 @@ common_utils::impl_api_event_type!(
         EmbeddedTokenInfoResponse,
         GetUserInternalDetailsResponse,
         ListUsersInternalRequest,
-        ListUsersInternalResponse
+        ListUsersInternalResponse,
+        AuthorizeTokenRequest
     )
 );
 

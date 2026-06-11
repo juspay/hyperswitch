@@ -1,6 +1,6 @@
-import crypto from "node:crypto";
 import { defineConfig } from "cypress";
 import mochawesome from "cypress-mochawesome-reporter/plugin.js";
+import crypto from "crypto";
 import fs from "fs";
 import { getTimeoutMultiplier } from "./cypress/utils/RequestBodyUtils.js";
 
@@ -10,6 +10,7 @@ let globalState;
 const connectorId = process.env.CYPRESS_CONNECTOR || "service";
 const screenshotsFolderName = `screenshots/${connectorId}`;
 const reportName = process.env.REPORT_NAME || `${connectorId}_report`;
+const retries = process.env.CYPRESS_MOCK_SERVER === "true" ? 0 : 2;
 
 // Get timeout multiplier from shared utility
 const timeoutMultiplier = getTimeoutMultiplier();
@@ -33,9 +34,17 @@ export default defineConfig({
           console.log(message);
           return null;
         },
-        hmac_sha256: ({ secret, message }) => {
-          const key = Buffer.from(secret, "hex");
-          return crypto.createHmac("sha256", key).update(message).digest("hex");
+        computeHmac: ({ key, message, algorithm = "sha512" }) => {
+          if (!key || !message) {
+            throw new Error(
+              `computeHmac: 'key' and 'message' are required (got key=${!!key}, message=${!!message})`
+            );
+          }
+          const signature = crypto
+            .createHmac(algorithm, key)
+            .update(message)
+            .digest("hex");
+          return signature;
         },
       });
       on("after:spec", (spec, results) => {
@@ -66,7 +75,6 @@ export default defineConfig({
       return config;
     },
     experimentalRunAllSpecs: true,
-    retries: 2,
 
     specPattern: "cypress/e2e/**/*.cy.{js,jsx,ts,tsx}",
     supportFile: "cypress/support/e2e.js",
@@ -87,6 +95,7 @@ export default defineConfig({
     requestTimeout: Math.round(45000 * timeoutMultiplier),
     taskTimeout: Math.round(120000 * timeoutMultiplier),
     screenshotsFolder: screenshotsFolderName,
+    retries: retries,
     video: true,
     videoCompression: 32,
     videosFolder: `cypress/videos/${connectorId}`,

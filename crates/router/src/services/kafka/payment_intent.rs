@@ -58,6 +58,7 @@ pub struct KafkaPaymentIntent<'a> {
     pub merchant_order_reference_id: Option<&'a String>,
     pub organization_id: &'a id_type::OrganizationId,
     pub processor_merchant_id: &'a id_type::MerchantId,
+    pub created_by: Option<&'a common_types::CreatedBy>,
     #[serde(flatten)]
     infra_values: Option<Value>,
 }
@@ -105,6 +106,7 @@ impl<'a> KafkaPaymentIntent<'a> {
             merchant_order_reference_id: intent.merchant_order_reference_id.as_ref(),
             organization_id: &intent.organization_id,
             processor_merchant_id: &intent.processor_merchant_id,
+            created_by: intent.created_by.as_ref(),
             infra_values,
         }
     }
@@ -147,6 +149,7 @@ pub struct KafkaPaymentIntent<'a> {
     pub payment_link_id: Option<&'a String>,
     pub updated_by: &'a String,
     pub surcharge_applicable: Option<bool>,
+    pub external_surcharge_applicable: Option<bool>,
     pub request_incremental_authorization: RequestIncrementalAuthorization,
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
     pub authorization_count: Option<i32>,
@@ -244,6 +247,9 @@ impl<'a> KafkaPaymentIntent<'a> {
             is_iframe_redirection_enabled,
             is_payment_id_from_merchant,
             enable_partial_authorization,
+            profile_acquirer_id: _,
+            external_surcharge_strategy: _,
+            external_surcharge_applicable: _,
         } = intent;
 
         Self {
@@ -277,6 +283,7 @@ impl<'a> KafkaPaymentIntent<'a> {
             payment_link_id: payment_link_id.as_ref(),
             updated_by,
             surcharge_applicable: None,
+            external_surcharge_applicable: None,
             request_incremental_authorization: *request_incremental_authorization,
             split_txns_enabled: *split_txns_enabled,
             authorization_count: *authorization_count,

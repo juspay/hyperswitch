@@ -16,6 +16,7 @@ use rsa::{
     pkcs8::{DecodePrivateKey, DecodePublicKey},
     signature::Verifier,
     traits::PublicKeyParts,
+    Oaep,
 };
 
 use crate::{
@@ -708,6 +709,22 @@ where
     }
 }
 
+impl<'de, T: Clone> serde::Deserialize<'de> for Encryptable<T>
+where
+    T: serde::Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let inner = T::deserialize(deserializer)?;
+        Ok(Self {
+            inner,
+            encrypted: Secret::new(Vec::new()),
+        })
+    }
+}
+
 impl<T: Clone> PartialEq for Encryptable<T>
 where
     T: PartialEq,
@@ -761,6 +778,28 @@ pub fn extract_rsa_public_key_components(
     let e_b64 = BASE64_ENGINE_URL_SAFE_NO_PAD.encode(e_bytes);
 
     Ok((n_b64, e_b64))
+}
+
+/// Encrypt plaintext using RSA-OAEP with SHA-256.
+/// `public_key_der` must be a DER-encoded SubjectPublicKeyInfo (PKCS#8) public key.
+/// Returns the raw ciphertext bytes.
+pub fn encrypt_rsa_oaep_sha256(
+    public_key_der: &[u8],
+    plaintext: &[u8],
+) -> CustomResult<Vec<u8>, errors::CryptoError> {
+    use rand::rngs::OsRng;
+
+    let public_key = rsa::RsaPublicKey::from_public_key_der(public_key_der)
+        .change_context(errors::CryptoError::EncodingFailed)
+        .attach_printable("Failed to parse DER public key for RSA-OAEP")?;
+
+    let padding = Oaep::new::<rsa::sha2::Sha256>();
+    let mut rng = OsRng;
+
+    public_key
+        .encrypt(&mut rng, padding, plaintext)
+        .change_context(errors::CryptoError::EncodingFailed)
+        .attach_printable("RSA OAEP encryption failed")
 }
 
 /// Represents the RSA-PSS-SHA256 signing algorithm

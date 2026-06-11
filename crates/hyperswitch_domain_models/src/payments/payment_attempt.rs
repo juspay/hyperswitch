@@ -1,7 +1,9 @@
 use std::str::FromStr;
 
-#[cfg(all(feature = "v1", feature = "olap"))]
+#[cfg(feature = "v1")]
 use api_models::enums::Connector;
+#[cfg(feature = "v1")]
+use api_models::payments::Amount;
 #[cfg(feature = "v2")]
 use api_models::payments::{additional_info::UpiAdditionalData, AdditionalPaymentData};
 use common_enums as storage_enums;
@@ -66,7 +68,7 @@ use crate::{
 };
 #[cfg(feature = "v1")]
 use crate::{
-    mandates::{MandateDataType, MandateDetails},
+    mandates::{MandateDataType, MandateDetails, MandateTransactionType},
     router_request_types,
 };
 
@@ -105,16 +107,6 @@ pub trait PaymentAttemptInterface {
         this: PaymentAttempt,
         payment_attempt: PaymentAttemptUpdate,
         storage_scheme: storage_enums::MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, Self::Error>;
-
-    #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_connector_transaction_id_payment_id_processor_merchant_id(
-        &self,
-        connector_transaction_id: &ConnectorTransactionId,
-        payment_id: &id_type::PaymentId,
-        processor_merchant_id: &id_type::MerchantId,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-        merchant_key_store: &MerchantKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
     #[cfg(feature = "v1")]
@@ -549,21 +541,21 @@ pub struct NetworkErrorDetails {
 #[cfg(feature = "v1")]
 impl NetworkErrorDetails {
     fn new(
-        network_details: Option<Option<NetworkDetails>>,
-        network_error_message: Option<Option<String>>,
+        network_advice_code: Option<Option<String>>,
+        advice_message: Option<Option<String>>,
         card_network: Option<storage_enums::CardNetwork>,
     ) -> Option<Option<Self>> {
-        if network_details.is_none() && network_error_message.is_none() {
+        if network_advice_code.is_none() && advice_message.is_none() {
             None
         } else {
-            let network_details_val = network_details.flatten();
-            let network_error_message_val = network_error_message.flatten();
+            let network_advice_code_val = network_advice_code.flatten();
+            let advice_message_val = advice_message.flatten();
 
-            if network_details_val.is_some() || network_error_message_val.is_some() {
+            if network_advice_code_val.is_some() || advice_message_val.is_some() {
                 Some(Some(Self {
                     name: card_network,
-                    advice_code: network_details_val.and_then(|n| n.network_advice_code),
-                    advice_message: network_error_message_val,
+                    advice_code: network_advice_code_val,
+                    advice_message: advice_message_val,
                 }))
             } else {
                 Some(None)
@@ -828,8 +820,11 @@ pub struct PaymentAttempt {
     pub created_by: Option<CreatedBy>,
     pub connector_request_reference_id: Option<String>,
     pub network_transaction_id: Option<String>,
+    pub network_transaction_link_id: Option<String>,
     /// stores the authorized amount in case of partial authorization
     pub authorized_amount: Option<MinorUnit>,
+    /// External surcharge details from InterPayments
+    pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
 }
 
 impl PaymentAttempt {
@@ -994,7 +989,9 @@ impl PaymentAttempt {
             created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id: None,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             authorized_amount: None,
+            external_surcharge_details: None,
         })
     }
 
@@ -1086,7 +1083,9 @@ impl PaymentAttempt {
             created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id: None,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             authorized_amount: None,
+            external_surcharge_details: None,
         })
     }
 
@@ -1185,7 +1184,9 @@ impl PaymentAttempt {
             created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id: None,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             authorized_amount: None,
+            external_surcharge_details: None,
         })
     }
 
@@ -1309,7 +1310,9 @@ impl PaymentAttempt {
             created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             authorized_amount: None,
+            external_surcharge_details: None,
         })
     }
 
@@ -1413,6 +1416,7 @@ pub struct PaymentAttempt {
     pub connector_request_reference_id: Option<String>,
     pub debit_routing_savings: Option<MinorUnit>,
     pub network_transaction_id: Option<String>,
+    pub network_transaction_link_id: Option<String>,
     pub is_overcapture_enabled: Option<OvercaptureEnabledBool>,
     pub network_details: Option<NetworkDetails>,
     pub is_stored_credential: Option<bool>,
@@ -1426,6 +1430,10 @@ pub struct PaymentAttempt {
     pub retry_type: Option<storage_enums::RetryType>,
     /// Installment data selected by the customer (number of installments and billing frequency)
     pub installment_data: Option<common_types::payments::InstallmentData>,
+    /// External surcharge details from InterPayments (stored as JSONB)
+    pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
+    /// Sender payment instrument ID
+    pub sender_payment_instrument_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -1705,6 +1713,32 @@ impl PaymentAttempt {
         self.net_amount.get_total_amount()
     }
 
+    /// Infer the payment type (Normal / NewMandate / SetupMandate / RecurringMandate)
+    /// from the attempt's mandate state and whether this is a CIT transaction.
+    pub fn infer_payment_type(&self, is_cit_transaction: bool) -> api_models::enums::PaymentType {
+        let amount = Amount::from(self.net_amount.get_order_amount());
+        let mandate_type = if self.mandate_id.is_some() {
+            Some(MandateTransactionType::RecurringMandateTransaction)
+        } else if is_cit_transaction {
+            Some(MandateTransactionType::NewMandateTransaction)
+        } else {
+            None
+        };
+        match mandate_type {
+            Some(MandateTransactionType::NewMandateTransaction) => {
+                if let Amount::Value(_) = amount {
+                    api_models::enums::PaymentType::NewMandate
+                } else {
+                    api_models::enums::PaymentType::SetupMandate
+                }
+            }
+            Some(MandateTransactionType::RecurringMandateTransaction) => {
+                api_models::enums::PaymentType::RecurringMandate
+            }
+            None => api_models::enums::PaymentType::Normal,
+        }
+    }
+
     pub fn get_total_surcharge_amount(&self) -> Option<MinorUnit> {
         self.net_amount.get_total_surcharge_amount()
     }
@@ -1907,6 +1941,7 @@ pub enum PaymentAttemptUpdate {
         payment_method_billing_address_id: Option<String>,
         updated_by: String,
         network_transaction_id: Option<String>,
+        network_transaction_link_id: Option<String>,
         shipping_cost: Option<MinorUnit>,
         order_tax_amount: Option<MinorUnit>,
     },
@@ -1961,6 +1996,7 @@ pub enum PaymentAttemptUpdate {
         routing_approach: Option<storage_enums::RoutingApproach>,
         connector_request_reference_id: Option<String>,
         network_transaction_id: Option<String>,
+        network_transaction_link_id: Option<String>,
         is_stored_credential: Option<bool>,
         request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     },
@@ -1995,6 +2031,7 @@ pub enum PaymentAttemptUpdate {
         connector: Option<String>,
         connector_transaction_id: Option<String>,
         network_transaction_id: Option<String>,
+        network_transaction_link_id: Option<String>,
         authentication_type: Option<storage_enums::AuthenticationType>,
         payment_method_id: Option<String>,
         mandate_id: Option<String>,
@@ -2029,8 +2066,10 @@ pub enum PaymentAttemptUpdate {
         issuer_error_message: Option<Option<String>>,
         network_details: Option<Option<NetworkDetails>>,
         network_error_message: Option<Option<String>>,
+        advice_message: Option<Option<String>>,
         recommended_action: Option<Option<storage_enums::RecommendedAction>>,
         card_network: Option<storage_enums::CardNetwork>,
+        sender_payment_instrument_id: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -2069,6 +2108,7 @@ pub enum PaymentAttemptUpdate {
         issuer_error_message: Option<Option<String>>,
         network_details: Option<Option<NetworkDetails>>,
         network_error_message: Option<Option<String>>,
+        advice_message: Option<Option<String>>,
         recommended_action: Option<Option<storage_enums::RecommendedAction>>,
         card_network: Option<storage_enums::CardNetwork>,
     },
@@ -2125,6 +2165,14 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         connector_metadata: Option<Value>,
     },
+    RecurrenceUpdate {
+        status: storage_enums::AttemptStatus,
+        error_code: Option<String>,
+        error_message: Option<String>,
+        error_reason: Option<String>,
+        updated_by: String,
+        connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -2146,6 +2194,7 @@ impl PaymentAttemptUpdate {
                 capture_method,
                 fingerprint_id,
                 network_transaction_id,
+                network_transaction_link_id,
                 payment_method_billing_address_id,
                 updated_by,
                 order_tax_amount,
@@ -2168,6 +2217,7 @@ impl PaymentAttemptUpdate {
                 fingerprint_id,
                 payment_method_billing_address_id,
                 network_transaction_id,
+                network_transaction_link_id,
                 updated_by,
                 order_tax_amount,
                 shipping_cost,
@@ -2271,6 +2321,7 @@ impl PaymentAttemptUpdate {
                 routing_approach,
                 connector_request_reference_id,
                 network_transaction_id,
+                network_transaction_link_id,
                 is_stored_credential,
                 request_extended_authorization,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
@@ -2319,6 +2370,7 @@ impl PaymentAttemptUpdate {
                 }),
                 connector_request_reference_id,
                 network_transaction_id,
+                network_transaction_link_id,
                 is_stored_credential,
                 request_extended_authorization,
             },
@@ -2363,15 +2415,18 @@ impl PaymentAttemptUpdate {
                 charges,
                 setup_future_usage_applied,
                 network_transaction_id,
+                network_transaction_link_id,
                 debit_routing_savings: _,
                 is_overcapture_enabled,
                 authorized_amount,
                 issuer_error_code,
                 issuer_error_message,
                 network_details,
-                network_error_message,
+                network_error_message: _,
+                advice_message,
                 recommended_action,
                 card_network,
+                sender_payment_instrument_id,
             } => {
                 let connector_details = ConnectorErrorDetails::new(
                     error_code.clone(),
@@ -2386,11 +2441,10 @@ impl PaymentAttemptUpdate {
                     user_guidance_message.clone(),
                     recommended_action,
                 );
-                let network_error_details = NetworkErrorDetails::new(
-                    network_details,
-                    network_error_message.clone(),
-                    card_network,
-                );
+                let network_advice_code =
+                    network_details.map(|opt| opt.and_then(|n| n.network_advice_code));
+                let network_error_details =
+                    NetworkErrorDetails::new(network_advice_code, advice_message, card_network);
                 let issuer_details = IssuerErrorDetails::new(
                     issuer_error_code.clone(),
                     issuer_error_message.clone(),
@@ -2432,11 +2486,13 @@ impl PaymentAttemptUpdate {
                     charges,
                     setup_future_usage_applied,
                     network_transaction_id,
+                    network_transaction_link_id,
                     is_overcapture_enabled,
                     authorized_amount,
                     encrypted_payment_method_data: encrypted_payment_method_data
                         .map(Encryption::from),
                     error_details,
+                    sender_payment_instrument_id,
                 }
             }
             Self::UnresolvedResponseUpdate {
@@ -2511,7 +2567,8 @@ impl PaymentAttemptUpdate {
                 issuer_error_code,
                 issuer_error_message,
                 network_details,
-                network_error_message,
+                network_error_message: _,
+                advice_message,
                 encrypted_payment_method_data,
                 recommended_action,
                 card_network,
@@ -2529,11 +2586,11 @@ impl PaymentAttemptUpdate {
                     user_guidance_message.clone(),
                     recommended_action,
                 );
-                let network_error_details = NetworkErrorDetails::new(
-                    network_details.clone(),
-                    network_error_message.clone(),
-                    card_network,
-                );
+                let network_advice_code = network_details
+                    .clone()
+                    .map(|opt| opt.and_then(|n| n.network_advice_code));
+                let network_error_details =
+                    NetworkErrorDetails::new(network_advice_code, advice_message, card_network);
                 let issuer_details = IssuerErrorDetails::new(
                     issuer_error_code.clone(),
                     issuer_error_message.clone(),
@@ -2678,6 +2735,21 @@ impl PaymentAttemptUpdate {
                 updated_by,
                 connector_metadata,
             },
+            Self::RecurrenceUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                connector_mandate_detail,
+            } => DieselPaymentAttemptUpdate::RecurrenceUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                connector_mandate_detail,
+            },
         }
     }
 
@@ -2706,7 +2778,8 @@ impl PaymentAttemptUpdate {
             | Self::IncrementalAuthorizationAmountUpdate { .. }
             | Self::AuthenticationUpdate { .. }
             | Self::ManualUpdate { .. }
-            | Self::PostSessionTokensUpdate { .. } => None,
+            | Self::PostSessionTokensUpdate { .. }
+            | Self::RecurrenceUpdate { .. } => None,
         }
     }
 }
@@ -2906,12 +2979,15 @@ impl behaviour::Conversion for PaymentAttempt {
             routing_approach: self.routing_approach,
             connector_request_reference_id: self.connector_request_reference_id,
             network_transaction_id: self.network_transaction_id,
+            network_transaction_link_id: self.network_transaction_link_id,
             is_overcapture_enabled: self.is_overcapture_enabled,
             network_details: self.network_details,
             is_stored_credential: self.is_stored_credential,
             authorized_amount: self.authorized_amount,
             encrypted_payment_method_data: self.encrypted_payment_method_data.map(Encryption::from),
             retry_type: self.retry_type,
+            external_surcharge_details: self.external_surcharge_details,
+            sender_payment_instrument_id: self.sender_payment_instrument_id,
         })
     }
 
@@ -3037,6 +3113,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 connector_request_reference_id: storage_model.connector_request_reference_id,
                 debit_routing_savings: None,
                 network_transaction_id: storage_model.network_transaction_id,
+                network_transaction_link_id: storage_model.network_transaction_link_id,
                 is_overcapture_enabled: storage_model.is_overcapture_enabled,
                 network_details: storage_model.network_details,
                 is_stored_credential: storage_model.is_stored_credential,
@@ -3045,6 +3122,8 @@ impl behaviour::Conversion for PaymentAttempt {
                 error_details: storage_model.error_details.map(Into::into),
                 retry_type: storage_model.retry_type,
                 installment_data: storage_model.installment_data,
+                external_surcharge_details: storage_model.external_surcharge_details,
+                sender_payment_instrument_id: storage_model.sender_payment_instrument_id,
             })
         }
         .await
@@ -3138,6 +3217,7 @@ impl behaviour::Conversion for PaymentAttempt {
             routing_approach: self.routing_approach,
             connector_request_reference_id: self.connector_request_reference_id,
             network_transaction_id: self.network_transaction_id,
+            network_transaction_link_id: self.network_transaction_link_id,
             network_details: self.network_details,
             is_stored_credential: self.is_stored_credential,
             authorized_amount: self.authorized_amount,
@@ -3145,6 +3225,8 @@ impl behaviour::Conversion for PaymentAttempt {
             error_details: self.error_details.map(Into::into),
             retry_type: self.retry_type,
             installment_data: self.installment_data,
+            external_surcharge_details: self.external_surcharge_details,
+            sender_payment_instrument_id: self.sender_payment_instrument_id,
         })
     }
 }
@@ -3219,7 +3301,9 @@ impl behaviour::Conversion for PaymentAttempt {
             created_by,
             connector_request_reference_id,
             network_transaction_id,
+            network_transaction_link_id,
             authorized_amount,
+            external_surcharge_details,
         } = self;
 
         let AttemptAmountDetails {
@@ -3318,6 +3402,7 @@ impl behaviour::Conversion for PaymentAttempt {
             created_by: created_by.map(|created_by| created_by.to_string()),
             connector_request_reference_id,
             network_transaction_id,
+            network_transaction_link_id,
             is_overcapture_enabled: None,
             network_details: None,
             attempts_group_id,
@@ -3329,6 +3414,8 @@ impl behaviour::Conversion for PaymentAttempt {
             error_details: None,
             retry_type: None,
             installment_data: None,
+            external_surcharge_details: None,
+            sender_payment_instrument_id: None,
         })
     }
 
@@ -3442,6 +3529,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 payment_method_subtype: storage_model.payment_method_subtype,
                 authentication_applied: storage_model.authentication_applied,
                 external_reference_id: storage_model.external_reference_id,
+                external_surcharge_details: storage_model.external_surcharge_details,
                 connector: storage_model.connector,
                 payment_method_billing_address,
                 connector_token_details: storage_model.connector_token_details,
@@ -3455,6 +3543,7 @@ impl behaviour::Conversion for PaymentAttempt {
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 connector_request_reference_id: storage_model.connector_request_reference_id,
                 network_transaction_id: storage_model.network_transaction_id,
+                network_transaction_link_id: storage_model.network_transaction_link_id,
                 authorized_amount: storage_model.authorized_amount,
             })
         }
@@ -3517,7 +3606,9 @@ impl behaviour::Conversion for PaymentAttempt {
             created_by,
             connector_request_reference_id,
             network_transaction_id,
+            network_transaction_link_id,
             authorized_amount,
+            external_surcharge_details: _,
         } = self;
 
         let card_network = payment_method_data
@@ -3536,6 +3627,7 @@ impl behaviour::Conversion for PaymentAttempt {
             merchant_id,
             status,
             network_transaction_id,
+            network_transaction_link_id,
             error_message: error_details
                 .as_ref()
                 .map(|details| details.message.clone()),
@@ -3611,6 +3703,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 .and_then(|details| details.network_error_message.clone()),
             processor_merchant_id: Some(processor_merchant_id),
             created_by: created_by.map(|created_by| created_by.to_string()),
+            external_surcharge_details: None,
             connector_request_reference_id,
             network_details: None,
             tokenization: None,

@@ -9,7 +9,7 @@ use scheduler::{
 };
 
 use crate::{
-    core::{configs, payouts},
+    core::{configs::dimension_state, payouts},
     errors as core_errors,
     routes::SessionState,
     types::{api, domain, storage},
@@ -35,8 +35,6 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
             .merchant_id
             .clone()
             .get_required_value("merchant_id")?;
-        let dimensions =
-            configs::dimension_state::Dimensions::new().with_merchant_id(merchant_id.clone());
 
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
@@ -58,6 +56,9 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
             key_store,
             None,
         );
+        let dimensions = dimension_state::Dimensions::new()
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
         let mut payout_data = Box::pin(payouts::make_payout_data(
             state,
             &platform,
@@ -74,7 +75,7 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
             &mut payout_data,
             None,
             None,
-            dimensions,
+            &dimensions,
         )
         .await?;
 

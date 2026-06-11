@@ -13,8 +13,7 @@ dummy_connector = ["euclid/dummy_connector", "common_enums/dummy_connector"]
 payouts = ["common_enums/payouts"]
 frm = []
 olap = []
-openapi = ["common_enums/openapi", "olap", "recon", "dummy_connector", "olap"]
-recon = []
+openapi = ["common_enums/openapi", "olap", "dummy_connector"]
 v1 = ["common_utils/v1"]
 v2 = ["common_types/v2", "common_utils/v2", "tokenization_v2", "dep:reqwest", "revenue_recovery"]
 dynamic_routing = []
@@ -28,6 +27,7 @@ actix-web = { version = "4.11.0", optional = true }
 csv = "1.3"
 error-stack = "0.4.1"
 mime = "0.3.17"
+rust_decimal = "1.37"
 reqwest = { version = "0.11.27", optional = true }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"

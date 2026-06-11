@@ -24,6 +24,8 @@ use crate::core::payments::route_connector_v1_for_payouts;
 use crate::{
     consts,
     core::{
+        configs::dimension_state,
+        customers,
         errors::{self, RouterResult, StorageErrorExt},
         payment_methods::{
             cards,
@@ -200,9 +202,93 @@ pub async fn make_payout_method_data(
             _ => Ok(None),
         };
 
-    let payout_method_data = data.map(|pmd| pmd.map(|p| p.normalize()))?;
+    let payout_method_data = data?
+        .map(|pmd| pmd.normalize())
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error normalizing payout method data")?;
 
     Ok(payout_method_data)
+}
+
+pub struct SourceBankDataOperation;
+
+impl SourceBankDataOperation {
+    fn get_source_bank_data_token() -> String {
+        common_utils::generate_id_with_default_len("temporary_token")
+    }
+
+    #[cfg(feature = "v1")]
+    pub async fn get_temp_source_bank_data(
+        state: &SessionState,
+        source_bank_data_token: Option<String>,
+        customer_id: Option<id_type::CustomerId>,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<Option<payouts::BankTransfer>> {
+        match source_bank_data_token {
+            Some(source_bank_data_token) => {
+                let (payout_method_data, supplementary_data) = vault::Vault::get_payout_method_data_from_temporary_locker(
+                    state,
+                    &source_bank_data_token,
+                    merchant_key_store,
+                )
+                .await
+                .attach_printable(
+                    "Source Bank Data for given token not found or there was a problem fetching it",
+                )?;
+
+                utils::when(supplementary_data.customer_id.ne(&customer_id), || {
+                    Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payout method and customer passed in payout are not same".into() })
+                })?;
+
+                match payout_method_data {
+                    Some(api::PayoutMethodData::BankTransfer(bank_transfer)) => {
+                        Ok(Some(bank_transfer))
+                    }
+                    _ => Err(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Payout method data fetched is not of type BankTransfer"),
+                }
+            }
+            None => Ok(None),
+        }
+    }
+
+    #[cfg(not(feature = "v1"))]
+    pub async fn get_temp_source_bank_data(
+        state: &SessionState,
+        source_bank_data_token: Option<String>,
+        customer_id: Option<id_type::GlobalCustomerId>,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<Option<payouts::BankTransfer>> {
+        todo!()
+    }
+
+    pub async fn temp_store_source_bank_data(
+        state: &SessionState,
+        source_bank_data: Option<payouts::BankTransfer>,
+        customer_id: Option<id_type::CustomerId>,
+        intent_fulfillment_time: Option<i64>,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<Option<String>> {
+        match source_bank_data {
+            Some(source_bank_data) => {
+                let source_bank_data_token = Self::get_source_bank_data_token();
+
+                let lookup_key = vault::Vault::store_payout_method_data_in_locker(
+                    state,
+                    Some(source_bank_data_token),
+                    &api::PayoutMethodData::BankTransfer(source_bank_data),
+                    customer_id,
+                    merchant_key_store,
+                    intent_fulfillment_time,
+                )
+                .await?;
+
+                Ok(Some(lookup_key))
+            }
+            _ => Ok(None),
+        }
+    }
 }
 
 pub fn should_create_connector_transfer_method(
@@ -597,10 +683,11 @@ pub async fn save_payout_data_to_locker(
                 });
             (
                 Some(
-                    cards::create_encrypted_data(
+                    core_utils::create_encrypted_data(
                         &key_manager_state,
                         platform.get_processor().get_key_store(),
                         pm_data,
+                        type_name!(diesel_models::payment_method::PaymentMethod),
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -638,10 +725,11 @@ pub async fn save_payout_data_to_locker(
         .billing_address
         .clone()
         .async_map(|billing_addr| async {
-            cards::create_encrypted_data(
+            core_utils::create_encrypted_data(
                 &key_manager_state,
                 platform.get_processor().get_key_store(),
                 billing_addr,
+                common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
             )
             .await
         })
@@ -671,6 +759,7 @@ pub async fn save_payout_data_to_locker(
                 None,
                 None,
                 payment_method_billing_address,
+                None,
                 None,
                 None,
                 None,
@@ -902,11 +991,11 @@ pub(super) async fn get_or_create_customer_details(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Unable to encrypt document_details")?;
 
-                let customer = domain::Customer {
-                    customer_id: customer_id.clone(),
-                    merchant_id: merchant_id.to_owned().clone(),
-                    name: encryptable_customer.name,
-                    email: encryptable_customer.email.map(|email| {
+                let customer = domain::Customer::new(
+                    customer_id.clone(),
+                    merchant_id.to_owned().clone(),
+                    encryptable_customer.name,
+                    encryptable_customer.email.map(|email| {
                         let encryptable: Encryptable<Secret<String, pii::EmailStrategy>> =
                             Encryptable::new(
                                 email.clone().into_inner().switch_strategy(),
@@ -914,26 +1003,22 @@ pub(super) async fn get_or_create_customer_details(
                             );
                         encryptable
                     }),
-                    phone: encryptable_customer.phone,
-                    description: None,
-                    phone_country_code: customer_details.phone_country_code.to_owned(),
-                    metadata: None,
-                    connector_customer: None,
-                    created_at: common_utils::date_time::now(),
-                    modified_at: common_utils::date_time::now(),
-                    address_id: None,
-                    default_payment_method_id: None,
-                    updated_by: None,
-                    version: common_types::consts::API_VERSION,
-                    tax_registration_id: encryptable_customer.tax_registration_id,
+                    encryptable_customer.phone,
+                    customer_details.phone_country_code.to_owned(),
+                    None,
+                    None,
+                    None,
+                    None,
+                    encryptable_customer.tax_registration_id,
                     document_details,
-                    created_by: platform
+                    platform
                         .get_initiator()
                         .and_then(|initiator| initiator.to_created_by()),
-                    last_modified_by: platform
+                    platform
                         .get_initiator()
                         .and_then(|initiator| initiator.to_created_by()), // Same as created_by on creation
-                };
+                    customers::generate_global_customer_id(&state.conf.cell_information.id),
+                );
 
                 Ok(Some(
                     db.insert_customer(
@@ -962,6 +1047,7 @@ pub(super) async fn get_or_create_customer_details(
 pub async fn decide_payout_connector(
     state: &SessionState,
     processor: &domain::Processor,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     request_straight_through: Option<api::routing::StraightThroughAlgorithm>,
     routing_data: &mut storage::RoutingData,
     payout_data: &mut PayoutData,
@@ -1096,6 +1182,7 @@ pub async fn decide_payout_connector(
     route_connector_v1_for_payouts(
         state,
         processor,
+        dimensions,
         &payout_data.business_profile,
         payout_data,
         routing_data,
@@ -1281,6 +1368,7 @@ pub fn is_eligible_for_local_payout_cancellation(status: api_enums::PayoutStatus
             | api_enums::PayoutStatus::RequiresConfirmation
             | api_enums::PayoutStatus::RequiresPayoutMethodData
             | api_enums::PayoutStatus::RequiresVendorAccountCreation
+            | api_enums::PayoutStatus::RequiresFulfillment
     )
 }
 
@@ -1524,23 +1612,27 @@ pub async fn get_translated_unified_code_and_message(
 
 pub async fn get_additional_payout_data(
     pm_data: &api::PayoutMethodData,
-    db: &dyn StorageInterface,
-    profile_id: &id_type::ProfileId,
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    customer_id: Option<&id_type::CustomerId>,
 ) -> Option<payout_additional::AdditionalPayoutMethodData> {
+    let db = &*state.store;
     match pm_data {
         api::PayoutMethodData::Card(card_data) => {
             let card_isin = Some(card_data.card_number.get_card_isin());
-            let enable_extended_bin =db
-            .find_config_by_key_unwrap_or(
-                format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
-             Some("false".to_string()))
-            .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
 
-            let card_extended_bin = match enable_extended_bin {
-                Some(config) if config.config == "true" => {
-                    Some(card_data.card_number.get_extended_card_bin())
-                }
-                _ => None,
+            let enable_extended_bin = dimensions
+                .get_enable_extended_card_bin(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    customer_id,
+                )
+                .await;
+
+            let card_extended_bin = if enable_extended_bin {
+                Some(card_data.card_number.get_extended_card_bin())
+            } else {
+                None
             };
             let last4 = Some(card_data.card_number.get_last4());
 

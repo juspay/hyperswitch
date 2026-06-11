@@ -42,8 +42,8 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorAccessTokenSuffix, ConnectorCommon, ConnectorCommonExt,
-        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation, CurrentFlowInfo,
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation, CurrentFlowInfo,
     },
     configs::Connectors,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -236,7 +236,7 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
 
         match req.payment_method {
             enums::PaymentMethod::BankTransfer => match req.request.payment_method_type {
-                Some(enums::PaymentMethodType::Pix) => {
+                Some(enums::PaymentMethodType::PixEmv) => {
                     let santander_variant =
                         transformers::get_qr_code_type(req.request.connector_meta.clone());
 
@@ -378,9 +378,9 @@ where
         let santander_mca_metadata = SantanderMetadataObject::try_from(&req.connector_meta_data)?;
 
         let client_id = match req.payment_method_type {
-            Some(enums::PaymentMethodType::Pix) => {
+            Some(enums::PaymentMethodType::PixEmv) => {
                 santander_mca_metadata
-                    .pix
+                    .pix_emv
                     .ok_or(errors::ConnectorError::NoConnectorMetaData)?
                     .client_id
             }
@@ -468,12 +468,22 @@ impl ConnectorCommon for Santander {
                     .cloned()
                     .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
 
+                let reason = response
+                    .violacoes
+                    .first()
+                    .and_then(|v| match (&v.propriedade, &v.razao) {
+                        (Some(prop), Some(raz)) => Some(format!("{}: {}", prop, raz)),
+                        (Some(prop), None) => Some(prop.clone()),
+                        (None, Some(raz)) => Some(raz.clone()),
+                        (None, None) => None,
+                    })
+                    .or_else(|| Some(message.clone()));
+
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: response.status.to_string(),
                     message,
-                    // reason: response.detail.clone(),
-                    reason: Some(response.title.clone()),
+                    reason,
                     attempt_status: None,
                     connector_transaction_id: None,
                     connector_response_reference_id: None,
@@ -483,19 +493,42 @@ impl ConnectorCommon for Santander {
                     connector_metadata: None,
                 })
             }
-            SantanderErrorResponse::PixAutomatico(response) => Ok(ErrorResponse {
-                status_code: res.status_code,
-                code: response.code.to_string(),
-                message: response.message.clone(),
-                reason: Some(response.description.clone()),
-                attempt_status: None,
-                connector_transaction_id: None,
-                connector_response_reference_id: None,
-                network_advice_code: None,
-                network_decline_code: None,
-                network_error_message: None,
-                connector_metadata: None,
-            }),
+            SantanderErrorResponse::PixAutomatico(response) => {
+                let (code, message, description) = match response {
+                    responses::SantanderPixAutomaticoErrorResponse::PixAutomaticoVariant1(err) => {
+                        let first_error = err.errors.first();
+                        (
+                            first_error
+                                .map(|e| e.code.to_string())
+                                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                            first_error
+                                .map(|e| e.message.clone())
+                                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                            first_error
+                                .map(|e| e.description.clone())
+                                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                        )
+                    }
+                    responses::SantanderPixAutomaticoErrorResponse::PixAutomaticoVariant2(err) => (
+                        err.code.to_string(),
+                        err.message.clone(),
+                        err.description.clone(),
+                    ),
+                };
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code,
+                    message,
+                    reason: Some(description),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
             SantanderErrorResponse::Boleto(response) => Ok(ErrorResponse {
                 status_code: res.status_code,
                 code: response.error_code.to_string(),
@@ -600,17 +633,37 @@ impl ConnectorCommon for Santander {
 }
 
 impl ConnectorValidation for Santander {
-    fn should_continue_further(
+    fn get_access_token_key(
         &self,
-        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
-    ) -> Option<bool> {
-        #[cfg(feature = "v1")]
-        {
-            Some(payment_intent.setup_future_usage == Some(common_enums::FutureUsage::OffSession))
-        }
-        #[cfg(feature = "v2")]
-        {
-            Some(payment_intent.setup_future_usage == common_enums::FutureUsage::OffSession)
+        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_connector_id_or_connector_name: String,
+        current_flow: Option<CurrentFlowInfo>,
+        payment_method_type: Option<enums::PaymentMethodType>,
+        is_mit_payment: Option<bool>,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let url_path = transformers::decide_access_token_key_suffix(
+            current_flow.clone(),
+            payment_method_type,
+            is_mit_payment.unwrap_or(false),
+        );
+
+        let suffix = url_path.map(|path| match path {
+            AccessTokenUrlPath::Leg1 => "pix",
+            AccessTokenUrlPath::Leg2 => "pix_automatico",
+            AccessTokenUrlPath::Boleto => "boleto",
+        });
+
+        match suffix {
+            Some(suffix) => Ok(format!(
+                "access_token_{}_{}_{}",
+                merchant_id.get_string_repr(),
+                merchant_connector_id_or_connector_name,
+                suffix,
+            )),
+            None => Ok(common_utils::access_token::get_default_access_token_key(
+                merchant_id,
+                merchant_connector_id_or_connector_name,
+            )),
         }
     }
 }
@@ -749,37 +802,39 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let feature_metadata = req.request.feature_metadata.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "feature_metadata",
+            },
+        )?;
+        let fixed_rec_amount_in_minor = feature_metadata
+            .get_optional_fixed_recurring_mit_amount_for_pix_automatico()
+            .change_context(errors::ConnectorError::InvalidDataFormat {
+                field_name: "feature_metadata.pix_automatico_additional_details",
+            })?;
+        let min_rec_amount_in_minor = feature_metadata
+            .get_optional_min_recurring_amount_for_pix_automatico()
+            .change_context(errors::ConnectorError::InvalidDataFormat {
+                field_name: "feature_metadata.pix_automatico_additional_details",
+            })?;
+        let fixed_rec_amount = fixed_rec_amount_in_minor
+            .map(|amount| convert_amount(self.amount_converter, amount, req.request.currency))
+            .transpose()?;
+        let min_rec_amount = min_rec_amount_in_minor
+            .map(|amount| convert_amount(self.amount_converter, amount, req.request.currency))
+            .transpose()?;
         let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.currency,
         )?;
-        let rec_amount_in_minor = req
-            .request
-            .connector_intent_metadata
-            .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_intent_metadata",
-            })?
-            .get_mandatory_pix_automatico_maximum_permissible_mandate_amount()
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name:
-                    "connector_metadata.santander.pix_automatico.cit.mandate_details.amount",
-            })?;
-        let rec_amount = convert_amount(
-            self.amount_converter,
-            rec_amount_in_minor,
-            req.request.currency,
-        )?;
-        let final_amount = if req.request.minor_amount.get_amount_as_i64()
-            < rec_amount_in_minor.get_amount_as_i64()
-        {
-            rec_amount
-        } else {
-            amount
-        };
-        let connector_router_data = SantanderRouterData::from((final_amount, req));
-        let connector_req = SantanderSetupMandateRequest::try_from(&connector_router_data)?;
+
+        let connector_router_data = SantanderRouterData::from((amount, req));
+        let connector_req = SantanderSetupMandateRequest::try_from((
+            &connector_router_data,
+            fixed_rec_amount,
+            min_rec_amount,
+        ))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -963,7 +1018,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         match req.payment_method {
             enums::PaymentMethod::BankTransfer => match req.request.payment_method_type {
-                Some(enums::PaymentMethodType::Pix)
+                Some(enums::PaymentMethodType::PixEmv)
                 | Some(enums::PaymentMethodType::PixAutomaticoQr) => {
                     // Check if this is a MIT (Merchant Initiated Transaction) for PixAutomaticoPush or PixAutomaticoQr
                     if req.request.is_mit_payment() {
@@ -1078,7 +1133,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let auth_details = SantanderAuthType::try_from(&req.connector_auth_type)?;
         let method: Result<Method, error_stack::Report<errors::ConnectorError>> =
             match req.payment_method_type {
-                Some(enums::PaymentMethodType::Pix)
+                Some(enums::PaymentMethodType::PixEmv)
                 | Some(enums::PaymentMethodType::PixAutomaticoQr)
                 | Some(enums::PaymentMethodType::PixAutomaticoPush) => Ok(Method::Put),
                 Some(enums::PaymentMethodType::Boleto) => Ok(Method::Post),
@@ -1213,11 +1268,11 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
             );
 
         if is_journey_2_cit {
-            let mandate_id = req.request.connector_reference_id.as_ref().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "connector_reference_id for Journey 2 CIT",
-                },
-            )?;
+            let mandate_id = req
+                .request
+                .connector_mandate_id
+                .clone()
+                .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
             // Journey 2 CIT flow
             Ok(format!(
                 "{}api/v1/rec/{}",
@@ -1227,7 +1282,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
         } else {
             match req.payment_method {
                 enums::PaymentMethod::BankTransfer => match req.request.payment_method_type {
-                    Some(enums::PaymentMethodType::Pix)
+                    Some(enums::PaymentMethodType::PixEmv)
                     | Some(enums::PaymentMethodType::PixAutomaticoQr) => {
                         let santander_variant =
                             transformers::get_qr_code_type(req.request.connector_meta.clone());
@@ -1256,14 +1311,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                             None => {
                                 let mandate_id = req
                                     .request
-                                    .mandate_id
-                                    .as_ref()
-                                    .and_then(|ids| match &ids.mandate_reference_id {
-                                        Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                                            connector_mandate_ids,
-                                        )) => connector_mandate_ids.get_connector_mandate_id(),
-                                        _ => None,
-                                    })
+                                    .connector_mandate_id
+                                    .clone()
                                     .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
                                 Ok(format!(
                                     "{}api/v1/rec/{}",
@@ -1277,7 +1326,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                     Some(enums::PaymentMethodType::PixAutomaticoPush) => {
                         let mandate_id = req
                             .request
-                            .connector_reference_id
+                            .connector_mandate_id
                             .clone()
                             .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
                         Ok(format!(
@@ -1701,7 +1750,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Santand
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.payment_method {
             enums::PaymentMethod::BankTransfer => match req.payment_method_type {
-                Some(enums::PaymentMethodType::Pix) => {
+                Some(enums::PaymentMethodType::PixEmv) => {
                     let end_to_end_id = req
                         .request
                         .connector_metadata
@@ -1755,7 +1804,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Santand
         let auth_details = SantanderAuthType::try_from(&req.connector_auth_type)?;
         let method: Result<Method, error_stack::Report<errors::ConnectorError>> =
             match req.payment_method_type {
-                Some(enums::PaymentMethodType::Pix) => Ok(Method::Put),
+                Some(enums::PaymentMethodType::PixEmv) => Ok(Method::Put),
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: req.payment_method.to_string(),
                     connector: "Santander",
@@ -1959,7 +2008,7 @@ static SANTANDER_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 
         santander_supported_payment_methods.add(
             enums::PaymentMethod::BankTransfer,
-            enums::PaymentMethodType::Pix,
+            enums::PaymentMethodType::PixEmv,
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
@@ -2015,6 +2064,20 @@ static SANTANDER_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 static SANTANDER_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Santander {
+    fn is_payment_recurrence_operation_needed(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    ) -> Option<bool> {
+        #[cfg(feature = "v1")]
+        {
+            Some(payment_intent.setup_future_usage == Some(common_enums::FutureUsage::OffSession))
+        }
+        #[cfg(feature = "v2")]
+        {
+            Some(payment_intent.setup_future_usage == common_enums::FutureUsage::OffSession)
+        }
+    }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&SANTANDER_CONNECTOR_INFO)
     }
@@ -2035,7 +2098,7 @@ impl ConnectorSpecifications for Santander {
         is_config_enabled_to_send_payment_id_as_connector_request_id: bool,
     ) -> String {
         match payment_attempt.payment_method_type {
-            Some(enums::PaymentMethodType::Pix)
+            Some(enums::PaymentMethodType::PixEmv)
             | Some(enums::PaymentMethodType::PixAutomaticoQr)
             | Some(enums::PaymentMethodType::PixAutomaticoPush) => {
                 if is_config_enabled_to_send_payment_id_as_connector_request_id
@@ -2070,8 +2133,13 @@ impl ConnectorSpecifications for Santander {
         current_flow: Option<CurrentFlowInfo>,
     ) -> bool {
         match current_flow {
-            // Journey 1/2/3/4 CIT
-            Some(CurrentFlowInfo::SetupMandate { .. }) => true,
+            // Journey 2/3/4 CIT
+            Some(CurrentFlowInfo::SetupMandate { request_data, .. }) => {
+                matches!(
+                    request_data.payment_method_type,
+                    Some(enums::PaymentMethodType::PixAutomaticoQr)
+                )
+            }
             Some(CurrentFlowInfo::CompleteAuthorize { .. })
             | Some(CurrentFlowInfo::Authorize { .. })
             | Some(CurrentFlowInfo::Psync { .. })
@@ -2102,41 +2170,6 @@ impl ConnectorSpecifications for Santander {
             CurrentFlowInfo::Authorize { .. }
             | CurrentFlowInfo::CompleteAuthorize { .. }
             | CurrentFlowInfo::Psync { .. } => false,
-        }
-    }
-}
-
-impl ConnectorAccessTokenSuffix for Santander {
-    fn get_access_token_key(
-        &self,
-        router_data: &dyn api::AccessTokenData,
-        merchant_connector_id_or_connector_name: String,
-        current_flow: Option<CurrentFlowInfo>,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        let merchant_id = &router_data.get_merchant_id();
-        let url_path = transformers::decide_access_token_key_suffix(
-            current_flow.clone(),
-            router_data.get_payment_method_type(),
-            router_data.is_mit_payment(),
-        );
-
-        let suffix = url_path.map(|path| match path {
-            AccessTokenUrlPath::Leg1 => "pix",
-            AccessTokenUrlPath::Leg2 => "pix_automatico",
-            AccessTokenUrlPath::Boleto => "boleto",
-        });
-
-        match suffix {
-            Some(suffix) => Ok(format!(
-                "access_token_{}_{}_{}",
-                merchant_id.get_string_repr(),
-                merchant_connector_id_or_connector_name,
-                suffix,
-            )),
-            None => Ok(common_utils::access_token::get_default_access_token_key(
-                merchant_id,
-                merchant_connector_id_or_connector_name,
-            )),
         }
     }
 }

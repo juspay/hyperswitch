@@ -12,10 +12,7 @@ use scheduler::{
 };
 
 use crate::{
-    core::{
-        configs::{self, dimension_state::DimensionsWithMerchantIdAndConnector},
-        payouts, webhooks,
-    },
+    core::{configs::dimension_state, payouts, webhooks},
     errors as core_errors,
     routes::SessionState,
     types::{api, domain, storage},
@@ -107,8 +104,9 @@ impl ProcessTrackerWorkflow<SessionState> for PayoutSyncWorkFlow {
         )
         .await?;
 
-        let dimensions = configs::dimension_state::Dimensions::new()
-            .with_merchant_id(merchant_id.clone())
+        let dimensions = dimension_state::Dimensions::new()
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
             .with_connector(connector_data.connector_name);
 
         if payout_data.payout_attempt.status.is_terminal_status() {
@@ -148,7 +146,7 @@ impl PayoutSyncWorkFlow {
         state: &SessionState,
         payout_data: &payouts::PayoutData,
         application_source: common_enums::ApplicationSource,
-        dimensions: &DimensionsWithMerchantIdAndConnector,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
     ) -> common_utils::errors::CustomResult<(), core_errors::ApiErrorResponse> {
         let db = &*state.store;
         let scheduled_time = Self::get_payout_sync_process_schedule_time(
@@ -174,6 +172,7 @@ impl PayoutSyncWorkFlow {
                     payout_id: payout_data.payouts.payout_id.to_owned(),
                     force_sync: Some(true),
                     merchant_id: Some(payout_data.payouts.merchant_id.to_owned()),
+                    expand_attempts: None,
                 };
                 let process_tracker_entry = storage::ProcessTrackerNew::new(
                     process_tracker_id,
@@ -221,12 +220,12 @@ impl PayoutSyncWorkFlow {
         state: &SessionState,
         payout_id: common_utils::id_type::PayoutId,
         retry_count: i32,
-        dimensions: &DimensionsWithMerchantIdAndConnector,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
     ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
         let value = dimensions
             .get_payout_tracker_mapping(
                 state.store.as_ref(),
-                &state.superposition_service,
+                state.superposition_service.as_ref(),
                 Some(&payout_id),
             )
             .await;
@@ -274,16 +273,24 @@ impl PayoutSyncWorkFlow {
         if let Some(outgoing_event_type) = event_type {
             let payout_response = payouts::response_handler(state, platform, payout_data).await?;
 
+            let webhook_recipient = webhooks::utils::resolve_webhook_recipient_from_created_by(
+                state,
+                platform,
+                &business_profile,
+                payout_data.payouts.created_by.as_ref(),
+            )
+            .await?;
+
             Box::pin(webhooks::create_event_and_trigger_outgoing_webhook(
                 state.clone(),
-                platform.get_processor().clone(),
-                business_profile,
+                platform.clone(),
                 outgoing_event_type,
                 enums::EventClass::Payouts,
                 payout_data.payouts.payout_id.get_string_repr().to_string(),
                 enums::EventObjectType::PayoutDetails,
                 api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_response)),
                 Some(payout_data.payout_attempt.created_at),
+                webhook_recipient,
             ))
             .await?;
         }
@@ -296,7 +303,7 @@ impl PayoutSyncWorkFlow {
         state: &SessionState,
         payout_id: common_utils::id_type::PayoutId,
         pt: storage::ProcessTracker,
-        dimensions: &DimensionsWithMerchantIdAndConnector,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
         let schedule_time: Option<time::PrimitiveDateTime> =

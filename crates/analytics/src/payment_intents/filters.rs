@@ -5,6 +5,7 @@ use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
 use crate::{
+    enums::AuthInfo,
     query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
     types::{
         AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, FiltersError, FiltersResult,
@@ -16,7 +17,7 @@ pub trait PaymentIntentFilterAnalytics: LoadRow<PaymentIntentFilterRow> {}
 
 pub async fn get_payment_intent_filter_for_dimension<T>(
     dimension: PaymentIntentDimensions,
-    merchant_id: &common_utils::id_type::MerchantId,
+    auth: &AuthInfo,
     time_range: &TimeRange,
     pool: &T,
 ) -> FiltersResult<Vec<PaymentIntentFilterRow>>
@@ -36,9 +37,7 @@ where
         .attach_printable("Error filtering time range")
         .switch()?;
 
-    query_builder
-        .add_filter_clause("merchant_id", merchant_id)
-        .switch()?;
+    auth.set_filter_clause(&mut query_builder).switch()?;
 
     query_builder.set_distinct();
 

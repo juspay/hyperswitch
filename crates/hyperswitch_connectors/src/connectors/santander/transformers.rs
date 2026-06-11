@@ -159,12 +159,14 @@ impl
             .unwrap_or(AttemptStatus::Pending);
         let resource_id =
             ResponseId::ConnectorTransactionId(item.data.connector_request_reference_id.clone());
-        let connector_response_reference_id = Some(item.response.id_rec.clone().expose());
+        let connector_response_reference_id = Some(item.response.id_solic_rec.clone().expose());
         let mandate_reference = Some(MandateReference {
             connector_mandate_id: Some(item.response.id_rec.clone().expose()),
             payment_method_id: None,
             mandate_metadata: None,
-            connector_mandate_request_reference_id: Some(item.response.id_solic_rec.expose()),
+            connector_mandate_request_reference_id: Some(
+                item.response.id_solic_rec.clone().expose(),
+            ),
         });
 
         Ok(Self {
@@ -175,6 +177,7 @@ impl
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata: metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -232,7 +235,6 @@ impl
         }));
         let resource_id =
             ResponseId::ConnectorTransactionId(item.data.connector_request_reference_id.clone());
-        let connector_response_reference_id = Some(item.response.id_rec.clone().expose());
 
         Ok(Self {
             status,
@@ -242,7 +244,8 @@ impl
                 mandate_reference,
                 connector_metadata,
                 network_txn_id: None,
-                connector_response_reference_id,
+                network_txn_link_id: None,
+                connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
@@ -396,10 +399,10 @@ impl TryFrom<(&RefreshTokenRouterData, &SantanderMetadataObject)> for SantanderA
         item: (&RefreshTokenRouterData, &SantanderMetadataObject),
     ) -> Result<Self, Self::Error> {
         let (client_id, client_secret) = match item.0.payment_method_type {
-            Some(enums::PaymentMethodType::Pix) => {
+            Some(enums::PaymentMethodType::PixEmv) => {
                 let pix_mca_metadata = item
                     .1
-                    .pix
+                    .pix_emv
                     .as_ref()
                     .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
                 Ok((
@@ -672,6 +675,11 @@ impl
                 SantanderDocumentKind::Cnpj,
                 Some(customer_document_details.document_number),
             ),
+            common_types::customers::DocumentKind::Psn
+            | common_types::customers::DocumentKind::Other => (
+                SantanderDocumentKind::Cpf,
+                Some(customer_document_details.document_number),
+            ),
         };
 
         let order_id = value
@@ -783,18 +791,11 @@ impl
             SantanderMetadataObject::try_from(&value.0.router_data.connector_meta_data)?;
 
         let mca_chave = match value.0.router_data.payment_method_type {
-            Some(enums::PaymentMethodType::Pix) => Some(
+            Some(enums::PaymentMethodType::PixEmv) => Some(
                 santander_mca_metadata
-                    .pix
+                    .pix_emv
                     .ok_or(errors::ConnectorError::NoConnectorMetaData)
-                    .attach_printable("Failed to get pix mca metadata")?
-                    .pix_key_value,
-            ),
-            Some(enums::PaymentMethodType::PixAutomaticoPush) => Some(
-                santander_mca_metadata
-                    .pix_automatico_push
-                    .ok_or(errors::ConnectorError::NoConnectorMetaData)
-                    .attach_printable("Failed to get pix automatico push mca metadata")?
+                    .attach_printable("Failed to get pix emv mca metadata")?
                     .pix_key_value,
             ),
             Some(enums::PaymentMethodType::PixAutomaticoQr) => Some(
@@ -821,6 +822,10 @@ impl
             }
             common_types::customers::DocumentKind::Cnpj => {
                 (None, Some(customer_document_details.document_number))
+            }
+            common_types::customers::DocumentKind::Psn
+            | common_types::customers::DocumentKind::Other => {
+                (Some(customer_document_details.document_number), None)
             }
         };
 
@@ -904,6 +909,31 @@ impl
                     .collect::<Vec<_>>()
             });
 
+        if let Some(ref info_list) = info_adicionais {
+            for info in info_list {
+                let nome_str: &str = &info.nome.clone().expose();
+                let valor_str: &str = &info.valor;
+                if nome_str.len() > 50 {
+                    return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                        connector: "Santander".to_string(),
+                        field_name: "metadata.key".to_string(),
+                        max_length: 50,
+                        received_length: nome_str.len(),
+                    }
+                    .into());
+                }
+                if valor_str.len() > 150 {
+                    return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                        connector: "Santander".to_string(),
+                        field_name: "metadata.value".to_string(),
+                        max_length: 150,
+                        received_length: valor_str.len(),
+                    }
+                    .into());
+                }
+            }
+        }
+
         let chave = value
             .0
             .router_data
@@ -913,6 +943,26 @@ impl
             .and_then(|data| data.get_pix_key_and_value().1)
             .or(mca_chave);
 
+        let solicitacao_pagador = value
+            .0
+            .router_data
+            .request
+            .billing_descriptor
+            .clone()
+            .and_then(|data| data.statement_descriptor);
+
+        if let Some(ref solicitacao) = solicitacao_pagador {
+            if solicitacao.len() > 140 {
+                return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                    connector: "Santander".to_string(),
+                    field_name: "statement_descriptor".to_string(),
+                    max_length: 140,
+                    received_length: solicitacao.len(),
+                }
+                .into());
+            }
+        }
+
         Ok(Self::PixQR(Box::new(SantanderPixQRPaymentRequest {
             calendario: calendar,
             devedor: debtor,
@@ -920,13 +970,7 @@ impl
                 original: value.0.amount.to_owned(),
             }),
             chave,
-            solicitacao_pagador: value
-                .0
-                .router_data
-                .request
-                .billing_descriptor
-                .clone()
-                .and_then(|data| data.statement_descriptor),
+            solicitacao_pagador,
             info_adicionais,
         })))
     }
@@ -942,54 +986,152 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
         let mit_data = value
             .router_data
             .request
-            .connector_intent_metadata
+            .feature_metadata
             .clone()
-            .and_then(|m| m.santander)
-            .and_then(|santander| santander.pix_automatico)
+            .and_then(|metadata| metadata.pix_automatico_additional_details)
             .and_then(|pix_automatico| match pix_automatico {
-                api_models::payments::SantanderPixAutomaticoData::Mit(mit) => Some(mit),
+                api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoMit(mit) => {
+                    Some(mit)
+                }
                 _ => None,
             })
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_metadata.santander.pix_automatico.mit",
+                field_name: "feature_metadata.pix_automatico_additional_details.mit",
             })?;
 
-        let receiver_details =
-            mit_data
-                .receiver_details
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "connector_metadata.santander.pix_automatico.mit.receiver_details",
-                })?;
+        let santander_mca_metadata =
+            SantanderMetadataObject::try_from(&value.router_data.connector_meta_data)?;
 
-        let branch_code =
-            receiver_details
-                .branch_code
-                .clone()
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name:
-                    "connector_metadata.santander.pix_automatico.mit.receiver_details.branch_code",
-            })?;
+        // Priority: feature_metadata.receiver_details > connector_meta_data
+        // Use connector_meta_data based on payment_method_type
+        let (branch_code, account_number, account_type) = match mit_data.receiver_details {
+            Some(receiver_details) => {
+                let branch = receiver_details.branch_code.clone();
+                let account = receiver_details.account_number.clone();
+                let acc_type = receiver_details.account_type;
 
-        let account_number = receiver_details
-            .account_number
-            .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-            field_name:
-                "connector_metadata.santander.pix_automatico.mit.receiver_details.account_number",
-        })?;
+                match value.router_data.request.payment_method_type {
+                    Some(enums::PaymentMethodType::PixAutomaticoPush) => {
+                        let push_metadata = santander_mca_metadata
+                            .pix_automatico_push
+                            .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
 
-        let account_type =
-            receiver_details
-                .account_type
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name:
-                    "connector_metadata.santander.pix_automatico.mit.receiver_details.account_type",
-            })?;
+                        // branch_code is optional
+                        let final_branch = branch.or(push_metadata.branch_code);
+
+                        let final_account = account.or(push_metadata.account_number).ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "account_number",
+                            },
+                        )?;
+
+                        let final_account_type = acc_type
+                            .map(SantanderAccountType::from)
+                            .or_else(|| push_metadata.account_type.map(SantanderAccountType::from))
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "account_type",
+                            })?;
+
+                        (final_branch, final_account, final_account_type)
+                    }
+                    Some(enums::PaymentMethodType::PixAutomaticoQr) => {
+                        let qr_metadata = santander_mca_metadata
+                            .pix_automatico_qr
+                            .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+
+                        // branch_code is optional
+                        let final_branch = branch.or(qr_metadata.branch_code);
+
+                        let final_account = account.or(qr_metadata.account_number).ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "account_number",
+                            },
+                        )?;
+
+                        let final_account_type = acc_type
+                            .map(SantanderAccountType::from)
+                            .or_else(|| qr_metadata.account_type.map(SantanderAccountType::from))
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "account_type",
+                            })?;
+
+                        (final_branch, final_account, final_account_type)
+                    }
+                    _ => {
+                        return Err(errors::ConnectorError::NotSupported {
+                            message: format!(
+                                "Payment method type {:?} is not supported for mandates",
+                                value.router_data.request.payment_method_type
+                            ),
+                            connector: "Santander",
+                        }
+                        .into());
+                    }
+                }
+            }
+            None => {
+                // If receiver_details doesn't exist, use connector_meta_data entirely
+                match value.router_data.request.payment_method_type {
+                    Some(enums::PaymentMethodType::PixAutomaticoPush) => {
+                        let push_metadata = santander_mca_metadata
+                            .pix_automatico_push
+                            .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+
+                        // branch_code is optional
+                        (
+                            push_metadata.branch_code,
+                            push_metadata.account_number.ok_or(
+                                errors::ConnectorError::MissingRequiredField {
+                                    field_name: "account_number",
+                                },
+                            )?,
+                            push_metadata
+                                .account_type
+                                .map(SantanderAccountType::from)
+                                .ok_or(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "account_type",
+                                })?,
+                        )
+                    }
+                    Some(enums::PaymentMethodType::PixAutomaticoQr) => {
+                        let qr_metadata = santander_mca_metadata
+                            .pix_automatico_qr
+                            .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+
+                        // branch_code is optional
+                        (
+                            qr_metadata.branch_code,
+                            qr_metadata.account_number.ok_or(
+                                errors::ConnectorError::MissingRequiredField {
+                                    field_name: "account_number",
+                                },
+                            )?,
+                            qr_metadata
+                                .account_type
+                                .map(SantanderAccountType::from)
+                                .ok_or(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "account_type",
+                                })?,
+                        )
+                    }
+                    _ => {
+                        return Err(errors::ConnectorError::NotSupported {
+                            message: format!(
+                                "Payment method type {:?} is not supported for mandates",
+                                value.router_data.request.payment_method_type
+                            ),
+                            connector: "Santander",
+                        }
+                        .into());
+                    }
+                }
+            }
+        };
 
         let recebedor = SantanderPixAutomaticoRecebedor {
             agencia: branch_code,
             conta: account_number,
-            tipo_conta: Some(SantanderAccountType::from(account_type)),
+            tipo_conta: account_type,
         };
 
         let id_rec = value.router_data.request.get_connector_mandate_id()?;
@@ -1015,14 +1157,32 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
             original: value.amount.to_owned(),
         };
 
-        let info_adicional = value.router_data.description.clone().or_else(|| {
-            value
+        let (info_adicional, info_source) =
+            if let Some(desc) = value.router_data.description.clone() {
+                (Some(desc), "description")
+            } else if let Some(stmt_desc) = value
                 .router_data
                 .request
                 .billing_descriptor
                 .as_ref()
                 .and_then(|bd| bd.statement_descriptor.clone())
-        });
+            {
+                (Some(stmt_desc), "statement_descriptor")
+            } else {
+                (None, "")
+            };
+
+        if let Some(ref info) = info_adicional {
+            if info.len() > 140 {
+                return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                    connector: "Santander".to_string(),
+                    field_name: info_source.to_string(),
+                    max_length: 140,
+                    received_length: info.len(),
+                }
+                .into());
+            }
+        }
 
         let devedor = Some(SantanderDebtor {
             cpf: None,
@@ -1135,6 +1295,8 @@ impl From<common_types::customers::DocumentKind> for SantanderDocumentKind {
         match item {
             common_types::customers::DocumentKind::Cnpj => Self::Cnpj,
             common_types::customers::DocumentKind::Cpf => Self::Cpf,
+            common_types::customers::DocumentKind::Psn
+            | common_types::customers::DocumentKind::Other => Self::Cpf,
         }
     }
 }
@@ -1219,21 +1381,37 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                                     .change_context(errors::ConnectorError::ParsingFailed)
                             })
                             .transpose()?;
-                        Ok(Self {
-                            status: AttemptStatus::from(pix_data.status),
-                            response: Ok(PaymentsResponseData::TransactionResponse {
+                        // Preserve existing `TransactionResponse` fields and only update `resource_id` and `connector_metadata`
+                        let response = match item.data.response.clone() {
+                            Ok(PaymentsResponseData::TransactionResponse {
+                                redirection_data,
+                                mandate_reference,
+                                network_txn_id,
+                                connector_response_reference_id,
+                                incremental_authorization_allowed,
+                                authentication_data,
+                                charges,
+                                ..
+                            }) => Ok(PaymentsResponseData::TransactionResponse {
                                 resource_id: ResponseId::ConnectorTransactionId(
                                     pix_data.txid.clone(),
                                 ),
-                                redirection_data: Box::new(None),
-                                mandate_reference: Box::new(None),
+                                redirection_data,
+                                mandate_reference,
                                 connector_metadata,
-                                network_txn_id: None,
-                                connector_response_reference_id: None,
-                                incremental_authorization_allowed: None,
-                                authentication_data: None,
-                                charges: None,
+                                network_txn_id,
+                                network_txn_link_id: None,
+                                connector_response_reference_id,
+                                incremental_authorization_allowed,
+                                authentication_data,
+                                charges,
                             }),
+                            other => other,
+                        };
+
+                        Ok(Self {
+                            status: AttemptStatus::from(pix_data.status),
+                            response,
                             ..item.data
                         })
                     }
@@ -1284,6 +1462,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                         mandate_reference: Box::new(None),
                         connector_metadata,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(cobr_data.id_rec.expose()),
                         incremental_authorization_allowed: None,
                         authentication_data: None,
@@ -1380,6 +1559,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                                 mandate_reference: Box::new(None),
                                 connector_metadata,
                                 network_txn_id: None,
+                                network_txn_link_id: None,
                                 connector_response_reference_id: None,
                                 incremental_authorization_allowed: None,
                                 authentication_data: None,
@@ -1430,6 +1610,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                         mandate_reference: Box::new(None),
                         connector_metadata,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         authentication_data: None,
@@ -1454,7 +1635,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                         })),
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: Some(cobr_data.id_rec.clone().expose()),
+                        network_txn_link_id: None,
+                        connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
@@ -1483,6 +1665,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderVoidResponse, T, PaymentsRespo
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     charges: None,
@@ -1582,7 +1765,7 @@ fn get_qr_code_data<F, T>(
     let santander_mca_metadata = SantanderMetadataObject::try_from(&item.data.connector_meta_data)?;
 
     let pix_mca_metadata = santander_mca_metadata
-        .pix
+        .pix_emv
         .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
 
     let response = pix_data.clone();
@@ -1634,7 +1817,7 @@ fn convert_pix_data_to_value(
 
     let qr_code_info = QrCodeInformation::QrCodeUrl {
         image_data_url: image_data_url.clone(),
-        qr_code_url: image_data_url,
+        qr_code_url: None,
         display_to_timestamp: None,
         expiry_type: variant,
         raw_qr_data: Some(data),
@@ -1683,7 +1866,7 @@ impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderPaymentRequest {
     type Error = Error;
     fn try_from(value: &PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
         match value.request.payment_method_type {
-            Some(common_enums::PaymentMethodType::Pix) => {
+            Some(common_enums::PaymentMethodType::PixEmv) => {
                 let pix_qr = SantanderPixQRPaymentRequest::try_from(value)?;
                 Ok(Self::PixQR(Box::new(pix_qr)))
             }
@@ -1785,11 +1968,11 @@ impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderPixQRPaymentRequest
 
     fn try_from(value: &PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
         match value.request.payment_method_type {
-            Some(common_enums::PaymentMethodType::Pix) => {
+            Some(common_enums::PaymentMethodType::PixEmv) => {
                 let santander_mca_metadata =
                     SantanderMetadataObject::try_from(&value.connector_meta_data)?;
                 let pix_mca_metadata = santander_mca_metadata
-                    .pix
+                    .pix_emv
                     .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
                 let calendar = match &value
                     .request
@@ -2092,60 +2275,72 @@ fn get_boleto_additional_fields_from_connector_metadata(
 }
 
 impl
-    TryFrom<
+    TryFrom<(
         &SantanderRouterData<
             &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
         >,
-    > for SantanderSetupMandateRequest
+        Option<StringMajorUnit>,
+        Option<StringMajorUnit>,
+    )> for SantanderSetupMandateRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        value: &SantanderRouterData<
-            &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
-        >,
+        value: (
+            &SantanderRouterData<
+                &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+            >,
+            Option<StringMajorUnit>,
+            Option<StringMajorUnit>,
+        ),
     ) -> Result<Self, Self::Error> {
-        let item = value.router_data;
-        let santander_meta = item
+        let item = value.0.router_data;
+        let fixed_rec_amount = value.1;
+        let min_rec_amount = value.2;
+        let pix_automatico_meta = item
             .request
-            .connector_intent_metadata
+            .feature_metadata
             .as_ref()
-            .and_then(|metadata| metadata.santander.as_ref())
+            .and_then(|metadata| metadata.pix_automatico_additional_details.as_ref())
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_metadata.santander",
+                field_name: "feature_metadata.pix_automatico_additional_details",
             })?;
 
-        let pix_automatico_meta = santander_meta.pix_automatico.as_ref().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "pix_automatico metadata",
-            },
-        )?;
-
-        let cit_data = match pix_automatico_meta {
-            api_models::payments::SantanderPixAutomaticoData::Cit(cit) => cit,
-            _ => {
+        let (retry_policy, mandate_details) = match pix_automatico_meta {
+            api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => {
+                (&push.retry_policy, &push.mandate_details)
+            }
+            api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoQr(qr) => {
+                (&qr.retry_policy, &qr.mandate_details)
+            }
+            api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoMit(_) => {
                 return Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "connector_metadata.santander.pix_automatico.cit",
+                    field_name:
+                        "feature_metadata.pix_automatico_additional_details (expected CIT flow)",
                 })?;
             }
         };
 
-        let contrato = cit_data
-            .contract_id
-            .clone()
-            .unwrap_or_else(|| item.payment_id.clone());
+        let contrato = item.request.merchant_order_reference_id.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "merchant_order_reference_id",
+            },
+        )?;
 
-        let politica_retentativa = if cit_data.retry_policy.unwrap_or(false) {
+        let politica_retentativa = if retry_policy.unwrap_or(false) {
             RetryPolicy::Permite3r7d
         } else {
             RetryPolicy::NaoPermite
         };
 
-        let customer_name = item
-            .get_optional_billing_full_name()
-            .or(item.request.customer_name.clone())
+        let billing_full_name = item.get_optional_billing_full_name();
+        let request_customer_name = item.request.customer_name.clone();
+        let customer_name = billing_full_name
+            .clone()
+            .or(request_customer_name.clone())
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_name",
+                field_name:
+                    "billing.address.first_name or billing.address.last_name or customer.name",
             })?;
 
         let (cpf, cnpj) = item
@@ -2157,6 +2352,10 @@ impl
                 }
                 common_types::customers::DocumentKind::Cnpj => {
                     (None, Some(details.document_number.clone()))
+                }
+                common_types::customers::DocumentKind::Psn
+                | common_types::customers::DocumentKind::Other => {
+                    (Some(details.document_number.clone()), None)
                 }
             })
             .ok_or(errors::ConnectorError::MissingRequiredField {
@@ -2170,36 +2369,77 @@ impl
                     field_name: "description",
                 })?;
 
+        if objeto.len() > 35 {
+            return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                connector: "Santander".to_string(),
+                field_name: "description".to_string(),
+                max_length: 35,
+                received_length: objeto.len(),
+            }
+            .into());
+        }
+
         let loc = item
             .session_token
             .as_ref()
             .and_then(|token| token.parse::<i64>().ok());
 
-        let mandate_details = cit_data.mandate_details.as_ref();
+        let current_date = time::OffsetDateTime::now_utc().date();
 
-        let data_inicial = match mandate_details.and_then(|md| md.start_date) {
-            Some(start_date) => format_as_date_only(Some(start_date))?,
-            None => time::OffsetDateTime::now_utc()
-                .date()
+        let data_inicial = match mandate_details.as_ref().and_then(|md| md.start_date) {
+            Some(start_date) => {
+                // Validate that start_date is not before current date
+                if start_date.date() < current_date {
+                    return Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "mandate_details.start_date",
+                    }
+                    .into());
+                }
+                format_as_date_only(Some(start_date))?
+            }
+            None => current_date
                 .format(&time::macros::format_description!("[year]-[month]-[day]"))
                 .change_context(errors::ConnectorError::DateFormattingFailed)?,
         };
 
         let data_final = mandate_details
+            .as_ref()
             .and_then(|md| md.end_date)
-            .map(|end_date| format_as_date_only(Some(end_date)))
+            .map(|end_date| {
+                // Validate that end_date is not before current date
+                if end_date.date() < current_date {
+                    return Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "mandate_details.end_date",
+                    });
+                }
+                format_as_date_only(Some(end_date))
+            })
             .transpose()?;
 
         let periodicidade = mandate_details
+            .as_ref()
             .and_then(|md| md.periodicity.as_ref())
             .map(|p| Periodicidade::from(p.clone()))
             .unwrap_or(Periodicidade::Semanal);
 
-        // either of valor or valor_minimo_recebedor can be passed at one time
-        let valor = Some(RecurrenceValue {
-            valor_rec: Some(value.amount.clone()),
-            valor_minimo_recebedor: None,
-        });
+        // either of valor_rec or valor_minimo_recebedor can be passed at one time, not both
+        let valor = match (fixed_rec_amount, min_rec_amount.as_ref()) {
+            (Some(fixed_amount), None) => Some(RecurrenceValue {
+                valor_rec: Some(fixed_amount),
+                valor_minimo_recebedor: None,
+            }),
+            (None, Some(_)) => Some(RecurrenceValue {
+                valor_rec: None,
+                valor_minimo_recebedor: min_rec_amount,
+            }),
+            (None, None) => None,
+            (Some(_), Some(_)) => {
+                return Err(errors::ConnectorError::InvalidDataFormat {
+                    field_name: "mandate_details.fixed_recurring_amount & mandate_details.min_recurring_amount cannot be present at the same time",
+                }
+                .into());
+            }
+        };
 
         let is_immediate = item
             .request
@@ -2275,12 +2515,6 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        if !matches!(router_env::env::which(), router_env::env::Env::Production) {
-            router_env::logger::info!(
-                "Santander Recurrence Id: {:?}",
-                item.response.id_rec.clone().expose()
-            );
-        }
         Ok(Self {
             status: AttemptStatus::from(item.response.status.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -2296,6 +2530,7 @@ impl<F>
                 })),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 charges: None,
@@ -2393,6 +2628,10 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
             common_types::customers::DocumentKind::Cnpj => {
                 (None, Some(customer_document_details.document_number))
             }
+            common_types::customers::DocumentKind::Psn
+            | common_types::customers::DocumentKind::Other => {
+                (Some(customer_document_details.document_number), None)
+            }
         };
 
         Ok(Self {
@@ -2411,14 +2650,16 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
                     .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "payment_method_data.bank_transfer.branch_code",
                     })?
-                    .expose(),
+                    .expose()
+                    .into(),
                 conta: bank_transfer_data
                     .0
                     .clone()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "payment_method_data.bank_transfer.account_number",
                     })?
-                    .expose(),
+                    .expose()
+                    .into(),
                 cpf,
                 cnpj,
                 ispb_participante: bank_transfer_data
@@ -2427,7 +2668,8 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
                     .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "payment_method_data.bank_transfer.bank_identifier",
                     })?
-                    .expose(),
+                    .expose()
+                    .into(),
             },
         })
     }
@@ -2485,14 +2727,18 @@ pub fn decide_access_token_key_suffix(
         true => Some(AccessTokenUrlPath::Leg2),
         false => {
             match (current_flow_info, payment_method_type) {
+                (Some(CurrentFlowInfo::Psync { .. }), Some(enums::PaymentMethodType::PixEmv)) => {
+                    Some(AccessTokenUrlPath::Leg1)
+                }
                 // Authorize flow
                 (
                     Some(CurrentFlowInfo::Authorize { .. }),
                     Some(enums::PaymentMethodType::Boleto),
                 ) => Some(AccessTokenUrlPath::Boleto),
-                (Some(CurrentFlowInfo::Authorize { .. }), Some(enums::PaymentMethodType::Pix)) => {
-                    Some(AccessTokenUrlPath::Leg1)
-                }
+                (
+                    Some(CurrentFlowInfo::Authorize { .. }),
+                    Some(enums::PaymentMethodType::PixEmv),
+                ) => Some(AccessTokenUrlPath::Leg1),
                 (
                     Some(CurrentFlowInfo::Authorize { .. }),
                     Some(enums::PaymentMethodType::PixAutomaticoPush),
@@ -2511,7 +2757,7 @@ pub fn decide_access_token_key_suffix(
                 ) => Some(AccessTokenUrlPath::Boleto),
                 (
                     Some(CurrentFlowInfo::CompleteAuthorize { .. }),
-                    Some(enums::PaymentMethodType::Pix),
+                    Some(enums::PaymentMethodType::PixEmv),
                 ) => Some(AccessTokenUrlPath::Leg1),
                 (
                     Some(CurrentFlowInfo::CompleteAuthorize { .. }),
@@ -2534,7 +2780,7 @@ pub fn decide_access_token_key_suffix(
                 ) => Some(AccessTokenUrlPath::Boleto),
                 (
                     Some(CurrentFlowInfo::SetupMandate { .. }),
-                    Some(enums::PaymentMethodType::Pix),
+                    Some(enums::PaymentMethodType::PixEmv),
                 ) => Some(AccessTokenUrlPath::Leg1),
                 (
                     Some(CurrentFlowInfo::SetupMandate { .. }),
@@ -2546,7 +2792,7 @@ pub fn decide_access_token_key_suffix(
                 ) => Some(AccessTokenUrlPath::Leg2),
 
                 (None, Some(enums::PaymentMethodType::Boleto)) => Some(AccessTokenUrlPath::Boleto),
-                (None, Some(enums::PaymentMethodType::Pix)) => Some(AccessTokenUrlPath::Leg1),
+                (None, Some(enums::PaymentMethodType::PixEmv)) => Some(AccessTokenUrlPath::Leg1),
                 (
                     Some(CurrentFlowInfo::Psync { .. }),
                     Some(enums::PaymentMethodType::PixAutomaticoPush),

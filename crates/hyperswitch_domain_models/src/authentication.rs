@@ -232,4 +232,11 @@ pub enum AuthenticationUpdate {
         trans_status: common_enums::TransactionStatus,
         authentication_status: common_enums::AuthenticationStatus,
     },
+    /// Used after bucket-based acquirer resolution in authentication_eligibility_core
+    /// to persist the dynamically resolved acquirer details back to the authentication record.
+    AcquirerDetailsUpdate {
+        acquirer_bin: Option<String>,
+        acquirer_merchant_id: Option<String>,
+        acquirer_country_code: Option<String>,
+    },
 }

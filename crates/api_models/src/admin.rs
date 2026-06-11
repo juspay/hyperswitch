@@ -18,12 +18,12 @@ use smithy::SmithyModel;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
+#[cfg(feature = "v1")]
+use crate::routing;
 use crate::{
     consts::{MAX_ORDER_FULFILLMENT_EXPIRY, MIN_ORDER_FULFILLMENT_EXPIRY},
-    enums as api_enums, payment_methods,
+    enums as api_enums, payment_methods, profile_acquirer,
 };
-#[cfg(feature = "v1")]
-use crate::{profile_acquirer::ProfileAcquirerResponse, routing};
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantAccountListRequest {
@@ -278,6 +278,8 @@ pub struct CardTestingGuardConfig {
 pub struct PaymentMethodBlockingConfig {
     /// Card-specific blocking configuration
     pub card: Option<CardBlockingConfig>,
+    /// Wallet-specific blocking configuration (applies to Apple Pay, Google Pay)
+    pub wallet: Option<WalletBlockingConfig>,
 }
 
 /// Card-specific blocking configuration
@@ -297,6 +299,14 @@ pub struct CardBlockingConfig {
     /// Whether to block if BIN is provided but no matching record found in cards_info table.
     /// Defaults to false (allow payment if BIN not found in database).
     pub block_if_bin_info_unavailable: Option<bool>,
+}
+
+/// Wallet-specific blocking configuration for Apple Pay and Google Pay
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct WalletBlockingConfig {
+    /// Set of card types to block for wallet payments (e.g., ["Credit", "Debit"])
+    #[schema(value_type = Option<Vec<CardType>>)]
+    pub card_types: Option<HashSet<common_enums::CardType>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -329,6 +339,13 @@ pub struct ExternalVaultConnectorDetails {
 
     /// Fields to tokenization in vault
     pub vault_token_selector: Option<Vec<VaultTokenField>>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct SurchargeConnectorDetails {
+    /// The surcharge connector ID for calculating external surcharge
+    #[schema(value_type = Option<String>)]
+    pub surcharge_connector_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -1074,14 +1091,15 @@ pub struct MerchantConnectorCreate {
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<CountryAlpha2>, example = "US", deprecated)]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     /// The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
+    #[schema(deprecated)]
     pub business_label: Option<String>,
 
     /// The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(example = "chase")]
+    #[schema(example = "chase", deprecated)]
     pub business_sub_label: Option<String>,
 
     /// Unique ID of the connector
@@ -1340,16 +1358,20 @@ pub struct MerchantConnectorInfo {
     pub connector_label: String,
     #[schema(value_type = String)]
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
+    #[schema(value_type = ConnectorType, example = "payment_processor")]
+    pub connector_type: api_enums::ConnectorType,
 }
 
 impl MerchantConnectorInfo {
     pub fn new(
         connector_label: String,
         merchant_connector_id: id_type::MerchantConnectorAccountId,
+        connector_type: api_enums::ConnectorType,
     ) -> Self {
         Self {
             connector_label,
             merchant_connector_id,
+            connector_type,
         }
     }
 }
@@ -1435,6 +1457,7 @@ impl MerchantConnectorResponse {
         MerchantConnectorInfo {
             connector_label: connector_label.to_string(),
             merchant_connector_id: self.id.clone(),
+            connector_type: self.connector_type,
         }
     }
 }
@@ -1524,15 +1547,15 @@ pub struct MerchantConnectorResponse {
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<CountryAlpha2>, example = "US", deprecated)]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     ///The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(example = "travel")]
+    #[schema(example = "travel", deprecated)]
     pub business_label: Option<String>,
 
     /// The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(example = "chase")]
+    #[schema(example = "chase", deprecated)]
     pub business_sub_label: Option<String>,
 
     /// identifier for the verified domains of a particular connector account
@@ -1563,6 +1586,7 @@ impl MerchantConnectorResponse {
         MerchantConnectorInfo {
             connector_label: connector_label.to_string(),
             merchant_connector_id: self.merchant_connector_id.clone(),
+            connector_type: self.connector_type,
         }
     }
 }
@@ -1635,15 +1659,15 @@ pub struct MerchantConnectorListResponse {
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<CountryAlpha2>, example = "US", deprecated)]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     ///The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(example = "travel")]
+    #[schema(example = "travel", deprecated)]
     pub business_label: Option<String>,
 
     /// The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(example = "chase")]
+    #[schema(example = "chase", deprecated)]
     pub business_sub_label: Option<String>,
 
     /// identifier for the verified domains of a particular connector account
@@ -1662,6 +1686,7 @@ impl MerchantConnectorListResponse {
         MerchantConnectorInfo {
             connector_label: connector_label.to_string(),
             merchant_connector_id: self.merchant_connector_id.clone(),
+            connector_type: self.connector_type,
         }
     }
     pub fn get_connector_name(&self) -> String {
@@ -1721,6 +1746,7 @@ impl MerchantConnectorListResponse {
         MerchantConnectorInfo {
             connector_label: connector_label.to_string(),
             merchant_connector_id: self.id.clone(),
+            connector_type: self.connector_type,
         }
     }
     pub fn get_connector_name(&self) -> common_enums::connector_enums::Connector {
@@ -1946,6 +1972,7 @@ pub struct FrmPaymentMethod {
     #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: Option<common_enums::PaymentMethod>,
     ///payment method types(credit, debit) that can be used in the payment. This field is deprecated. It has not been removed to provide backward compatibility.
+    #[schema(deprecated)]
     pub payment_method_types: Option<Vec<FrmPaymentMethodType>>,
     ///frm flow type to be used, can be pre/post
     #[schema(value_type = Option<FrmPreferredFlowTypes>)]
@@ -2127,7 +2154,7 @@ pub struct MerchantConnectorDetailsWrap {
     pub creds_identifier: String,
     /// Merchant connector details type type. Base64 Encode the credentials and send it in  this type and send as a string.
     #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
-        "connector_account_details": {
+       "connector_account_details": {
             "auth_type": "HeaderKey",
             "api_key":"sk_test_xxxxxexamplexxxxxx12345"
         },
@@ -2340,6 +2367,9 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
@@ -2512,6 +2542,9 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
@@ -2679,9 +2712,13 @@ pub struct ProfileResponse {
     #[schema(default = false, example = false)]
     pub is_pre_network_tokenization_enabled: bool,
 
-    /// Acquirer configs
-    #[schema(value_type = Option<Vec<ProfileAcquirerResponse>>)]
-    pub acquirer_configs: Option<Vec<ProfileAcquirerResponse>>,
+    /// Acquirer configs (Deprecated - use `acquirer_config_bucket` instead)
+    #[schema(value_type = Option<Vec<ProfileAcquirerResponse>>, deprecated)]
+    pub acquirer_configs: Option<Vec<profile_acquirer::ProfileAcquirerResponse>>,
+
+    /// Acquirer config buckets: map of acquirer profile configurations
+    #[schema(value_type = Option<ProfileAcquirerConfigsResponse>)]
+    pub acquirer_config_bucket: Option<profile_acquirer::ProfileAcquirerConfigsResponse>,
 
     /// Indicates if the redirection has to open in the iframe
     #[schema(example = false)]
@@ -2719,6 +2756,9 @@ pub struct ProfileResponse {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
@@ -2904,6 +2944,9 @@ pub struct ProfileResponse {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
@@ -3103,6 +3146,9 @@ pub struct ProfileUpdate {
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
@@ -3268,6 +3314,9 @@ pub struct ProfileUpdate {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -3491,6 +3540,9 @@ pub struct PaymentLinkConfigRequest {
     pub is_setup_mandate_flow: Option<bool>,
     /// Hex color for the CVC icon during error state
     pub color_icon_card_cvc_error: Option<String>,
+    /// Flag to display the merchant name in the payment link
+    #[schema(default = true, example = true)]
+    pub show_merchant_name: Option<bool>,
 }
 
 impl PaymentLinkConfigRequest {
@@ -3603,6 +3655,8 @@ pub struct PaymentLinkConfig {
     pub is_setup_mandate_flow: Option<bool>,
     /// Hex color for the CVC icon during error state
     pub color_icon_card_cvc_error: Option<String>,
+    /// Flag to display the merchant name in the payment link
+    pub show_merchant_name: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

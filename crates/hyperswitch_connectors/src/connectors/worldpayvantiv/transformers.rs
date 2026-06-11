@@ -5,6 +5,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    mandates,
     payment_method_data::PaymentMethodData,
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
@@ -16,8 +17,8 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         DisputeSyncData, FetchDisputesRequestData, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsSyncData, ResponseId, RetrieveFileRequestData,
-        SetupMandateRequestData, UploadFileRequestData,
+        PaymentsCancelPostCaptureData, PaymentsCancelPostCaptureSyncData, PaymentsSyncData,
+        ResponseId, RetrieveFileRequestData, SetupMandateRequestData, UploadFileRequestData,
     },
     router_response_types::{
         DisputeSyncResponse, FetchDisputesResponse, MandateReference, PaymentsResponseData,
@@ -250,6 +251,8 @@ pub struct Authorization {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub token: Option<TokenizationData>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub cardholder_authentication: Option<CardholderAuthentication>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub enhanced_data: Option<EnhancedData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub processing_type: Option<VantivProcessingType>,
@@ -259,8 +262,6 @@ pub struct Authorization {
     pub allow_partial_auth: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fraud_filter_override: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cardholder_authentication: Option<CardholderAuthentication>,
 }
 
 #[derive(Debug, Serialize)]
@@ -398,6 +399,36 @@ pub struct TokenizationData {
     exp_date: Secret<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayvantivMandateMetadata {
+    pub network_transaction_id: Option<Secret<String>>,
+}
+
+impl WorldpayvantivMandateMetadata {
+    fn create_mandate_reference(
+        token_data: &TokenResponse,
+        network_transaction_id: Option<Secret<String>>,
+    ) -> Option<MandateReference> {
+        let mandate_metadata = network_transaction_id.map(|ntid| {
+            let metadata = Self {
+                network_transaction_id: Some(ntid),
+            };
+            serde_json::to_value(&metadata)
+                .ok()
+                .map(pii::SecretSerdeValue::new)
+                .unwrap_or_else(|| pii::SecretSerdeValue::new(serde_json::Value::Null))
+        });
+
+        Some(MandateReference {
+            connector_mandate_id: Some(token_data.cnp_token.peek().clone()),
+            payment_method_id: None,
+            mandate_metadata,
+            connector_mandate_request_reference_id: None,
+        })
+    }
+}
+
 #[derive(Debug)]
 struct VantivMandateDetail {
     processing_type: Option<VantivProcessingType>,
@@ -525,6 +556,56 @@ impl TryFrom<&connector_utils::CardIssuer> for WorldpayvativCardType {
     }
 }
 
+impl<F>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            VantivSyncResponse,
+            PaymentsCancelPostCaptureSyncData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<F, PaymentsCancelPostCaptureSyncData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            VantivSyncResponse,
+            PaymentsCancelPostCaptureSyncData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let status = match item.response.payment_status {
+            PaymentStatus::ProcessedSuccessfully => common_enums::PostCaptureVoidStatus::Succeeded,
+            PaymentStatus::TransactionDeclined => common_enums::PostCaptureVoidStatus::Failed,
+            PaymentStatus::PaymentStatusNotFound
+            | PaymentStatus::NotYetProcessed
+            | PaymentStatus::StatusUnavailable => common_enums::PostCaptureVoidStatus::Pending,
+        };
+        let connector_reference_id = item
+            .response
+            .payment_detail
+            .as_ref()
+            .and_then(|detail| detail.payment_id.map(|id| id.to_string()));
+
+        let description = item
+            .response
+            .payment_detail
+            .as_ref()
+            .and_then(|detail| detail.response_reason_message.clone())
+            .filter(|_| connector_utils::is_post_capture_void_failure(status));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status: status,
+                connector_reference_id,
+                description,
+            }),
+            ..item.data
+        })
+    }
+}
+
 impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, PaymentsResponseData>>
     for RouterData<F, PaymentsSyncData, PaymentsResponseData>
 {
@@ -602,6 +683,7 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     authentication_data: None,
@@ -1081,29 +1163,40 @@ fn get_processing_info(
             .as_ref()
             .and_then(|mandate| mandate.mandate_reference_id.clone())
         {
-            Some(api_models::payments::MandateReferenceId::NetworkMandateId(
-                network_transaction_id,
-            )) => Ok(VantivMandateDetail {
-                processing_type: Some(VantivProcessingType::MerchantInitiatedCOF),
-                network_transaction_id: Some(network_transaction_id.into()),
-                token: None,
-            }),
-            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
+            Some(mandates::MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
+                Ok(VantivMandateDetail {
+                    processing_type: Some(VantivProcessingType::MerchantInitiatedCOF),
+                    network_transaction_id: Some(
+                        network_transaction_id.network_transaction_id.into(),
+                    ),
+                    token: None,
+                })
+            }
+            Some(mandates::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
+                let network_transaction_id =
+                    mandate_data
+                        .get_mandate_metadata()
+                        .as_ref()
+                        .and_then(|metadata| {
+                            serde_json::from_value::<WorldpayvantivMandateMetadata>(
+                                metadata.peek().clone(),
+                            )
+                            .ok()
+                            .and_then(|meta| meta.network_transaction_id)
+                        });
+
                 let card_mandate_data = request.get_card_mandate_info()?;
+                let exp_date = card_mandate_data.get_expiry_date_as_mmyy()?;
+
                 Ok(VantivMandateDetail {
                     processing_type: None,
-                    network_transaction_id: None,
+                    network_transaction_id,
                     token: Some(TokenizationData {
                         cnp_token: mandate_data
                             .get_connector_mandate_id()
                             .ok_or(errors::ConnectorError::MissingConnectorMandateID)?
                             .into(),
-                        exp_date: format!(
-                            "{}{}",
-                            card_mandate_data.card_exp_month.peek(),
-                            card_mandate_data.card_exp_year.peek()
-                        )
-                        .into(),
+                        exp_date,
                     }),
                 })
             }
@@ -1534,6 +1627,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<CnpOnlineResponse>> for PaymentsC
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             authentication_data: None,
@@ -1650,6 +1744,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<CnpOnlineResponse>> for PaymentsCa
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             authentication_data: None,
@@ -1945,14 +2040,24 @@ impl<F>
                         } else {
                             sale_response
                                 .token_response
-                                .clone()
-                                .map(MandateReference::from)
+                                .as_ref()
+                                .and_then(|token_data| {
+                                    WorldpayvantivMandateMetadata::create_mandate_reference(
+                                        token_data,
+                                        sale_response.network_transaction_id.clone(),
+                                    )
+                                })
                         }
                     }
                     false => sale_response
                         .token_response
-                        .clone()
-                        .map(MandateReference::from)
+                        .as_ref()
+                        .and_then(|token_data| {
+                            WorldpayvantivMandateMetadata::create_mandate_reference(
+                                token_data,
+                                sale_response.network_transaction_id.clone(),
+                            )
+                        })
                 };
 
 
@@ -2027,6 +2132,7 @@ impl<F>
                             mandate_reference: Box::new(mandate_reference_data),
                             connector_metadata,
                             network_txn_id: sale_response.network_transaction_id.clone().map(|network_transaction_id| network_transaction_id.expose()),
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(sale_response.order_id.clone()),
                             incremental_authorization_allowed: None,
                             authentication_data: None,
@@ -2103,7 +2209,15 @@ impl<F>
                     };
                     let connector_metadata =   Some(report_group.encode_to_value()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?);
-                    let mandate_reference_data = auth_response.token_response.clone().map(MandateReference::from);
+                    let mandate_reference_data = auth_response
+                        .token_response
+                        .as_ref()
+                        .and_then(|token_data| {
+                            WorldpayvantivMandateMetadata::create_mandate_reference(
+                                token_data,
+                                auth_response.network_transaction_id.clone(),
+                            )
+                        });
                     let connector_response = auth_response.fraud_result.as_ref().map(get_connector_response);
 
                     Ok(Self {
@@ -2114,6 +2228,7 @@ impl<F>
                             mandate_reference: Box::new(mandate_reference_data),
                             connector_metadata,
                             network_txn_id: auth_response.network_transaction_id.clone().map(|network_transaction_id| network_transaction_id.expose()),
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(auth_response.order_id.clone()),
                             incremental_authorization_allowed: None,
                             authentication_data: None,
@@ -2237,10 +2352,16 @@ impl<F>
                             .encode_to_value()
                             .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
                     );
-                    let mandate_reference_data = auth_response
-                        .token_response
-                        .clone()
-                        .map(MandateReference::from);
+                    let mandate_reference_data =
+                        auth_response
+                            .token_response
+                            .as_ref()
+                            .and_then(|token_data| {
+                                WorldpayvantivMandateMetadata::create_mandate_reference(
+                                    token_data,
+                                    auth_response.network_transaction_id.clone(),
+                                )
+                            });
                     let connector_response = auth_response
                         .fraud_result
                         .as_ref()
@@ -2259,6 +2380,7 @@ impl<F>
                                 .network_transaction_id
                                 .clone()
                                 .map(|network_transaction_id| network_transaction_id.expose()),
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(auth_response.order_id.clone()),
                             incremental_authorization_allowed: None,
                             authentication_data: None,
@@ -2301,7 +2423,7 @@ impl From<TokenResponse> for MandateReference {
     }
 }
 
-impl From<&AccountUpdaterCardTokenInfo> for api_models::payments::UpdatedMandateDetails {
+impl From<&AccountUpdaterCardTokenInfo> for mandates::UpdatedMandateDetails {
     fn from(token_data: &AccountUpdaterCardTokenInfo) -> Self {
         let card_exp_month = token_data
             .exp_date
@@ -2343,7 +2465,7 @@ impl From<WorldpayvativCardType> for common_enums::CardNetwork {
 
 impl From<AccountUpdaterCardTokenInfo> for MandateReference {
     fn from(token_data: AccountUpdaterCardTokenInfo) -> Self {
-        let mandate_metadata = api_models::payments::UpdatedMandateDetails::from(&token_data);
+        let mandate_metadata = mandates::UpdatedMandateDetails::from(&token_data);
 
         let mandate_metadata_json = serde_json::to_value(&mandate_metadata)
             .inspect_err(|_| {

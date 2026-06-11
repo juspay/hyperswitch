@@ -172,6 +172,7 @@ pub enum AttemptStatus {
     DeviceDataCollectionPending,
     IntegrityFailure,
     Expired,
+    CaptureReview,
 }
 
 impl AttemptStatus {
@@ -204,7 +205,8 @@ impl AttemptStatus {
             | Self::ConfirmationAwaited
             | Self::DeviceDataCollectionPending
             | Self::IntegrityFailure
-            | Self::VoidedPostCharge => false,
+            | Self::VoidedPostCharge
+            | Self::CaptureReview => false,
         }
     }
 
@@ -237,7 +239,8 @@ impl AttemptStatus {
             | Self::PaymentMethodAwaited
             | Self::ConfirmationAwaited
             | Self::DeviceDataCollectionPending
-            | Self::IntegrityFailure => false,
+            | Self::IntegrityFailure
+            | Self::CaptureReview => false,
         }
     }
 
@@ -274,7 +277,8 @@ impl AttemptStatus {
             | Self::ConfirmationAwaited
             | Self::DeviceDataCollectionPending
             | Self::IntegrityFailure
-            | Self::Expired => false,
+            | Self::Expired
+            | Self::CaptureReview => false,
         }
     }
 }
@@ -656,6 +660,7 @@ impl PaymentResourceUpdateStatus {
 
 #[derive(
     Clone,
+    Copy,
     Debug,
     PartialEq,
     Eq,
@@ -673,6 +678,31 @@ pub enum BlocklistDataKind {
     PaymentMethod,
     CardBin,
     ExtendedCardBin,
+}
+
+/// Reasons for blocking a payment method.
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BlockReason {
+    BlockedBin,
+    BlockedCardType(CardType),
+    BlockedCardSubtype,
+    BlockedIssuerCountry,
+    BlockedIssuer,
+}
+
+impl BlockReason {
+    pub fn error_message(&self) -> String {
+        match self {
+            Self::BlockedBin => "We're unable to accept this card, please try another card or a different payment method".to_string(),
+            Self::BlockedCardType(card_type) => {
+                format!("{} cards are not accepted for this transaction, please try a different card", card_type.title_case())
+            }
+            Self::BlockedCardSubtype => "This card is not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedIssuerCountry => "Cards issued in your region aren't supported for this transaction, please try a different card".to_string(),
+            Self::BlockedIssuer => "We can't process payments from this bank, please try another card or a different payment method".to_string(),
+        }
+    }
 }
 
 /// Specifies how the payment is captured.
@@ -752,11 +782,39 @@ pub enum ConnectorType {
     AuthenticationProcessor,
     /// Tax Calculation Processor
     TaxProcessor,
+    /// Surcharge Calculation Processor
+    SurchargeProcessor,
     /// Represents billing processors that handle subscription management, invoicing,
     /// and recurring payments. Examples include Chargebee, Recurly, and Stripe Billing.
     BillingProcessor,
     /// Represents vaulting processors that handle the storage and management of payment method data
     VaultProcessor,
+}
+
+/// Strategy for applying external surcharge
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SurchargeStrategy {
+    /// Apply the calculated surcharge to the payment (default)
+    #[default]
+    Apply,
+    /// Do not apply the surcharge; return the amount only
+    Waive,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -775,10 +833,19 @@ pub enum CallConnectorAction {
         error_code: Option<String>,
         error_message: Option<String>,
     },
-    HandleResponse(Vec<u8>),
+    HandleResponse {
+        resource_object: Vec<u8>,
+        event_type: Option<IncomingWebhookEventType>,
+    },
     UCSConsumeResponse(Vec<u8>),
-    UCSHandleResponse(Vec<u8>),
     HandleResponseWithoutBuildRequest,
+}
+
+/// For denoting the webhook event type in CallConnectorAction,
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum IncomingWebhookEventType {
+    PaymentIntentCaptureFailure,
+    Other,
 }
 
 /// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
@@ -1959,6 +2026,11 @@ pub enum IntentStatus {
     Conflicted,
     /// The payment expired before it could be captured.
     Expired,
+    /// The payment has been marked for manual review due to anomalous response from the connector.
+    /// This can occur when a capture fails after the payment was initially marked as successful
+    /// (e.g., Adyen CAPTURE_FAILED webhook after successful CAPTURE).
+    /// The merchant can explicitly resolve this status via the API or a webhook from the connector can update the status
+    Review,
 }
 
 impl IntentStatus {
@@ -1980,7 +2052,8 @@ impl IntentStatus {
             | Self::PartiallyCapturedAndCapturable
             | Self::PartiallyAuthorizedAndRequiresCapture
             | Self::Conflicted
-            | Self::PartiallyCapturedAndProcessing => false,
+            | Self::PartiallyCapturedAndProcessing
+            | Self::Review => false,
         }
     }
 
@@ -1996,7 +2069,7 @@ impl IntentStatus {
             | Self::Cancelled
             | Self::CancelledPostCapture
             |  Self::PartiallyCaptured
-            |  Self::RequiresCapture | Self::Conflicted | Self::Expired=> false,
+            |  Self::RequiresCapture | Self::Conflicted | Self::Expired | Self::Review => false,
             Self::Processing
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
@@ -2168,6 +2241,8 @@ pub enum PaymentMethodStatus {
     AwaitingData,
     /// Indicates that the payment method is in new state
     New,
+    /// Indicates that the payment method has been redacted/deleted and cannot be used or recovered
+    Redacted,
 }
 
 impl From<AttemptStatus> for PaymentMethodStatus {
@@ -2198,8 +2273,22 @@ impl From<AttemptStatus> for PaymentMethodStatus {
             | AttemptStatus::ConfirmationAwaited
             | AttemptStatus::DeviceDataCollectionPending
             | AttemptStatus::IntegrityFailure
-            | AttemptStatus::Expired => Self::Inactive,
+            | AttemptStatus::Expired
+            | AttemptStatus::CaptureReview => Self::Inactive,
             AttemptStatus::Charged | AttemptStatus::Authorized => Self::Active,
+        }
+    }
+}
+
+impl PaymentMethodStatus {
+    /// Checks if transitioning from `self` to `target` status is valid.
+    /// This defines the allowed status transitions for payment method updates.
+    pub fn can_transition_to(self, target: Self) -> bool {
+        match self {
+            Self::Processing | Self::AwaitingData | Self::Redacted => false,
+            Self::Active => false,
+            Self::Inactive => target == Self::Active || target == Self::New,
+            Self::New => target == Self::Active || target == Self::Inactive,
         }
     }
 }
@@ -2317,6 +2406,7 @@ pub enum PaymentMethodType {
     DuitNow,
     Efecty,
     Eft,
+    EftDebitOrder,
     Eps,
     Flexiti,
     Fps,
@@ -2354,6 +2444,8 @@ pub enum PaymentMethodType {
     Paypal,
     Paze,
     Pix,
+    PixKey,
+    PixEmv,
     PixAutomaticoQr,
     PixAutomaticoPush,
     PaySafeCard,
@@ -2402,11 +2494,19 @@ pub enum PaymentMethodType {
 }
 
 impl PaymentMethodType {
-    pub fn should_check_for_customer_saved_payment_method_type(self) -> bool {
-        matches!(
-            self,
-            Self::ApplePay | Self::GooglePay | Self::SamsungPay | Self::Paypal | Self::Klarna
-        )
+    pub fn should_check_for_customer_saved_payment_method_type(
+        self,
+        is_apple_pay_decrypt: bool,
+    ) -> bool {
+        if is_apple_pay_decrypt {
+            // return false if the payment method is Apple Pay and the decryption is successful, else exhibit the existing behaviour
+            !matches!(self, Self::ApplePay)
+        } else {
+            matches!(
+                self,
+                Self::ApplePay | Self::GooglePay | Self::SamsungPay | Self::Paypal | Self::Klarna
+            )
+        }
     }
     pub fn to_display_name(&self) -> String {
         let display_name = match self {
@@ -2448,6 +2548,7 @@ impl PaymentMethodType {
             Self::DuitNow => "DuitNow",
             Self::Efecty => "Efecty",
             Self::Eft => "EFT",
+            Self::EftDebitOrder => "EFT Debit Order",
             Self::Eps => "EPS",
             Self::Flexiti => "Flexiti",
             Self::Fps => "FPS",
@@ -2489,6 +2590,8 @@ impl PaymentMethodType {
             Self::Paypal => "PayPal",
             Self::Paze => "Paze",
             Self::Pix => "Pix",
+            Self::PixKey => "Pix Key",
+            Self::PixEmv => "Pix EMV",
             Self::PixAutomaticoQr => "Pix Automático QR",
             Self::PixAutomaticoPush => "Pix Automático Push",
             Self::PaySafeCard => "PaySafeCard",
@@ -2991,7 +3094,8 @@ impl RelayStatus {
             | AttemptStatus::Authorizing
             | AttemptStatus::CaptureInitiated
             | AttemptStatus::AuthenticationPending
-            | AttemptStatus::Started => Self::Pending,
+            | AttemptStatus::Started
+            | AttemptStatus::CaptureReview => Self::Pending,
             AttemptStatus::Voided | AttemptStatus::VoidedPostCharge => Self::Success,
         }
     }
@@ -3019,6 +3123,7 @@ pub enum RelayType {
     Capture,
     IncrementalAuthorization,
     Void,
+    UnreferencedRefund,
 }
 
 #[derive(
@@ -3189,6 +3294,15 @@ pub enum PanOrToken {
 pub enum CardType {
     Credit,
     Debit,
+}
+
+impl CardType {
+    pub fn title_case(&self) -> &'static str {
+        match self {
+            Self::Credit => "Credit",
+            Self::Debit => "Debit",
+        }
+    }
 }
 
 // TODO: This enum will be updated with all card subtype values
@@ -9506,13 +9620,21 @@ pub enum PermissionGroup {
     UsersManage,
     AccountView,
     AccountManage,
-    ReconReportsView,
-    ReconReportsManage,
-    ReconOpsView,
-    ReconOpsManage,
+    WebhooksView,
+    WebhooksManage,
+    ApiKeysView,
+    ApiKeysManage,
     InternalManage,
     ThemeView,
     ThemeManage,
+    ReconSourcesView,
+    ReconSourcesManage,
+    ReconExceptionsView,
+    ReconExceptionsManage,
+    ReconTransactionsView,
+    ReconTransactionsManage,
+    ReconRulesView,
+    ReconRulesManage,
 }
 
 #[derive(
@@ -9524,11 +9646,15 @@ pub enum ParentGroup {
     Workflows,
     Analytics,
     Users,
-    ReconOps,
-    ReconReports,
     Account,
+    Webhook,
+    ApiKeys,
     Internal,
     Theme,
+    ReconSources,
+    ReconExceptions,
+    ReconTransactions,
+    ReconRules,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
@@ -9550,17 +9676,16 @@ pub enum Resource {
     WebhookEvent,
     Payout,
     Report,
-    ReconToken,
-    ReconFiles,
-    ReconAndSettlementAnalytics,
-    ReconUpload,
-    ReconReports,
-    RunRecon,
-    ReconConfig,
     RevenueRecovery,
     Subscription,
     InternalConnector,
     Theme,
+    ReconIngestion,
+    ReconTransformation,
+    ReconException,
+    ReconStagingEntry,
+    ReconTransaction,
+    ReconRule,
 }
 
 #[derive(
@@ -9591,6 +9716,7 @@ pub enum PermissionScope {
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankNames {
+    Absa,
     AmericanExpress,
     AffinBank,
     AgroBank,
@@ -9913,8 +10039,9 @@ pub enum EntityType {
     Profile = 0,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum PayoutRetryType {
     SingleConnector,
     MultiConnector,
@@ -10121,7 +10248,8 @@ impl From<AttemptStatus> for RelayStatus {
             | AttemptStatus::Authorizing
             | AttemptStatus::CaptureInitiated
             | AttemptStatus::AuthenticationPending
-            | AttemptStatus::Started => Self::Pending,
+            | AttemptStatus::Started
+            | AttemptStatus::CaptureReview => Self::Pending,
             AttemptStatus::Charged
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable => Self::Success,
@@ -10387,6 +10515,7 @@ pub enum HyperswitchConnectorCategory {
     AuthenticationProvider,
     FraudAndRiskManagementProvider,
     TaxCalculationProvider,
+    SurchargeCalculationProvider,
     RevenueGrowthManagementPlatform,
 }
 
@@ -10466,7 +10595,7 @@ pub enum TokenizationType {
 }
 
 /// The network tokenization toggle, whether to enable or skip the network tokenization
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub enum NetworkTokenizationToggle {
     /// Enable network tokenization for the payment method
     Enable,
@@ -10636,17 +10765,21 @@ pub enum ProcessTrackerStatus {
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum ProcessTrackerRunner {
     PaymentsSyncWorkflow,
+    PaymentsPostCaptureVoidSyncWorkflow,
     RefundWorkflowRouter,
     DeleteTokenizeDataWorkflow,
     ApiKeyExpiryWorkflow,
     OutgoingWebhookRetryWorkflow,
     AttachPayoutAccountWorkflow,
     PaymentMethodStatusUpdateWorkflow,
+    PaymentMethodModularForwardCompatWorkflow,
+    PaymentMethodModularBackwardCompatWorkflow,
     PassiveRecoveryWorkflow,
     ProcessDisputeWorkflow,
     DisputeListWorkflow,
     InvoiceSyncflow,
     PayoutSyncWorkFlow,
+    BatchBlocklistUpload,
 }
 
 #[derive(
@@ -10848,7 +10981,8 @@ impl From<IntentStatus> for InvoiceStatus {
             | IntentStatus::Processing
             | IntentStatus::RequiresCustomerAction
             | IntentStatus::RequiresConfirmation
-            | IntentStatus::RequiresPaymentMethod => Self::PaymentPending,
+            | IntentStatus::RequiresPaymentMethod
+            | IntentStatus::Review => Self::PaymentPending,
             IntentStatus::RequiresMerchantAction => Self::ManualReview,
             IntentStatus::Cancelled | IntentStatus::CancelledPostCapture => Self::PaymentCanceled,
             IntentStatus::Expired => Self::PaymentPendingTimeout,
@@ -11036,6 +11170,15 @@ pub enum StorageType {
 pub enum AcknowledgementStatus {
     Authenticated,
     Failed,
+}
+
+impl From<AcknowledgementStatus> for PaymentMethodStatus {
+    fn from(ack: AcknowledgementStatus) -> Self {
+        match ack {
+            AcknowledgementStatus::Authenticated => Self::Active,
+            AcknowledgementStatus::Failed => Self::Inactive,
+        }
+    }
 }
 
 /// Represents the type of retry for a payment attempt
@@ -11251,4 +11394,43 @@ impl PostCaptureVoidStatus {
             Self::Pending | Self::Succeeded => false,
         }
     }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    strum::Display,
+    serde::Deserialize,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum VaultEnv {
+    Sandbox,
+    Live,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum BatchBlocklistJobStatus {
+    Initiated,
+    Processing,
+    Completed,
+    Failed,
 }

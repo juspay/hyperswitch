@@ -44,6 +44,17 @@ impl PayoutAttemptInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
+    async fn find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
+        &self,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _payout_id: &common_utils::id_type::PayoutId,
+        _payout_attempt_id: &str,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> CustomResult<PayoutAttempt, StorageError> {
+        // TODO: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
+
     async fn find_payout_attempt_by_merchant_id_connector_payout_id(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
@@ -72,6 +83,15 @@ impl PayoutAttemptInterface for MockDb {
         _merchant_order_reference_id: &str,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<PayoutAttempt, StorageError> {
+        Err(StorageError::MockDbError)?
+    }
+
+    async fn find_payout_attempts_by_merchant_id_payout_id(
+        &self,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _payout_id: &common_utils::id_type::PayoutId,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> CustomResult<Vec<PayoutAttempt>, StorageError> {
         Err(StorageError::MockDbError)?
     }
 }
