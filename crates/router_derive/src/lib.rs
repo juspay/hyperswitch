@@ -765,7 +765,42 @@ pub fn derive_to_encryption_attr(input: proc_macro::TokenStream) -> proc_macro::
         .into()
 }
 
-/// Derives validation functionality for structs with string-based fields that have
+/// Derives the `apply_changeset` method on the annotated update struct.
+///
+/// Requires `#[apply_changeset(target = TargetType)]`.
+///
+/// For every field in the update struct:
+/// - If the field type is `Option<T>`, generates `if let Some(v) = self.field { target.field = v; }`
+/// - Otherwise, generates `target.field = self.field;`
+///
+/// # Example
+///
+/// ```ignore
+/// use router_derive::ApplyChangeset;
+///
+/// #[derive(ApplyChangeset)]
+/// #[apply_changeset(target = PaymentAttempt)]
+/// struct PaymentAttemptUpdateInternal {
+///     status: Option<AttemptStatus>,
+///     amount: Option<MinorUnit>,
+/// }
+///
+/// // Generates:
+/// // impl PaymentAttemptUpdateInternal {
+/// //     pub fn apply_changeset(self, mut target: PaymentAttempt) -> PaymentAttempt {
+/// //         if let Some(v) = self.status { target.status = v; }
+/// //         if let Some(v) = self.amount  { target.amount  = v; }
+/// //         target
+/// //     }
+/// // }
+/// ```
+#[proc_macro_derive(ApplyChangeset, attributes(apply_changeset))]
+pub fn apply_changeset_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+    macros::derive_apply_changeset(input)
+        .unwrap_or_else(|error| error.into_compile_error())
+        .into()
+}
 /// schema attributes specifying constraints like minimum and maximum lengths.
 ///
 /// This macro generates a `validate()` method that checks if string based fields
@@ -790,10 +825,10 @@ pub fn derive_to_encryption_attr(input: proc_macro::TokenStream) -> proc_macro::
 /// pub struct PaymentRequest {
 ///     #[schema(min_length = 10, max_length = 255)]
 ///     pub description: String,
-///     
+///
 ///     #[schema(example = "https://example.com/return", max_length = 255)]
 ///     pub return_url: Option<Url>,
-///     
+///
 ///     // Field without constraints
 ///     pub amount: u64,
 /// }
