@@ -1149,6 +1149,52 @@
             "api_key": []
           }
         ]
+      },
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Cancel Post Capture Retrieve",
+        "description": "Retrieves a canceled Payment post capture",
+        "operationId": "Cancel a Payment Post Capture Retrieve",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment canceled post capture",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
       }
     },
     "/payments/{payment_id}/extend_authorization": {
@@ -1664,18 +1710,76 @@
         ]
       }
     },
+    "/payments/{payment_id}/eligibility_check": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Submit Eligibility Check Data",
+        "operationId": "Submit Eligibility Check data for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsEligibilityCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Eligibility Check submit is successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsEligibilityCheckResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/payments/{payment_id}/eligibility": {
       "post": {
         "tags": [
           "Payments"
         ],
         "summary": "Payments - Submit Eligibility Data",
+        "description": "Runs eligibility checks (blocklist, card testing guard) and calculates an external surcharge\nin a single call. Intended to be called by the SDK before the final confirm step.\n\n- If eligibility is denied the response will contain `sdk_next_action: deny` and no surcharge details.\n- If the merchant has no surcharge connector configured, `surcharge_details` will be `null`.\n- Surcharge calculation is best-effort: if the external call fails the payment still proceeds\nwith `surcharge_details: null`.",
         "operationId": "Submit Eligibility data for a Payment",
         "parameters": [
           {
             "name": "payment_id",
             "in": "path",
-            "description": "The identifier for payment",
+            "description": "The identifier for the payment",
             "required": true,
             "schema": {
               "type": "string"
@@ -1694,7 +1798,7 @@
         },
         "responses": {
           "200": {
-            "description": "Eligibility submit is successful",
+            "description": "Eligibility and surcharge checks successful",
             "content": {
               "application/json": {
                 "schema": {
@@ -1705,6 +1809,16 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -13122,6 +13236,17 @@
           {
             "type": "object",
             "required": [
+              "pix_emv"
+            ],
+            "properties": {
+              "pix_emv": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "pix_automatico_push"
             ],
             "properties": {
@@ -13505,6 +13630,17 @@
                     "nullable": true
                   }
                 }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix_emv"
+            ],
+            "properties": {
+              "pix_emv": {
+                "type": "object"
               }
             }
           },
@@ -16412,6 +16548,7 @@
           "paysafe",
           "paystack",
           "paytm",
+          "payconex",
           "payu",
           "peachpayments",
           "payjustnow",
@@ -19599,7 +19736,9 @@
         "description": "Represents the type of identification document used for validation.",
         "enum": [
           "cpf",
-          "cnpj"
+          "cnpj",
+          "psn",
+          "other"
         ]
       },
       "DokuBankTransferInstructions": {
@@ -21451,6 +21590,7 @@
               "$ref": "#/components/schemas/FrmPaymentMethodType"
             },
             "description": "payment method types(credit, debit) that can be used in the payment. This field is deprecated. It has not been removed to provide backward compatibility.",
+            "deprecated": true,
             "nullable": true
           },
           "flow": {
@@ -22665,27 +22805,12 @@
       "HyperswitchVaultSessionDetails": {
         "type": "object",
         "required": [
-          "payment_method_session_id",
-          "client_secret",
-          "publishable_key",
-          "profile_id"
+          "sdk_authorization"
         ],
         "properties": {
-          "payment_method_session_id": {
+          "sdk_authorization": {
             "type": "string",
-            "description": "Session ID for Hyperswitch Vault"
-          },
-          "client_secret": {
-            "type": "string",
-            "description": "Client secret for Hyperswitch Vault"
-          },
-          "publishable_key": {
-            "type": "string",
-            "description": "Publishable key for Hyperswitch Vault"
-          },
-          "profile_id": {
-            "type": "string",
-            "description": "Profile ID for Hyperswitch Vault"
+            "description": "Base64-encoded SDK authorization token for the Hyperswitch Vault session"
           }
         }
       },
@@ -23069,6 +23194,19 @@
           }
         },
         "additionalProperties": false
+      },
+      "InternalVaultSessionDetails": {
+        "type": "object",
+        "description": "Internal vault details for SDK authorization",
+        "required": [
+          "sdk_authorization"
+        ],
+        "properties": {
+          "sdk_authorization": {
+            "type": "string",
+            "description": "Base64-encoded SDK authorization token for the internal vault session"
+          }
+        }
       },
       "Invoice": {
         "type": "object",
@@ -24538,11 +24676,13 @@
           "business_label": {
             "type": "string",
             "description": "The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
+            "deprecated": true,
             "nullable": true
           },
           "business_sub_label": {
             "type": "string",
             "description": "The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
+            "deprecated": true,
             "example": "chase",
             "nullable": true
           },
@@ -24770,12 +24910,14 @@
           "business_label": {
             "type": "string",
             "description": "The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
+            "deprecated": true,
             "example": "travel",
             "nullable": true
           },
           "business_sub_label": {
             "type": "string",
             "description": "The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
+            "deprecated": true,
             "example": "chase",
             "nullable": true
           },
@@ -24929,12 +25071,14 @@
           "business_label": {
             "type": "string",
             "description": "The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
+            "deprecated": true,
             "example": "travel",
             "nullable": true
           },
           "business_sub_label": {
             "type": "string",
             "description": "The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead",
+            "deprecated": true,
             "example": "chase",
             "nullable": true
           },
@@ -28068,6 +28212,11 @@
             "type": "string",
             "description": "Hex color for the CVC icon during error state",
             "nullable": true
+          },
+          "show_merchant_name": {
+            "type": "boolean",
+            "description": "Flag to display the merchant name in the payment link",
+            "nullable": true
           }
         }
       },
@@ -28248,6 +28397,13 @@
           "color_icon_card_cvc_error": {
             "type": "string",
             "description": "Hex color for the CVC icon during error state",
+            "nullable": true
+          },
+          "show_merchant_name": {
+            "type": "boolean",
+            "description": "Flag to display the merchant name in the payment link",
+            "default": true,
+            "example": true,
             "nullable": true
           }
         }
@@ -28967,6 +29123,30 @@
             "properties": {
               "network_token": {
                 "$ref": "#/components/schemas/NetworkTokenData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "ProxyCard",
+            "required": [
+              "proxy_card"
+            ],
+            "properties": {
+              "proxy_card": {
+                "$ref": "#/components/schemas/ProxyCardData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "VaultCardTokenData",
+            "required": [
+              "vault_card_token_data"
+            ],
+            "properties": {
+              "vault_card_token_data": {
+                "$ref": "#/components/schemas/CardToken"
               }
             }
           }
@@ -30533,6 +30713,7 @@
           "mandate_id": {
             "type": "string",
             "description": "A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data",
+            "deprecated": true,
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
             "maxLength": 64
@@ -30840,6 +31021,14 @@
             "type": "string",
             "description": "Identification for the profile acquirer to be used for this payment.",
             "nullable": true
+          },
+          "external_surcharge_strategy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeStrategy"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -31057,6 +31246,7 @@
           "mandate_id": {
             "type": "string",
             "description": "A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data",
+            "deprecated": true,
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
             "maxLength": 64
@@ -31096,6 +31286,7 @@
           "business_label": {
             "type": "string",
             "description": "Business label of the merchant for this payment.\nTo be deprecated soon. Pass the profile_id instead",
+            "deprecated": true,
             "example": "food",
             "nullable": true
           },
@@ -31389,6 +31580,14 @@
             "type": "string",
             "description": "Identification for the profile acquirer to be used for this payment.",
             "nullable": true
+          },
+          "external_surcharge_strategy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeStrategy"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -31574,6 +31773,7 @@
           "mandate_id": {
             "type": "string",
             "description": "A unique identifier to link the payment to a mandate, can be used instead of payment_method_data, in case of setting up recurring payments",
+            "deprecated": true,
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
             "maxLength": 255
@@ -32148,7 +32348,8 @@
           "sender_payment_instrument_id": {
             "type": "string",
             "description": "A connector-specific identifier representing the stored payment instrument",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -32213,7 +32414,7 @@
           }
         }
       },
-      "PaymentsEligibilityRequest": {
+      "PaymentsEligibilityCheckRequest": {
         "type": "object",
         "required": [
           "client_secret",
@@ -32260,7 +32461,7 @@
           }
         }
       },
-      "PaymentsEligibilityResponse": {
+      "PaymentsEligibilityCheckResponse": {
         "type": "object",
         "required": [
           "payment_id",
@@ -32273,6 +32474,79 @@
           },
           "sdk_next_action": {
             "$ref": "#/components/schemas/SdkNextAction"
+          }
+        }
+      },
+      "PaymentsEligibilityRequest": {
+        "type": "object",
+        "description": "Request body for the eligibility endpoint.\nCombines eligibility checks with external surcharge calculation in a single call.",
+        "required": [
+          "client_secret",
+          "payment_method_type",
+          "payment_token"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "Token used for client side verification",
+            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EligibilityPaymentMethodDataRequest"
+              }
+            ],
+            "nullable": true
+          },
+          "browser_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_token": {
+            "type": "string",
+            "description": "The payment token to look up the saved payment method",
+            "example": "token_abc123xyz"
+          }
+        }
+      },
+      "PaymentsEligibilityResponse": {
+        "type": "object",
+        "description": "Response body for the eligibility endpoint.",
+        "required": [
+          "payment_id",
+          "sdk_next_action"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "sdk_next_action": {
+            "$ref": "#/components/schemas/SdkNextAction"
+          },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeDetailsResponse"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -32708,6 +32982,7 @@
           "mandate_id": {
             "type": "string",
             "description": "A unique identifier to link the payment to a mandate. To do Recurring payments after a mandate has been created, pass the mandate_id instead of payment_method_data",
+            "deprecated": true,
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
             "maxLength": 64
@@ -32747,6 +33022,7 @@
           "business_label": {
             "type": "string",
             "description": "Business label of the merchant for this payment.\nTo be deprecated soon. Pass the profile_id instead",
+            "deprecated": true,
             "example": "food",
             "nullable": true
           },
@@ -33061,6 +33337,14 @@
             "type": "string",
             "description": "Identification for the profile acquirer to be used for this payment.",
             "nullable": true
+          },
+          "external_surcharge_strategy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeStrategy"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -33255,6 +33539,7 @@
           "mandate_id": {
             "type": "string",
             "description": "A unique identifier to link the payment to a mandate, can be used instead of payment_method_data, in case of setting up recurring payments",
+            "deprecated": true,
             "example": "mandate_iwer89rnjef349dni3",
             "nullable": true,
             "maxLength": 255
@@ -33846,7 +34131,8 @@
           "sender_payment_instrument_id": {
             "type": "string",
             "description": "A connector-specific identifier representing the stored payment instrument",
-            "nullable": true
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -33969,7 +34255,7 @@
           "vault_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/VaultSessionDetails"
+                "$ref": "#/components/schemas/VaultDetails"
               }
             ],
             "nullable": true
@@ -34561,6 +34847,14 @@
           "profile_acquirer_id": {
             "type": "string",
             "description": "Identification for the profile acquirer to be used for this payment.",
+            "nullable": true
+          },
+          "external_surcharge_strategy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeStrategy"
+              }
+            ],
             "nullable": true
           }
         }
@@ -36581,6 +36875,12 @@
             "description": "Individual taxpayer identification number",
             "example": "000123456",
             "nullable": true
+          },
+          "ispb": {
+            "type": "string",
+            "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
+            "example": "60701190",
+            "nullable": true
           }
         }
       },
@@ -36820,6 +37120,12 @@
             "type": "string",
             "description": "String formatted QR code for pix payout",
             "example": "00020126580014br.gov.bcb.pix0114000123456785204000053039865802BR5925John Doe6009Sao Paulo61080540900062070503***63041D3D"
+          },
+          "ispb": {
+            "type": "string",
+            "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
+            "example": "60701190",
+            "nullable": true
           }
         }
       },
@@ -37121,16 +37427,12 @@
         "type": "object",
         "description": "Additional metadata for payment intent state containing refunded and disputed amounts",
         "required": [
+          "status",
           "updated_at"
         ],
         "properties": {
           "status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PostCaptureVoidStatus"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/PostCaptureVoidStatus"
           },
           "connector_reference_id": {
             "type": "string",
@@ -38270,6 +38572,90 @@
           "contract_default"
         ]
       },
+      "ProxyCardData": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name",
+          "card_cvc",
+          "bin_number",
+          "last_four"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The token which refers to the card number",
+            "example": "token_card_number"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "24"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "example": "242"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "bin_number": {
+            "type": "string",
+            "description": "The first six digit of the card number",
+            "example": "424242"
+          },
+          "last_four": {
+            "type": "string",
+            "description": "The last four digit of the card number",
+            "example": "4242"
+          }
+        }
+      },
       "RankingAlgorithm": {
         "type": "string",
         "enum": [
@@ -38376,6 +38762,48 @@
             "nullable": true
           }
         }
+      },
+      "RecipientCardData": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "example": "4000000000009995"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "example": "03"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "example": "30"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "example": "John Doe",
+            "nullable": true
+          }
+        }
+      },
+      "RecipientPaymentMethodData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/RecipientCardData"
+              }
+            }
+          }
+        ]
       },
       "RecommendedAction": {
         "type": "string",
@@ -39027,6 +39455,17 @@
                 "$ref": "#/components/schemas/RelayVoidRequestData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "unreferenced_refund"
+            ],
+            "properties": {
+              "unreferenced_refund": {
+                "$ref": "#/components/schemas/RelayUnreferencedRefundData"
+              }
+            }
           }
         ]
       },
@@ -39204,8 +39643,34 @@
           "refund",
           "capture",
           "incremental_authorization",
-          "void"
+          "void",
+          "unreferenced_refund"
         ]
+      },
+      "RelayUnreferencedRefundData": {
+        "type": "object",
+        "required": [
+          "amount",
+          "currency",
+          "customer_id",
+          "recipient_payment_method_data"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "example": 6540
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "customer_id": {
+            "type": "string"
+          },
+          "recipient_payment_method_data": {
+            "$ref": "#/components/schemas/RecipientPaymentMethodData"
+          }
+        }
       },
       "RelayVoidRequestData": {
         "type": "object",
@@ -39855,6 +40320,7 @@
           "paysafe",
           "paystack",
           "paytm",
+          "payconex",
           "payu",
           "peachpayments",
           "payjustnow",
@@ -40735,6 +41201,11 @@
         "properties": {
           "next_action": {
             "$ref": "#/components/schemas/NextActionCall"
+          },
+          "should_block_confirm": {
+            "type": "boolean",
+            "description": "Whether the SDK should block the confirm call for user.",
+            "nullable": true
           }
         }
       },
@@ -42051,6 +42522,14 @@
           "propertyName": "type"
         }
       },
+      "SurchargeStrategy": {
+        "type": "string",
+        "description": "Strategy for applying external surcharge",
+        "enum": [
+          "apply",
+          "waive"
+        ]
+      },
       "SwishQrData": {
         "type": "object"
       },
@@ -43137,6 +43616,28 @@
         "description": "Represents a value in the DSL",
         "discriminator": {
           "propertyName": "type"
+        }
+      },
+      "VaultDetails": {
+        "type": "object",
+        "description": "Top-level vault details returned in the session-tokens response.\nFor v1: contains both internal vault (SDK authorization) and external vault details.\nFor v2: contains only external vault details.",
+        "properties": {
+          "internal_vault": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InternalVaultSessionDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "external_vault_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultSessionDetails"
+              }
+            ],
+            "nullable": true
+          }
         }
       },
       "VaultSdk": {

@@ -12,6 +12,7 @@ use hyperswitch_interfaces::{
     unified_connector_service::{
         get_payments_response_from_ucs_webhook_content,
         handle_unified_connector_service_response_for_payment_get,
+        transformers::UnifiedConnectorServiceError,
     },
 };
 use hyperswitch_masking::ExposeInterface as UcsMaskingExposeInterface;
@@ -193,10 +194,54 @@ where
                     header_payload,
                     unified_connector_service_execution_mode,
                     |mut router_data, payment_get_request, grpc_headers| async move {
-                        let response = client
+                        let response = match client
                             .payment_get(payment_get_request, connector_auth_metadata, grpc_headers)
                             .await
-                            .attach_printable("Failed to get payment")?;
+                        {
+                            Ok(resp) => resp,
+                            Err(report) => {
+                                if let UnifiedConnectorServiceError::ConnectorError(inner) =
+                                    report.current_context()
+                                {
+                                    let (code, message, status_code, reason,
+                                         network_decline_code, network_advice_code,
+                                         network_error_message, connector) = (
+                                        &inner.code, &inner.message, inner.status_code,
+                                        &inner.reason, &inner.network_decline_code,
+                                        &inner.network_advice_code, &inner.network_error_message,
+                                        &inner.connector,
+                                    );
+                                    logger::info!(
+                                        "Connector error via UCS for psync (connector {}, status {}): {} - {}",
+                                        connector,
+                                        status_code,
+                                        code,
+                                        message
+                                    );
+                                    router_data.response = Err(
+                                        hyperswitch_domain_models::router_data::ErrorResponse {
+                                            code: code.clone(),
+                                            message: message.clone(),
+                                            reason: reason.clone(),
+                                            status_code,
+                                            attempt_status: None,
+                                            connector_transaction_id: None,
+                                            connector_response_reference_id: None,
+                                            network_decline_code: network_decline_code.clone(),
+                                            network_advice_code: network_advice_code.clone(),
+                                            network_error_message: network_error_message.clone(),
+                                            connector_metadata: None,
+                                        },
+                                    );
+                                    return Ok((
+                                        router_data,
+                                        (),
+                                        payments_grpc::PaymentServiceGetResponse::default(),
+                                    ));
+                                }
+                                return Err(report.attach_printable("Failed to get payment"));
+                            }
+                        };
 
                         let payment_get_response = response.into_inner();
 
@@ -243,7 +288,7 @@ where
                 ))
                 .await
                 .map(|(router_data, _)| router_data)
-                .change_context(ConnectorError::ResponseHandlingFailed)
+                .map_err(super::convert_ucs_error_to_connector_error)
             }
             _ => Err(ConnectorError::ResponseHandlingFailed).attach_printable(
                 "Invalid CallConnectorAction for payment sync via UCS Gateway system",
