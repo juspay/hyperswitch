@@ -3526,6 +3526,10 @@ impl StorageInterface for KafkaStore {
     fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState) {
         self.diesel_store.set_key_manager_state(key_manager_state);
     }
+
+    fn set_read_preference(&mut self, preference: storage_impl::ReadPreference) {
+        self.diesel_store.set_read_preference(preference);
+    }
 }
 
 impl GlobalStorageInterface for KafkaStore {

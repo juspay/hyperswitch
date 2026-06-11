@@ -236,6 +236,10 @@ where
             .switch()
         })?;
     session_state.add_request_id(request_id.clone());
+
+    // Inject flow into session_state for automatic read preference routing
+    session_state = session_state.with_flow(flow.clone());
+
     let mut request_state = session_state.get_req_state();
 
     request_state.event_context.record_info(request_id.clone());

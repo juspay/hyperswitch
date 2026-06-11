@@ -164,6 +164,22 @@ impl SessionState {
     pub fn set_store(&mut self, store: Box<dyn StorageInterface>) {
         self.store = store;
     }
+
+    /// Consumes the SessionState and sets the read preference based on flow.
+    /// This is called automatically by server_wrap for all routes.
+    pub fn with_flow(mut self, flow: impl router_env::types::FlowMetric) -> Self {
+        use storage_impl::ReadPreference;
+
+        let flow_str = flow.to_string();
+        let preference = flow_str
+            .parse::<router_env::logger::types::Flow>()
+            .map(|f| ReadPreference::from_flow(&f))
+            .unwrap_or(ReadPreference::MasterDB);
+
+        self.store.set_read_preference(preference);
+        self
+    }
+
     pub fn get_req_state(&self) -> ReqState {
         ReqState {
             event_context: events::EventContext::new(self.event_handler.clone()),

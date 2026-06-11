@@ -26,20 +26,10 @@ pub async fn pg_connection_read<T: crate::DatabaseStore>(
     PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
     crate::errors::StorageError,
 > {
-    // If only OLAP is enabled get replica pool.
-    #[cfg(all(feature = "olap", not(feature = "oltp")))]
-    let pool = store.get_replica_pool();
-
-    // If either one of these are true we need to get master pool.
-    //  1. Only OLTP is enabled.
-    //  2. Both OLAP and OLTP is enabled.
-    //  3. Both OLAP and OLTP is disabled.
-    #[cfg(any(
-        all(not(feature = "olap"), feature = "oltp"),
-        all(feature = "olap", feature = "oltp"),
-        all(not(feature = "olap"), not(feature = "oltp"))
-    ))]
-    let pool = store.get_master_pool();
+    let pool = match store.get_read_preference() {
+        crate::database::store::ReadPreference::ReplicaDB => store.get_replica_pool(),
+        crate::database::store::ReadPreference::MasterDB => store.get_master_pool(),
+    };
 
     pool.get()
         .await

@@ -50,7 +50,7 @@ pub enum Tag {
 }
 
 /// API Flow
-#[derive(Debug, Display, Clone, PartialEq, Eq)]
+#[derive(Debug, Display, Clone, PartialEq, Eq, EnumString)]
 pub enum Flow {
     /// Health check
     HealthCheck,
