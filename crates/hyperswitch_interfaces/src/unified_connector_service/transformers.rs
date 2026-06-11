@@ -218,6 +218,10 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Payout Enroll Disburse Account from gRPC Server
     #[error("Failed to perform Payout Enroll Disburse Account from gRPC Server")]
     PayoutEnrollDisburseAccountFailure,
+
+    /// Failed to perform Surcharge Calculate from gRPC Server
+    #[error("Failed to perform Surcharge Calculate from gRPC Server")]
+    SurchargeCalculateFailure,
 }
 
 /// Inner data for [`UnifiedConnectorServiceError::ConnectorError`].
@@ -1118,6 +1122,7 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             | Self::PayoutVoidFailure
             | Self::PayoutStageFailure
             | Self::PayoutCreateRecipientFailure
+            | Self::SurchargeCalculateFailure
             | Self::PayoutEnrollDisburseAccountFailure => ConnectorError::ResponseHandlingFailed,
         }
     }
