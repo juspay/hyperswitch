@@ -10457,7 +10457,6 @@ Cypress.Commands.add(
 // Subscription Management Commands
 // ============================================
 
-
 Cypress.Commands.add(
   "createSubscriptionTest",
   (createSubscriptionBody, data, globalState) => {

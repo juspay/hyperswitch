@@ -36,7 +36,11 @@ describe("Subscription Management tests", () => {
         "subscription_pm"
       ]["Create"];
 
-      cy.createSubscriptionTest(fixtures.createSubscriptionBody, data, globalState);
+      cy.createSubscriptionTest(
+        fixtures.createSubscriptionBody,
+        data,
+        globalState
+      );
 
       if (shouldContinue) {
         shouldContinue = utils.should_continue_further(data);
@@ -102,7 +106,11 @@ describe("Subscription Management tests", () => {
         "subscription_pm"
       ]["Update"];
 
-      cy.updateSubscriptionTest(fixtures.updateSubscriptionBody, data, globalState);
+      cy.updateSubscriptionTest(
+        fixtures.updateSubscriptionBody,
+        data,
+        globalState
+      );
 
       if (shouldContinue) {
         shouldContinue = utils.should_continue_further(data);
@@ -195,7 +203,11 @@ describe("Subscription Management tests", () => {
         "subscription_pm"
       ]["Create"];
 
-      cy.createSubscriptionTest(fixtures.createSubscriptionBody, data, globalState);
+      cy.createSubscriptionTest(
+        fixtures.createSubscriptionBody,
+        data,
+        globalState
+      );
 
       if (!utils.should_continue_further(data)) {
         shouldContinue = false;
@@ -216,7 +228,11 @@ describe("Subscription Management tests", () => {
         "subscription_pm"
       ]["Update"];
 
-      cy.updateSubscriptionTest(fixtures.updateSubscriptionBody, updateData, globalState);
+      cy.updateSubscriptionTest(
+        fixtures.updateSubscriptionBody,
+        updateData,
+        globalState
+      );
 
       if (!utils.should_continue_further(updateData)) {
         shouldContinue = false;
@@ -242,9 +258,9 @@ describe("Subscription Management tests", () => {
         return;
       }
 
-      const retrieveCancelledData = getConnectorDetails(globalState.get("connectorId"))[
-        "subscription_pm"
-      ]["RetrieveCancelled"];
+      const retrieveCancelledData = getConnectorDetails(
+        globalState.get("connectorId")
+      )["subscription_pm"]["RetrieveCancelled"];
 
       cy.retrieveSubscriptionTest(retrieveCancelledData, globalState);
     });
