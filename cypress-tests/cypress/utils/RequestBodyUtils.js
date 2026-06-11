@@ -328,10 +328,22 @@ export function generateRandomName() {
 
 /**
  * Detects if running in CI environment
+ * Checks both process.env (Node.js context) and Cypress.env (browser context)
  * @returns {boolean} True if running in CI, false otherwise
  */
 export const isCI = () => {
-  return process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
+  // Check Cypress.env for browser context (Cypress test files)
+  if (typeof Cypress !== "undefined") {
+    return (
+      Cypress.env("CI") === true ||
+      Cypress.env("GITHUB_ACTIONS") === "true"
+    );
+  }
+  // Check process.env for Node.js context (cypress.config.js)
+  return (
+    process.env.CI === "true" ||
+    process.env.GITHUB_ACTIONS === "true"
+  );
 };
 
 /**
