@@ -6450,7 +6450,7 @@ impl
             metadata: None,
             connector_feature_data: None,
             test_mode: router_data.test_mode,
-            merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
+            merchant_request_id: None,
         })
     }
 }
