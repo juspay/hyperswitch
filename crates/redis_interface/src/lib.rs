@@ -21,6 +21,7 @@ compile_error!("Features \"fred\" and \"redis-rs\" are mutually exclusive — en
 
 pub mod constant;
 pub mod errors;
+mod events;
 pub mod types;
 
 #[cfg(feature = "fred")]

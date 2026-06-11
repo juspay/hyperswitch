@@ -77,6 +77,9 @@ impl<T: DatabaseStore> RouterStore<T> {
             km_state.request_id = Some(request_id);
         }
     }
+    pub fn update_redis_request_id(&mut self, request_id: String) {
+        self.request_id = Some(request_id);
+    }
 }
 
 #[async_trait::async_trait]
@@ -140,7 +143,15 @@ where
 
 impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {
     fn get_redis_conn(&self) -> error_stack::Result<Arc<RedisConnectionPool>, RedisError> {
-        self.cache_store.get_redis_conn()
+        let redis_conn = self.cache_store.get_redis_conn()?;
+        // Attach the current request id so Redis commands executed through
+        // this connection emit external service call events.
+        Ok(match self.request_id.as_ref() {
+            Some(request_id) if redis_conn.event_emitter.is_enabled() => {
+                Arc::new(redis_conn.clone_with_request_id(request_id.clone()))
+            }
+            _ => redis_conn,
+        })
     }
 }
 
@@ -155,11 +166,15 @@ impl<T: DatabaseStore> RouterStore<T> {
     ) -> error_stack::Result<Self, StorageError> {
         let db_store = T::new(db_conf, tenant_config, false, key_manager_state.clone()).await?;
         let redis_conn = cache_store.redis_conn.clone();
+        let mut tenant_redis_conn =
+            RedisConnectionPool::clone(&redis_conn, tenant_config.get_redis_key_prefix());
+        // Redis external service call events are published through the same
+        // emitter that key manager events use, carried by KeyManagerState.
+        if let Some(ref km_state) = key_manager_state {
+            tenant_redis_conn.set_event_emitter(km_state.event_emitter.clone());
+        }
         let cache_store = Arc::new(RedisStore {
-            redis_conn: Arc::new(RedisConnectionPool::clone(
-                &redis_conn,
-                tenant_config.get_redis_key_prefix(),
-            )),
+            redis_conn: Arc::new(tenant_redis_conn),
         });
         cache_store
             .redis_conn

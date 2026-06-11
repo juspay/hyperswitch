@@ -8,7 +8,10 @@ pub mod types;
 
 use std::sync::{atomic, Arc};
 
-use common_utils::errors::CustomResult;
+use common_utils::{
+    errors::CustomResult,
+    external_service::{ExternalServiceEventEmitter, NoOpEventEmitter},
+};
 use error_stack::ResultExt;
 use redis::AsyncCommands;
 use tracing::Instrument;
@@ -357,6 +360,8 @@ pub struct RedisConnectionPool {
     pub subscriber: Arc<SubscriberClient>,
     pub publisher: Arc<PublisherClient>,
     pub is_redis_available: Arc<atomic::AtomicBool>,
+    pub request_id: Option<String>,
+    pub event_emitter: Arc<dyn ExternalServiceEventEmitter>,
 }
 
 impl RedisConnectionPool {
@@ -488,6 +493,8 @@ impl RedisConnectionPool {
             subscriber,
             publisher,
             key_prefix: String::default(),
+            request_id: None,
+            event_emitter: Arc::new(NoOpEventEmitter),
         })
     }
 
@@ -499,7 +506,50 @@ impl RedisConnectionPool {
             subscriber: Arc::clone(&self.subscriber),
             publisher: Arc::clone(&self.publisher),
             is_redis_available: Arc::clone(&self.is_redis_available),
+            request_id: self.request_id.clone(),
+            event_emitter: Arc::clone(&self.event_emitter),
         }
+    }
+
+    /// Create a cheap clone of this pool carrying the given request id, so
+    /// commands executed through it emit external service call events.
+    pub fn clone_with_request_id(&self, request_id: String) -> Self {
+        Self {
+            pool: self.pool.clone(),
+            key_prefix: self.key_prefix.clone(),
+            config: Arc::clone(&self.config),
+            subscriber: Arc::clone(&self.subscriber),
+            publisher: Arc::clone(&self.publisher),
+            is_redis_available: Arc::clone(&self.is_redis_available),
+            request_id: Some(request_id),
+            event_emitter: Arc::clone(&self.event_emitter),
+        }
+    }
+
+    /// Set the emitter used to publish external service call events for
+    /// commands executed through this pool.
+    pub fn set_event_emitter(&mut self, event_emitter: Arc<dyn ExternalServiceEventEmitter>) {
+        self.event_emitter = event_emitter;
+    }
+
+    /// Emit an external service call event for a completed Redis command.
+    /// `endpoint` is evaluated lazily so callers don't pay for key formatting
+    /// when emission is skipped (emitter disabled or no request context).
+    pub fn emit_external_service_call_event(
+        &self,
+        method: &str,
+        endpoint: impl FnOnce() -> String,
+        success: bool,
+        start_time: std::time::Instant,
+    ) {
+        crate::events::emit_redis_external_service_call(
+            &self.event_emitter,
+            self.request_id.as_deref(),
+            method,
+            endpoint,
+            success,
+            start_time,
+        );
     }
 
     /// Monitor for connection errors.
