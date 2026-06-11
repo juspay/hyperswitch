@@ -167,6 +167,73 @@ impl FilterDecision {
     }
 }
 
+// Classifies the webhook via UCS `ParseEvent` before UCS/Direct routing.
+// Returns `None` on any UCS error which causes downstream routing to use the Hyperswitch (Direct) gateway.
+pub async fn get_rollout_flow_for_incoming_webhook(
+    state: &SessionState,
+    platform: &domain::Platform,
+    connector: ConnectorEnum,
+    connector_name: &str,
+    merchant_connector_account: Option<&domain::MerchantConnectorAccount>,
+    request: &IncomingWebhookRequestDetails<'_>,
+) -> Option<api_models::webhooks::WebhookFlow> {
+    let client = state
+        .grpc_client
+        .unified_connector_service_client
+        .as_ref()?
+        .clone();
+
+    let ctx = WebhookGatewayContext {
+        state: state.clone(),
+        platform: platform.clone(),
+        connector,
+        connector_name: connector_name.to_string(),
+        merchant_connector_account: merchant_connector_account.cloned(),
+        execution_path: ExecutionPath::Direct,
+        execution_mode: ExecutionMode::NotApplicable,
+    };
+
+    let parse_request = payments_grpc::EventServiceParseRequest::foreign_try_from(request)
+        .inspect_err(|error| {
+            logger::debug!(?error, "Failed to build UCS ParseEvent request");
+        })
+        .ok()?;
+
+    let parse_auth = build_ucs_auth_metadata(&ctx, None)
+        .inspect_err(|error| {
+            logger::debug!(?error, "Failed to build UCS auth metadata");
+        })
+        .ok()?;
+    let parse_headers = build_ucs_headers_builder(&ctx, None, ExecutionMode::NotApplicable);
+
+    let parse_response = unified_connector_service::ucs_webhook_logging_wrapper(
+        state,
+        connector_name.to_string(),
+        "EventServiceParseEvent",
+        parse_request,
+        parse_headers,
+        |request, headers| async move {
+            client
+                .incoming_webhook_parse_event(request, parse_auth, headers)
+                .await
+                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .attach_printable("UCS ParseEvent call failed during webhook probe")
+                .map(|response| response.into_inner())
+        },
+    )
+    .await
+    .inspect_err(|error| {
+        logger::debug!(?error, "UCS ParseEvent failed");
+    })
+    .ok()?;
+
+    let event_type = parse_response
+        .event_type
+        .map(IncomingWebhookEvent::from_ucs_event_type);
+
+    event_type.map(api_models::webhooks::WebhookFlow::from)
+}
+
 pub struct DirectIncomingWebhookGateway;
 
 #[async_trait]
@@ -244,21 +311,11 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
             }
         };
 
-        let ack_creds = ctx
-            .merchant_connector_account
-            .as_ref()
-            .map(|m| m.connector_account_details.clone());
-        let ack_response = ctx
-            .connector
-            .get_webhook_api_response(&decoded_request, None, ack_creds)
-            .switch()
-            .attach_printable("Failed to build webhook ack via connector")?;
-
         let outcome = match FilterDecision::evaluate(event_type, ctx).await {
             FilterDecision::Skip => WebhookOutcome::Skipped {
                 reference,
                 event_type,
-                ack_response,
+                ack_response: services::ApplicationResponse::StatusOk,
             },
             FilterDecision::Proceed => {
                 let reference = reference.ok_or_else(|| {
@@ -286,6 +343,13 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
                         );
                         serde_json::Value::Null
                     }));
+
+                let ack_creds = mca.connector_account_details.clone();
+                let ack_response = ctx
+                    .connector
+                    .get_webhook_api_response(&decoded_request, None, Some(ack_creds))
+                    .switch()
+                    .attach_printable("Failed to build webhook ack via connector")?;
 
                 WebhookOutcome::Processed {
                     reference,

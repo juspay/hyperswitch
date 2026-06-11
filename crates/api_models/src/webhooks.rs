@@ -133,6 +133,7 @@ impl IncomingWebhookEvent {
     }
 }
 
+#[derive(Clone, Debug, strum::EnumString, strum::Display)]
 pub enum WebhookFlow {
     Payment,
     #[cfg(feature = "payouts")]
