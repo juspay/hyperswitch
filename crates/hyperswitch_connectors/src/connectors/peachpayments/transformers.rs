@@ -808,6 +808,7 @@ pub enum PeachpaymentsPaymentStatus {
     Reversed,
     ThreedsRequired,
     Voided,
+    FailedRetry,
 }
 
 impl From<PeachpaymentsPaymentStatus> for common_enums::AttemptStatus {
@@ -816,7 +817,8 @@ impl From<PeachpaymentsPaymentStatus> for common_enums::AttemptStatus {
             // PENDING means authorized but not yet captured - requires confirmation
             PeachpaymentsPaymentStatus::Pending
             | PeachpaymentsPaymentStatus::Authorized
-            | PeachpaymentsPaymentStatus::Approved => Self::Authorized,
+            | PeachpaymentsPaymentStatus::Approved
+            | PeachpaymentsPaymentStatus::FailedRetry => Self::Authorized,
             PeachpaymentsPaymentStatus::Declined | PeachpaymentsPaymentStatus::Failed => {
                 Self::Failure
             }
@@ -1001,6 +1003,8 @@ pub enum ResponseCode {
         description: String,
         terminal_outcome_string: Option<String>,
         receipt_string: Option<String>,
+        iso_code_description: Option<String>,
+        explanation: Option<String>,
     },
 }
 
@@ -1275,13 +1279,15 @@ pub struct PeachpaymentsErrorResponse {
     pub message: String,
 }
 
-impl TryFrom<ErrorResponse> for PeachpaymentsErrorResponse {
-    type Error = error_stack::Report<errors::ConnectorError>;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Peachpayments5xxErrorResponse {
+    Standard(PeachpaymentsErrorResponse),
+    Detailed(PeachpaymentsDetailedDeclineResponse),
+}
 
-    fn try_from(error_response: ErrorResponse) -> Result<Self, Self::Error> {
-        Ok(Self {
-            error_ref: error_response.code,
-            message: error_response.message,
-        })
-    }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PeachpaymentsDetailedDeclineResponse {
+    #[serde(flatten)]
+    pub response: PeachpaymentsCaptureResponse,
 }
