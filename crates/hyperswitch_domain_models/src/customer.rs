@@ -17,7 +17,7 @@ use diesel_models::{
     customers as storage_types, customers::CustomerUpdateInternal, query::customers as query,
 };
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
 use router_env::{instrument, tracing};
 use rustc_hash::FxHashMap;
 use time::PrimitiveDateTime;
@@ -101,7 +101,7 @@ impl Customer {
     pub fn get_connector_customer_map(
         &self,
     ) -> FxHashMap<id_type::MerchantConnectorAccountId, String> {
-        use masking::PeekInterface;
+        use hyperswitch_masking::PeekInterface;
         if let Some(connector_customer_value) = &self.connector_customer {
             connector_customer_value
                 .peek()
@@ -116,7 +116,7 @@ impl Customer {
     /// Get the connector customer ID for the specified connector label, if present
     #[cfg(feature = "v1")]
     pub fn get_connector_customer_id(&self, connector_label: &str) -> Option<&str> {
-        use masking::PeekInterface;
+        use hyperswitch_masking::PeekInterface;
 
         self.connector_customer
             .as_ref()

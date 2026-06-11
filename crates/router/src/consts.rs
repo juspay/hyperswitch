@@ -354,6 +354,10 @@ pub mod superposition {
     pub const REQUIRES_CVV: &str = "requires_cvv";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
+    /// payout sync tracker configuration key
+    pub const PAYOUT_TRACKER_MAPPING: &str = "payout_tracker_mapping";
+    /// client session validation enabled configuration key
+    pub const CLIENT_SESSION_VALIDATION_ENABLED: &str = "client_session_validation_enabled";
 }
 
 #[cfg(test)]

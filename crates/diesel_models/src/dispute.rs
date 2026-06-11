@@ -3,7 +3,7 @@ use common_utils::{
     types::{MinorUnit, StringMinorUnit},
 };
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::Serialize;
 use time::PrimitiveDateTime;
 

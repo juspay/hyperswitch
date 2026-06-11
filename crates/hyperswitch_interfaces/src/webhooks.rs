@@ -5,7 +5,7 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     api::ApplicationResponse, errors::api_error_response::ApiErrorResponse,
 };
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 
 use crate::{api::ConnectorCommon, errors};
 
@@ -322,7 +322,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     fn get_webhook_resource_object(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError>;
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>;
 
     /// fn get_webhook_api_response
     fn get_webhook_api_response(

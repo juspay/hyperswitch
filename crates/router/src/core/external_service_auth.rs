@@ -1,7 +1,7 @@
 use api_models::external_service_auth as external_service_auth_api;
 use common_utils::fp_utils;
 use error_stack::ResultExt;
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 
 use crate::{
     core::errors::{self, RouterResponse},

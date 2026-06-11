@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::{api, errors};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::{requests::*, response::*};

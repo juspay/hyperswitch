@@ -1088,7 +1088,7 @@ mod tests {
         //     connector_name: "stripe".to_string(),
         //     id: common_utils::generate_merchant_connector_account_id_of_default_length(),
         //     connector_label: Some("something".to_string()),
-        //     connector_account_details: masking::Secret::new(serde_json::json!({})),
+        //     connector_account_details: hyperswitch_masking::Secret::new(serde_json::json!({})),
         //     disabled: None,
         //     metadata: None,
         //     payment_methods_enabled: Some(vec![PaymentMethodsEnabled {
@@ -1147,7 +1147,7 @@ mod tests {
             connector_label: Some("something".to_string()),
             business_label: Some("food".to_string()),
             business_sub_label: None,
-            connector_account_details: masking::Secret::new(serde_json::json!({})),
+            connector_account_details: hyperswitch_masking::Secret::new(serde_json::json!({})),
             test_mode: None,
             disabled: None,
             metadata: None,

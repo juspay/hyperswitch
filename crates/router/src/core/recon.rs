@@ -3,7 +3,7 @@ use api_models::recon as recon_api;
 use common_utils::{ext_traits::AsyncExt, types::user::ThemeLineage};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 #[cfg(feature = "email")]
 use crate::{

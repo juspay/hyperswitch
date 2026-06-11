@@ -1,4 +1,4 @@
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 // PaymentsResponse
 #[derive(Default, Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]

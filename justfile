@@ -240,3 +240,54 @@ resurrect database_name=db_name:
 
 ci_hack:
     scripts/ci-checks.sh
+
+# Start superposition in docker (auto-detects docker or podman)
+superposition-up:
+    #! /usr/bin/env bash
+    set -euo pipefail
+
+    # Detect container runtime
+    if command -v docker &> /dev/null; then
+        COMPOSE="docker-compose"
+    elif command -v podman-compose &> /dev/null; then
+        COMPOSE="podman-compose"
+    else
+        echo "Error: Neither docker-compose nor podman-compose found"
+        exit 1
+    fi
+
+    echo "Using $COMPOSE..."
+    $COMPOSE -f docker-compose-development.yml up -d superposition
+
+    echo "Waiting for superposition to be ready..."
+    for i in {1..30}; do
+        if curl -s http://localhost:8081/health > /dev/null 2>&1; then
+            echo "Superposition is ready!"
+            break
+        fi
+        echo "Waiting for superposition... ($i/30)"
+        sleep 2
+    done
+
+# Stop superposition and dependencies
+superposition-down:
+    #! /usr/bin/env bash
+    set -euo pipefail
+
+    if command -v docker &> /dev/null; then
+        docker-compose -f docker-compose-development.yml down
+    elif command -v podman-compose &> /dev/null; then
+        podman-compose -f docker-compose-development.yml down
+    fi
+
+# Seed Superposition with default dimensions and configs
+superposition-seed:
+    #! /usr/bin/env bash
+    set -euo pipefail
+
+    if [ ! -f "./config/superposition_seed.toml" ]; then
+        echo "Error: Seed file not found at ./config/superposition_seed.toml"
+        exit 1
+    fi
+
+    bash ./scripts/seed_superposition.sh

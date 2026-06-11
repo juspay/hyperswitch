@@ -1,7 +1,7 @@
 use api_models::enums as api_enums;
 use common_utils::{ext_traits::OptionExt, fp_utils::when, pii::Email};
 use error_stack::{report, ResultExt};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router_env::logger;
 
 use super::{

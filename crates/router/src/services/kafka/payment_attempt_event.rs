@@ -200,12 +200,12 @@ pub struct KafkaPaymentAttemptEvent<'a> {
     pub preprocessing_step_id: Option<String>,
     pub connector_response_reference_id: Option<String>,
     pub updated_by: &'a String,
-    pub encoded_data: Option<&'a masking::Secret<String>>,
+    pub encoded_data: Option<&'a hyperswitch_masking::Secret<String>>,
     pub external_three_ds_authentication_attempted: Option<bool>,
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
     pub fingerprint_id: Option<String>,
-    pub customer_acceptance: Option<&'a masking::Secret<payments::CustomerAcceptance>>,
+    pub customer_acceptance: Option<&'a hyperswitch_masking::Secret<payments::CustomerAcceptance>>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub charges: Option<payments::ConnectorChargeResponseData>,
@@ -217,7 +217,7 @@ pub struct KafkaPaymentAttemptEvent<'a> {
     pub authentication_applied: Option<common_enums::AuthenticationType>,
     pub external_reference_id: Option<String>,
     pub tax_on_surcharge: Option<MinorUnit>,
-    pub payment_method_billing_address: Option<masking::Secret<&'a address::Address>>, // adjusted from Encryption
+    pub payment_method_billing_address: Option<hyperswitch_masking::Secret<&'a address::Address>>,
     pub redirection_data: Option<&'a RedirectForm>,
     pub connector_payment_data: Option<String>,
     pub connector_token_details: Option<&'a payment_attempt::ConnectorTokenDetails>,
@@ -231,7 +231,7 @@ pub struct KafkaPaymentAttemptEvent<'a> {
 #[cfg(feature = "v2")]
 impl<'a> KafkaPaymentAttemptEvent<'a> {
     pub fn from_storage(attempt: &'a PaymentAttempt) -> Self {
-        use masking::PeekInterface;
+        use hyperswitch_masking::PeekInterface;
         let PaymentAttempt {
             payment_id,
             merchant_id,
@@ -371,7 +371,7 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             tax_on_surcharge: amount_details.get_tax_on_surcharge(),
             payment_method_billing_address: payment_method_billing_address
                 .as_ref()
-                .map(|v| masking::Secret::new(v.get_inner())),
+                .map(|v| hyperswitch_masking::Secret::new(v.get_inner())),
             redirection_data: redirection_data.as_ref(),
             connector_payment_data,
             connector_token_details: connector_token_details.as_ref(),

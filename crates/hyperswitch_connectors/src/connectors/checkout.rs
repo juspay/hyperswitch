@@ -59,7 +59,7 @@ use hyperswitch_interfaces::{
     },
     webhooks,
 };
-use masking::{Mask, Maskable, PeekInterface};
+use hyperswitch_masking::{Mask, Maskable, PeekInterface};
 use transformers::CheckoutErrorResponse;
 
 use self::transformers as checkout;
@@ -1360,7 +1360,8 @@ impl webhooks::IncomingWebhook for Checkout {
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let event_type_data: checkout::CheckoutWebhookEventTypeBody = request
             .body
             .parse_struct("CheckoutWebhookBody")

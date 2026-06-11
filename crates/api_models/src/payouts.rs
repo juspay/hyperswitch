@@ -11,7 +11,7 @@ use common_utils::{
     transformers::ForeignFrom,
     types::{UnifiedCode, UnifiedMessage},
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 #[cfg(feature = "v1")]
 use payments::BrowserInformation;
 use router_derive::FlatStruct;

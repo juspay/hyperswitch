@@ -9,7 +9,7 @@ use common_utils::generate_id;
 use common_utils::id_type;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "v2")]

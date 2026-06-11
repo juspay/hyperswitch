@@ -7,7 +7,7 @@ use diesel::{
     sql_types::{Json, Jsonb},
     AsExpression, FromSqlRow,
 };
-use masking::{Secret, WithType};
+use hyperswitch_masking::{Secret, WithType};
 use serde::{self, Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, FromSqlRow, AsExpression)]
@@ -55,7 +55,7 @@ pub struct OrderDetailsWithAmount {
     pub unit_discount_amount: Option<MinorUnit>,
 }
 
-impl masking::SerializableSecret for OrderDetailsWithAmount {}
+impl hyperswitch_masking::SerializableSecret for OrderDetailsWithAmount {}
 
 common_utils::impl_to_sql_from_sql_json!(OrderDetailsWithAmount);
 
@@ -166,7 +166,7 @@ pub struct RedirectResponse {
     pub param: Option<Secret<String>>,
     pub json_payload: Option<pii::SecretSerdeValue>,
 }
-impl masking::SerializableSecret for RedirectResponse {}
+impl hyperswitch_masking::SerializableSecret for RedirectResponse {}
 common_utils::impl_to_sql_from_sql_json!(RedirectResponse);
 
 #[cfg(feature = "v2")]

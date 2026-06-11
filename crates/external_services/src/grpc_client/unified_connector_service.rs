@@ -4,7 +4,7 @@ use common_enums::connector_enums::Connector;
 use common_utils::{consts as common_utils_consts, errors::CustomResult, types::Url};
 use error_stack::ResultExt;
 pub use hyperswitch_interfaces::unified_connector_service::transformers::UnifiedConnectorServiceError;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::logger;
 use tokio::time::{timeout, Duration};
 use tonic::{

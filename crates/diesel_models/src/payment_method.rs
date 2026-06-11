@@ -9,8 +9,8 @@ use common_utils::{
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
-use masking::ExposeInterface;
-use masking::Secret;
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 

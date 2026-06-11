@@ -1,7 +1,7 @@
 //! Configs interface
 use common_enums::{connector_enums, ApplicationError};
 use common_utils::errors::CustomResult;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::Deserialize;
 
 use crate::errors::api_error_response;

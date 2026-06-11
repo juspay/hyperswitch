@@ -1,6 +1,6 @@
 use common_utils::request::{Method, RequestContent};
 use hyperswitch_interfaces::micro_service::MicroserviceClientError;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::client::create::{ConnectorTokenDetails, ModularPaymentMethodResponse};

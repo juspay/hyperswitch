@@ -15,7 +15,7 @@ use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::payments::{
     split_payments, HeaderPayload, PaymentConfirmData, PaymentIntent,
 };
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 
 use super::errors::StorageErrorExt;
 use crate::{
@@ -569,7 +569,7 @@ pub async fn create_domain_model_for_split_payment(
         customer_acceptance: request
             .customer_acceptance
             .clone()
-            .map(masking::Secret::new),
+            .map(hyperswitch_masking::Secret::new),
         profile_id: payment_intent.profile_id.clone(),
         organization_id: payment_intent.organization_id.clone(),
         payment_method_type,

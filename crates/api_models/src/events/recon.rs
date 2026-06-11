@@ -1,5 +1,5 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 
 use crate::recon::{
     ReconStatusResponse, ReconTokenResponse, ReconUpdateMerchantRequest, VerifyTokenResponse,

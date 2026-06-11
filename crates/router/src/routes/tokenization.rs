@@ -11,7 +11,7 @@ use common_utils::{
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use masking::Secret;
+use hyperswitch_masking::Secret;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use router_env::{instrument, logger, tracing, Flow};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]

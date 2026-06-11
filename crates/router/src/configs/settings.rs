@@ -33,7 +33,7 @@ pub use hyperswitch_interfaces::{
     },
     types::{ComparisonServiceConfig, Proxy},
 };
-use masking::{Maskable, Secret};
+use hyperswitch_masking::{Maskable, Secret};
 pub use payment_methods::configs::settings::{
     BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields, EligiblePaymentMethods,
     Mandates, PaymentMethodAuth, PaymentMethodType, RequiredFieldFinal, RequiredFields,

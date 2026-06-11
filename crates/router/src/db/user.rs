@@ -1,6 +1,6 @@
 use diesel_models::user as storage;
 use error_stack::report;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
 
 use super::{domain, MockDb};

@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use common_utils::{self, errors::CustomResult, fp_utils};
 use error_stack::ResultExt;
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use router_env::{instrument, tracing};
 
 use crate::{

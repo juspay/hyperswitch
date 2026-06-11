@@ -19,28 +19,28 @@ use crate::types::{api, api::enums as api_enums};
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct Shipping {
     pub address: StripeAddressDetails,
-    pub name: Option<masking::Secret<String>>,
+    pub name: Option<hyperswitch_masking::Secret<String>>,
     pub carrier: Option<String>,
-    pub phone: Option<masking::Secret<String>>,
-    pub tracking_number: Option<masking::Secret<String>>,
+    pub phone: Option<hyperswitch_masking::Secret<String>>,
+    pub tracking_number: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct StripeAddressDetails {
     pub city: Option<String>,
     pub country: Option<api_enums::CountryAlpha2>,
-    pub line1: Option<masking::Secret<String>>,
-    pub line2: Option<masking::Secret<String>>,
-    pub postal_code: Option<masking::Secret<String>>,
-    pub state: Option<masking::Secret<String>>,
+    pub line1: Option<hyperswitch_masking::Secret<String>>,
+    pub line2: Option<hyperswitch_masking::Secret<String>>,
+    pub postal_code: Option<hyperswitch_masking::Secret<String>>,
+    pub state: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CreateCustomerRequest {
     pub email: Option<Email>,
     pub invoice_prefix: Option<String>,
-    pub name: Option<masking::Secret<String>>,
-    pub phone: Option<masking::Secret<String>>,
+    pub name: Option<hyperswitch_masking::Secret<String>>,
+    pub phone: Option<hyperswitch_masking::Secret<String>>,
     pub address: Option<StripeAddressDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub description: Option<Description>,
@@ -64,8 +64,8 @@ pub struct CreateCustomerRequest {
 pub struct CustomerUpdateRequest {
     pub description: Option<Description>,
     pub email: Option<Email>,
-    pub phone: Option<masking::Secret<String, masking::WithType>>,
-    pub name: Option<masking::Secret<String>>,
+    pub phone: Option<hyperswitch_masking::Secret<String, hyperswitch_masking::WithType>>,
+    pub name: Option<hyperswitch_masking::Secret<String>>,
     pub address: Option<StripeAddressDetails>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub shipping: Option<Shipping>,
@@ -91,8 +91,8 @@ pub struct CreateCustomerResponse {
     pub description: Option<Description>,
     pub email: Option<Email>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub name: Option<masking::Secret<String>>,
-    pub phone: Option<masking::Secret<String, masking::WithType>>,
+    pub name: Option<hyperswitch_masking::Secret<String>>,
+    pub phone: Option<hyperswitch_masking::Secret<String, hyperswitch_masking::WithType>>,
 }
 
 pub type CustomerRetrieveResponse = CreateCustomerResponse;
@@ -208,9 +208,9 @@ pub struct PaymentMethodData {
 pub struct CardDetails {
     pub country: Option<String>,
     pub last4: Option<String>,
-    pub exp_month: Option<masking::Secret<String>>,
-    pub exp_year: Option<masking::Secret<String>>,
-    pub fingerprint: Option<masking::Secret<String>>,
+    pub exp_month: Option<hyperswitch_masking::Secret<String>>,
+    pub exp_year: Option<hyperswitch_masking::Secret<String>>,
+    pub fingerprint: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[cfg(feature = "v1")]

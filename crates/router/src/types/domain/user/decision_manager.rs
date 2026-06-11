@@ -5,7 +5,7 @@ use diesel_models::{
     user_role::UserRole,
 };
 use error_stack::ResultExt;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router_env::logger;
 
 use super::UserFromStorage;

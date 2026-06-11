@@ -153,7 +153,9 @@ impl
                                         required_fields.entry(key.to_string()).and_modify(
                                             |required_field| {
                                                 required_field.value =
-                                                    Some(masking::Secret::new(value.to_string()));
+                                                    Some(hyperswitch_masking::Secret::new(
+                                                        value.to_string(),
+                                                    ));
                                             },
                                         );
                                     }

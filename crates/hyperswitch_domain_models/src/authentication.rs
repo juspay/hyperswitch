@@ -10,7 +10,7 @@ use common_utils::{
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use rustc_hash::FxHashMap;
 use serde_json::Value;
 

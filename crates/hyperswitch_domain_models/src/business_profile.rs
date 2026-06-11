@@ -19,7 +19,7 @@ use diesel_models::business_profile::{
     PaymentMethodBlockingConfig, ProfileUpdateInternal, WebhookDetails,
 };
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::logger;
 
 use crate::{

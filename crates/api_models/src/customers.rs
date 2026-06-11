@@ -1,6 +1,6 @@
 use common_types::primitive_wrappers::CustomerListLimit;
 use common_utils::{crypto, custom_serde, id_type, pii, types::Description};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
 use utoipa::ToSchema;

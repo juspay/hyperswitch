@@ -695,7 +695,7 @@ impl MessagingInterface for KafkaProducer {
         timestamp: PrimitiveDateTime,
     ) -> error_stack::Result<(), EventsError>
     where
-        T: Message<Class = Self::MessageClass> + masking::ErasedMaskSerialize,
+        T: Message<Class = Self::MessageClass> + hyperswitch_masking::ErasedMaskSerialize,
     {
         let topic = self.get_topic(data.get_message_class());
         let json_data = data

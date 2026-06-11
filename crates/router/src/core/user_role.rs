@@ -13,7 +13,7 @@ use diesel_models::{
     user_role::UserRoleUpdate,
 };
 use error_stack::{report, ResultExt};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResponse},

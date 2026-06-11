@@ -50,7 +50,7 @@ use hyperswitch_interfaces::{
     },
     webhooks,
 };
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 use transformers as authorizedotnet;
 
 use crate::{
@@ -1089,7 +1089,8 @@ impl webhooks::IncomingWebhook for Authorizedotnet {
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let payload: authorizedotnet::AuthorizedotnetWebhookObjectId = request
             .body
             .parse_struct("AuthorizedotnetWebhookObjectId")

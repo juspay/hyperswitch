@@ -35,12 +35,12 @@ use external_services::grpc_client::dynamic_routing::{
 use hyperswitch_domain_models::address::Address;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use hyperswitch_interfaces::events::routing_api_logs::{ApiMethod, RoutingEngine};
+use hyperswitch_masking::{PeekInterface, Secret};
 use kgraph_utils::{
     mca as mca_graph,
     transformers::{IntoContext, IntoDirValue},
     types::CountryCurrencyFilter,
 };
-use masking::{PeekInterface, Secret};
 use rand::distributions::{self, Distribution};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use rand::SeedableRng;

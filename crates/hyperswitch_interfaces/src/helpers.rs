@@ -4,7 +4,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data;
-use masking;
+use hyperswitch_masking;
 use router_env::{logger, tracing};
 
 use crate::{api_client, consts, errors, types};
@@ -20,9 +20,9 @@ pub trait ForeignTryFrom<F>: Sized {
 #[derive(serde::Serialize, Debug)]
 pub struct ComparisonData {
     /// Hyperswitch router data
-    pub hyperswitch_data: masking::Secret<serde_json::Value>,
+    pub hyperswitch_data: hyperswitch_masking::Secret<serde_json::Value>,
     /// Unified Connector Service router data
-    pub unified_connector_service_data: masking::Secret<serde_json::Value>,
+    pub unified_connector_service_data: hyperswitch_masking::Secret<serde_json::Value>,
 }
 
 /// Trait to get comparison service configuration
@@ -56,9 +56,9 @@ where
     ]
     .map(|(data, source)| {
         serde_json::to_value(data)
-            .map(masking::Secret::new)
+            .map(hyperswitch_masking::Secret::new)
             .unwrap_or_else(|e| {
-                masking::Secret::new(serde_json::json!({
+                hyperswitch_masking::Secret::new(serde_json::json!({
                     "error": e.to_string(),
                     "source": source
                 }))
@@ -101,14 +101,23 @@ pub async fn send_comparison_data(
         .set_body(request::RequestContent::Json(Box::new(comparison_data)))
         .build();
 
-    request.add_header(X_CONNECTOR_NAME, masking::Maskable::Normal(connector_name));
+    request.add_header(
+        X_CONNECTOR_NAME,
+        hyperswitch_masking::Maskable::Normal(connector_name),
+    );
 
     if let Some(sub_flow_name) = sub_flow_name.filter(|name| !name.is_empty()) {
-        request.add_header(X_SUB_FLOW_NAME, masking::Maskable::Normal(sub_flow_name));
+        request.add_header(
+            X_SUB_FLOW_NAME,
+            hyperswitch_masking::Maskable::Normal(sub_flow_name),
+        );
     }
 
     if let Some(req_id) = request_id {
-        request.add_header(consts::X_REQUEST_ID, masking::Maskable::Normal(req_id));
+        request.add_header(
+            consts::X_REQUEST_ID,
+            hyperswitch_masking::Maskable::Normal(req_id),
+        );
     }
 
     let _ = state

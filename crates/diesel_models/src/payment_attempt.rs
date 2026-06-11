@@ -126,7 +126,7 @@ pub struct PaymentAttempt {
     pub amount_capturable: MinorUnit,
     pub updated_by: String,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    pub encoded_data: Option<masking::Secret<String>>,
+    pub encoded_data: Option<hyperswitch_masking::Secret<String>>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     #[diesel(deserialize_as = RequiredFromNullable<MinorUnit>)]
@@ -137,7 +137,8 @@ pub struct PaymentAttempt {
     pub fingerprint_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
-    pub customer_acceptance: Option<masking::Secret<common_payments_types::CustomerAcceptance>>,
+    pub customer_acceptance:
+        Option<hyperswitch_masking::Secret<common_payments_types::CustomerAcceptance>>,
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub card_network: Option<String>,
@@ -399,7 +400,7 @@ pub struct PaymentAttemptNew {
     pub updated_by: String,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub redirection_data: Option<RedirectForm>,
-    pub encoded_data: Option<masking::Secret<String>>,
+    pub encoded_data: Option<hyperswitch_masking::Secret<String>>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub net_amount: MinorUnit,
@@ -410,7 +411,8 @@ pub struct PaymentAttemptNew {
     pub payment_method_billing_address: Option<common_utils::encryption::Encryption>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
-    pub customer_acceptance: Option<masking::Secret<common_payments_types::CustomerAcceptance>>,
+    pub customer_acceptance:
+        Option<hyperswitch_masking::Secret<common_payments_types::CustomerAcceptance>>,
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub card_network: Option<String>,
@@ -4543,7 +4545,7 @@ pub enum RedirectForm {
     Nmi {
         amount: String,
         currency: common_enums::Currency,
-        public_key: masking::Secret<String>,
+        public_key: hyperswitch_masking::Secret<String>,
         customer_vault_id: String,
         order_id: String,
     },

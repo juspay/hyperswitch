@@ -23,8 +23,8 @@ use diesel_models::{
 };
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
-use masking::ExposeInterface;
-use masking::{Deserialize, PeekInterface, Secret};
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{Deserialize, PeekInterface, Secret};
 use serde::Serialize;
 use time::PrimitiveDateTime;
 

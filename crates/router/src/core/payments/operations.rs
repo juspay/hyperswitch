@@ -100,7 +100,13 @@ use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionS
 #[cfg(feature = "v2")]
 use crate::core::payments;
 use crate::{
-    core::errors::{self, CustomResult, RouterResult},
+    core::{
+        configs::dimension_state::{
+            DimensionsWithProcessorAndProviderMerchantId,
+            DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        },
+        errors::{self, CustomResult, RouterResult},
+    },
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -266,6 +272,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         payment_data: &mut D,
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError>;
 
     #[cfg(feature = "v2")]
@@ -505,6 +512,7 @@ pub trait UpdateTracker<F, D, Req>: Send {
         payment_data: D,
         frm_suggestion: Option<FrmSuggestion>,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(BoxedOperation<'b, F, Req, D>, D)>
     where
         F: 'b + Send;
@@ -613,6 +621,7 @@ where
         payment_data: &mut D,
         _request: Option<CustomerDetails>,
         provider: &domain::Provider,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRetrieveRequest, D>,
@@ -700,6 +709,7 @@ where
         payment_data: &mut D,
         _request: Option<CustomerDetails>,
         provider: &domain::Provider,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCaptureRequest, D>,
@@ -804,6 +814,7 @@ where
         payment_data: &mut D,
         _request: Option<CustomerDetails>,
         provider: &domain::Provider,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCancelRequest, D>,
@@ -907,6 +918,7 @@ where
         _payment_data: &mut D,
         _request: Option<CustomerDetails>,
         _provider: &domain::Provider,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRejectRequest, D>,

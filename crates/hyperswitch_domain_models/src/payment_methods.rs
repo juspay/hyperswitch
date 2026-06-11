@@ -20,7 +20,7 @@ use common_utils::{
 };
 pub use diesel_models::{enums as storage_enums, PaymentMethodUpdate};
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v1")]
 use router_env::logger;
 #[cfg(feature = "v2")]

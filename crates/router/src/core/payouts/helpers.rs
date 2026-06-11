@@ -15,7 +15,7 @@ use common_utils::{
 use common_utils::{generate_customer_id_of_default_length, types::keymanager::ToEncryptable};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
-use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
 use router_env::logger;
 
 use super::PayoutData;

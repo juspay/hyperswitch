@@ -10,7 +10,7 @@ use hyperswitch_domain_models::{
     merchant_account::{self as domain, MerchantAccountInterface},
     merchant_key_store::{MerchantKeyStore, MerchantKeyStoreInterface},
 };
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "accounts_cache")]

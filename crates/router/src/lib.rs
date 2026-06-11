@@ -108,7 +108,7 @@ pub mod pii {
 
     pub(crate) use common_utils::pii::Email;
     #[doc(inline)]
-    pub use masking::*;
+    pub use hyperswitch_masking::*;
 }
 
 pub fn mk_app(
