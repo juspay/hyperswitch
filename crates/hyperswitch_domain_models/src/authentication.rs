@@ -742,7 +742,6 @@ pub trait AuthenticationInterface {
     async fn find_authentication_by_merchant_id_connector_authentication_id(
         &self,
         merchant_id: common_utils::id_type::MerchantId,
-        merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
         connector_authentication_id: String,
         merchant_key_store: &crate::merchant_key_store::MerchantKeyStore,
         state: &KeyManagerState,

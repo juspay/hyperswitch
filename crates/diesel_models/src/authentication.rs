@@ -88,20 +88,6 @@ pub struct Authentication {
     pub created_by: Option<String>,
 }
 
-impl Authentication {
-    /// KV reverse-lookup id for an authentication, scoped to the MCA for uniqueness.
-    pub fn get_connector_authentication_lookup_id(
-        merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
-        connector_authentication_id: &str,
-    ) -> String {
-        format!(
-            "auth_connector_{}_{}",
-            merchant_connector_id.get_string_repr(),
-            connector_authentication_id
-        )
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Insertable)]
 #[diesel(table_name = authentication)]
 pub struct AuthenticationNew {

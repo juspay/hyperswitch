@@ -4138,7 +4138,6 @@ impl AuthenticationInterface for KafkaStore {
     async fn find_authentication_by_merchant_id_connector_authentication_id(
         &self,
         merchant_id: id_type::MerchantId,
-        merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
         connector_authentication_id: String,
         key_store: &domain::MerchantKeyStore,
         state: &KeyManagerState,
@@ -4150,7 +4149,6 @@ impl AuthenticationInterface for KafkaStore {
         self.diesel_store
             .find_authentication_by_merchant_id_connector_authentication_id(
                 merchant_id,
-                merchant_connector_id,
                 connector_authentication_id,
                 key_store,
                 state,

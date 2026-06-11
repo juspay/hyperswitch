@@ -98,8 +98,6 @@ impl<T: DatabaseStore> AuthenticationInterface for RouterStore<T> {
     async fn find_authentication_by_merchant_id_connector_authentication_id(
         &self,
         merchant_id: common_utils::id_type::MerchantId,
-        // Only keys the KV reverse lookup; the Postgres lookup stays merchant-id keyed.
-        _merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
         connector_authentication_id: String,
         merchant_key_store: &MerchantKeyStore,
         state: &common_utils::types::keymanager::KeyManagerState,
@@ -244,25 +242,6 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
                 self.insert_reverse_lookup(authentication_id_lookup, storage_scheme)
                     .await?;
 
-                // Connector-auth-id lookup, MCA-keyed to avoid cross-connector collisions.
-                if let (Some(connector_auth_id), Some(merchant_connector_id)) = (
-                    authentication.connector_authentication_id.as_ref(),
-                    authentication.merchant_connector_id.as_ref(),
-                ) {
-                    let reverse_lookup = ReverseLookupNew {
-                        lookup_id: DieselAuthentication::get_connector_authentication_lookup_id(
-                            merchant_connector_id,
-                            connector_auth_id,
-                        ),
-                        pk_id: key_str.clone(),
-                        sk_id: field.clone(),
-                        source: "authentication".to_string(),
-                        updated_by: storage_scheme.to_string(),
-                    };
-                    self.insert_reverse_lookup(reverse_lookup, storage_scheme)
-                        .await?;
-                }
-
                 match Box::pin(kv_wrapper::<DieselAuthentication, _, _>(
                     self,
                     KvOperation::<DieselAuthentication>::HSetNx(
@@ -372,94 +351,22 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
     async fn find_authentication_by_merchant_id_connector_authentication_id(
         &self,
         merchant_id: common_utils::id_type::MerchantId,
-        merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
         connector_authentication_id: String,
         merchant_key_store: &MerchantKeyStore,
         state: &common_utils::types::keymanager::KeyManagerState,
         storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Authentication, errors::StorageError> {
-        let database_call = || async {
-            let conn = pg_connection_read(self).await?;
-            DieselAuthentication::find_authentication_by_merchant_id_connector_authentication_id(
-                &conn,
-                &merchant_id,
-                &connector_authentication_id,
+        // There is no KV reverse lookup keyed on connector_authentication_id, so
+        // this always reads from Postgres regardless of storage scheme.
+        self.router_store
+            .find_authentication_by_merchant_id_connector_authentication_id(
+                merchant_id,
+                connector_authentication_id,
+                merchant_key_store,
+                state,
+                storage_scheme,
             )
             .await
-            .map_err(|error| {
-                let new_err = diesel_error_to_data_error(*error.current_context());
-                error.change_context(new_err)
-            })
-        };
-
-        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselAuthentication>(
-            self,
-            storage_scheme,
-            Op::Find,
-        ))
-        .await;
-
-        let diesel_authentication = match storage_scheme {
-            common_enums::MerchantStorageScheme::PostgresOnly => database_call().await,
-            common_enums::MerchantStorageScheme::RedisKv => match merchant_connector_id.as_ref() {
-                // No MCA id: the reverse lookup is MCA-keyed, so we can't hit Redis and
-                // fall back to the DB. A KV-only (not-yet-drained) row won't be found.
-                None => {
-                    router_env::logger::warn!(
-                        connector_authentication_id = %connector_authentication_id,
-                        "RedisKv find-by-connector-auth-id without MCA id: reading from \
-                         Postgres; a not-yet-drained KV record will not be found"
-                    );
-                    database_call().await
-                }
-                Some(merchant_connector_id) => {
-                    let lookup_id = DieselAuthentication::get_connector_authentication_lookup_id(
-                        merchant_connector_id,
-                        &connector_authentication_id,
-                    );
-                    let lookup = fallback_reverse_lookup_not_found!(
-                        self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
-                            .await,
-                        {
-                            let diesel_authentication = database_call().await?;
-                            Authentication::convert_back(
-                                state,
-                                diesel_authentication,
-                                merchant_key_store.key.get_inner(),
-                                merchant_key_store.merchant_id.clone().into(),
-                            )
-                            .await
-                            .change_context(errors::StorageError::DecryptionError)
-                        }
-                    );
-                    let key = PartitionKey::CombinationKey {
-                        combination: &lookup.pk_id,
-                    };
-                    Box::pin(try_redis_get_else_try_database_get(
-                        async {
-                            Box::pin(kv_wrapper::<DieselAuthentication, _, _>(
-                                self,
-                                KvOperation::<DieselAuthentication>::HGet(&lookup.sk_id),
-                                key,
-                            ))
-                            .await?
-                            .try_into_hget()
-                        },
-                        database_call,
-                    ))
-                    .await
-                }
-            },
-        }?;
-
-        Authentication::convert_back(
-            state,
-            diesel_authentication,
-            merchant_key_store.key.get_inner(),
-            merchant_key_store.merchant_id.clone().into(),
-        )
-        .await
-        .change_context(errors::StorageError::DecryptionError)
     }
 
     #[instrument(skip_all)]
@@ -531,28 +438,6 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
                 let updated_authentication = authentication_update_internal
                     .clone()
                     .apply_changeset(current_authentication_as_new);
-
-                // First update to set the connector auth id: create its MCA-keyed
-                // reverse lookup so it can later be found by connector auth id.
-                if previous_state.connector_authentication_id.is_none() {
-                    if let (Some(connector_auth_id), Some(merchant_connector_id)) = (
-                        updated_authentication.connector_authentication_id.as_ref(),
-                        updated_authentication.merchant_connector_id.as_ref(),
-                    ) {
-                        let reverse_lookup = ReverseLookupNew {
-                            lookup_id: DieselAuthentication::get_connector_authentication_lookup_id(
-                                merchant_connector_id,
-                                connector_auth_id,
-                            ),
-                            pk_id: key_str.clone(),
-                            sk_id: field.clone(),
-                            source: "authentication".to_string(),
-                            updated_by: storage_scheme.to_string(),
-                        };
-                        self.insert_reverse_lookup(reverse_lookup, storage_scheme)
-                            .await?;
-                    }
-                }
 
                 let redis_value = updated_authentication
                     .encode_to_string_of_json()
@@ -649,7 +534,6 @@ impl AuthenticationInterface for MockDb {
     async fn find_authentication_by_merchant_id_connector_authentication_id(
         &self,
         merchant_id: common_utils::id_type::MerchantId,
-        _merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
         connector_authentication_id: String,
         _merchant_key_store: &MerchantKeyStore,
         _state: &common_utils::types::keymanager::KeyManagerState,
