@@ -1496,7 +1496,6 @@ export const connectorDetails = {
           },
         },
         currency: "USD",
-        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
@@ -1518,7 +1517,6 @@ export const connectorDetails = {
           },
         },
         currency: "USD",
-        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
@@ -1540,7 +1538,6 @@ export const connectorDetails = {
           },
         },
         currency: "USD",
-        setup_future_usage: "off_session",
         mandate_data: {
           customer_acceptance: {
             acceptance_type: "offline",
@@ -1578,7 +1575,6 @@ export const connectorDetails = {
           },
         },
         currency: "USD",
-        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
@@ -1600,7 +1596,6 @@ export const connectorDetails = {
           },
         },
         currency: "USD",
-        setup_future_usage: "off_session",
         mandate_data: {
           customer_acceptance: {
             acceptance_type: "offline",
@@ -1638,7 +1633,6 @@ export const connectorDetails = {
           },
         },
         currency: "EUR",
-        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
@@ -1660,7 +1654,6 @@ export const connectorDetails = {
           },
         },
         currency: "EUR",
-        setup_future_usage: "off_session",
         mandate_data: {
           customer_acceptance: {
             acceptance_type: "offline",
@@ -1698,7 +1691,6 @@ export const connectorDetails = {
           },
         },
         currency: "USD",
-        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
@@ -1720,7 +1712,6 @@ export const connectorDetails = {
           },
         },
         currency: "INR",
-        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
@@ -1742,7 +1733,6 @@ export const connectorDetails = {
           },
         },
         currency: "INR",
-        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
@@ -1764,7 +1754,6 @@ export const connectorDetails = {
           },
         },
         currency: "INR",
-        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
@@ -1786,7 +1775,6 @@ export const connectorDetails = {
           },
         },
         currency: "INR",
-        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
@@ -1808,7 +1796,6 @@ export const connectorDetails = {
           },
         },
         currency: "INR",
-        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
