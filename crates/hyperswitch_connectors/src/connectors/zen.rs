@@ -666,7 +666,9 @@ impl IncomingWebhook for Zen {
                 ZenPaymentStatus::Rejected => IncomingWebhookEvent::PaymentIntentFailure,
                 ZenPaymentStatus::Accepted => IncomingWebhookEvent::PaymentIntentSuccess,
                 ZenPaymentStatus::Unknown => {
-                    router_env::logger::warn!("Unknown Zen payment status in webhook, ignoring event");
+                    router_env::logger::warn!(
+                        "Unknown Zen payment status in webhook, ignoring event"
+                    );
                     IncomingWebhookEvent::EventNotSupported
                 }
                 _ => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
@@ -675,7 +677,9 @@ impl IncomingWebhook for Zen {
                 ZenPaymentStatus::Rejected => IncomingWebhookEvent::RefundFailure,
                 ZenPaymentStatus::Accepted => IncomingWebhookEvent::RefundSuccess,
                 ZenPaymentStatus::Unknown => {
-                    router_env::logger::warn!("Unknown Zen payment status in webhook, ignoring event");
+                    router_env::logger::warn!(
+                        "Unknown Zen payment status in webhook, ignoring event"
+                    );
                     IncomingWebhookEvent::EventNotSupported
                 }
                 _ => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
