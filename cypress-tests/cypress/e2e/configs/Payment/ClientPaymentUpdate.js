@@ -124,6 +124,7 @@ export const PaymentUpdateClientAuthConfigs = {
       body: {
         error: {
           type: "invalid_request",
+          code: "IR_16",
           message:
             "You cannot update this payment because it has status succeeded",
         },
