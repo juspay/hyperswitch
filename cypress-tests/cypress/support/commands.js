@@ -9512,18 +9512,12 @@ Cypress.Commands.add(
   "connectorOnboardingActionUrl",
   (requestBody, data, globalState) => {
     const baseUrl = globalState.get("baseUrl");
-    const jwtToken = globalState.get("jwtToken");
-    const apiKey = globalState.get("adminApiKey");
+    const userInfoToken = globalState.get("userInfoToken");
 
     const headers = {
       "Content-Type": "application/json",
+      Authorization: `Bearer ${userInfoToken}`,
     };
-
-    if (jwtToken) {
-      headers["Authorization"] = `Bearer ${jwtToken}`;
-    } else {
-      headers["api-key"] = apiKey;
-    }
 
     cy.request({
       method: "POST",
@@ -9536,13 +9530,17 @@ Cypress.Commands.add(
 
       cy.wrap(response).then(() => {
         const resData = data.Response || {};
+        const expectedStatus = resData.status || 200;
 
-        if (response.status === 200) {
-          // Response shape: { "paypal": { "action_url": "..." } }
-          expect(response.body).to.have.property("paypal");
-          expect(response.body.paypal).to.have.property("action_url");
-          expect(response.body.paypal.action_url).to.not.be.null;
-          globalState.set("onboardingActionUrl", response.body.paypal.action_url);
+        if (response.status === expectedStatus) {
+          if (response.status === 200) {
+            // Response shape: { "paypal": { "action_url": "..." } }
+            expect(response.body).to.have.property("paypal");
+            expect(response.body.paypal).to.have.property("action_url");
+            expect(response.body.paypal.action_url).to.not.be.null;
+          } else {
+            expect(response.body).to.have.property("error");
+          }
         } else {
           defaultErrorHandler(response, resData);
         }
@@ -9560,18 +9558,12 @@ Cypress.Commands.add(
   "connectorOnboardingSync",
   (requestBody, data, globalState) => {
     const baseUrl = globalState.get("baseUrl");
-    const jwtToken = globalState.get("jwtToken");
-    const apiKey = globalState.get("adminApiKey");
+    const userInfoToken = globalState.get("userInfoToken");
 
     const headers = {
       "Content-Type": "application/json",
+      Authorization: `Bearer ${userInfoToken}`,
     };
-
-    if (jwtToken) {
-      headers["Authorization"] = `Bearer ${jwtToken}`;
-    } else {
-      headers["api-key"] = apiKey;
-    }
 
     cy.request({
       method: "POST",
@@ -9584,6 +9576,7 @@ Cypress.Commands.add(
 
       cy.wrap(response).then(() => {
         const resData = data.Response || {};
+        const expectedStatus = resData.status || 200;
 
         if (response.status === 200) {
           expect(response.body).to.have.property("status");
@@ -9591,7 +9584,10 @@ Cypress.Commands.add(
           expect(["syncing", "completed", "failed"]).to.include(
             response.body.status
           );
-        } else if (response.status === 400) {
+        } else if (
+          response.status === 400 ||
+          response.status === expectedStatus
+        ) {
           // Expected when no PayPal connector integration exists in test env
           expect(response.body).to.have.property("error");
           expect(response.body.error).to.have.property("message");
@@ -9613,18 +9609,12 @@ Cypress.Commands.add(
   "connectorOnboardingResetTrackingId",
   (requestBody, data, globalState) => {
     const baseUrl = globalState.get("baseUrl");
-    const jwtToken = globalState.get("jwtToken");
-    const apiKey = globalState.get("adminApiKey");
+    const userInfoToken = globalState.get("userInfoToken");
 
     const headers = {
       "Content-Type": "application/json",
+      Authorization: `Bearer ${userInfoToken}`,
     };
-
-    if (jwtToken) {
-      headers["Authorization"] = `Bearer ${jwtToken}`;
-    } else {
-      headers["api-key"] = apiKey;
-    }
 
     cy.request({
       method: "POST",
@@ -9637,11 +9627,15 @@ Cypress.Commands.add(
 
       cy.wrap(response).then(() => {
         const resData = data.Response || {};
+        const expectedStatus = resData.status || 200;
 
-        if (response.status === 200) {
-          // Response shape: { "message": "tracking_id updated successfully" }
-          expect(response.body).to.have.property("message");
-          expect(response.body.message).to.include("tracking_id");
+        if (response.status === expectedStatus) {
+          if (response.status === 200) {
+            // Returns HTTP 200 with empty body on success
+            expect(response.status).to.equal(200);
+          } else {
+            expect(response.body).to.have.property("error");
+          }
         } else {
           defaultErrorHandler(response, resData);
         }

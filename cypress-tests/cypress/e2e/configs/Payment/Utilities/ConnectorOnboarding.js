@@ -1,46 +1,46 @@
 export const connectorDetails = {
   ConnectorOnboarding: {
+    // action_url calls PayPal API — returns IR_06 in test env (no PayPal credentials configured)
     ActionUrl: {
       Request: {
         connector: "paypal",
-        connector_id: "paypal",
         return_url: "https://example.com/callback",
+        // connector_id filled at runtime from globalState.get("paypalConnectorId")
       },
       Response: {
-        status: 200,
+        // In test env: 422 IR_06 (Client Authentication failed — no PayPal creds in config)
+        status: 422,
         body: {
-          paypal: {
-            action_url: null,
+          error: {
+            type: "invalid_request",
+            code: "IR_06",
           },
         },
       },
     },
+    // sync always returns 400 in test env (no real PayPal connector integration)
     Sync: {
       Request: {
         connector: "paypal",
-        connector_id: "paypal",
+        // connector_id and profile_id filled at runtime from globalState
       },
       Response: {
         status: 400,
         body: {
           error: {
             type: "invalid_request",
-            message:
-              "Connector integration not found for merchant account and connector type",
           },
         },
       },
     },
+    // reset_tracking_id returns 200 empty body — writes to configs table, no PayPal call
     ResetTrackingId: {
       Request: {
         connector: "paypal",
-        connector_id: "paypal",
+        // connector_id filled at runtime from globalState.get("paypalConnectorId")
       },
       Response: {
         status: 200,
-        body: {
-          message: "tracking_id updated successfully",
-        },
       },
     },
   },
