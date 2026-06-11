@@ -45,6 +45,7 @@
                       "v1/payments/payments--retrieve",
                       "v1/payments/payments--cancel",
                       "v1/payments/payments--cancel-post-capture",
+                      "v1/payments/payments--cancel-post-capture-retrieve",
                       "v1/payments/payments--capture",
                       "v1/payments/payments--incremental-authorization",
                       "v1/payments/payments--extend-authorization",
@@ -97,14 +98,6 @@
                     ]
                   },
                   {
-                    "group": "Mandates",
-                    "pages": [
-                      "v1/mandates/mandates--revoke-mandate",
-                      "v1/mandates/mandates--retrieve-mandate",
-                      "v1/mandates/mandates--customer-mandates-list"
-                    ]
-                  },
-                  {
                     "group": "Refunds",
                     "pages": [
                       "v1/refunds/refunds--create",
@@ -147,6 +140,14 @@
               {
                 "group": "Deprecated APIs",
                 "pages": [
+                  {
+                    "group": "Mandates",
+                    "pages": [
+                      "v1/mandates/mandates--revoke-mandate",
+                      "v1/mandates/mandates--retrieve-mandate",
+                      "v1/mandates/mandates--customer-mandates-list"
+                    ]
+                  },
                   {
                     "group": "Customers",
                     "pages": [
@@ -264,7 +265,10 @@
                       "v1/blocklist/get-blocklist",
                       "v1/blocklist/post-blocklist",
                       "v1/blocklist/delete-blocklist",
-                      "v1/blocklist/post-blocklisttoggle"
+                      "v1/blocklist/post-blocklisttoggle",
+                      "v1/blocklist/blocklist--batch-upload",
+                      "v1/blocklist/blocklist--batch-list",
+                      "v1/blocklist/blocklist--batch-status"
                     ]
                   },
                   {

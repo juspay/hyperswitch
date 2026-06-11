@@ -730,6 +730,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             external_authentication_data: request.three_ds_data.clone(),
             client_session_id,
             vault_session_details: None,
+            external_vault_pmd: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -971,7 +972,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             };
 
             if let Some(payment_method) = payment_method_info {
-                if feature_config.is_modular_with_pm_version(Some(payment_method.version)) {
+                if feature_config.should_use_modular_pm_path(
+                    Some(payment_method.version),
+                    payment_method.compatibility_updated_at,
+                    Some(payment_method.last_modified),
+                ) {
                     logger::debug!(
                         "Payment method version is V2, fetching payment method from PM Modular Service"
                     );
@@ -1343,6 +1348,7 @@ impl PaymentCreate {
             &profile_id,
             payment_method_ref,
             None, // CVC token data is not passed in create api
+            true, // fetch raw card detail from the internal vault
         )
         .await?;
         logger::info!("Payment method fetched from PM Modular Service.");
@@ -1976,6 +1982,8 @@ impl PaymentCreate {
             state_metadata: None,
             installment_options: request.installment_options.clone(),
             profile_acquirer_id: request.profile_acquirer_id.clone(),
+            external_surcharge_strategy: request.external_surcharge_strategy,
+            external_surcharge_applicable: None,
         })
     }
 }

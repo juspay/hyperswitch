@@ -91,7 +91,7 @@ use crate::{
     },
     utils::{
         self, get_authorise_integrity_object, get_capture_integrity_object,
-        get_refund_integrity_object, get_sync_integrity_object, PaymentMethodDataType,
+        get_refund_integrity_object, get_sync_integrity_object,
         RefundsRequestData as OtherRefundsRequestData,
     },
 };
@@ -213,27 +213,6 @@ impl ConnectorValidation for Stripe {
                 utils::construct_not_supported_error_report(capture_method, self.id()),
             ),
         }
-    }
-
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::ApplePay,
-            PaymentMethodDataType::GooglePay,
-            PaymentMethodDataType::AchBankDebit,
-            PaymentMethodDataType::BacsBankDebit,
-            PaymentMethodDataType::BecsBankDebit,
-            PaymentMethodDataType::SepaBankDebit,
-            PaymentMethodDataType::Sofort,
-            PaymentMethodDataType::Ideal,
-            PaymentMethodDataType::BancontactCard,
-            PaymentMethodDataType::MandatePayment,
-        ]);
-        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 

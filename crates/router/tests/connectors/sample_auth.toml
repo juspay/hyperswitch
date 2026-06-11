@@ -395,6 +395,10 @@ key1 = "Client Secret"
 [imerchantsolutions]
 api_key = "API Key"
 
-[sanlam]
+[absa_sanlam]
 api_key = "API Key"
 key1 = "Merchant Id"
+
+[payconex]
+api_key = "API Key"
+key1 = "Account Id"

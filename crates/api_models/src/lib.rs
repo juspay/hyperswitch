@@ -24,7 +24,6 @@ pub mod feature_matrix;
 pub mod files;
 pub mod gsm;
 pub mod health_check;
-pub mod locker_migration;
 pub mod mandates;
 pub mod merchant_connector_webhook_management;
 pub mod oidc;
@@ -52,6 +51,7 @@ pub mod surcharge_decision_configs;
 pub mod three_ds_decision_rule;
 #[cfg(feature = "tokenization_v2")]
 pub mod tokenization;
+pub mod unreferenced_refund;
 pub mod user;
 pub mod user_role;
 pub mod verifications;

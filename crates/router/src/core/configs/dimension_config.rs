@@ -542,6 +542,60 @@ impl DatabaseBackedConfig for MaxAutoPayoutRetries {
 }
 
 config! {
+    superposition_key = POLL_CONFIG_EXTERNAL_THREE_DS,
+    output = crate::types::PollConfig,
+    default = crate::types::PollConfig::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+config! {
+    superposition_key = PT_MAPPING_OUTGOING_WEBHOOKS,
+    output = scheduler::types::process_data::OutgoingWebhookRetryProcessTrackerMapping,
+    default = scheduler::types::process_data::OutgoingWebhookRetryProcessTrackerMapping::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantId,
+    targeting_key = id_type::PaymentId
+}
+
+config! {
+    superposition_key = PT_MAPPING_PCR_RETRIES,
+    output = scheduler::types::process_data::RevenueRecoveryPaymentProcessTrackerMapping,
+    default = scheduler::types::process_data::RevenueRecoveryPaymentProcessTrackerMapping::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+config! {
+    superposition_key = PT_MAPPING_PAYMENT_SYNC,
+    output = scheduler::types::process_data::ConnectorPTMapping,
+    default = scheduler::types::process_data::ConnectorPTMapping::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+config! {
+    superposition_key = PT_MAPPING_REFUND_SYNC,
+    output = scheduler::types::process_data::ConnectorPTMapping,
+    default = scheduler::types::process_data::ConnectorPTMapping::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+config! {
+    superposition_key = PT_MAPPING_DISPUTE_SYNC,
+    output = scheduler::types::process_data::ConnectorPTMapping,
+    default = scheduler::types::process_data::ConnectorPTMapping::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+config! {
     superposition_key = ROUTING_RESULT_SOURCE,
     output = api_models::routing::RoutingResultSource,
     default = api_models::routing::RoutingResultSource::HyperswitchRouting,
