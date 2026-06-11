@@ -9,15 +9,14 @@ use crate::utils::ForeignTryFrom;
 #[serde(rename_all = "camelCase")]
 pub struct WorldpaymodularPaymentsResponse {
     pub outcome: PaymentOutcome,
-    /// Any risk factors which have been identified for the authorization. This section will not appear if no risks are identified.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub risk_factors: Option<Vec<RiskFactorsInner>>,
+    pub risk_factors: Option<Secret<serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub issuer: Option<Issuer>,
+    pub issuer: Option<Secret<serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub scheme: Option<PaymentsResponseScheme>,
+    pub scheme: Option<Secret<serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub payment_instrument: Option<PaymentsResPaymentInstrument>,
+    pub payment_instrument: Option<Secret<serde_json::Value>>,
     #[serde(rename = "_links")]
     pub links: PaymentLinks,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -44,6 +43,8 @@ pub enum PaymentOutcome {
     SentForRefund,
     #[serde(alias = "Sent for Cancellation")]
     SentForCancellation,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

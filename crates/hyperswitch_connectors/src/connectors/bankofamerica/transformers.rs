@@ -1323,7 +1323,8 @@ pub enum BankofamericaPaymentStatus {
     PendingReview,
     Accepted,
     Cancelled,
-    //PartialAuthorized, not being consumed yet.
+    #[serde(other)]
+    Unknown,
 }
 
 fn map_boa_attempt_status(
@@ -1364,6 +1365,10 @@ fn map_boa_attempt_status(
         BankofamericaPaymentStatus::PendingReview
         | BankofamericaPaymentStatus::Challenge
         | BankofamericaPaymentStatus::Accepted => enums::AttemptStatus::Pending,
+        BankofamericaPaymentStatus::Unknown => {
+            logger::warn!("Unknown BankofamericaPaymentStatus variant received");
+            enums::AttemptStatus::Pending
+        }
     }
 }
 
@@ -2098,6 +2103,10 @@ impl From<BankOfAmericaRefundResponse> for enums::RefundStatus {
                     Self::Pending
                 }
             }
+            BankofamericaRefundStatus::Unknown => {
+                logger::warn!("Unknown BankofamericaRefundStatus variant received");
+                Self::Pending
+            }
         }
     }
 }
@@ -2152,6 +2161,8 @@ pub enum BankofamericaRefundStatus {
     Cancelled,
     #[serde(rename = "201")]
     TwoZeroOne,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -2199,6 +2210,10 @@ impl TryFrom<RefundsResponseRouterData<RSync, BankOfAmericaRsyncResponse>>
                         } else {
                             enums::RefundStatus::Pending
                         }
+                    }
+                    BankofamericaRefundStatus::Unknown => {
+                        logger::warn!("Unknown BankofamericaRefundStatus variant received in refund sync");
+                        enums::RefundStatus::Pending
                     }
                 };
                 if utils::is_refund_failure(refund_status) {
