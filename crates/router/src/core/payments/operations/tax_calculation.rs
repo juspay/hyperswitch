@@ -1,9 +1,10 @@
 use std::marker::PhantomData;
 
-use api_models::{enums::FrmSuggestion, payments::MandateTransactionType};
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::mandates::MandateTransactionType;
 use hyperswitch_masking::PeekInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -201,6 +202,7 @@ impl<F: Send + Clone + Sync>
             external_authentication_data: None,
             client_session_id: None,
             vault_session_details: None,
+            external_vault_pmd: None,
         };
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),

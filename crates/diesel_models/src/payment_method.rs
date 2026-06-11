@@ -78,6 +78,7 @@ pub struct PaymentMethod {
     // Do not use this column in v1 business logic.
     pub payment_method_subtype: Option<String>,
     pub network_transaction_link_id: Option<String>,
+    pub compatibility_updated_at: Option<PrimitiveDateTime>,
 }
 
 #[cfg(feature = "v2")]
@@ -118,6 +119,7 @@ pub struct PaymentMethod {
     pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub network_transaction_link_id: Option<Secret<String>>,
+    pub compatibility_updated_at: Option<PrimitiveDateTime>,
     pub external_vault_token_data: Option<Encryption>,
     pub auxiliary_fingerprint_id: Option<String>,
 }
@@ -183,6 +185,7 @@ pub struct PaymentMethodNew {
     pub locker_fingerprint_id: Option<String>,
     pub network_tokenization_data: Option<Encryption>,
     pub id: Option<String>,
+    pub compatibility_updated_at: Option<PrimitiveDateTime>,
 }
 
 #[cfg(feature = "v2")]
@@ -221,6 +224,8 @@ pub struct PaymentMethodNew {
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,
     pub customer_details: Option<Encryption>,
+    pub compatibility_updated_at: Option<PrimitiveDateTime>,
+    pub external_vault_source: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 impl PaymentMethodNew {
@@ -432,6 +437,7 @@ pub struct PaymentMethodUpdateInternal {
     external_vault_source: Option<common_utils::id_type::MerchantConnectorAccountId>,
     last_modified_by: Option<String>,
     customer_details: Option<Encryption>,
+    compatibility_updated_at: Option<PrimitiveDateTime>,
 }
 
 #[cfg(feature = "v2")]
@@ -458,6 +464,7 @@ impl PaymentMethodUpdateInternal {
             external_vault_source,
             last_modified_by,
             customer_details,
+            compatibility_updated_at,
         } = self;
 
         PaymentMethod {
@@ -499,6 +506,7 @@ impl PaymentMethodUpdateInternal {
             customer_details: customer_details.or(source.customer_details),
             network_tokenization_data: source.network_tokenization_data,
             auxiliary_fingerprint_id: source.auxiliary_fingerprint_id,
+            compatibility_updated_at,
         }
     }
 }
@@ -535,6 +543,7 @@ pub struct PaymentMethodUpdateInternal {
     payment_method_type_v2: Option<storage_enums::PaymentMethod>,
     payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     id: Option<String>,
+    compatibility_updated_at: Option<PrimitiveDateTime>,
 }
 
 #[cfg(feature = "v1")]
@@ -564,6 +573,7 @@ impl PaymentMethodUpdateInternal {
             payment_method_type_v2,
             payment_method_subtype,
             id,
+            compatibility_updated_at,
         } = self;
 
         PaymentMethod {
@@ -619,6 +629,7 @@ impl PaymentMethodUpdateInternal {
                 .map(|payment_method_subtype| payment_method_subtype.to_string())
                 .or(source.payment_method_subtype),
             id: id.or(source.id),
+            compatibility_updated_at: compatibility_updated_at.or(source.compatibility_updated_at),
         }
     }
 }
@@ -655,6 +666,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 id: None,
                 payment_method_type_v2: None,
                 payment_method_subtype: None,
+                compatibility_updated_at: None,
             },
             PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data,
@@ -683,6 +695,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 id: None,
                 payment_method_type_v2: None,
                 payment_method_subtype: None,
+                compatibility_updated_at: None,
             },
             PaymentMethodUpdate::LastUsedUpdate { last_used_at } => Self {
                 metadata: None,
@@ -708,6 +721,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 id: None,
                 payment_method_type_v2: None,
                 payment_method_subtype: None,
+                compatibility_updated_at: None,
             },
             PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
                 payment_method_data,
@@ -738,6 +752,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 id: None,
                 payment_method_type_v2: None,
                 payment_method_subtype: None,
+                compatibility_updated_at: None,
             },
             PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                 network_transaction_id,
@@ -768,6 +783,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 id: None,
                 payment_method_type_v2: None,
                 payment_method_subtype: None,
+                compatibility_updated_at: None,
             },
             PaymentMethodUpdate::NetworkTransactionLinkIdUpdate {
                 network_transaction_link_id,
@@ -796,6 +812,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 id: None,
                 payment_method_type_v2: None,
                 payment_method_subtype: None,
+                compatibility_updated_at: None,
             },
             PaymentMethodUpdate::StatusUpdate {
                 status,
@@ -824,6 +841,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 id: None,
                 payment_method_type_v2: None,
                 payment_method_subtype: None,
+                compatibility_updated_at: None,
             },
             PaymentMethodUpdate::AdditionalDataUpdate {
                 payment_method_data,
@@ -865,6 +883,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 id: None,
                 payment_method_type_v2: None,
                 payment_method_subtype: None,
+                compatibility_updated_at: None,
             },
             PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                 connector_mandate_details,
@@ -893,6 +912,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 id: None,
                 payment_method_type_v2: None,
                 payment_method_subtype: None,
+                compatibility_updated_at: None,
             },
             PaymentMethodUpdate::NetworkTokenDataUpdate {
                 network_token_requestor_reference_id,
@@ -924,6 +944,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 id: None,
                 payment_method_type_v2: None,
                 payment_method_subtype: None,
+                compatibility_updated_at: None,
             },
             PaymentMethodUpdate::ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
                 connector_mandate_details,
@@ -954,6 +975,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 id: None,
                 payment_method_type_v2: None,
                 payment_method_subtype: None,
+                compatibility_updated_at: None,
             },
             PaymentMethodUpdate::PaymentMethodBatchUpdate {
                 connector_mandate_details,
@@ -987,37 +1009,43 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 id: None,
                 payment_method_type_v2: None,
                 payment_method_subtype: None,
+                compatibility_updated_at: None,
             },
             PaymentMethodUpdate::PopulateModularCompatFields {
                 id,
                 payment_method_type_v2,
                 payment_method_subtype,
                 last_modified_by,
-            } => Self {
-                metadata: None,
-                payment_method_data: None,
-                last_used_at: None,
-                network_transaction_id: None,
-                network_transaction_link_id: None,
-                status: None,
-                locker_id: None,
-                network_token_requestor_reference_id: None,
-                payment_method: None,
-                connector_mandate_details: None,
-                updated_by: None,
-                payment_method_issuer: None,
-                payment_method_type: None,
-                last_modified: common_utils::date_time::now(),
-                network_token_locker_id: None,
-                network_token_payment_method_data: None,
-                scheme: None,
-                last_modified_by,
-                customer_details: None,
-                network_tokenization_data: None,
-                payment_method_type_v2,
-                payment_method_subtype,
-                id: Some(id),
-            },
+            } => {
+                let now = common_utils::date_time::now();
+
+                Self {
+                    metadata: None,
+                    payment_method_data: None,
+                    last_used_at: None,
+                    network_transaction_id: None,
+                    network_transaction_link_id: None,
+                    status: None,
+                    locker_id: None,
+                    network_token_requestor_reference_id: None,
+                    payment_method: None,
+                    connector_mandate_details: None,
+                    updated_by: None,
+                    payment_method_issuer: None,
+                    payment_method_type: None,
+                    last_modified: now,
+                    network_token_locker_id: None,
+                    network_token_payment_method_data: None,
+                    scheme: None,
+                    last_modified_by,
+                    customer_details: None,
+                    network_tokenization_data: None,
+                    payment_method_type_v2,
+                    payment_method_subtype,
+                    id: Some(id),
+                    compatibility_updated_at: Some(now),
+                }
+            }
             PaymentMethodUpdate::PopulateLegacyCompatFields {
                 payment_method,
                 payment_method_type,
@@ -1046,6 +1074,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 payment_method_type_v2: None,
                 payment_method_subtype: None,
                 id: None,
+                compatibility_updated_at: None,
             },
         }
     }
@@ -1054,6 +1083,8 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
 #[cfg(feature = "v2")]
 impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
     fn from(payment_method_update: PaymentMethodUpdate) -> Self {
+        let now = common_utils::date_time::now();
+
         match payment_method_update {
             PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data,
@@ -1071,7 +1102,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 connector_mandate_details: None,
                 updated_by: None,
                 payment_method_subtype: None,
-                last_modified: common_utils::date_time::now(),
+                last_modified: now,
                 network_token_locker_id: None,
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
@@ -1079,6 +1110,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 external_vault_source: None,
                 last_modified_by,
                 customer_details: None,
+                compatibility_updated_at: Some(now),
             },
             PaymentMethodUpdate::LastUsedUpdate { last_used_at } => Self {
                 payment_method_data: None,
@@ -1093,7 +1125,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 connector_mandate_details: None,
                 updated_by: None,
                 payment_method_subtype: None,
-                last_modified: common_utils::date_time::now(),
+                last_modified: now,
                 network_token_locker_id: None,
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
@@ -1101,6 +1133,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 external_vault_source: None,
                 last_modified_by: None,
                 customer_details: None,
+                compatibility_updated_at: Some(now),
             },
             PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
                 payment_method_data,
@@ -1120,7 +1153,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 connector_mandate_details: None,
                 updated_by: None,
                 payment_method_subtype: None,
-                last_modified: common_utils::date_time::now(),
+                last_modified: now,
                 network_token_locker_id: None,
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
@@ -1128,6 +1161,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 external_vault_source: None,
                 last_modified_by,
                 customer_details: None,
+                compatibility_updated_at: Some(now),
             },
             PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                 network_transaction_id,
@@ -1147,7 +1181,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 connector_mandate_details: None,
                 updated_by: None,
                 payment_method_subtype: None,
-                last_modified: common_utils::date_time::now(),
+                last_modified: now,
                 network_token_locker_id: None,
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
@@ -1155,6 +1189,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 external_vault_source: None,
                 last_modified_by,
                 customer_details: None,
+                compatibility_updated_at: Some(now),
             },
             PaymentMethodUpdate::StatusUpdate {
                 status,
@@ -1172,7 +1207,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 connector_mandate_details: None,
                 updated_by: None,
                 payment_method_subtype: None,
-                last_modified: common_utils::date_time::now(),
+                last_modified: now,
                 network_token_locker_id: None,
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
@@ -1180,6 +1215,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 external_vault_source: None,
                 last_modified_by,
                 customer_details: None,
+                compatibility_updated_at: Some(now),
             },
             PaymentMethodUpdate::GenericUpdate {
                 payment_method_data,
@@ -1207,7 +1243,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 connector_mandate_details: *connector_mandate_details,
                 updated_by: None,
                 payment_method_subtype,
-                last_modified: common_utils::date_time::now(),
+                last_modified: now,
                 network_token_requestor_reference_id,
                 network_token_locker_id,
                 network_token_payment_method_data,
@@ -1217,6 +1253,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_transaction_link_id,
                 last_modified_by,
                 customer_details: None,
+                compatibility_updated_at: Some(now),
             },
             PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                 connector_mandate_details,
@@ -1234,7 +1271,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_transaction_link_id: None,
                 updated_by: None,
                 payment_method_subtype: None,
-                last_modified: common_utils::date_time::now(),
+                last_modified: now,
                 network_token_locker_id: None,
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
@@ -1242,6 +1279,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 external_vault_source: None,
                 last_modified_by,
                 customer_details: None,
+                compatibility_updated_at: Some(now),
             },
             PaymentMethodUpdate::StatusAndFingerprintUpdate {
                 status,
@@ -1260,7 +1298,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 connector_mandate_details: None,
                 updated_by: None,
                 payment_method_subtype: None,
-                last_modified: common_utils::date_time::now(),
+                last_modified: now,
                 network_token_locker_id: None,
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
@@ -1268,6 +1306,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 external_vault_source: None,
                 last_modified_by,
                 customer_details: None,
+                compatibility_updated_at: Some(now),
             },
             PaymentMethodUpdate::PopulateLegacyCompatFields {
                 payment_method,
@@ -1286,7 +1325,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 connector_mandate_details: None,
                 updated_by: None,
                 payment_method_subtype: None,
-                last_modified: common_utils::date_time::now(),
+                last_modified: now,
                 network_token_locker_id: None,
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
@@ -1294,6 +1333,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 external_vault_source: None,
                 last_modified_by,
                 customer_details: None,
+                compatibility_updated_at: Some(now),
             },
         }
     }
@@ -1354,6 +1394,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             payment_method_type_v2: None,
             payment_method_subtype: None,
             id: payment_method_new.id.clone(),
+            compatibility_updated_at: payment_method_new.compatibility_updated_at,
         }
     }
 }
@@ -1401,13 +1442,14 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             network_token_payment_method_data: payment_method_new
                 .network_token_payment_method_data
                 .clone(),
-            external_vault_source: None,
             external_vault_token_data: payment_method_new.external_vault_token_data.clone(),
             vault_type: payment_method_new.vault_type,
             created_by: payment_method_new.created_by.clone(),
             last_modified_by: payment_method_new.last_modified_by.clone(),
             customer_details: payment_method_new.customer_details.clone(),
             network_tokenization_data: None,
+            compatibility_updated_at: payment_method_new.compatibility_updated_at,
+            external_vault_source: payment_method_new.external_vault_source.clone(),
         }
     }
 }
@@ -1591,7 +1633,7 @@ impl CommonMandateReference {
     }
 
     #[cfg(feature = "v1")]
-    fn parse_payments_reference_with_token_fallback(
+    pub fn parse_payments_reference_with_token_fallback(
         payments_json: serde_json::Value,
     ) -> CustomResult<PaymentsMandateReference, ParsingError> {
         match serde_json::from_value::<PaymentsMandateReference>(payments_json.clone()) {

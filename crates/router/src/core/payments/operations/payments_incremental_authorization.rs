@@ -1,13 +1,11 @@
 use std::marker::PhantomData;
 
-use api_models::{
-    enums::FrmSuggestion,
-    payments::{MandateTransactionType, PaymentsIncrementalAuthorizationRequest},
-};
+use api_models::{enums::FrmSuggestion, payments::PaymentsIncrementalAuthorizationRequest};
 use async_trait::async_trait;
 use common_utils::errors::CustomResult;
 use diesel_models::authorization::AuthorizationNew;
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::mandates::MandateTransactionType;
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -188,6 +186,7 @@ impl<F: Send + Clone + Sync>
             external_authentication_data: None,
             client_session_id: None,
             vault_session_details: None,
+            external_vault_pmd: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -255,6 +254,8 @@ impl<F: Clone + Sync>
             connector_authorization_id: None,
             previously_authorized_amount: payment_data.payment_attempt.get_total_amount(),
             processor_merchant_id: Some(payment_data.payment_intent.processor_merchant_id.clone()),
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
         };
         let authorization = state
             .store

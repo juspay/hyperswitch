@@ -1,6 +1,6 @@
 use crate::{
     errors::{CustomResult, ValidationError},
-    generate_id_with_default_len, generate_id_with_default_len_with_profile_id,
+    generate_id_with_default_len,
     id_type::{AlphaNumericId, LengthId},
 };
 
@@ -40,11 +40,8 @@ impl PaymentId {
     }
 
     /// Generate a client id for the payment id
-    pub fn generate_client_secret(&self, profile_id: &str) -> String {
-        generate_id_with_default_len_with_profile_id(
-            &format!("{}_secret", self.get_string_repr()),
-            profile_id,
-        )
+    pub fn generate_client_secret(&self) -> String {
+        generate_id_with_default_len(&format!("{}_secret", self.get_string_repr()))
     }
 
     /// Generate a key for pm_auth
@@ -55,6 +52,15 @@ impl PaymentId {
     /// Get external authentication request poll id
     pub fn get_external_authentication_request_poll_id(&self) -> String {
         format!("external_authentication_{}", self.get_string_repr())
+    }
+
+    /// Get the Redis key used to store external surcharge details during eligibility
+    pub fn get_external_surcharge_redis_key(&self, merchant_id: &super::MerchantId) -> String {
+        format!(
+            "{}_{}_external_surcharge_details",
+            merchant_id.get_string_repr(),
+            self.get_string_repr()
+        )
     }
 
     /// Generate a test payment id with prefix test_

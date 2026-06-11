@@ -507,7 +507,7 @@ mod storage {
         core::errors::{self, utils::RedisErrorExt, CustomResult},
         db::reverse_lookup::ReverseLookupInterface,
         services::Store,
-        types::storage::{self as storage_types, enums, kv},
+        types::storage::{self as storage_types, enums},
         utils::db_utils,
     };
     #[async_trait::async_trait]
@@ -669,12 +669,6 @@ mod storage {
                         &created_refund.attempt_id, &created_refund.refund_id
                     );
 
-                    let redis_entry = kv::TypedSql {
-                        op: kv::DBOperation::Insert {
-                            insertable: Box::new(kv::Insertable::Refund(new)),
-                        },
-                    };
-
                     let mut reverse_lookups = vec![
                         storage_types::ReverseLookupNew {
                             sk_id: field.clone(),
@@ -722,12 +716,19 @@ mod storage {
 
                     futures::future::try_join_all(rev_look).await?;
 
+                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
+                    let drainer_query = new
+                        .generate_drainer_insert_query(&mut query_gen_conn)
+                        .await
+                        .change_context(errors::StorageError::KVError)
+                        .attach_printable("Failed to generate refund insert query")?;
+
                     match Box::pin(kv_wrapper::<diesel_refund::Refund, _, _>(
                         self,
                         KvOperation::<diesel_refund::Refund>::HSetNx(
                             &field,
                             &created_refund,
-                            redis_entry,
+                            drainer_query,
                         ),
                         key,
                     ))
@@ -890,22 +891,24 @@ mod storage {
                         .encode_to_string_of_json()
                         .change_context(errors::StorageError::SerializationFailed)?;
 
-                    let redis_entry = kv::TypedSql {
-                        op: kv::DBOperation::Update {
-                            updatable: Box::new(kv::Updateable::RefundUpdate(Box::new(
-                                kv::RefundUpdateMems {
-                                    orig: this,
-                                    update_data: refund,
-                                },
-                            ))),
-                        },
-                    };
+                    let mut query_gen_conn = connection::pg_connection_write(self).await?;
+                    let drainer_query = refund
+                        .generate_drainer_update_query(
+                            &mut query_gen_conn,
+                            this.refund_id.clone(),
+                            this.processor_merchant_id
+                                .clone()
+                                .unwrap_or_else(|| merchant_id.clone()),
+                        )
+                        .await
+                        .change_context(errors::StorageError::KVError)
+                        .attach_printable("Failed to generate refund update query")?;
 
                     Box::pin(kv_wrapper::<(), _, _>(
                         self,
                         KvOperation::Hset::<diesel_refund::Refund>(
                             (&field, redis_value),
-                            redis_entry,
+                            drainer_query,
                         ),
                         key,
                     ))

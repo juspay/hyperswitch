@@ -12,7 +12,6 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -197,8 +196,8 @@ impl ConnectorCommon for Truelayer {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.title.clone(),
-            message: response.title.clone(),
-            reason: Some(response.detail),
+            message: response.detail.clone(),
+            reason: Some(response.title),
             attempt_status: None,
             connector_transaction_id: Some(response.trace_id),
             connector_response_reference_id: None,
@@ -211,20 +210,6 @@ impl ConnectorCommon for Truelayer {
 }
 
 impl ConnectorValidation for Truelayer {
-    fn validate_mandate_payment(
-        &self,
-        _pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        match pm_data {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
-                "validate_mandate_payment does not support cards".to_string(),
-            )
-            .into()),
-            _ => Ok(()),
-        }
-    }
-
     fn validate_psync_reference_id(
         &self,
         _data: &PaymentsSyncData,

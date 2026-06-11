@@ -1343,6 +1343,52 @@ pub async fn default_payment_method_set_api(
     .await
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::DefaultPaymentMethodsSet))]
+pub async fn default_payment_method_set_api(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<payment_methods::DefaultPaymentMethod>,
+) -> HttpResponse {
+    let flow = Flow::DefaultPaymentMethodsSet;
+    let payload = path.into_inner();
+    let customer_id = id_type::GlobalCustomerId::new_unchecked(payload.customer_id.clone());
+
+    let auth = auth::V2ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: true,
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, default_payment_method, _| {
+            let customer_id = customer_id.clone();
+            let payment_method_id = id_type::GlobalPaymentMethodId::new_unchecked(
+                default_payment_method.payment_method_id.clone(),
+            );
+            async move {
+                cards::PmCards {
+                    state: &state,
+                    provider: auth.platform.get_provider(),
+                }
+                .set_default_payment_method(
+                    auth.platform.get_provider().get_account().get_id(),
+                    &customer_id,
+                    &payment_method_id,
+                    auth.platform.get_initiator(),
+                )
+                .await
+            }
+        },
+        &auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 #[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
@@ -1623,24 +1669,34 @@ pub async fn payment_methods_session_create(
     let flow = Flow::PaymentMethodSessionCreate;
     let payload = json_payload.into_inner();
 
+    let api_auth = auth::V2ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: true,
+    };
+    let (auth_type, _api_key_type) = match auth::check_internal_api_key_auth_no_client_secret(
+        req.headers(),
+        api_auth,
+        state.conf.internal_merchant_id_profile_id_auth.clone(),
+    ) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
         |state, auth: auth::AuthenticationData, request, _| async move {
-            payment_methods_routes::payment_methods_session_create(
+            Box::pin(payment_methods_routes::payment_methods_session_create(
                 state,
                 auth.platform,
                 auth.profile,
                 request,
-            )
+            ))
             .await
         },
-        &auth::V2ApiKeyAuth {
-            allow_connected_scope_operation: true,
-            allow_platform_self_operation: true,
-        },
+        &*auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await

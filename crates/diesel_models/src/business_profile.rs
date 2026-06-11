@@ -886,12 +886,7 @@ common_utils::impl_to_sql_from_sql_json!(WebhookDetails);
 #[serde(untagged)]
 pub enum AcquirerConfigBucket {
     New(common_types::domain::AcquirerConfigBucket),
-    Old(
-        HashMap<
-            common_utils::id_type::ProfileAcquirerId,
-            Vec<common_types::domain::AcquirerConfig>,
-        >,
-    ),
+    Old(HashMap<common_utils::id_type::ProfileAcquirerId, common_types::domain::AcquirerConfig>),
 }
 
 common_utils::impl_to_sql_from_sql_json!(AcquirerConfigBucket);
@@ -902,7 +897,7 @@ impl From<AcquirerConfigBucket> for common_types::domain::AcquirerConfigBucket {
             AcquirerConfigBucket::New(new) => new,
             AcquirerConfigBucket::Old(old) => Self {
                 default_acquirer_config: None,
-                configs: old,
+                configs: old.into_iter().map(|(k, v)| (k, vec![v])).collect(),
             },
         }
     }
@@ -947,6 +942,7 @@ pub struct PaymentLinkConfigRequest {
     pub show_card_terms: Option<common_enums::PaymentLinkShowSdkTerms>,
     pub is_setup_mandate_flow: Option<bool>,
     pub color_icon_card_cvc_error: Option<String>,
+    pub show_merchant_name: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]

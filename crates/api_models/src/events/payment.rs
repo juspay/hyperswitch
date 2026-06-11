@@ -1,4 +1,6 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
+#[cfg(feature = "v2")]
+use common_utils::id_type::GlobalPaymentMethodId;
 
 #[cfg(feature = "v2")]
 use super::{
@@ -149,6 +151,7 @@ impl ApiEventMetric for PaymentsCancelPostCaptureRequest {
         })
     }
 }
+
 #[cfg(feature = "v1")]
 impl ApiEventMetric for PaymentsExtendAuthorizationRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
@@ -185,6 +188,24 @@ impl ApiEventMetric for payments::PaymentsRequest {
             }),
             _ => None,
         }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for payments::PaymentsEligibilityCheckRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for payments::PaymentsEligibilityCheckResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
     }
 }
 
@@ -378,7 +399,16 @@ impl ApiEventMetric for payment_methods::DefaultPaymentMethod {
         })
     }
 }
-
+#[cfg(feature = "v2")]
+impl ApiEventMetric for payment_methods::DefaultPaymentMethod {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethod {
+            payment_method_id: GlobalPaymentMethodId::new_unchecked(self.payment_method_id.clone()),
+            payment_method_type: None,
+            payment_method_subtype: None,
+        })
+    }
+}
 #[cfg(feature = "v2")]
 impl ApiEventMetric for payment_methods::PaymentMethodDeleteResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
@@ -447,6 +477,19 @@ impl ApiEventMetric for payment_methods::CustomerDefaultPaymentMethodResponse {
             payment_method: Some(self.payment_method),
             payment_method_type: self.payment_method_type,
         })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for payment_methods::CustomerDefaultPaymentMethodResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        self.default_payment_method_id
+            .as_ref()
+            .map(|id| ApiEventsType::PaymentMethod {
+                payment_method_id: id.clone(),
+                payment_method_type: Some(self.payment_method_type),
+                payment_method_subtype: self.payment_method_subtype,
+            })
     }
 }
 

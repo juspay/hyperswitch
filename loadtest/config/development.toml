@@ -84,6 +84,7 @@ redis_lock_expiry_seconds = 180
 hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 [connectors]
+absa_sanlam.base_url = "dev"
 aci.base_url = "https://eu-test.oppwa.com/"
 adyen.base_url = "https://checkout-test.adyen.com/"
 adyenplatform.base_url = "https://balanceplatform-api-test.adyen.com/"
@@ -174,6 +175,7 @@ multisafepay.base_url = "https://testapi.multisafepay.com/"
 netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
 nexinets.base_url = "https://apitest.payengine.de/v1"
 nexixpay.base_url = "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1"
+payconex.base_url = "https://cert.payconex.net"
 nmi.base_url = "https://secure.nmi.com/"
 nomupay.base_url = "https://payout-api.sandbox.nomupay.com"
 noon.base_url = "https://api-test{{region}}.noonpayments.com/"
@@ -207,7 +209,6 @@ razorpay.base_url = "https://api.razorpay.com/"
 recurly.base_url = "https://v3.recurly.com"
 redsys.base_url = "https://sis-t.redsys.es:25443"
 revolv3.base_url = "https://api-sandbox.revolv3.com"
-sanlam.base_url = "dev"
 riskified.base_url = "https://sandbox.riskified.com/api"
 santander.base_url = "https://trust-pix-h.santander.com.br/"
 santander.secondary_base_url = "https://trust-open-h.api.santander.com.br/"
@@ -689,7 +690,7 @@ crypto_currency = { country = "AL, AD, AT, BE, BA, BG, HR, CZ, DK, EE, FI, FR, D
 eft = { country = "NG, ZA, GH, KE, CI", currency = "NGN, GHS, ZAR, KES, USD" }
 
 [pm_filters.santander]
-pix = { country = "BR", currency = "BRL" }
+pix_emv = { country = "BR", currency = "BRL" }
 boleto = { country = "BR", currency = "BRL" }
 
 [pm_filters.calida]

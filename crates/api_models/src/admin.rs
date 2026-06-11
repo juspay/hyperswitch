@@ -1091,14 +1091,15 @@ pub struct MerchantConnectorCreate {
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<CountryAlpha2>, example = "US", deprecated)]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     /// The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
+    #[schema(deprecated)]
     pub business_label: Option<String>,
 
     /// The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(example = "chase")]
+    #[schema(example = "chase", deprecated)]
     pub business_sub_label: Option<String>,
 
     /// Unique ID of the connector
@@ -1357,16 +1358,20 @@ pub struct MerchantConnectorInfo {
     pub connector_label: String,
     #[schema(value_type = String)]
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
+    #[schema(value_type = ConnectorType, example = "payment_processor")]
+    pub connector_type: api_enums::ConnectorType,
 }
 
 impl MerchantConnectorInfo {
     pub fn new(
         connector_label: String,
         merchant_connector_id: id_type::MerchantConnectorAccountId,
+        connector_type: api_enums::ConnectorType,
     ) -> Self {
         Self {
             connector_label,
             merchant_connector_id,
+            connector_type,
         }
     }
 }
@@ -1452,6 +1457,7 @@ impl MerchantConnectorResponse {
         MerchantConnectorInfo {
             connector_label: connector_label.to_string(),
             merchant_connector_id: self.id.clone(),
+            connector_type: self.connector_type,
         }
     }
 }
@@ -1541,15 +1547,15 @@ pub struct MerchantConnectorResponse {
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<CountryAlpha2>, example = "US", deprecated)]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     ///The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(example = "travel")]
+    #[schema(example = "travel", deprecated)]
     pub business_label: Option<String>,
 
     /// The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(example = "chase")]
+    #[schema(example = "chase", deprecated)]
     pub business_sub_label: Option<String>,
 
     /// identifier for the verified domains of a particular connector account
@@ -1580,6 +1586,7 @@ impl MerchantConnectorResponse {
         MerchantConnectorInfo {
             connector_label: connector_label.to_string(),
             merchant_connector_id: self.merchant_connector_id.clone(),
+            connector_type: self.connector_type,
         }
     }
 }
@@ -1652,15 +1659,15 @@ pub struct MerchantConnectorListResponse {
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
     /// The business country to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    #[schema(value_type = Option<CountryAlpha2>, example = "US", deprecated)]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     ///The business label to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(example = "travel")]
+    #[schema(example = "travel", deprecated)]
     pub business_label: Option<String>,
 
     /// The business sublabel to which the connector account is attached. To be deprecated soon. Use the 'profile_id' instead
-    #[schema(example = "chase")]
+    #[schema(example = "chase", deprecated)]
     pub business_sub_label: Option<String>,
 
     /// identifier for the verified domains of a particular connector account
@@ -1679,6 +1686,7 @@ impl MerchantConnectorListResponse {
         MerchantConnectorInfo {
             connector_label: connector_label.to_string(),
             merchant_connector_id: self.merchant_connector_id.clone(),
+            connector_type: self.connector_type,
         }
     }
     pub fn get_connector_name(&self) -> String {
@@ -1738,6 +1746,7 @@ impl MerchantConnectorListResponse {
         MerchantConnectorInfo {
             connector_label: connector_label.to_string(),
             merchant_connector_id: self.id.clone(),
+            connector_type: self.connector_type,
         }
     }
     pub fn get_connector_name(&self) -> common_enums::connector_enums::Connector {
@@ -1963,6 +1972,7 @@ pub struct FrmPaymentMethod {
     #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: Option<common_enums::PaymentMethod>,
     ///payment method types(credit, debit) that can be used in the payment. This field is deprecated. It has not been removed to provide backward compatibility.
+    #[schema(deprecated)]
     pub payment_method_types: Option<Vec<FrmPaymentMethodType>>,
     ///frm flow type to be used, can be pre/post
     #[schema(value_type = Option<FrmPreferredFlowTypes>)]
@@ -3530,6 +3540,9 @@ pub struct PaymentLinkConfigRequest {
     pub is_setup_mandate_flow: Option<bool>,
     /// Hex color for the CVC icon during error state
     pub color_icon_card_cvc_error: Option<String>,
+    /// Flag to display the merchant name in the payment link
+    #[schema(default = true, example = true)]
+    pub show_merchant_name: Option<bool>,
 }
 
 impl PaymentLinkConfigRequest {
@@ -3642,6 +3655,8 @@ pub struct PaymentLinkConfig {
     pub is_setup_mandate_flow: Option<bool>,
     /// Hex color for the CVC icon during error state
     pub color_icon_card_cvc_error: Option<String>,
+    /// Flag to display the merchant name in the payment link
+    pub show_merchant_name: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

@@ -428,6 +428,29 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
+    #[cfg(feature = "v2")]
+    async fn find_customer_for_global_id_migration(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+    ) -> CustomResult<storage::CustomerGlobalIdMigrationRow, errors::StorageError> {
+        self.diesel_store
+            .find_customer_for_global_id_migration(customer_id, merchant_id)
+            .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn update_customer_global_id_for_migration(
+        &self,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        new_id: id_type::GlobalCustomerId,
+    ) -> CustomResult<storage::CustomerGlobalIdMigrationRow, errors::StorageError> {
+        self.diesel_store
+            .update_customer_global_id_for_migration(customer_id, merchant_id, new_id)
+            .await
+    }
+
     #[cfg(feature = "v1")]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
@@ -1690,26 +1713,6 @@ impl PaymentAttemptInterface for KafkaStore {
     }
 
     #[cfg(feature = "v1")]
-    async fn find_payment_attempt_by_connector_transaction_id_payment_id_processor_merchant_id(
-        &self,
-        connector_transaction_id: &common_utils::types::ConnectorTransactionId,
-        payment_id: &id_type::PaymentId,
-        processor_merchant_id: &id_type::MerchantId,
-        storage_scheme: MerchantStorageScheme,
-        key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
-        self.diesel_store
-            .find_payment_attempt_by_connector_transaction_id_payment_id_processor_merchant_id(
-                connector_transaction_id,
-                payment_id,
-                processor_merchant_id,
-                storage_scheme,
-                key_store,
-            )
-            .await
-    }
-
-    #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_processor_merchant_id_connector_txn_id(
         &self,
         processor_merchant_id: &id_type::MerchantId,
@@ -2527,6 +2530,23 @@ impl PayoutAttemptInterface for KafkaStore {
             .await
     }
 
+    async fn find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        payout_id: &id_type::PayoutId,
+        payout_attempt_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
+        self.diesel_store
+            .find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
+                merchant_id,
+                payout_id,
+                payout_attempt_id,
+                storage_scheme,
+            )
+            .await
+    }
+
     async fn find_payout_attempt_by_merchant_id_connector_payout_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -2604,6 +2624,17 @@ impl PayoutAttemptInterface for KafkaStore {
     > {
         self.diesel_store
             .get_filters_for_payouts(payouts, merchant_id, storage_scheme)
+            .await
+    }
+
+    async fn find_payout_attempts_by_merchant_id_payout_id(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        payout_id: &id_type::PayoutId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<storage::PayoutAttempt>, errors::StorageError> {
+        self.diesel_store
+            .find_payout_attempts_by_merchant_id_payout_id(merchant_id, payout_id, storage_scheme)
             .await
     }
 }
@@ -3303,13 +3334,16 @@ impl RoutingAlgorithmInterface for KafkaStore {
             .await
     }
 
-    async fn find_routing_algorithm_by_algorithm_id_merchant_id(
+    async fn find_routing_algorithm_by_algorithm_id_processor_merchant_id(
         &self,
         algorithm_id: &id_type::RoutingId,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
     ) -> CustomResult<storage::RoutingAlgorithm, errors::StorageError> {
         self.diesel_store
-            .find_routing_algorithm_by_algorithm_id_merchant_id(algorithm_id, merchant_id)
+            .find_routing_algorithm_by_algorithm_id_processor_merchant_id(
+                algorithm_id,
+                processor_merchant_id,
+            )
             .await
     }
 

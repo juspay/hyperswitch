@@ -50,9 +50,7 @@ use euclid::{
     frontend::dir,
 };
 use hyperswitch_constraint_graph as cgraph;
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::customer::CustomerUpdate;
-use hyperswitch_domain_models::mandates::CommonMandateReference;
+use hyperswitch_domain_models::{customer::CustomerUpdate, mandates::CommonMandateReference};
 use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
 use hyperswitch_masking::Secret;
 #[cfg(feature = "v1")]
@@ -213,6 +211,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     locker_fingerprint_id,
                     network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
                     storage_type: None,
+                    compatibility_updated_at: None,
                 },
                 self.provider.get_account().storage_scheme,
             )
@@ -1246,6 +1245,106 @@ impl PaymentMethodsController for PmCards<'_> {
             customer_id,
             payment_method_type: payment_method.get_payment_method_subtype(),
             payment_method: pm,
+        };
+
+        Ok(services::ApplicationResponse::Json(resp))
+    }
+
+    #[cfg(feature = "v2")]
+    async fn set_default_payment_method(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        customer_id: &id_type::GlobalCustomerId,
+        payment_method_id: &id_type::GlobalPaymentMethodId,
+        initiator: Option<&domain::Initiator>,
+    ) -> errors::RouterResponse<api_models::payment_methods::CustomerDefaultPaymentMethodResponse>
+    {
+        let db = &*self.state.store;
+        // check for the customer
+        // TODO: customer need not be checked again here, this function can take an optional customer and check for existence of customer based on the optional value
+        let customer = db
+            .find_customer_by_global_id_merchant_id(
+                customer_id,
+                merchant_id,
+                self.provider.get_key_store(),
+                self.provider.get_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+
+        // check for the presence of payment_method
+        let payment_method = db
+            .find_payment_method(
+                self.provider.get_key_store(),
+                payment_method_id,
+                self.provider.get_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+        let pm = payment_method
+            .get_payment_method_type()
+            .get_required_value("payment_method")?;
+
+        let pm_customer_id = payment_method
+            .customer_id
+            .clone()
+            .get_required_value("customer_id")?;
+
+        utils::when(
+            &pm_customer_id != customer_id || payment_method.merchant_id != *merchant_id,
+            || {
+                Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "The payment_method_id is not valid".to_string(),
+                })
+            },
+        )?;
+
+        utils::when(
+            payment_method.status != common_enums::PaymentMethodStatus::Active,
+            || {
+                Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "The payment_method is not active".to_string(),
+                })
+            },
+        )?;
+
+        utils::when(
+            Some(payment_method_id.clone()) == customer.default_payment_method_id,
+            || {
+                Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Payment Method is already set as default".to_string(),
+                })
+            },
+        )?;
+
+        let customer_id = customer.id.clone();
+
+        let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
+            default_payment_method_id: Some(Some(payment_method_id.to_owned())),
+            last_modified_by: initiator
+                .and_then(|initiator| initiator.to_created_by())
+                .map(|last_modified_by| last_modified_by.to_string()),
+        };
+        // update the db with the default payment method id
+
+        let updated_customer_details = db
+            .update_customer_by_global_id(
+                &customer_id,
+                customer,
+                customer_update,
+                self.provider.get_key_store(),
+                self.provider.get_account().storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update the default payment method id for the customer")?;
+
+        let resp = api_models::payment_methods::CustomerDefaultPaymentMethodResponse {
+            default_payment_method_id: updated_customer_details.default_payment_method_id,
+            customer_id,
+            payment_method_subtype: payment_method.get_payment_method_subtype(),
+            payment_method_type: pm,
         };
 
         Ok(services::ApplicationResponse::Json(resp))
@@ -3568,10 +3667,18 @@ pub async fn build_merchant_enabled_pms_context(
                 &intermediate.payment_method_type,
                 &skip_pre_routing,
             ) {
+                let merchant_connector_id = id_type::MerchantConnectorAccountId::wrap(
+                    intermediate.merchant_connector_id.clone(),
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "invalid merchant_connector_id received in payment methods list",
+                )?;
+
                 let connector_data = helpers::get_connector_data_with_token(
                     state,
                     intermediate.connector.to_string(),
-                    None,
+                    Some(merchant_connector_id),
                     intermediate.payment_method_type,
                 )
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4051,10 +4158,17 @@ pub async fn build_merchant_enabled_pms_context(
     };
 
     // ---- sdk_next_action ----
+    let has_surcharge_processor = business_profile
+        .surcharge_connector_details
+        .as_ref()
+        .and_then(|details| details.surcharge_connector_id.as_ref())
+        .is_some();
+
     let sdk_next_action = payment_method_utils::get_sdk_next_action_for_payment_method_list(
         state,
         &dimensions,
         payment_intent.and_then(|pi| pi.customer_id.as_ref()),
+        has_surcharge_processor,
     )
     .await;
 
@@ -4085,7 +4199,7 @@ pub async fn list_payment_methods(
     let db = &*state.store;
     let payment_intent = if let Some(cs) = &req.client_secret {
         if cs.starts_with("pm_") {
-            validate_payment_method_and_client_secret(cs, db, &platform).await?;
+            validate_payment_method_and_client_secret(cs, db, platform.get_provider()).await?;
             None
         } else {
             helpers::verify_payment_intent_time_and_client_secret(
@@ -4549,7 +4663,7 @@ pub fn should_collect_shipping_or_billing_details_from_wallet_connector(
 async fn validate_payment_method_and_client_secret(
     cs: &String,
     db: &dyn db::StorageInterface,
-    platform: &domain::Platform,
+    provider: &domain::Provider,
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
     let pm_vec = cs.split("_secret").collect::<Vec<&str>>();
     let pm_id = pm_vec
@@ -4560,9 +4674,9 @@ async fn validate_payment_method_and_client_secret(
 
     let payment_method = db
         .find_payment_method(
-            platform.get_provider().get_key_store(),
+            provider.get_key_store(),
             pm_id,
-            platform.get_provider().get_account().storage_scheme,
+            provider.get_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -5168,7 +5282,7 @@ pub async fn list_customer_payment_method(
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
             platform.get_processor().get_account().get_id(),
             true,
-            platform.get_provider().get_key_store(),
+            platform.get_processor().get_key_store(),
         )
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {

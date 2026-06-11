@@ -16,6 +16,7 @@ pub mod user_role;
 pub mod verify_connector;
 use std::fmt::Debug;
 
+use analytics::{enums::AuthInfo, errors::AnalyticsError};
 use api_models::{
     enums,
     payments::{self},
@@ -54,6 +55,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments as payments_core,
     },
+    db::StorageInterface,
     headers::ACCEPT_LANGUAGE,
     logger,
     routes::{metrics, SessionState},
@@ -255,9 +257,10 @@ pub async fn find_payment_intent_from_refund_id_type(
             .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?,
     };
     let attempt = db
-        .find_payment_attempt_by_attempt_id_processor_merchant_id(
-            &refund.attempt_id,
+        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+            &refund.payment_id,
             platform.get_processor().get_account().get_id(),
+            &refund.attempt_id,
             platform.get_processor().get_account().storage_scheme,
             platform.get_processor().get_key_store(),
         )
@@ -378,9 +381,10 @@ pub async fn get_mca_from_payment_intent(
 
     #[cfg(feature = "v1")]
     let payment_attempt = db
-        .find_payment_attempt_by_attempt_id_processor_merchant_id(
-            &payment_intent.active_attempt.get_id(),
+        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+            &payment_intent.payment_id,
             platform.get_processor().get_account().get_id(),
+            &payment_intent.active_attempt.get_id(),
             platform.get_processor().get_account().storage_scheme,
             platform.get_processor().get_key_store(),
         )
@@ -1487,4 +1491,48 @@ pub async fn trigger_subscriptions_outgoing_webhook(
     });
 
     Ok(())
+}
+
+pub async fn get_payment_response_hash_key(
+    store: &dyn StorageInterface,
+    key_store: &domain::MerchantKeyStore,
+    auth: &AuthInfo,
+) -> Result<Option<String>, error_stack::Report<AnalyticsError>> {
+    match auth {
+        AuthInfo::ProfileLevel {
+            merchant_id,
+            profile_ids,
+            ..
+        } => {
+            let profile_id = profile_ids.first().ok_or(AnalyticsError::UnknownError)?;
+            let profile = store
+                .find_business_profile_by_merchant_id_profile_id(key_store, merchant_id, profile_id)
+                .await
+                .change_context(AnalyticsError::UnknownError)?;
+            Ok(profile.payment_response_hash_key)
+        }
+        AuthInfo::MerchantLevel { merchant_ids, .. } => {
+            #[cfg(feature = "v1")]
+            {
+                let merchant_id = merchant_ids.first().ok_or(AnalyticsError::UnknownError)?;
+                let merchant = store
+                    .find_merchant_account_by_merchant_id(merchant_id, key_store)
+                    .await
+                    .change_context(AnalyticsError::UnknownError)?;
+                Ok(merchant.payment_response_hash_key)
+            }
+            #[cfg(feature = "v2")]
+            {
+                let merchant_id = merchant_ids.first().ok_or(AnalyticsError::UnknownError)?;
+                let profiles = store
+                    .list_profile_by_merchant_id(key_store, merchant_id)
+                    .await
+                    .change_context(AnalyticsError::UnknownError)?;
+                Ok(profiles
+                    .first()
+                    .and_then(|profile| profile.payment_response_hash_key.clone()))
+            }
+        }
+        AuthInfo::OrgLevel { .. } => Ok(None),
+    }
 }

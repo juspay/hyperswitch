@@ -1,15 +1,22 @@
+use hyperswitch_domain_models::mandates;
 #[cfg(feature = "v1")]
 pub mod payment_approve;
 #[cfg(feature = "v1")]
 pub mod payment_cancel;
 #[cfg(feature = "v1")]
 pub mod payment_cancel_post_capture;
+
+#[cfg(feature = "v1")]
+pub mod payment_cancel_post_capture_sync;
+
 #[cfg(feature = "v1")]
 pub mod payment_capture;
 #[cfg(feature = "v1")]
 pub mod payment_complete_authorize;
 #[cfg(feature = "v1")]
 pub mod payment_confirm;
+#[cfg(feature = "v1")]
+pub mod payment_confirm_external_vault_proxy;
 #[cfg(feature = "v1")]
 pub mod payment_create;
 #[cfg(feature = "v1")]
@@ -86,11 +93,14 @@ pub use self::payment_update_intent::PaymentUpdateIntent;
 #[cfg(feature = "v1")]
 pub use self::{
     payment_approve::PaymentApprove, payment_cancel::PaymentCancel,
-    payment_cancel_post_capture::PaymentCancelPostCapture, payment_capture::PaymentCapture,
-    payment_confirm::PaymentConfirm, payment_create::PaymentCreate,
-    payment_post_session_tokens::PaymentPostSessionTokens, payment_reject::PaymentReject,
-    payment_session::PaymentSession, payment_start::PaymentStart, payment_status::PaymentStatus,
-    payment_update::PaymentUpdate, payment_update_metadata::PaymentUpdateMetadata,
+    payment_cancel_post_capture::PaymentCancelPostCapture,
+    payment_cancel_post_capture_sync::PaymentCancelPostCaptureSync,
+    payment_capture::PaymentCapture, payment_confirm::PaymentConfirm,
+    payment_confirm_external_vault_proxy::PaymentExternalVaultProxyConfirm,
+    payment_create::PaymentCreate, payment_post_session_tokens::PaymentPostSessionTokens,
+    payment_reject::PaymentReject, payment_session::PaymentSession, payment_start::PaymentStart,
+    payment_status::PaymentStatus, payment_update::PaymentUpdate,
+    payment_update_metadata::PaymentUpdateMetadata,
     payments_extend_authorization::PaymentExtendAuthorization,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
     tax_calculation::PaymentSessionUpdate,
@@ -416,7 +426,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _business_profile: &domain::Profile,
         _processor: &domain::Processor,
         _initiator: Option<&domain::Initiator>,
-        _mandate_type: Option<api_models::payments::MandateTransactionType>,
+        _mandate_type: Option<mandates::MandateTransactionType>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
@@ -430,7 +440,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _connector_call_type: &ConnectorCallType,
         _business_profile: &domain::Profile,
         _platform: &domain::Platform,
-        _mandate_type: Option<api_models::payments::MandateTransactionType>,
+        _mandate_type: Option<mandates::MandateTransactionType>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
