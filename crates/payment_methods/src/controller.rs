@@ -313,8 +313,10 @@ pub trait PaymentMethodsController {
     #[cfg(feature = "v1")]
     async fn retrieve_payment_method_from_vault(
         &self,
-        entity_id: &hyperswitch_domain_models::vault::V1VaultEntityId,
         vault_id: &payment_methods::VaultId,
+        merchant_id: &id_type::MerchantId,
+        customer_id: &id_type::CustomerId,
+        is_v2_pm: bool,
     ) -> errors::VaultResult<hyperswitch_domain_models::vault::PaymentMethodVaultingData>;
 
     #[cfg(feature = "v1")]
@@ -328,7 +330,7 @@ pub trait PaymentMethodsController {
     #[cfg(feature = "v1")]
     async fn get_fingerprint_id_from_vault(
         &self,
-        entity_id: &hyperswitch_domain_models::vault::V1VaultEntityId,
+        entity_id: &Option<String>,
         fingerprint_data: &hyperswitch_domain_models::vault::FingerprintData,
         fingerprint_id: String,
     ) -> errors::VaultResult<String>;

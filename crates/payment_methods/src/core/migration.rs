@@ -1,5 +1,7 @@
 use actix_multipart::form::{self, bytes, text};
 use api_models::payment_methods as pm_api;
+#[cfg(feature = "v1")]
+use common_enums::{enums, ApiVersion};
 use csv::Reader;
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
@@ -108,7 +110,13 @@ async fn migrate_single_payment_method(
     controller: &dyn pm::PaymentMethodsController,
 ) -> errors::PmResult<()> {
     // Step 1: Fetch payment method record
+    let db = &*state.store;
     let payment_method = fetch_payment_method_record(state, payment_method_id, platform).await?;
+
+    router_env::logger::info!(
+        "Fetched payment method record for ID : {}",
+        payment_method_id
+    );
 
     // Step 2: Validate merchant_id
     validate_merchant_id(&payment_method, merchant_id)?;
@@ -118,6 +126,19 @@ async fn migrate_single_payment_method(
             message: "Payment method must have a customer_id".to_string(),
         },
     )?;
+
+    let customer_obj = db
+        .find_customer_by_customer_id_merchant_id(
+            customer_id,
+            merchant_id,
+            platform.get_provider().get_key_store(),
+            platform.get_provider().get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch customer record")?;
+
+    let customer_key = customer_obj.get_global_customer_id();
 
     let locker_id =
         payment_method
@@ -133,20 +154,18 @@ async fn migrate_single_payment_method(
         },
     )?;
 
-    // Step 3: Fetch raw payment method from vault using old entity_id (merchant_id + customer_id)
-    let old_entity_id = hyperswitch_domain_models::vault::V1VaultEntityId::new(
-        merchant_id.clone(),
-        customer_id.clone(),
-    );
+    let is_v2_pm = payment_method.version == ApiVersion::V2
+        && payment_method.payment_method == Some(enums::PaymentMethod::Card);
+
     let vault_id = hyperswitch_domain_models::payment_methods::VaultId::generate(locker_id.clone());
 
     let vaulting_data = controller
-        .retrieve_payment_method_from_vault(&old_entity_id, &vault_id)
+        .retrieve_payment_method_from_vault(&vault_id, merchant_id, customer_id, is_v2_pm)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to retrieve payment method from vault")?;
 
-    // Step 4: Check if payment method is bank_debit or wallet
+    // Step 4: Check if payment method is bank_debit or wallet or card (only for v2)
     let is_bank_debit = matches!(
         vaulting_data,
         hyperswitch_domain_models::vault::PaymentMethodVaultingData::BankDebit(_)
@@ -156,19 +175,23 @@ async fn migrate_single_payment_method(
         hyperswitch_domain_models::vault::PaymentMethodVaultingData::Wallet(_)
     );
 
-    if !is_bank_debit && !is_wallet {
+    let is_card = matches!(
+        vaulting_data,
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(_)
+    ) && payment_method.version == ApiVersion::V2;
+
+    common_utils::fp_utils::when(!is_bank_debit && !is_wallet && !is_card, || {
         router_env::logger::info!(
-            "Skipping migration for payment method {}: not bank_debit or wallet",
+            "Skipping migration for payment method {}: not bank_debit, wallet, or card",
             payment_method_id
         );
-        return Err(errors::ApiErrorResponse::InvalidRequestData {
+        Err(errors::ApiErrorResponse::InvalidRequestData {
             message: format!(
-                "Payment method {} is not bank_debit or wallet, skipping migration",
+                "Payment method {} is not bank_debit, wallet, or card, skipping migration",
                 payment_method_id
             ),
-        }
-        .into());
-    }
+        })
+    })?;
 
     // Step 5: Create new record in vault with new entity_id(merchant_id)
 
@@ -178,15 +201,11 @@ async fn migrate_single_payment_method(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to store payment method in vault with new entity_id")?;
 
-    // Step 6 & 7: If bank_debit, handle fingerprint data
+    // Step 6 & 7: If bank_debit, handle fingerprint data migration with new customer key
     if is_bank_debit {
         let fingerprint_data = vaulting_data.to_fingerprint_data();
         controller
-            .get_fingerprint_id_from_vault(
-                &old_entity_id,
-                &fingerprint_data,
-                fingerprint_id.clone(),
-            )
+            .get_fingerprint_id_from_vault(customer_key, &fingerprint_data, fingerprint_id.clone())
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to create fingerprint record in vault")?;
@@ -216,16 +235,15 @@ fn validate_merchant_id(
     payment_method: &hyperswitch_domain_models::payment_methods::PaymentMethod,
     expected_merchant_id: &common_utils::id_type::MerchantId,
 ) -> errors::PmResult<()> {
-    if payment_method.merchant_id != *expected_merchant_id {
-        return Err(errors::ApiErrorResponse::InvalidRequestData {
+    common_utils::fp_utils::when(payment_method.merchant_id != *expected_merchant_id, || {
+        Err(errors::ApiErrorResponse::InvalidRequestData {
             message: format!(
                 "Merchant ID mismatch: expected {}, found {}",
                 expected_merchant_id.get_string_repr(),
                 payment_method.merchant_id.get_string_repr()
             ),
-        }
-        .into());
-    }
+        })
+    })?;
     Ok(())
 }
 

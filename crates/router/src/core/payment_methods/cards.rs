@@ -1402,20 +1402,34 @@ impl PaymentMethodsController for PmCards<'_> {
     #[cfg(feature = "v1")]
     async fn retrieve_payment_method_from_vault(
         &self,
-        entity_id: &hyperswitch_domain_models::vault::V1VaultEntityId,
         vault_id: &domain::VaultId,
+        merchant_id: &id_type::MerchantId,
+        customer_id: &id_type::CustomerId,
+        is_v2_pm: bool,
     ) -> errors::CustomResult<
         hyperswitch_domain_models::vault::PaymentMethodVaultingData,
         errors::VaultError,
     > {
-        let vault_request = pm_types::VaultRetrieveRequest {
-            entity_id: entity_id.clone(),
-            vault_id: vault_id.clone(),
-        };
-        let payload = vault_request
+        let payload = if !is_v2_pm {
+            pm_types::VaultRetrieveRequest {
+                entity_id: hyperswitch_domain_models::vault::V1VaultEntityId::new(
+                    merchant_id.clone(),
+                    customer_id.clone(),
+                ),
+                vault_id: vault_id.clone(),
+            }
             .encode_to_vec()
             .change_context(errors::VaultError::RequestEncodingFailed)
-            .attach_printable("Failed to encode VaultRetrieveRequest")?;
+            .attach_printable("Failed to encode VaultRetrieveRequest")?
+        } else {
+            pm_types::GenericVaultRetrieveRequest {
+                entity_id: customer_id.clone(),
+                vault_id: vault_id.clone(),
+            }
+            .encode_to_vec()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode GenericVaultRetrieveRequest")?
+        };
 
         let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(self.state, payload, None, None)
             .await
@@ -1460,21 +1474,29 @@ impl PaymentMethodsController for PmCards<'_> {
     #[cfg(feature = "v1")]
     async fn get_fingerprint_id_from_vault(
         &self,
-        entity_id: &hyperswitch_domain_models::vault::V1VaultEntityId,
+        entity_id: &Option<String>,
         fingerprint_data: &hyperswitch_domain_models::vault::FingerprintData,
         fingerprint_id: String,
     ) -> errors::CustomResult<String, errors::VaultError> {
+        let entity_id = entity_id
+            .to_owned()
+            .get_required_value("Customer key")
+            .change_context(errors::VaultError::MissingRequiredField {
+                field_name: "Customer key",
+            })
+            .attach_printable("entity_id is required to get fingerprint id from vault")?;
+
         let data = serde_json::to_string(fingerprint_data)
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode fingerprint data")?;
 
-        let payload = pm_types::VaultFingerprintRequest {
-            key: entity_id.clone(),
+        let payload = pm_types::VaultFingerprintRequestNew {
+            key: entity_id,
             data,
         }
         .encode_to_vec()
         .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode VaultFingerprintRequest")?;
+        .attach_printable("Failed to encode VaultFingerprintRequestNew")?;
 
         let resp = vault::call_to_vault::<pm_types::GetVaultFingerprint>(
             self.state,
