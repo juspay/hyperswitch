@@ -210,7 +210,9 @@ describe("Extended Card Info Tests", () => {
       it("Retrieve Payment and verify extended BIN is null", () => {
         cy.retrievePaymentCallTest({
           globalState,
-          data: getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ExtendedCardInfo"],
+          data: getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+            "ExtendedCardInfo"
+          ],
         }).then((response) => {
           expect(
             response.body.payment_method_data.card.card_extended_bin,
@@ -269,7 +271,9 @@ describe("Extended Card Info Tests", () => {
       it("Retrieve Payment and verify extended BIN is absent", () => {
         cy.retrievePaymentCallTest({
           globalState,
-          data: getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ExtendedCardInfo"],
+          data: getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+            "ExtendedCardInfo"
+          ],
         }).then((response) => {
           expect(
             response.body.payment_method_data.card.card_extended_bin,
