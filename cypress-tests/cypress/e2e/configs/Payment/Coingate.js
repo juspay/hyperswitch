@@ -49,6 +49,10 @@ export const connectorDetails = {
         },
         billing: nlBillingAddress,
       },
+      Response: {
+        status: 200,
+        body: {},
+      },
     }),
     CryptoCurrencyManualCapture: getCustomExchange({
       Configs: {
