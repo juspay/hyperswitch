@@ -341,3 +341,14 @@ export const isCI = () => {
 export const getTimeoutMultiplier = () => {
   return isCI() ? 1.5 : 1;
 };
+
+/**
+ * Generates a random integer between min and max (inclusive)
+ * Used for transaction amounts to avoid duplicate detection
+ * @param {number} min - Minimum value (default: 1000)
+ * @param {number} max - Maximum value (default: 5000)
+ * @returns {number} Random integer between min and max
+ */
+export function generateRandomAmount(min = 1000, max = 5000) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
