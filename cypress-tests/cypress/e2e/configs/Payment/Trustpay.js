@@ -964,11 +964,9 @@ export const connectorDetails = {
         status: 400,
         body: {
           error: {
-            error: {
-              type: "invalid_request",
-              code: "IR_00",
-              message: "client_secret not found",
-            },
+            type: "invalid_request",
+            code: "IR_04",
+            message: "Missing required parameter: client_secret",
           },
         },
       },
@@ -978,12 +976,12 @@ export const connectorDetails = {
         wallets: ["apple_pay", "google_pay"],
       },
       Response: {
-        status: 400,
+        status: 404,
         body: {
           error: {
-            type: "invalid_request",
-            code: "IR_01",
-            message: "payment not found",
+            type: "not_found",
+            code: "HE_02",
+            message: "Payment does not exist or access forbidden",
           },
         },
       },
