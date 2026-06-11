@@ -197,8 +197,6 @@ describe("Subscription Management tests", () => {
 
   context("Subscription Lifecycle Flow", () => {
     it("full-lifecycle-create-subscription-test", () => {
-      let shouldContinue = true;
-
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "subscription_pm"
       ]["Create"];
