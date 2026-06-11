@@ -994,7 +994,7 @@ export const connectorDetails = {
       Request: {
         currency: "USD",
         customer_acceptance: null,
-        requires_cvv: false,
+        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
