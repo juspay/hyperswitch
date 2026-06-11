@@ -9971,6 +9971,26 @@ Cypress.Commands.add(
   }
 );
 
+Cypress.Commands.add("retrieveNonExistentPayoutLinkTest", (globalState) => {
+  const merchantId = globalState.get("merchantId");
+
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/payout_link/${merchantId}/non_existent_payout_12345`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status).to.equal(404);
+    });
+  });
+});
+
 Cypress.Commands.add("retrievePayoutAfterBankSubmissionTest", (globalState) => {
   const payoutId = globalState.get("payoutID");
 

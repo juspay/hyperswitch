@@ -139,18 +139,7 @@ describe("Payout Link", () => {
     });
 
     it("retrieve-non-existent-payout-link-test", () => {
-      const merchantId = globalState.get("merchantId");
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/payout_link/${merchantId}/non_existent_payout_12345`,
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": globalState.get("apiKey"),
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.status).to.equal(404);
-      });
+      cy.retrieveNonExistentPayoutLinkTest(globalState);
     });
   });
 
