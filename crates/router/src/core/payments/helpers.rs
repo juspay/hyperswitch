@@ -1685,21 +1685,7 @@ pub async fn validate_guest_ip_blocking_for_business_profile(
 
     let unsuccessful_payment_threshold = card_testing_guard_config.guest_ip_blocking_threshold;
 
-    match services::card_testing_guard::get_guest_ip_blocked_count_from_cache(state, &cache_key)
-        .await
-    {
-        Ok(Some(unsuccessful_payment_count)) => {
-            if unsuccessful_payment_count >= unsuccessful_payment_threshold {
-                Err(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Blocked due to suspicious activity".to_string(),
-                })?
-            } else {
-                Ok(cache_key)
-            }
-        }
-        Ok(None) => Ok(cache_key),
-        Err(error) => Err(errors::ApiErrorResponse::InternalServerError).attach_printable(error)?,
-    }
+    validate_blocking_threshold(state, unsuccessful_payment_threshold, cache_key).await
 }
 
 pub async fn validate_blocking_threshold(
