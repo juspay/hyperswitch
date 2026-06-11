@@ -12,7 +12,7 @@ const orderDetails = [
   {
     product_name: "Test Product",
     quantity: 1,
-    amount: 6540,
+    amount: 6000,
   },
 ];
 
