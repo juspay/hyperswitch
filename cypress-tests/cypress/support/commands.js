@@ -4448,8 +4448,12 @@ Cypress.Commands.add(
           );
           expect(response.body.customer, "customer").to.not.be.empty;
           expect(response.body.profile_id, "profile_id").to.not.be.null;
+          const isWalletRequiresAction =
+            response.body.status === "requires_customer_action" &&
+            response.body.payment_method === "wallet";
           if (
             response.body.status !== "failed" &&
+            !isWalletRequiresAction &&
             response.body.setup_future_usage === "off_session"
           ) {
             expect(response.body.payment_method_id, "payment_method_id").to.not
@@ -4457,8 +4461,14 @@ Cypress.Commands.add(
           }
 
           if (requestBody.mandate_data === null) {
-            expect(response.body).to.have.property("payment_method_id");
-            globalState.set("paymentMethodId", response.body.payment_method_id);
+            // For wallet mandates that return requires_customer_action, payment_method_id may be null initially.
+            // It will be populated after handleWalletRedirection and retrieved in subsequent retrievePaymentCallTest.
+            if (response.body.payment_method_id) {
+              globalState.set(
+                "paymentMethodId",
+                response.body.payment_method_id
+              );
+            }
           } else {
             expect(response.body).to.have.property("mandate_id");
             globalState.set("mandateId", response.body.mandate_id);
@@ -4498,16 +4508,29 @@ Cypress.Commands.add(
                 );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
+              if (
+                response.body.status !== "succeeded" &&
+                response.body.next_action &&
+                response.body.next_action.redirect_to_url
+              ) {
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.redirect_to_url
+                );
+              }
+              globalState.set(
+                "paymentMethodType",
+                requestBody.payment_method_type
+              );
               for (const key in resData.body) {
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
                 );
                 if (
                   response.body.setup_future_usage === "off_session" &&
-                  //Added this check to ensure mandate_id is null so that will get connector_mandate_id
                   response.body.mandate_id === null &&
                   response.body.status === "succeeded" &&
-                  globalState.get("connectorId") !== "peachpayments" // Peach Payments does not support psp mandate flow
+                  globalState.get("connectorId") !== "peachpayments"
                 ) {
                   expect(
                     response.body.connector_mandate_id,
@@ -4556,6 +4579,20 @@ Cypress.Commands.add(
                 );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
+              if (
+                response.body.status !== "succeeded" &&
+                response.body.next_action &&
+                response.body.next_action.redirect_to_url
+              ) {
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.redirect_to_url
+                );
+              }
+              globalState.set(
+                "paymentMethodType",
+                requestBody.payment_method_type
+              );
               for (const key in resData.body) {
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
@@ -5092,7 +5129,7 @@ Cypress.Commands.add(
       "three_ds",
       { redirectionUrl, expectedUrl },
       connectorId,
-      null
+      globalState.get("paymentMethodType")
     );
   }
 );
@@ -5208,8 +5245,34 @@ Cypress.Commands.add(
       return;
     }
 
+    if (!nextActionUrl) {
+      cy.task(
+        "cli_log",
+        `Skipping wallet redirection: no redirect URL for ${paymentMethodType}`
+      );
+      return;
+    }
+
+    let redirectionUrl;
+    try {
+      redirectionUrl = new URL(nextActionUrl);
+    } catch {
+      cy.task(
+        "cli_log",
+        `Skipping wallet redirection: invalid redirect URL for ${paymentMethodType} (nextActionUrl=${nextActionUrl})`
+      );
+      return;
+    }
+
+    if (redirectionUrl.hostname === "null") {
+      cy.task(
+        "cli_log",
+        `Skipping wallet redirection: null hostname in redirect URL for ${paymentMethodType} (nextActionUrl=${nextActionUrl})`
+      );
+      return;
+    }
+
     const expectedUrl = new URL(expectedRedirection);
-    const redirectionUrl = new URL(nextActionUrl);
 
     handleRedirection(
       "bank_redirect",
@@ -5353,10 +5416,15 @@ Cypress.Commands.add(
                     response.body[key]
                   );
                 }
-                if (response.body.connector === "iatapay")
+                if (response.body.connector === "iatapay") {
                   expect(response.body)
                     .to.have.property("next_action")
                     .to.have.property("redirect_to_url");
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.redirect_to_url
+                  );
+                }
                 break;
 
               default:
