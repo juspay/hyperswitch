@@ -2,30 +2,36 @@ use common_utils::events::ApiEventMetric;
 use serde_json::{Map, Value};
 use superposition_types::Config;
 
-use crate::{
-    enums as api_enums,
-    payment_methods::{BankDebitTypes, BankTransferTypes},
-    payments::BankCodeResponse,
-};
+use crate::enums as api_enums;
 
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct SdkPaymentMethodType {
-    pub payment_method_type: api_enums::PaymentMethodType,
-    pub payment_experience: Option<api_enums::PaymentExperience>,
-    pub eligible_connectors: Vec<String>,
-    pub card_networks: Option<Vec<api_enums::CardNetwork>>,
-    pub bank_names: Option<Vec<BankCodeResponse>>,
-    pub bank_debits: Option<BankDebitTypes>,
-    pub bank_transfers: Option<BankTransferTypes>,
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentMethodCriteria {
+    CardNetwork,
+    BankName,
+    PaymentExperience,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SdkCriteriaRule {
+    pub criteria_value: String,
+    pub eligible_connectors: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SdkPaymentMethodType {
+    pub payment_method_type: api_enums::PaymentMethodType,
+    pub payment_method_criteria: Option<PaymentMethodCriteria>,
+    pub criteria_rules: Vec<SdkCriteriaRule>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SdkPaymentMethod {
     pub payment_method: api_enums::PaymentMethod,
     pub payment_method_types: Vec<SdkPaymentMethodType>,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SuperPositionConfigResponse {
     pub raw_configs: Config,
     pub resolved_configs: Option<Map<String, Value>>,

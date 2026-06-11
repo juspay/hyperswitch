@@ -1,7 +1,8 @@
 use api_models::{
     enums as api_enums,
     superposition_sdk_config::{
-        SdkPaymentMethod, SdkPaymentMethodType, SuperPositionConfigResponse,
+        PaymentMethodCriteria, SdkCriteriaRule, SdkPaymentMethod, SdkPaymentMethodType,
+        SuperPositionConfigResponse,
     },
 };
 use common_utils::ext_traits::AsyncExt;
@@ -21,19 +22,20 @@ use crate::{
     types::domain,
 };
 
-pub async fn get_superposition_sdk_config(
-    state: SessionState,
-    platform: domain::Platform,
-    client_secret: String,
-) -> RouterResponse<SuperPositionConfigResponse> {
-    let merchant_account = platform.get_processor().get_account();
+pub struct SdkPaymentContext {
+    pub payment_attempt: Option<domain::PaymentAttempt>,
+    pub shipping_address: Option<domain::Address>,
+    pub billing_address: Option<domain::Address>,
+    pub customer: Option<domain::Customer>,
+    pub is_cit_transaction: bool,
+}
+
+async fn get_payment_context(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_intent: Option<&hyperswitch_domain_models::payments::PaymentIntent>,
+) -> error_stack::Result<SdkPaymentContext, errors::ApiErrorResponse> {
     let db = &*state.store;
-    let payment_intent = helpers::verify_payment_intent_time_and_client_secret(
-        &state,
-        &platform,
-        Some(client_secret),
-    )
-    .await?;
 
     let payment_attempt = payment_intent
         .as_ref()
@@ -55,7 +57,7 @@ pub async fn get_superposition_sdk_config(
         .as_ref()
         .async_map(|pi| async {
             helpers::get_address_by_id(
-                &state,
+                state,
                 pi.shipping_address_id.clone(),
                 platform.get_processor().get_key_store(),
                 &pi.payment_id,
@@ -72,7 +74,7 @@ pub async fn get_superposition_sdk_config(
         .as_ref()
         .async_map(|pi| async {
             helpers::get_address_by_id(
-                &state,
+                state,
                 pi.billing_address_id.clone(),
                 platform.get_processor().get_key_store(),
                 &pi.payment_id,
@@ -115,6 +117,31 @@ pub async fn get_superposition_sdk_config(
             .map(|future_usage| future_usage == common_enums::FutureUsage::OffSession)
             .unwrap_or(false);
 
+    Ok(SdkPaymentContext {
+        payment_attempt,
+        shipping_address,
+        billing_address,
+        customer,
+        is_cit_transaction,
+    })
+}
+
+pub async fn get_superposition_sdk_config(
+    state: SessionState,
+    platform: domain::Platform,
+    client_secret: String,
+) -> RouterResponse<SuperPositionConfigResponse> {
+    let merchant_account = platform.get_processor().get_account();
+    let db = &*state.store;
+    let payment_intent = helpers::verify_payment_intent_time_and_client_secret(
+        &state,
+        &platform,
+        Some(client_secret),
+    )
+    .await?;
+
+    let payment_context = get_payment_context(&state, &platform, payment_intent.as_ref()).await?;
+
     let profile_id = payment_intent
         .as_ref()
         .and_then(|pi| pi.profile_id.clone())
@@ -134,11 +161,11 @@ pub async fn get_superposition_sdk_config(
         &platform,
         &business_profile,
         payment_intent.as_ref(),
-        payment_attempt.as_ref(),
-        billing_address.as_ref(),
-        shipping_address.as_ref(),
-        customer.as_ref(),
-        is_cit_transaction,
+        payment_context.payment_attempt.as_ref(),
+        payment_context.billing_address.as_ref(),
+        payment_context.shipping_address.as_ref(),
+        payment_context.customer.as_ref(),
+        payment_context.is_cit_transaction,
     ))
     .await?;
 
@@ -193,131 +220,140 @@ pub async fn get_superposition_sdk_config(
     ))
 }
 
+fn format_criteria_value(
+    card_network: Option<String>,
+    bank_name: Option<String>,
+    payment_experience: Option<String>,
+) -> String {
+    let mut parts = Vec::new();
+    if let Some(cn) = card_network {
+        parts.push(cn);
+    }
+    if let Some(bn) = bank_name {
+        parts.push(bn);
+    }
+    if let Some(pe) = payment_experience {
+        parts.push(pe);
+    }
+    if parts.is_empty() {
+        "default".to_string()
+    } else {
+        parts.join("/")
+    }
+}
+
 fn translate_to_sdk_payment_methods(
     state: &SessionState,
     pms_ctx: &MerchantEnabledPmsContext,
 ) -> error_stack::Result<Vec<SdkPaymentMethod>, errors::ApiErrorResponse> {
-    let mut payment_methods = vec![];
+    let mut consolidated_rules: std::collections::HashMap<
+        (api_enums::PaymentMethod, api_enums::PaymentMethodType),
+        (Option<PaymentMethodCriteria>, Vec<SdkCriteriaRule>),
+    > = std::collections::HashMap::new();
 
     // 1. Payment experiences (wallets, paylater, etc.)
     for (payment_method, pmt_map) in &pms_ctx.payment_experiences_consolidated_hm {
-        let mut payment_method_types = vec![];
         for (payment_method_type, pe_map) in pmt_map {
+            let (_, rules) = consolidated_rules
+                .entry((*payment_method, *payment_method_type))
+                .or_insert_with(|| (Some(PaymentMethodCriteria::PaymentExperience), Vec::new()));
             for (payment_experience, connectors) in pe_map {
-                payment_method_types.push(SdkPaymentMethodType {
-                    payment_method_type: *payment_method_type,
-                    payment_experience: Some(*payment_experience),
+                let criteria_value =
+                    format_criteria_value(None, None, Some(payment_experience.to_string()));
+                rules.push(SdkCriteriaRule {
+                    criteria_value,
                     eligible_connectors: connectors.clone(),
-                    card_networks: None,
-                    bank_names: None,
-                    bank_debits: None,
-                    bank_transfers: None,
                 });
             }
-        }
-        if !payment_method_types.is_empty() {
-            payment_methods.push(SdkPaymentMethod {
-                payment_method: *payment_method,
-                payment_method_types,
-            });
         }
     }
 
     // 2. Card networks (cards)
     for (payment_method, pmt_map) in &pms_ctx.card_networks_consolidated_hm {
-        let mut payment_method_types = vec![];
         for (payment_method_type, card_network_map) in pmt_map {
-            let mut card_networks = vec![];
-            let mut eligible_connectors = std::collections::HashSet::new();
+            let (_, rules) = consolidated_rules
+                .entry((*payment_method, *payment_method_type))
+                .or_insert_with(|| (Some(PaymentMethodCriteria::CardNetwork), Vec::new()));
             for (card_network, connectors) in card_network_map {
-                card_networks.push(card_network.clone());
-                for connector in connectors {
-                    eligible_connectors.insert(connector.clone());
-                }
+                let criteria_value =
+                    format_criteria_value(Some(card_network.to_string()), None, None);
+                rules.push(SdkCriteriaRule {
+                    criteria_value,
+                    eligible_connectors: connectors.clone(),
+                });
             }
-            payment_method_types.push(SdkPaymentMethodType {
-                payment_method_type: *payment_method_type,
-                payment_experience: None,
-                eligible_connectors: eligible_connectors.into_iter().collect(),
-                card_networks: Some(card_networks),
-                bank_names: None,
-                bank_debits: None,
-                bank_transfers: None,
-            });
-        }
-        if !payment_method_types.is_empty() {
-            payment_methods.push(SdkPaymentMethod {
-                payment_method: *payment_method,
-                payment_method_types,
-            });
         }
     }
 
     // 3. Banks (bank redirect)
-    let mut bank_redirect_types = vec![];
     for (payment_method_type, connectors) in &pms_ctx.banks_consolidated_hm {
         let bank_names = get_banks(state, *payment_method_type, connectors.clone())
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        bank_redirect_types.push(SdkPaymentMethodType {
-            payment_method_type: *payment_method_type,
-            payment_experience: None,
-            eligible_connectors: connectors.clone(),
-            card_networks: None,
-            bank_names: Some(bank_names),
-            bank_debits: None,
-            bank_transfers: None,
-        });
-    }
-    if !bank_redirect_types.is_empty() {
-        payment_methods.push(SdkPaymentMethod {
-            payment_method: api_enums::PaymentMethod::BankRedirect,
-            payment_method_types: bank_redirect_types,
-        });
+        let (_, rules) = consolidated_rules
+            .entry((api_enums::PaymentMethod::BankRedirect, *payment_method_type))
+            .or_insert_with(|| (Some(PaymentMethodCriteria::BankName), Vec::new()));
+        for bank_code_res in bank_names {
+            for bank_name in bank_code_res.bank_name {
+                let criteria_value = format_criteria_value(None, Some(bank_name.to_string()), None);
+                rules.push(SdkCriteriaRule {
+                    criteria_value,
+                    eligible_connectors: bank_code_res.eligible_connectors.clone(),
+                });
+            }
+        }
     }
 
     // 4. Bank debits
-    let mut bank_debit_types = vec![];
     for (payment_method_type, connectors) in &pms_ctx.bank_debits_consolidated_hm {
-        bank_debit_types.push(SdkPaymentMethodType {
-            payment_method_type: *payment_method_type,
-            payment_experience: None,
+        let (_, rules) = consolidated_rules
+            .entry((api_enums::PaymentMethod::BankDebit, *payment_method_type))
+            .or_insert_with(|| (None, Vec::new()));
+        let criteria_value = format_criteria_value(None, None, None);
+        rules.push(SdkCriteriaRule {
+            criteria_value,
             eligible_connectors: connectors.clone(),
-            card_networks: None,
-            bank_names: None,
-            bank_debits: Some(api_models::payment_methods::BankDebitTypes {
-                eligible_connectors: connectors.clone(),
-            }),
-            bank_transfers: None,
-        });
-    }
-    if !bank_debit_types.is_empty() {
-        payment_methods.push(SdkPaymentMethod {
-            payment_method: api_enums::PaymentMethod::BankDebit,
-            payment_method_types: bank_debit_types,
         });
     }
 
     // 5. Bank transfers
-    let mut bank_transfer_types = vec![];
     for (payment_method_type, connectors) in &pms_ctx.bank_transfer_consolidated_hm {
-        bank_transfer_types.push(SdkPaymentMethodType {
-            payment_method_type: *payment_method_type,
-            payment_experience: None,
+        let (_, rules) = consolidated_rules
+            .entry((api_enums::PaymentMethod::BankTransfer, *payment_method_type))
+            .or_insert_with(|| (None, Vec::new()));
+        let criteria_value = format_criteria_value(None, None, None);
+        rules.push(SdkCriteriaRule {
+            criteria_value,
             eligible_connectors: connectors.clone(),
-            card_networks: None,
-            bank_names: None,
-            bank_debits: None,
-            bank_transfers: Some(api_models::payment_methods::BankTransferTypes {
-                eligible_connectors: connectors.clone(),
-            }),
         });
     }
-    if !bank_transfer_types.is_empty() {
+
+    let mut payment_methods_map: std::collections::HashMap<
+        api_enums::PaymentMethod,
+        Vec<SdkPaymentMethodType>,
+    > = std::collections::HashMap::new();
+
+    for ((payment_method, payment_method_type), (payment_method_criteria, rules)) in
+        consolidated_rules
+    {
+        if !rules.is_empty() {
+            let method_types = payment_methods_map.entry(payment_method).or_default();
+            method_types.push(SdkPaymentMethodType {
+                payment_method_type,
+                payment_method_criteria,
+                criteria_rules: rules,
+            });
+        }
+    }
+
+    let mut payment_methods = vec![];
+    for (payment_method, mut payment_method_types) in payment_methods_map {
+        payment_method_types.sort_by_key(|pmt| pmt.payment_method_type.to_string());
         payment_methods.push(SdkPaymentMethod {
-            payment_method: api_enums::PaymentMethod::BankTransfer,
-            payment_method_types: bank_transfer_types,
+            payment_method,
+            payment_method_types,
         });
     }
+    payment_methods.sort_by_key(|pm| pm.payment_method.to_string());
 
     Ok(payment_methods)
 }
