@@ -1003,14 +1003,21 @@ export const connectorDetails = {
         },
       },
     },
-    RequiresCVVFalseSavedCardWithoutCVV: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
+    RequiresCVVFalseSavedCardWithoutCVV: {
       Request: {
         setup_future_usage: "off_session",
       },
-    }),
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_39",
+            message: "No eligible connector was found for the current payment method configuration",
+          },
+        },
+      },
+    },
     RequiresCVVPaymentIntent: {
       Request: {
         currency: "USD",
