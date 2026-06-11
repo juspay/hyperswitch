@@ -18,7 +18,6 @@ use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
 use hyperswitch_domain_models::{
-    ApiModelToDieselModelConvertor,
     mandates,
     mandates::{MandateData, MandateDataType},
     router_data::{AccessToken, ErrorResponse, L2L3Data, RouterData},
@@ -37,6 +36,7 @@ use hyperswitch_domain_models::{
     router_response_types::{
         PaymentsResponseData, PayoutsResponseData, RedirectForm, RefundsResponseData,
     },
+    ApiModelToDieselModelConvertor,
 };
 pub use hyperswitch_interfaces::{
     helpers::ForeignTryFrom,
