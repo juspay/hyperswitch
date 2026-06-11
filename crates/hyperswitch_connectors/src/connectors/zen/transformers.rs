@@ -859,7 +859,9 @@ impl ForeignTryFrom<(ZenPaymentStatus, Option<ZenActions>)> for enums::AttemptSt
                 item_action_status.map_or(Self::Pending, |action| match action {
                     ZenActions::Redirect => Self::AuthenticationPending,
                     ZenActions::Unknown => {
-                        router_env::logger::warn!("Unknown Zen action received, preserving current state");
+                        router_env::logger::warn!(
+                            "Unknown Zen action received, preserving current state"
+                        );
                         Self::Pending
                     }
                 })
@@ -867,7 +869,9 @@ impl ForeignTryFrom<(ZenPaymentStatus, Option<ZenActions>)> for enums::AttemptSt
             ZenPaymentStatus::Rejected => Self::Failure,
             ZenPaymentStatus::Canceled => Self::Voided,
             ZenPaymentStatus::Unknown => {
-                router_env::logger::warn!("Unknown Zen payment status received, preserving current state");
+                router_env::logger::warn!(
+                    "Unknown Zen payment status received, preserving current state"
+                );
                 Self::Pending
             }
         })
@@ -1089,7 +1093,9 @@ impl From<RefundStatus> for enums::RefundStatus {
             RefundStatus::Pending | RefundStatus::Authorized => Self::Pending,
             RefundStatus::Rejected => Self::Failure,
             RefundStatus::Unknown => {
-                router_env::logger::warn!("Unknown Zen refund status received, preserving current state");
+                router_env::logger::warn!(
+                    "Unknown Zen refund status received, preserving current state"
+                );
                 Self::Pending
             }
         }
