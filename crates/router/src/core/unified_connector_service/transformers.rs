@@ -83,6 +83,40 @@ pub fn build_upi_wait_screen_data(
         .attach_printable("Failed to serialize WaitScreenInstructions to JSON value")
 }
 
+impl ForeignFrom<common_types::customers::DocumentKind> for payments_grpc::DocumentKind {
+    fn foreign_from(document_kind: common_types::customers::DocumentKind) -> Self {
+        match document_kind {
+            common_types::customers::DocumentKind::Cpf => Self::Cpf,
+            common_types::customers::DocumentKind::Cnpj => Self::Cnpj,
+            common_types::customers::DocumentKind::Psn => Self::Psn,
+            common_types::customers::DocumentKind::Other => Self::Other,
+        }
+    }
+}
+
+impl ForeignFrom<&api_models::customers::CustomerDocumentDetails>
+    for payments_grpc::CustomerDocumentDetails
+{
+    fn foreign_from(details: &api_models::customers::CustomerDocumentDetails) -> Self {
+        Self {
+            document_type: payments_grpc::DocumentKind::foreign_from(details.document_type).into(),
+            document_number: Some(details.document_number.clone()),
+        }
+    }
+}
+
+/// Maps the optional customer identification document on a `RouterData` to the
+/// gRPC `CustomerDocumentDetails` sent to the Unified Connector Service.
+/// Returns `None` when no document is present on the source data.
+fn to_grpc_customer_document_details<F, Req, Res>(
+    router_data: &RouterData<F, Req, Res>,
+) -> Option<payments_grpc::CustomerDocumentDetails> {
+    router_data
+        .customer_document_details
+        .as_ref()
+        .map(payments_grpc::CustomerDocumentDetails::foreign_from)
+}
+
 impl transformers::ForeignTryFrom<&payments_grpc::AccessToken> for AccessToken {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -162,6 +196,9 @@ impl
             return_url: router_data.request.router_return_url.clone(),
             test_mode: router_data.test_mode,
             customer: Some(payments_grpc::Customer {
+                first_name: None,
+                last_name: None,
+                salutation: None,
                 name: None,
                 email: None,
                 id: router_data
@@ -171,12 +208,16 @@ impl
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
                 first_name: None,
                 last_name: None,
                 salutation: None,
                 customer_document_details: None,
             }),
-            state: None,
+            state: router_data
+                .access_token
+                .as_ref()
+                .map(ConnectorState::foreign_from),
         })
     }
 }
@@ -267,6 +308,9 @@ impl
                 router_data.request.request_incremental_authorization,
             ),
             customer: Some(payments_grpc::Customer {
+                first_name: None,
+                last_name: None,
+                salutation: None,
                 name: router_data
                     .request
                     .customer_name
@@ -285,6 +329,7 @@ impl
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -490,6 +535,9 @@ impl
                 router_data.request.request_incremental_authorization,
             ),
             customer: Some(payments_grpc::Customer {
+                first_name: None,
+                last_name: None,
+                salutation: None,
                 name: None,
                 email: router_data
                     .request
@@ -500,6 +548,7 @@ impl
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -871,6 +920,9 @@ impl
                 }),
             payment_method,
             customer: Some(payments_grpc::Customer {
+                first_name: None,
+                last_name: None,
+                salutation: None,
                 name: None,
                 email: router_data
                     .request
@@ -881,6 +933,7 @@ impl
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -964,6 +1017,9 @@ impl
                 }),
             payment_method,
             customer: Some(payments_grpc::Customer {
+                first_name: None,
+                last_name: None,
+                salutation: None,
                 name: None,
                 email: router_data
                     .request
@@ -974,6 +1030,7 @@ impl
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -1058,6 +1115,9 @@ impl
             }),
             payment_method: Some(payment_method),
             customer: Some(payments_grpc::Customer {
+                first_name: None,
+                last_name: None,
+                salutation: None,
                 name: router_data
                     .request
                     .customer_name
@@ -1072,6 +1132,7 @@ impl
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -1247,6 +1308,9 @@ impl
             enrolled_for_3ds: Some(false),
             request_incremental_authorization: Some(false),
             customer: Some(payments_grpc::Customer {
+                first_name: None,
+                last_name: None,
+                salutation: None,
                 name: None,
                 email: router_data
                     .request
@@ -1257,6 +1321,7 @@ impl
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -1403,6 +1468,9 @@ impl
                 .order_tax_amount
                 .map(|order_tax_amount| order_tax_amount.get_amount_as_i64()),
             customer: Some(payments_grpc::Customer {
+                first_name: None,
+                last_name: None,
+                salutation: None,
                 name: router_data
                     .request
                     .customer_name
@@ -1421,6 +1489,7 @@ impl
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -1574,6 +1643,9 @@ impl
                 router_data.request.request_incremental_authorization,
             ),
             customer: Some(payments_grpc::Customer {
+                first_name: None,
+                last_name: None,
+                salutation: None,
                 name: router_data
                     .request
                     .customer_name
@@ -1592,6 +1664,7 @@ impl
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -1723,6 +1796,9 @@ impl
             }),
             payment_method: Some(payment_method),
             customer: Some(payments_grpc::Customer {
+                first_name: None,
+                last_name: None,
+                salutation: None,
                 name: router_data
                     .request
                     .customer_name
@@ -1741,6 +1817,7 @@ impl
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -2003,7 +2080,11 @@ impl
                 .transpose()?
                 .map(|currency| currency.into()),
             l2_l3_data: None,
+            customer_document_details: to_grpc_customer_document_details(router_data),
             customer: Some(payments_grpc::Customer {
+                first_name: None,
+                last_name: None,
+                salutation: None,
                 name: router_data
                     .request
                     .customer_name
@@ -2021,6 +2102,7 @@ impl
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -2067,6 +2149,9 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
                 .map(|payment_method_type| payment_method_type.into()),
             country_alpha2_code: country,
             customer: Some(payments_grpc::Customer {
+                first_name: None,
+                last_name: None,
+                salutation: None,
                 name: router_data
                     .request
                     .customer_name
@@ -2084,6 +2169,7 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
                 first_name: None,
                 last_name: None,
                 salutation: None,
@@ -4194,7 +4280,22 @@ impl
                 },
                 None => (None, None),
             },
-            None => (None, None),
+            None => (
+                response.connector_feature_data.clone().and_then(|secret| {
+                    let exposed = secret.expose();
+                    serde_json::from_str(&exposed)
+                        .map_err(|e| {
+                            tracing::warn!(
+                                serialization_error = ?e,
+                                metadata = ?response.connector_feature_data,
+                                "Failed to parse connector_metadata as JSON value"
+                            );
+                            e
+                        })
+                        .ok()
+                }),
+                None,
+            ),
         };
 
         let authentication_data = response
