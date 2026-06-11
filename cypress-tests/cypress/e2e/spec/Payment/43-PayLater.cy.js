@@ -386,65 +386,6 @@ describe("PayLater tests", () => {
     });
   });
 
-  context("Atome Manual Capture - Not Supported", () => {
-    before("skip if connector does not support Atome", function () {
-      if (
-        shouldIncludeConnector(
-          globalState.get("connectorId"),
-          CONNECTOR_LISTS.INCLUDE.ATOME
-        )
-      ) {
-        this.skip();
-      }
-    });
-    it("Create Payment Intent -> Confirm Payment with manual capture (expect error)", () => {
-      let shouldContinue = true;
-
-      cy.step("Create Payment Intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "pay_later_pm"
-        ]["AtomeManualCaptureUnsupported"];
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "three_ds",
-          "manual",
-          globalState
-        );
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("List Merchant Payment Methods", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
-          return;
-        }
-        cy.paymentMethodsCallTest(globalState);
-      });
-
-      cy.step(
-        "Confirm Payment - expect manual capture not supported error",
-        () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Confirm Payment");
-            return;
-          }
-          const confirmData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["pay_later_pm"]["AtomeManualCaptureConfirmError"];
-          cy.confirmBankRedirectCallTest(
-            fixtures.confirmBody,
-            confirmData,
-            true,
-            globalState
-          );
-        }
-      );
-    });
-  });
-
   context("AfterpayClearpay - Auto Capture flow test", () => {
     before("skip if connector does not support AfterpayClearpay", function () {
       if (

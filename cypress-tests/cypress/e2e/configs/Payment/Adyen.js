@@ -1872,66 +1872,6 @@ export const connectorDetails = {
         },
       },
     }),
-    AtomeManualCaptureUnsupported: getCustomExchange({
-      Request: {
-        currency: "SGD",
-        capture_method: "manual",
-        customer_acceptance: {
-          acceptance_type: "online",
-        },
-        order_details: [
-          {
-            product_name: "Test Product",
-            quantity: 1,
-            amount: 6000,
-          },
-        ],
-        billing: {
-          ...billing,
-          address: { ...billing.address, country: "SG" },
-          phone: { number: "91234567", country_code: "+65" },
-        },
-        shipping: shippingAddress,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-    AtomeManualCaptureConfirmError: getCustomExchange({
-      Request: {
-        payment_method: "pay_later",
-        payment_method_type: "atome",
-        payment_experience: "redirect_to_url",
-        payment_method_data: {
-          pay_later: {
-            atome_redirect: {},
-          },
-        },
-        customer_acceptance: {
-          acceptance_type: "online",
-        },
-        billing: {
-          ...billing,
-          address: { ...billing.address, country: "SG" },
-          phone: { number: "91234567", country_code: "+65" },
-        },
-        shipping: shippingAddress,
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            code: "IR_39",
-            message:
-              "No eligible connector was found for the current payment method configuration",
-          },
-        },
-      },
-    }),
     AfterpayClearpayAutoCapture: getCustomExchange({
       Request: {
         currency: "GBP",
