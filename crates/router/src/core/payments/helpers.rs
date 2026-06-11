@@ -2148,7 +2148,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         document_details,
                         initiator.and_then(|initiator| initiator.to_created_by()),
                         initiator.and_then(|initiator| initiator.to_created_by()),
-                        customers::generate_global_customer_id(&state.conf.cell_information.id),
+                        id_type::GlobalCustomerId::generate(&state.conf.cell_information.id),
                     );
                     metrics::CUSTOMER_CREATED.add(1, &[]);
                     db.insert_customer(new_customer, key_store, storage_scheme)

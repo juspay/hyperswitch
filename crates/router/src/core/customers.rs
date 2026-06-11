@@ -47,11 +47,6 @@ use crate::{
 
 pub const REDACTED: &str = "Redacted";
 
-pub fn generate_global_customer_id(cell_id: &str) -> String {
-    let prefix = format!("{}_cus", cell_id);
-    common_utils::generate_time_ordered_id(&prefix)
-}
-
 pub fn is_global_customer_id_format(input: &str) -> bool {
     let mut parts = input.split('_');
     match (parts.next(), parts.next(), parts.next(), parts.next()) {
@@ -283,7 +278,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             document_details_encrypted,
             initiator.and_then(|initiator| initiator.to_created_by()),
             initiator.and_then(|initiator| initiator.to_created_by()),
-            generate_global_customer_id(&state.conf.cell_information.id),
+            id_type::GlobalCustomerId::generate(&state.conf.cell_information.id),
         ))
     }
 

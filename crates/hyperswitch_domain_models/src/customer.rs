@@ -58,7 +58,7 @@ pub struct Customer {
     pub document_details: OptionalEncryptableValue,
     pub created_by: Option<CreatedBy>,
     pub last_modified_by: Option<CreatedBy>,
-    key: Option<String>,
+    pub id: Option<id_type::GlobalCustomerId>,
 }
 
 #[cfg(feature = "v2")]
@@ -110,7 +110,7 @@ impl Customer {
         document_details: OptionalEncryptableValue,
         created_by: Option<CreatedBy>,
         last_modified_by: Option<CreatedBy>,
-        key: String,
+        id: id_type::GlobalCustomerId,
     ) -> Self {
         let now = date_time::now();
         Self {
@@ -133,7 +133,7 @@ impl Customer {
             document_details,
             created_by,
             last_modified_by,
-            key: Some(key),
+            id: Some(id),
         }
     }
 
@@ -198,8 +198,15 @@ impl Customer {
     }
 
     #[cfg(feature = "v1")]
-    pub fn get_global_customer_id(&self) -> &Option<String> {
-        &self.key
+    pub fn get_global_customer_id(&self) -> Option<&id_type::GlobalCustomerId> {
+        self.id.as_ref()
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_global_id(&self) -> id_type::GlobalCustomerId {
+        self.id.clone().unwrap_or_else(|| {
+            id_type::GlobalCustomerId::new_unchecked(self.customer_id.get_string_repr().to_owned())
+        })
     }
 }
 
@@ -231,7 +238,7 @@ impl behaviour::Conversion for Customer {
             last_modified_by: self
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
-            id: self.key,
+            id: self.id,
         })
     }
 
@@ -316,14 +323,14 @@ impl behaviour::Conversion for Customer {
             last_modified_by: item
                 .last_modified_by
                 .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
-            key: item.id,
+            id: item.id,
         })
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
         Ok(diesel_models::customers::CustomerNew {
-            id: self.key,
+            id: self.id,
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
             name: self.name.map(Encryption::from),

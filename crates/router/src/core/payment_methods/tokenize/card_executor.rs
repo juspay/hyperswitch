@@ -21,7 +21,6 @@ use super::{
 };
 use crate::{
     core::{
-        customers,
         payment_methods::{
             cards::{add_card_to_vault, PmCards},
             transformers as pm_transformers,
@@ -443,7 +442,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             None,
             initiator.and_then(|initiator| initiator.to_created_by()),
             initiator.and_then(|initiator| initiator.to_created_by()),
-            customers::generate_global_customer_id(&self.state.conf.cell_information.id),
+            id_type::GlobalCustomerId::generate(&self.state.conf.cell_information.id),
         );
 
         db.insert_customer(
