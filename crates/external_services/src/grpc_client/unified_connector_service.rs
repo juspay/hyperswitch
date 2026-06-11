@@ -1591,7 +1591,6 @@ pub fn build_unified_connector_service_grpc_headers_for_surcharge(
     Ok(metadata)
 }
 
-
 /// Build gRPC headers for UCS notify requests.
 /// Build gRPC headers for UCS notify requests.
 /// Same as [`build_unified_connector_service_grpc_headers`] but uses

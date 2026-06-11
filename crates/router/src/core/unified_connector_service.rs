@@ -56,8 +56,7 @@ use crate::{
     events::connector_api_logs::ConnectorEvent,
     routes::SessionState,
     types::{
-        api::enums as api_enums,
-        api::webhook_events::OutgoingWebhookRequestContent,
+        api::{enums as api_enums, webhook_events::OutgoingWebhookRequestContent},
         domain::Event,
         transformers::{ForeignFrom, ForeignTryFrom},
         UcsPaymentAuthorizeResponseData, UcsPaymentSetupRecurringResponseData,
@@ -3251,7 +3250,7 @@ pub async fn call_unified_connector_service_for_surcharge_calculate(
 
     let connector_auth_metadata = build_unified_connector_service_auth_metadata(
         merchant_connector_account,
-        processor,
+        processor.get_account().get_id(),
         connector_name.clone(),
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3315,7 +3314,6 @@ pub async fn call_unified_connector_service_for_surcharge_calculate(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to parse UCS surcharge calculate response")
 }
-
 
 fn extract_notify_connector_content_from_request(
     request_content: OutgoingWebhookRequestContent,

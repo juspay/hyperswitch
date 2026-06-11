@@ -721,7 +721,7 @@ async fn update_payment_attempt_from_webhook_response(
             sale_notified: true,
         };
         let update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ExternalSurchargeUpdate {
-        external_surcharge_details: Some(updated_details),
+        external_surcharge_details: updated_details,
         updated_by: "OutgoingWebhookFlow".to_string(),
     };
         let _ = state

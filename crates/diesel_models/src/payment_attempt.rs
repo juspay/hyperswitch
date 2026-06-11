@@ -4744,7 +4744,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             PaymentAttemptUpdate::ExternalSurchargeUpdate {
                 updated_by,
                 external_surcharge_details,
-            } =>  Self{
+            } => Self {
                 status: None,
                 error_code: None,
                 modified_at: common_utils::date_time::now(),

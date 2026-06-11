@@ -185,12 +185,12 @@ impl Event {
             .filter(
                 dsl::merchant_id
                     .eq(merchant_id.to_owned())
-                    .and(dsl::initial_attempt_id.eq(initial_attempt_id.to_owned()))
+                    .and(dsl::initial_attempt_id.eq(initial_attempt_id.to_owned())),
             )
             .order(dsl::created_at.desc())
             .into_boxed();
 
-           if let Some(recipient) = event_recipient {
+        if let Some(recipient) = event_recipient {
             query = query.filter(dsl::recipient.eq(recipient.to_string()));
         };
 
@@ -308,17 +308,17 @@ impl Event {
         // Fallback on merchant_id for rows with NULL initiator_merchant_id to
         // handle events created during staggered rollout by older code.
 
-         let mut query = Self::table()
+        let mut query = Self::table()
             .filter(
-                 dsl::initial_attempt_id
-                .eq(initial_attempt_id.to_owned())
-                .and(
-                    dsl::initiator_merchant_id
-                        .eq(initiator_merchant_id.to_owned())
-                        .or(dsl::initiator_merchant_id
-                            .is_null()
-                            .and(dsl::merchant_id.eq(initiator_merchant_id.to_owned()))),
-                ),
+                dsl::initial_attempt_id
+                    .eq(initial_attempt_id.to_owned())
+                    .and(
+                        dsl::initiator_merchant_id
+                            .eq(initiator_merchant_id.to_owned())
+                            .or(dsl::initiator_merchant_id
+                                .is_null()
+                                .and(dsl::merchant_id.eq(initiator_merchant_id.to_owned()))),
+                    ),
             )
             .order(dsl::created_at.desc())
             .into_boxed();
@@ -341,19 +341,18 @@ impl Event {
         primary_object_id: &str,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<Vec<Self>> {
-
-         let mut query = Self::table()
+        let mut query = Self::table()
             .filter(
                 dsl::event_id
-                .nullable()
-                .eq(dsl::initial_attempt_id) // Filter initial attempts only
-                .and(dsl::business_profile_id.eq(profile_id.to_owned()))
-                .and(dsl::primary_object_id.eq(primary_object_id.to_owned()))
+                    .nullable()
+                    .eq(dsl::initial_attempt_id) // Filter initial attempts only
+                    .and(dsl::business_profile_id.eq(profile_id.to_owned()))
+                    .and(dsl::primary_object_id.eq(primary_object_id.to_owned())),
             )
             .order(dsl::created_at.desc())
             .into_boxed();
 
-           if let Some(recipient) = event_recipient {
+        if let Some(recipient) = event_recipient {
             query = query.filter(dsl::recipient.eq(recipient.to_string()));
         };
 
@@ -363,7 +362,6 @@ impl Event {
             .await
             .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
             .attach_printable("Error filtering events by constraints")
-
     }
 
     pub async fn find_initial_attempt_by_profile_id_initial_attempt_id(
