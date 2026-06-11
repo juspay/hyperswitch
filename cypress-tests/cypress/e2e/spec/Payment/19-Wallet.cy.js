@@ -589,18 +589,14 @@ describe("Wallet tests", () => {
           cy.task("cli_log", "Skipping step: Handle Wallet Redirection");
           return;
         }
-        const connectorId = globalState.get("connectorId");
         const expected_redirection = fixtures.confirmBody["return_url"];
         const payment_method_type = globalState.get("paymentMethodType");
-        if (connectorId === "globepay") {
-          cy.handleWalletRedirection(globalState, payment_method_type);
-        } else {
-          cy.handleBankRedirectRedirection(
-            globalState,
-            payment_method_type,
-            expected_redirection
-          );
-        }
+
+        cy.handleWalletRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
       });
 
       cy.step("Retrieve Payment", () => {
@@ -707,18 +703,14 @@ describe("Wallet tests", () => {
           cy.task("cli_log", "Skipping step: Handle Wallet Redirection");
           return;
         }
-        const connectorId = globalState.get("connectorId");
         const expected_redirection = fixtures.confirmBody["return_url"];
         const payment_method_type = globalState.get("paymentMethodType");
-        if (connectorId === "globepay") {
-          cy.handleWalletRedirection(globalState, payment_method_type);
-        } else {
-          cy.handleBankRedirectRedirection(
-            globalState,
-            payment_method_type,
-            expected_redirection
-          );
-        }
+
+        cy.handleWalletRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
       });
 
       cy.step("Retrieve Payment", () => {
