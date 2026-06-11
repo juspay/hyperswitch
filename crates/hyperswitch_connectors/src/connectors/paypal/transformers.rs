@@ -1674,6 +1674,8 @@ pub enum PaypalIncrementalStatus {
     PARTIALLYCAPTURED,
     VOIDED,
     PENDING,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1685,6 +1687,8 @@ pub enum PaypalExtendedAuthorizationStatus {
     PartiallyCaptured,
     Voided,
     Pending,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1712,6 +1716,7 @@ impl From<PaypalIncrementalStatus> for common_enums::AuthorizationStatus {
             | PaypalIncrementalStatus::PARTIALLYCAPTURED => Self::Success,
             PaypalIncrementalStatus::PENDING => Self::Processing,
             PaypalIncrementalStatus::DENIED | PaypalIncrementalStatus::VOIDED => Self::Failure,
+            PaypalIncrementalStatus::Unknown => Self::Processing,
         }
     }
 }
@@ -1724,6 +1729,7 @@ impl From<PaypalIncrementalStatus> for common_enums::AttemptStatus {
             | PaypalIncrementalStatus::PARTIALLYCAPTURED => Self::Authorized,
             PaypalIncrementalStatus::PENDING => Self::Pending,
             PaypalIncrementalStatus::DENIED | PaypalIncrementalStatus::VOIDED => Self::Failure,
+            PaypalIncrementalStatus::Unknown => Self::Pending,
         }
     }
 }
@@ -1983,6 +1989,10 @@ pub(crate) fn get_order_status(
         PaypalOrderStatus::Approved => storage_enums::AttemptStatus::AuthenticationSuccessful,
         PaypalOrderStatus::PayerActionRequired => {
             storage_enums::AttemptStatus::AuthenticationPending
+        }
+        PaypalOrderStatus::Unknown => {
+            router_env::logger::warn!("Received unknown PayPal order status; treating as Pending");
+            storage_enums::AttemptStatus::Pending
         }
     }
 }
@@ -3065,6 +3075,8 @@ pub enum PaypalFulfillStatus {
     Failed,
     Refunded,
     Returned,
+    #[serde(other)]
+    Unknown,
 }
 
 #[cfg(feature = "payouts")]

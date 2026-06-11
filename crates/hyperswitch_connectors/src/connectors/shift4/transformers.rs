@@ -856,6 +856,8 @@ pub enum Shift4PaymentStatus {
     Failed,
     #[default]
     Pending,
+    #[serde(other)]
+    Unknown,
 }
 
 fn get_status(
@@ -876,6 +878,10 @@ fn get_status(
             Some(NextAction::Redirect) => enums::AttemptStatus::AuthenticationPending,
             Some(NextAction::Wait) | Some(NextAction::None) | None => enums::AttemptStatus::Pending,
         },
+        Shift4PaymentStatus::Unknown => {
+            router_env::logger::warn!("Unknown Shift4 payment status received");
+            enums::AttemptStatus::Pending
+        }
     }
 }
 
@@ -923,8 +929,8 @@ pub struct Shift4WebhookObjectResource {
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct Shift4NonThreeDsResponse {
     pub id: String,
-    pub currency: String,
-    pub amount: u32,
+    pub currency: Option<Secret<String>>,
+    pub amount: Option<u32>,
     pub status: Shift4PaymentStatus,
     pub captured: bool,
     pub refunded: bool,
@@ -934,7 +940,7 @@ pub struct Shift4NonThreeDsResponse {
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct Shift4ThreeDsResponse {
     pub enrolled: bool,
-    pub version: Option<String>,
+    pub version: Option<Secret<String>>,
     #[serde(rename = "redirectUrl")]
     pub redirect_url: Option<Url>,
     pub token: Token,
@@ -943,16 +949,16 @@ pub struct Shift4ThreeDsResponse {
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct Token {
     pub id: Secret<String>,
-    pub created: i64,
+    pub created: Option<i64>,
     #[serde(rename = "objectType")]
-    pub object_type: String,
-    pub first6: String,
-    pub last4: String,
+    pub object_type: Option<Secret<String>>,
+    pub first6: Option<Secret<String>>,
+    pub last4: Option<Secret<String>>,
     pub fingerprint: Secret<String>,
-    pub brand: String,
+    pub brand: Option<Secret<String>>,
     #[serde(rename = "type")]
-    pub token_type: String,
-    pub country: String,
+    pub token_type: Option<Secret<String>>,
+    pub country: Option<Secret<String>>,
     pub used: bool,
     #[serde(rename = "threeDSecureInfo")]
     pub three_d_secure_info: ThreeDSecureInfo,
@@ -960,14 +966,14 @@ pub struct Token {
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct ThreeDSecureInfo {
-    pub amount: MinorUnit,
-    pub currency: String,
+    pub amount: Option<MinorUnit>,
+    pub currency: Option<Secret<String>>,
     pub enrolled: bool,
     #[serde(rename = "liabilityShift")]
-    pub liability_shift: Option<String>,
-    pub version: String,
+    pub liability_shift: Option<Secret<String>>,
+    pub version: Option<Secret<String>>,
     #[serde(rename = "authenticationFlow")]
-    pub authentication_flow: Option<SecretSerdeValue>,
+    pub authentication_flow: Option<Secret<serde_json::Value>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1142,22 +1148,12 @@ impl<F> TryFrom<&Shift4RouterData<&RefundsRouterData<F>>> for Shift4RefundReques
     }
 }
 
-impl From<Shift4RefundStatus> for enums::RefundStatus {
-    fn from(item: Shift4RefundStatus) -> Self {
-        match item {
-            Shift4RefundStatus::Successful => Self::Success,
-            Shift4RefundStatus::Failed => Self::Failure,
-            Shift4RefundStatus::Processing => Self::Pending,
-        }
-    }
-}
-
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     pub id: String,
     pub amount: i64,
-    pub currency: String,
-    pub charge: String,
+    pub currency: Option<Secret<String>>,
+    pub charge: Option<Secret<String>>,
     pub status: Shift4RefundStatus,
 }
 
@@ -1168,6 +1164,22 @@ pub enum Shift4RefundStatus {
     Processing,
     #[default]
     Failed,
+    #[serde(other)]
+    Unknown,
+}
+
+impl From<Shift4RefundStatus> for enums::RefundStatus {
+    fn from(item: Shift4RefundStatus) -> Self {
+        match item {
+            Shift4RefundStatus::Successful => Self::Success,
+            Shift4RefundStatus::Failed => Self::Failure,
+            Shift4RefundStatus::Processing => Self::Pending,
+            Shift4RefundStatus::Unknown => {
+                router_env::logger::warn!("Unknown Shift4 refund status received");
+                Self::Pending
+            }
+        }
+    }
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {

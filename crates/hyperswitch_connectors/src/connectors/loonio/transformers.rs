@@ -682,6 +682,12 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, LoonioPayoutSyncResponse>> for Payo
     fn try_from(
         item: PayoutsResponseRouterData<F, LoonioPayoutSyncResponse>,
     ) -> Result<Self, Self::Error> {
+        if matches!(item.response.state, LoonioPayoutStatus::Unknown) {
+            router_env::logger::warn!(
+                "Received unknown payout sync status from Loonio; preserving existing status"
+            );
+            return Ok(item.data);
+        }
         Ok(Self {
             response: Ok(PayoutsResponseData {
                 status: Some(enums::PayoutStatus::from(item.response.state)),

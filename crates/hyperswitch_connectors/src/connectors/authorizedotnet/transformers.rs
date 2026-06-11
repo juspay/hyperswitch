@@ -678,6 +678,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
                     })
                 }
             }
+            ResultCode::Unknown => {
+                router_env::logger::warn!(
+                    "Unknown result code from authorizedotnet customer response"
+                );
+                Ok(item.data)
+            }
         }
     }
 }

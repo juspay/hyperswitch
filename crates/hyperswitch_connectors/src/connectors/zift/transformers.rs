@@ -396,8 +396,8 @@ impl ResponseCodeExt for String {
 pub struct ZiftErrorResponse {
     pub response_code: String,
     pub response_message: String,
-    pub failure_code: String,
-    pub failure_message: String,
+    pub failure_code: Option<Secret<String>>,
+    pub failure_message: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
