@@ -335,15 +335,11 @@ export const isCI = () => {
   // Check Cypress.env for browser context (Cypress test files)
   if (typeof Cypress !== "undefined") {
     return (
-      Cypress.env("CI") === true ||
-      Cypress.env("GITHUB_ACTIONS") === "true"
+      Cypress.env("CI") === true || Cypress.env("GITHUB_ACTIONS") === "true"
     );
   }
   // Check process.env for Node.js context (cypress.config.js)
-  return (
-    process.env.CI === "true" ||
-    process.env.GITHUB_ACTIONS === "true"
-  );
+  return process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
 };
 
 /**
