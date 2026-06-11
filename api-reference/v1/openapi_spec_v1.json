@@ -1149,6 +1149,52 @@
             "api_key": []
           }
         ]
+      },
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Cancel Post Capture Retrieve",
+        "description": "Retrieves a canceled Payment post capture",
+        "operationId": "Cancel a Payment Post Capture Retrieve",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment canceled post capture",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
       }
     },
     "/payments/{payment_id}/extend_authorization": {
@@ -1664,18 +1710,76 @@
         ]
       }
     },
+    "/payments/{payment_id}/eligibility_check": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Submit Eligibility Check Data",
+        "operationId": "Submit Eligibility Check data for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsEligibilityCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Eligibility Check submit is successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsEligibilityCheckResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/payments/{payment_id}/eligibility": {
       "post": {
         "tags": [
           "Payments"
         ],
         "summary": "Payments - Submit Eligibility Data",
+        "description": "Runs eligibility checks (blocklist, card testing guard) and calculates an external surcharge\nin a single call. Intended to be called by the SDK before the final confirm step.\n\n- If eligibility is denied the response will contain `sdk_next_action: deny` and no surcharge details.\n- If the merchant has no surcharge connector configured, `surcharge_details` will be `null`.\n- Surcharge calculation is best-effort: if the external call fails the payment still proceeds\nwith `surcharge_details: null`.",
         "operationId": "Submit Eligibility data for a Payment",
         "parameters": [
           {
             "name": "payment_id",
             "in": "path",
-            "description": "The identifier for payment",
+            "description": "The identifier for the payment",
             "required": true,
             "schema": {
               "type": "string"
@@ -1694,7 +1798,7 @@
         },
         "responses": {
           "200": {
-            "description": "Eligibility submit is successful",
+            "description": "Eligibility and surcharge checks successful",
             "content": {
               "application/json": {
                 "schema": {
@@ -1705,6 +1809,16 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -16434,6 +16548,7 @@
           "paysafe",
           "paystack",
           "paytm",
+          "payconex",
           "payu",
           "peachpayments",
           "payjustnow",
@@ -19621,7 +19736,9 @@
         "description": "Represents the type of identification document used for validation.",
         "enum": [
           "cpf",
-          "cnpj"
+          "cnpj",
+          "psn",
+          "other"
         ]
       },
       "DokuBankTransferInstructions": {
@@ -22688,27 +22805,12 @@
       "HyperswitchVaultSessionDetails": {
         "type": "object",
         "required": [
-          "payment_method_session_id",
-          "client_secret",
-          "publishable_key",
-          "profile_id"
+          "sdk_authorization"
         ],
         "properties": {
-          "payment_method_session_id": {
+          "sdk_authorization": {
             "type": "string",
-            "description": "Session ID for Hyperswitch Vault"
-          },
-          "client_secret": {
-            "type": "string",
-            "description": "Client secret for Hyperswitch Vault"
-          },
-          "publishable_key": {
-            "type": "string",
-            "description": "Publishable key for Hyperswitch Vault"
-          },
-          "profile_id": {
-            "type": "string",
-            "description": "Profile ID for Hyperswitch Vault"
+            "description": "Base64-encoded SDK authorization token for the Hyperswitch Vault session"
           }
         }
       },
@@ -29023,6 +29125,30 @@
                 "$ref": "#/components/schemas/NetworkTokenData"
               }
             }
+          },
+          {
+            "type": "object",
+            "title": "ProxyCard",
+            "required": [
+              "proxy_card"
+            ],
+            "properties": {
+              "proxy_card": {
+                "$ref": "#/components/schemas/ProxyCardData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "VaultCardTokenData",
+            "required": [
+              "vault_card_token_data"
+            ],
+            "properties": {
+              "vault_card_token_data": {
+                "$ref": "#/components/schemas/CardToken"
+              }
+            }
           }
         ]
       },
@@ -30895,6 +31021,14 @@
             "type": "string",
             "description": "Identification for the profile acquirer to be used for this payment.",
             "nullable": true
+          },
+          "external_surcharge_strategy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeStrategy"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -31445,6 +31579,14 @@
           "profile_acquirer_id": {
             "type": "string",
             "description": "Identification for the profile acquirer to be used for this payment.",
+            "nullable": true
+          },
+          "external_surcharge_strategy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeStrategy"
+              }
+            ],
             "nullable": true
           }
         }
@@ -32272,7 +32414,7 @@
           }
         }
       },
-      "PaymentsEligibilityRequest": {
+      "PaymentsEligibilityCheckRequest": {
         "type": "object",
         "required": [
           "client_secret",
@@ -32319,7 +32461,7 @@
           }
         }
       },
-      "PaymentsEligibilityResponse": {
+      "PaymentsEligibilityCheckResponse": {
         "type": "object",
         "required": [
           "payment_id",
@@ -32332,6 +32474,79 @@
           },
           "sdk_next_action": {
             "$ref": "#/components/schemas/SdkNextAction"
+          }
+        }
+      },
+      "PaymentsEligibilityRequest": {
+        "type": "object",
+        "description": "Request body for the eligibility endpoint.\nCombines eligibility checks with external surcharge calculation in a single call.",
+        "required": [
+          "client_secret",
+          "payment_method_type",
+          "payment_token"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "Token used for client side verification",
+            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_subtype": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EligibilityPaymentMethodDataRequest"
+              }
+            ],
+            "nullable": true
+          },
+          "browser_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_token": {
+            "type": "string",
+            "description": "The payment token to look up the saved payment method",
+            "example": "token_abc123xyz"
+          }
+        }
+      },
+      "PaymentsEligibilityResponse": {
+        "type": "object",
+        "description": "Response body for the eligibility endpoint.",
+        "required": [
+          "payment_id",
+          "sdk_next_action"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "sdk_next_action": {
+            "$ref": "#/components/schemas/SdkNextAction"
+          },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeDetailsResponse"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -33121,6 +33336,14 @@
           "profile_acquirer_id": {
             "type": "string",
             "description": "Identification for the profile acquirer to be used for this payment.",
+            "nullable": true
+          },
+          "external_surcharge_strategy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeStrategy"
+              }
+            ],
             "nullable": true
           }
         },
@@ -34624,6 +34847,14 @@
           "profile_acquirer_id": {
             "type": "string",
             "description": "Identification for the profile acquirer to be used for this payment.",
+            "nullable": true
+          },
+          "external_surcharge_strategy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeStrategy"
+              }
+            ],
             "nullable": true
           }
         }
@@ -37196,16 +37427,12 @@
         "type": "object",
         "description": "Additional metadata for payment intent state containing refunded and disputed amounts",
         "required": [
+          "status",
           "updated_at"
         ],
         "properties": {
           "status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PostCaptureVoidStatus"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/PostCaptureVoidStatus"
           },
           "connector_reference_id": {
             "type": "string",
@@ -38344,6 +38571,90 @@
           "business_days",
           "contract_default"
         ]
+      },
+      "ProxyCardData": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name",
+          "card_cvc",
+          "bin_number",
+          "last_four"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The token which refers to the card number",
+            "example": "token_card_number"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "24"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card",
+            "example": "242"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "bin_number": {
+            "type": "string",
+            "description": "The first six digit of the card number",
+            "example": "424242"
+          },
+          "last_four": {
+            "type": "string",
+            "description": "The last four digit of the card number",
+            "example": "4242"
+          }
+        }
       },
       "RankingAlgorithm": {
         "type": "string",
@@ -40009,6 +40320,7 @@
           "paysafe",
           "paystack",
           "paytm",
+          "payconex",
           "payu",
           "peachpayments",
           "payjustnow",
@@ -40889,6 +41201,11 @@
         "properties": {
           "next_action": {
             "$ref": "#/components/schemas/NextActionCall"
+          },
+          "should_block_confirm": {
+            "type": "boolean",
+            "description": "Whether the SDK should block the confirm call for user.",
+            "nullable": true
           }
         }
       },
@@ -42204,6 +42521,14 @@
         "discriminator": {
           "propertyName": "type"
         }
+      },
+      "SurchargeStrategy": {
+        "type": "string",
+        "description": "Strategy for applying external surcharge",
+        "enum": [
+          "apply",
+          "waive"
+        ]
       },
       "SwishQrData": {
         "type": "object"

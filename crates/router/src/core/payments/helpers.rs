@@ -94,6 +94,7 @@ use crate::{
     core::{
         authentication,
         configs::dimension_state,
+        customers,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::{
             self,
@@ -1545,10 +1546,16 @@ where
                         1,
                         router_env::metric_attributes!(("flow", format!("{:#?}", operation))),
                     );
-                    super::reset_process_sync_task(&*state.store, payment_attempt, stime)
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while updating task in process tracker")
+                    super::reset_process_sync_task(
+                        &*state.store,
+                        payment_attempt,
+                        stime,
+                        "PAYMENTS_SYNC",
+                        storage::ProcessTrackerRunner::PaymentsSyncWorkflow,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while updating task in process tracker")
                 }
             }
             None => Ok(()),
@@ -1970,6 +1977,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     let customer_id = request_customer_details
         .customer_id
         .or(payment_data.payment_intent.customer_id.clone());
+
     let db = &*state.store;
     let key_manager_state = &state.into();
     let optional_customer = match customer_id {
@@ -2109,11 +2117,19 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     }
                 }
                 None => {
-                    let new_customer = domain::Customer {
+                    // Validate that the customer_id is not in GlobalCustomerId format
+                    if customers::is_customer_id_in_global_format(&customer_id) {
+                        Err(report!(errors::StorageError::InvalidDataFormat(format!(
+                            "customer_id '{}' format is not supported",
+                            &customer_id.get_string_repr()
+                        ))))?
+                    }
+
+                    let new_customer = domain::Customer::new(
                         customer_id,
-                        merchant_id: merchant_id.to_owned(),
-                        name: encryptable_customer.name,
-                        email: encryptable_customer.email.map(|email| {
+                        merchant_id.to_owned(),
+                        encryptable_customer.name,
+                        encryptable_customer.email.map(|email| {
                             let encryptable: Encryptable<
                                 hyperswitch_masking::Secret<String, pii::EmailStrategy>,
                             > = Encryptable::new(
@@ -2122,22 +2138,18 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                             );
                             encryptable
                         }),
-                        phone: encryptable_customer.phone,
-                        phone_country_code: request_customer_details.phone_country_code.clone(),
-                        description: None,
-                        created_at: common_utils::date_time::now(),
-                        metadata: None,
-                        modified_at: common_utils::date_time::now(),
-                        connector_customer: None,
-                        address_id: None,
-                        default_payment_method_id: None,
-                        updated_by: None,
-                        version: common_types::consts::API_VERSION,
-                        tax_registration_id: encryptable_customer.tax_registration_id,
+                        encryptable_customer.phone,
+                        request_customer_details.phone_country_code.clone(),
+                        None,
+                        None,
+                        None,
+                        None,
+                        encryptable_customer.tax_registration_id,
                         document_details,
-                        created_by: initiator.and_then(|initiator| initiator.to_created_by()),
-                        last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
-                    };
+                        initiator.and_then(|initiator| initiator.to_created_by()),
+                        initiator.and_then(|initiator| initiator.to_created_by()),
+                        customers::generate_global_customer_id(&state.conf.cell_information.id),
+                    );
                     metrics::CUSTOMER_CREATED.add(1, &[]);
                     db.insert_customer(new_customer, key_store, storage_scheme)
                         .await
@@ -2592,7 +2604,22 @@ pub async fn should_execute_based_on_rollout(
                 .unwrap_or_default())
         }
         Err(err) => {
-            logger::error!(error = ?err, "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false.");
+            // ValueNotFound may be an expected outcome when a rollout configuration has not
+            // been provisioned. Treat it as a warning to avoid generating misleading errors.
+            match err.current_context() {
+                errors::StorageError::ValueNotFound(_) => {
+                    logger::warn!(
+                        error = ?err,
+                        "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
+                    );
+                }
+                _ => {
+                    logger::error!(
+                        error = ?err,
+                        "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
+                    );
+                }
+            }
             Ok(RolloutExecutionResult::default())
         }
     }
@@ -4672,6 +4699,8 @@ mod tests {
             state_metadata: None,
             installment_options: None,
             profile_acquirer_id: None,
+            external_surcharge_strategy: None,
+            external_surcharge_applicable: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -4764,6 +4793,8 @@ mod tests {
             state_metadata: None,
             installment_options: None,
             profile_acquirer_id: None,
+            external_surcharge_strategy: None,
+            external_surcharge_applicable: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4854,6 +4885,8 @@ mod tests {
             state_metadata: None,
             installment_options: None,
             profile_acquirer_id: None,
+            external_surcharge_strategy: None,
+            external_surcharge_applicable: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
