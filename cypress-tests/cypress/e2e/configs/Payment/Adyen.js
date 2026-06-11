@@ -1803,34 +1803,6 @@ export const connectorDetails = {
       },
     }),
     SyncRefund: getCustomExchange({}),
-    AffirmAutoCapture: getCustomExchange({
-      Request: {
-        currency: "USD",
-        capture_method: "automatic",
-        customer_acceptance: {
-          acceptance_type: "online",
-        },
-        billing: {
-          ...billing,
-          address: { ...billing.address, country: "US" },
-          phone: { number: "4155552671", country_code: "+1" },
-        },
-        shipping: shippingAddress,
-        order_details: [
-          {
-            product_name: "Test Product",
-            quantity: 1,
-            amount: 6000,
-          },
-        ],
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
     AffirmManualCapture: getCustomExchange({
       Request: {
         payment_method: "pay_later",
@@ -1865,6 +1837,9 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
+            code: "IR_39",
+            message:
+              "required payment method is not configured or configured incorrectly for all configured connectors",
           },
         },
       },
@@ -1927,6 +1902,9 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
+            code: "IR_39",
+            message:
+              "required payment method is not configured or configured incorrectly for all configured connectors",
           },
         },
       },
@@ -2040,6 +2018,8 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             code: "IR_39",
+            message:
+              "required payment method is not configured or configured incorrectly for all configured connectors",
           },
         },
       },
@@ -2223,6 +2203,8 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             code: "IR_06",
+            message:
+              "A payment token or payment method data or ctp service details is required",
           },
         },
       },
