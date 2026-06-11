@@ -1162,7 +1162,7 @@ BUCKET_3_FEATURES = [
     ("Payout Auto Fulfill", "Auto-fulfill payout without review", "POST /payouts (auto_fulfill=true)", "api_models/payouts.rs:auto_fulfill", "covered", "Cypress payout spec 00003"),
     ("Payout Entity Type", "Payout entity type classification", "POST /payouts (entity_type in body)", "api_models/payouts.rs:entity_type", "not_covered", ""),
     ("Payout Recurring", "Recurring payout indicator", "POST /payouts (recurring in body)", "api_models/payouts.rs:recurring", "not_covered", ""),
-    ("Refund Type", "Refund type (instant/scheduled)", "POST /refunds (refund_type in body)", "api_models/refunds.rs:refund_type", "not_covered", ""),
+    ("Refund Type", "Refund type (instant/scheduled)", "POST /refunds (refund_type in body)", "api_models/refunds.rs:refund_type", "covered", "Cypress spec 54-RefundType (PR #12533)"),
     ("Mandate Management", "Mandate CRUD and revocation", "GET /mandates/{id} + POST /mandates/{id}/revoke", "api_models/mandates.rs", "covered", "Cypress spec 13-ListAndRevokeMandate"),
     ("Payment Manual Update", "Manual payment status update by admin", "PUT /payments/{id}/manual-update", "api_models/payments.rs", "not_covered", ""),
     ("Refund Manual Update", "Manual refund status update by admin", "PUT /refunds/{id}/manual-update", "api_models/refunds.rs", "not_covered", ""),
