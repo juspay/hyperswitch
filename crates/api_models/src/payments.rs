@@ -270,7 +270,6 @@ pub struct PaymentsCreateIntentRequest {
         min_length = 32,
         max_length = 64,
         example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
-        deprecated,
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -631,7 +630,6 @@ pub struct PaymentsIntentResponse {
         min_length = 32,
         max_length = 64,
         example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
-        deprecated,
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -778,7 +776,6 @@ pub struct RevenueRecoveryGetIntentResponse {
         min_length = 32,
         max_length = 64,
         example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
-        deprecated,
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -6461,7 +6458,6 @@ pub struct PaymentsCancelResponse {
     pub amount: PaymentAmountDetailsResponse,
 
     /// The unique identifier for the customer associated with the payment
-    #[schema(deprecated)]
     pub customer_id: Option<id_type::GlobalCustomerId>,
 
     /// The connector used for the payment
@@ -7728,7 +7724,6 @@ pub struct PaymentsListResponseItem {
         min_length = 32,
         max_length = 64,
         example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
-        deprecated,
         value_type = Option<String>
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -7864,7 +7859,6 @@ pub struct RecoveryPaymentsListResponseItem {
         min_length = 32,
         max_length = 64,
         example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
-        deprecated,
         value_type = Option<String>
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -8096,7 +8090,6 @@ pub struct PaymentsRequest {
         min_length = 32,
         max_length = 64,
         example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
-        deprecated,
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
@@ -8465,7 +8458,6 @@ pub struct PaymentsResponse {
         min_length = 32,
         max_length = 64,
         example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
-        deprecated,
         value_type = String
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
