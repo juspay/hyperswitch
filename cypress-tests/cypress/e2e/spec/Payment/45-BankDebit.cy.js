@@ -349,7 +349,10 @@ describe("Bank Debit tests", () => {
   context("ACH Bank Debit Mandate flow test", () => {
     before(function () {
       if (isCI()) {
-        cy.task("cli_log", "Skipping ACH Bank Debit Mandate tests in CI environment");
+        cy.task(
+          "cli_log",
+          "Skipping ACH Bank Debit Mandate tests in CI environment"
+        );
         this.skip();
       }
     });
