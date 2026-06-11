@@ -104,11 +104,13 @@ pub trait RelayInterface {
         relay_request: RelayRequestInner<Self>,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
+        processor_merchant_id: Option<id_type::MerchantId>,
+        created_by: Option<common_utils::types::CreatedBy>,
     ) -> relay::Relay;
 
     async fn process_relay(
         state: &SessionState,
-        platform: domain::Platform,
+        processor: domain::Processor,
         connector_account: domain::MerchantConnectorAccount,
         relay_record: &relay::Relay,
     ) -> RouterResult<relay::RelayUpdate>;
@@ -153,6 +155,8 @@ impl RelayInterface for RelayRefund {
         relay_request: RelayRequestInner<Self>,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
+        processor_merchant_id: Option<id_type::MerchantId>,
+        created_by: Option<common_utils::types::CreatedBy>,
     ) -> relay::Relay {
         let relay_id = id_type::RelayId::generate();
         let relay_refund: relay::RelayRefundData = relay_request.data.into();
@@ -171,18 +175,20 @@ impl RelayInterface for RelayRefund {
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             response_data: None,
+            processor_merchant_id,
+            created_by,
         }
     }
 
     async fn process_relay(
         state: &SessionState,
-        platform: domain::Platform,
+        processor: domain::Processor,
         connector_account: domain::MerchantConnectorAccount,
         relay_record: &relay::Relay,
     ) -> RouterResult<relay::RelayUpdate> {
         let connector_id = &relay_record.connector_id;
 
-        let merchant_id = platform.get_processor().get_account().get_id();
+        let merchant_id = processor.get_account().get_id();
 
         let connector_name = &connector_account.get_connector_name_as_string();
 
@@ -281,6 +287,8 @@ impl RelayInterface for RelayCapture {
         relay_request: RelayRequestInner<Self>,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
+        processor_merchant_id: Option<id_type::MerchantId>,
+        created_by: Option<common_utils::types::CreatedBy>,
     ) -> relay::Relay {
         let relay_id = id_type::RelayId::generate();
         let relay_capture: relay::RelayCaptureData = relay_request.data.into();
@@ -299,18 +307,20 @@ impl RelayInterface for RelayCapture {
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             response_data: None,
+            processor_merchant_id,
+            created_by,
         }
     }
 
     async fn process_relay(
         state: &SessionState,
-        platform: domain::Platform,
+        processor: domain::Processor,
         connector_account: domain::MerchantConnectorAccount,
         relay_record: &relay::Relay,
     ) -> RouterResult<relay::RelayUpdate> {
         let connector_id = &relay_record.connector_id;
 
-        let merchant_id = platform.get_processor().get_account().get_id();
+        let merchant_id = processor.get_account().get_id();
 
         let connector_name = &connector_account.get_connector_name_as_string();
 
@@ -413,6 +423,8 @@ impl RelayInterface for RelayIncrementalAuthorization {
         relay_request: RelayRequestInner<Self>,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
+        processor_merchant_id: Option<id_type::MerchantId>,
+        created_by: Option<common_utils::types::CreatedBy>,
     ) -> relay::Relay {
         let relay_id = id_type::RelayId::generate();
         let relay_incremental_authorization: relay::RelayIncrementalAuthorizationData =
@@ -434,18 +446,20 @@ impl RelayInterface for RelayIncrementalAuthorization {
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             response_data: None,
+            processor_merchant_id,
+            created_by,
         }
     }
 
     async fn process_relay(
         state: &SessionState,
-        platform: domain::Platform,
+        processor: domain::Processor,
         connector_account: domain::MerchantConnectorAccount,
         relay_record: &relay::Relay,
     ) -> RouterResult<relay::RelayUpdate> {
         let connector_id = &relay_record.connector_id;
 
-        let merchant_id = platform.get_processor().get_account().get_id();
+        let merchant_id = processor.get_account().get_id();
 
         let connector_name = &connector_account.get_connector_name_as_string();
 
@@ -545,6 +559,8 @@ impl RelayInterface for RelayVoid {
         relay_request: RelayRequestInner<Self>,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
+        processor_merchant_id: Option<id_type::MerchantId>,
+        created_by: Option<common_utils::types::CreatedBy>,
     ) -> relay::Relay {
         let relay_id = id_type::RelayId::generate();
         let relay_void: relay::RelayVoidData = relay_request.data.into();
@@ -563,18 +579,20 @@ impl RelayInterface for RelayVoid {
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             response_data: None,
+            processor_merchant_id,
+            created_by,
         }
     }
 
     async fn process_relay(
         state: &SessionState,
-        platform: domain::Platform,
+        processor: domain::Processor,
         connector_account: domain::MerchantConnectorAccount,
         relay_record: &relay::Relay,
     ) -> RouterResult<relay::RelayUpdate> {
         let connector_id = &relay_record.connector_id;
 
-        let merchant_id = platform.get_processor().get_account().get_id();
+        let merchant_id = processor.get_account().get_id();
 
         let connector_name = &connector_account.get_connector_name_as_string();
 
@@ -708,15 +726,20 @@ pub async fn relay<T: RelayInterface>(
     req: RelayRequestInner<T>,
 ) -> RouterResponse<relay_api_models::RelayResponse> {
     let db = state.store.as_ref();
-    let merchant_id = platform.get_processor().get_account().get_id();
+    let merchant_id = platform.get_provider().get_account().get_id();
+    let processor_merchant_id = platform.get_processor().get_account().get_id();
     let connector_id = &req.connector_id;
+
+    let created_by = platform
+        .get_initiator()
+        .and_then(|initiator| initiator.to_created_by());
 
     let profile_id_from_auth_layer = profile_id_optional.get_required_value("ProfileId")?;
 
     let profile = db
         .find_business_profile_by_merchant_id_profile_id(
             platform.get_processor().get_key_store(),
-            merchant_id,
+            processor_merchant_id,
             &profile_id_from_auth_layer,
         )
         .await
@@ -727,7 +750,7 @@ pub async fn relay<T: RelayInterface>(
     #[cfg(feature = "v1")]
     let connector_account = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            merchant_id,
+            processor_merchant_id,
             connector_id,
             platform.get_processor().get_key_store(),
         )
@@ -749,7 +772,13 @@ pub async fn relay<T: RelayInterface>(
 
     T::validate_relay_request(&req.data)?;
 
-    let relay_domain = T::get_domain_models(req, merchant_id, profile.get_id());
+    let relay_domain = T::get_domain_models(
+        req,
+        merchant_id,
+        profile.get_id(),
+        Some(processor_merchant_id.clone()),
+        created_by,
+    );
 
     let relay_record = db
         .insert_relay(platform.get_processor().get_key_store(), relay_domain)
@@ -757,10 +786,14 @@ pub async fn relay<T: RelayInterface>(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert a relay record in db")?;
 
-    let relay_response =
-        T::process_relay(&state, platform.clone(), connector_account, &relay_record)
-            .await
-            .attach_printable("Failed to process relay")?;
+    let relay_response = T::process_relay(
+        &state,
+        platform.get_processor().clone(),
+        connector_account,
+        &relay_record,
+    )
+    .await
+    .attach_printable("Failed to process relay")?;
 
     let relay_update_record = db
         .update_relay(
@@ -848,7 +881,7 @@ pub async fn relay_retrieve(
             if should_call_connector_for_relay_refund_status(&relay_record, req.force_sync) {
                 let relay_response = sync_relay_refund_with_gateway(
                     &state,
-                    &platform,
+                    platform.get_processor(),
                     &relay_record,
                     connector_account,
                 )
@@ -870,7 +903,7 @@ pub async fn relay_retrieve(
             if should_call_connector_for_relay_capture_status(&relay_record, req.force_sync) {
                 let relay_response = Box::pin(sync_relay_capture_with_gateway(
                     &state,
-                    &platform,
+                    platform.get_processor(),
                     &relay_record,
                     connector_account,
                 ))
@@ -914,12 +947,11 @@ fn should_call_connector_for_relay_capture_status(relay: &relay::Relay, force_sy
 
 pub async fn sync_relay_refund_with_gateway(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     relay_record: &relay::Relay,
     connector_account: domain::MerchantConnectorAccount,
 ) -> RouterResult<relay::RelayUpdate> {
     let connector_id = &relay_record.connector_id;
-    let merchant_id = platform.get_processor().get_account().get_id();
 
     let connector_name = &connector_account.get_connector_name_as_string();
 
@@ -934,7 +966,7 @@ pub async fn sync_relay_refund_with_gateway(
 
     let router_data = utils::construct_relay_refund_router_data(
         state,
-        merchant_id,
+        processor.get_account().get_id(),
         &connector_account,
         relay_record,
     )
@@ -1207,12 +1239,12 @@ pub async fn relay_unreferenced_refund(
 
 pub async fn sync_relay_capture_with_gateway(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     relay_record: &relay::Relay,
     connector_account: domain::MerchantConnectorAccount,
 ) -> RouterResult<relay::RelayUpdate> {
     let connector_id = &relay_record.connector_id;
-    let merchant_id = platform.get_processor().get_account().get_id();
+    let merchant_id = processor.get_account().get_id();
 
     let connector_name = &connector_account.get_connector_name_as_string();
 
