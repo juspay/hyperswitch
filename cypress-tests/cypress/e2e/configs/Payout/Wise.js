@@ -462,10 +462,11 @@ export const connectorDetails = {
           },
         },
       },
-      // BankData is placed outside Request/Response because it is not sent
-      // in the API payload nor asserted in the API response. It is consumed
-      // by the UI automation command (handlePayoutLinkBankRedirection) to
-      // fill the bank transfer form on the hosted payout link page.
+      // BankData holds the test bank credentials (IBAN, BIC) required by the
+      // handlePayoutLinkBankRedirection command to simulate a user filling
+      // the SEPA bank transfer form on the hosted payout link page.
+      // It is placed outside Request/Response because it is neither sent in
+      // the API payload nor asserted in the API response.
       BankData: {
         iban: "NL46TEST0136169112",
         bic: "ABNANL2A",

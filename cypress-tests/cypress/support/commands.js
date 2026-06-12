@@ -10525,6 +10525,11 @@ Cypress.Commands.add(
   }
 );
 
+/**
+ * Updates the business profile with payout link configuration.
+ * Enables profile-level payout link settings (domain_name, theme, etc.)
+ * so subsequent payout link creations inherit these defaults.
+ */
 Cypress.Commands.add(
   "updateBusinessProfileWithPayoutLinkConfigTest",
   (globalState) => {
