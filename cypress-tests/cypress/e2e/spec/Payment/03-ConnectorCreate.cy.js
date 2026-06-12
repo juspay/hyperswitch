@@ -14,10 +14,8 @@ describe("Connector Account Create flow test", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
-      isBankDebitConnector = !shouldIncludeConnector(
-        globalState.get("connectorId"),
-        CONNECTOR_LISTS.INCLUDE.STRIPE_BANK_DEBIT
-      );
+      // Check if this is a stripe connector (for multi-connector bank debit setup)
+      isBankDebitConnector = globalState.get("connectorId") === "stripe";
     });
   });
 
