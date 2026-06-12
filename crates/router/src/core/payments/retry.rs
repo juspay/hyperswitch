@@ -840,6 +840,7 @@ pub fn make_new_auto_retry_payment_attempt(
         unified_code: Default::default(),
         unified_message: Default::default(),
         external_three_ds_authentication_attempted: Default::default(),
+        external_threeds_authentication_type: Default::default(),
         authentication_connector: Default::default(),
         authentication_id: Default::default(),
         mandate_data: Default::default(),

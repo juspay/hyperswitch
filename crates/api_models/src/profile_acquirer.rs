@@ -22,8 +22,8 @@ pub struct ProfileAcquirerCreate {
     #[schema(value_type= Option<f64>,example = 0.01)]
     pub acquirer_fraud_rate: Option<f64>,
     /// Acquirer country code
-    #[schema(value_type= Option<String>,example = "US")]
-    pub acquirer_country_code: Option<String>,
+    #[schema(value_type= Option<CountryAlpha2>,example = "US")]
+    pub acquirer_country_code: Option<common_enums::CountryAlpha2>,
     /// Parent profile id to link the acquirer account with
     #[schema(value_type= String,example = "pro_ky0yNyOXXlA5hF8JzE5q")]
     pub profile_id: common_utils::id_type::ProfileId,
@@ -167,8 +167,8 @@ pub struct ProfileAcquirerUpdate {
     pub acquirer_ica: Option<String>,
     #[schema(value_type = Option<f64>, example = "0.02")]
     pub acquirer_fraud_rate: Option<f64>,
-    #[schema(value_type = Option<String>, example = "US")]
-    pub acquirer_country_code: Option<String>,
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub acquirer_country_code: Option<common_enums::CountryAlpha2>,
     /// Whether this configuration bucket is the default fallback for the profile.
     pub is_default: Option<bool>,
 }
