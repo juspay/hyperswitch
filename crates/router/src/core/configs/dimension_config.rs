@@ -269,7 +269,6 @@ impl DatabaseBackedConfig for ShouldPerformEligibility {
     const KEY: &'static str = "should_perform_eligibility";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        // Matches the existing key format: "should_perform_eligibility_{merchant_id}"
         dimensions
             .get_processor_merchant_id()
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
@@ -306,7 +305,6 @@ impl DatabaseBackedConfig for ShouldStoreEligibilityCheckDataForAuthentication {
     const KEY: &'static str = "should_store_eligibility_check_data_for_authentication";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        // Matches the existing key format: "should_store_eligibility_check_data_for_authentication_{merchant_id}"
         dimensions
             .get_processor_merchant_id()
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
@@ -325,7 +323,6 @@ impl DatabaseBackedConfig for EnableExtendedCardBin {
     const KEY: &'static str = "enable_extended_card_bin";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        // Matches the existing key format: "{profile_id}_enable_extended_card_bin"
         dimensions
             .get_profile_id()
             .map(|id| format!("{}_{}", id.get_string_repr(), Self::KEY))
@@ -493,7 +490,6 @@ impl DatabaseBackedConfig for PayoutTrackerMapping {
     const KEY: &'static str = "payout_tracker_mapping";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        // Matches the existing key format: "payout_tracker_mapping_{connector}"
         dimensions
             .get_connector()
             .map(|connector| format!("{}_{}", Self::KEY, connector))
@@ -560,7 +556,6 @@ impl DatabaseBackedConfig for PollConfigExternalThreeDs {
     const KEY: &'static str = "poll_config_external_three_ds";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        // Matches the existing key format: "poll_config_external_three_ds_{connector}"
         dimensions
             .get_connector()
             .map(|connector| crate::types::PollConfig::get_poll_config_key(connector.to_string()))
@@ -580,7 +575,6 @@ impl DatabaseBackedConfig for PtMappingOutgoingWebhooks {
     const KEY: &'static str = "pt_mapping_outgoing_webhooks";
 
     fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        // Matches the existing key format: "pt_mapping_outgoing_webhooks"
         Some(Self::KEY.to_string())
     }
 }
@@ -598,7 +592,6 @@ impl DatabaseBackedConfig for PtMappingPcrRetries {
     const KEY: &'static str = "pt_mapping_pcr_retries";
 
     fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        // Matches the existing key format: "pt_mapping_pcr_retries"
         Some(Self::KEY.to_string())
     }
 }
@@ -616,7 +609,6 @@ impl DatabaseBackedConfig for PtMappingPaymentSync {
     const KEY: &'static str = "pt_mapping_payment_sync";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        // Matches the existing key format: "pt_mapping_{connector}"
         dimensions
             .get_connector()
             .map(|connector| format!("pt_mapping_{connector}"))
@@ -636,7 +628,6 @@ impl DatabaseBackedConfig for PtMappingRefundSync {
     const KEY: &'static str = "pt_mapping_refund_sync";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        // Matches the existing key format: "pt_mapping_refund_sync_{connector}"
         dimensions
             .get_connector()
             .map(|connector| format!("{}_{}", Self::KEY, connector))
@@ -656,8 +647,6 @@ impl DatabaseBackedConfig for PtMappingDisputeSync {
     const KEY: &'static str = "pt_mapping_dispute_sync";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        // Matches the existing key format: "pt_mapping_{connector}"
-        // (dispute sync historically shared the payment sync mapping key)
         dimensions
             .get_connector()
             .map(|connector| format!("pt_mapping_{connector}"))
