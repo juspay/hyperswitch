@@ -2800,17 +2800,6 @@ export const connectorDetails = {
             last_name: "Doe",
           },
         },
-        mandate_data: {
-          customer_acceptance: onlineCustomerAcceptance,
-          mandate_type: {
-            multi_use: {
-              amount: 8000,
-              currency: "EUR",
-            },
-          },
-        },
-        setup_future_usage: "off_session",
-        payment_type: "new_mandate",
       },
       Response: {
         status: 200,
