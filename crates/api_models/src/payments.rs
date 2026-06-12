@@ -1230,7 +1230,7 @@ pub struct PaymentsRequest {
     pub customer: Option<CustomerDetails>,
 
     /// The identifier for the customer
-    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44", deprecated)]
     #[smithy(value_type = "Option<String>")]
     pub customer_id: Option<id_type::CustomerId>,
 
@@ -1390,7 +1390,8 @@ pub struct PaymentsRequest {
     #[smithy(value_type = "Option<Vec<PaymentMethodType>>")]
     pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
 
-    /// Business sub label for the payment
+    /// Business sub label for the payment. To be deprecated soon. Pass the profile_id instead
+    #[schema(deprecated)]
     #[remove_in(PaymentsUpdateRequest, PaymentsConfirmRequest, PaymentsCreateRequest)]
     pub business_sub_label: Option<String>,
 
@@ -2069,6 +2070,7 @@ pub struct PaymentAttemptResponse {
     #[smithy(value_type = "Option<String>")]
     pub cancellation_reason: Option<String>,
     /// If this payment attempt is associated with a mandate (e.g., for a recurring or subsequent payment), this field will contain the ID of that mandate.
+    #[schema(deprecated)]
     #[smithy(value_type = "Option<String>")]
     pub mandate_id: Option<String>,
     /// The error code returned by the connector if this payment attempt failed. This code is specific to the connector.
@@ -2382,6 +2384,7 @@ pub struct VerifyRequest {
     SmithyModel,
 )]
 #[serde(deny_unknown_fields)]
+#[schema(deprecated)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct MandateData {
     /// A way to update the mandate's payment method details
@@ -3155,6 +3158,7 @@ mod payment_method_data_serde {
                     | PaymentMethodData::Card(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::ProxyCard(_)
+                    | PaymentMethodData::VaultCardTokenData(_)
                     | PaymentMethodData::MandatePayment
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::Wallet(_) => {
@@ -3496,6 +3500,12 @@ pub enum PaymentMethodData {
     /// When this variant is used, the payment will be routed through the external vault proxy flow.
     #[schema(title = "ProxyCard")]
     ProxyCard(Box<ProxyCardData>),
+    /// Vault card token data used for external vault proxy payments with an already-saved card.
+    /// The top-level `payment_token` resolves to a stored payment method whose external vault
+    /// tokens are retrieved from the modular PM service; this variant carries the CVC / card
+    /// holder name to combine with those tokens. Routed through the external vault proxy flow.
+    #[schema(title = "VaultCardTokenData")]
+    VaultCardTokenData(CardToken),
 }
 
 pub trait GetAddressFromPaymentMethodData {
@@ -3523,7 +3533,8 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             | Self::MandatePayment
             | Self::MobilePayment(_)
             | Self::NetworkToken(_)
-            | Self::ProxyCard(_) => None,
+            | Self::ProxyCard(_)
+            | Self::VaultCardTokenData(_) => None,
         }
     }
 }
@@ -3548,7 +3559,9 @@ impl PaymentMethodData {
             Self::MobilePayment(_) => Some(api_enums::PaymentMethod::MobilePayment),
             Self::NetworkToken(_) => Some(api_enums::PaymentMethod::NetworkToken),
             Self::CardToken(_) | Self::MandatePayment => None,
-            Self::ProxyCard(_) => Some(api_enums::PaymentMethod::Card),
+            Self::ProxyCard(_) | Self::VaultCardTokenData(_) => {
+                Some(api_enums::PaymentMethod::Card)
+            }
         }
     }
 }
@@ -6390,7 +6403,8 @@ pub struct PaymentsCaptureRequest {
     /// Decider to refund the uncaptured amount. (Currently not fully supported or behavior may vary by connector).
     #[smithy(value_type = "Option<bool>")]
     pub refund_uncaptured_amount: Option<bool>,
-    /// A dynamic suffix that appears on your customer's credit card statement. This is concatenated with the (shortened) descriptor prefix set on your account to form the complete statement descriptor. The combined length should not exceed connector-specific limits (typically 22 characters).
+    /// A dynamic suffix that appears on your customer's credit card statement. This is concatenated with the (shortened) descriptor prefix set on your account to form the complete statement descriptor. The combined length should not exceed connector-specific limits (typically 22 characters). To be deprecated soon, use billing_descriptor instead.
+    #[schema(deprecated)]
     #[smithy(value_type = "Option<String>")]
     pub statement_descriptor_suffix: Option<String>,
     /// An optional prefix for the statement descriptor that appears on your customer's credit card statement. This can override the default prefix set on your merchant account. The combined length of prefix and suffix should not exceed connector-specific limits (typically 22 characters).
@@ -7322,13 +7336,13 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<AuthenticationType>")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
-    /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
-    #[schema(max_length = 255, example = "Hyperswitch Router")]
+    /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters. To be deprecated soon, use billing_descriptor instead.
+    #[schema(max_length = 255, example = "Hyperswitch Router", deprecated)]
     #[smithy(value_type = "Option<String>")]
     pub statement_descriptor_name: Option<String>,
 
-    /// Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 255 characters for the concatenated descriptor.
-    #[schema(max_length = 255, example = "Payment for shoes purchase")]
+    /// Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 255 characters for the concatenated descriptor. To be deprecated soon, use billing_descriptor instead.
+    #[schema(max_length = 255, example = "Payment for shoes purchase", deprecated)]
     #[smithy(value_type = "Option<String>")]
     pub statement_descriptor_suffix: Option<String>,
 
@@ -7380,16 +7394,18 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<String>")]
     pub connector_label: Option<String>,
 
-    /// The two-letter ISO country code (e.g., US, GB) of the business unit or profile under which this payment was processed.
-    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    /// The two-letter ISO country code (e.g., US, GB) of the business unit or profile under which this payment was processed. To be deprecated soon. Pass the profile_id instead
+    #[schema(value_type = Option<CountryAlpha2>, example = "US", deprecated)]
     #[smithy(value_type = "Option<CountryAlpha2>")]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
-    /// The label identifying the specific business unit or profile under which this payment was processed by the merchant.
+    /// The label identifying the specific business unit or profile under which this payment was processed by the merchant. To be deprecated soon. Pass the profile_id instead
+    #[schema(deprecated)]
     #[smithy(value_type = "Option<String>")]
     pub business_label: Option<String>,
 
-    /// An optional sub-label for further categorization of the business unit or profile used for this payment.
+    /// An optional sub-label for further categorization of the business unit or profile used for this payment. To be deprecated soon. Pass the profile_id instead
+    #[schema(deprecated)]
     #[smithy(value_type = "Option<String>")]
     pub business_sub_label: Option<String>,
 
