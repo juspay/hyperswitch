@@ -558,10 +558,6 @@ export const CONNECTOR_LISTS = {
       "stripe",
       "wellsfargo",
     ], // payload verified as working
-    // STRIPE_BANK_DEBIT is used by 03-ConnectorCreate.cy.js for multi-connector setup
-    // (creating separate stripe connector accounts per bank debit sub-method).
-    // For the bank debit spec inclusion gate, use BANK_DEBIT instead.
-    STRIPE_BANK_DEBIT: ["stripe"],
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
     BANK_REDIRECT_MANDATE: ["adyen"],
     BLUECODE_WALLET: ["calida"],
