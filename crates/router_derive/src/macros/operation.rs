@@ -20,6 +20,8 @@ pub enum Derives {
     SyncData,
     CancelData,
     CancelPostCapture,
+    CancelPreAuthorize,
+    CancelPreAuthorizeData,
     CancelPostCaptureData,
     CaptureData,
     CompleteAuthorizeData,
@@ -138,6 +140,12 @@ impl Conversion {
             }
             Derives::CancelPostCaptureData => {
                 syn::Ident::new("PaymentsCancelPostCaptureData", Span::call_site())
+            }
+            Derives::CancelPreAuthorize => {
+                syn::Ident::new("PaymentsCancelPreAuthorizeRequest", Span::call_site())
+            }
+            Derives::CancelPreAuthorizeData => {
+                syn::Ident::new("PaymentsPreAuthorizeCancelData", Span::call_site())
             }
             Derives::ExtendAuthorization => {
                 syn::Ident::new("PaymentsExtendAuthorizationRequest", Span::call_site())
@@ -469,6 +477,7 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                     PaymentsPostSessionTokensData,
                     PaymentsUpdateMetadataData,
                     PaymentsCancelPostCaptureData,
+                    PaymentsPreAuthorizeCancelData,
                     PaymentsExtendAuthorizationData,
 
                     api::{
