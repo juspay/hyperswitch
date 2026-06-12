@@ -644,6 +644,7 @@ pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     header_payload: HeaderPayload,
     dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+    payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync + Debug + 'static,
@@ -702,6 +703,7 @@ where
             &header_payload,
             payment_method_fetch_data,
             dimensions,
+            payment_pre_fetched_info,
         )
         .await?;
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
@@ -1592,6 +1594,7 @@ where
             &header_payload,
             operations::PaymentMethodFetchData::default(),
             dimensions,
+            None,
         )
         .await?;
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
@@ -2650,6 +2653,7 @@ pub async fn payments_core<F, Res, Req, Op, FData, D>(
     shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     eligible_connectors: Option<Vec<enums::Connector>>,
     header_payload: HeaderPayload,
+    payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync + Debug + 'static,
@@ -2691,6 +2695,7 @@ where
             eligible_routable_connectors,
             header_payload.clone(),
             &dimensions,
+            payment_pre_fetched_info,
         )
         .await?;
 
@@ -2847,6 +2852,7 @@ where
             &header_payload,
             payment_method_info,
             &dimensions,
+            None,
         )
         .await?;
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
@@ -4472,6 +4478,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             None,
             None,
             HeaderPayload::default(),
+            None,
         ))
         .await?;
         let payments_response = match response {
@@ -4665,6 +4672,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 None,
                 None,
                 HeaderPayload::default(),
+                None,
             ),
         )
         .await?;
@@ -5051,6 +5059,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     None,
                     None,
                     HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                    None,
                 ))
                 .await?
             } else {
@@ -5073,6 +5082,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     None,
                     None,
                     HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                    None,
                 ))
                 .await?
             }
@@ -5107,6 +5117,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     None,
                     None,
                     HeaderPayload::default(),
+                    None,
                 ),
             )
             .await?
@@ -9754,11 +9765,21 @@ where
                 || (in_progress && force_sync)
                 || capture_failure_webhook_over_success_payment
         }
-        "PaymentCancel" => matches!(
-            payment_data.get_payment_intent().status,
-            storage_enums::IntentStatus::RequiresCapture
-                | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
-        ),
+        "PaymentCancel" => {
+            let flow_name = core_utils::get_flow_name::<F>().unwrap_or_default();
+            match flow_name.as_str() {
+                "Void" => matches!(
+                    payment_data.get_payment_intent().status,
+                    storage_enums::IntentStatus::RequiresCapture
+                        | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
+                ),
+                "PreAuthorizeVoid" => matches!(
+                    payment_data.get_payment_intent().status,
+                    storage_enums::IntentStatus::RequiresCustomerAction
+                ),
+                _ => false,
+            }
+        }
         "PaymentCancelPostCapture" => matches!(
             payment_data.get_payment_intent().status,
             storage_enums::IntentStatus::Succeeded
