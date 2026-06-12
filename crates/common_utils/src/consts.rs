@@ -92,7 +92,7 @@ pub const MAX_GLOBAL_ID_LENGTH: u8 = 64;
 pub const MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 1;
 
 /// Length of a cell identifier in a distributed system
-pub const CELL_IDENTIFIER_LENGTH: u8 = 5;
+pub const CELL_IDENTIFIER_LENGTH: u8 = 2;
 
 /// General purpose base64 engine
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
@@ -177,6 +177,9 @@ pub const X_SUB_FLOW_NAME: &str = "x-sub-flow";
 
 /// Unified Connector Service Mode
 pub const X_UNIFIED_CONNECTOR_SERVICE_MODE: &str = "x-shadow-mode";
+
+/// Proxy name for UCS to select the proxy to route the request through
+pub const X_PROXY_NAME: &str = "x-proxy-name";
 
 /// Config Override Header for UCS
 pub const X_CONFIG_OVERRIDE: &str = "x-config-override";

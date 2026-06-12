@@ -49,6 +49,15 @@ pub struct PayloadPaymentRequestData {
     pub processing_id: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<String>,
+    /// This text provides context about the purchase, service, or payment purpose and may be displayed to customers on receipts and in transaction histories
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Short text that may appear on the customer's card statement (max 32 chars, per card brand rules)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub descriptor: Option<String>,
+    /// Flexible JSON object for structured metadata (order IDs, lease references, etc.)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attrs: Option<serde_json::Value>,
 }
 
 /// Wrapper that nests `billing_address` and `keep_active` inside `payment_method`
@@ -83,6 +92,12 @@ pub struct PayloadMandateRequestData {
     pub status: Option<responses::PayloadPaymentStatus>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub processing_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub descriptor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attrs: Option<serde_json::Value>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Eq, PartialEq)]

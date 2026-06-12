@@ -1,5 +1,6 @@
 import { defineConfig } from "cypress";
 import mochawesome from "cypress-mochawesome-reporter/plugin.js";
+import crypto from "crypto";
 import fs from "fs";
 import { getTimeoutMultiplier } from "./cypress/utils/RequestBodyUtils.js";
 
@@ -32,6 +33,18 @@ export default defineConfig({
           // eslint-disable-next-line no-console
           console.log(message);
           return null;
+        },
+        computeHmac: ({ key, message, algorithm = "sha512" }) => {
+          if (!key || !message) {
+            throw new Error(
+              `computeHmac: 'key' and 'message' are required (got key=${!!key}, message=${!!message})`
+            );
+          }
+          const signature = crypto
+            .createHmac(algorithm, key)
+            .update(message)
+            .digest("hex");
+          return signature;
         },
       });
       on("after:spec", (spec, results) => {

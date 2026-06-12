@@ -42,10 +42,6 @@ pub enum PartitionKey<'a> {
         merchant_id: &'a common_utils::id_type::MerchantId,
         payout_id: &'a common_utils::id_type::PayoutId,
     },
-    MerchantIdPayoutAttemptId {
-        merchant_id: &'a common_utils::id_type::MerchantId,
-        payout_attempt_id: &'a str,
-    },
     MerchantIdMandateId {
         merchant_id: &'a common_utils::id_type::MerchantId,
         mandate_id: &'a str,
@@ -95,13 +91,6 @@ impl std::fmt::Display for PartitionKey<'_> {
                 "mid_{}_po_{}",
                 merchant_id.get_string_repr(),
                 payout_id.get_string_repr()
-            )),
-            PartitionKey::MerchantIdPayoutAttemptId {
-                merchant_id,
-                payout_attempt_id,
-            } => f.write_str(&format!(
-                "mid_{}_poa_{payout_attempt_id}",
-                merchant_id.get_string_repr()
             )),
             PartitionKey::MerchantIdMandateId {
                 merchant_id,

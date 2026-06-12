@@ -361,6 +361,13 @@ impl EligibilityPaymentMethodData {
     pub fn is_eligible_for_profile_config_blocklist(&self) -> bool {
         matches!(self, Self::Card(_))
     }
+
+    pub fn get_card_iin(&self) -> Option<String> {
+        match self {
+            Self::Card(card) => Some(card.card_number.get_card_isin()),
+            _ => None,
+        }
+    }
 }
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -1912,6 +1919,15 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
             api_models::payments::PaymentMethodData::NetworkToken(network_token_data) => {
                 Self::NetworkToken(From::from(network_token_data))
             }
+            // ProxyCard / VaultCardTokenData are handled before reaching domain conversion
+            // (routed to external_vault_proxy_for_payments_core). These branches should not be
+            // reached in normal flow, but we handle them gracefully.
+            api_models::payments::PaymentMethodData::ProxyCard(_)
+            | api_models::payments::PaymentMethodData::VaultCardTokenData(_) => {
+                // These variants are intercepted at the routing layer and should not reach here.
+                // Falling back to MandatePayment as a safe no-op sentinel value.
+                Self::MandatePayment
+            }
         }
     }
 }
@@ -1919,7 +1935,7 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
 impl From<api_models::payments::ProxyPaymentMethodData> for ExternalVaultPaymentMethodData {
     fn from(api_model_payment_method_data: api_models::payments::ProxyPaymentMethodData) -> Self {
         match api_model_payment_method_data {
-            api_models::payments::ProxyPaymentMethodData::VaultDataCard(card_data) => {
+            api_models::payments::ProxyPaymentMethodData::ProxyCard(card_data) => {
                 Self::Card(Box::new(ExternalVaultCard::from(*card_data)))
             }
             api_models::payments::ProxyPaymentMethodData::VaultToken(vault_data) => {
