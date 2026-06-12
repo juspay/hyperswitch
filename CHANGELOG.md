@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.10.0-hotfix2
+
+### Features
+
+- **authentication:** Add Oss calling SaaS functionality for modular authentication ([#12744](https://github.com/juspay/hyperswitch/pull/12744)) ([`c333546`](https://github.com/juspay/hyperswitch/commit/c3335464269e53f3aae6b61b60b03bea008a286e))
+
+**Full Changelog:** [`2026.06.10.0-hotfix1...2026.06.10.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.06.10.0-hotfix1...2026.06.10.0-hotfix2)
+
+- - -
+
 ## 2026.06.10.0-hotfix1
 
 ### Bug Fixes
