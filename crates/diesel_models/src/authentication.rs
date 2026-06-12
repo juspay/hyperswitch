@@ -88,6 +88,27 @@ pub struct Authentication {
     pub created_by: Option<String>,
 }
 
+impl Authentication {
+    /// Reverse-lookup id to find an authentication by its id (distinct from the hash field key).
+    pub fn get_authentication_id_lookup_id(
+        authentication_id: &common_utils::id_type::AuthenticationId,
+    ) -> String {
+        format!("authn_id_{}", authentication_id.get_string_repr())
+    }
+
+    /// Reverse-lookup id to find an authentication by its connector authentication id (webhook path).
+    pub fn get_connector_authentication_lookup_id(
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_authentication_id: &str,
+    ) -> String {
+        format!(
+            "mid_{}_conn_authn_{}",
+            merchant_id.get_string_repr(),
+            connector_authentication_id
+        )
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Insertable)]
 #[diesel(table_name = authentication)]
 pub struct AuthenticationNew {
