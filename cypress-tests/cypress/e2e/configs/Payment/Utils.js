@@ -658,6 +658,7 @@ export const CONNECTOR_LISTS = {
     ],
     POLL_CONFIG: ["stripe"],
     FRM: ["stripe"],
+    CLIENT_SESSION_VALIDATION: ["stripe"],
     // Add more inclusion lists
   },
 };
