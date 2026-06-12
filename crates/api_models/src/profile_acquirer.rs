@@ -22,7 +22,7 @@ pub struct ProfileAcquirerCreate {
     #[schema(value_type= Option<f64>,example = 0.01)]
     pub acquirer_fraud_rate: Option<f64>,
     /// Acquirer country code
-    #[schema(value_type= Option<String>,example = "US")]
+    #[schema(value_type= Option<CountryAlpha2>,example = "US")]
     pub acquirer_country_code: Option<common_enums::CountryAlpha2>,
     /// Parent profile id to link the acquirer account with
     #[schema(value_type= String,example = "pro_ky0yNyOXXlA5hF8JzE5q")]
