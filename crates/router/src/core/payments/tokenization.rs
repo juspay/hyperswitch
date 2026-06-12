@@ -871,15 +871,16 @@ where
                             })
                             .unwrap_or(WalletDecryptedToken::None);
 
-                        let customer_saved_pm_option = if payment_method_type
+                        let check_for_customer_pm = payment_method_type
                             .map(|payment_method_type_value| {
                                 payment_method_type_value
                                     .should_check_for_customer_saved_payment_method_type(
                                         wallet_decrypt_preference,
                                     )
                             })
-                            .unwrap_or(false)
-                        {
+                            .unwrap_or(false);
+
+                        let customer_saved_pm_option = if check_for_customer_pm {
                             match state
                                 .store
                                 .find_payment_method_by_customer_id_merchant_id_list(
@@ -935,7 +936,7 @@ where
                             locker_id = resp.payment_method.and_then(|pm| {
                                 if pm == PaymentMethod::Card
                                     || pm == PaymentMethod::BankDebit
-                                    || pm == PaymentMethod::Wallet
+                                    || (pm == PaymentMethod::Wallet && !check_for_customer_pm)
                                 {
                                     Some(resp.payment_method_id)
                                 } else {

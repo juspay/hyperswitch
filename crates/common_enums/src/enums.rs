@@ -2503,8 +2503,8 @@ pub enum WalletDecryptedToken {
 }
 
 impl PaymentMethodType {
+    /// - True : then fetch the saved payment method and update the last used, skip locker id creation
     /// - False : For applepay and googlepay decrypted tokens create a new payment method according to locker fingerprint
-    /// - True : then fetch the saved payment method and update the last used
     pub fn should_check_for_customer_saved_payment_method_type(
         self,
         decrypted_token: WalletDecryptedToken,
