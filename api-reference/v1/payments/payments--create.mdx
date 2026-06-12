@@ -1,4 +1,23 @@
 ---
 openapi: post /payments
 ---
-<Tip> Use the dropdown on the top right corner of the code snippet to try out different payment scenarios. </Tip>
+
+<Callout type="warning" title="Deprecation Notice: Customer Upsert via Payment Requests">
+Passing customer details in PaymentsRequest currently triggers an implicit upsert behavior—creating a customer if one does not exist, or updating the existing customer during payment processing. This behavior is **deprecated** and is **not recommended for new integrations**.
+
+**Recommended Approach**
+
+Use the dedicated Customer APIs to explicitly manage customer data before initiating payments.
+
+- Customer APIs: https://api-reference.hyperswitch.io/v1/customers
+
+**Why This Change?**
+
+Moving customer management out of the payment flow provides:
+- Clear separation between customer lifecycle management and payment processing  
+- Predictable and consistent customer data during payment execution  
+</Callout>
+
+<Tip>
+Use the dropdown on the top right corner of the code snippet to try out different payment scenarios.
+</Tip>
