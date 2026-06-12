@@ -9914,7 +9914,6 @@ Cypress.Commands.add("retrievePayoutLinkTest", (data, globalState) => {
   });
 });
 
-
 Cypress.Commands.add(
   "handlePayoutLinkBankRedirection",
   (globalState, bankData, expectedOutcome = "success") => {
@@ -9946,4 +9945,3 @@ Cypress.Commands.add(
     );
   }
 );
-
