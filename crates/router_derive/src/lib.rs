@@ -765,40 +765,42 @@ pub fn derive_to_encryption_attr(input: proc_macro::TokenStream) -> proc_macro::
         .into()
 }
 
-/// Derives the `apply_changeset` method on the annotated update struct.
+/// Attribute macro that generates `apply_changeset` on the annotated struct.
 ///
-/// Requires `#[apply_changeset(target = TargetType)]`.
+/// Place `#[apply_changeset(target = TargetType)]` on an update struct.
+/// The macro re-emits the struct unchanged and generates:
 ///
-/// For every field in the update struct:
-/// - If the field type is `Option<T>`, generates `if let Some(v) = self.field { target.field = v; }`
-/// - Otherwise, generates `target.field = self.field;`
+/// ```ignore
+/// impl UpdateStruct {
+///     pub fn apply_changeset(self, mut target: TargetType) -> TargetType { ... }
+/// }
+/// ```
+///
+/// For every field:
+/// - `Option<T>` fields use a helper trait that writes `Some(v)` into the target
+///   field when the update value is `Some`, leaving it untouched on `None`.
+/// - Non-`Option` fields are directly assigned (`target.field = self.field`).
 ///
 /// # Example
 ///
 /// ```ignore
-/// use router_derive::ApplyChangeset;
+/// use router_derive::apply_changeset;
 ///
-/// #[derive(ApplyChangeset)]
 /// #[apply_changeset(target = PaymentAttempt)]
 /// struct PaymentAttemptUpdateInternal {
 ///     status: Option<AttemptStatus>,
 ///     amount: Option<MinorUnit>,
 /// }
-///
-/// // Generates:
-/// // impl PaymentAttemptUpdateInternal {
-/// //     pub fn apply_changeset(self, mut target: PaymentAttempt) -> PaymentAttempt {
-/// //         if let Some(v) = self.status { target.status = v; }
-/// //         if let Some(v) = self.amount  { target.amount  = v; }
-/// //         target
-/// //     }
-/// // }
 /// ```
-#[proc_macro_derive(ApplyChangeset, attributes(apply_changeset))]
-pub fn apply_changeset_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input = syn::parse_macro_input!(input as syn::DeriveInput);
-    macros::derive_apply_changeset(input)
-        .unwrap_or_else(|error| error.into_compile_error())
+#[proc_macro_attribute]
+pub fn apply_changeset(
+    args: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    let args = proc_macro2::TokenStream::from(args);
+    let input = proc_macro2::TokenStream::from(input);
+    macros::apply_changeset_attribute(args, input)
+        .unwrap_or_else(|error| error.to_compile_error())
         .into()
 }
 /// schema attributes specifying constraints like minimum and maximum lengths.
