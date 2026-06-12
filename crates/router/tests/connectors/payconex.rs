@@ -6,13 +6,13 @@ use test_utils::connector_auth;
 use crate::utils::{self, ConnectorActions};
 
 #[derive(Clone, Copy)]
-struct SanlamTest;
-impl ConnectorActions for SanlamTest {}
-impl utils::Connector for SanlamTest {
+struct PayconexTest;
+impl ConnectorActions for PayconexTest {}
+impl utils::Connector for PayconexTest {
     fn get_data(&self) -> api::ConnectorData {
-        use router::connector::Sanlam;
+        use router::connector::Payconex;
         utils::construct_connector_data_old(
-            Box::new(Sanlam::new()),
+            Box::new(Payconex::new()),
             types::Connector::Plaid,
             api::GetToken::Connector,
             None,
@@ -22,18 +22,18 @@ impl utils::Connector for SanlamTest {
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
-                .sanlam
+                .payconex
                 .expect("Missing connector authentication configuration")
                 .into(),
         )
     }
 
     fn get_name(&self) -> String {
-        "sanlam".to_string()
+        "payconex".to_string()
     }
 }
 
-static CONNECTOR: SanlamTest = SanlamTest {};
+static CONNECTOR: PayconexTest = PayconexTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     None

@@ -59,7 +59,7 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils as connector_utils,
-    utils::{self, PaymentMethodDataType, RefundsRequestData},
+    utils::{self, RefundsRequestData},
 };
 
 #[derive(Clone)]
@@ -186,16 +186,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Xe
     }
 }
 
-impl ConnectorValidation for Xendit {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
-        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Xendit {}
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Xendit {}
 

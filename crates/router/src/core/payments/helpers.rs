@@ -41,6 +41,7 @@ use futures::future::Either;
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 pub use hyperswitch_domain_models::{customer, type_encryption::AsyncLift};
 use hyperswitch_domain_models::{
+    mandates,
     mandates::MandateData,
     payment_method_data::{GetPaymentMethodType, PazeWalletData},
     payments::{
@@ -93,6 +94,7 @@ use crate::{
     core::{
         authentication,
         configs::dimension_state,
+        customers,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::{
             self,
@@ -1544,10 +1546,16 @@ where
                         1,
                         router_env::metric_attributes!(("flow", format!("{:#?}", operation))),
                     );
-                    super::reset_process_sync_task(&*state.store, payment_attempt, stime)
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while updating task in process tracker")
+                    super::reset_process_sync_task(
+                        &*state.store,
+                        payment_attempt,
+                        stime,
+                        "PAYMENTS_SYNC",
+                        storage::ProcessTrackerRunner::PaymentsSyncWorkflow,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while updating task in process tracker")
                 }
             }
             None => Ok(()),
@@ -1969,6 +1977,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     let customer_id = request_customer_details
         .customer_id
         .or(payment_data.payment_intent.customer_id.clone());
+
     let db = &*state.store;
     let key_manager_state = &state.into();
     let optional_customer = match customer_id {
@@ -2108,11 +2117,19 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     }
                 }
                 None => {
-                    let new_customer = domain::Customer {
+                    // Validate that the customer_id is not in GlobalCustomerId format
+                    if customers::is_customer_id_in_global_format(&customer_id) {
+                        Err(report!(errors::StorageError::InvalidDataFormat(format!(
+                            "customer_id '{}' format is not supported",
+                            &customer_id.get_string_repr()
+                        ))))?
+                    }
+
+                    let new_customer = domain::Customer::new(
                         customer_id,
-                        merchant_id: merchant_id.to_owned(),
-                        name: encryptable_customer.name,
-                        email: encryptable_customer.email.map(|email| {
+                        merchant_id.to_owned(),
+                        encryptable_customer.name,
+                        encryptable_customer.email.map(|email| {
                             let encryptable: Encryptable<
                                 hyperswitch_masking::Secret<String, pii::EmailStrategy>,
                             > = Encryptable::new(
@@ -2121,22 +2138,18 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                             );
                             encryptable
                         }),
-                        phone: encryptable_customer.phone,
-                        phone_country_code: request_customer_details.phone_country_code.clone(),
-                        description: None,
-                        created_at: common_utils::date_time::now(),
-                        metadata: None,
-                        modified_at: common_utils::date_time::now(),
-                        connector_customer: None,
-                        address_id: None,
-                        default_payment_method_id: None,
-                        updated_by: None,
-                        version: common_types::consts::API_VERSION,
-                        tax_registration_id: encryptable_customer.tax_registration_id,
+                        encryptable_customer.phone,
+                        request_customer_details.phone_country_code.clone(),
+                        None,
+                        None,
+                        None,
+                        None,
+                        encryptable_customer.tax_registration_id,
                         document_details,
-                        created_by: initiator.and_then(|initiator| initiator.to_created_by()),
-                        last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
-                    };
+                        initiator.and_then(|initiator| initiator.to_created_by()),
+                        initiator.and_then(|initiator| initiator.to_created_by()),
+                        customers::generate_global_customer_id(&state.conf.cell_information.id),
+                    );
                     metrics::CUSTOMER_CREATED.add(1, &[]);
                     db.insert_customer(new_customer, key_store, storage_scheme)
                         .await
@@ -2386,13 +2399,13 @@ pub enum VaultFetchAction {
     FetchCardDetailsFromLocker,
     FetchCardDetailsForNetworkTransactionIdFlowFromLocker,
     FetchNetworkTokenDataFromTokenizationService(String),
-    FetchNetworkTokenDetailsFromLocker(api_models::payments::NetworkTokenWithNTIRef),
+    FetchNetworkTokenDetailsFromLocker(mandates::NetworkTokenWithNTIRef),
     NoFetchAction,
 }
 
 pub fn decide_payment_method_retrieval_action(
     is_network_tokenization_enabled: bool,
-    mandate_id: Option<api_models::payments::MandateIds>,
+    mandate_id: Option<mandates::MandateIds>,
     connector: Option<api_enums::Connector>,
     network_tokenization_supported_connectors: &HashSet<api_enums::Connector>,
     should_retry_with_pan: bool,
@@ -2591,7 +2604,22 @@ pub async fn should_execute_based_on_rollout(
                 .unwrap_or_default())
         }
         Err(err) => {
-            logger::error!(error = ?err, "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false.");
+            // ValueNotFound may be an expected outcome when a rollout configuration has not
+            // been provisioned. Treat it as a warning to avoid generating misleading errors.
+            match err.current_context() {
+                errors::StorageError::ValueNotFound(_) => {
+                    logger::warn!(
+                        error = ?err,
+                        "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
+                    );
+                }
+                _ => {
+                    logger::error!(
+                        error = ?err,
+                        "Failed to fetch rollout config from DB. Defaulting to not execute and setting should_execute to false."
+                    );
+                }
+            }
             Ok(RolloutExecutionResult::default())
         }
     }
@@ -2599,7 +2627,7 @@ pub async fn should_execute_based_on_rollout(
 
 pub fn determine_standard_vault_action(
     is_network_tokenization_enabled: bool,
-    mandate_id: Option<api_models::payments::MandateIds>,
+    mandate_id: Option<mandates::MandateIds>,
     connector: Option<api_enums::Connector>,
     network_tokenization_supported_connectors: &HashSet<api_enums::Connector>,
     network_token_requestor_ref_id: Option<String>,
@@ -2618,16 +2646,16 @@ pub fn determine_standard_vault_action(
     } else {
         match mandate_id {
             Some(mandate_ids) => match mandate_ids.mandate_reference_id {
-                Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(nt_data)) => {
+                Some(mandates::MandateReferenceId::NetworkTokenWithNTI(nt_data)) => {
                     VaultFetchAction::FetchNetworkTokenDetailsFromLocker(nt_data)
                 }
-                Some(api_models::payments::MandateReferenceId::NetworkMandateId(_)) => {
+                Some(mandates::MandateReferenceId::NetworkMandateId(_)) => {
                     VaultFetchAction::FetchCardDetailsForNetworkTransactionIdFlowFromLocker
                 }
-                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(_)) | None => {
+                Some(mandates::MandateReferenceId::ConnectorMandateId(_)) | None => {
                     VaultFetchAction::NoFetchAction
                 }
-                Some(api_models::payments::MandateReferenceId::CardWithLimitedData) => {
+                Some(mandates::MandateReferenceId::CardWithLimitedData) => {
                     VaultFetchAction::NoFetchAction
                 }
             },
@@ -2663,7 +2691,7 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
     card_token_data: Option<&domain::CardToken>,
     platform: &domain::Platform,
     _storage_scheme: enums::MerchantStorageScheme,
-    mandate_id: Option<api_models::payments::MandateIds>,
+    mandate_id: Option<mandates::MandateIds>,
     payment_method_info: domain::PaymentMethod,
     business_profile: &domain::Profile,
     connector: Option<String>,
@@ -3017,7 +3045,7 @@ pub async fn fetch_network_token_details_from_locker(
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
     network_token_locker_id: &str,
-    network_transaction_data: api_models::payments::NetworkTokenWithNTIRef,
+    network_transaction_data: mandates::NetworkTokenWithNTIRef,
 ) -> RouterResult<domain::NetworkTokenData> {
     let mut token_data =
         cards::get_card_from_locker(state, customer_id, merchant_id, network_token_locker_id)
@@ -3263,7 +3291,7 @@ struct PmModTransformedData(Option<domain::PaymentMethodData>);
 impl<'a>
     TryFrom<(
         Option<&'a domain::PaymentMethodData>,
-        Option<&'a api_models::payments::MandateReferenceId>,
+        Option<&'a mandates::MandateReferenceId>,
     )> for PmModTransformedData
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
@@ -3271,7 +3299,7 @@ impl<'a>
     fn try_from(
         value: (
             Option<&'a domain::PaymentMethodData>,
-            Option<&'a api_models::payments::MandateReferenceId>,
+            Option<&'a mandates::MandateReferenceId>,
         ),
     ) -> Result<Self, Self::Error> {
         let (payment_method_data, selected_mandate_reference) = value;
@@ -3283,14 +3311,14 @@ impl<'a>
                     | domain::PaymentMethodData::CardWithOptionalCVC(_)
                     | domain::PaymentMethodData::Card(_),
                 ),
-                Some(&api_models::payments::MandateReferenceId::ConnectorMandateId(_)),
+                Some(&mandates::MandateReferenceId::ConnectorMandateId(_)),
             ) => Some(domain::PaymentMethodData::MandatePayment),
             // NT + NTI flow when NetworkTokenWithNTI mandate reference is selected.
             (
                 Some(domain::PaymentMethodData::CardWithNetworkTokenDetails(
                     card_with_network_token_details,
                 )),
-                Some(&api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)),
+                Some(&mandates::MandateReferenceId::NetworkTokenWithNTI(_)),
             ) => Some(domain::PaymentMethodData::NetworkToken(
                 domain::NetworkTokenData::from(
                     card_with_network_token_details
@@ -3303,7 +3331,7 @@ impl<'a>
                 Some(domain::PaymentMethodData::CardWithNetworkTokenDetails(
                     card_with_network_token_details,
                 )),
-                Some(&api_models::payments::MandateReferenceId::NetworkMandateId(_)),
+                Some(&mandates::MandateReferenceId::NetworkMandateId(_)),
             ) => {
                 let card_details = &card_with_network_token_details.card_details;
                 Some(
@@ -3329,7 +3357,7 @@ impl<'a>
             // Card + NTI flow when NetworkMandateId is selected for CardWithOptionalCVC.
             (
                 Some(domain::PaymentMethodData::CardWithOptionalCVC(card_data)),
-                Some(&api_models::payments::MandateReferenceId::NetworkMandateId(_)),
+                Some(&mandates::MandateReferenceId::NetworkMandateId(_)),
             ) => Some(
                 domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
                     domain::CardDetailsForNetworkTransactionId::foreign_try_from(card_data)?,
@@ -3372,7 +3400,7 @@ impl<'a>
             // Wallet MIT via PSP token (ConnectorMandateId)
             (
                 Some(domain::PaymentMethodData::Wallet(_)),
-                Some(&api_models::payments::MandateReferenceId::ConnectorMandateId(_)),
+                Some(&mandates::MandateReferenceId::ConnectorMandateId(_)),
             ) => Some(domain::PaymentMethodData::MandatePayment),
             // Wallet CIT flow - pass through as-is
             (Some(domain::PaymentMethodData::Wallet(_)), _) => payment_method_data.cloned(),
@@ -4352,15 +4380,13 @@ pub fn generate_mandate(
 
             Ok(Some(
                 match data.mandate_type.get_required_value("mandate_type")? {
-                    hyperswitch_domain_models::mandates::MandateDataType::SingleUse(data) => {
-                        new_mandate
-                            .set_mandate_amount(Some(data.amount.get_amount_as_i64()))
-                            .set_mandate_currency(Some(data.currency))
-                            .set_mandate_type(storage_enums::MandateType::SingleUse)
-                            .to_owned()
-                    }
+                    mandates::MandateDataType::SingleUse(data) => new_mandate
+                        .set_mandate_amount(Some(data.amount.get_amount_as_i64()))
+                        .set_mandate_currency(Some(data.currency))
+                        .set_mandate_type(storage_enums::MandateType::SingleUse)
+                        .to_owned(),
 
-                    hyperswitch_domain_models::mandates::MandateDataType::MultiUse(op_data) => {
+                    mandates::MandateDataType::MultiUse(op_data) => {
                         match op_data {
                             Some(data) => new_mandate
                                 .set_mandate_amount(Some(data.amount.get_amount_as_i64()))
@@ -4673,6 +4699,8 @@ mod tests {
             state_metadata: None,
             installment_options: None,
             profile_acquirer_id: None,
+            external_surcharge_strategy: None,
+            external_surcharge_applicable: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -4765,6 +4793,8 @@ mod tests {
             state_metadata: None,
             installment_options: None,
             profile_acquirer_id: None,
+            external_surcharge_strategy: None,
+            external_surcharge_applicable: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -4855,6 +4885,8 @@ mod tests {
             state_metadata: None,
             installment_options: None,
             profile_acquirer_id: None,
+            external_surcharge_strategy: None,
+            external_surcharge_applicable: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -8329,7 +8361,7 @@ pub async fn decide_action_for_unified_authentication_service<F: Clone>(
     business_profile: &domain::Profile,
     payment_data: &mut PaymentData<F>,
     connector_call_type: &api::ConnectorCallType,
-    mandate_type: Option<api_models::payments::MandateTransactionType>,
+    mandate_type: Option<mandates::MandateTransactionType>,
 ) -> RouterResult<Option<UnifiedAuthenticationServiceFlow>> {
     let external_authentication_flow = get_payment_external_authentication_flow_during_confirm(
         state,
@@ -8399,7 +8431,7 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
     business_profile: &domain::Profile,
     payment_data: &mut PaymentData<F>,
     connector_call_type: &api::ConnectorCallType,
-    mandate_type: Option<api_models::payments::MandateTransactionType>,
+    mandate_type: Option<mandates::MandateTransactionType>,
 ) -> RouterResult<Option<PaymentExternalAuthenticationFlow>> {
     let authentication_id = payment_data.payment_attempt.authentication_id.clone();
     let is_authentication_type_3ds = payment_data.payment_attempt.authentication_type
@@ -8436,8 +8468,7 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
         })
     } else if separate_authentication_requested
         && is_authentication_type_3ds
-        && mandate_type
-            != Some(api_models::payments::MandateTransactionType::RecurringMandateTransaction)
+        && mandate_type != Some(mandates::MandateTransactionType::RecurringMandateTransaction)
     {
         if let Some((connector_data, card)) = connector_supports_separate_authn.zip(card) {
             let token = payment_data
@@ -8491,19 +8522,24 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                         })?;
 
                     let resolved = match profile_acquirer_id {
-                        Some(id) => business_profile
+                        Some(id) => Some(business_profile
                             .get_acquirer_details_for_profile_acquirer(id, network.clone())
                             .ok_or(errors::ApiErrorResponse::PreconditionFailed {
                                 message: format!("Acquirer configuration not found for network {:?} in bucket {:?}", network, id),
-                            })?,
+                            })?),
+                        // Ignoring this error as merchant can also configure acquirer details on authentication connector side as well.
                         None => business_profile
                             .get_default_acquirer_details_from_network(network.clone())
-                            .ok_or(errors::ApiErrorResponse::PreconditionFailed {
-                                message: format!("Acquirer configuration not found for network {:?} in default bucket", network),
-                            })?,
+                            .ok_or_else(|| {
+                                logger::error!(
+                                    "Acquirer configuration not found for network {:?}",
+                                    network
+                                )
+                            })
+                            .ok(),
                     };
 
-                    Some(authentication::types::AcquirerDetails {
+                    resolved.map(|resolved| authentication::types::AcquirerDetails {
                         acquirer_bin: resolved.acquirer_bin.unwrap_or_default(),
                         acquirer_merchant_id: resolved.acquirer_assigned_merchant_id.unwrap_or_default(),
                         acquirer_country_code: resolved.acquirer_country_code,
@@ -9208,20 +9244,18 @@ pub fn update_request_data_with_mandate_id(
     {
         if let Some(mandate_ref) = mandate_reference.as_ref() {
             if let Some(connector_mandate_id) = &mandate_ref.connector_mandate_id {
-                request_data.set_mandate_id(api_models::payments::MandateIds {
+                request_data.set_mandate_id(mandates::MandateIds {
                     mandate_id: Some(connector_mandate_id.clone()),
-                    mandate_reference_id: Some(
-                        api_models::payments::MandateReferenceId::ConnectorMandateId(
-                            api_models::payments::ConnectorMandateReferenceId::new(
-                                Some(connector_mandate_id.clone()),
-                                None,
-                                None,
-                                None,
-                                None,
-                                None,
-                            ),
+                    mandate_reference_id: Some(mandates::MandateReferenceId::ConnectorMandateId(
+                        mandates::ConnectorMandateReferenceId::new(
+                            Some(connector_mandate_id.clone()),
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
                         ),
-                    ),
+                    )),
                 });
             }
         }

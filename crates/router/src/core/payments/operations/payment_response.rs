@@ -4,7 +4,6 @@ use std::{collections::HashMap, ops::Deref};
 use ::payment_methods::client::{
     BankDebitDetailUpdate, CardDetailUpdate, PaymentMethodUpdateData, UpdatePaymentMethodV1Payload,
 };
-use api_models::payments::{ConnectorMandateReferenceId, MandateReferenceId};
 #[cfg(feature = "dynamic_routing")]
 use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
@@ -21,7 +20,11 @@ use futures::FutureExt;
 use hyperswitch_domain_models::payments::{
     PaymentConfirmData, PaymentIntentData, PaymentStatusData,
 };
-use hyperswitch_domain_models::{behaviour::Conversion, payments::payment_attempt::PaymentAttempt};
+use hyperswitch_domain_models::{
+    behaviour::Conversion,
+    mandates::{self, ConnectorMandateReferenceId, MandateReferenceId},
+    payments::payment_attempt::PaymentAttempt,
+};
 #[cfg(feature = "v2")]
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use router_derive;
@@ -399,7 +402,7 @@ where
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     operations = "post_update_tracker",
-    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data,incremental_authorization_data, sdk_session_update_data, post_session_tokens_data, update_metadata_data, cancel_post_capture_data, extend_authorization_data"
+    flow = "sync_data, cancel_data, authorize_data, capture_data, complete_authorize_data, approve_data, reject_data, setup_mandate_data, session_data, incremental_authorization_data, sdk_session_update_data, post_session_tokens_data, update_metadata_data, cancel_post_capture_data, extend_authorization_data, cancel_post_capture_sync_data, cancel_pre_authorize_data"
 )]
 pub struct PaymentResponse;
 
@@ -650,7 +653,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                         connector_mandate_reference_id
                             .clone()
                             .map(ForeignFrom::foreign_from);
-                    payment_data.set_mandate_id(api_models::payments::MandateIds {
+                    payment_data.set_mandate_id(mandates::MandateIds {
                         mandate_id: None,
                         mandate_reference_id: connector_mandate_reference_id.map(
                             |connector_mandate_id| {
@@ -775,10 +778,14 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_config.is_modular_with_pm_version(
+        if !feature_config.should_use_modular_pm_path(
+            payment_data.get_payment_method_info().map(|pm| pm.version),
             payment_data
                 .get_payment_method_info()
-                .map(|payment_method| payment_method.version),
+                .and_then(|pm| pm.compatibility_updated_at),
+            payment_data
+                .get_payment_method_info()
+                .map(|pm| pm.last_modified),
         ) {
             let _ = update_pm_connector_mandate_details(
                 state,
@@ -1079,10 +1086,14 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_config.is_modular_with_pm_version(
+        if !feature_config.should_use_modular_pm_path(
+            payment_data.get_payment_method_info().map(|pm| pm.version),
             payment_data
                 .get_payment_method_info()
-                .map(|payment_method| payment_method.version),
+                .and_then(|pm| pm.compatibility_updated_at),
+            payment_data
+                .get_payment_method_info()
+                .map(|pm| pm.last_modified),
         ) {
             let _ = update_pm_connector_mandate_details(
                 state,
@@ -1466,6 +1477,47 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
 
 #[cfg(feature = "v1")]
 #[async_trait]
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPreAuthorizeCancelData>
+    for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        db: &'b SessionState,
+        processor: &domain::Processor,
+        mut payment_data: PaymentData<F>,
+        router_data: types::RouterData<
+            F,
+            types::PaymentsPreAuthorizeCancelData,
+            types::PaymentsResponseData,
+        >,
+        locale: &Option<String>,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
+            RoutableConnectorChoice,
+        >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+    ) -> RouterResult<PaymentData<F>>
+    where
+        F: 'b + Send,
+    {
+        payment_data = Box::pin(payment_response_update_tracker(
+            db,
+            payment_data,
+            router_data,
+            processor,
+            locale,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
+        ))
+        .await?;
+
+        Ok(payment_data)
+    }
+}
+
+#[cfg(feature = "v1")]
+#[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> for PaymentResponse {
     async fn update_tracker<'b>(
         &'b self,
@@ -1512,6 +1564,47 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelPostCap
         router_data: types::RouterData<
             F,
             types::PaymentsCancelPostCaptureData,
+            types::PaymentsResponseData,
+        >,
+        locale: &Option<String>,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
+            RoutableConnectorChoice,
+        >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+    ) -> RouterResult<PaymentData<F>>
+    where
+        F: 'b + Send,
+    {
+        payment_data = Box::pin(payment_response_update_tracker(
+            db,
+            payment_data,
+            router_data,
+            processor,
+            locale,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
+        ))
+        .await?;
+
+        Ok(payment_data)
+    }
+}
+
+#[cfg(feature = "v1")]
+#[async_trait]
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelPostCaptureSyncData>
+    for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        db: &'b SessionState,
+        processor: &domain::Processor,
+        mut payment_data: PaymentData<F>,
+        router_data: types::RouterData<
+            F,
+            types::PaymentsCancelPostCaptureSyncData,
             types::PaymentsResponseData,
         >,
         locale: &Option<String>,
@@ -1678,7 +1771,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     {
         payment_data.mandate_id = payment_data.mandate_id.or_else(|| {
             router_data.request.mandate_id.clone()
-            // .map(api_models::payments::MandateIds::new)
+            // .map(mandates::MandateIds::new)
         });
 
         payment_data = Box::pin(payment_response_update_tracker(
@@ -1805,7 +1898,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         payment_data.payment_attempt.connector_mandate_detail = connector_mandate_reference_id
             .clone()
             .map(ForeignFrom::foreign_from);
-        payment_data.set_mandate_id(api_models::payments::MandateIds {
+        payment_data.set_mandate_id(mandates::MandateIds {
             mandate_id: None,
             mandate_reference_id: connector_mandate_reference_id.map(|connector_mandate_id| {
                 MandateReferenceId::ConnectorMandateId(connector_mandate_id)
@@ -1831,10 +1924,14 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_config.is_modular_with_pm_version(
+        if !feature_config.should_use_modular_pm_path(
+            payment_data.get_payment_method_info().map(|pm| pm.version),
             payment_data
                 .get_payment_method_info()
-                .map(|payment_method| payment_method.version),
+                .and_then(|pm| pm.compatibility_updated_at),
+            payment_data
+                .get_payment_method_info()
+                .map(|pm| pm.last_modified),
         ) {
             let _ = update_pm_connector_mandate_details(
                 state,
@@ -1970,10 +2067,14 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_config.is_modular_with_pm_version(
+        if !feature_config.should_use_modular_pm_path(
+            payment_data.get_payment_method_info().map(|pm| pm.version),
             payment_data
                 .get_payment_method_info()
-                .map(|payment_method| payment_method.version),
+                .and_then(|pm| pm.compatibility_updated_at),
+            payment_data
+                .get_payment_method_info()
+                .map(|pm| pm.last_modified),
         ) {
             let _ = update_pm_connector_mandate_details(
                 state,
@@ -3322,9 +3423,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let updated_metadata_info = updated_metadata_details
             .map(|data| {
-                serde_json::from_value::<api_models::payments::UpdatedMandateDetails>(
-                    data.peek().clone(),
-                )
+                serde_json::from_value::<mandates::UpdatedMandateDetails>(data.peek().clone())
             })
             .transpose()
             .inspect_err(|e| {
@@ -3337,20 +3436,18 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
             .flatten();
 
         let mandate_data_updated = match updated_metadata_info {
-            Some(data) => Some(api_models::payments::MandateIds {
+            Some(data) => Some(mandates::MandateIds {
                 mandate_id: None,
-                mandate_reference_id: Some(
-                    api_models::payments::MandateReferenceId::ConnectorMandateId(
-                        api_models::payments::ConnectorMandateReferenceId::new(
-                            mandate_reference_id,
-                            None,
-                            None,
-                            None,
-                            None,
-                            Some(data),
-                        ),
+                mandate_reference_id: Some(mandates::MandateReferenceId::ConnectorMandateId(
+                    mandates::ConnectorMandateReferenceId::new(
+                        mandate_reference_id,
+                        None,
+                        None,
+                        None,
+                        None,
+                        Some(data),
                     ),
-                ),
+                )),
             }),
             None => payment_data.mandate_data,
         };
@@ -3518,6 +3615,118 @@ impl<F: Send + Clone> Operation<F, types::SetupMandateRequestData> for &PaymentR
         &(dyn PostUpdateTracker<F, Self::Data, types::SetupMandateRequestData> + Send + Sync),
     > {
         Ok(*self)
+    }
+}
+
+#[cfg(feature = "v1")]
+impl
+    Operation<
+        hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+        types::ExternalVaultProxyPaymentsData,
+    > for &PaymentResponse
+{
+    type Data = PaymentData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>;
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+            Self::Data,
+            types::ExternalVaultProxyPaymentsData,
+        > + Send
+              + Sync),
+    > {
+        Ok(*self)
+    }
+}
+
+#[cfg(feature = "v1")]
+impl
+    Operation<
+        hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+        types::ExternalVaultProxyPaymentsData,
+    > for PaymentResponse
+{
+    type Data = PaymentData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>;
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+            Self::Data,
+            types::ExternalVaultProxyPaymentsData,
+        > + Send
+              + Sync),
+    > {
+        Ok(self)
+    }
+}
+
+#[cfg(feature = "v1")]
+#[async_trait]
+impl
+    PostUpdateTracker<
+        hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+        PaymentData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>,
+        types::ExternalVaultProxyPaymentsData,
+    > for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        state: &'b SessionState,
+        processor: &domain::Processor,
+        payment_data: PaymentData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>,
+        router_data: types::RouterData<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+            types::ExternalVaultProxyPaymentsData,
+            types::PaymentsResponseData,
+        >,
+        locale: &Option<String>,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
+            RoutableConnectorChoice,
+        >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+    ) -> RouterResult<PaymentData<hyperswitch_domain_models::router_flow_types::ExternalVaultProxy>>
+    where
+        hyperswitch_domain_models::router_flow_types::ExternalVaultProxy: 'b + Send + Sync,
+    {
+        Box::pin(payment_response_update_tracker(
+            state,
+            payment_data,
+            router_data,
+            processor,
+            locale,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            routable_connector,
+            #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+            business_profile,
+        ))
+        .await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn update_modular_pm_and_mandate<'b>(
+        &self,
+        state: &SessionState,
+        resp: &types::RouterData<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+            types::ExternalVaultProxyPaymentsData,
+            types::PaymentsResponseData,
+        >,
+        _platform: &domain::Platform,
+        payment_data: &mut PaymentData<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+        >,
+        _business_profile: &domain::Profile,
+        request_payment_method_data: Option<&domain::PaymentMethodData>,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        hyperswitch_domain_models::router_flow_types::ExternalVaultProxy: 'b + Clone + Send + Sync,
+    {
+        update_modular_pm_and_mandate_impl(state, resp, request_payment_method_data, payment_data)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update modular payment method and mandate")
     }
 }
 
@@ -3874,7 +4083,7 @@ fn update_connector_mandate_details_for_the_flow<F: Clone>(
         .clone()
         .map(ForeignFrom::foreign_from);
 
-    payment_data.set_mandate_id(api_models::payments::MandateIds {
+    payment_data.set_mandate_id(mandates::MandateIds {
         mandate_id: None,
         mandate_reference_id: connector_mandate_reference_id.map(|connector_mandate_id| {
             MandateReferenceId::ConnectorMandateId(connector_mandate_id)

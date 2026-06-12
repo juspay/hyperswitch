@@ -113,6 +113,25 @@ impl ExternalVaultDetails {
             Self::Skip => false,
         }
     }
+
+    /// Returns the external vault connector account id when external vault is enabled.
+    pub fn get_vault_connector_id(
+        &self,
+    ) -> Option<common_utils::id_type::MerchantConnectorAccountId> {
+        match self {
+            Self::ExternalVaultEnabled(details) => Some(details.vault_connector_id.clone()),
+            Self::Skip => None,
+        }
+    }
+
+    /// Returns true when the configured external vault is the hyperswitch vault (`HyperswitchSdk`).
+    pub fn is_hyperswitch_vault(&self) -> bool {
+        matches!(
+            self,
+            Self::ExternalVaultEnabled(details)
+                if details.vault_sdk == Some(common_enums::VaultSdk::HyperswitchSdk)
+        )
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -1836,6 +1855,14 @@ impl Profile {
                     field_name: "billing_processor_id"
                 }
             ))
+    }
+
+    /// As per RBI guidelines, Alt-ID is applicable for merchants based in India
+    pub fn is_alt_id_eligible_merchant(&self) -> bool {
+        matches!(
+            self.merchant_business_country,
+            Some(api_enums::CountryAlpha2::IN)
+        )
     }
 }
 

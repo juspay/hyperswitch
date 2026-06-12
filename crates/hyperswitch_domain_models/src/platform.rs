@@ -81,6 +81,12 @@ impl ProcessorMerchantId {
     }
 }
 
+impl From<common_utils::id_type::MerchantId> for ProcessorMerchantId {
+    fn from(id: common_utils::id_type::MerchantId) -> Self {
+        Self(id)
+    }
+}
+
 /// Initiator = The entity that initiated the operation.
 #[derive(Clone, Debug)]
 pub enum Initiator {
