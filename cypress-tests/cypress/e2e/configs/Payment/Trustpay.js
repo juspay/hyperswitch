@@ -984,7 +984,6 @@ export const connectorDetails = {
         status: 400,
         body: {
           error: {
-            type: "invalid_request",
             code: "HE_02",
             message: "Payment does not exist or access forbidden",
           },
