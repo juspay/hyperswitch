@@ -1546,10 +1546,16 @@ where
                         1,
                         router_env::metric_attributes!(("flow", format!("{:#?}", operation))),
                     );
-                    super::reset_process_sync_task(&*state.store, payment_attempt, stime)
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while updating task in process tracker")
+                    super::reset_process_sync_task(
+                        &*state.store,
+                        payment_attempt,
+                        stime,
+                        "PAYMENTS_SYNC",
+                        storage::ProcessTrackerRunner::PaymentsSyncWorkflow,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while updating task in process tracker")
                 }
             }
             None => Ok(()),
@@ -2112,10 +2118,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                 }
                 None => {
                     // Validate that the customer_id is not in GlobalCustomerId format
-                    if customers::is_customer_id_in_global_format(
-                        &customer_id,
-                        &state.conf.cell_information.id,
-                    ) {
+                    if customers::is_customer_id_in_global_format(&customer_id) {
                         Err(report!(errors::StorageError::InvalidDataFormat(format!(
                             "customer_id '{}' format is not supported",
                             &customer_id.get_string_repr()
@@ -5382,6 +5385,8 @@ impl AttemptType {
             net_amount: old_payment_attempt.net_amount,
             external_three_ds_authentication_attempted: old_payment_attempt
                 .external_three_ds_authentication_attempted,
+            external_threeds_authentication_type: old_payment_attempt
+                .external_threeds_authentication_type,
             authentication_connector: None,
             authentication_id: None,
             mandate_data: old_payment_attempt.mandate_data,
@@ -8491,22 +8496,27 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                 .get_metadata()
                 .as_ref()
                 .and_then(|metadata| {
-                    metadata
-                    .peek()
-                    .clone()
-                    .parse_value::<authentication::types::AcquirerDetails>("AcquirerDetails")
-                    .change_context(errors::ApiErrorResponse::PreconditionFailed {
-                        message:
-                            "acquirer_bin and acquirer_merchant_id not found in Payment Connector's Metadata"
-                                .to_string(),
-                    })
-                    .inspect_err(|err| {
-                        logger::error!(
-                            "Failed to parse acquirer details from Payment Connector's Metadata: {:?}",
-                            err
-                        );
-                    })
-                    .ok()
+                    let metadata_val = metadata.peek();
+                    metadata_val
+                        .get("acquirer_details")
+                        .cloned()
+                        .or_else(|| metadata_val.get("acquirer_bin").map(|_| metadata_val.clone()))
+                        .and_then(|val| {
+                            val.parse_value::<authentication::types::AcquirerDetails>(
+                                "AcquirerDetails",
+                            )
+                            .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                                message: "acquirer_bin and acquirer_merchant_id not found in Payment Connector's Metadata"
+                                    .to_string(),
+                            })
+                            .inspect_err(|err| {
+                                logger::error!(
+                                    "Failed to parse acquirer details from Payment Connector's Metadata: {:?}",
+                                    err
+                                );
+                            })
+                            .ok()
+                        })
                 }) {
                 Some(details) => Some(details),
                 None => {

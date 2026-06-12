@@ -45,6 +45,7 @@
                       "v1/payments/payments--retrieve",
                       "v1/payments/payments--cancel",
                       "v1/payments/payments--cancel-post-capture",
+                      "v1/payments/payments--cancel-post-capture-retrieve",
                       "v1/payments/payments--capture",
                       "v1/payments/payments--incremental-authorization",
                       "v1/payments/payments--extend-authorization",

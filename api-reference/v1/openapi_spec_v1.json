@@ -1149,6 +1149,52 @@
             "api_key": []
           }
         ]
+      },
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Cancel Post Capture Retrieve",
+        "description": "Retrieves a canceled Payment post capture",
+        "operationId": "Cancel a Payment Post Capture Retrieve",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment canceled post capture",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
       }
     },
     "/payments/{payment_id}/extend_authorization": {
@@ -20320,7 +20366,9 @@
         "description": "Represents the type of identification document used for validation.",
         "enum": [
           "cpf",
-          "cnpj"
+          "cnpj",
+          "psn",
+          "other"
         ]
       },
       "DokuBankTransferInstructions": {
@@ -24230,7 +24278,8 @@
             "nullable": true
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "deprecated": true
       },
       "MandateResponse": {
         "type": "object",
@@ -28262,6 +28311,7 @@
           "mandate_id": {
             "type": "string",
             "description": "If this payment attempt is associated with a mandate (e.g., for a recurring or subsequent payment), this field will contain the ID of that mandate.",
+            "deprecated": true,
             "nullable": true
           },
           "error_code": {
@@ -29786,6 +29836,18 @@
                 "$ref": "#/components/schemas/ProxyCardData"
               }
             }
+          },
+          {
+            "type": "object",
+            "title": "VaultCardTokenData",
+            "required": [
+              "vault_card_token_data"
+            ],
+            "properties": {
+              "vault_card_token_data": {
+                "$ref": "#/components/schemas/CardToken"
+              }
+            }
           }
         ]
       },
@@ -31078,7 +31140,8 @@
           },
           "statement_descriptor_suffix": {
             "type": "string",
-            "description": "A dynamic suffix that appears on your customer's credit card statement. This is concatenated with the (shortened) descriptor prefix set on your account to form the complete statement descriptor. The combined length should not exceed connector-specific limits (typically 22 characters).",
+            "description": "A dynamic suffix that appears on your customer's credit card statement. This is concatenated with the (shortened) descriptor prefix set on your account to form the complete statement descriptor. The combined length should not exceed connector-specific limits (typically 22 characters). To be deprecated soon, use billing_descriptor instead.",
+            "deprecated": true,
             "nullable": true
           },
           "statement_descriptor_prefix": {
@@ -31238,6 +31301,7 @@
           "customer_id": {
             "type": "string",
             "description": "The identifier for the customer",
+            "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 64,
@@ -31777,6 +31841,7 @@
           "customer_id": {
             "type": "string",
             "description": "The identifier for the customer",
+            "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 64,
@@ -32528,14 +32593,16 @@
           },
           "statement_descriptor_name": {
             "type": "string",
-            "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.",
+            "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters. To be deprecated soon, use billing_descriptor instead.",
+            "deprecated": true,
             "example": "Hyperswitch Router",
             "nullable": true,
             "maxLength": 255
           },
           "statement_descriptor_suffix": {
             "type": "string",
-            "description": "Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 255 characters for the concatenated descriptor.",
+            "description": "Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 255 characters for the concatenated descriptor. To be deprecated soon, use billing_descriptor instead.",
+            "deprecated": true,
             "example": "Payment for shoes purchase",
             "nullable": true,
             "maxLength": 255
@@ -32605,12 +32672,14 @@
           },
           "business_label": {
             "type": "string",
-            "description": "The label identifying the specific business unit or profile under which this payment was processed by the merchant.",
+            "description": "The label identifying the specific business unit or profile under which this payment was processed by the merchant. To be deprecated soon. Pass the profile_id instead",
+            "deprecated": true,
             "nullable": true
           },
           "business_sub_label": {
             "type": "string",
-            "description": "An optional sub-label for further categorization of the business unit or profile used for this payment.",
+            "description": "An optional sub-label for further categorization of the business unit or profile used for this payment. To be deprecated soon. Pass the profile_id instead",
+            "deprecated": true,
             "nullable": true
           },
           "allowed_payment_method_types": {
@@ -33469,6 +33538,7 @@
           "customer_id": {
             "type": "string",
             "description": "The identifier for the customer",
+            "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 64,
@@ -33681,7 +33751,8 @@
           },
           "business_sub_label": {
             "type": "string",
-            "description": "Business sub label for the payment",
+            "description": "Business sub label for the payment. To be deprecated soon. Pass the profile_id instead",
+            "deprecated": true,
             "nullable": true
           },
           "retry_action": {
@@ -34301,14 +34372,16 @@
           },
           "statement_descriptor_name": {
             "type": "string",
-            "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.",
+            "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters. To be deprecated soon, use billing_descriptor instead.",
+            "deprecated": true,
             "example": "Hyperswitch Router",
             "nullable": true,
             "maxLength": 255
           },
           "statement_descriptor_suffix": {
             "type": "string",
-            "description": "Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 255 characters for the concatenated descriptor.",
+            "description": "Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 255 characters for the concatenated descriptor. To be deprecated soon, use billing_descriptor instead.",
+            "deprecated": true,
             "example": "Payment for shoes purchase",
             "nullable": true,
             "maxLength": 255
@@ -34388,12 +34461,14 @@
           },
           "business_label": {
             "type": "string",
-            "description": "The label identifying the specific business unit or profile under which this payment was processed by the merchant.",
+            "description": "The label identifying the specific business unit or profile under which this payment was processed by the merchant. To be deprecated soon. Pass the profile_id instead",
+            "deprecated": true,
             "nullable": true
           },
           "business_sub_label": {
             "type": "string",
-            "description": "An optional sub-label for further categorization of the business unit or profile used for this payment.",
+            "description": "An optional sub-label for further categorization of the business unit or profile used for this payment. To be deprecated soon. Pass the profile_id instead",
+            "deprecated": true,
             "nullable": true
           },
           "allowed_payment_method_types": {
@@ -35065,6 +35140,7 @@
           "customer_id": {
             "type": "string",
             "description": "The identifier for the customer",
+            "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 64,
@@ -36003,7 +36079,8 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated.",
+            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated. _Deprecated: Use the customer object instead._",
+            "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "maxLength": 255
           },
@@ -36030,7 +36107,8 @@
           },
           "business_label": {
             "type": "string",
-            "description": "Business label of the merchant for this payout",
+            "description": "Business label of the merchant for this payout. _Deprecated: Use profile_id instead._",
+            "deprecated": true,
             "example": "food",
             "nullable": true
           },
@@ -38064,16 +38142,12 @@
         "type": "object",
         "description": "Additional metadata for payment intent state containing refunded and disputed amounts",
         "required": [
+          "status",
           "updated_at"
         ],
         "properties": {
           "status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PostCaptureVoidStatus"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/PostCaptureVoidStatus"
           },
           "connector_reference_id": {
             "type": "string",
@@ -38285,9 +38359,11 @@
             "nullable": true
           },
           "acquirer_country_code": {
-            "type": "string",
-            "description": "Acquirer country code",
-            "example": "US",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
             "nullable": true
           },
           "profile_id": {
@@ -38409,8 +38485,11 @@
             "nullable": true
           },
           "acquirer_country_code": {
-            "type": "string",
-            "example": "US",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
             "nullable": true
           },
           "is_default": {

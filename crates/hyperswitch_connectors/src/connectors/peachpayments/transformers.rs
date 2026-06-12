@@ -808,24 +808,32 @@ pub enum PeachpaymentsPaymentStatus {
     Reversed,
     ThreedsRequired,
     Voided,
+    FailedRetry,
 }
 
-impl From<PeachpaymentsPaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: PeachpaymentsPaymentStatus) -> Self {
+impl TryFrom<PeachpaymentsPaymentStatus> for common_enums::AttemptStatus {
+    type Error = errors::ConnectorError;
+
+    fn try_from(item: PeachpaymentsPaymentStatus) -> Result<Self, errors::ConnectorError> {
         match item {
             // PENDING means authorized but not yet captured - requires confirmation
             PeachpaymentsPaymentStatus::Pending
             | PeachpaymentsPaymentStatus::Authorized
-            | PeachpaymentsPaymentStatus::Approved => Self::Authorized,
+            | PeachpaymentsPaymentStatus::Approved => Ok(Self::Authorized),
             PeachpaymentsPaymentStatus::Declined | PeachpaymentsPaymentStatus::Failed => {
-                Self::Failure
+                Ok(Self::Failure)
             }
             PeachpaymentsPaymentStatus::Voided | PeachpaymentsPaymentStatus::Reversed => {
-                Self::Voided
+                Ok(Self::Voided)
             }
-            PeachpaymentsPaymentStatus::ThreedsRequired => Self::AuthenticationPending,
+            PeachpaymentsPaymentStatus::ThreedsRequired => Ok(Self::AuthenticationPending),
             PeachpaymentsPaymentStatus::ApprovedConfirmed
-            | PeachpaymentsPaymentStatus::Successful => Self::Charged,
+            | PeachpaymentsPaymentStatus::Successful => Ok(Self::Charged),
+            PeachpaymentsPaymentStatus::FailedRetry => Err(
+                errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(
+                    "Received FailedRetry status from PeachPayments in 2xx response",
+                )),
+            ),
         }
     }
 }
@@ -1001,6 +1009,8 @@ pub enum ResponseCode {
         description: String,
         terminal_outcome_string: Option<String>,
         receipt_string: Option<String>,
+        iso_code_description: Option<String>,
+        explanation: Option<String>,
     },
 }
 
@@ -1074,7 +1084,7 @@ pub fn get_peachpayments_response(
     ),
     errors::ConnectorError,
 > {
-    let status = common_enums::AttemptStatus::from(response.transaction_result);
+    let status = common_enums::AttemptStatus::try_from(response.transaction_result)?;
     let payments_response = if utils::is_payment_failure(status) {
         Err(ErrorResponse {
             code: get_error_code(response.response_code.as_ref()),
@@ -1123,7 +1133,7 @@ pub fn get_webhook_response(
     let transaction = response
         .transaction
         .ok_or(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-    let status = common_enums::AttemptStatus::from(transaction.transaction_result);
+    let status = common_enums::AttemptStatus::try_from(transaction.transaction_result)?;
     let webhook_response = if utils::is_payment_failure(status) {
         Err(ErrorResponse {
             code: get_error_code(transaction.response_code.as_ref()),
@@ -1191,7 +1201,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsCaptureResponse, T, Paymen
     fn try_from(
         item: ResponseRouterData<F, PeachpaymentsCaptureResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let status = common_enums::AttemptStatus::from(item.response.transaction_result);
+        let status = common_enums::AttemptStatus::try_from(item.response.transaction_result)?;
 
         // Check if it's an error response
         let response = if utils::is_payment_failure(status) {
@@ -1275,13 +1285,15 @@ pub struct PeachpaymentsErrorResponse {
     pub message: String,
 }
 
-impl TryFrom<ErrorResponse> for PeachpaymentsErrorResponse {
-    type Error = error_stack::Report<errors::ConnectorError>;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Peachpayments5xxErrorResponse {
+    Standard(PeachpaymentsErrorResponse),
+    Detailed(PeachpaymentsDetailedDeclineResponse),
+}
 
-    fn try_from(error_response: ErrorResponse) -> Result<Self, Self::Error> {
-        Ok(Self {
-            error_ref: error_response.code,
-            message: error_response.message,
-        })
-    }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PeachpaymentsDetailedDeclineResponse {
+    #[serde(flatten)]
+    pub response: PeachpaymentsCaptureResponse,
 }

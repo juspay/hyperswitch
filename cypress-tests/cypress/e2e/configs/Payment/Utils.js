@@ -459,7 +459,7 @@ export const CONNECTOR_LISTS = {
       "mollie",
       "zift",
     ],
-    MANDATE_ID_TEST: ["airwallex", "payload", "gigadat", "loonio"],
+    MANDATE_ID_TEST: ["airwallex", "payload", "gigadat", "loonio", "redsys"],
     // Add more exclusion lists
   },
 
@@ -553,6 +553,12 @@ export const CONNECTOR_LISTS = {
     SKRILL_WALLET: ["paysafe"],
     PAYSAFECARD_GIFT_CARD: ["paysafe"],
     PAYPAL_MANDATE: ["globalpay", "paypal"],
+    PAYPAL_WALLET_MANDATE: ["adyen"],
+    KAKAO_PAY_WALLET_MANDATE: ["adyen"],
+    GCASH_WALLET_MANDATE: ["adyen"],
+    TWINT_WALLET_MANDATE: ["adyen"],
+    DANA_WALLET_MANDATE: ["adyen"],
+    GOPAY_WALLET_MANDATE: ["adyen"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [
       "adyen",
@@ -649,6 +655,7 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     POLL_CONFIG: ["stripe"],
+    CLIENT_SESSION_VALIDATION: ["stripe"],
     // Add more inclusion lists
   },
 };
