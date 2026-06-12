@@ -2779,7 +2779,6 @@ export const connectorDetails = {
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "sepa",
-        currency: "EUR",
         payment_method_data: {
           bank_debit: {
             sepa_bank_debit: {
