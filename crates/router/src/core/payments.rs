@@ -5807,17 +5807,18 @@ where
             .and_then(|pm| pm.payment_method_billing_address.clone())
             .and_then(|encryptable| {
                 let value = encryptable.into_inner().expose();
-                value
-                    .parse_value::<hyperswitch_domain_models::address::Address>(
-                        "payment_method_billing_address",
-                    )
-                    .inspect_err(|err| {
+                match value.parse_value::<hyperswitch_domain_models::address::Address>(
+                    "payment_method_billing_address",
+                ) {
+                    Ok(address) => Some(address),
+                    Err(err) => {
                         logger::warn!(
                             error=?err,
                             "MIT confirm: failed to parse saved payment_method_billing_address"
                         );
-                    })
-                    .ok()
+                        None
+                    }
+                }
             });
         let mit_billing = saved_pm_billing
             .as_ref()
@@ -13525,12 +13526,7 @@ async fn calculate_external_surcharge(
     Ok(surcharge_details)
 }
 
-// Shared UCS surcharge call used by both /eligibility (which caches the result)
-// and MIT /confirm (which applies it inline). Fetches the SurchargeProcessor MCA,
-// reads the previous connector surcharge id from the active attempt, and calls UCS.
-// Returns Ok(Some(resp)) on UCS success; Ok(None) when UCS returns an error
-// (best-effort — logged inside, surcharge treated as not applicable). Hard errors
-// (MCA fetch failure) propagate via Err for the caller to decide what to do.
+// Shared UCS surcharge call for /eligibility and MIT /confirm.
 #[cfg(all(feature = "oltp", feature = "v1"))]
 #[allow(clippy::too_many_arguments)]
 async fn run_external_surcharge_ucs(
@@ -13609,10 +13605,8 @@ async fn run_external_surcharge_ucs(
     }
 }
 
-// MIT off-session /confirm: no SDK called /eligibility, so calculate the external
-// surcharge inline. Best-effort: any failure (missing profile config, missing card,
-// MCA fetch error, UCS error) yields None and confirm proceeds with the original
-// amount — surcharge is never a reason to fail a recurring payment.
+// MIT /confirm has no prior /eligibility call, so compute surcharge inline.
+// Best-effort: any failure returns None and confirm proceeds with the original amount.
 #[cfg(feature = "v1")]
 async fn calculate_mit_external_surcharge(
     state: &SessionState,
@@ -13627,10 +13621,8 @@ async fn calculate_mit_external_surcharge(
         .surcharge_connector_details
         .as_ref()
         .and_then(|details| details.surcharge_connector_id.clone());
-    // For raw-card MIT: pull the BIN from the in-memory PaymentMethodData::Card variant.
-    // For PSP-tokenized MIT (e.g. Adyen storedPaymentMethodId): there's no Card variant on
-    // payment_method_data — the saved-card metadata lives on payment_attempt.payment_method_data
-    // as a JSON object with shape {"card": {"card_isin": "411111", ...}}.
+    // Raw-card MIT has the Card variant; PSP-tokenized MIT (e.g. Adyen storedPaymentMethodId)
+    // does not — fall back to the saved-card JSON: {"card": {"card_isin": "..."}}.
     let card_iin = payment_method_data
         .and_then(domain::PaymentMethodData::get_card_iin)
         .or_else(|| {
@@ -13661,14 +13653,9 @@ async fn calculate_mit_external_surcharge(
             Some(payment_method),
             Some(profile_id),
         ) => {
-            // MIT billing resolution: merge the payment_intent billing_details with the saved
-            // payment_method's billing (intent fields win per-field, saved PM fills the gaps).
-            // This also covers the case where PI billing decodes to an Address whose inner
-            // address is None (e.g. request body's `billing` was the wrong shape) — unify_address
-            // then pulls postal_code / country from the saved PM.
             let pi_billing_address: Option<hyperswitch_domain_models::address::Address> =
-                payment_intent.billing_details.as_ref().and_then(|b| {
-                    match b
+                payment_intent.billing_details.as_ref().and_then(|billing| {
+                    match billing
                         .clone()
                         .deserialize_inner_value(|value| value.parse_value("Address"))
                     {
@@ -13682,12 +13669,9 @@ async fn calculate_mit_external_surcharge(
                         }
                     }
                 });
-            let billing_address = match (pi_billing_address, payment_method_billing) {
-                (Some(pi), Some(pm)) => Some(pi.unify_address(Some(pm))),
-                (Some(pi), None) => Some(pi),
-                (None, Some(pm)) => Some(pm.clone()),
-                (None, None) => None,
-            };
+            let billing_address = pi_billing_address
+                .map(|address| address.unify_address(payment_method_billing))
+                .or_else(|| payment_method_billing.cloned());
 
             let inputs = SurchargeCalculationInputs {
                 amount: payment_intent.amount,
