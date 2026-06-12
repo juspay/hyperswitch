@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -58,7 +56,7 @@ pub struct ProfileAcquirerResponse {
     pub acquirer_fraud_rate: Option<f64>,
     /// Acquirer country code
     #[schema(value_type= Option<String>,example = "US")]
-    pub acquirer_country_code: Option<common_enums::CountryAlpha2>,
+    pub acquirer_country_code: Option<String>,
     /// Parent profile id to link the acquirer account with
     #[schema(value_type= String,example = "pro_ky0yNyOXXlA5hF8JzE5q")]
     pub profile_id: common_utils::id_type::ProfileId,
@@ -88,7 +86,7 @@ pub struct AcquirerBucketConfigResponse {
     pub acquirer_fraud_rate: Option<f64>,
     /// Acquirer country code
     #[schema(value_type= Option<String>,example = "US")]
-    pub acquirer_country_code: Option<common_enums::CountryAlpha2>,
+    pub acquirer_country_code: Option<String>,
 }
 
 impl common_utils::events::ApiEventMetric for ProfileAcquirerCreate {}
@@ -133,16 +131,7 @@ impl
             acquirer_bin: acquirer_config.and_then(|c| c.acquirer_bin.clone()),
             acquirer_ica: acquirer_config.and_then(|c| c.acquirer_ica.clone()),
             acquirer_fraud_rate: acquirer_config.and_then(|c| c.acquirer_fraud_rate),
-            acquirer_country_code: acquirer_config
-                .and_then(|c| c.acquirer_country_code.as_ref())
-                .and_then(|code_str| {
-                    code_str
-                        .parse::<u32>()
-                        .ok()
-                        .and_then(|code_u32| common_enums::Country::from_numeric(code_u32).ok())
-                        .map(|country| country.to_alpha2())
-                        .or_else(|| common_enums::CountryAlpha2::from_str(code_str).ok())
-                }),
+            acquirer_country_code: acquirer_config.and_then(|c| c.acquirer_country_code.clone()),
             is_default,
         }
     }
@@ -157,16 +146,7 @@ impl From<&common_types::domain::AcquirerConfig> for AcquirerBucketConfigRespons
             acquirer_bin: acquirer_config.acquirer_bin.clone(),
             acquirer_ica: acquirer_config.acquirer_ica.clone(),
             acquirer_fraud_rate: acquirer_config.acquirer_fraud_rate,
-            acquirer_country_code: acquirer_config.acquirer_country_code.as_ref().and_then(
-                |code_str| {
-                    code_str
-                        .parse::<u32>()
-                        .ok()
-                        .and_then(|code_u32| common_enums::Country::from_numeric(code_u32).ok())
-                        .map(|country| country.to_alpha2())
-                        .or_else(|| common_enums::CountryAlpha2::from_str(code_str).ok())
-                },
-            ),
+            acquirer_country_code: acquirer_config.acquirer_country_code.clone(),
         }
     }
 }
