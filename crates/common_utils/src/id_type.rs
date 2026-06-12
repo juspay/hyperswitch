@@ -36,7 +36,6 @@ pub use payout::PayoutId;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-pub use self::global_id::{CellId, customer::GlobalCustomerId};
 #[cfg(feature = "v2")]
 pub use self::global_id::{
     payment::{GlobalAttemptGroupId, GlobalAttemptId, GlobalPaymentId},
@@ -51,6 +50,7 @@ pub use self::{
     client_secret::ClientSecretId,
     client_session::ClientSessionId,
     customer::CustomerId,
+    global_id::{customer::GlobalCustomerId, CellId},
     invoice::InvoiceId,
     merchant::MerchantId,
     merchant_connector_account::MerchantConnectorAccountId,
@@ -187,7 +187,6 @@ impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> LengthId<MAX_LENGTH, MIN_LENGTH
         Self(alphanumeric_id)
     }
 
-    #[allow(dead_code)]
     /// Create a new LengthId from aplhanumeric id
     pub(crate) fn from_alphanumeric_id(
         alphanumeric_id: AlphaNumericId,

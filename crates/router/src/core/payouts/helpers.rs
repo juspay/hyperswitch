@@ -1427,7 +1427,7 @@ pub async fn update_payouts_and_payout_attempt(
         payout_data
             .customer_details
             .as_ref()
-            .map(|customer| customer.customer_id.clone())
+            .map(|customer| customer.get_id().clone())
     } else {
         payout_data.payouts.customer_id.clone()
     };

@@ -725,6 +725,7 @@ where
             &req,
             platform,
             &mut payment_data,
+            None,
             &business_profile,
             &feature_config,
         )
@@ -2877,7 +2878,7 @@ where
 
     let locale = header_payload.locale.clone();
 
-    let (operation, _customer) = operation
+    let (operation, customer) = operation
         .to_domain()?
         .get_or_create_customer_details(
             state,
@@ -2899,6 +2900,7 @@ where
             &req,
             &platform,
             &mut payment_data,
+            customer.as_ref(),
             &business_profile,
             &feature_config,
         )

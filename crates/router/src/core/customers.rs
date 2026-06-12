@@ -1234,7 +1234,7 @@ impl AddressStructForDbUpdate<'_> {
                             .attach_printable(format!(
                             "Failed while updating address: merchant_id: {:?}, customer_id: {:?}",
                             self.merchant_account.get_id(),
-                            self.domain_customer.customer_id
+                            self.domain_customer.get_id()
                         ))?,
                     )
                 }
@@ -1247,7 +1247,7 @@ impl AddressStructForDbUpdate<'_> {
                             self.state,
                             customer_address,
                             self.merchant_account.get_id(),
-                            &self.domain_customer.customer_id,
+                            self.domain_customer.get_id(),
                             self.key_store.key.get_inner().peek(),
                             self.merchant_account.storage_scheme,
                         )
@@ -1418,7 +1418,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
 
         let response = db
             .update_customer_by_customer_id_merchant_id(
-                domain_customer.customer_id.to_owned(),
+                domain_customer.get_id().to_owned(),
                 provider.get_account().get_id().to_owned(),
                 domain_customer.to_owned(),
                 storage::CustomerUpdate::Update {

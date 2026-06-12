@@ -2220,7 +2220,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     .attach_printable("Unable to encrypt customer details")?,
                 );
 
-                payment_data.payment_intent.customer_id = Some(customer.customer_id.clone());
+                payment_data.payment_intent.customer_id = Some(customer.get_id().clone());
 
                 Some(customer)
             }

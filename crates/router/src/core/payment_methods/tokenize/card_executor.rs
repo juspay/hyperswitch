@@ -20,11 +20,9 @@ use super::{
     NetworkTokenizationResponse, State, StoreLockerResponse, TransitionTo,
 };
 use crate::{
-    core::{
-        payment_methods::{
-            cards::{add_card_to_vault, PmCards},
-            transformers as pm_transformers,
-        },
+    core::payment_methods::{
+        cards::{add_card_to_vault, PmCards},
+        transformers as pm_transformers,
     },
     errors::{self, RouterResult},
     types::{api, domain},
@@ -362,7 +360,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             // If found, send back CustomerDetails from DB
             |optional_customer| {
                 Ok(optional_customer.map(|customer| api::CustomerDetails {
-                    id: Some(customer.customer_id.clone()),
+                    id: Some(customer.get_id().clone()),
                     name: customer.name.clone().map(|name| name.into_inner()),
                     email: customer.email.clone().map(Email::from),
                     phone: customer.phone.clone().map(|phone| phone.into_inner()),
