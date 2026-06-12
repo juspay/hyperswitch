@@ -38,23 +38,15 @@ describe("Bank Debit tests", () => {
   });
 
   context("SEPA Bank Debit Create and Confirm flow test", () => {
-    it("Create and Confirm SEPA Bank Debit -> Retrieve Payment", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm SEPA Bank Debit -> Retrieve Payment", () => {
       let shouldContinue = true;
 
-      cy.step("Create and Confirm SEPA Bank Debit", () => {
+      cy.step("Create Payment Intent for SEPA", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
-        ]["Sepa"];
-        if (!utils.should_continue_further(data)) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Create and Confirm SEPA Bank Debit"
-          );
-          shouldContinue = false;
-          return;
-        }
-        cy.createConfirmPaymentTest(
-          fixtures.createConfirmPaymentBody,
+        ]["PaymentIntent"]("Sepa");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
           data,
           "no_three_ds",
           "automatic",
@@ -65,15 +57,45 @@ describe("Bank Debit tests", () => {
         }
       });
 
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm SEPA Bank Debit", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm SEPA Bank Debit");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_debit_pm"
+        ]["Sepa"];
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
       cy.step("Retrieve Payment", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
         }
-        const data = getConnectorDetails(globalState.get("connectorId"))[
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_debit_pm"
         ]["Sepa"];
-        cy.retrievePaymentCallTest({ globalState, data: data });
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
       });
     });
   });
