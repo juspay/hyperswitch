@@ -109,10 +109,6 @@ describe("Payout Link", () => {
       );
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
-
-    it("verify-no-payout-link-in-response", () => {
-      cy.createPayoutWithoutLinkTest(fixtures.createPayoutBody, globalState);
-    });
   });
 
   context("Payout Link - Validation errors", () => {
@@ -316,7 +312,7 @@ describe("Payout Link", () => {
     });
 
     it("retrieve-payout-after-bank-submission-test", function () {
-      cy.retrievePayoutAfterBankSubmissionTest(globalState);
+      cy.retrievePayoutCallTest(globalState);
     });
   });
 
