@@ -13532,6 +13532,7 @@ async fn calculate_external_surcharge(
 // (best-effort — logged inside, surcharge treated as not applicable). Hard errors
 // (MCA fetch failure) propagate via Err for the caller to decide what to do.
 #[cfg(all(feature = "oltp", feature = "v1"))]
+#[allow(clippy::too_many_arguments)]
 async fn run_external_surcharge_ucs(
     state: &SessionState,
     processor: &domain::Processor,
