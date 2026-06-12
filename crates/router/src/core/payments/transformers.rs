@@ -90,9 +90,7 @@ fn get_customer_id_from_global_customer_id(
         .map(common_utils::id_type::CustomerId::try_from)
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "Invalid global customer generated, not able to convert to reference id",
-        )
+        .attach_printable("Invalid global customer generated, not able to convert to reference id")
 }
 
 #[cfg(feature = "v2")]

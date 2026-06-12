@@ -1161,10 +1161,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                     })?;
                                 let customer =
                                     customer.ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
-                                let global_customer_id = customer
-                                    .get_global_id()
-                                    .cloned()
-                                    .get_required_value("id")?;
+                                let global_customer_id =
+                                    customer.get_global_id().cloned().get_required_value("id")?;
 
                                 match pm_transformers::create_payment_method_in_modular_service(
                                     state,

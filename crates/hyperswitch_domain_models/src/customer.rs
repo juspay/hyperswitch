@@ -214,7 +214,6 @@ impl Customer {
             MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
         }
     }
-
 }
 
 #[cfg(feature = "v1")]
