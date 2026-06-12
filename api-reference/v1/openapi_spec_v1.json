@@ -37788,8 +37788,11 @@
             "nullable": true
           },
           "acquirer_country_code": {
-            "type": "string",
-            "example": "US",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
             "nullable": true
           },
           "is_default": {
