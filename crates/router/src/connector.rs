@@ -8,7 +8,7 @@ pub use hyperswitch_connectors::connectors::{
     amazonpay, amazonpay::Amazonpay, archipel, archipel::Archipel, authipay, authipay::Authipay,
     authorizedotnet, authorizedotnet::Authorizedotnet, bambora, bambora::Bambora, bamboraapac,
     bamboraapac::Bamboraapac, bankofamerica, bankofamerica::Bankofamerica, barclaycard,
-    barclaycard::Barclaycard, billwerk, billwerk::Billwerk, bitpay, bitpay::Bitpay,
+    barclaycard::Barclaycard, billwerk, billwerk::Billwerk, bitpay, bitpay::Bitpay, biopay::Biopay,
     blackhawknetwork, blackhawknetwork::Blackhawknetwork, bluesnap, bluesnap::Bluesnap, boku,
     boku::Boku, braintree, braintree::Braintree, breadpay, breadpay::Breadpay, calida,
     calida::Calida, cashtocode, cashtocode::Cashtocode, celero, celero::Celero, chargebee,

@@ -149,6 +149,9 @@ impl ConnectorData {
                 enums::Connector::Bitpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bitpay::new())))
                 }
+                enums::Connector::Biopay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Biopay::new())))
+                }
                 enums::Connector::Blackhawknetwork => Ok(ConnectorEnum::Old(Box::new(
                     connector::Blackhawknetwork::new(),
                 ))),

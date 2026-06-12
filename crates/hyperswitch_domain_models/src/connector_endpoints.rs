@@ -27,6 +27,7 @@ pub struct Connectors {
     pub barclaycard: ConnectorParams,
     pub billwerk: ConnectorParams,
     pub bitpay: ConnectorParams,
+    pub biopay: ConnectorParams,
     pub blackhawknetwork: ConnectorParams,
     pub calida: ConnectorParams,
     pub bluesnap: ConnectorParamsWithSecondaryBaseUrl,

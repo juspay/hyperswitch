@@ -238,6 +238,7 @@ pub enum RoutableConnectors {
     Barclaycard,
     Billwerk,
     Bitpay,
+    Biopay,
     Bambora,
     Blackhawknetwork,
     Bamboraapac,
