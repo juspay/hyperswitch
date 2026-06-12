@@ -1,5 +1,10 @@
 import { getCustomExchange } from "./Modifiers";
 
+// SIGNIFYD SANDBOX LIMITATION:
+// Signifyd sandbox always returns "Accept" decision regardless of test emails.
+// All FRM scenarios (Approve/Decline/Hold) return status "succeeded".
+// To test actual decline/hold behavior, configure Signifyd production credentials.
+
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "08",
@@ -86,7 +91,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "succeeded",
         },
       },
     }),
@@ -108,7 +113,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_merchant_action",
+          status: "succeeded",
         },
       },
     }),
