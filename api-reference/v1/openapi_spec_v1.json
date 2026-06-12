@@ -37588,9 +37588,11 @@
             "nullable": true
           },
           "acquirer_country_code": {
-            "type": "string",
-            "description": "Acquirer country code",
-            "example": "US",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
             "nullable": true
           },
           "profile_id": {
@@ -37712,8 +37714,11 @@
             "nullable": true
           },
           "acquirer_country_code": {
-            "type": "string",
-            "example": "US",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
             "nullable": true
           },
           "is_default": {

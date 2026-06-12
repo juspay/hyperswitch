@@ -1215,6 +1215,8 @@ diesel::table! {
         network_transaction_link_id -> Nullable<Varchar>,
         #[max_length = 255]
         sender_payment_instrument_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        external_threeds_authentication_type -> Nullable<Varchar>,
     }
 }
 
