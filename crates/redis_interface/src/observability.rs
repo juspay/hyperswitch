@@ -20,8 +20,12 @@ use crate::RedisConnectionPool;
 /// the outcome. `command` is the Redis command name (e.g. `"SET"`, `"HGET"`).
 ///
 /// `request_id` is read from the `router_env::request_context::REQUEST_ID`
-/// task-local; if absent (background work, un-rescoped spawn) the row is
-/// emitted with `request_id = ""` — intentional, no warning.
+/// task-local. If absent (background work — drainer, scheduler, un-rescoped
+/// spawn), no event is emitted: the correlator joins events to API requests on
+/// `request_id` and has no way to place request-less rows, so emitting them
+/// would only buffer dead data. Revisit if a direct background-bucket
+/// consumption path is built (see
+/// `crates/analytics/docs/redis_instrumentation_plan.md`).
 #[inline]
 pub async fn observe<F, R, E>(
     pool: &RedisConnectionPool,
@@ -34,19 +38,34 @@ where
     let start = Instant::now();
     let result = fut.await;
 
-    let request_id = router_env::request_context::try_get().unwrap_or_default();
-
-    pool.event_emitter
-        .emit_external_service_call(ExternalServiceCall {
-            service_name: "redis".to_string(),
-            endpoint: command.to_string(),
-            method: command.to_string(),
+    if let Some(request_id) = router_env::request_context::try_get() {
+        pool.event_emitter.emit_external_service_call(build_event(
+            command,
             request_id,
-            status_code: if result.is_ok() { 200 } else { 500 },
-            success: result.is_ok(),
-            latency_ms: start.elapsed().as_millis(),
-            created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos(),
-        });
+            result.is_ok(),
+            start.elapsed().as_millis(),
+            OffsetDateTime::now_utc().unix_timestamp_nanos(),
+        ));
+    }
 
     result
+}
+
+fn build_event(
+    command: &'static str,
+    request_id: String,
+    success: bool,
+    latency_ms: u128,
+    created_at_timestamp: i128,
+) -> ExternalServiceCall {
+    ExternalServiceCall {
+        service_name: "redis".to_string(),
+        endpoint: command.to_string(),
+        method: "Redis".to_string(),
+        request_id,
+        status_code: if success { 200 } else { 500 },
+        success,
+        latency_ms,
+        created_at_timestamp,
+    }
 }

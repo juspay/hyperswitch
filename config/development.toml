@@ -15,10 +15,11 @@ use_xray_generator = false
 bg_metrics_collection_interval_in_secs = 15
 
 [key_manager]
-enabled = false
+enabled = true
 use_legacy_key_store_decryption = false
 
 # TODO: Update database credentials before running application
+url = "http://localhost:5000"
 [master_database]
 username = "db_user"
 password = "db_pass"
@@ -1324,8 +1325,8 @@ soft_kill = false
 enabled = true
 
 [events]
-source = "logs"
-emit_external_service_call_events = false
+source = "kafka"
+emit_external_service_call_events = true
 
 [events.kafka]
 brokers = ["localhost:9092"]
@@ -1353,7 +1354,7 @@ supported_connectors = "adyen"
 adyen = "Star,Pulse,Accel,Nyce"
 
 [analytics]
-source = "sqlx"
+source = "clickhouse"
 forex_enabled = false
 
 [analytics.clickhouse]

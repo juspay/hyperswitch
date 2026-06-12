@@ -9,10 +9,17 @@ pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
 
 pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
 
-/// Creates a Redis connection pool for the specified Redis settings
+/// Creates a Redis connection pool for the specified Redis settings.
+///
+/// This helper is intentionally wired with `NoOpEventEmitter` because it is
+/// only used in one-off utility contexts (e.g. integration test helpers). All
+/// production traffic uses the pool created via `services::get_cache_store`,
+/// which receives the real emitter from `AppState`.
+///
 /// # Panics
 ///
 /// Panics if failed to create a redis pool
+#[allow(dead_code)]
 #[allow(clippy::expect_used)]
 pub async fn redis_connection(
     conf: &crate::configs::Settings,

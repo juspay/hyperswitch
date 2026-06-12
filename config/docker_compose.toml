@@ -109,6 +109,7 @@ max_feed_count = 200
 [key_manager]
 url = "http://localhost:5000"
 use_legacy_key_store_decryption = false
+enabled = true
 
 [cors]
 max_age = 30
@@ -1177,7 +1178,7 @@ revenue_recovery_topic = "hyperswitch-revenue-recovery-events"
 external_service_call_topic = "hyperswitch-external-service-call-events"
 
 [analytics]
-source = "sqlx"
+source = "clickhouse"
 forex_enabled = false # Enable or disable forex conversion for analytics
 
 [analytics.clickhouse]
@@ -1210,8 +1211,8 @@ partner_id = ""
 enabled = true
 
 [events]
-source = "logs"
-emit_external_service_call_events = false
+source = "kafka"
+emit_external_service_call_events = true
 
 [file_storage]
 file_storage_backend = "file_system"

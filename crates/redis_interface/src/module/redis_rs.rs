@@ -498,18 +498,6 @@ impl RedisConnectionPool {
         })
     }
 
-    /// Test-only constructor that wires a no-op event emitter.
-    #[cfg(test)]
-    pub async fn new_for_test(
-        conf: &crate::types::RedisSettings,
-    ) -> CustomResult<Self, crate::errors::RedisError> {
-        Self::new(
-            conf,
-            Arc::new(common_utils::external_service::NoOpEventEmitter),
-        )
-        .await
-    }
-
     pub fn clone(&self, key_prefix: &str) -> Self {
         Self {
             pool: self.pool.clone(),
@@ -520,6 +508,30 @@ impl RedisConnectionPool {
             is_redis_available: Arc::clone(&self.is_redis_available),
             event_emitter: Arc::clone(&self.event_emitter),
         }
+    }
+
+    pub async fn publish(
+        &self,
+        channel: &str,
+        message: crate::types::RedisValue,
+    ) -> CustomResult<usize, crate::errors::RedisError> {
+        crate::observed!(self, "PUBLISH", {
+            self.publisher.publish(channel, message).await
+        })
+    }
+
+    pub async fn subscribe(&self, channel: &str) -> CustomResult<(), crate::errors::RedisError> {
+        // Emit only for the subscribe round trip. Delivered pub/sub messages
+        // are intentionally not emitted as Redis calls.
+        crate::observed!(self, "SUBSCRIBE", {
+            self.subscriber.subscribe(channel).await
+        })
+    }
+
+    pub async fn unsubscribe(&self, channel: &str) -> CustomResult<(), crate::errors::RedisError> {
+        crate::observed!(self, "UNSUBSCRIBE", {
+            self.subscriber.unsubscribe(channel).await
+        })
     }
 
     /// Monitor for connection errors.
