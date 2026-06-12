@@ -186,6 +186,8 @@ pub enum Flow {
     PaymentsCancel,
     /// Payments cancel post capture flow.
     PaymentsCancelPostCapture,
+    /// Payments cancel post capture sync flow.
+    PaymentsCancelPostCaptureSync,
     /// Payments approve flow.
     PaymentsApprove,
     /// Payments reject flow.
@@ -735,7 +737,9 @@ pub enum Flow {
     RevenueRecoveryRedis,
     /// Payment Method balance check flow
     PaymentMethodBalanceCheck,
-    /// Payments Submit Eligibility flow
+    /// Payments Submit Eligibility Check flow
+    PaymentsSubmitCheckEligibility,
+    /// Payments Submit Eligibility flow (combined eligibility + external surcharge)
     PaymentsSubmitEligibility,
     /// Apply payment method data flow
     ApplyPaymentMethodData,

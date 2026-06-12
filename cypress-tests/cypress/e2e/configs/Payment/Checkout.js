@@ -379,6 +379,14 @@ export const connectorDetails = {
         },
       },
     },
+    SyncRefundScheduled: {
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
     ZeroAuthMandate: {
       Response: {
         status: 200,

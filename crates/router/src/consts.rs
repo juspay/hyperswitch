@@ -127,6 +127,9 @@ pub const POLL_ID_TTL: i64 = 900;
 // 15 minutes = 900 seconds
 pub const AUTHENTICATION_ELIGIBILITY_CHECK_DATA_TTL: i64 = 900;
 
+// TTL for external surcharge details stored in Redis (15 minutes)
+pub const EXTERNAL_SURCHARGE_TTL: i64 = 900;
+
 // Prefix key for storing authentication eligibility check data in redis
 pub const AUTHENTICATION_ELIGIBILITY_CHECK_DATA_KEY: &str = "AUTH_ELIGIBILITY_CHECK_DATA_";
 

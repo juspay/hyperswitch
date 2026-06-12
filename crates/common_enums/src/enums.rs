@@ -791,6 +791,32 @@ pub enum ConnectorType {
     VaultProcessor,
 }
 
+/// Strategy for applying external surcharge
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SurchargeStrategy {
+    /// Apply the calculated surcharge to the payment (default)
+    #[default]
+    Apply,
+    /// Do not apply the surcharge; return the amount only
+    Waive,
+}
+
 #[derive(Debug, Eq, PartialEq)]
 pub enum PaymentAction {
     PSync,
@@ -10739,6 +10765,7 @@ pub enum ProcessTrackerStatus {
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum ProcessTrackerRunner {
     PaymentsSyncWorkflow,
+    PaymentsPostCaptureVoidSyncWorkflow,
     RefundWorkflowRouter,
     DeleteTokenizeDataWorkflow,
     ApiKeyExpiryWorkflow,
