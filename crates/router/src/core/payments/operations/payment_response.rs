@@ -2789,26 +2789,28 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     );
 
     payment_data.payment_attempt = payment_attempt;
-    let key_manager_state: KeyManagerState = state.into();
-    payment_data.authentication = match payment_data.authentication {
-        Some(mut authentication_store) => {
-            let authentication_update = hyperswitch_domain_models::authentication::AuthenticationUpdate::PostAuthorizationUpdate {
+    if !(payments_helpers::is_merchant_eligible_authentication_service(processor, state).await?) {
+        let key_manager_state: KeyManagerState = state.into();
+        payment_data.authentication = match payment_data.authentication {
+            Some(mut authentication_store) => {
+                let authentication_update = hyperswitch_domain_models::authentication::AuthenticationUpdate::PostAuthorizationUpdate {
                 authentication_lifecycle_status: enums::AuthenticationLifecycleStatus::Used,
             };
-            let updated_authentication = state
-                .store
-                .update_authentication_by_merchant_id_authentication_id(
-                    authentication_store.authentication,
-                    authentication_update,
-                    processor.get_key_store(),
-                    &key_manager_state,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            authentication_store.authentication = updated_authentication;
-            Some(authentication_store)
-        }
-        None => None,
+                let updated_authentication = state
+                    .store
+                    .update_authentication_by_merchant_id_authentication_id(
+                        authentication_store.authentication,
+                        authentication_update,
+                        processor.get_key_store(),
+                        &key_manager_state,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                authentication_store.authentication = updated_authentication;
+                Some(authentication_store)
+            }
+            None => None,
+        };
     };
 
     let amount_captured = get_total_amount_captured(
