@@ -826,6 +826,7 @@ impl
                 field_name: "amount"
             }
         ))?;
+        let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
         let payment_session_context = payments_grpc::PaymentSessionContext {
             amount: Some(payments_grpc::Money {
@@ -834,8 +835,19 @@ impl
             }),
             metadata: None,
             browser_info: None,
-            customer: None,
-            address: None,
+            customer: Some(payments_grpc::Customer {
+                first_name: None,
+                last_name: None,
+                salutation: None,
+                name: None,
+                email: None,
+                id: None,
+                connector_customer_id: router_data.connector_customer.clone(),
+                phone_number: None,
+                phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
+            }),
+            address: Some(address),
         };
 
         Ok(Self {
