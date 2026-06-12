@@ -26,7 +26,7 @@ pub async fn validate_card_testing_guard_checks(
         Some(card_testing_guard_config) => {
             let fingerprint = generate_fingerprint(card_number, business_profile).await?;
 
-            let ip_address = extract_ip_from_browser_info(browser_info)?;
+            let ip_address = extract_ip_from_browser_info(browser_info);
 
             let card_ip_blocking_cache_key =
                 if card_testing_guard_config.is_card_ip_blocking_enabled {
@@ -131,23 +131,26 @@ pub async fn validate_card_testing_guard_checks(
 fn extract_ip_from_browser_info(
     #[cfg(feature = "v1")] browser_info: Option<&serde_json::Value>,
     #[cfg(feature = "v2")] browser_info: Option<&BrowserInformation>,
-) -> RouterResult<Option<std::net::IpAddr>> {
+) -> Option<std::net::IpAddr> {
     #[cfg(feature = "v1")]
     {
-        browser_info
-            .map(|raw| {
-                serde_json::from_value::<BrowserInformation>(raw.clone())
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("could not parse browser_info")
-                    .map(|b| b.ip_address)
-            })
-            .transpose()
-            .map(Option::flatten)
+        browser_info.and_then(|info| {
+            match serde_json::from_value::<BrowserInformation>(info.clone()) {
+                Ok(b) => b.ip_address,
+                Err(err) => {
+                    logger::error!(
+                        "Failed to deserialize browser_info for IP extraction: {:?}",
+                        err
+                    );
+                    None
+                }
+            }
+        })
     }
 
     #[cfg(feature = "v2")]
     {
-        Ok(browser_info.and_then(|b| b.ip_address))
+        browser_info.and_then(|b| b.ip_address)
     }
 }
 
