@@ -63,21 +63,21 @@ const UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES: i64 = 5;
 const UPI_POLL_DELAY_IN_SECS: u16 = 5;
 const UPI_POLL_FREQUENCY: u16 = 60;
 
-fn get_ucs_product_type(product_type: &common_enums::ProductType) -> i32 {
+fn get_ucs_product_type(product_type: &common_enums::ProductType) -> payments_grpc::ProductType {
     match product_type {
-        common_enums::ProductType::Physical => 1,
-        common_enums::ProductType::Digital => 2,
-        common_enums::ProductType::Travel => 3,
-        common_enums::ProductType::Ride => 4,
-        common_enums::ProductType::Event => 5,
-        common_enums::ProductType::Accommodation => 6,
+        common_enums::ProductType::Physical => payments_grpc::ProductType::Physical,
+        common_enums::ProductType::Digital => payments_grpc::ProductType::Digital,
+        common_enums::ProductType::Travel => payments_grpc::ProductType::Travel,
+        common_enums::ProductType::Ride => payments_grpc::ProductType::Ride,
+        common_enums::ProductType::Event => payments_grpc::ProductType::Event,
+        common_enums::ProductType::Accommodation => payments_grpc::ProductType::Accommodation,
     }
 }
 
-fn get_ucs_tax_status(tax_status: common_enums::TaxStatus) -> i32 {
+fn get_ucs_tax_status(tax_status: common_enums::TaxStatus) -> payments_grpc::TaxStatus {
     match tax_status {
-        common_enums::TaxStatus::Taxable => 1,
-        common_enums::TaxStatus::Exempt => 2,
+        common_enums::TaxStatus::Taxable => payments_grpc::TaxStatus::Taxable,
+        common_enums::TaxStatus::Exempt => payments_grpc::TaxStatus::Exempt,
     }
 }
 
@@ -104,7 +104,11 @@ fn build_ucs_order_details(
                     brand: detail.brand.clone(),
                     description: detail.description.clone(),
                     unit_of_measure: detail.unit_of_measure.clone(),
-                    product_type: detail.product_type.as_ref().map(get_ucs_product_type),
+                    product_type: detail
+                        .product_type
+                        .as_ref()
+                        .map(get_ucs_product_type)
+                        .map(|product_type| product_type as i32),
                     product_tax_code: detail.product_tax_code.clone(),
                 })
                 .collect()
@@ -162,7 +166,9 @@ fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::
         || customer_tax_registration_id.is_some()
         || merchant_tax_registration_id.is_some())
     .then_some(payments_grpc::TaxInfo {
-        tax_status: tax_status.map(get_ucs_tax_status),
+        tax_status: tax_status
+            .map(get_ucs_tax_status)
+            .map(|tax_status| tax_status as i32),
         customer_tax_registration_id,
         merchant_tax_registration_id,
         shipping_amount_tax: shipping_amount_tax.map(|amount| amount.get_amount_as_i64()),

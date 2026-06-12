@@ -25,6 +25,7 @@ use hyperswitch_interfaces::{
     api, configs::Connectors, errors, events::connector_api_logs::ConnectorEvent, types::Response,
     webhooks,
 };
+use hyperswitch_masking::Secret;
 
 #[derive(Clone)]
 pub struct TsysTransit {}
@@ -32,6 +33,31 @@ pub struct TsysTransit {}
 impl TsysTransit {
     pub fn new() -> &'static Self {
         &Self {}
+    }
+}
+
+pub struct TsysTransitAuthType {
+    pub device_id: Secret<String>,
+    pub transaction_key: Secret<String>,
+    pub developer_id: Secret<String>,
+}
+
+impl TryFrom<&ConnectorAuthType> for TsysTransitAuthType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        match auth_type {
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self {
+                device_id: api_key.to_owned(),
+                transaction_key: key1.to_owned(),
+                developer_id: api_secret.to_owned(),
+            }),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+        }
     }
 }
 
