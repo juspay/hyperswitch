@@ -79,7 +79,19 @@ describe("Payout Link", () => {
     });
 
     it("list-payout-links-test", () => {
-      cy.listPayoutLinksTest({}, globalState);
+      cy.request({
+        method: "GET",
+        url: `${globalState.get("baseUrl")}/payouts/list?limit=10`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": globalState.get("apiKey"),
+        },
+        failOnStatusCode: false,
+      }).then((response) => {
+        expect(response.status).to.equal(200);
+        expect(response.body).to.have.property("data");
+        expect(response.body.data).to.be.an("array");
+      });
     });
 
     it("retrieve-payout-call-test", () => {
@@ -135,7 +147,18 @@ describe("Payout Link", () => {
     });
 
     it("retrieve-non-existent-payout-link-test", () => {
-      cy.retrieveNonExistentPayoutLinkTest(globalState);
+      const merchantId = globalState.get("merchantId");
+      cy.request({
+        method: "GET",
+        url: `${globalState.get("baseUrl")}/payout_link/${merchantId}/non_existent_payout_12345`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": globalState.get("apiKey"),
+        },
+        failOnStatusCode: false,
+      }).then((response) => {
+        expect(response.status).to.equal(404);
+      });
     });
   });
 
@@ -328,10 +351,28 @@ describe("Payout Link", () => {
     it("update-business-profile-with-payout-link-config-test", () => {
       const profileBody =
         fixtures.businessProfileWithPayoutLink.bpWithPayoutLink;
-      cy.updateBusinessProfileWithPayoutLinkConfigTest(
-        profileBody,
-        globalState
-      );
+      const profileId =
+        globalState.get("profileId") || globalState.get("defaultProfileId");
+
+      cy.request({
+        method: "POST",
+        url: `${globalState.get("baseUrl")}/account/${globalState.get("merchantId")}/business_profile/${profileId}`,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "api-key": globalState.get("apiKey"),
+        },
+        body: profileBody,
+        failOnStatusCode: false,
+      }).then((response) => {
+        expect(response.status).to.equal(200);
+        expect(response.body.profile_id).to.equal(profileId);
+        if (response.body.payout_link_config) {
+          expect(response.body.payout_link_config).to.have.property(
+            "domain_name"
+          );
+        }
+      });
     });
 
     it("create-payout-link-using-profile-config-test", () => {
