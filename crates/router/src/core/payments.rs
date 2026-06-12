@@ -5794,14 +5794,9 @@ where
     .await?;
     *payment_data = pd;
 
-    // MIT off-session /confirm: the SDK never called /eligibility, so calculate the
-    // external surcharge inline here — after make_pm_data has populated payment_method_data
-    // (we need the saved card BIN), and before construct_router_data builds the connector
-    // request (so the connector charges the surcharged amount).
+    // MIT off-session /confirm: calc and apply external surcharge inline before the connector call.
     if payment_data.get_payment_intent().off_session == Some(true) {
-        // The saved PM's billing isn't merged into payment_data.address until
-        // construct_router_data runs later; decode it here from payment_method_info so the
-        // helper can fall back to it when the request body has no billing.
+        // Decode saved-PM billing as a fallback
         let saved_pm_billing = payment_data
             .get_payment_method_info()
             .and_then(|pm| pm.payment_method_billing_address.clone())
@@ -13621,8 +13616,6 @@ async fn calculate_mit_external_surcharge(
         .surcharge_connector_details
         .as_ref()
         .and_then(|details| details.surcharge_connector_id.clone());
-    // Raw-card MIT has the Card variant; PSP-tokenized MIT (e.g. Adyen storedPaymentMethodId)
-    // does not — fall back to the saved-card JSON: {"card": {"card_isin": "..."}}.
     let card_iin = payment_method_data
         .and_then(domain::PaymentMethodData::get_card_iin)
         .or_else(|| {
