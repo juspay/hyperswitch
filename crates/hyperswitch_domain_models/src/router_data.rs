@@ -2,6 +2,7 @@ use std::{collections::HashMap, marker::PhantomData};
 
 use api_models::customers::CustomerDocumentDetails;
 use cards::NetworkToken;
+use common_enums::WalletDecryptedToken;
 use common_types::{payments as common_payment_types, primitive_wrappers};
 use common_utils::{
     errors::IntegrityCheckError,
@@ -15,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     address::AddressDetails, payment_address::PaymentAddress, payment_method_data, payments,
-    router_response_types,
+    router_response_types, transformers::ForeignFrom,
 };
 #[cfg(feature = "v2")]
 use crate::{
@@ -457,6 +458,17 @@ pub enum PaymentMethodToken {
     PazeDecrypt(Box<PazeDecryptedData>),
 }
 
+impl ForeignFrom<Option<&PaymentMethodToken>> for WalletDecryptedToken {
+    fn foreign_from(from: Option<&PaymentMethodToken>) -> Self {
+        match from {
+            Some(PaymentMethodToken::ApplePayDecrypt(_)) => WalletDecryptedToken::ApplePay,
+            Some(PaymentMethodToken::GooglePayDecrypt(_)) => WalletDecryptedToken::GooglePay,
+            Some(PaymentMethodToken::PazeDecrypt(_))
+            | Some(PaymentMethodToken::Token(_))
+            | None => WalletDecryptedToken::None,
+        }
+    }
+}
 impl PaymentMethodToken {
     pub fn get_payment_method_token(&self) -> Option<Secret<String>> {
         match self {

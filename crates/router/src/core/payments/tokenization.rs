@@ -21,6 +21,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{
     mandates::ConnectorMandateReferenceId,
     payment_method_data::{get_applepay_wallet_info, get_googlepay_wallet_info},
+    transformers::ForeignFrom as _,
 };
 use hyperswitch_interfaces::api::gateway;
 use hyperswitch_masking::{ExposeInterface, Secret};
@@ -857,19 +858,9 @@ where
                         }
                     },
                     None => {
-                        let wallet_decrypt_preference = save_payment_method_data
-                            .payment_method_token
-                            .as_ref()
-                            .map(|pmt| {
-                                if pmt.is_apple_pay_decrypt() {
-                                    WalletDecryptedToken::ApplePay
-                                } else if pmt.is_google_pay_decrypt() {
-                                    WalletDecryptedToken::GooglePay
-                                } else {
-                                    WalletDecryptedToken::None
-                                }
-                            })
-                            .unwrap_or(WalletDecryptedToken::None);
+                        let wallet_decrypt_preference = WalletDecryptedToken::foreign_from(
+                            save_payment_method_data.payment_method_token.as_ref(),
+                        );
 
                         let check_for_customer_pm = payment_method_type
                             .map(|payment_method_type_value| {
