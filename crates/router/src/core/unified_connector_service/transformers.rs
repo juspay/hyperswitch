@@ -108,7 +108,7 @@ fn build_ucs_order_details(
                         .product_type
                         .as_ref()
                         .map(get_ucs_product_type)
-                        .map(|product_type| product_type as i32),
+                        .map(i32::from),
                     product_tax_code: detail.product_tax_code.clone(),
                 })
                 .collect()
@@ -166,9 +166,7 @@ fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::
         || customer_tax_registration_id.is_some()
         || merchant_tax_registration_id.is_some())
     .then_some(payments_grpc::TaxInfo {
-        tax_status: tax_status
-            .map(get_ucs_tax_status)
-            .map(|tax_status| tax_status as i32),
+        tax_status: tax_status.map(get_ucs_tax_status).map(i32::from),
         customer_tax_registration_id,
         merchant_tax_registration_id,
         shipping_amount_tax: shipping_amount_tax.map(|amount| amount.get_amount_as_i64()),
