@@ -349,30 +349,7 @@ describe("Payout Link", () => {
     });
 
     it("update-business-profile-with-payout-link-config-test", () => {
-      const profileBody =
-        fixtures.businessProfileWithPayoutLink.bpWithPayoutLink;
-      const profileId =
-        globalState.get("profileId") || globalState.get("defaultProfileId");
-
-      cy.request({
-        method: "POST",
-        url: `${globalState.get("baseUrl")}/account/${globalState.get("merchantId")}/business_profile/${profileId}`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("apiKey"),
-        },
-        body: profileBody,
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body.profile_id).to.equal(profileId);
-        if (response.body.payout_link_config) {
-          expect(response.body.payout_link_config).to.have.property(
-            "domain_name"
-          );
-        }
-      });
+      cy.updateBusinessProfileWithPayoutLinkConfigTest(globalState);
     });
 
     it("create-payout-link-using-profile-config-test", () => {

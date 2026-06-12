@@ -240,6 +240,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payout_method_data",
+          payout_type: "bank",
         },
       },
     }),
