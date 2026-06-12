@@ -1989,30 +1989,6 @@ pub fn parse_add_vault_response(
     }
 }
 
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
-pub fn parse_add_vault_response(
-    should_trigger_fingerprint_migration: bool,
-    resp: String,
-) -> errors::CustomResult<pm_types::AddVaultResponse, errors::VaultError> {
-    if should_trigger_fingerprint_migration {
-        resp.parse_struct("AddVaultResponseNew")
-            .change_context(errors::VaultError::ResponseDeserializationFailed)
-            .attach_printable("Failed to parse data into AddVaultResponseNew")
-            .map(
-                |parsed: pm_types::AddVaultResponseNew| pm_types::AddVaultResponse {
-                    entity_id: None,
-                    vault_id: parsed.vault_id,
-                    fingerprint_id: parsed.fingerprint_id,
-                },
-            )
-    } else {
-        resp.parse_struct("AddVaultResponse")
-            .change_context(errors::VaultError::ResponseDeserializationFailed)
-            .attach_printable("Failed to parse data into AddVaultResponse")
-    }
-}
-
 /// Encode the appropriate `VaultRetrieveRequest` based on the migration flag.
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]

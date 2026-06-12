@@ -2077,8 +2077,10 @@ pub async fn add_payment_method_to_vault(
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")?;
 
-    let stored_pm_resp =
-        pm_cards::parse_add_vault_response(should_trigger_fingerprint_migration, resp)?;
+    let stored_pm_resp = resp
+        .parse_struct("AddVaultResponse")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed to parse data into AddVaultResponse")?;
 
     Ok(stored_pm_resp)
 }

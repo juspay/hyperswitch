@@ -282,7 +282,7 @@ pub async fn backfill_legacy_locker_card(
         _ => Some("payment method is not card"),
     };
 
-    let global_customer_id = payment_method
+    let pm_customer_id = payment_method
         .customer_id
         .clone()
         .get_required_value("customer_id")
@@ -299,7 +299,7 @@ pub async fn backfill_legacy_locker_card(
             "Skipping legacy locker card backfill in modular backward compatibility inline flow"
         );
     } else {
-        let customer_id = id_type::CustomerId::try_from(global_customer_id.clone())
+        let customer_id = id_type::CustomerId::try_from(pm_customer_id.clone())
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(
                 "Failed to convert global customer id for backward compatibility inline flow",
@@ -353,7 +353,7 @@ pub async fn backfill_legacy_locker_card(
             let payload = cards::encode_vault_retrieve_request(
                 should_trigger_fingerprint_migration,
                 platform.get_provider().get_account().get_id().clone(),
-                &global_customer_id,
+                &pm_customer_id,
                 &card_reference,
             )
             .attach_printable(
@@ -391,7 +391,7 @@ pub async fn backfill_legacy_locker_card(
                 platform,
                 &stored_pm_resp.data,
                 Some(domain::VaultId::generate(card_reference.clone())),
-                &global_customer_id,
+                &pm_customer_id,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
