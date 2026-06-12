@@ -44,8 +44,7 @@ pub trait CustomerPaymentMethodsFetcher: Send + Sync {
         state: &routes::SessionState,
         platform: &domain::Platform,
         payment_intent: Option<&storage::PaymentIntent>,
-        customer_id: &id_type::CustomerId,
-        id: Option<&id_type::GlobalCustomerId>,
+        customer: &domain::Customer,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>>;
 }
@@ -79,15 +78,14 @@ impl CustomerPaymentMethodsFetcher for DbCustomerPaymentMethodsFetcher {
         state: &routes::SessionState,
         platform: &domain::Platform,
         payment_intent: Option<&storage::PaymentIntent>,
-        customer_id: &id_type::CustomerId,
-        _id: Option<&id_type::GlobalCustomerId>,
+        customer: &domain::Customer,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>> {
         let customer_payment_methods_response = Box::pin(cards::list_customer_payment_method(
             state,
             platform.clone(),
             payment_intent.cloned(),
-            customer_id,
+            customer.get_id(),
             None, // limit
             dimensions,
         ))
@@ -166,12 +164,12 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
         state: &routes::SessionState,
         platform: &domain::Platform,
         _payment_intent: Option<&storage::PaymentIntent>,
-        customer_id: &id_type::CustomerId,
-        id: Option<&id_type::GlobalCustomerId>,
+        customer: &domain::Customer,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>> {
         let merchant_id = platform.get_processor().get_account().get_id().clone();
-        let id = id
+        let id = customer
+            .get_global_id()
             .cloned()
             .ok_or(errors::ApiErrorResponse::MissingRequiredField { field_name: "id" })?;
 
@@ -189,7 +187,7 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
             .get_requires_cvv(
                 state.store.as_ref(),
                 state.superposition_service.as_ref(),
-                Some(customer_id),
+                Some(customer.get_id()),
             )
             .await;
 
@@ -469,10 +467,9 @@ async fn fetch_customer_payment_methods(
     platform: &domain::Platform,
     payment_intent_context: &PaymentIntentContext,
 ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>> {
-    let customer_id = match payment_intent_context.payment_intent.customer_id.as_ref() {
-        Some(customer_id) => customer_id,
-        None => return Ok(vec![]),
-    };
+    if payment_intent_context.payment_intent.customer_id.is_none() {
+        return Ok(vec![]);
+    }
 
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
@@ -482,6 +479,10 @@ async fn fetch_customer_payment_methods(
 
     if feature_config.is_payment_method_modular_allowed {
         logger::info!("Fetching customer payment methods from modular service");
+        let customer = payment_intent_context
+            .customer
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
 
         let profile_id = payment_intent_context
             .payment_intent
@@ -505,13 +506,6 @@ async fn fetch_customer_payment_methods(
             .business_profile
             .is_connector_agnostic_mit_enabled
             .unwrap_or(false);
-        let id = payment_intent_context
-            .customer
-            .as_ref()
-            .ok_or(errors::ApiErrorResponse::CustomerNotFound)?
-            .get_global_id()
-            .cloned()
-            .ok_or(errors::ApiErrorResponse::MissingRequiredField { field_name: "id" })?;
 
         ModularCustomerPaymentMethodsFetcher {
             profile_id,
@@ -523,20 +517,22 @@ async fn fetch_customer_payment_methods(
             state,
             platform,
             Some(&payment_intent_context.payment_intent),
-            customer_id,
-            Some(&id),
+            customer,
             &dimensions,
         )
         .await
     } else {
         logger::info!("Fetching customer payment methods from DB");
+        let customer = payment_intent_context
+            .customer
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
         DbCustomerPaymentMethodsFetcher
             .fetch(
                 state,
                 platform,
                 Some(&payment_intent_context.payment_intent),
-                customer_id,
-                None,
+                customer,
                 &dimensions,
             )
             .await
