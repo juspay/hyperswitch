@@ -15,6 +15,7 @@ import pmIdConfirmBody from "./create-pm-id-mit.json";
 import gsmBody from "./gsm-body.json";
 import listRefundCall from "./list-refund-call-body.json";
 import merchantCreateBody from "./merchant-create-body.json";
+import merchantKvEnableBody from "./merchant-kv-enable-body.json";
 import merchantUpdateBody from "./merchant-update-body.json";
 import refundBody from "./refund-flow-body.json";
 import routingConfigBody from "./routing-config-body.json";
@@ -64,6 +65,7 @@ export {
   gsmBody,
   listRefundCall,
   merchantCreateBody,
+  merchantKvEnableBody,
   merchantUpdateBody,
   mitConfirmBody,
   ntidConfirmBody,

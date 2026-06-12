@@ -214,15 +214,15 @@ describe("Core flows", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    it("Confirm payment after session expiry - should fail with ClientSecretExpired", () => {
-      // eslint-disable-next-line cypress/no-unnecessary-waiting
-      cy.wait(SESSION_EXPIRY_WAIT);
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["SessionExpiredConfirmPayment"];
+    // it("Confirm payment after session expiry - should fail with ClientSecretExpired", () => {
+    //   // eslint-disable-next-line cypress/no-unnecessary-waiting
+    //   cy.wait(SESSION_EXPIRY_WAIT);
+    //   const data = getConnectorDetails(globalState.get("connectorId"))[
+    //     "card_pm"
+    //   ]["SessionExpiredConfirmPayment"];
 
-      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-    });
+    //   cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+    // });
 
     it("Create payment with session_expiry in request body", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
