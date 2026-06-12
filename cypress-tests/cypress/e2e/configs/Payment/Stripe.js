@@ -1005,6 +1005,8 @@ export const connectorDetails = {
         },
       },
     },
+    ClientSessionInvalidConfirm:
+      commonConnectorDetails.card_pm.ClientSessionInvalidConfirm,
   },
   bank_transfer_pm: {
     Ach: {
