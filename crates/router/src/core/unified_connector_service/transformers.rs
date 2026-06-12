@@ -7532,9 +7532,9 @@ impl ForeignFrom<AdditionalCardInfo> for payments_grpc::AdditionalCardInfo {
             last4: value.last4,
             card_isin: value.card_isin,
             card_extended_bin: value.card_extended_bin,
-            card_exp_month: value.card_exp_month.map(|m| m.into()),
-            card_exp_year: value.card_exp_year.map(|y| y.into()),
-            card_holder_name: value.card_holder_name.map(|n| n.into()),
+            card_exp_month: value.card_exp_month,
+            card_exp_year: value.card_exp_year,
+            card_holder_name: value.card_holder_name,
         }
     }
 }
