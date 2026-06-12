@@ -548,7 +548,13 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          session_token: [],
+          session_token: {
+            delayed_session_token: true,
+            connector: "trustpay",
+            sdk_next_action: {
+              next_action: "confirm",
+            },
+          },
         },
       },
     },
@@ -964,7 +970,6 @@ export const connectorDetails = {
         status: 400,
         body: {
           error: {
-            type: "invalid_request",
             code: "IR_04",
             message: "Missing required parameter: client_secret",
           },
@@ -976,7 +981,7 @@ export const connectorDetails = {
         wallets: ["apple_pay", "google_pay"],
       },
       Response: {
-        status: 404,
+        status: 400,
         body: {
           error: {
             type: "invalid_request",
