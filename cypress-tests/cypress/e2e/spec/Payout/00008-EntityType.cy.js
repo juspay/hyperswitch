@@ -89,7 +89,7 @@ describe("[Payout] Entity Type", () => {
   });
 
   context("[Payout] Entity Type - Invalid", () => {
-    let shouldContinue = true;
+    const shouldContinue = true;
 
     beforeEach(function () {
       if (!shouldContinue) {
