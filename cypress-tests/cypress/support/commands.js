@@ -1251,7 +1251,7 @@ Cypress.Commands.add(
           payment_methods: [
             {
               payment_method: "card",
-              flow: "post",
+              flow: "pre",
             },
           ],
         },
