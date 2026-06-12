@@ -1,17 +1,19 @@
 use api_models::{
     enums as api_enums,
     superposition_sdk_config::{
-        PaymentMethodCriteria, SdkCriteriaRule, SdkPaymentMethod, SdkPaymentMethodType,
-        SuperPositionConfigResponse,
+        AccountConfig, PaymentMethodCriteria, ProfileAccountConfig, SdkCriteriaRule,
+        SdkPaymentMethod, SdkPaymentMethodType, SdkVaultStrategy, SuperPositionConfigResponse,
     },
 };
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::business_profile::ExternalVaultDetails;
 use serde_json::Map;
 
 use crate::{
     consts::superposition::DYNAMIC_FIELDS,
     core::{
+        configs::dimension_state::Dimensions,
         errors::{self, RouterResponse, StorageErrorExt},
         payment_methods::cards::{
             build_merchant_enabled_pms_context, get_banks, MerchantEnabledPmsContext,
@@ -212,14 +214,81 @@ pub async fn get_superposition_sdk_config(
 
     let payment_methods = translate_to_sdk_payment_methods(&state, &merchant_enabled_context)?;
 
+    let account_config = build_account_config(&state, &platform, &business_profile).await;
+
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         SuperPositionConfigResponse {
             raw_configs,
             resolved_configs: None,
             context_used: dimension_filter,
             payment_methods: Some(payment_methods),
+            account_config,
         },
     ))
+}
+
+/// Build the account level configuration surfaced to the SDK.
+async fn build_account_config(
+    state: &SessionState,
+    platform: &domain::Platform,
+    business_profile: &domain::Profile,
+) -> AccountConfig {
+    let dimensions = Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+    let feature_config = crate::core::utils::get_feature_config(state, platform, &dimensions).await;
+
+    AccountConfig {
+        profile: build_profile_account_config(
+            business_profile,
+            feature_config.is_payment_method_modular_allowed,
+        ),
+    }
+}
+
+/// Build the profile level configuration surfaced to the SDK.
+fn build_profile_account_config(
+    business_profile: &domain::Profile,
+    is_payment_method_modular_allowed: bool,
+) -> ProfileAccountConfig {
+    ProfileAccountConfig {
+        collect_shipping_details_from_wallet_connector: business_profile
+            .collect_shipping_details_from_wallet_connector
+            .unwrap_or(false),
+        collect_billing_details_from_wallet_connector: business_profile
+            .collect_billing_details_from_wallet_connector
+            .unwrap_or(false),
+        always_collect_billing_details_from_wallet_connector: business_profile
+            .always_collect_billing_details_from_wallet_connector
+            .unwrap_or(false),
+        always_collect_shipping_details_from_wallet_connector: business_profile
+            .always_collect_shipping_details_from_wallet_connector
+            .unwrap_or(false),
+        vault_sdk: resolve_vault_sdk(business_profile, is_payment_method_modular_allowed),
+    }
+}
+
+/// Determine which vault SDK flow the SDK should use for this profile.
+///
+/// - payment-method-modular not allowed: `Skip`.
+/// - external vault disabled (modular allowed): `Internal`.
+/// - external vault enabled: `Internal` for the Hyperswitch vault, `External` for VGS,
+///   `Skip` when no `vault_sdk` is configured.
+fn resolve_vault_sdk(
+    business_profile: &domain::Profile,
+    is_payment_method_modular_allowed: bool,
+) -> SdkVaultStrategy {
+    match is_payment_method_modular_allowed {
+        false => SdkVaultStrategy::Skip,
+        true => match &business_profile.external_vault_details {
+            ExternalVaultDetails::Skip => SdkVaultStrategy::Internal,
+            ExternalVaultDetails::ExternalVaultEnabled(details) => match details.vault_sdk {
+                Some(common_enums::VaultSdk::HyperswitchSdk) => SdkVaultStrategy::Internal,
+                Some(common_enums::VaultSdk::VgsSdk) => SdkVaultStrategy::External,
+                None => SdkVaultStrategy::Skip,
+            },
+        },
+    }
 }
 
 fn format_criteria_value(
