@@ -6850,7 +6850,7 @@ Cypress.Commands.add("setConfigs", (globalState, key, value, requestType) => {
 
   const getRequestBody = {
     CREATE: () => ({ key, value }),
-    UPDATE: () => ({ value }),
+    UPDATE: () => ({ key, value }),
   };
   const body = getRequestBody[requestType]?.() || undefined;
 

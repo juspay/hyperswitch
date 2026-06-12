@@ -42,7 +42,21 @@ describe("Payment Update via Client Authentication Tests", () => {
       cy.step("Enable Payment Update Client Auth Config", () => {
         const merchantId = globalState.get("merchantId");
         const configKey = `payment_update_enabled_for_client_auth_${merchantId}`;
-        cy.setConfigs(globalState, configKey, "true", "CREATE");
+        const baseUrl = globalState.get("baseUrl");
+        const apiKey = globalState.get("adminApiKey");
+        cy.request({
+          method: "POST",
+          url: `${baseUrl}/configs/`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": apiKey,
+          },
+          body: {
+            key: configKey,
+            value: "true",
+          },
+          failOnStatusCode: false,
+        });
       });
 
       cy.step("Create Payment Intent", () => {
@@ -110,7 +124,21 @@ describe("Payment Update via Client Authentication Tests", () => {
       cy.step("Ensure config is disabled", () => {
         const merchantId = globalState.get("merchantId");
         const configKey = `payment_update_enabled_for_client_auth_${merchantId}`;
-        cy.setConfigs(globalState, configKey, "false", "CREATE");
+        const baseUrl = globalState.get("baseUrl");
+        const apiKey = globalState.get("adminApiKey");
+        cy.request({
+          method: "POST",
+          url: `${baseUrl}/configs/${configKey}`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": apiKey,
+          },
+          body: {
+            key: configKey,
+            value: "false",
+          },
+          failOnStatusCode: false,
+        });
       });
 
       cy.step("Create Payment Intent", () => {
@@ -157,7 +185,21 @@ describe("Payment Update via Client Authentication Tests", () => {
         cy.step("Enable config", () => {
           const merchantId = globalState.get("merchantId");
           const configKey = `payment_update_enabled_for_client_auth_${merchantId}`;
-          cy.setConfigs(globalState, configKey, "true", "CREATE");
+          const baseUrl = globalState.get("baseUrl");
+          const apiKey = globalState.get("adminApiKey");
+          cy.request({
+            method: "POST",
+            url: `${baseUrl}/configs/`,
+            headers: {
+              "Content-Type": "application/json",
+              "api-key": apiKey,
+            },
+            body: {
+              key: configKey,
+              value: "true",
+            },
+            failOnStatusCode: false,
+          });
         });
 
         cy.step("Create Payment Intent", () => {
@@ -203,7 +245,21 @@ describe("Payment Update via Client Authentication Tests", () => {
       cy.step("Enable config", () => {
         const merchantId = globalState.get("merchantId");
         const configKey = `payment_update_enabled_for_client_auth_${merchantId}`;
-        cy.setConfigs(globalState, configKey, "true", "CREATE");
+        const baseUrl = globalState.get("baseUrl");
+        const apiKey = globalState.get("adminApiKey");
+        cy.request({
+          method: "POST",
+          url: `${baseUrl}/configs/`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": apiKey,
+          },
+          body: {
+            key: configKey,
+            value: "true",
+          },
+          failOnStatusCode: false,
+        });
       });
 
       cy.step("Create Payment Intent", () => {
@@ -248,7 +304,21 @@ describe("Payment Update via Client Authentication Tests", () => {
       cy.step("Enable config", () => {
         const merchantId = globalState.get("merchantId");
         const configKey = `payment_update_enabled_for_client_auth_${merchantId}`;
-        cy.setConfigs(globalState, configKey, "true", "CREATE");
+        const baseUrl = globalState.get("baseUrl");
+        const apiKey = globalState.get("adminApiKey");
+        cy.request({
+          method: "POST",
+          url: `${baseUrl}/configs/`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": apiKey,
+          },
+          body: {
+            key: configKey,
+            value: "true",
+          },
+          failOnStatusCode: false,
+        });
       });
 
       cy.step("Create and Confirm Payment to reach succeeded status", () => {
