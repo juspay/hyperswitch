@@ -1496,6 +1496,7 @@ export const connectorDetails = {
           },
         },
         currency: "USD",
+        billing: null,
       },
       Response: {
         status: 200,
@@ -1517,6 +1518,7 @@ export const connectorDetails = {
           },
         },
         currency: "USD",
+        billing: null,
       },
       Response: {
         status: 200,
@@ -1538,6 +1540,8 @@ export const connectorDetails = {
           },
         },
         currency: "USD",
+        billing: null,
+        setup_future_usage: "off_session",
         mandate_data: {
           customer_acceptance: {
             acceptance_type: "offline",
@@ -1575,6 +1579,7 @@ export const connectorDetails = {
           },
         },
         currency: "USD",
+        billing: null,
       },
       Response: {
         status: 200,
@@ -1596,6 +1601,8 @@ export const connectorDetails = {
           },
         },
         currency: "USD",
+        billing: null,
+        setup_future_usage: "off_session",
         mandate_data: {
           customer_acceptance: {
             acceptance_type: "offline",
@@ -1633,6 +1640,9 @@ export const connectorDetails = {
           },
         },
         currency: "EUR",
+        billing: null,
+        mandate_data: null,
+        setup_future_usage: null,
       },
       Response: {
         status: 200,
@@ -1654,6 +1664,8 @@ export const connectorDetails = {
           },
         },
         currency: "EUR",
+        billing: null,
+        setup_future_usage: "off_session",
         mandate_data: {
           customer_acceptance: {
             acceptance_type: "offline",
@@ -1687,10 +1699,13 @@ export const connectorDetails = {
         payment_method_type: "we_chat_pay",
         payment_method_data: {
           wallet: {
-            we_chat_pay_redirect: {},
+            we_chat_pay_qr: {},
           },
         },
         currency: "USD",
+        billing: null,
+        mandate_data: null,
+        setup_future_usage: null,
       },
       Response: {
         status: 200,
@@ -1712,6 +1727,7 @@ export const connectorDetails = {
           },
         },
         currency: "INR",
+        billing: null,
       },
       Response: {
         status: 200,
@@ -1733,6 +1749,7 @@ export const connectorDetails = {
           },
         },
         currency: "INR",
+        billing: null,
       },
       Response: {
         status: 200,
@@ -1754,6 +1771,7 @@ export const connectorDetails = {
           },
         },
         currency: "INR",
+        billing: null,
       },
       Response: {
         status: 200,
@@ -1775,6 +1793,9 @@ export const connectorDetails = {
           },
         },
         currency: "INR",
+        billing: null,
+        mandate_data: null,
+        setup_future_usage: null,
       },
       Response: {
         status: 200,
@@ -1792,10 +1813,13 @@ export const connectorDetails = {
         payment_method_type: "we_chat_pay",
         payment_method_data: {
           wallet: {
-            we_chat_pay_redirect: {},
+            we_chat_pay_qr: {},
           },
         },
         currency: "INR",
+        billing: null,
+        mandate_data: null,
+        setup_future_usage: null,
       },
       Response: {
         status: 200,
