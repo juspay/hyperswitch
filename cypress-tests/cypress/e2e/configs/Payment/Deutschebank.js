@@ -291,5 +291,25 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentUpdateClientAuth: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successful3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 500,
+        body: {
+          error: {
+            type: "server_not_available",
+            code: "HE_00",
+            message: "Something went wrong",
+          },
+        },
+      },
+    },
   },
 };

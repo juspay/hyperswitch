@@ -655,7 +655,7 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     POLL_CONFIG: ["stripe"],
-    // Add more inclusion lists
+    PAYMENT_UPDATE_CLIENT_AUTH: ["stripe"],
   },
 };
 
