@@ -185,10 +185,7 @@ fn test_all_optional_struct_none_updates() {
         b: Some(1),
     };
 
-    let update = AllOptionalUpdate {
-        a: None,
-        b: None,
-    };
+    let update = AllOptionalUpdate { a: None, b: None };
 
     let result = update.apply_changeset(target.clone());
 
