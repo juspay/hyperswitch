@@ -5,7 +5,6 @@ use common_types::{
 };
 use common_utils::{encryption::Encryption, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use hyperswitch_masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -149,7 +148,7 @@ pub struct PaymentIntent {
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub allowed_payment_method_types: Option<serde_json::Value>,
     pub connector_metadata: Option<serde_json::Value>,
-    pub feature_metadata: Option<serde_json::Value>,
+    pub feature_metadata: Option<pii::SecretSerdeValue>,
     pub attempt_count: i16,
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     // Denotes the action(approve or reject) taken by merchant in case of manual review.
@@ -464,7 +463,7 @@ pub struct PaymentIntentNew {
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub allowed_payment_method_types: Option<serde_json::Value>,
     pub connector_metadata: Option<serde_json::Value>,
-    pub feature_metadata: Option<serde_json::Value>,
+    pub feature_metadata: Option<pii::SecretSerdeValue>,
     pub attempt_count: i16,
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub merchant_decision: Option<String>,
@@ -699,7 +698,7 @@ pub struct PaymentIntentUpdateFields {
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
-    pub feature_metadata: Option<hyperswitch_masking::Secret<serde_json::Value>>,
+    pub feature_metadata: Option<pii::SecretSerdeValue>,
     pub tax_status: Option<common_enums::TaxStatus>,
     pub discount_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
@@ -955,7 +954,7 @@ pub struct PaymentIntentUpdateInternal {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub extended_return_url: Option<String>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
-    pub feature_metadata: Option<hyperswitch_masking::Secret<serde_json::Value>>,
+    pub feature_metadata: Option<pii::SecretSerdeValue>,
     pub tax_status: Option<common_enums::TaxStatus>,
     pub discount_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
@@ -1080,9 +1079,7 @@ impl PaymentIntentUpdate {
                 .or(source.is_iframe_redirection_enabled),
             extended_return_url: extended_return_url.or(source.extended_return_url),
             payment_channel: payment_channel.or(source.payment_channel),
-            feature_metadata: feature_metadata
-                .map(|value| value.expose())
-                .or(source.feature_metadata),
+            feature_metadata: feature_metadata.or(source.feature_metadata),
             tax_status: tax_status.or(source.tax_status),
             discount_amount: discount_amount.or(source.discount_amount),
             order_date: order_date.or(source.order_date),

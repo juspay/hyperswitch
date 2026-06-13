@@ -99,7 +99,7 @@ pub struct PaymentIntent {
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub allowed_payment_method_types: Option<Value>,
     pub connector_metadata: Option<Value>,
-    pub feature_metadata: Option<Value>,
+    pub feature_metadata: Option<pii::SecretSerdeValue>,
     pub attempt_count: i16,
     pub profile_id: Option<id_type::ProfileId>,
     pub payment_link_id: Option<String>,
