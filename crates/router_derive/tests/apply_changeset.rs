@@ -271,3 +271,76 @@ fn test_none_to_some_transition() {
     assert_eq!(result.a, Some("now present".to_string()));
     assert_eq!(result.b, Some(42));
 }
+
+// Target field is Option<T> but update struct uses Option<Option<T>> to distinguish:
+//   None         → don't change
+//   Some(None)   → explicitly set target to None
+//   Some(Some(v))→ set target to Some(v)
+#[derive(Debug, Clone, PartialEq)]
+pub struct NestedOptionalTarget {
+    pub id: u64,
+    pub nickname: Option<String>,
+}
+
+#[apply_changeset(target = NestedOptionalTarget)]
+pub struct NestedOptionalUpdate {
+    pub id: u64,
+    pub nickname: Option<Option<String>>,
+}
+
+#[test]
+fn test_nested_option_none_means_no_change() {
+    let target = NestedOptionalTarget {
+        id: 1,
+        nickname: Some("alice".to_string()),
+    };
+
+    let update = NestedOptionalUpdate {
+        id: 2,
+        nickname: None,
+    };
+
+    let result = update.apply_changeset(target);
+
+    assert_eq!(result.id, 2);
+    // None means "don't change" for Option<Option<T>>
+    assert_eq!(result.nickname, Some("alice".to_string()));
+}
+
+#[test]
+fn test_nested_option_some_none_sets_none() {
+    let target = NestedOptionalTarget {
+        id: 1,
+        nickname: Some("alice".to_string()),
+    };
+
+    let update = NestedOptionalUpdate {
+        id: 2,
+        nickname: Some(None),
+    };
+
+    let result = update.apply_changeset(target);
+
+    assert_eq!(result.id, 2);
+    // Some(None) explicitly sets the target field to None
+    assert_eq!(result.nickname, None);
+}
+
+#[test]
+fn test_nested_option_some_some_sets_value() {
+    let target = NestedOptionalTarget {
+        id: 1,
+        nickname: Some("alice".to_string()),
+    };
+
+    let update = NestedOptionalUpdate {
+        id: 2,
+        nickname: Some(Some("bob".to_string())),
+    };
+
+    let result = update.apply_changeset(target);
+
+    assert_eq!(result.id, 2);
+    // Some(Some(v)) sets the target to Some(v)
+    assert_eq!(result.nickname, Some("bob".to_string()));
+}
