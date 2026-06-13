@@ -277,6 +277,7 @@ impl CustomerUpdateInternal {
     Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,
 )]
 #[diesel(table_name = customers)]
+#[router_derive::apply_changeset(target = Customer)]
 pub struct CustomerUpdateInternal {
     pub name: Option<Encryption>,
     pub email: Option<Encryption>,
@@ -294,50 +295,4 @@ pub struct CustomerUpdateInternal {
     pub tax_registration_id: Option<Encryption>,
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
-}
-
-#[cfg(feature = "v2")]
-impl CustomerUpdateInternal {
-    pub fn apply_changeset(self, source: Customer) -> Customer {
-        let Self {
-            name,
-            email,
-            phone,
-            description,
-            phone_country_code,
-            metadata,
-            connector_customer,
-            default_payment_method_id,
-            default_billing_address,
-            default_shipping_address,
-            status,
-            tax_registration_id,
-            document_details,
-            last_modified_by,
-            ..
-        } = self;
-
-        Customer {
-            name: name.map_or(source.name, Some),
-            email: email.map_or(source.email, Some),
-            phone: phone.map_or(source.phone, Some),
-            description: description.map_or(source.description, Some),
-            phone_country_code: phone_country_code.map_or(source.phone_country_code, Some),
-            metadata: metadata.map_or(source.metadata, Some),
-            modified_at: common_utils::date_time::now(),
-            connector_customer: connector_customer.map_or(source.connector_customer, Some),
-            default_payment_method_id: default_payment_method_id
-                .flatten()
-                .map_or(source.default_payment_method_id, Some),
-            default_billing_address: default_billing_address
-                .map_or(source.default_billing_address, Some),
-            default_shipping_address: default_shipping_address
-                .map_or(source.default_shipping_address, Some),
-            status: status.unwrap_or(source.status),
-            tax_registration_id: tax_registration_id.map_or(source.tax_registration_id, Some),
-            document_details: document_details.map_or(source.document_details, Some),
-            last_modified_by: last_modified_by.or(source.last_modified_by),
-            ..source
-        }
-    }
 }

@@ -416,6 +416,7 @@ impl PaymentMethodUpdate {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 #[diesel(table_name = payment_methods)]
+#[router_derive::apply_changeset(target = PaymentMethod)]
 pub struct PaymentMethodUpdateInternal {
     payment_method_data: Option<Encryption>,
     last_used_at: Option<PrimitiveDateTime>,
@@ -438,77 +439,6 @@ pub struct PaymentMethodUpdateInternal {
     last_modified_by: Option<String>,
     customer_details: Option<Encryption>,
     compatibility_updated_at: Option<PrimitiveDateTime>,
-}
-
-#[cfg(feature = "v2")]
-impl PaymentMethodUpdateInternal {
-    pub fn apply_changeset(self, source: PaymentMethod) -> PaymentMethod {
-        let Self {
-            payment_method_data,
-            last_used_at,
-            network_transaction_id,
-            network_transaction_link_id,
-            status,
-            locker_id,
-            payment_method_type_v2,
-            connector_mandate_details,
-            updated_by,
-            payment_method_subtype,
-            last_modified,
-            payment_method,
-            payment_method_type,
-            network_token_requestor_reference_id,
-            network_token_locker_id,
-            network_token_payment_method_data,
-            locker_fingerprint_id,
-            external_vault_source,
-            last_modified_by,
-            customer_details,
-            compatibility_updated_at,
-        } = self;
-
-        PaymentMethod {
-            customer_id: source.customer_id,
-            merchant_id: source.merchant_id,
-            created_at: source.created_at,
-            last_modified,
-            payment_method: payment_method.or(source.payment_method),
-            payment_method_type: payment_method_type.or(source.payment_method_type),
-            payment_method_data: payment_method_data.or(source.payment_method_data),
-            locker_id: locker_id.or(source.locker_id),
-            last_used_at: last_used_at.unwrap_or(source.last_used_at),
-            connector_mandate_details: connector_mandate_details
-                .or(source.connector_mandate_details),
-            customer_acceptance: source.customer_acceptance,
-            status: status.unwrap_or(source.status),
-            network_transaction_id: network_transaction_id.or(source.network_transaction_id),
-            network_transaction_link_id: network_transaction_link_id
-                .or(source.network_transaction_link_id),
-            client_secret: source.client_secret,
-            payment_method_billing_address: source.payment_method_billing_address,
-            updated_by: updated_by.or(source.updated_by),
-            locker_fingerprint_id: locker_fingerprint_id.or(source.locker_fingerprint_id),
-            payment_method_type_v2: payment_method_type_v2.or(source.payment_method_type_v2),
-            payment_method_subtype: payment_method_subtype.or(source.payment_method_subtype),
-            id: source.id,
-            payment_method_id: source.payment_method_id,
-            version: source.version,
-            network_token_requestor_reference_id: network_token_requestor_reference_id
-                .or(source.network_token_requestor_reference_id),
-            network_token_locker_id: network_token_locker_id.or(source.network_token_locker_id),
-            network_token_payment_method_data: network_token_payment_method_data
-                .or(source.network_token_payment_method_data),
-            external_vault_source: external_vault_source.or(source.external_vault_source),
-            external_vault_token_data: source.external_vault_token_data,
-            vault_type: source.vault_type,
-            created_by: source.created_by,
-            last_modified_by: last_modified_by.or(source.last_modified_by),
-            customer_details: customer_details.or(source.customer_details),
-            network_tokenization_data: source.network_tokenization_data,
-            auxiliary_fingerprint_id: source.auxiliary_fingerprint_id,
-            compatibility_updated_at,
-        }
-    }
 }
 
 #[cfg(feature = "v1")]
