@@ -24,7 +24,8 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsPushNotificationRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
+        PaymentsPreAuthorizeCancelRouterData, PaymentsPushNotificationRouterData,
         PaymentsSyncRouterData, PaymentsUpdateMetadataRouterData, RefundsRouterData,
     },
 };
@@ -1682,30 +1683,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderVoidResponse, T, PaymentsRespo
     }
 }
 
-impl TryFrom<&PaymentsCancelRouterData> for SantanderPaymentsCancelRequest {
-    type Error = Error;
-
-    fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        let santander_mca_metadata = SantanderMetadataObject::try_from(&item.connector_meta_data)?;
-
-        match item.payment_method {
-            enums::PaymentMethod::BankTransfer => {
-                let pix_req = SantanderPixCancelRequest::try_from(item)?;
-                Ok(Self::PixQR(pix_req))
-            }
-            enums::PaymentMethod::Voucher => {
-                let boleto_req =
-                    SantanderBoletoCancelRequest::try_from((item, santander_mca_metadata))?;
-                Ok(Self::Boleto(boleto_req))
-            }
-            _ => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "payment_method",
-            }
-            .into()),
-        }
-    }
-}
-
 impl TryFrom<(&PaymentsCancelRouterData, SantanderMetadataObject)>
     for SantanderBoletoCancelRequest
 {
@@ -1720,7 +1697,7 @@ impl TryFrom<(&PaymentsCancelRouterData, SantanderMetadataObject)>
         Ok(Self {
             operation: SantanderBoletoCancelOperation::Baixar,
             covenant_code: boleto_mca_metadata.covenant_code.clone(),
-            bank_number: extract_bank_number(value.0.request.connector_meta.clone())?,
+            bank_number: value.0.connector_request_reference_id.clone(),
         })
     }
 }
@@ -1734,22 +1711,66 @@ impl TryFrom<&PaymentsCancelRouterData> for SantanderPixCancelRequest {
     }
 }
 
-fn extract_bank_number(value: Option<Value>) -> Result<String, errors::ConnectorError> {
-    let value = value.ok_or_else(|| errors::ConnectorError::NoConnectorMetaData)?;
+impl TryFrom<&PaymentsPreAuthorizeCancelRouterData> for SantanderPaymentsCancelRequest {
+    type Error = Error;
 
-    let map = value
-        .as_object()
-        .ok_or_else(|| errors::ConnectorError::NoConnectorMetaData)?;
+    fn try_from(item: &PaymentsPreAuthorizeCancelRouterData) -> Result<Self, Self::Error> {
+        let santander_mca_metadata = SantanderMetadataObject::try_from(&item.connector_meta_data)?;
 
-    let bank_number = map
-        .get("bank_number")
-        .ok_or_else(|| errors::ConnectorError::NoConnectorMetaData)?;
+        match item.payment_method {
+            enums::PaymentMethod::BankTransfer => {
+                let pix_req = SantanderPixCancelRequest::try_from(item)?;
+                Ok(Self::PixQR(pix_req))
+            }
+            enums::PaymentMethod::Voucher => {
+                let boleto_req =
+                    SantanderBoletoCancelRequest::try_from((item, santander_mca_metadata))?;
+                Ok(Self::Boleto(boleto_req))
+            }
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: format!(
+                    "Pre-authorization Cancel for Payment method {}",
+                    item.payment_method
+                ),
+                connector: "Santander",
+            }
+            .into()),
+        }
+    }
+}
 
-    let bank_number_str = bank_number
-        .as_str()
-        .ok_or_else(|| errors::ConnectorError::NoConnectorMetaData)?
-        .to_string();
-    Ok(bank_number_str)
+impl
+    TryFrom<(
+        &PaymentsPreAuthorizeCancelRouterData,
+        SantanderMetadataObject,
+    )> for SantanderBoletoCancelRequest
+{
+    type Error = Error;
+    fn try_from(
+        value: (
+            &PaymentsPreAuthorizeCancelRouterData,
+            SantanderMetadataObject,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let boleto_mca_metadata = value
+            .1
+            .boleto
+            .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+        Ok(Self {
+            operation: SantanderBoletoCancelOperation::Baixar,
+            covenant_code: boleto_mca_metadata.covenant_code.clone(),
+            bank_number: value.0.connector_request_reference_id.clone(),
+        })
+    }
+}
+
+impl TryFrom<&PaymentsPreAuthorizeCancelRouterData> for SantanderPixCancelRequest {
+    type Error = Error;
+    fn try_from(_value: &PaymentsPreAuthorizeCancelRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: Some(SantanderVoidStatus::RemovidaPeloUsuarioRecebedor),
+        })
+    }
 }
 
 fn get_qr_code_data<F, T>(
@@ -2809,6 +2830,7 @@ pub fn decide_access_token_key_suffix(
                         None => Some(AccessTokenUrlPath::Leg2),
                     }
                 }
+                (_, Some(enums::PaymentMethodType::Boleto)) => Some(AccessTokenUrlPath::Boleto),
                 (None, Some(enums::PaymentMethodType::PixAutomaticoPush)) => {
                     Some(AccessTokenUrlPath::Leg2)
                 }

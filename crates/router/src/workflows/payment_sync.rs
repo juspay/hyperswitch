@@ -103,6 +103,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             None,
             hyperswitch_domain_models::payments::HeaderPayload::default(),
             &dimensions,
+            None,
         ))
         .await?;
 

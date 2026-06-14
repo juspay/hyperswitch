@@ -3381,6 +3381,41 @@ pub struct MerchantEnabledPmsContext {
 
 #[cfg(feature = "v1")]
 impl MerchantEnabledPmsContext {
+    /// Collects all unique eligible connectors across all payment methods in the context.
+    pub fn get_eligible_connectors(&self) -> HashSet<String> {
+        let mut connectors = HashSet::new();
+
+        for pmt_map in self.payment_experiences_consolidated_hm.values() {
+            for pe_map in pmt_map.values() {
+                for conn_list in pe_map.values() {
+                    connectors.extend(conn_list.iter().cloned());
+                }
+            }
+        }
+
+        for pmt_map in self.card_networks_consolidated_hm.values() {
+            for cn_map in pmt_map.values() {
+                for conn_list in cn_map.values() {
+                    connectors.extend(conn_list.iter().cloned());
+                }
+            }
+        }
+
+        for conn_list in self.banks_consolidated_hm.values() {
+            connectors.extend(conn_list.iter().cloned());
+        }
+
+        for conn_list in self.bank_debits_consolidated_hm.values() {
+            connectors.extend(conn_list.iter().cloned());
+        }
+
+        for conn_list in self.bank_transfer_consolidated_hm.values() {
+            connectors.extend(conn_list.iter().cloned());
+        }
+
+        connectors
+    }
+
     /// Converts `payment_experiences_consolidated_hm` → client PM entries (wallet, pay_later, upi, …)
     pub fn payment_experience_pms_for_client(&self) -> Vec<ResponsePaymentMethodsEnabledForClient> {
         let mut out = vec![];
