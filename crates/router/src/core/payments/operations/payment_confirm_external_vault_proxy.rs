@@ -420,6 +420,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                     updated_by: storage_scheme.to_string(),
                     merchant_connector_id,
                     external_three_ds_authentication_attempted: None,
+                    external_threeds_authentication_type: None,
                     authentication_connector: None,
                     authentication_id: None,
                     payment_method_billing_address_id: payment_data

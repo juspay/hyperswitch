@@ -478,6 +478,24 @@ impl DatabaseBackedConfig for ShouldTriggerBackwardsCompatibilityInline {
 }
 
 config! {
+    superposition_key = SHOULD_TRIGGER_FINGERPRINT_MIGRATION,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProviderMerchantId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldTriggerFingerprintMigration {
+    const KEY: &'static str = "should_trigger_fingerprint_migration";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_provider_merchant_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
     superposition_key = PAYOUT_TRACKER_MAPPING,
     output = RetryMapping,
     default = RetryMapping::default(),
