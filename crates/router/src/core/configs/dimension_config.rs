@@ -558,7 +558,7 @@ impl DatabaseBackedConfig for PollConfigExternalThreeDs {
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         dimensions
             .get_connector()
-            .map(|connector| crate::types::PollConfig::get_poll_config_key(connector.to_string()))
+            .map(|connector| format!("{}_{}", Self::KEY, connector))
     }
 }
 
@@ -606,12 +606,12 @@ config! {
 }
 
 impl DatabaseBackedConfig for PtMappingPaymentSync {
-    const KEY: &'static str = "pt_mapping_payment_sync";
+    const KEY: &'static str = "pt_mapping";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         dimensions
             .get_connector()
-            .map(|connector| format!("pt_mapping_{connector}"))
+            .map(|connector| format!("{}_{}", Self::KEY, connector))
     }
 }
 
@@ -644,12 +644,12 @@ config! {
 }
 
 impl DatabaseBackedConfig for PtMappingDisputeSync {
-    const KEY: &'static str = "pt_mapping_dispute_sync";
+    const KEY: &'static str = "pt_mapping";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         dimensions
             .get_connector()
-            .map(|connector| format!("pt_mapping_{connector}"))
+            .map(|connector| format!("{}_{}", Self::KEY, connector))
     }
 }
 
