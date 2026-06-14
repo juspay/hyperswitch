@@ -205,8 +205,8 @@ async fn migrate_single_payment_method(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to store payment method in vault with new entity_id")?;
 
-    // Step 6 & 7: If bank_debit, handle fingerprint data migration with new customer key
-    if is_bank_debit {
+    // Step 6 & 7: If bank_debit and wallet,, handle fingerprint data migration with new customer key
+    if is_bank_debit && is_wallet {
         let fingerprint_data = vaulting_data.to_fingerprint_data();
         controller
             .get_fingerprint_id_from_vault(customer_key, &fingerprint_data, fingerprint_id.clone())
