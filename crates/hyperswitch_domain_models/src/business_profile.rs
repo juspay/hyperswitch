@@ -123,6 +123,15 @@ impl ExternalVaultDetails {
             Self::Skip => None,
         }
     }
+
+    /// Returns true when the configured external vault is the hyperswitch vault (`HyperswitchSdk`).
+    pub fn is_hyperswitch_vault(&self) -> bool {
+        matches!(
+            self,
+            Self::ExternalVaultEnabled(details)
+                if details.vault_sdk == Some(common_enums::VaultSdk::HyperswitchSdk)
+        )
+    }
 }
 
 #[cfg(feature = "v1")]

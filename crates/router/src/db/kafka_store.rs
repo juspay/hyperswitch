@@ -2530,6 +2530,23 @@ impl PayoutAttemptInterface for KafkaStore {
             .await
     }
 
+    async fn find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        payout_id: &id_type::PayoutId,
+        payout_attempt_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
+        self.diesel_store
+            .find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
+                merchant_id,
+                payout_id,
+                payout_attempt_id,
+                storage_scheme,
+            )
+            .await
+    }
+
     async fn find_payout_attempt_by_merchant_id_connector_payout_id(
         &self,
         merchant_id: &id_type::MerchantId,

@@ -398,6 +398,14 @@ export const connectorDetails = {
         },
       },
     },
+    SyncRefundScheduled: {
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
     // IncrementalAuth: { // commenting out due to credentials issue
     //   Request: {
     //     amount: 8000,
@@ -997,6 +1005,8 @@ export const connectorDetails = {
         },
       },
     },
+    ClientSessionInvalidConfirm:
+      commonConnectorDetails.card_pm.ClientSessionInvalidConfirm,
   },
   bank_transfer_pm: {
     Ach: {

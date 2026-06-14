@@ -997,7 +997,9 @@ impl Payments {
                     web::resource("/{payment_id}/cancel").route(web::post().to(payments::payments_cancel)),
                 )
                 .service(
-                    web::resource("/{payment_id}/cancel_post_capture").route(web::post().to(payments::payments_cancel_post_capture)),
+                    web::resource("/{payment_id}/cancel_post_capture")
+                    .route(web::post().to(payments::payments_cancel_post_capture))
+                    .route(web::get().to(payments::payments_cancel_post_capture_retrieve))
                 )
                 .service(
                     web::resource("/{payment_id}/capture").route(web::post().to(payments::payments_capture)),
@@ -3401,7 +3403,7 @@ impl SdkConfig {
         web::scope("/v1/sdk/configs")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("{profile_id}/{platform}/{sdk_config.json}")
+                web::resource("{platform}/sdk_config.json")
                     .route(web::get().to(super::superposition_sdk_config::get_sdk_config)),
             )
     }

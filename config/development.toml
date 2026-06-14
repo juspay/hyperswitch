@@ -1430,7 +1430,7 @@ encryption_key = "A8EF32E029BC3342E54BF2E172A4D7AA43E8EF9D2C3A624A9F04E2EF79DC69
 connector_list = "tokenio"
 
 [cell_information]
-id = "12345"
+id = "0a"
 
 [network_tokenization_supported_card_networks]
 card_networks = "Visa, AmericanExpress, Mastercard"
@@ -1577,7 +1577,3 @@ backup_file_path = "./config/superposition_seed.toml" # Path to a local file for
 payment_methods_base_url = "http://localhost:8082"
 payment_methods_prefix = "v2"
 use_legacy_locker = false
-
-[micro_services.authentication_service]
-base_url = "http://localhost:8080"
-api_key = "api-key"

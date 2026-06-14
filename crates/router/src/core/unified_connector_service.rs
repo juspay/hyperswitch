@@ -58,8 +58,8 @@ use crate::{
     types::{
         api::enums as api_enums,
         transformers::{ForeignFrom, ForeignTryFrom},
-        UcsPaymentAuthorizeResponseData, UcsPaymentSetupRecurringResponseData,
-        UcsRecurringPaymentChargeResponseData,
+        UcsPaymentAuthorizeResponseData, UcsPaymentCaptureResponseData,
+        UcsPaymentSetupRecurringResponseData, UcsRecurringPaymentChargeResponseData,
     },
 };
 
@@ -1431,6 +1431,13 @@ pub fn build_unified_connector_service_payment_method(
                         })),
                     })
                 }
+                hyperswitch_domain_models::payment_method_data::WalletData::GcashRedirect(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::GcashRedirect(
+                            payments_grpc::GcashRedirectWallet {},
+                        )),
+                    })
+                }
                 _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                     "Unimplemented payment method subtype: {payment_method_type:?}"
                 ))
@@ -2196,16 +2203,23 @@ pub fn handle_unified_connector_service_response_for_payment_pre_authenticate(
 pub fn handle_unified_connector_service_response_for_payment_capture(
     response: payments_grpc::PaymentServiceCaptureResponse,
     prev_status: AttemptStatus,
-) -> UnifiedConnectorServiceResult {
+) -> CustomResult<UcsPaymentCaptureResponseData, UnifiedConnectorServiceError> {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
         Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
-            response,
+            response.clone(),
             prev_status,
         ))?;
 
-    Ok((router_data_response, status_code))
+    let connector_response =
+        extract_connector_response_from_ucs(response.connector_response.as_ref());
+
+    Ok(UcsPaymentCaptureResponseData {
+        router_data_response,
+        status_code,
+        connector_response,
+    })
 }
 
 pub fn handle_unified_connector_service_response_for_payment_setup_recurring(
