@@ -1301,6 +1301,23 @@ pub enum CryptoOutput<T: Clone, S: hyperswitch_masking::Strategy<T>> {
     BatchOperation(FxHashMap<String, crypto::Encryptable<Secret<T, S>>>),
 }
 
+// deja: intentionally NOT a record/replay boundary.
+//
+// `crypto_operation` is pure computation over inputs that are ALL already
+// deterministic on replay, so it reproduces byte-identically when run live —
+// instrumenting it here would only record non-`serde` metadata we cannot
+// substitute, forcing a dishonest verdict exclusion. The single source of
+// crypto non-determinism, the AEAD nonce, is recorded+replayed at its seam
+// (`common_utils::crypto::NonceSequence::new`, a `deja::id` boundary). The rest
+// of the chain is pure given substituted inputs:
+//   - the master key is config (identical across record/replay),
+//   - `DecryptLocally` of the merchant key store derives the DEK via
+//     `GcmAes256::decode_message`, which has no randomness,
+//   - the encrypted ciphertext (DEK and PII) comes from substituted DB reads,
+//   - the plaintext comes from the kernel-re-driven request.
+// Recording the OUTPUT instead (substitute) would write the plaintext DEK — the
+// merchant's data key — to the event log; recording the seam keeps it off disk.
+//
 // Do not remove the `skip_all` as the key would be logged otherwise
 #[instrument(skip_all, fields(table = table_name))]
 pub async fn crypto_operation<T: Clone + Send, S: hyperswitch_masking::Strategy<T>>(

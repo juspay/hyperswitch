@@ -7,6 +7,8 @@ pub mod consts;
 pub mod core;
 pub mod cors;
 pub mod db;
+#[cfg(feature = "deja")]
+pub mod deja_boot;
 pub mod env;
 pub mod locale;
 pub(crate) mod macros;
@@ -425,6 +427,24 @@ pub fn get_application_builder(
         >::new())
         .wrap(
             router_env::RequestIdentifier::new(&trace_header.header_name)
-                .use_incoming_id(trace_header.id_reuse_strategy),
+                // In DEJA replay the kernel injects the recorded x-request-id;
+                // adopting it (UseIncoming) anchors the candidate to the recorded
+                // correlation_id so every downstream time/id/db lookup keys off
+                // the same correlation and replays deterministically. Outside
+                // replay, honor the configured strategy.
+                .use_incoming_id({
+                    #[cfg(feature = "deja")]
+                    {
+                        if std::env::var("DEJA_MODE").as_deref() == Ok("replay") {
+                            router_env::IdReuse::UseIncoming
+                        } else {
+                            trace_header.id_reuse_strategy
+                        }
+                    }
+                    #[cfg(not(feature = "deja"))]
+                    {
+                        trace_header.id_reuse_strategy
+                    }
+                }),
         )
 }

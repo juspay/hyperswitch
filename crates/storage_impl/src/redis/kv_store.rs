@@ -171,7 +171,7 @@ pub async fn kv_wrapper<'a, T, D, S>(
     partition_key: PartitionKey<'a>,
 ) -> CustomResult<KvResult<T>, RedisError>
 where
-    T: de::DeserializeOwned,
+    T: de::DeserializeOwned + serde::Serialize,
     D: crate::database::store::DatabaseStore,
     S: serde::Serialize + Debug + KvStorePartition + UniqueConstraints + Sync,
 {

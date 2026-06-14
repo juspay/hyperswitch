@@ -11,7 +11,9 @@ pub trait OrganizationBridge {
     fn set_organization_name(&mut self, organization_name: String);
 }
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
+#[derive(
+    Clone, Debug, Identifiable, Queryable, Selectable, serde::Serialize, serde::Deserialize,
+)]
 #[diesel(
     table_name = organization,
     primary_key(org_id),

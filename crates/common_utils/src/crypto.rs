@@ -25,6 +25,7 @@ use crate::{
 };
 
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 struct NonceSequence(u128);
 
 impl NonceSequence {
@@ -34,6 +35,21 @@ impl NonceSequence {
     const SEQUENCE_NUMBER_START_INDEX: usize = 4;
 
     /// Generate a random nonce sequence.
+    //
+    // deja: the AEAD nonce is the single source of ciphertext non-determinism.
+    // Recording it (Ok-only; the ring error type is non-serializable) and
+    // replaying it in call order makes `encode_message` reproduce byte-identical
+    // ciphertext for the same key+plaintext, so encrypted DB columns and HTTP
+    // bodies match the recording exactly. Real AES still runs; only the random
+    // nonce is substituted.
+    #[cfg_attr(
+        feature = "deja",
+        deja::id(
+            component = "common_utils::crypto",
+            operation = "GcmAes256::nonce",
+            replay_ok,
+        )
+    )]
     fn new() -> Result<Self, ring::error::Unspecified> {
         use ring::rand::{SecureRandom, SystemRandom};
 
@@ -607,6 +623,14 @@ impl EncodeMessage for TripleDesEde3CBC {
 /// Generate a random string using a cryptographically secure pseudo-random number generator
 /// (CSPRNG). Typically used for generating (readable) keys and passwords.
 #[inline]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "common_utils::crypto",
+        operation = "generate_cryptographically_secure_random_string",
+        replay,
+    )
+)]
 pub fn generate_cryptographically_secure_random_string(length: usize) -> String {
     use rand::distributions::DistString;
 

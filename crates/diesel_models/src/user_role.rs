@@ -7,7 +7,9 @@ use time::PrimitiveDateTime;
 
 use crate::{enums, schema::user_roles};
 
-#[derive(Clone, Debug, Identifiable, Queryable, Selectable, Eq)]
+#[derive(
+    Clone, Debug, Identifiable, Queryable, Selectable, Eq, serde::Serialize, serde::Deserialize,
+)]
 #[diesel(table_name = user_roles, check_for_backend(diesel::pg::Pg))]
 pub struct UserRole {
     pub id: i32,

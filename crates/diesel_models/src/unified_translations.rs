@@ -5,7 +5,9 @@ use time::PrimitiveDateTime;
 
 use crate::schema::unified_translations;
 
-#[derive(Clone, Debug, Queryable, Selectable, Identifiable)]
+#[derive(
+    Clone, Debug, Queryable, Selectable, Identifiable, serde::Serialize, serde::Deserialize,
+)]
 #[diesel(table_name = unified_translations, primary_key(unified_code, unified_message, locale), check_for_backend(diesel::pg::Pg))]
 pub struct UnifiedTranslations {
     pub unified_code: String,

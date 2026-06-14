@@ -39,7 +39,9 @@ pub struct DisputeNew {
     pub created_by: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Identifiable, Queryable, Selectable)]
+#[derive(
+    Clone, Debug, PartialEq, Serialize, serde::Deserialize, Identifiable, Queryable, Selectable,
+)]
 #[diesel(table_name = dispute, primary_key(dispute_id), check_for_backend(diesel::pg::Pg))]
 pub struct Dispute {
     pub dispute_id: String,

@@ -37,6 +37,7 @@ dynamic_routing = ["external_services/dynamic_routing", "storage_impl/dynamic_ro
 revenue_recovery = ["api_models/revenue_recovery", "hyperswitch_interfaces/revenue_recovery", "hyperswitch_domain_models/revenue_recovery", "hyperswitch_connectors/revenue_recovery", "external_services/revenue_recovery", "dep:prost-types"]
 tokenization_v2 = ["api_models/tokenization_v2", "diesel_models/tokenization_v2", "hyperswitch_domain_models/tokenization_v2", "storage_impl/tokenization_v2"]
 pm_modular = []
+deja = ["dep:deja", "common_utils/deja", "router_env/deja", "external_services/deja", "diesel_models/deja", "redis_interface/deja", "hyperswitch_domain_models/deja"]
 
 # Partial Auth
 # The feature reduces the overhead of the router authenticating the merchant for every request, and trusts on `x-merchant-id` header to be present in the request.
@@ -124,6 +125,7 @@ cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs", "metrics", "keymanager"] }
 common_types = { version = "0.1.0", path = "../common_types" }
+deja = { path = "../../../../crates/deja", optional = true, default-features = false }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store", "tokenization_v2"], default-features = false }
 euclid = { version = "0.1.0", path = "../euclid", features = ["valued_jit"] }

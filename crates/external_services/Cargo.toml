@@ -15,6 +15,7 @@ hashicorp-vault = ["dep:vaultrs"]
 superposition = ["dep:open-feature", "dep:superposition_provider"]
 v1 = ["hyperswitch_interfaces/v1", "common_utils/v1"]
 v2 = ["hyperswitch_interfaces/v2", "common_utils/v2"]
+deja = ["dep:deja"]
 revenue_recovery = [
     "dep:prost",
     "dep:router_env",
@@ -47,6 +48,7 @@ aws-smithy-runtime = "1.8.3"
 aws-smithy-types = "1.3.1"
 base64 = "0.22.1"
 dyn-clone = "1.0.19"
+deja = { path = "../../../../crates/deja", optional = true }
 error-stack = "0.4.1"
 hex = "0.4.3"
 hyper = "0.14.32"
@@ -77,6 +79,7 @@ unified-connector-service-client = { git = "https://github.com/juspay/connector-
 open-feature = { version = "0.2.5", optional = true }
 superposition_provider = { version = "0.102.0", optional = true}
 superposition_types = "0.102.0"
+bytes = "1"
 
 
 # First party crates

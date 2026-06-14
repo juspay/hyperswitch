@@ -170,7 +170,7 @@ impl From<&RedisEntryId> for fred::types::XID {
     }
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum SetnxReply {
     KeySet,
     KeyNotSet, // Existing key
@@ -192,7 +192,7 @@ impl fred::types::FromRedis for SetnxReply {
     }
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum HsetnxReply {
     KeySet,
     KeyNotSet, // Existing key
@@ -211,7 +211,7 @@ impl fred::types::FromRedis for HsetnxReply {
     }
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum MsetnxReply {
     KeysSet,
     KeysNotSet, // At least one existing key
@@ -260,7 +260,7 @@ impl From<StreamCapTrim> for fred::types::XCapTrim {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum DelReply {
     KeyDeleted,
     KeyNotDeleted, // Key not found
@@ -289,7 +289,7 @@ impl fred::types::FromRedis for DelReply {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum SaddReply {
     KeySet,
     KeyNotSet,
@@ -327,6 +327,10 @@ impl<T> SetGetReply<T> {
 pub struct RedisKey(String);
 
 impl RedisKey {
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
     pub fn tenant_aware_key(&self, pool: &RedisConnectionPool) -> String {
         pool.add_prefix(&self.0)
     }

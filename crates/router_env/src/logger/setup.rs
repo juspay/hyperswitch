@@ -65,6 +65,8 @@ pub fn setup(
     let subscriber = tracing_subscriber::registry()
         .with(traces_layer)
         .with(StorageSubscription)
+        .with(deja_layer())
+        .with(deja_correlation_layer())
         .with(file_writer);
 
     // Setup console logging
@@ -117,6 +119,42 @@ pub fn setup(
     Ok(TelemetryGuard {
         _log_guards: guards,
     })
+}
+
+#[cfg(feature = "deja")]
+fn deja_layer() -> Option<deja::ExecutionGraphLayer> {
+    let artifact_dir = std::env::var_os(deja::DEJA_GRAPH_DIR_ENV_VAR)?;
+    match deja::ExecutionGraphLayer::new(std::path::PathBuf::from(artifact_dir)) {
+        Ok(layer) => Some(layer),
+        Err(error) => {
+            eprintln!("Failed to initialize Deja execution graph layer: {error}");
+            None
+        }
+    }
+}
+
+#[cfg(not(feature = "deja"))]
+fn deja_layer() -> Option<tracing_subscriber::layer::Identity> {
+    None
+}
+
+/// Correlation-propagation layer: mirrors the ingress `request_id` span field into
+/// deja-context so boundary events fired from spawned tasks (which escape the
+/// middleware's `scope_correlation` future wrapper but carry the span via
+/// `.in_current_span()`) inherit the request correlation instead of recording
+/// uncorrelated. Only installed while recording or replaying — in normal
+/// operation it is `None`, adding zero per-span overhead.
+#[cfg(feature = "deja")]
+fn deja_correlation_layer() -> Option<deja::DejaCorrelationLayer> {
+    match std::env::var("DEJA_MODE").as_deref() {
+        Ok("record") | Ok("replay") => Some(deja::DejaCorrelationLayer::new()),
+        _ => None,
+    }
+}
+
+#[cfg(not(feature = "deja"))]
+fn deja_correlation_layer() -> Option<tracing_subscriber::layer::Identity> {
+    None
 }
 
 fn get_opentelemetry_exporter_config(

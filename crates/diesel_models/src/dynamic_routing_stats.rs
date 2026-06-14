@@ -23,7 +23,18 @@ pub struct DynamicRoutingStatsNew {
     pub global_success_based_connector: Option<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Insertable)]
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    Identifiable,
+    Queryable,
+    Selectable,
+    Insertable,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 #[diesel(table_name = dynamic_routing_stats, primary_key(attempt_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct DynamicRoutingStats {
     pub payment_id: common_utils::id_type::PaymentId,

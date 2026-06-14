@@ -1,6 +1,8 @@
 use common_utils::{consts, errors::CustomResult, request::Request};
 use hyperswitch_interfaces::{errors::HttpClientError, types::Proxy};
 use request::{HeaderExt, RequestBuilderExt};
+#[cfg(feature = "deja")]
+use reqwest::ResponseBuilderExt;
 use router_env::{instrument, logger, tracing};
 /// client module
 pub mod client;
@@ -8,6 +10,8 @@ pub mod client;
 pub mod metrics;
 /// request module
 pub mod request;
+#[cfg(feature = "deja")]
+mod semantic_boundary;
 use std::{error::Error, time::Duration};
 
 use common_utils::request::RequestContent;
@@ -15,6 +19,20 @@ pub use common_utils::request::{ContentType, Method, RequestBuilder};
 use error_stack::ResultExt;
 
 #[allow(missing_docs)]
+#[cfg_attr(
+    feature = "deja",
+    deja::http(outgoing,
+        component = "external_services::http_client",
+        operation = "send_request",
+        correlation = semantic_boundary::request_id(&request),
+        args = semantic_boundary::request_args(&request, option_timeout_secs),
+        result = semantic_boundary::response_result(__deja_result),
+        // Replay: rebuild the recorded reqwest::Response (status+headers+body) so
+        // the outgoing call (e.g. Stripe) is served from the lookup table with no
+        // network. A recorded error reconstructs to None -> falls through to live.
+        replay_with = semantic_boundary::replay_response(&__deja_recorded).map(Ok),
+    )
+)]
 #[instrument(skip_all)]
 pub async fn send_request(
     client_proxy: &Proxy,
@@ -152,6 +170,45 @@ pub async fn send_request(
     // Since hyper already wrote some of the request,
     // it can’t really retry it automatically on a new connection, since the server may have acted already
     match response {
+        #[cfg(feature = "deja")]
+        Ok(response) => {
+            if !semantic_boundary::is_active() {
+                return Ok(response);
+            }
+
+            // Eagerly read the response body so the boundary result extractor
+            // can report it without consuming the stream a second time.
+            // The body is then cloned: one copy is rebuilt into a new
+            // reqwest::Response as a reusable Body, the other is stashed in
+            // http::Extensions so `response_result` can read it.
+            let status = response.status();
+            let headers = response.headers().clone();
+            let version = response.version();
+            let url = response.url().clone();
+            let body_bytes = response
+                .bytes()
+                .await
+                .change_context(HttpClientError::ResponseDecodingFailed)
+                .attach_printable("Failed to read response body for boundary capture")?;
+
+            let mut builder = http::Response::builder()
+                .status(status)
+                .version(version)
+                .url(url);
+            for (key, value) in &headers {
+                builder = builder.header(key, value);
+            }
+            let mut http_response = builder.body(body_bytes.clone()).map_err(|_| {
+                error_stack::report!(HttpClientError::UnexpectedState)
+                    .attach_printable("Failed to rebuild HTTP response")
+            })?;
+            http_response
+                .extensions_mut()
+                .insert(semantic_boundary::CapturedResponseBody(body_bytes));
+
+            Ok(reqwest::Response::from(http_response))
+        }
+        #[cfg(not(feature = "deja"))]
         Ok(response) => Ok(response),
         Err(error)
             if error.current_context() == &HttpClientError::ConnectionClosedIncompleteMessage =>

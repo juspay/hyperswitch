@@ -9,7 +9,9 @@ pub mod dashboard_metadata;
 pub mod sample_data;
 pub mod theme;
 
-#[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
+#[derive(
+    Clone, Debug, Identifiable, Queryable, Selectable, serde::Serialize, serde::Deserialize,
+)]
 #[diesel(table_name = users, primary_key(user_id), check_for_backend(diesel::pg::Pg))]
 pub struct User {
     pub user_id: String,

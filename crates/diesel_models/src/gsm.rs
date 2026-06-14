@@ -19,6 +19,7 @@ use crate::schema::gateway_status_map;
     Queryable,
     Selectable,
     serde::Serialize,
+    serde::Deserialize,
 )]
 #[diesel(table_name = gateway_status_map, primary_key(connector, flow, sub_flow, code, message), check_for_backend(diesel::pg::Pg))]
 pub struct GatewayStatusMap {
