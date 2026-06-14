@@ -1,0 +1,52 @@
+# Deja recording pipeline — loaded ALONGSIDE the stock config/vector.yaml
+# (docker-compose.deja.yml passes both via repeated --config flags; Vector
+# merges the component maps). Kept out of the stock file so non-deja
+# deployments are unaffected.
+
+sources:
+  # ── deja replay-harness recording stream ──
+  deja_recording:
+    type: kafka
+    bootstrap_servers: kafka0:29092
+    group_id: deja-recording-vector
+    topics:
+      - hyperswitch-deja-recording-events
+    auto_offset_reset: earliest
+    decoding:
+      codec: json
+
+sinks:
+  # Land FULL deja.artifact_record/v2 envelopes in the session layout —
+  # ingest/compaction unwrap them, so loss accounting (sink markers) and
+  # producer identity survive into the store. zstd-compressed ndjson.
+  deja_recording_s3:
+    type: aws_s3
+    inputs:
+      - deja_recording
+    bucket: deja-recordings
+    region: us-east-1
+    endpoint: http://minio:9000
+    auth:
+      # demo credentials — the bundled MinIO from docker-compose.deja.yml
+      access_key_id: minioadmin
+      secret_access_key: minioadmin
+    # End-to-end acks: Kafka offsets commit only after S3 confirms the write,
+    # so a Vector restart re-delivers instead of dropping (ingest dedups).
+    acknowledgements:
+      enabled: true
+    compression: zstd
+    # Explicit extension so ingest's ".zst" detection never depends on
+    # Vector's compression→extension defaults.
+    filename_extension: "ndjson.zst"
+    encoding:
+      codec: json
+    framing:
+      method: newline_delimited
+    # Route by the ENVELOPE's own capture identity, not a container env var —
+    # a persistent/reused Vector writes each session's events to the right
+    # prefix, partitioned per producer instance.
+    key_prefix: "landing/v1/session={{ .capture.session_id }}/inst={{ .instance_id }}/"
+    filename_append_uuid: true
+    batch:
+      max_events: 2000
+      timeout_secs: 5

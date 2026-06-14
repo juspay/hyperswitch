@@ -1,0 +1,217 @@
+# Deja demo overlay on Hyperswitch's own docker-compose.yml.
+#
+# Usage (driven by the lifecycle worker / demo/run-deja-demo.sh):
+#   docker compose -p deja-demo --profile olap \
+#     -f docker-compose.yml -f docker-compose.deja.yml up -d --build <services>
+#
+# It reuses Hyperswitch's real stack (pg, redis-standalone, migration_runner,
+# superposition, kafka0) and ONLY:
+#   - swaps hyperswitch-server to a LOCAL deja-features build (record mode)
+#   - adds hyperswitch-replay (same image, DEJA_MODE=replay)
+#   - adds minio + minio-setup + vector to land the recording in S3
+#     (the orchestrator pulls it back natively; the one-shot `mc` helper
+#     remains for manual inspection / the demo scripts' debug listings)
+#
+# Relative paths resolve against the project dir (this dir, vendor/hyperswitch-
+# deja-clean) since the base compose is passed first. ${HARNESS_STATE} is an
+# absolute path supplied by the worker (the HarnessRoot, bind-mounted as the
+# shared state volume); the fallback is for manual `docker compose` runs.
+
+services:
+  # ── don't publish HS's host ports — they collide with local Postgres/Redis/
+  #    Kafka/etc. and nothing outside the compose network needs them. `!override`
+  #    REPLACES the base port list instead of merging (Compose >= 2.24). The only
+  #    host-published port we keep is the replay router's (the host kernel hits it).
+  pg:
+    ports: !override []
+  redis-standalone:
+    ports: !override []
+  superposition:
+    ports: !override []
+  kafka0:
+    ports: !override []
+
+  # ── resilient migrations: HS's stock migration_runner downloads the diesel
+  #    CLI from GitHub *release assets* at runtime with NO retry; those assets
+  #    intermittently 504 (transient GitHub CDN, multi-minute windows), which
+  #    fails the whole stack (candidates depend_on it completing). Swap only the
+  #    COMMAND for a drop-in that prefers a host-built diesel CLI (same v2.3.5,
+  #    built once from crates.io by run-deja-demo.sh and mounted at
+  #    /opt/diesel-cli/diesel) and falls back to the GitHub install with retries.
+  #    Same `just migrate`. Image/env/depends_on inherited; both mounts append to
+  #    the base `./:/app`. (If the host binary wasn't pre-built, Docker mounts an
+  #    empty dir there and the script's -f test routes to the GitHub fallback.)
+  migration_runner:
+    command: ["bash", "/migration-runner.sh"]
+    volumes:
+      - ../../demo/migration-runner.sh:/migration-runner.sh:ro
+      - ../../demo/.diesel-cli/bin/diesel:/opt/diesel-cli/diesel:ro
+
+  # ── RECORD candidate: HS's router, rebuilt locally with deja features ──────
+  hyperswitch-server:
+    # Overridable: a local_binary candidate is pre-baked by the orchestrator
+    # and injected here; the default is compose's own local build (the worker
+    # passes --build explicitly on the legacy path — pull_policy is omitted so
+    # an injected image is never rebuilt/re-tagged from the default context).
+    image: ${CANDIDATE_IMAGE:-deja-router-local:latest}
+    build:
+      context: ../..
+      dockerfile: demo/Dockerfile.hyperswitch-semantic
+      platforms: [linux/amd64]
+    # The demo image's ENTRYPOINT is the benchmark script; run the router server.
+    entrypoint: ["/local/bin/router"]
+    command: ["-f", "/local/config/docker_compose.toml"]
+    # The stock image runs from /local; our debian-slim build defaults to /, which
+    # breaks the router's RELATIVE superposition fallback path
+    # (./config/superposition_seed.toml). Run from /local so it resolves to the
+    # mounted /local/config/superposition_seed.toml and boot survives a cold
+    # (unseeded) Superposition service.
+    working_dir: /local
+    # not published to host; the worker checks health via `docker compose exec`
+    # and runs the workload inside the container.
+    ports: !override []
+    # Disable HS's periodic /health curl — otherwise EVERY health poll is
+    # recorded as an http_incoming event and floods the recording with noise.
+    # (The worker still checks readiness via `exec … curl /health`, but that
+    # stops once healthy.)
+    healthcheck:
+      disable: true
+    environment:
+      # enable Kafka events without forking the config (layered env override)
+      ROUTER__EVENTS__SOURCE: kafka
+      ROUTER__EVENTS__KAFKA__BROKERS: kafka0:29092
+      # deja record-mode wiring — Kafka is THE sink (deja_boot installs the
+      # hardened producer; no JSONL primary). DEJA_SINK_POLICY defaults to
+      # `block` (no-drop backpressure); set fail_open to never stall requests.
+      DEJA_MODE: record
+      DEJA_RECORDING_RUN_ID: ${RECORDING_ID:-demo}
+      # Execution-graph capture: nodes land in the shared state mount; setting
+      # DEJA_RUN_ID too keeps graph-node recording_run_id == event
+      # recording_run_id (the graph layer reads only DEJA_RUN_ID today).
+      DEJA_RUN_ID: ${RECORDING_ID:-demo}
+      DEJA_GRAPH_DIR: /harness-state/graph/${RECORDING_ID:-demo}
+      DEJA_KAFKA_TOPIC: ${DEJA_RECORDING_TOPIC:-hyperswitch-deja-recording-events}
+      # Code identity stamped into the recording envelope (code.sha); the
+      # orchestrator resolves it from the candidate's git head.
+      DEJA_CODE_REF: ${DEJA_CODE_REF:-}
+      RUST_MIN_STACK: "16777216"
+      STRIPE_API_KEY: ${STRIPE_API_KEY:-}
+    volumes:
+      # shared HarnessRoot (merged with the base service's ./config + ./files mounts)
+      - ${HARNESS_STATE:-../../demo/harness-state}:/harness-state
+    # NOTE: no depends_on kafka0 — it's in the `olap` profile, and a non-profiled
+    # service can't declare a profiled dependency (Compose rejects it as
+    # "undefined"). The worker starts kafka0 by name in the same `up`, and
+    # rdkafka's producer buffers until the broker is reachable, so explicit
+    # ordering isn't needed.
+
+  # ── REPLAY candidate: SAME image, file-based lookup/observed on the mount ──
+  hyperswitch-replay:
+    image: ${CANDIDATE_IMAGE:-deja-router-local:latest}
+    build:
+      context: ../..
+      dockerfile: demo/Dockerfile.hyperswitch-semantic
+      platforms: [linux/amd64]
+    networks:
+      - router_net
+    entrypoint: ["/local/bin/router"]
+    command: ["-f", "/local/config/docker_compose.toml"]
+    working_dir: /local
+    environment:
+      DEJA_MODE: replay
+      DEJA_LOOKUP_TABLE: /harness-state/lookup-tables/${RUN_ID:-demo}.jsonl
+      DEJA_OBSERVED_SINK: /harness-state/observed/${RUN_ID:-demo}.jsonl
+      # Replay-side execution graph (the future record-vs-replay tree diff).
+      DEJA_RUN_ID: ${RUN_ID:-demo}
+      DEJA_GRAPH_DIR: /harness-state/graph-replay/${RUN_ID:-demo}
+      RUST_MIN_STACK: "16777216"
+    ports:
+      - "${REPLAY_HOST_PORT:-8090}:8080"
+    volumes:
+      - ./config:/local/config
+      - ${HARNESS_STATE:-../../demo/harness-state}:/harness-state
+    depends_on:
+      pg:
+        condition: service_healthy
+      redis-standalone:
+        condition: service_healthy
+      migration_runner:
+        condition: service_completed_successfully
+      superposition-init:
+        condition: service_completed_successfully
+    # Disable HS's periodic /health curl on the replay candidate, mirroring the
+    # record service. Under DEJA_MODE=replay the router forces
+    # IdReuse::UseIncoming, so a /health probe arriving WITHOUT an x-request-id
+    # falls back to generate_uuid_v7() and emits an UNBOUNDED tail of bare
+    # `id_generation` ObservedCalls (correlation_id=None, no db/redis companions)
+    # that grows every 5s for the life of the container — the sole source of the
+    # replay-only "novel id_generation" noise. Host-side `wait_health` already
+    # gates replay readiness via a direct /health poll on the published port, so
+    # the container healthcheck is redundant here.
+    healthcheck:
+      disable: true
+
+  # ── recording sink: Kafka → Vector → MinIO (S3) ───────────────────────────
+  minio:
+    image: minio/minio
+    networks:
+      - router_net
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9100:9000"
+      - "9101:9001"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/minio/health/live || exit 1"]
+      interval: 5s
+      retries: 20
+      start_period: 5s
+
+  minio-setup:
+    image: minio/mc
+    networks:
+      - router_net
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 minioadmin minioadmin &&
+        mc mb --ignore-existing local/deja-recordings &&
+        echo 'bucket deja-recordings ready'
+      "
+
+  # Reuse Hyperswitch's OWN vector service, layering the deja pipeline
+  # (deja_recording source → deja_recording_s3 envelope sink) from a SEPARATE
+  # config file so the stock config/vector.yaml stays untouched for non-deja
+  # deployments. Vector merges multiple --config files; the base vector.yaml
+  # mount is inherited from the base compose. Image PINNED here (the base
+  # floats on latest-debian): zstd compression + end-to-end sink
+  # acknowledgements verified against 0.54.0.
+  vector:
+    image: docker.io/timberio/vector:0.54.0-debian
+    command:
+      [
+        "--config", "/etc/vector/vector.yaml",
+        "--config", "/etc/vector/vector.deja.yaml",
+      ]
+    volumes:
+      - ./config/vector.deja.yaml:/etc/vector/vector.deja.yaml
+    environment:
+      RECORDING_ID: ${RECORDING_ID:-demo}
+    depends_on:
+      minio:
+        condition: service_healthy
+
+  # ── one-shot mc helper: `docker compose run --rm mc "<mc script>"` ─────────
+  # Profiled so it never starts with `up`; the worker invokes it via `run`,
+  # which puts it on router_net automatically (no fragile --network wiring).
+  mc:
+    image: minio/mc
+    networks:
+      - router_net
+    profiles: [tools]
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["true"]
