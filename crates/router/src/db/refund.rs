@@ -490,7 +490,7 @@ mod storage {
 #[cfg(feature = "kv_store")]
 mod storage {
     use common_utils::{
-        ext_traits::Encode, fallback_reverse_lookup_not_found, types::ConnectorTransactionIdTrait,
+        ext_traits::Encode, fallback_reverse_lookup_not_found,
     };
     use diesel_models::refund as diesel_refund;
     use error_stack::{report, ResultExt};
