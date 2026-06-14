@@ -794,6 +794,13 @@ pub struct UcsPaymentSetupRecurringResponseData {
     pub minor_amount_captured: Option<MinorUnit>,
 }
 
+pub struct UcsPaymentCaptureResponseData {
+    pub router_data_response:
+        Result<(PaymentsResponseData, common_enums::AttemptStatus), ErrorResponse>,
+    pub status_code: u16,
+    pub connector_response: Option<ConnectorResponseData>,
+}
+
 #[cfg(feature = "payouts")]
 pub struct UcsPayoutCreateResponseData {
     pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,

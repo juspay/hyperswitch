@@ -402,6 +402,7 @@ async fn fetch_access_token_from_ucs(
             metadata: None,
             connector_feature_data: None,
             test_mode,
+            merchant_request_id: None,
         };
 
     let response = client
