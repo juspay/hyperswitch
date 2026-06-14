@@ -504,6 +504,15 @@ config! {
     targeting_key = id_type::PayoutId
 }
 
+impl DatabaseBackedConfig for PayoutTrackerMapping {
+    const KEY: &'static str = "payout_tracker_mapping";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        // The payout tracker mapping config has been directly implemented in superposition. So there would be no db fallback for it. Hence returning none here.
+        None
+    }
+}
+
 config! {
     superposition_key = CLIENT_SESSION_VALIDATION_ENABLED,
     output = bool,
