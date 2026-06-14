@@ -17,6 +17,8 @@ use diesel_models::fraud_check::FraudCheck;
 use crate::{events::EventType, services::kafka::fraud_check_event::KafkaFraudCheckEvent};
 mod authentication;
 mod authentication_event;
+#[cfg(feature = "deja")]
+pub mod deja_record_sink;
 mod dispute;
 mod dispute_event;
 mod fraud_check;
@@ -163,9 +165,25 @@ pub struct KafkaSettings {
     authentication_analytics_topic: String,
     routing_logs_topic: String,
     revenue_recovery_topic: String,
+    /// Topic deja recording artifacts are published to. Optional so
+    /// existing configs keep parsing; the deja boot path falls back to the
+    /// `DEJA_KAFKA_TOPIC` env var and then a built-in default.
+    #[serde(default)]
+    deja_recording_topic: Option<String>,
 }
 
 impl KafkaSettings {
+    /// Configured topic for deja recording artifacts, if any.
+    pub fn deja_recording_topic(&self) -> Option<String> {
+        self.deja_recording_topic.clone()
+    }
+
+    /// Broker list, for consumers that build their own producer with
+    /// different delivery guarantees (deja's recording sink).
+    pub fn brokers(&self) -> &[String] {
+        &self.brokers
+    }
+
     pub fn validate(&self) -> Result<(), crate::core::errors::ApplicationError> {
         use common_utils::ext_traits::ConfigExt;
 
@@ -355,6 +373,33 @@ impl KafkaProducer {
             .map_err(|(error, record)| report!(error).attach_printable(format!("{record:?}")))
             .change_context(KafkaError::GenericError)
     }
+
+    /// Send a raw payload to an arbitrary topic without going through the
+    /// typed `KafkaMessage` / `EventType` flow.
+    ///
+    /// Exists so callers that own their own envelope schema (currently
+    /// deja-record's recording sink) can publish to a topic that isn't part
+    /// of the typed analytics catalogue. The producer, broker config, and
+    /// delivery semantics are otherwise identical to `log_event`.
+    pub fn send_to_topic(
+        &self,
+        topic: &str,
+        key: &str,
+        payload: &[u8],
+        headers: OwnedHeaders,
+    ) -> MQResult<()> {
+        self.producer
+            .0
+            .send(
+                BaseRecord::to(topic)
+                    .key(key)
+                    .payload(payload)
+                    .headers(headers),
+            )
+            .map_err(|(error, record)| report!(error).attach_printable(format!("{record:?}")))
+            .change_context(KafkaError::GenericError)
+    }
+
     pub async fn log_fraud_check(
         &self,
         attempt: &FraudCheck,

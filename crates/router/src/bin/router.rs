@@ -33,6 +33,29 @@ async fn main() -> ApplicationResult<()> {
 
     logger::info!("Application started [{:?}] [{:?}]", conf.server, conf.log);
 
+    #[cfg(feature = "deja")]
+    {
+        // Compose the Kafka recording sink (DEJA_MODE=record) BEFORE the
+        // getter below, which otherwise locks in an env-derived hook via its
+        // OnceLock. No-op for the replay/none paths.
+        router::deja_boot::install(&conf.events).await;
+        if let Some(hook) = deja::global_runtime_hook_from_env() {
+            router_env::tracing::info!(
+                target: "deja",
+                mode = hook.variant_name(),
+                recording_run_id = ?std::env::var("DEJA_RECORDING_RUN_ID")
+                    .ok()
+                    .or_else(|| std::env::var("DEJA_RUN_ID").ok()),
+                "deja runtime hook initialized"
+            );
+        } else {
+            router_env::tracing::debug!(
+                target: "deja",
+                "deja disabled (no DEJA_MODE)"
+            );
+        }
+    }
+
     // Spawn a thread for collecting metrics at fixed intervals
     metrics::bg_metrics_collector::spawn_metrics_collector(
         conf.log.telemetry.bg_metrics_collection_interval_in_secs,
