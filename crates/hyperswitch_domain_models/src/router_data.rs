@@ -461,11 +461,11 @@ pub enum PaymentMethodToken {
 impl ForeignFrom<Option<&PaymentMethodToken>> for WalletDecryptedToken {
     fn foreign_from(from: Option<&PaymentMethodToken>) -> Self {
         match from {
-            Some(PaymentMethodToken::ApplePayDecrypt(_)) => WalletDecryptedToken::ApplePay,
-            Some(PaymentMethodToken::GooglePayDecrypt(_)) => WalletDecryptedToken::GooglePay,
+            Some(PaymentMethodToken::ApplePayDecrypt(_)) => Self::ApplePay,
+            Some(PaymentMethodToken::GooglePayDecrypt(_)) => Self::GooglePay,
             Some(PaymentMethodToken::PazeDecrypt(_))
             | Some(PaymentMethodToken::Token(_))
-            | None => WalletDecryptedToken::None,
+            | None => Self::None,
         }
     }
 }
