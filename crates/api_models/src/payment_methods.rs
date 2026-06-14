@@ -3983,8 +3983,14 @@ pub struct PaymentMethodMigrationResponse {
 
 #[derive(Debug, Default, serde::Serialize)]
 pub struct ModularPaymentMethodMigrationResponse {
-    pub successfully_migrated: Vec<PaymentMethodId>,
-    pub failed_migrations: Vec<PaymentMethodId>,
+    pub successfully_migrated: Vec<String>,
+    pub failed_migrations: Vec<FailedMigration>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct FailedMigration {
+    pub failed_record: String,
+    pub error_message: String,
 }
 
 #[derive(Debug, Default, serde::Serialize)]

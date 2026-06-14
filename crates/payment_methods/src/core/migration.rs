@@ -84,11 +84,15 @@ pub async fn modular_migrate_payment_methods(
         {
             Ok(()) => {
                 router_env::logger::info!("Successfully migrated payment method: {}", pm_id);
-                successfully_migrated.push(pm_id_record);
+                successfully_migrated.push(pm_id_record.payment_method_id);
             }
             Err(err) => {
                 router_env::logger::error!("Failed to migrate payment method {}: {:?}", pm_id, err);
-                failed_migrations.push(pm_id_record);
+                let failed_migration = pm_api::FailedMigration {
+                    failed_record: pm_id_record.payment_method_id,
+                    error_message: err.to_string(),
+                };
+                failed_migrations.push(failed_migration);
             }
         }
     }
