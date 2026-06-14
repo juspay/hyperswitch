@@ -82,6 +82,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_fetch_data: operations::PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let operations::PaymentMethodFetchData {
@@ -1652,6 +1653,7 @@ impl PaymentCreate {
                     .as_ref()
                     .and_then(|inner| inner.mandate_type.clone().map(Into::into)),
                 external_three_ds_authentication_attempted: None,
+                external_threeds_authentication_type: None,
                 mandate_data,
                 payment_method_billing_address_id,
                 net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount::from_payments_request(

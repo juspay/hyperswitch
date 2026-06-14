@@ -28,11 +28,14 @@ pub enum FingerprintData {
     Wallet(FingerprintWalletData),
 }
 
-#[derive(Debug, Default, Deserialize, Serialize, Clone)]
-pub struct FingerprintWalletData {
-    application_primary_account_number: cards::CardNumber,
-    expiry_month: hyperswitch_masking::Secret<String>,
-    expiry_year: hyperswitch_masking::Secret<String>,
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum FingerprintWalletData {
+    ApplePayDecryptedData {
+        application_primary_account_number: cards::CardNumber,
+        expiry_month: hyperswitch_masking::Secret<String>,
+        expiry_year: hyperswitch_masking::Secret<String>,
+    },
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum AuxiliaryFingerprintData {
@@ -42,10 +45,13 @@ pub enum AuxiliaryFingerprintData {
     BankDebit(hyperswitch_masking::Secret<String>),
 }
 
-#[derive(Debug, Default, Deserialize, Serialize, Clone)]
-pub struct FingerprintBankDebitData {
-    account_number: hyperswitch_masking::Secret<String>,
-    routing_number: hyperswitch_masking::Secret<String>,
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum FingerprintBankDebitData {
+    Ach {
+        account_number: hyperswitch_masking::Secret<String>,
+        routing_number: hyperswitch_masking::Secret<String>,
+    },
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -241,7 +247,6 @@ impl PaymentMethodVaultingData {
         }
     }
 
-    #[cfg(feature = "v2")]
     pub fn to_fingerprint_data(&self) -> FingerprintData {
         match self {
             Self::Card(card) => FingerprintData::Card(FingerprintCardData {
@@ -275,7 +280,7 @@ impl PaymentMethodVaultingData {
                         expiry_year.clone(),
                     ),
                 };
-                FingerprintData::Wallet(FingerprintWalletData {
+                FingerprintData::Wallet(FingerprintWalletData::ApplePayDecryptedData {
                     application_primary_account_number,
                     expiry_month,
                     expiry_year,
@@ -315,7 +320,6 @@ impl PaymentMethodVaultingData {
         }
     }
 
-    #[cfg(feature = "v2")]
     pub fn get_bank_debit_fingerprint_data(
         bank_debit: &payment_method_data::BankDebitDetail,
     ) -> FingerprintBankDebitData {
@@ -326,7 +330,7 @@ impl PaymentMethodVaultingData {
                 ..
             } => (account_number.clone(), routing_number.clone()),
         };
-        FingerprintBankDebitData {
+        FingerprintBankDebitData::Ach {
             account_number,
             routing_number,
         }
