@@ -25,16 +25,16 @@ use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDataType},
     router_data::{AccessToken, ErrorResponse, L2L3Data, RouterData},
     router_flow_types::{
-        payments::{Authorize, Capture, PSync, SetupMandate},
+        payments::{Authorize, Capture, PSync, PostCaptureVoid, SetupMandate},
         refunds::{CancelPostRefund, Execute, RSync},
         unified_authentication_service as uas_flows, ExternalVaultProxy, IncrementalAuthorization,
         Session,
     },
     router_request_types::{
         self, AuthenticationData, ExternalVaultProxyPaymentsData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
-        SyncRequestType,
+        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        SetupMandateRequestData, SyncRequestType,
     },
     router_response_types::{
         PaymentsResponseData, PayoutsResponseData, RedirectForm, RefundsResponseData,
@@ -113,10 +113,24 @@ fn build_ucs_order_details(
                         .map(get_ucs_product_type)
                         .map(i32::from),
                     product_tax_code: detail.product_tax_code.clone(),
+                    sku: detail.sku.clone(),
+                    upc: detail.upc.clone(),
+                    commodity_code: detail.commodity_code.clone(),
+                    unit_discount_amount: detail
+                        .unit_discount_amount
+                        .map(|amount| amount.get_amount_as_i64()),
                 })
                 .collect()
         })
         .unwrap_or_default()
+}
+
+fn get_ucs_authorize_amount(request: &PaymentsAuthorizeData) -> MinorUnit {
+    request
+        .surcharge_details
+        .as_ref()
+        .map(|surcharge_details| surcharge_details.original_amount)
+        .unwrap_or(request.minor_amount)
 }
 
 fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::L2l3Data> {
@@ -269,6 +283,7 @@ impl ForeignFrom<&AccessToken> for ConnectorState {
                 token_type: None,
             }),
             connector_customer_id: None,
+            state_metadata: None,
         }
     }
 }
@@ -429,11 +444,18 @@ impl
             .map(ConnectorState::foreign_from);
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
+        let authorize_amount = get_ucs_authorize_amount(&router_data.request);
         Ok(Self {
             amount: Some(payments_grpc::Money {
-                minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
+                minor_amount: authorize_amount.get_amount_as_i64(),
                 currency: currency.into(),
             }),
+            surcharge_amount: router_data.request.surcharge_details.as_ref().map(
+                |surcharge_details| payments_grpc::Money {
+                    minor_amount: surcharge_details.surcharge_amount.get_amount_as_i64(),
+                    currency: currency.into(),
+                },
+            ),
             payment_method: Some(payment_method),
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
@@ -540,6 +562,11 @@ impl
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
             l2_l3_data,
+            mit_category: router_data
+                .request
+                .mit_category
+                .map(payments_grpc::MitCategory::foreign_from)
+                .map(Into::into),
             merchant_request_id: None,
         })
     }
@@ -657,6 +684,7 @@ impl
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
             }),
+            surcharge_amount: None,
             payment_method,
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
@@ -736,6 +764,7 @@ impl
                 .map(Into::into),
             l2_l3_data: None,
             connector_order_id: None,
+            mit_category: None,
             merchant_request_id: None,
         })
     }
@@ -1423,6 +1452,7 @@ impl
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
             }),
+            surcharge_amount: None,
             billing_descriptor: None,
             payment_method,
             return_url: router_data.request.complete_authorize_url.clone(),
@@ -1494,6 +1524,7 @@ impl
             continue_redirection_url: None,
             connector_order_id: None,
             l2_l3_data: None,
+            mit_category: None,
             merchant_request_id: None,
         })
     }
@@ -1568,11 +1599,18 @@ impl
             .map(ConnectorState::foreign_from);
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
+        let authorize_amount = get_ucs_authorize_amount(&router_data.request);
         Ok(Self {
             amount: Some(payments_grpc::Money {
-                minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
+                minor_amount: authorize_amount.get_amount_as_i64(),
                 currency: currency.into(),
             }),
+            surcharge_amount: router_data.request.surcharge_details.as_ref().map(
+                |surcharge_details| payments_grpc::Money {
+                    minor_amount: surcharge_details.surcharge_amount.get_amount_as_i64(),
+                    currency: currency.into(),
+                },
+            ),
             payment_method: Some(payment_method),
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
@@ -1679,6 +1717,11 @@ impl
             continue_redirection_url: None,
             connector_order_id: None,
             l2_l3_data,
+            mit_category: router_data
+                .request
+                .mit_category
+                .map(payments_grpc::MitCategory::foreign_from)
+                .map(Into::into),
             merchant_request_id: None,
         })
     }
@@ -1749,6 +1792,7 @@ impl
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
             }),
+            surcharge_amount: None,
             billing_descriptor: None,
             payment_method,
             return_url: router_data.request.router_return_url.clone(),
@@ -1843,6 +1887,7 @@ impl
             continue_redirection_url: None,
             connector_order_id: None,
             l2_l3_data: None,
+            mit_category: None,
             merchant_request_id: None,
         })
     }
@@ -1990,6 +2035,7 @@ impl
                 .map(|data| Secret::new(data.peek().to_string())),
             l2_l3_data: None,
             setup_mandate_details: None,
+            mit_category: None,
         })
     }
 }
@@ -6339,6 +6385,140 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             merchant_request_id: None,
         })
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<
+        &RouterData<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+    > for payments_grpc::PaymentServiceReverseRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<
+            PostCaptureVoid,
+            PaymentsCancelPostCaptureData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            merchant_reverse_id: Some(router_data.connector_request_reference_id.clone()),
+            connector_transaction_id: router_data.request.connector_transaction_id.clone(),
+            cancellation_reason: router_data.request.cancellation_reason.clone(),
+            all_keys_required: None,
+            browser_info: None,
+            metadata: None,
+            connector_feature_data: router_data
+                .request
+                .connector_meta
+                .as_ref()
+                .map(serde_json::to_string)
+                .transpose()
+                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+                .map(|s| s.into()),
+            merchant_request_id: None,
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceReverseResponse, AttemptStatus)>
+    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        (response, prev_status): (payments_grpc::PaymentServiceReverseResponse, AttemptStatus),
+    ) -> Result<Self, Self::Error> {
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
+        let response = if let Some(error_info) = response.error.as_ref() {
+            let attempt_status = match response.status() {
+                payments_grpc::PaymentStatus::Unspecified => None,
+                _ => Some(AttemptStatus::foreign_try_from((
+                    response.status(),
+                    prev_status,
+                ))?),
+            };
+
+            Err(ErrorResponse {
+                code: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.code.clone())
+                    .ok_or(
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                        )
+                        .attach_printable("Missing error code in UCS reverse response ErrorInfo"),
+                    )?,
+                message: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.message.clone())
+                    .ok_or(
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                        )
+                        .attach_printable(
+                            "Missing error message in UCS reverse response ErrorInfo",
+                        ),
+                    )?,
+                reason: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.reason.clone()),
+                status_code,
+                attempt_status,
+                connector_transaction_id: Some(response.connector_transaction_id.clone()),
+                connector_response_reference_id: response.merchant_reverse_id.clone(),
+                network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.decline_code.clone())
+                }),
+                network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.advice_code.clone())
+                }),
+                network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.error_message.clone())
+                }),
+                connector_metadata: None,
+            })
+        } else {
+            let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
+            let post_capture_void_status = match response.status() {
+                payments_grpc::PaymentStatus::VoidedPostCapture => {
+                    common_enums::PostCaptureVoidStatus::Succeeded
+                }
+                payments_grpc::PaymentStatus::Pending => {
+                    common_enums::PostCaptureVoidStatus::Pending
+                }
+                payments_grpc::PaymentStatus::Failure => {
+                    common_enums::PostCaptureVoidStatus::Failed
+                }
+                _ => common_enums::PostCaptureVoidStatus::Failed,
+            };
+            let connector_reference_id = response
+                .merchant_reverse_id
+                .clone()
+                .or_else(|| Some(response.connector_transaction_id.clone()));
+
+            Ok((
+                PaymentsResponseData::PostCaptureVoidResponse {
+                    post_capture_void_status,
+                    connector_reference_id,
+                    description: None,
+                },
+                status,
+            ))
+        };
+
+        Ok(response)
     }
 }
 

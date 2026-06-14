@@ -6,15 +6,16 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{
-            Authorize, Capture, PSync, PaymentMethodToken, PostCaptureVoidSync, Session,
-            SetupMandate, Void,
+            Authorize, AuthorizeSessionToken, Capture, PSync, PaymentMethodToken, PostCaptureVoid,
+            PostCaptureVoidSync, Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCancelPostCaptureSyncData, PaymentsCaptureData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, AuthorizeSessionTokenData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
+        PaymentsCancelPostCaptureSyncData, PaymentsCaptureData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -63,12 +64,14 @@ impl TryFrom<&ConnectorAuthType> for TsysTransitAuthType {
 
 impl api::Payment for TsysTransit {}
 impl api::PaymentSession for TsysTransit {}
+impl api::PaymentAuthorizeSessionToken for TsysTransit {}
 impl api::ConnectorAccessToken for TsysTransit {}
 impl api::MandateSetup for TsysTransit {}
 impl api::PaymentAuthorize for TsysTransit {}
 impl api::PaymentSync for TsysTransit {}
 impl api::PaymentCapture for TsysTransit {}
 impl api::PaymentVoid for TsysTransit {}
+impl api::PaymentPostCaptureVoid for TsysTransit {}
 impl api::PaymentPostCaptureVoidSync for TsysTransit {}
 impl api::Refund for TsysTransit {}
 impl api::RefundExecute for TsysTransit {}
@@ -111,6 +114,14 @@ impl api::ConnectorCommon for TsysTransit {
 
 impl api::ConnectorValidation for TsysTransit {}
 impl api::ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for TsysTransit {}
+impl
+    api::ConnectorIntegration<
+        AuthorizeSessionToken,
+        AuthorizeSessionTokenData,
+        PaymentsResponseData,
+    > for TsysTransit
+{
+}
 impl api::ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
     for TsysTransit
 {
@@ -126,6 +137,10 @@ impl api::ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsRespons
 impl api::ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for TsysTransit {}
 impl api::ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for TsysTransit {}
 impl api::ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for TsysTransit {}
+impl api::ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>
+    for TsysTransit
+{
+}
 impl
     api::ConnectorIntegration<
         PostCaptureVoidSync,
@@ -176,6 +191,7 @@ static TSYS_TRANSIT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods>
         let default_capture_methods = vec![
             common_enums::CaptureMethod::Automatic,
             common_enums::CaptureMethod::Manual,
+            common_enums::CaptureMethod::ManualMultiple,
             common_enums::CaptureMethod::SequentialAutomatic,
         ];
 

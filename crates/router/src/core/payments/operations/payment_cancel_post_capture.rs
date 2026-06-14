@@ -77,6 +77,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             &[
                 enums::IntentStatus::Succeeded,
                 enums::IntentStatus::PartiallyCaptured,
+                enums::IntentStatus::PartiallyCapturedAndCapturable,
             ],
             "cancel_post_capture",
         )?;

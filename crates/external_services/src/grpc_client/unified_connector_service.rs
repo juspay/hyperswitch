@@ -955,6 +955,41 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Performs Payment Post-Capture Void/Reverse
+    pub async fn payment_reverse(
+        &self,
+        payment_reverse_request: payments_grpc::PaymentServiceReverseRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceReverseResponse>>
+    {
+        let mut request = tonic::Request::new(payment_reverse_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.payment_service_client
+            .clone()
+            .reverse(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payment_reverse",
+                    connector_name=?connector_name,
+                    "UCS payment reverse/post-capture void gRPC call failed"
+                )
+            })
+    }
+
     /// Incoming webhook handle
     pub async fn incoming_webhook_handle_event(
         &self,
@@ -1121,7 +1156,7 @@ impl UnifiedConnectorServiceClient {
             })?;
 
         let path = tonic::codegen::http::uri::PathAndQuery::from_static(
-            "/ucs.v2.RefundService/CancelPostRefund",
+            "/types.RefundService/CancelPostRefund",
         );
         grpc.unary(request, path, tonic_prost::ProstCodec::default())
             .await

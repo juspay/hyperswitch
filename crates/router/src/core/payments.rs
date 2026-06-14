@@ -2263,13 +2263,11 @@ where
 {
     let surcharge_mode = payment_data.payment_intent.get_surcharge_mode();
 
-    if surcharge_mode == Some(domain_payments::SurchargeMode::Internal) {
-        if let Some(attempt_surcharge) = payment_data.payment_attempt.get_surcharge_details() {
-            let surcharge_details =
-                types::SurchargeDetails::from((&attempt_surcharge, &payment_data.payment_attempt));
-            payment_data.surcharge_details = Some(surcharge_details);
-            return Ok(());
-        }
+    if let Some(attempt_surcharge) = payment_data.payment_attempt.get_surcharge_details() {
+        let surcharge_details =
+            types::SurchargeDetails::from((&attempt_surcharge, &payment_data.payment_attempt));
+        payment_data.surcharge_details = Some(surcharge_details);
+        return Ok(());
     }
 
     let surcharge_details = match surcharge_mode {
