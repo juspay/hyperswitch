@@ -409,6 +409,8 @@ pub mod superposition {
     /// Trigger PM modular backward compatibility inline configuration key
     pub const SHOULD_TRIGGER_BACKWARDS_COMPATIBILITY_INLINE: &str =
         "should_trigger_backwards_compatibility_inline";
+    /// Trigger fingerprint migration configuration key
+    pub const SHOULD_TRIGGER_FINGERPRINT_MIGRATION: &str = "should_trigger_fingerprint_migration";
     /// dynamic fields configuration key for sdk config
     pub const DYNAMIC_FIELDS: &str = "dynamic_fields";
     /// payout sync tracker configuration key
