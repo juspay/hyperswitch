@@ -140,9 +140,7 @@ use crate::{
             DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         },
         errors::{self, CustomResult, RouterResponse, RouterResult},
-        payment_methods::{
-            cards, network_tokenization, transformers as pm_transformers, utils as pm_utils,
-        },
+        payment_methods::{cards, network_tokenization, transformers as pm_transformers},
         payments::helpers::{
             get_applepay_metadata, is_applepay_predecrypted_flow_supported,
             is_googlepay_predecrypted_flow_supported,
@@ -646,6 +644,7 @@ pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     header_payload: HeaderPayload,
     dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+    payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync + Debug + 'static,
@@ -704,6 +703,7 @@ where
             &header_payload,
             payment_method_fetch_data,
             dimensions,
+            payment_pre_fetched_info,
         )
         .await?;
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
@@ -1594,6 +1594,7 @@ where
             &header_payload,
             operations::PaymentMethodFetchData::default(),
             dimensions,
+            None,
         )
         .await?;
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
@@ -2652,6 +2653,7 @@ pub async fn payments_core<F, Res, Req, Op, FData, D>(
     shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     eligible_connectors: Option<Vec<enums::Connector>>,
     header_payload: HeaderPayload,
+    payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync + Debug + 'static,
@@ -2693,6 +2695,7 @@ where
             eligible_routable_connectors,
             header_payload.clone(),
             &dimensions,
+            payment_pre_fetched_info,
         )
         .await?;
 
@@ -2849,6 +2852,7 @@ where
             &header_payload,
             payment_method_info,
             &dimensions,
+            None,
         )
         .await?;
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
@@ -4474,6 +4478,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             None,
             None,
             HeaderPayload::default(),
+            None,
         ))
         .await?;
         let payments_response = match response {
@@ -4667,6 +4672,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 None,
                 None,
                 HeaderPayload::default(),
+                None,
             ),
         )
         .await?;
@@ -4973,20 +4979,9 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .authentication_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("missing authentication_id in payment_attempt")?;
-        let key_manager_state = &(state).into();
-        let authentication = state
-            .store
-            .find_authentication_by_merchant_id_authentication_id(
-                platform.get_processor().get_account().get_id(),
-                &authentication_id,
-                platform.get_processor().get_key_store(),
-                key_manager_state,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
-                id: authentication_id.get_string_repr().to_string(),
-            })?;
+
         // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector
+
         let authentication_merchant_connector_account = helpers::get_merchant_connector_account(
             state,
             platform.get_processor(),
@@ -5009,8 +5004,30 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     .get_metadata()
                     .map(|metadata| metadata.expose()),
             );
+
+        let payment_external_authentication_type =
+            if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), state)
+                .await?
+            {
+                payment_attempt.external_threeds_authentication_type
+            } else {
+                let key_manager_state = &(state).into();
+                let authentication = state
+                    .store
+                    .find_authentication_by_merchant_id_authentication_id(
+                        platform.get_processor().get_account().get_id(),
+                        &authentication_id,
+                        platform.get_processor().get_key_store(),
+                        key_manager_state,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::AuthenticationNotFound {
+                        id: authentication_id.get_string_repr().to_string(),
+                    })?;
+                authentication.authentication_type
+            };
         let response = if is_pull_mechanism_enabled
-            || authentication.authentication_type
+            || payment_external_authentication_type
                 != Some(common_enums::DecoupledAuthenticationType::Challenge)
         {
             let payment_confirm_req = api::PaymentsRequest {
@@ -5053,6 +5070,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     None,
                     None,
                     HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                    None,
                 ))
                 .await?
             } else {
@@ -5075,6 +5093,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     None,
                     None,
                     HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                    None,
                 ))
                 .await?
             }
@@ -5109,6 +5128,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     None,
                     None,
                     HeaderPayload::default(),
+                    None,
                 ),
             )
             .await?
@@ -9409,8 +9429,11 @@ impl PaymentEligibilityData {
         })
     }
 
-    /// Resolves a `payment_token` to raw card data for blocklist checks.
-    /// Uses modular PM service if enabled for the org, otherwise falls back to locker.
+    /// Resolves a `payment_token` to raw card data for blocklist checks: modular
+    /// organizations fetch from the PM Modular Service directly; legacy organizations
+    /// resolve the Redis token to the payment method DB record, escalating to the
+    /// modular service when the record itself is modular, and reading raw card data
+    /// from the locker otherwise.
     async fn resolve_payment_token_to_method_data(
         state: &SessionState,
         platform: &domain::Platform,
@@ -9418,29 +9441,36 @@ impl PaymentEligibilityData {
         payment_method_type: common_enums::PaymentMethod,
         profile_id: &id_type::ProfileId,
     ) -> CustomResult<Option<domain::EligibilityPaymentMethodData>, errors::ApiErrorResponse> {
-        let pm_modular_dimensions = Dimensions::new().with_organization_id(
-            platform
-                .get_processor()
-                .get_account()
-                .organization_id
-                .clone(),
-        );
+        let dimensions = Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+        let feature_config = core_utils::get_feature_config(state, platform, &dimensions).await;
 
-        let is_modular_flow = pm_utils::get_organization_eligibility_config_for_pm_modular_service(
-            state,
-            &pm_modular_dimensions,
-        )
-        .await;
-
-        if is_modular_flow {
-            // Modular path: payment_token IS the payment_method_id in the modular service.
+        if feature_config.is_payment_method_modular_allowed {
             logger::info!("Resolving payment token via PM Modular Service for eligibility check");
+            // Permanent tokens carry the underlying payment_method_id; any other token
+            // type (or a Redis miss) is treated as the payment_method_id itself.
+            let payment_token = payment_token.peek();
+            let payment_method_id = match helpers::retrieve_payment_token_data(
+                state,
+                payment_token.clone(),
+                Some(payment_method_type),
+            )
+            .await
+            {
+                Ok(storage::PaymentTokenData::Permanent(card_token_data))
+                | Ok(storage::PaymentTokenData::PermanentCard(card_token_data)) => card_token_data
+                    .payment_method_id
+                    .unwrap_or_else(|| payment_token.clone()),
+                _ => payment_token.clone(),
+            };
+
             let pm_response = pm_transformers::fetch_payment_method_from_modular_service(
                 state,
                 platform,
                 profile_id,
-                payment_token.clone().expose().as_str(),
-                None, // CVC token data is not passed in create api
+                payment_method_id.as_str(),
+                None, // CVC is not collected during the eligibility check
                 true, // fetch raw card detail from the internal vault
             )
             .await
@@ -9451,40 +9481,75 @@ impl PaymentEligibilityData {
                 .raw_payment_method_data
                 .map(domain::EligibilityPaymentMethodData::from))
         } else {
-            // Legacy path: resolve via Redis token → DB → locker.
-            Self::resolve_payment_token_via_db(state, platform, payment_token, payment_method_type)
-                .await
+            let token_data = helpers::retrieve_payment_token_data(
+                state,
+                payment_token.peek().clone(),
+                Some(payment_method_type),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::UnprocessableEntity {
+                message: "Invalid or expired payment token".to_string(),
+            })
+            .attach_printable("Failed to retrieve payment token data from storage")?;
+
+            let payment_method_record = helpers::retrieve_payment_method_from_db_with_token_data(
+                state,
+                platform.get_provider().get_key_store(),
+                &token_data,
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+            .attach_printable("Failed to retrieve payment method from DB")?;
+
+            match payment_method_record {
+                Some(payment_method)
+                    if feature_config.should_use_modular_pm_path(
+                        Some(payment_method.version),
+                        payment_method.compatibility_updated_at,
+                        Some(payment_method.last_modified),
+                    ) =>
+                {
+                    logger::debug!(
+                        "Payment method is modular, fetching payment method from PM Modular Service"
+                    );
+                    let pm_response = pm_transformers::fetch_payment_method_from_modular_service(
+                        state,
+                        platform,
+                        profile_id,
+                        payment_method.get_id(),
+                        None, // CVC is not collected during the eligibility check
+                        true, // fetch raw card detail from the internal vault
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+                    .attach_printable("Failed to fetch payment method from modular service")?;
+
+                    Ok(pm_response
+                        .raw_payment_method_data
+                        .map(domain::EligibilityPaymentMethodData::from))
+                }
+                payment_method_record => {
+                    Self::read_payment_method_data_from_locker(
+                        state,
+                        platform,
+                        &token_data,
+                        payment_method_record,
+                    )
+                    .await
+                }
+            }
         }
     }
 
-    /// Legacy token resolution: Redis → DB → locker.
-    async fn resolve_payment_token_via_db(
+    /// Reads raw card data from the locker for permanent card tokens using the
+    /// prefetched token data and payment method DB record.
+    async fn read_payment_method_data_from_locker(
         state: &SessionState,
         platform: &domain::Platform,
-        payment_token: &Secret<String>,
-        payment_method_type: common_enums::PaymentMethod,
+        token_data: &storage::PaymentTokenData,
+        payment_method_record: Option<domain::PaymentMethod>,
     ) -> CustomResult<Option<domain::EligibilityPaymentMethodData>, errors::ApiErrorResponse> {
-        let token_data = helpers::retrieve_payment_token_data(
-            state,
-            payment_token.clone().expose(),
-            Some(payment_method_type),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::UnprocessableEntity {
-            message: "Invalid or expired payment token".to_string(),
-        })
-        .attach_printable("Failed to retrieve payment token data from storage")?;
-
-        let payment_method_record = helpers::retrieve_payment_method_from_db_with_token_data(
-            state,
-            platform.get_provider().get_key_store(),
-            &token_data,
-            platform.get_processor().get_account().storage_scheme,
-        )
-        .await
-        .attach_printable("Failed to retrieve payment method from DB")?;
-
-        let payment_method_data = match &token_data {
+        let payment_method_data = match token_data {
             storage::PaymentTokenData::PermanentCard(card_token) => {
                 // Read full card data from the locker using the DB record.
                 let pm_record = payment_method_record
@@ -9523,16 +9588,11 @@ impl PaymentEligibilityData {
                 ))
             }
             // Wallet and other token types: no raw card data available via this path.
-            #[cfg(feature = "v1")]
             storage::PaymentTokenData::Temporary(_)
             | storage::PaymentTokenData::TemporaryGeneric(_)
             | storage::PaymentTokenData::Permanent(_)
             | storage::PaymentTokenData::AuthBankDebit(_)
             | storage::PaymentTokenData::WalletToken(_)
-            | storage::PaymentTokenData::BankDebit(_) => None,
-            #[cfg(feature = "v2")]
-            storage::PaymentTokenData::TemporaryGeneric(_)
-            | storage::PaymentTokenData::AuthBankDebit(_)
             | storage::PaymentTokenData::BankDebit(_) => None,
         };
 
@@ -9716,11 +9776,21 @@ where
                 || (in_progress && force_sync)
                 || capture_failure_webhook_over_success_payment
         }
-        "PaymentCancel" => matches!(
-            payment_data.get_payment_intent().status,
-            storage_enums::IntentStatus::RequiresCapture
-                | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
-        ),
+        "PaymentCancel" => {
+            let flow_name = core_utils::get_flow_name::<F>().unwrap_or_default();
+            match flow_name.as_str() {
+                "Void" => matches!(
+                    payment_data.get_payment_intent().status,
+                    storage_enums::IntentStatus::RequiresCapture
+                        | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
+                ),
+                "PreAuthorizeVoid" => matches!(
+                    payment_data.get_payment_intent().status,
+                    storage_enums::IntentStatus::RequiresCustomerAction
+                ),
+                _ => false,
+            }
+        }
         "PaymentCancelPostCapture" => matches!(
             payment_data.get_payment_intent().status,
             storage_enums::IntentStatus::Succeeded
@@ -12510,25 +12580,25 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("missing authentication_id in payment_attempt")?;
 
-            let auth_config = &state.conf.micro_services.authentication_service;
-
-            let req_identifier = router_env::RequestIdentifier::new("x-request-id");
-            let client = crate::core::authentication_client::AuthenticationServiceClient::new(
-                auth_config,
-                &req_identifier,
-            )
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to create auth client")?;
-
             let authenticate_req = api_models::authentication::AuthenticationAuthenticateRequest {
-                authentication_id,
+                authentication_id: authentication_id.clone(),
                 client_secret: None,
                 sdk_information: req.sdk_information.clone(),
                 device_channel: req.device_channel,
                 threeds_method_comp_ind: req.threeds_method_comp_ind,
             };
+            // If micro service is enabled we do api call else do internal function call
+            let response = if let Some(auth_config) =
+                &state.conf.micro_services.authentication_service
+            {
+                let req_identifier = router_env::RequestIdentifier::new("x-request-id");
+                let client = crate::core::authentication_client::AuthenticationServiceClient::new(
+                    auth_config,
+                    &req_identifier,
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to create auth client")?;
 
-            let response =
                 crate::core::authentication_client::AuthenticationAuthenticateFlow::call(
                     &state,
                     &client,
@@ -12536,7 +12606,54 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to call authentication authenticate flow")?;
+                .attach_printable("Failed to call authentication authenticate flow")?
+            } else {
+                crate::core::unified_authentication_service::authentication_authenticate_core(
+                    state.clone(),
+                    platform.clone(),
+                    authenticate_req,
+                    services::api::AuthFlow::Client,
+                )
+                .await?
+                .get_json_body()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to get json body from authentication authenticate response",
+                )?
+            };
+
+            let attempt_update = storage::PaymentAttemptUpdate::AuthenticationUpdate {
+                status: payment_attempt.status,
+                external_three_ds_authentication_attempted: Some(true),
+                external_threeds_authentication_type: response
+                    .transaction_status
+                    .as_ref()
+                    .and_then(|transaction_status| {
+                        match transaction_status {
+                    common_enums::TransactionStatus::ChallengeRequired
+                    | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
+                        Some(common_enums::DecoupledAuthenticationType::Challenge)
+                    }
+                    common_enums::TransactionStatus::Success => {
+                        Some(common_enums::DecoupledAuthenticationType::Frictionless)
+                    }
+                    _ => None,
+                }
+                    }),
+                authentication_connector: response.authentication_connector.map(|c| c.to_string()),
+                authentication_id: Some(response.authentication_id.clone()),
+                updated_by: storage_scheme.to_string(),
+            };
+
+            db.update_payment_attempt_with_attempt_id(
+                payment_attempt.clone(),
+                attempt_update,
+                storage_scheme,
+                platform.get_processor().get_key_store(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            .attach_printable("Error while updating the payment_attempt")?;
 
             authentication::AuthenticationResponse {
                 trans_status: response
