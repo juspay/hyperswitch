@@ -486,16 +486,6 @@ config! {
     targeting_key = id_type::PayoutId
 }
 
-impl DatabaseBackedConfig for PayoutTrackerMapping {
-    const KEY: &'static str = "payout_tracker_mapping";
-
-    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        dimensions
-            .get_connector()
-            .map(|connector| format!("{}_{}", Self::KEY, connector))
-    }
-}
-
 config! {
     superposition_key = CLIENT_SESSION_VALIDATION_ENABLED,
     output = bool,
