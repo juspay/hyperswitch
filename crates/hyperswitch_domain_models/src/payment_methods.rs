@@ -1342,44 +1342,7 @@ impl From<PaymentMethodsSessionUpdateEnum> for PaymentMethodsSessionUpdateIntern
 }
 
 #[cfg(feature = "v2")]
-impl PaymentMethodSession {
-    pub fn apply_changeset(self, update_session: PaymentMethodsSessionUpdateInternal) -> Self {
-        let Self {
-            id,
-            customer_id,
-            billing,
-            psp_tokenization,
-            network_tokenization,
-            tokenization_data,
-            expires_at,
-            return_url,
-            associated_payment_methods,
-            associated_payment,
-            associated_token_id,
-            storage_type,
-            keep_alive,
-        } = self;
-        Self {
-            id,
-            customer_id,
-            billing: update_session.billing.or(billing),
-            psp_tokenization: update_session.psp_tokenization.or(psp_tokenization),
-            network_tokenization: update_session.network_tokenization.or(network_tokenization),
-            tokenization_data: update_session.tokenization_data.or(tokenization_data),
-            expires_at,
-            return_url,
-            associated_payment_methods: update_session
-                .associated_payment_methods
-                .or(associated_payment_methods),
-            associated_payment,
-            associated_token_id,
-            storage_type,
-            keep_alive,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
+#[router_derive::apply_changeset(target = PaymentMethodSession)]
 pub struct PaymentMethodsSessionUpdateInternal {
     pub billing: Option<Encryptable<Address>>,
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
