@@ -2742,6 +2742,7 @@ checksum = "092966b41edc516079bdf31ec78a2e0588d1d0c08f78b91d8307215928642b2b"
 [[package]]
 name = "deja"
 version = "0.1.0"
+source = "git+https://github.com/maverox/deja-lib?rev=a605192ffad17c556017b85f18ca75f1b6a0694e#a605192ffad17c556017b85f18ca75f1b6a0694e"
 dependencies = [
  "deja-context",
  "deja-core",
@@ -2754,6 +2755,7 @@ dependencies = [
 [[package]]
 name = "deja-context"
 version = "0.1.0"
+source = "git+https://github.com/maverox/deja-lib?rev=a605192ffad17c556017b85f18ca75f1b6a0694e#a605192ffad17c556017b85f18ca75f1b6a0694e"
 dependencies = [
  "pin-project-lite",
 ]
@@ -2761,6 +2763,7 @@ dependencies = [
 [[package]]
 name = "deja-core"
 version = "0.1.0"
+source = "git+https://github.com/maverox/deja-lib?rev=a605192ffad17c556017b85f18ca75f1b6a0694e#a605192ffad17c556017b85f18ca75f1b6a0694e"
 dependencies = [
  "serde",
  "serde_json",
@@ -2770,6 +2773,7 @@ dependencies = [
 [[package]]
 name = "deja-derive"
 version = "0.1.0"
+source = "git+https://github.com/maverox/deja-lib?rev=a605192ffad17c556017b85f18ca75f1b6a0694e#a605192ffad17c556017b85f18ca75f1b6a0694e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2779,6 +2783,7 @@ dependencies = [
 [[package]]
 name = "deja-record"
 version = "0.1.0"
+source = "git+https://github.com/maverox/deja-lib?rev=a605192ffad17c556017b85f18ca75f1b6a0694e#a605192ffad17c556017b85f18ca75f1b6a0694e"
 dependencies = [
  "async-trait",
  "deja-context",
