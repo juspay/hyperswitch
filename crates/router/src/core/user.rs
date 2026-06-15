@@ -22,7 +22,7 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use router_env::{env, logger};
+use router_env::{env, instrument, logger, tracing};
 use storage_impl::errors::StorageError;
 #[cfg(feature = "v1")]
 use subscriptions::RouterResponse;
@@ -3996,6 +3996,7 @@ pub async fn clone_connector(
 }
 
 #[cfg(feature = "v1")]
+#[instrument(skip_all)]
 pub async fn clone_connector_within_merchant(
     state: SessionState,
     user_from_token: auth::UserFromToken,
@@ -4057,6 +4058,18 @@ pub async fn clone_connector_within_merchant(
             "Source connector does not belong to the provided source profile".to_string(),
         ))
     })?;
+
+    state
+        .store
+        .find_business_profile_by_merchant_id_profile_id(
+            &key_store,
+            &user_from_token.merchant_id,
+            &request.destination_profile_id,
+        )
+        .await
+        .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
+            "Destination profile does not belong to the merchant".to_string(),
+        ))?;
 
     let source_connector = source_mca
         .connector_name

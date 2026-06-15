@@ -22,7 +22,7 @@ use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAcco
 use hyperswitch_masking::PeekInterface;
 use hyperswitch_masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionPool;
-use router_env::{env, logger};
+use router_env::{env, instrument, logger, tracing};
 
 #[cfg(feature = "v1")]
 use crate::types::AdditionalMerchantData;
@@ -510,6 +510,7 @@ pub async fn build_cloned_connector_create_request(
 }
 
 #[cfg(feature = "v1")]
+#[instrument(skip_all)]
 pub async fn build_profile_clone_connector_create_request(
     source_mca: DomainMerchantConnectorAccount,
     destination_profile_id: id_type::ProfileId,
