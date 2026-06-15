@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 #[cfg(feature = "olap")]
 use api_models::admin::MerchantConnectorInfo;
+#[cfg(feature = "olap")]
 use api_models::enums as api_enums;
 use common_enums::ExecutionMode;
 use common_utils::{

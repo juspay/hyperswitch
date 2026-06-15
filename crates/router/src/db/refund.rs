@@ -1,9 +1,11 @@
 #[cfg(feature = "olap")]
 use std::collections::{HashMap, HashSet};
 
+use common_utils::types::ConnectorTransactionIdTrait;
 #[cfg(feature = "olap")]
-use common_utils::types::{ConnectorTransactionIdTrait, MinorUnit};
+use common_utils::types::MinorUnit;
 use diesel_models::{errors::DatabaseError, refund as diesel_refund};
+#[cfg(feature = "olap")]
 use hyperswitch_domain_models::refunds;
 
 use super::MockDb;
@@ -134,6 +136,7 @@ pub trait RefundInterface {
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use error_stack::report;
+    #[cfg(feature = "olap")]
     use hyperswitch_domain_models::refunds;
     use router_env::{instrument, tracing};
 
@@ -494,6 +497,7 @@ mod storage {
     };
     use diesel_models::refund as diesel_refund;
     use error_stack::{report, ResultExt};
+    #[cfg(feature = "olap")]
     use hyperswitch_domain_models::refunds;
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};

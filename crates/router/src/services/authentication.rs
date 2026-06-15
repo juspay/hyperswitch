@@ -65,6 +65,7 @@ use crate::{
 pub mod blacklist;
 pub mod cookies;
 pub mod decision;
+#[cfg(feature = "olap")]
 pub mod embedded;
 
 #[cfg(feature = "partial-auth")]
@@ -245,6 +246,7 @@ impl AuthenticationType {
     }
 }
 
+#[cfg(feature = "olap")]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, serde::Deserialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -359,6 +361,7 @@ pub struct SinglePurposeOrLoginToken {
     pub tenant_id: Option<id_type::TenantId>,
 }
 
+#[cfg(feature = "olap")]
 #[derive(serde::Deserialize)]
 #[serde(untagged)]
 pub enum AuthOrEmbeddedClaims {
@@ -366,6 +369,7 @@ pub enum AuthOrEmbeddedClaims {
     EmbeddedToken(embedded::EmbeddedToken),
 }
 
+#[cfg(feature = "olap")]
 impl AuthOrEmbeddedClaims {
     fn get_tenant_id(&self) -> Option<&id_type::TenantId> {
         match self {
@@ -5421,6 +5425,7 @@ where
     }
 }
 
+#[cfg(feature = "olap")]
 pub struct JWTAndEmbeddedAuth {
     pub merchant_id_from_route: Option<id_type::MerchantId>,
     pub permission: Option<Permission>,
@@ -5428,7 +5433,7 @@ pub struct JWTAndEmbeddedAuth {
     pub allow_platform: bool,
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "olap"))]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for JWTAndEmbeddedAuth
 where
@@ -6494,6 +6499,94 @@ fn throw_error_if_platform_merchant_authentication_required(
         })
 }
 
+// #[cfg(feature = "recon")]
+// #[async_trait]
+// impl<A> AuthenticateAndFetch<UserFromTokenWithRoleInfo, A> for JWTAuth
+// where
+//     A: SessionStateInfo + Sync,
+// {
+//     async fn authenticate_and_fetch(
+//         &self,
+//         request_headers: &HeaderMap,
+//         state: &A,
+//     ) -> RouterResult<(UserFromTokenWithRoleInfo, AuthenticationType)> {
+//         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+//         if payload.check_in_blacklist(state).await? {
+//             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+//         }
+//         authorization::check_tenant(
+//             payload.tenant_id.clone(),
+//             &state.session_state().tenant.tenant_id,
+//         )?;
+//         let role_info = authorization::get_role_info(state, &payload).await?;
+//         authorization::check_permission(self.permission, &role_info)?;
+
+//         let user = UserFromToken {
+//             user_id: payload.user_id.clone(),
+//             merchant_id: payload.merchant_id.clone(),
+//             org_id: payload.org_id,
+//             role_id: payload.role_id,
+//             profile_id: payload.profile_id,
+//             tenant_id: payload.tenant_id,
+//         };
+
+//         Ok((
+//             UserFromTokenWithRoleInfo { user, role_info },
+//             AuthenticationType::MerchantJwt {
+//                 merchant_id: payload.merchant_id,
+//                 user_id: Some(payload.user_id),
+//             },
+//         ))
+//     }
+// }
+
+// #[cfg(feature = "recon")]
+// #[derive(serde::Serialize, serde::Deserialize)]
+// pub struct ReconToken {
+//     pub user_id: String,
+//     pub merchant_id: id_type::MerchantId,
+//     pub role_id: String,
+//     pub exp: u64,
+//     pub org_id: id_type::OrganizationId,
+//     pub profile_id: id_type::ProfileId,
+//     pub tenant_id: Option<id_type::TenantId>,
+//     #[serde(skip_serializing_if = "Option::is_none")]
+//     pub acl: Option<String>,
+// }
+
+// #[cfg(all(feature = "olap", feature = "recon"))]
+// impl ReconToken {
+//     pub async fn new_token(
+//         user_id: String,
+//         merchant_id: id_type::MerchantId,
+//         settings: &Settings,
+//         org_id: id_type::OrganizationId,
+//         profile_id: id_type::ProfileId,
+//         tenant_id: Option<id_type::TenantId>,
+//         role_info: authorization::roles::RoleInfo,
+//     ) -> UserResult<String> {
+//         let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
+//         let exp = jwt::generate_exp(exp_duration)?.as_secs();
+//         let acl = role_info.get_recon_acl();
+//         let optional_acl_str = serde_json::to_string(&acl)
+//             .inspect_err(|err| logger::error!("Failed to serialize acl to string: {}", err))
+//             .change_context(errors::UserErrors::InternalServerError)
+//             .attach_printable("Failed to serialize acl to string. Using empty ACL")
+//             .ok();
+//         let token_payload = Self {
+//             user_id,
+//             merchant_id,
+//             role_id: role_info.get_role_id().to_string(),
+//             exp,
+//             org_id,
+//             profile_id,
+//             tenant_id,
+//             acl: optional_acl_str,
+//         };
+//         jwt::generate_jwt(&token_payload, settings).await
+//     }
+// }
+#[cfg(feature = "olap")]
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct ExternalToken {
     pub user_id: String,
@@ -6502,6 +6595,7 @@ pub struct ExternalToken {
     pub external_service_type: ExternalServiceType,
 }
 
+#[cfg(feature = "olap")]
 impl ExternalToken {
     pub async fn new_token(
         user_id: String,

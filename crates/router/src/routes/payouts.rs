@@ -13,12 +13,11 @@ use router_env::{instrument, tracing, Flow};
 use super::app::AppState;
 use crate::{
     core::{
-        api_locking::{self, GetLockingInput},
+        api_locking::{self},
         errors::RouterResult,
         payouts::*,
     },
     logger,
-    routes::lock_utils,
     services::{
         api,
         authentication::{self as auth},
@@ -26,6 +25,8 @@ use crate::{
     },
     types::{api::payouts as payout_types, transformers::ForeignTryFrom},
 };
+#[cfg(all(feature = "olap", feature = "payouts"))]
+use crate::{core::api_locking::GetLockingInput, routes::lock_utils};
 
 /// Payouts - Create
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsCreate))]

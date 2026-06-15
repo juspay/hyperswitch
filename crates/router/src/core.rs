@@ -26,6 +26,7 @@ pub mod debit_routing;
 pub mod disputes;
 pub mod encryption;
 pub mod errors;
+#[cfg(feature = "olap")]
 pub mod external_service_auth;
 pub mod files;
 #[cfg(feature = "frm")]
@@ -50,6 +51,7 @@ pub mod payout_link;
 pub mod payouts;
 pub mod pm_auth;
 pub mod poll;
+#[cfg(all(feature = "olap", feature = "v1"))]
 pub mod profile_acquirer;
 #[cfg(feature = "v2")]
 pub mod proxy;

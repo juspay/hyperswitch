@@ -3,9 +3,11 @@ use std::{collections::HashMap, sync::Arc};
 use actix_web::{web, Scope};
 #[cfg(all(feature = "olap", feature = "v1"))]
 use api_models::routing::RoutingRetrieveQuery;
-use api_models::routing::RuleMigrationQuery;
 #[cfg(feature = "olap")]
-use common_enums::{ExecutionMode, TransactionType};
+use api_models::routing::RuleMigrationQuery;
+use common_enums::ExecutionMode;
+#[cfg(feature = "olap")]
+use common_enums::TransactionType;
 #[cfg(feature = "partial-auth")]
 use common_utils::crypto::Blake3;
 use common_utils::{
@@ -66,14 +68,20 @@ use super::tokenization as tokenization_routes;
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "oltp")]
 use super::webhooks::*;
+use super::{cache::*, card_issuer, health::*};
+#[cfg(feature = "olap")]
 use super::{
-    admin, api_keys, cache::*, card_issuer, chat, connector_onboarding, disputes, files, gsm,
-    health::*, oidc, profiles, relay, user, user_role,
+    admin, api_keys, chat, connector_onboarding, disputes, files, gsm, oidc, profiles, user,
+    user_role,
 };
-#[cfg(feature = "v1")]
-use super::{
-    apple_pay_certificates_migration, blocklist, payment_link, subscription, webhook_events,
-};
+#[cfg(feature = "oltp")]
+use super::relay;
+#[cfg(all(feature = "olap", feature = "v1"))]
+use super::{apple_pay_certificates_migration, payment_link};
+#[cfg(all(feature = "oltp", feature = "v1"))]
+use super::subscription;
+#[cfg(all(feature = "olap", feature = "v1"))]
+use super::{blocklist, webhook_events};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers, payments};
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
@@ -86,7 +94,7 @@ use crate::analytics::AnalyticsProvider;
 use crate::errors::RouterResult;
 #[cfg(feature = "oltp")]
 use crate::routes::authentication;
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "oltp"))]
 use crate::routes::cards_info::{
     card_iin_info, create_cards_info, migrate_cards_info, update_cards_info,
 };
@@ -109,8 +117,11 @@ pub use crate::{
 use crate::{
     configs::{secrets_transformers, Settings},
     db::kafka_store::{KafkaStore, TenantID},
-    routes::{hypersense as hypersense_routes, three_ds_decision_rule},
 };
+#[cfg(feature = "oltp")]
+use crate::routes::three_ds_decision_rule;
+#[cfg(feature = "olap")]
+use crate::routes::hypersense as hypersense_routes;
 
 #[derive(Clone)]
 pub struct ReqState {
@@ -1843,8 +1854,33 @@ impl Tokenization {
     }
 }
 
+// #[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
+// pub struct Recon;
+
+// #[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
+// impl Recon {
+//     pub fn server(state: AppState) -> Scope {
+//         web::scope("/recon")
+//             .app_data(web::Data::new(state))
+//             .service(
+//                 web::resource("/{merchant_id}/update")
+//                     .route(web::post().to(recon_routes::update_merchant)),
+//             )
+//             .service(web::resource("/token").route(web::get().to(recon_routes::get_recon_token)))
+//             .service(
+//                 web::resource("/request").route(web::post().to(recon_routes::request_for_recon)),
+//             )
+//             .service(
+//                 web::resource("/verify_token")
+//                     .route(web::get().to(recon_routes::verify_recon_token)),
+//             )
+//     }
+// }
+
+#[cfg(feature = "olap")]
 pub struct Hypersense;
 
+#[cfg(feature = "olap")]
 impl Hypersense {
     pub fn server(state: AppState) -> Scope {
         web::scope("/hypersense")
@@ -1864,8 +1900,10 @@ impl Hypersense {
     }
 }
 
+#[cfg(feature = "olap")]
 pub struct Oidc;
 
+#[cfg(feature = "olap")]
 impl Oidc {
     pub fn server(state: AppState) -> Scope {
         web::scope("")
@@ -2659,6 +2697,7 @@ impl Gsm {
             .service(web::resource("/delete").route(web::post().to(gsm::delete_gsm_rule)))
     }
 }
+#[cfg(feature = "olap")]
 pub struct Chat;
 
 #[cfg(feature = "olap")]
@@ -3310,7 +3349,7 @@ impl ProcessTracker {
 
 pub struct Authentication;
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "oltp"))]
 impl Authentication {
     pub fn server(state: AppState) -> Scope {
         web::scope("/authentication")
