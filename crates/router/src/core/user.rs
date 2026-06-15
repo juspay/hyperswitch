@@ -3883,131 +3883,25 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
 }
 
 #[cfg(feature = "v1")]
+#[instrument(skip_all)]
 pub async fn clone_connector(
     state: SessionState,
+    user_from_token: auth::UserFromToken,
     request: user_api::CloneConnectorRequest,
 ) -> UserResponse<api_models::admin::MerchantConnectorResponse> {
     let Some(allowlist) = &state.conf.clone_connector_allowlist else {
-        return Err(UserErrors::InvalidCloneConnectorOperation(
-            "Cloning is not allowed".to_string(),
-        )
-        .into());
-    };
-
-    fp_utils::when(
-        allowlist
-            .merchant_ids
-            .contains(&request.source.merchant_id)
-            .not(),
-        || {
-            Err(UserErrors::InvalidCloneConnectorOperation(
-                "Cloning is not allowed from this merchant".to_string(),
-            ))
-        },
-    )?;
-
-    let source_key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &request.source.merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
-        .await
-        .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
-            "Source merchant account not found".to_string(),
-        ))?;
-
-    let source_mca = state
-        .store
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            &request.source.merchant_id,
-            &request.source.mca_id,
-            &source_key_store,
-        )
-        .await
-        .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
-            "Source merchant connector account not found".to_string(),
-        ))?;
-
-    let source_mca_name = source_mca
-        .connector_name
-        .parse::<connector_enums::Connector>()
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Invalid connector name received")?;
-
-    fp_utils::when(
-        allowlist.connector_names.contains(&source_mca_name).not(),
-        || {
-            Err(UserErrors::InvalidCloneConnectorOperation(
-                "Cloning is not allowed for this connector".to_string(),
-            ))
-        },
-    )?;
-
-    let merchant_connector_create = utils::user::build_cloned_connector_create_request(
-        source_mca,
-        Some(request.destination.profile_id.clone()),
-        request.destination.connector_label,
-    )
-    .await?;
-
-    let destination_key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &request.destination.merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
-        .await
-        .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
-            "Destination merchant account not found".to_string(),
-        ))?;
-
-    let destination_merchant_account = state
-        .store
-        .find_merchant_account_by_merchant_id(
-            &request.destination.merchant_id,
-            &destination_key_store,
-        )
-        .await
-        .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
-            "Destination merchant account not found".to_string(),
-        ))?;
-
-    let destination_context = domain::Platform::new(
-        destination_merchant_account.clone(),
-        destination_key_store.clone(),
-        destination_merchant_account.clone(),
-        destination_key_store.clone(),
-        None,
-    );
-
-    admin::create_connector(
-        state,
-        merchant_connector_create,
-        destination_context.get_processor().clone(),
-        Some(request.destination.profile_id),
-    )
-    .await
-    .map_err(|e| {
-        let message = e.current_context().error_message();
-        e.change_context(UserErrors::ErrorCloningConnector(message))
-    })
-    .attach_printable("Failed to create cloned connector")
-}
-
-#[cfg(feature = "v1")]
-#[instrument(skip_all)]
-pub async fn clone_connector_within_merchant(
-    state: SessionState,
-    user_from_token: auth::UserFromToken,
-    request: user_api::CloneConnectorWithinMerchantRequest,
-) -> UserResponse<api_models::admin::MerchantConnectorResponse> {
-    let Some(connector_clone_config) = &state.conf.connector_clone_config else {
         return Err(UserErrors::InvalidCloneConnectorOperation(
             "Connector cloning is not enabled".to_string(),
         )
         .into());
     };
+
+    let cloneable_payment_method_types = state
+        .conf
+        .connector_clone_config
+        .as_ref()
+        .map(|config| config.cloneable_payment_method_types.clone())
+        .unwrap_or_default();
 
     // Restricted to predefined org/merchant admins
     let is_allowed_role = matches!(
@@ -4078,10 +3972,7 @@ pub async fn clone_connector_within_merchant(
         .attach_printable("Invalid connector name received")?;
 
     fp_utils::when(
-        connector_clone_config
-            .connector_names
-            .contains(&source_connector)
-            .not(),
+        allowlist.connector_names.contains(&source_connector).not(),
         || {
             Err(UserErrors::InvalidCloneConnectorOperation(
                 "Cloning is not allowed for this connector".to_string(),
@@ -4093,7 +3984,7 @@ pub async fn clone_connector_within_merchant(
         source_mca,
         request.destination_profile_id.clone(),
         request.connector_label,
-        &connector_clone_config.cloneable_payment_method_types,
+        &cloneable_payment_method_types,
     )
     .await?;
 

@@ -1109,32 +1109,8 @@ pub async fn clone_connector(
         state.clone(),
         &req,
         json_payload.into_inner(),
-        |state, _: auth::UserFromToken, req, _| user_core::clone_connector(state, req),
-        &auth::JWTAuth {
-            permission: Permission::MerchantInternalConnectorWrite,
-            allow_connected: true,
-            allow_platform: true,
-        },
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-#[cfg(feature = "v1")]
-pub async fn clone_connector_within_merchant(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    json_payload: web::Json<user_api::CloneConnectorWithinMerchantRequest>,
-) -> HttpResponse {
-    let flow = Flow::CloneConnector;
-
-    Box::pin(api::server_wrap(
-        flow,
-        state.clone(),
-        &req,
-        json_payload.into_inner(),
         |state, user_from_token: auth::UserFromToken, req, _| {
-            user_core::clone_connector_within_merchant(state, user_from_token, req)
+            user_core::clone_connector(state, user_from_token, req)
         },
         &auth::JWTAuth {
             permission: Permission::ProfileConnectorWrite,

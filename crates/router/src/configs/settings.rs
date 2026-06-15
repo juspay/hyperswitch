@@ -224,8 +224,6 @@ pub struct OpenRouter {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct CloneConnectorAllowlistConfig {
-    #[serde(deserialize_with = "deserialize_merchant_ids")]
-    pub merchant_ids: HashSet<id_type::MerchantId>,
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_names: HashSet<enums::Connector>,
 }
@@ -233,8 +231,6 @@ pub struct CloneConnectorAllowlistConfig {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct ConnectorCloneConfig {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub connector_names: HashSet<enums::Connector>,
     #[serde(deserialize_with = "deserialize_hashmap")]
     pub cloneable_payment_method_types:
         HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,

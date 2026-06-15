@@ -3067,13 +3067,6 @@ impl User {
             );
         }
 
-        if state.conf().connector_clone_config.is_some() {
-            route = route.service(
-                web::resource("/connectors/clone")
-                    .route(web::post().to(user::clone_connector_within_merchant)),
-            );
-        }
-
         // Role information
         route =
             route.service(

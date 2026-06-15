@@ -1379,10 +1379,6 @@ max_random_schedule_delay_in_seconds = 300  # max random delay in seconds to sch
 redis_ttl_buffer_in_seconds= 300 # buffer time in seconds to be added to redis ttl for Revenue Recovery
 
 [clone_connector_allowlist]
-merchant_ids = "merchant_ids"           # Comma-separated list of allowed merchant IDs
-connector_names = "connector_names"     # Comma-separated list of allowed connector names
-
-[connector_clone_config]
 connector_names = "connector_names"     # Comma-separated list of cloneable connector names
 
 [connector_clone_config.cloneable_payment_method_types]
