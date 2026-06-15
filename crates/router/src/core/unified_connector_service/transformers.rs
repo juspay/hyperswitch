@@ -22,7 +22,7 @@ use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDataType},
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
-        payments::{Authorize, Capture, PSync, SetupMandate},
+        payments::{Authorize, Capture, PSync, PreAuthorizeVoid, SetupMandate},
         refunds::{Execute, RSync},
         unified_authentication_service as uas_flows, ExternalVaultProxy, IncrementalAuthorization,
         Session,
@@ -30,8 +30,8 @@ use hyperswitch_domain_models::{
     router_request_types::{
         self, AuthenticationData, ExternalVaultProxyPaymentsData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
-        SyncRequestType,
+        PaymentsPreAuthorizeCancelData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        SetupMandateRequestData, SyncRequestType,
     },
     router_response_types::{
         PaymentsResponseData, PayoutsResponseData, RedirectForm, RefundsResponseData,
@@ -826,6 +826,7 @@ impl
                 field_name: "amount"
             }
         ))?;
+        let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
         let payment_session_context = payments_grpc::PaymentSessionContext {
             amount: Some(payments_grpc::Money {
@@ -834,6 +835,19 @@ impl
             }),
             metadata: None,
             browser_info: None,
+            customer: Some(payments_grpc::Customer {
+                first_name: None,
+                last_name: None,
+                salutation: None,
+                name: None,
+                email: None,
+                id: None,
+                connector_customer_id: router_data.connector_customer.clone(),
+                phone_number: None,
+                phone_country_code: None,
+                customer_document_details: to_grpc_customer_document_details(router_data),
+            }),
+            address: Some(address),
         };
 
         Ok(Self {
@@ -1201,6 +1215,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             test_mode: router_data.test_mode,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             merchant_request_id: None,
+            order_tax_amount: None,
         })
     }
 }
@@ -5927,6 +5942,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 .map(|id| id.get_string_repr().to_string()),
             merchant_request_id: None,
             connector_order_id: None,
+            payment_method: None,
         })
     }
 }
@@ -6129,6 +6145,49 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
     }
 }
 
+impl
+    transformers::ForeignTryFrom<
+        &RouterData<PreAuthorizeVoid, PaymentsPreAuthorizeCancelData, PaymentsResponseData>,
+    > for payments_grpc::PaymentServiceVoidRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<
+            PreAuthorizeVoid,
+            PaymentsPreAuthorizeCancelData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+
+        Ok(Self {
+            merchant_void_id: Some(router_data.connector_request_reference_id.clone()),
+            connector_transaction_id: router_data.request.connector_transaction_id.clone(),
+            connector_feature_data: router_data
+                .request
+                .connector_meta
+                .as_ref()
+                .map(serde_json::to_string)
+                .transpose()
+                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+                .map(|s| s.into()),
+            merchant_order_id: None,
+            merchant_request_id: None,
+            cancellation_reason: None,
+            all_keys_required: None,
+            browser_info: None,
+            amount: None,
+            metadata: None,
+            state,
+            test_mode: router_data.test_mode,
+        })
+    }
+}
+
 impl transformers::ForeignTryFrom<payments_grpc::RefundStatus> for RefundStatus {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -6281,6 +6340,7 @@ impl
             metadata: None,
             connector_feature_data: None,
             test_mode: router_data.test_mode,
+            merchant_request_id: None,
         })
     }
 }
