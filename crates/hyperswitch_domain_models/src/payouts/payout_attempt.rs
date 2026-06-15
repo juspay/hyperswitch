@@ -35,6 +35,14 @@ pub trait PayoutAttemptInterface {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, Self::Error>;
 
+    async fn find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
+        &self,
+        _merchant_id: &id_type::MerchantId,
+        _payout_id: &id_type::PayoutId,
+        _payout_attempt_id: &str,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PayoutAttempt, Self::Error>;
+
     async fn find_payout_attempt_by_merchant_id_connector_payout_id(
         &self,
         _merchant_id: &id_type::MerchantId,

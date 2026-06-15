@@ -15,6 +15,7 @@ use crate::platform::Initiator;
 pub struct SdkAuthorizationContext {
     pub platform: crate::platform::Platform,
     pub profile_id: id_type::ProfileId,
+    pub publishable_key: String,
     pub client_secret: String,
     pub customer_id: Option<id_type::GlobalCustomerId>,
     pub payment_method_session_id: Option<id_type::GlobalPaymentMethodSessionId>,
@@ -39,12 +40,7 @@ impl From<SdkAuthorizationContext> for Option<SdkAuthorization> {
                 };
                 Some(SdkAuthorization {
                     profile_id: input.profile_id,
-                    publishable_key: input
-                        .platform
-                        .get_processor()
-                        .get_account()
-                        .publishable_key
-                        .clone(),
+                    publishable_key: input.publishable_key,
                     platform_publishable_key,
                     client_secret: input.client_secret,
                     customer_id: input.customer_id,
