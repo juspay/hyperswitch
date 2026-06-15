@@ -183,9 +183,6 @@ pub struct PayloadPaymentMethodRequest {
     pub account_holder: Secret<String>,
     #[serde(rename = "type")]
     pub payment_method_type: PayloadPaymentMethodType,
-    pub description: Option<String>,
-    pub descriptor: Option<String>,
-    pub attrs: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize)]

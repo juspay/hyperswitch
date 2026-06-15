@@ -1504,6 +1504,7 @@ pub(crate) fn get_apple_pay_session<F, T>(
                     sdk_next_action: {
                         api_models::payments::SdkNextAction {
                             next_action: api_models::payments::NextActionCall::Sync,
+                            should_block_confirm: None,
                         }
                     },
                     connector_reference_id: None,
@@ -1537,6 +1538,7 @@ pub(crate) fn get_google_pay_session<F, T>(
                         sdk_next_action: {
                             api_models::payments::SdkNextAction {
                                 next_action: api_models::payments::NextActionCall::Sync,
+                                should_block_confirm: None,
                             }
                         },
                         merchant_info: google_pay_init_result.merchant_info.into(),
