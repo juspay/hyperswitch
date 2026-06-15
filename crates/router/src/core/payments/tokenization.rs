@@ -98,7 +98,7 @@ async fn save_in_locker(
     Option<payment_methods::transformers::DataDuplicationCheck>,
 )> {
     let external_vault_profile =
-        helpers::resolve_external_vault_profile(state, platform, business_profile).await?;
+        helpers::resolve_provider_profile(state, platform, business_profile).await?;
 
     match &external_vault_profile.external_vault_details {
         domain::ExternalVaultDetails::ExternalVaultEnabled(external_vault_details) => {
@@ -449,7 +449,7 @@ where
                 let mut payment_method_id = resp.payment_method_id.clone();
                 let mut locker_id = None;
                 let external_vault_profile =
-                    helpers::resolve_external_vault_profile(state, platform, business_profile)
+                    helpers::resolve_provider_profile(state, platform, business_profile)
                         .await?;
                 let (external_vault_details, vault_type) = match &external_vault_profile.external_vault_details{
                     hyperswitch_domain_models::business_profile::ExternalVaultDetails::ExternalVaultEnabled(external_vault_connector_details) => {

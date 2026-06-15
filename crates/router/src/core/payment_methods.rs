@@ -2965,7 +2965,7 @@ pub async fn create_payment_method_proxy_card_core(
     // platform flows). Fetch it from the profile and require it — otherwise the payment method
     // would be persisted with a `None` external vault source.
     let external_vault_profile =
-        payments_core::helpers::resolve_external_vault_profile(state, platform, profile).await?;
+        payments_core::helpers::resolve_provider_profile(state, platform, profile).await?;
     let external_vault_source = Some(
         external_vault_profile
             .external_vault_connector_details
@@ -4755,7 +4755,7 @@ pub async fn vault_payment_method(
     Option<id_type::MerchantConnectorAccountId>,
 )> {
     let external_vault_profile =
-        payments_core::helpers::resolve_external_vault_profile(state, platform, profile).await?;
+        payments_core::helpers::resolve_provider_profile(state, platform, profile).await?;
     let is_external_vault_enabled = external_vault_profile.is_external_vault_enabled();
 
     match is_external_vault_enabled {
@@ -4774,7 +4774,7 @@ pub async fn vault_payment_method(
 
             let merchant_connector_account =
                 domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
-                    payments_core::helpers::get_external_vault_mca_v2(
+                    payments_core::helpers::get_provider_mca_v2(
                         state,
                         platform.get_provider(),
                         Some(&external_vault_source),

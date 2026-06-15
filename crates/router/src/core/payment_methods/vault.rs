@@ -2548,7 +2548,7 @@ pub async fn retrieve_payment_method_from_vault(
     pm: &domain::PaymentMethod,
 ) -> RouterResult<pm_types::VaultRetrieveResponse> {
     let external_vault_profile =
-        payments_core::helpers::resolve_external_vault_profile(state, platform, profile).await?;
+        payments_core::helpers::resolve_provider_profile(state, platform, profile).await?;
     let is_external_vault_enabled = external_vault_profile.is_external_vault_enabled();
 
     match is_external_vault_enabled {
@@ -2557,7 +2557,7 @@ pub async fn retrieve_payment_method_from_vault(
 
             let merchant_connector_account =
                 domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
-                    payments_core::helpers::get_external_vault_mca_v2(
+                    payments_core::helpers::get_provider_mca_v2(
                         state,
                         platform.get_provider(),
                         external_vault_source,
@@ -2723,7 +2723,7 @@ pub async fn delete_payment_method_data_from_vault(
     pm: &domain::PaymentMethod,
 ) -> RouterResult<pm_types::VaultDeleteResponse> {
     let external_vault_profile =
-        payments_core::helpers::resolve_external_vault_profile(state, platform, profile).await?;
+        payments_core::helpers::resolve_provider_profile(state, platform, profile).await?;
     let is_external_vault_enabled = external_vault_profile.is_external_vault_enabled();
 
     let vault_id = pm
@@ -2742,7 +2742,7 @@ pub async fn delete_payment_method_data_from_vault(
 
             let merchant_connector_account =
                 domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
-                    payments_core::helpers::get_external_vault_mca_v2(
+                    payments_core::helpers::get_provider_mca_v2(
                         state,
                         platform.get_provider(),
                         external_vault_source,

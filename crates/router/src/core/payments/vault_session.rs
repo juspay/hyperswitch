@@ -78,7 +78,7 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     let external_vault_profile =
-        helpers::resolve_external_vault_profile(state, platform, profile).await?;
+        helpers::resolve_provider_profile(state, platform, profile).await?;
     let is_external_vault_sdk_enabled = external_vault_profile.is_vault_sdk_enabled();
 
     if is_external_vault_sdk_enabled {
@@ -209,7 +209,7 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     let external_vault_profile =
-        helpers::resolve_external_vault_profile(state, platform, profile).await?;
+        helpers::resolve_provider_profile(state, platform, profile).await?;
     let is_external_vault_sdk_enabled = external_vault_profile
         .external_vault_details
         .is_external_vault_enabled();
@@ -574,7 +574,7 @@ pub async fn fetch_external_vault_details(
     // (provider) merchant's profile, not on the payment profile; resolve it first. For standard
     // merchants this resolves to the supplied profile and the provider is the merchant itself.
     let external_vault_profile =
-        helpers::resolve_external_vault_profile(state, platform, profile).await?;
+        helpers::resolve_provider_profile(state, platform, profile).await?;
     let external_vault_source = external_vault_profile
         .external_vault_connector_details
         .as_ref()
@@ -582,7 +582,7 @@ pub async fn fetch_external_vault_details(
 
     let merchant_connector_account =
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
-            helpers::get_external_vault_mca_v2(
+            helpers::get_provider_mca_v2(
                 state,
                 platform.get_provider(),
                 external_vault_source,
