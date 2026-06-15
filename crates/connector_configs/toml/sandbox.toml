@@ -7184,6 +7184,8 @@ type="Text"
 [worldpayxml_payout]
 [[worldpayxml_payout.wallet]]
   payment_method_type = "apple_pay"
+[[worldpayxml_payout.wallet]]
+  payment_method_type = "google_pay"
 [[worldpayxml_payout.credit]]
   payment_method_type = "Visa"
 [[worldpayxml_payout.debit]]

@@ -795,7 +795,7 @@ where
     )
     .await?;
 
-    let payment_method_token = get_decrypted_wallet_payment_method_token(
+    let payment_method_token = get_decrypted_wallet_pm_token_and_set_pm_data(
         &operation,
         state,
         platform,
@@ -5221,8 +5221,47 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
     }
 }
 
+fn set_decrypted_wallet_payment_method_data<F, D>(token: &PaymentMethodToken, payment_data: &mut D)
+where
+    F: Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F>,
+{
+    let wallet_data = payment_data
+        .get_payment_method_data()
+        .and_then(|pmd| pmd.get_wallet_data());
+
+    if let Some(wallet_data) = wallet_data {
+        let updated_pmd = match (token, wallet_data) {
+            (
+                PaymentMethodToken::ApplePayDecrypt(decrypted_data),
+                domain::WalletData::ApplePay(apple_pay_data),
+            ) => Some(domain::PaymentMethodData::Wallet(
+                domain::WalletData::ApplePay(domain::ApplePayWalletData {
+                    payment_data: common_payments_types::ApplePayPaymentData::Decrypted(
+                        (**decrypted_data).clone(),
+                    ),
+                    ..apple_pay_data.clone()
+                }),
+            )),
+            (
+                PaymentMethodToken::GooglePayDecrypt(decrypted_data),
+                domain::WalletData::GooglePay(google_pay_data),
+            ) => Some(domain::PaymentMethodData::Wallet(
+                domain::WalletData::GooglePay(domain::GooglePayWalletData {
+                    tokenization_data: common_payments_types::GpayTokenizationData::Decrypted(
+                        (**decrypted_data).clone(),
+                    ),
+                    ..google_pay_data.clone()
+                }),
+            )),
+            _ => None,
+        };
+        updated_pmd.map(|pmd| payment_data.set_payment_method_data(Some(pmd)));
+    }
+}
+
 #[cfg(feature = "v1")]
-pub async fn get_decrypted_wallet_payment_method_token<F, Req, D>(
+pub async fn get_decrypted_wallet_pm_token_and_set_pm_data<F, Req, D>(
     operation: &BoxedOperation<'_, F, Req, D>,
     state: &SessionState,
     platform: &domain::Platform,
@@ -5231,7 +5270,7 @@ pub async fn get_decrypted_wallet_payment_method_token<F, Req, D>(
 ) -> CustomResult<Option<PaymentMethodToken>, errors::ApiErrorResponse>
 where
     F: Send + Clone + Sync,
-    D: OperationSessionGetters<F> + Send + Sync + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     if is_operation_confirm(operation)
         && payment_data.get_payment_attempt().payment_method
@@ -5268,18 +5307,25 @@ where
             return Ok(Some(predecrypted_token));
         }
 
-        let decide_wallet_flow = &wallet
+        let decide_wallet_flow = wallet
             .decide_wallet_flow(state, payment_data, &merchant_connector_account)
-            .attach_printable("Failed to decide wallet flow")?
-            .async_map(|payment_price_data| async move {
-                wallet
+            .attach_printable("Failed to decide wallet flow")?;
+
+        let payment_method_token = match decide_wallet_flow {
+            Some(payment_price_data) => {
+                let token = wallet
                     .decrypt_wallet_token(&payment_price_data, payment_data)
                     .await
-            })
-            .await
-            .transpose()
-            .attach_printable("Failed to decrypt Wallet token")?;
-        Ok(decide_wallet_flow.clone())
+                    .attach_printable("Failed to decrypt Wallet token")?;
+
+                set_decrypted_wallet_payment_method_data(&token, payment_data);
+
+                Some(token)
+            }
+            None => None,
+        };
+
+        Ok(payment_method_token)
     } else {
         Ok(None)
     }
