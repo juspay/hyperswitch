@@ -154,7 +154,7 @@ mod storage {
                     let key_str = key.to_string();
                     let capture_id = this.capture_id.clone();
                     let updated_capture =
-                        CaptureUpdateInternal::from(capture.clone()).apply_changeset(this);
+                        CaptureUpdateInternal::from(capture.clone()).apply_changeset(this.clone());
 
                     let redis_value = serde_json::to_string(&updated_capture)
                         .change_context(errors::StorageError::SerializationFailed)?;
