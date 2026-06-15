@@ -18,8 +18,6 @@ use std::fmt::Debug;
 
 #[cfg(feature = "olap")]
 use analytics::{enums::AuthInfo, errors::AnalyticsError};
-#[cfg(feature = "olap")]
-use crate::db::StorageInterface;
 use api_models::{
     enums,
     payments::{self},
@@ -51,6 +49,8 @@ use subscriptions::{subscription_handler::SubscriptionHandler, workflows::Invoic
 use tracing_futures::Instrument;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
+#[cfg(feature = "olap")]
+use crate::db::StorageInterface;
 use crate::{
     consts,
     core::{

@@ -60,28 +60,28 @@ use super::proxy;
 use super::recovery_webhooks::*;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 use super::refunds;
+#[cfg(feature = "oltp")]
+use super::relay;
 #[cfg(feature = "olap")]
 use super::routing;
+#[cfg(all(feature = "oltp", feature = "v1"))]
+use super::subscription;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 use super::tokenization as tokenization_routes;
 #[cfg(all(feature = "olap", any(feature = "v1", feature = "v2")))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "oltp")]
 use super::webhooks::*;
-use super::{cache::*, card_issuer, health::*};
 #[cfg(feature = "olap")]
 use super::{
     admin, api_keys, chat, connector_onboarding, disputes, files, gsm, oidc, profiles, user,
     user_role,
 };
-#[cfg(feature = "oltp")]
-use super::relay;
 #[cfg(all(feature = "olap", feature = "v1"))]
 use super::{apple_pay_certificates_migration, payment_link};
-#[cfg(all(feature = "oltp", feature = "v1"))]
-use super::subscription;
 #[cfg(all(feature = "olap", feature = "v1"))]
 use super::{blocklist, webhook_events};
+use super::{cache::*, card_issuer, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers, payments};
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
@@ -102,8 +102,12 @@ use crate::routes::cards_info::{
 use crate::routes::feature_matrix;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
+#[cfg(feature = "olap")]
+use crate::routes::hypersense as hypersense_routes;
 #[cfg(all(feature = "olap", feature = "v1"))]
 use crate::routes::profile_acquirer;
+#[cfg(feature = "oltp")]
+use crate::routes::three_ds_decision_rule;
 pub use crate::{
     configs::settings,
     db::{
@@ -118,10 +122,6 @@ use crate::{
     configs::{secrets_transformers, Settings},
     db::kafka_store::{KafkaStore, TenantID},
 };
-#[cfg(feature = "oltp")]
-use crate::routes::three_ds_decision_rule;
-#[cfg(feature = "olap")]
-use crate::routes::hypersense as hypersense_routes;
 
 #[derive(Clone)]
 pub struct ReqState {

@@ -3,9 +3,9 @@ use error_stack::report;
 use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
 
-use super::MockDb;
 #[cfg(feature = "olap")]
 use super::domain;
+use super::MockDb;
 use crate::{
     connection,
     core::errors::{self, CustomResult},

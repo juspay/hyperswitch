@@ -93,12 +93,13 @@ pub use self::app::DummyConnector;
 pub use self::app::PaymentMethodSession;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 pub use self::app::Proxy;
+#[cfg(feature = "oltp")]
+pub use self::app::Subscription;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, CardIssuers, Cards,
-    Configs, ConnectorOnboarding, Customers, Disputes, Embedded, EphemeralKey,
-    Files, Forex, Gsm, Health, Mandates, MerchantAccount, MerchantConnectorAccount,
-    PaymentLink, PaymentMethods, Payments, Poll,
-    Profile, ProfileNew, Refunds, Relay, RelayWebhooks, SdkConfig, SessionState,
+    Configs, ConnectorOnboarding, Customers, Disputes, Embedded, EphemeralKey, Files, Forex, Gsm,
+    Health, Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods,
+    Payments, Poll, Profile, ProfileNew, Refunds, Relay, RelayWebhooks, SdkConfig, SessionState,
     ThreeDsDecisionRule, User, UserDeprecated, Webhooks,
 };
 #[cfg(feature = "olap")]
@@ -106,8 +107,6 @@ pub use self::app::{
     Blocklist, Chat, FeatureMatrix, Hypersense, Oidc, Organization, ProcessTracker,
     ProcessTrackerDeprecated, ProfileAcquirer, Routing, Verify, WebhookEvents,
 };
-#[cfg(feature = "oltp")]
-pub use self::app::Subscription;
 #[cfg(feature = "payouts")]
 pub use self::app::{PayoutLink, Payouts};
 #[cfg(feature = "v2")]

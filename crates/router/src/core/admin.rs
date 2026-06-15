@@ -1,11 +1,11 @@
 use std::str::FromStr;
 
+#[cfg(feature = "olap")]
+use api_models::organization as org_types;
 use api_models::{
     admin::{self as admin_types},
     enums as api_enums, routing as routing_types,
 };
-#[cfg(feature = "olap")]
-use api_models::organization as org_types;
 #[cfg(feature = "olap")]
 use common_enums::{MerchantAccountType, OrganizationType};
 use common_utils::{
@@ -31,11 +31,11 @@ use {
     common_utils::{keymanager, types::keymanager::EncryptionTransferRequest},
 };
 
+use super::routing::helpers::redact_cgraph_cache;
 #[cfg(feature = "olap")]
 use crate::db::AccountsStorageInterface;
 #[cfg(feature = "olap")]
 use crate::routes::app::SessionStateInfo;
-use super::routing::helpers::redact_cgraph_cache;
 #[cfg(any(feature = "v1", feature = "v2"))]
 use crate::types::transformers::ForeignFrom;
 use crate::{
