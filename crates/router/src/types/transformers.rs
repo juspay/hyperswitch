@@ -1383,6 +1383,7 @@ impl ForeignFrom<&api_models::payouts::Wallet> for api_enums::PaymentMethodType 
             api_models::payouts::Wallet::Paypal(_) => Self::Paypal,
             api_models::payouts::Wallet::Venmo(_) => Self::Venmo,
             api_models::payouts::Wallet::ApplePayDecrypt(_) => Self::ApplePay,
+            api_models::payouts::Wallet::GooglePayDecrypt(_) => Self::GooglePay,
         }
     }
 }

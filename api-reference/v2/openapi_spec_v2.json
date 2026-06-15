@@ -15497,6 +15497,69 @@
           "UNKNOWN"
         ]
       },
+      "GooglePayDecrypt": {
+        "type": "object",
+        "required": [
+          "application_primary_account_number",
+          "expiry_month",
+          "expiry_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "application_primary_account_number": {
+            "type": "string",
+            "description": "The dpan number associated with card number",
+            "example": "4242424242424242"
+          },
+          "expiry_month": {
+            "type": "string",
+            "description": "The card's expiry month"
+          },
+          "expiry_year": {
+            "type": "string",
+            "description": "The card's expiry year"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Doe"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "GooglePayDecryptAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for Google pay decrypt wallet payout method",
+        "required": [
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_exp_month": {
+            "type": "string",
+            "description": "Card expiry month",
+            "example": "01"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "Card expiry year",
+            "example": "2026"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "Card holder name",
+            "example": "John Doe"
+          }
+        }
+      },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
         "required": [
@@ -32664,6 +32727,17 @@
           {
             "type": "object",
             "required": [
+              "google_pay_decrypt"
+            ],
+            "properties": {
+              "google_pay_decrypt": {
+                "$ref": "#/components/schemas/GooglePayDecrypt"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "paypal"
             ],
             "properties": {
@@ -32689,6 +32763,9 @@
         "oneOf": [
           {
             "$ref": "#/components/schemas/ApplePayDecryptAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/GooglePayDecryptAdditionalData"
           },
           {
             "$ref": "#/components/schemas/PaypalAdditionalData"
