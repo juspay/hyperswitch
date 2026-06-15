@@ -1521,10 +1521,11 @@ merchant_ids = "merchant_123, merchant_234"     # Comma-separated list of allowe
 connector_names = "stripe, adyen"               # Comma-separated list of allowed connector names
 
 [connector_clone_config]
-connector_names = "stripe, adyen"               # Comma-separated list of cloneable connector names
+connector_names = "peachpayments"               # Comma-separated list of cloneable connector names
 
 [connector_clone_config.cloneable_payment_method_types]
 card = "credit, debit"                          # <payment_method> = comma-separated cloneable payment_method_types
+network_token = "network_token"
 
 [infra_values]
 cluster = "CLUSTER"
