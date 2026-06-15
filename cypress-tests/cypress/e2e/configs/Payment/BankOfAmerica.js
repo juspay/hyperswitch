@@ -1013,7 +1013,8 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             code: "IR_39",
-            message: "No eligible connector was found for the current payment method configuration",
+            message:
+              "No eligible connector was found for the current payment method configuration",
           },
         },
       },
