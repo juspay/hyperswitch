@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.15.1
+
+### Features
+
+- **connector:** [worldpayxml] Googlepay predecrypt | hyperswitch decrypt ([#12181](https://github.com/juspay/hyperswitch/pull/12181)) ([`a24086d`](https://github.com/juspay/hyperswitch/commit/a24086d8f3f736a9185075993ef0b71199057f97))
+- **superposition:** Add db fallback for pt configs ([#12702](https://github.com/juspay/hyperswitch/pull/12702)) ([`22cad13`](https://github.com/juspay/hyperswitch/commit/22cad1348c62c2d1ad2d94af4e588f5afd1522cc))
+
+**Full Changelog:** [`2026.06.15.0...2026.06.15.1`](https://github.com/juspay/hyperswitch/compare/2026.06.15.0...2026.06.15.1)
+
+- - -
+
 ## 2026.06.15.0
 
 ### Features
