@@ -1146,71 +1146,80 @@ impl super::RedisConnectionPool {
         block: Option<u64>,
         group: Option<(&str, &str)>,
     ) -> CustomResult<StreamReadResult, errors::RedisError> {
-        crate::observed!(self, "XREAD", {
-            let mut conn = self.pool.clone();
-            let stream_keys: Vec<String> = streams
-                .iter()
-                .map(|stream| stream.tenant_aware_key(self))
-                .collect();
+        crate::observed!(
+            self,
+            if group.is_some() {
+                "XREADGROUP"
+            } else {
+                "XREAD"
+            },
+            {
+                let mut conn = self.pool.clone();
+                let stream_keys: Vec<String> = streams
+                    .iter()
+                    .map(|stream| stream.tenant_aware_key(self))
+                    .collect();
 
-            let mut options = StreamReadOptions::default();
+                let mut options = StreamReadOptions::default();
 
-            if let Some(count_val) = count {
-                options = options.count(
-                    usize::try_from(count_val)
-                        .change_context(errors::RedisError::StreamReadFailed)?,
-                );
-            }
-            if let Some(block_ms) = block {
-                options = options.block(
-                    usize::try_from(block_ms)
-                        .change_context(errors::RedisError::StreamReadFailed)?,
-                );
-            }
-            if let Some((group_name, consumer_name)) = group {
-                options = options.group(group_name, consumer_name);
-            }
-
-            let reply: redis::streams::StreamReadReply = track_redis_call(
-                RedisOperation::StreamReadWithOptions,
-                conn.xread_options(&stream_keys, &ids, &options),
-            )
-            .await
-            .map_err(|err| {
-                let kind = err.kind();
-                match kind {
-                    redis::ErrorKind::UnexpectedReturnType | redis::ErrorKind::Parse => {
-                        report!(err).change_context(errors::RedisError::StreamEmptyOrNotAvailable)
-                    }
-                    _ => report!(err).change_context(errors::RedisError::StreamReadFailed),
+                if let Some(count_val) = count {
+                    options = options.count(
+                        usize::try_from(count_val)
+                            .change_context(errors::RedisError::StreamReadFailed)?,
+                    );
                 }
-            })?;
+                if let Some(block_ms) = block {
+                    options = options.block(
+                        usize::try_from(block_ms)
+                            .change_context(errors::RedisError::StreamReadFailed)?,
+                    );
+                }
+                if let Some((group_name, consumer_name)) = group {
+                    options = options.group(group_name, consumer_name);
+                }
 
-            Ok(reply
-                .keys
-                .into_iter()
-                .map(|stream_response| {
-                    let stream_entries: StreamEntries = stream_response
-                        .ids
-                        .into_iter()
-                        .map(|entry_response| {
-                            let fields_by_redis_value: std::collections::HashMap<
-                                String,
-                                crate::RedisValue,
-                            > = entry_response
-                                .map
-                                .into_iter()
-                                .map(|(field_name, raw_redis_value)| {
-                                    (field_name, crate::RedisValue::new(raw_redis_value))
-                                })
-                                .collect();
-                            (entry_response.id, fields_by_redis_value)
-                        })
-                        .collect();
-                    (stream_response.key, stream_entries)
-                })
-                .collect())
-        })
+                let reply: redis::streams::StreamReadReply = track_redis_call(
+                    RedisOperation::StreamReadWithOptions,
+                    conn.xread_options(&stream_keys, &ids, &options),
+                )
+                .await
+                .map_err(|err| {
+                    let kind = err.kind();
+                    match kind {
+                        redis::ErrorKind::UnexpectedReturnType | redis::ErrorKind::Parse => {
+                            report!(err)
+                                .change_context(errors::RedisError::StreamEmptyOrNotAvailable)
+                        }
+                        _ => report!(err).change_context(errors::RedisError::StreamReadFailed),
+                    }
+                })?;
+
+                Ok(reply
+                    .keys
+                    .into_iter()
+                    .map(|stream_response| {
+                        let stream_entries: StreamEntries = stream_response
+                            .ids
+                            .into_iter()
+                            .map(|entry_response| {
+                                let fields_by_redis_value: std::collections::HashMap<
+                                    String,
+                                    crate::RedisValue,
+                                > = entry_response
+                                    .map
+                                    .into_iter()
+                                    .map(|(field_name, raw_redis_value)| {
+                                        (field_name, crate::RedisValue::new(raw_redis_value))
+                                    })
+                                    .collect();
+                                (entry_response.id, fields_by_redis_value)
+                            })
+                            .collect();
+                        (stream_response.key, stream_entries)
+                    })
+                    .collect())
+            }
+        )
     }
 
     // ─── List Commands ───────────────────────────────────────────────────────

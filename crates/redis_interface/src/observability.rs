@@ -38,14 +38,18 @@ where
     let start = Instant::now();
     let result = fut.await;
 
-    if let Some(request_id) = router_env::request_context::try_get() {
-        pool.event_emitter.emit_external_service_call(build_event(
-            command,
-            request_id,
-            result.is_ok(),
-            start.elapsed().as_millis(),
-            OffsetDateTime::now_utc().unix_timestamp_nanos(),
-        ));
+    // Skip the request-id lookup and event construction entirely when the
+    // emitter is a no-op (emission disabled) — Redis is the hottest call path.
+    if pool.event_emitter.is_enabled() {
+        if let Some(request_id) = router_env::request_context::try_get() {
+            pool.event_emitter.emit_external_service_call(build_event(
+                command,
+                request_id,
+                result.is_ok(),
+                start.elapsed().as_millis(),
+                OffsetDateTime::now_utc().unix_timestamp_nanos(),
+            ));
+        }
     }
 
     result

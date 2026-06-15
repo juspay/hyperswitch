@@ -1078,71 +1078,79 @@ impl super::RedisConnectionPool {
         block: Option<u64>,
         group: Option<(&str, &str)>,
     ) -> CustomResult<StreamReadResult, errors::RedisError> {
-        crate::observed!(self, "XREAD", {
-            let strms = self.get_keys_with_prefix(streams);
-            let ids: MultipleIDs = ids.into();
+        crate::observed!(
+            self,
+            if group.is_some() {
+                "XREADGROUP"
+            } else {
+                "XREAD"
+            },
+            {
+                let strms = self.get_keys_with_prefix(streams);
+                let ids: MultipleIDs = ids.into();
 
-            let reply: XReadResponse<String, String, String, Option<String>> = match group {
-                Some((group_name, consumer_name)) => {
-                    track_redis_call(
-                        RedisOperation::StreamReadWithOptions,
-                        self.pool.xreadgroup_map(
-                            group_name,
-                            consumer_name,
-                            count,
-                            block,
-                            false,
-                            strms,
-                            ids,
-                        ),
-                    )
-                    .await
+                let reply: XReadResponse<String, String, String, Option<String>> = match group {
+                    Some((group_name, consumer_name)) => {
+                        track_redis_call(
+                            RedisOperation::StreamReadWithOptions,
+                            self.pool.xreadgroup_map(
+                                group_name,
+                                consumer_name,
+                                count,
+                                block,
+                                false,
+                                strms,
+                                ids,
+                            ),
+                        )
+                        .await
+                    }
+                    None => {
+                        track_redis_call(
+                            RedisOperation::StreamReadWithOptions,
+                            self.pool.xread_map(count, block, strms, ids),
+                        )
+                        .await
+                    }
                 }
-                None => {
-                    track_redis_call(
-                        RedisOperation::StreamReadWithOptions,
-                        self.pool.xread_map(count, block, strms, ids),
-                    )
-                    .await
-                }
+                .map_err(|err| match err.kind() {
+                    RedisErrorKind::NotFound | RedisErrorKind::Parse => {
+                        report!(err).change_context(errors::RedisError::StreamEmptyOrNotAvailable)
+                    }
+                    _ => report!(err).change_context(errors::RedisError::StreamReadFailed),
+                })?;
+
+                Ok(reply
+                    .into_iter()
+                    .map(|(stream_key, stream_entries)| {
+                        let parsed_entries: StreamEntries = stream_entries
+                            .into_iter()
+                            .map(|(entry_id, optional_field_pairs)| {
+                                // Wrap fred's field values (Option<String>) into RedisValue.
+                                // If the field has no value, we store Null to preserve the entry's presence.
+                                let fields_by_redis_value: std::collections::HashMap<
+                                    String,
+                                    crate::RedisValue,
+                                > = optional_field_pairs
+                                    .into_iter()
+                                    .map(|(field_name, maybe_field_value)| {
+                                        let redis_value_inner = match maybe_field_value {
+                                            Some(string_value) => {
+                                                RedisValue::String(string_value.into())
+                                            }
+                                            None => RedisValue::Null,
+                                        };
+                                        (field_name, crate::RedisValue::new(redis_value_inner))
+                                    })
+                                    .collect();
+                                (entry_id, fields_by_redis_value)
+                            })
+                            .collect();
+                        (stream_key, parsed_entries)
+                    })
+                    .collect())
             }
-            .map_err(|err| match err.kind() {
-                RedisErrorKind::NotFound | RedisErrorKind::Parse => {
-                    report!(err).change_context(errors::RedisError::StreamEmptyOrNotAvailable)
-                }
-                _ => report!(err).change_context(errors::RedisError::StreamReadFailed),
-            })?;
-
-            Ok(reply
-                .into_iter()
-                .map(|(stream_key, stream_entries)| {
-                    let parsed_entries: StreamEntries = stream_entries
-                        .into_iter()
-                        .map(|(entry_id, optional_field_pairs)| {
-                            // Wrap fred's field values (Option<String>) into RedisValue.
-                            // If the field has no value, we store Null to preserve the entry's presence.
-                            let fields_by_redis_value: std::collections::HashMap<
-                                String,
-                                crate::RedisValue,
-                            > = optional_field_pairs
-                                .into_iter()
-                                .map(|(field_name, maybe_field_value)| {
-                                    let redis_value_inner = match maybe_field_value {
-                                        Some(string_value) => {
-                                            RedisValue::String(string_value.into())
-                                        }
-                                        None => RedisValue::Null,
-                                    };
-                                    (field_name, crate::RedisValue::new(redis_value_inner))
-                                })
-                                .collect();
-                            (entry_id, fields_by_redis_value)
-                        })
-                        .collect();
-                    (stream_key, parsed_entries)
-                })
-                .collect())
-        })
+        )
     }
 
     #[instrument(level = "DEBUG", skip(self))]

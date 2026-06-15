@@ -63,7 +63,7 @@ pub use self::types::*;
 /// command method.
 #[macro_export]
 macro_rules! observed {
-    ($self:expr, $cmd:literal, $body:block) => {
+    ($self:expr, $cmd:expr, $body:block) => {
         $crate::observability::observe($self, $cmd, async move $body).await
     };
 }
