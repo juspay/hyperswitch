@@ -561,21 +561,6 @@ pub async fn connector_create(
         &req,
         payload,
         |state, auth_data, req, _| async move {
-            if auth_data
-                .platform
-                .get_processor()
-                .get_account()
-                .merchant_account_type
-                == common_enums::MerchantAccountType::Connected
-                && api_models::enums::VaultConnectors::try_from(req.connector_name).is_ok()
-            {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message:
-                        "Vault connectors can only be configured by platform or standard merchants, not connected merchants"
-                            .to_string(),
-                }
-                .into());
-            }
             create_connector(
                 state,
                 req,
@@ -617,21 +602,6 @@ pub async fn connector_create(
         &req,
         payload,
         |state, auth_data: auth::AuthenticationData, req, _| async move {
-            if auth_data
-                .platform
-                .get_processor()
-                .get_account()
-                .merchant_account_type
-                == common_enums::MerchantAccountType::Connected
-                && api_models::enums::VaultConnectors::try_from(req.connector_name).is_ok()
-            {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message:
-                        "Vault connectors can only be configured by platform or standard merchants, not connected merchants"
-                            .to_string(),
-                }
-                .into());
-            }
             create_connector(state, req, auth_data.platform.get_processor().clone(), None).await
         },
         auth::auth_type(

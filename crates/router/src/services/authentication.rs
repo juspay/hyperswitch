@@ -854,10 +854,10 @@ where
 
     let processor_merchant_id = auth_data.platform.get_processor().get_account().get_id();
 
-    if merchant_id_from_route != processor_merchant_id {
-        return Err(report!(errors::ApiErrorResponse::Unauthorized))
-            .attach_printable("Merchant ID from route and Processor Merchant Id do not match");
-    }
+    fp_utils::when(merchant_id_from_route != processor_merchant_id, || {
+        Err(report!(errors::ApiErrorResponse::Unauthorized))
+            .attach_printable("Merchant ID from route and Processor Merchant Id do not match")
+    })?;
 
     Ok((auth_data, auth_type))
 }

@@ -2718,6 +2718,18 @@ pub async fn create_connector(
         },
     )?;
 
+    fp_utils::when(
+        processor.get_account().merchant_account_type == MerchantAccountType::Connected
+            && api_models::enums::VaultConnectors::try_from(req.connector_name).is_ok(),
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message:
+                    "Vault connectors can only be configured by platform or standard merchants, not connected merchants"
+                        .to_string(),
+            })
+        },
+    )?;
+
     let connector_metadata = ConnectorMetadata {
         connector_metadata: &req.metadata,
     };
@@ -3870,16 +3882,17 @@ fn validate_external_vault_config_for_merchant_account_type(
     merchant_account_type: MerchantAccountType,
     is_external_vault_being_configured: bool,
 ) -> RouterResult<()> {
-    if is_external_vault_being_configured && merchant_account_type == MerchantAccountType::Connected
-    {
-        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message:
-                "External vault can only be configured for platform merchant, not for connected merchants"
-                    .to_string(),
-        }));
-    }
-
-    Ok(())
+    fp_utils::when(
+        is_external_vault_being_configured
+            && merchant_account_type == MerchantAccountType::Connected,
+        || {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message:
+                    "External vault can only be configured for platform merchant, not for connected merchants"
+                        .to_string(),
+            }))
+        },
+    )
 }
 
 pub async fn create_profile(

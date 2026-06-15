@@ -2931,20 +2931,20 @@ pub async fn resolve_external_vault_profile(
     let processor = platform.get_processor();
 
     if provider.get_account().get_id() == processor.get_account().get_id() {
-        return Ok(payment_profile.clone());
+        Ok(payment_profile.clone())
+    } else {
+        let profiles = state
+            .store
+            .list_profile_by_merchant_id(provider.get_key_store(), provider.get_account().get_id())
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to list profiles for the platform merchant")?;
+
+        profiles.into_iter().next().ok_or_else(|| {
+            report!(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Platform merchant has no profile configured for external vault")
+        })
     }
-
-    let profiles = state
-        .store
-        .list_profile_by_merchant_id(provider.get_key_store(), provider.get_account().get_id())
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to list profiles for the platform merchant")?;
-
-    profiles.into_iter().next().ok_or_else(|| {
-        report!(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Platform merchant has no profile configured for external vault")
-    })
 }
 
 #[cfg(feature = "v2")]
