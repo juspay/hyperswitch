@@ -3,10 +3,12 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::{admin::*, api_locking, errors, merchant_connector_webhook_management::*},
+    core::{admin::*, api_locking, merchant_connector_webhook_management::*},
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::api::admin,
 };
+#[cfg(all(feature = "olap", feature = "v1"))]
+use crate::core::errors;
 
 #[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::OrganizationCreate))]
@@ -597,6 +599,7 @@ pub async fn connector_create(
         },
         auth::auth_type(
             &auth::ApiKeyAuthWithMerchantIdFromRouteAllowPlatform(merchant_id.clone()),
+            #[cfg(feature = "olap")]
             &auth::JWTAndEmbeddedAuth {
                 merchant_id_from_route: Some(merchant_id.clone()),
                 permission: Some(Permission::ProfileConnectorWrite),
@@ -604,6 +607,8 @@ pub async fn connector_create(
                 // Platform merchants create the external (vault) connector on themselves.
                 allow_platform: true,
             },
+            #[cfg(not(feature = "olap"))]
+            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -686,6 +691,7 @@ pub async fn connector_retrieve(
         },
         auth::auth_type(
             &auth::ApiKeyAuthWithMerchantIdFromRouteAllowPlatform(merchant_id.clone()),
+            #[cfg(feature = "olap")]
             &auth::JWTAndEmbeddedAuth {
                 merchant_id_from_route: Some(merchant_id.clone()),
                 // This should ideally be ProfileConnectorRead, but since this API responds with
@@ -695,6 +701,8 @@ pub async fn connector_retrieve(
                 allow_connected: true,
                 allow_platform: true,
             },
+            #[cfg(not(feature = "olap"))]
+            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -836,12 +844,15 @@ pub async fn connector_list_profile(
         },
         auth::auth_type(
             &auth::ApiKeyAuthWithMerchantIdFromRouteAllowPlatform(merchant_id.clone()),
+            #[cfg(feature = "olap")]
             &auth::JWTAndEmbeddedAuth {
                 merchant_id_from_route: Some(merchant_id),
                 permission: Some(Permission::ProfileConnectorRead),
                 allow_connected: true,
                 allow_platform: true,
             },
+            #[cfg(not(feature = "olap"))]
+            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -882,12 +893,15 @@ pub async fn connector_update(
         },
         auth::auth_type(
             &auth::ApiKeyAuthWithMerchantIdFromRouteAllowPlatform(merchant_id.clone()),
+            #[cfg(feature = "olap")]
             &auth::JWTAndEmbeddedAuth {
                 merchant_id_from_route: Some(merchant_id.clone()),
                 permission: Some(Permission::ProfileConnectorWrite),
                 allow_connected: true,
                 allow_platform: true,
             },
+            #[cfg(not(feature = "olap"))]
+            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

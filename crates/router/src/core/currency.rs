@@ -1,11 +1,15 @@
+#[cfg(feature = "olap")]
 use analytics::errors::AnalyticsError;
 use common_utils::errors::CustomResult;
+#[cfg(feature = "olap")]
 use currency_conversion::types::ExchangeRates;
 use error_stack::ResultExt;
+#[cfg(feature = "olap")]
 use router_env::logger;
 
+#[cfg(feature = "olap")]
+use crate::consts::DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS;
 use crate::{
-    consts::DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS,
     core::errors::ApiErrorResponse,
     services::ApplicationResponse,
     utils::currency::{self, convert_currency, get_forex_rates, ForexError as ForexCacheError},
@@ -53,6 +57,7 @@ pub async fn convert_forex(
     ))
 }
 
+#[cfg(feature = "olap")]
 pub async fn get_forex_exchange_rates(
     state: SessionState,
 ) -> CustomResult<ExchangeRates, AnalyticsError> {
