@@ -625,7 +625,7 @@ pub async fn list_customer_payment_method_api_v1() {}
     content = PaymentMethodSessionRequest,
         examples  (( "Create a payment method session with customer_id" = (
         value =json!( {
-            "customer_id": "12345_cus_abcdefghijklmnopqrstuvwxyz"
+            "customer_id": "0a_cus_abcdefghijklmnopqrstuvwxyz"
         })
         )))
     ),
@@ -659,7 +659,7 @@ pub fn payment_method_session_create() {}
     content = PaymentMethodSessionRequest,
         examples  (( "Create a payment method session with customer_id" = (
         value =json!( {
-            "customer_id": "12345_cus_abcdefghijklmnopqrstuvwxyz"
+            "customer_id": "0a_cus_abcdefghijklmnopqrstuvwxyz"
         })
         )))
     ),

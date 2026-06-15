@@ -301,6 +301,8 @@ pub async fn generate_sample_data(
             state_metadata: None,
             installment_options: None,
             profile_acquirer_id: None,
+            external_surcharge_strategy: None,
+            external_surcharge_applicable: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());
@@ -483,7 +485,7 @@ pub async fn generate_sample_data(
                         .connector
                         .clone()
                         .unwrap_or(DummyConnector4.to_string()),
-                    evidence: None,
+                    evidence: hyperswitch_masking::Secret::new(serde_json::json!({})),
                     profile_id: payment_intent.profile_id.clone(),
                     merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                     dispute_amount: MinorUnit::new(amount * 100),
@@ -491,6 +493,8 @@ pub async fn generate_sample_data(
                     dispute_currency: Some(payment_intent.currency.unwrap_or_default()),
                     processor_merchant_id: None,
                     created_by: None,
+                    created_at: common_utils::date_time::now(),
+                    modified_at: common_utils::date_time::now(),
                 })
             } else {
                 None

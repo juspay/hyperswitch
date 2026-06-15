@@ -81,7 +81,7 @@ use crate::{
     configs::settings,
     core::{
         configs::dimension_state, payment_methods::transformers as pm_transforms,
-        tokenization as tokenization_core,
+        payment_methods::utils as payment_method_utils, tokenization as tokenization_core,
     },
     headers,
     routes::{self, payment_methods as pm_routes},
@@ -1673,18 +1673,26 @@ impl LockerOperations for GenericLocker {
     async fn retrieve_payment_method_from_locker(
         &self,
         state: &SessionState,
-        _platform: &domain::Platform,
+        platform: &domain::Platform,
         vault_id: &domain::VaultId,
         customer_id: &id_type::GlobalCustomerId,
         _payment_method_type: Option<enums::PaymentMethod>,
     ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
-        let payload = pm_types::VaultRetrieveRequest {
-            entity_id: customer_id.to_owned(),
-            vault_id: vault_id.to_owned(),
-        }
-        .encode_to_vec()
-        .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode VaultRetrieveRequest")?;
+        let should_trigger_fingerprint_migration =
+            payment_method_utils::get_should_trigger_fingerprint_migration(
+                state,
+                None,
+                platform.get_provider().get_provider_merchant_id(),
+            )
+            .await;
+
+        let payload = cards::encode_vault_retrieve_request(
+            should_trigger_fingerprint_migration,
+            platform.get_provider().get_account().get_id().clone(),
+            customer_id,
+            vault_id.get_string_repr(),
+        )
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
 
         let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
             .await
@@ -2122,7 +2130,7 @@ impl LockerOperations for LegacyLocker {
             .attach_printable("Card Reference not found")?;
 
         let add_vault_response = pm_types::AddVaultResponse {
-            entity_id: Some(customer_id.clone()),
+            entity_id: None,
             vault_id: domain::VaultId::generate(card_reference),
             fingerprint_id: None,
         };
@@ -2191,7 +2199,7 @@ impl LockerOperations for LegacyLocker {
                 .attach_printable("Failed to add payment method to legacy locker")?;
 
                 let add_vault_response = pm_types::AddVaultResponse {
-                    entity_id: Some(customer_id.clone()),
+                    entity_id: None,
                     vault_id: domain::VaultId::generate(legacy_locker_res.card_reference),
                     fingerprint_id: None,
                 };
@@ -2952,10 +2960,19 @@ pub async fn create_payment_method_proxy_card_core(
 
     let key_manager_state = &(state).into();
 
-    let external_vault_source = profile
-        .external_vault_connector_details
-        .clone()
-        .map(|details| details.vault_connector_id);
+    // A proxy card is, by definition, vaulted in an external vault, so the external vault
+    // connector must be configured on the profile. Fetch it from the profile and require it —
+    // otherwise the payment method would be persisted with a `None` external vault source.
+    let external_vault_source = Some(
+        profile
+            .external_vault_connector_details
+            .clone()
+            .map(|details| details.vault_connector_id)
+            .ok_or_else(|| report!(errors::ApiErrorResponse::InternalServerError))
+            .attach_printable(
+                "external_vault_connector_details must be configured on the profile to create a proxy card payment method",
+            )?,
+    );
 
     let bin_enriched_payment_method_data = req
         .payment_method_data
@@ -4470,6 +4487,7 @@ pub async fn vault_payment_method_external(
         None,
         None,
         None,
+        None,
     )
     .await?;
 
@@ -4624,6 +4642,7 @@ pub async fn vault_payment_method_external_v1(
         None,
         None,
         should_generate_multiple_tokens,
+        None,
     )
     .await?;
 
@@ -4835,7 +4854,7 @@ pub async fn vault_payment_method_in_volatile_storage(
 
     Ok((
         pm_types::AddVaultResponse {
-            entity_id: customer_id.clone(),
+            entity_id: None,
             vault_id,
             fingerprint_id: None,
         },
@@ -6104,7 +6123,11 @@ pub async fn payment_methods_session_create(
     .attach_printable("Failed to insert payment methods session in db")?;
 
     let external_vault_details = payments_core::vault_session::fetch_external_vault_details(
-        &state, &platform, &profile, &customer,
+        &state,
+        &platform,
+        &profile,
+        &customer,
+        payment_method_session_domain_model.storage_type,
     )
     .await
     .unwrap_or_else(|err| {
@@ -6117,7 +6140,12 @@ pub async fn payment_methods_session_create(
 
     let sdk_authorization = Option::<hyperswitch_domain_models::sdk_auth::SdkAuthorization>::from(
         hyperswitch_domain_models::sdk_auth::SdkAuthorizationContext {
-            platform,
+            publishable_key: platform
+                .get_processor()
+                .get_account()
+                .publishable_key
+                .clone(),
+            platform: platform.clone(),
             profile_id: profile.get_id().clone(),
             client_secret: client_secret.secret.clone().expose(),
             customer_id: payment_method_session_domain_model.customer_id.clone(),

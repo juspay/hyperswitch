@@ -56,10 +56,10 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
             }
             MerchantStorageScheme::RedisKv => {
                 let merchant_id = new_payout_attempt.merchant_id.clone();
-                let payout_attempt_id = new_payout_attempt.payout_id.clone();
-                let key = PartitionKey::MerchantIdPayoutAttemptId {
+                let payout_id = new_payout_attempt.payout_id.clone();
+                let key = PartitionKey::MerchantIdPayoutId {
                     merchant_id: &merchant_id,
-                    payout_attempt_id: payout_attempt_id.get_string_repr(),
+                    payout_id: &payout_id,
                 };
                 let key_str = key.to_string();
                 let created_attempt = PayoutAttempt {
@@ -155,9 +155,9 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
         payouts: &Payouts,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
-        let key = PartitionKey::MerchantIdPayoutAttemptId {
+        let key = PartitionKey::MerchantIdPayoutId {
             merchant_id: &this.merchant_id,
-            payout_attempt_id: this.payout_id.get_string_repr(),
+            payout_id: &this.payout_id,
         };
         let field = format!("poa_{}", this.payout_attempt_id);
         let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPayoutAttempt>(
@@ -304,6 +304,64 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                         self.router_store
                             .find_payout_attempt_by_merchant_id_payout_attempt_id(
                                 merchant_id,
+                                payout_attempt_id,
+                                storage_scheme,
+                            )
+                            .await
+                    },
+                ))
+                .await
+            }
+        }
+    }
+
+    #[instrument(skip_all)]
+    async fn find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payout_id: &common_utils::id_type::PayoutId,
+        payout_attempt_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPayoutAttempt>(
+            self,
+            storage_scheme,
+            Op::Find,
+        ))
+        .await;
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => {
+                self.router_store
+                    .find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
+                        merchant_id,
+                        payout_id,
+                        payout_attempt_id,
+                        storage_scheme,
+                    )
+                    .await
+            }
+            MerchantStorageScheme::RedisKv => {
+                let key = PartitionKey::MerchantIdPayoutId {
+                    merchant_id,
+                    payout_id,
+                };
+                // TODO: Move all key generation logic to a common function
+                let field = format!("poa_{}", payout_attempt_id);
+                Box::pin(utils::try_redis_get_else_try_database_get(
+                    async {
+                        Box::pin(kv_wrapper(
+                            self,
+                            KvOperation::<DieselPayoutAttempt>::HGet(&field),
+                            key,
+                        ))
+                        .await?
+                        .try_into_hget()
+                    },
+                    || async {
+                        self.router_store
+                            .find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
+                                merchant_id,
+                                payout_id,
                                 payout_attempt_id,
                                 storage_scheme,
                             )
@@ -468,6 +526,29 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
         DieselPayoutAttempt::find_by_merchant_id_payout_attempt_id(
             &conn,
             merchant_id,
+            payout_attempt_id,
+        )
+        .await
+        .map(PayoutAttempt::from_storage_model)
+        .map_err(|er| {
+            let new_err = diesel_error_to_data_error(*er.current_context());
+            er.change_context(new_err)
+        })
+    }
+
+    #[instrument(skip_all)]
+    async fn find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payout_id: &common_utils::id_type::PayoutId,
+        payout_attempt_id: &str,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PayoutAttempt, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        DieselPayoutAttempt::find_by_merchant_id_payout_id_payout_attempt_id(
+            &conn,
+            merchant_id,
+            payout_id,
             payout_attempt_id,
         )
         .await
