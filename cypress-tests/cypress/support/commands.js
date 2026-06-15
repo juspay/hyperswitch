@@ -635,15 +635,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "merchantKvEnableCallTest",
   (merchantKvEnableBody, globalState, options = {}) => {
-    const {
-      expectedMerchantAccountType = null,
-      expectedProductType = "orchestration",
-      expectedStatus = 200,
-      expectedErrorCode = null,
-      merchantIdStateKey = "merchantId",
-      profileIdStateKey = "profileId",
-      publishableKeyStateKey = "publishableKey",
-    } = options;
+    const { expectedStatus = 200, expectedErrorCode = null } = options;
 
     const merchant_id = globalState.get("merchantId");
 
