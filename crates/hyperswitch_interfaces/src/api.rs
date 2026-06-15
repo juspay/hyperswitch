@@ -461,6 +461,13 @@ pub trait ConnectorSpecifications {
     fn is_post_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
+    /// Check if pre-authenticate cancel flow is supported
+    fn is_pre_authorize_cancel_supported(
+        &self,
+        _payment_method_type: Option<PaymentMethodType>,
+    ) -> bool {
+        false
+    }
     /// Check if settlement split flow is required
     fn is_settlement_split_call_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false

@@ -570,6 +570,14 @@ export const payment_methods_enabled = [
         installment_payment_enabled: false,
       },
       {
+        payment_method_type: "kakao_pay",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
         payment_method_type: "ali_pay",
         payment_experience: "redirect_to_url",
         minimum_amount: 1,
@@ -578,7 +586,55 @@ export const payment_methods_enabled = [
         installment_payment_enabled: false,
       },
       {
+        payment_method_type: "gcash",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
         payment_method_type: "we_chat_pay",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "momo",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "twint",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "vipps",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "dana",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "go_pay",
         payment_experience: "redirect_to_url",
         minimum_amount: 1,
         maximum_amount: 68607706,
@@ -1622,6 +1678,7 @@ export const connectorDetails = {
       },
     }),
     SyncRefund: getCustomExchange({}),
+    SyncRefundScheduled: getCustomExchange({}),
   },
   real_time_payment_pm: {
     PaymentIntent: getCustomExchange({
@@ -2085,6 +2142,31 @@ export const connectorDetails = {
       },
     }),
     SyncRefund: getCustomExchange({}),
+    SyncRefundScheduled: getCustomExchange({}),
+    RefundInstant: getCustomExchange({
+      Request: {
+        amount: 6000,
+        refund_type: "instant",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    RefundScheduled: getCustomExchange({
+      Request: {
+        amount: 6000,
+        refund_type: "scheduled",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    }),
     PartialAuth: getCustomExchange({
       Request: {
         enable_partial_authorization: true,
@@ -3300,6 +3382,27 @@ export const connectorDetails = {
           error: {
             error_type: "invalid_request",
             code: "IR_06",
+          },
+        },
+      },
+    }),
+    ClientSessionInvalidConfirm: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 401,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "API key not provided or invalid API key used",
+            code: "IR_01",
           },
         },
       },
