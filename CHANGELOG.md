@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.25.0-hotfix9
+
+### Features
+
+- **connector:** [Peachpayments] Add 3DS Passthrough Flow ([#12741](https://github.com/juspay/hyperswitch/pull/12741)) ([`423f8f3`](https://github.com/juspay/hyperswitch/commit/423f8f39fd4ece15fc834575299ac89cfd0e1322))
+- **platform:** Enable profile_acquirer and relay for platform ([#11973](https://github.com/juspay/hyperswitch/pull/11973)) ([#12696](https://github.com/juspay/hyperswitch/pull/12696)) ([`28cf6ed`](https://github.com/juspay/hyperswitch/commit/28cf6ede5403f492cbc7ddbe82031546b2c4b177))
+- **superposition:**
+  - Migrate object configs to superposition ([#12646](https://github.com/juspay/hyperswitch/pull/12646)) ([`ec9c58b`](https://github.com/juspay/hyperswitch/commit/ec9c58b5578d0c5f1cb70bcc657adc433ac780a4))
+  - Add db fallback for pt configs ([#12736](https://github.com/juspay/hyperswitch/pull/12736)) ([`c45b78f`](https://github.com/juspay/hyperswitch/commit/c45b78fd36c7d93f29afb3be55ddb168fcaff3ba))
+
+**Full Changelog:** [`2026.05.25.0-hotfix8...2026.05.25.0-hotfix9`](https://github.com/juspay/hyperswitch/compare/2026.05.25.0-hotfix8...2026.05.25.0-hotfix9)
+
+- - -
+
 ## 2026.05.25.0-hotfix8
 
 ### Bug Fixes
