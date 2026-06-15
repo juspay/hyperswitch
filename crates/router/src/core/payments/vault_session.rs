@@ -582,12 +582,8 @@ pub async fn fetch_external_vault_details(
 
     let merchant_connector_account =
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
-            helpers::get_provider_mca_v2(
-                state,
-                platform.get_provider(),
-                external_vault_source,
-            )
-            .await?,
+            helpers::get_provider_mca_v2(state, platform.get_provider(), external_vault_source)
+                .await?,
         ));
 
     // Connector-customer creation is optional. For the guest flow (no customer) we skip it
