@@ -690,7 +690,7 @@ mod storage {
                     if let Some(connector_refund_id) = &created_refund.connector_refund_id {
                         let lookup_id = diesel_refund::Refund::construct_lookup_id_processor_merchant_id_connector_refund_id_connector(
                             &created_refund.merchant_id,
-                            &connector_refund_id.get_id(),
+                            connector_refund_id.get_id(),
                             &created_refund.connector
                         );
                         reverse_lookups.push(storage_types::ReverseLookupNew {
@@ -889,7 +889,7 @@ mod storage {
                             // No connector_refund_id existed before
                             let lookup_id = diesel_refund::Refund::construct_lookup_id_processor_merchant_id_connector_refund_id_connector(
                                 &updated_refund.merchant_id,
-                                &new_connector_refund_id.get_id(),
+                                new_connector_refund_id.get_id(),
                                 &updated_refund.connector
                             );
                             let reverse_lookup = storage_types::ReverseLookupNew {
@@ -908,7 +908,7 @@ mod storage {
                             // connector_refund_id existed before but it is being updated in this update call
                             let lookup_id = diesel_refund::Refund::construct_lookup_id_processor_merchant_id_connector_refund_id_connector(
                                 &updated_refund.merchant_id,
-                                &new_connector_refund_id.get_id(),
+                                new_connector_refund_id.get_id(),
                                 &updated_refund.connector
                             );
                             let reverse_lookup = storage_types::ReverseLookupNew {
