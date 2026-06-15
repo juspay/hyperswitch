@@ -1854,29 +1854,6 @@ impl Tokenization {
     }
 }
 
-// #[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
-// pub struct Recon;
-
-// #[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
-// impl Recon {
-//     pub fn server(state: AppState) -> Scope {
-//         web::scope("/recon")
-//             .app_data(web::Data::new(state))
-//             .service(
-//                 web::resource("/{merchant_id}/update")
-//                     .route(web::post().to(recon_routes::update_merchant)),
-//             )
-//             .service(web::resource("/token").route(web::get().to(recon_routes::get_recon_token)))
-//             .service(
-//                 web::resource("/request").route(web::post().to(recon_routes::request_for_recon)),
-//             )
-//             .service(
-//                 web::resource("/verify_token")
-//                     .route(web::get().to(recon_routes::verify_recon_token)),
-//             )
-//     }
-// }
-
 #[cfg(feature = "olap")]
 pub struct Hypersense;
 
