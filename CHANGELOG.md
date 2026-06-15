@@ -4,6 +4,51 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.15.0
+
+### Features
+
+- **authentication:** Add Oss calling SaaS functionality for modular authentication ([#12690](https://github.com/juspay/hyperswitch/pull/12690)) ([`95a3617`](https://github.com/juspay/hyperswitch/commit/95a3617a06e6d75609ff7bda5f1fbce2a61ffb6d))
+- **core/connector:** [SANTANDER] Add PreAuthorizeVoid Flow for Payments Cancel API ([#12436](https://github.com/juspay/hyperswitch/pull/12436)) ([`c2757ea`](https://github.com/juspay/hyperswitch/commit/c2757eadeeb0f87c772d11324fc58f13b6f2c4ec))
+- **kv:** Add Redis KV support for captures table ([#12630](https://github.com/juspay/hyperswitch/pull/12630)) ([`392809c`](https://github.com/juspay/hyperswitch/commit/392809c7a325fcc82208da723cb061199a7e0cfa))
+- **vault:** Add runtime flag for entity_id and fingerprint data and refactor FingerprintWalletData and FingerprintBankDebitData ([#12554](https://github.com/juspay/hyperswitch/pull/12554)) ([`7aa380f`](https://github.com/juspay/hyperswitch/commit/7aa380fed08731ff41fafc5fb600a0d639a988ba))
+
+### Bug Fixes
+
+- **connector:** [checkout] populate network_txn_link_id from payments response ([#12738](https://github.com/juspay/hyperswitch/pull/12738)) ([`e6fcccc`](https://github.com/juspay/hyperswitch/commit/e6fcccc095687ec62ed89c7f2516215bad7502e2))
+- **payments:** Resolve payment_token to payment_method_id in modular service fetch ([#12655](https://github.com/juspay/hyperswitch/pull/12655)) ([`cdba3c1`](https://github.com/juspay/hyperswitch/commit/cdba3c16e93f22f657e791fb865f88a4e4c550c3))
+- **unified_connector_service:** Populate connector_response in payment capture readback ([#12693](https://github.com/juspay/hyperswitch/pull/12693)) ([`5e9358e`](https://github.com/juspay/hyperswitch/commit/5e9358e7b69edabeed3a07a73a7db1c695bb6379))
+
+### Testing
+
+- Add Client Session Validation Cypress tests ([#12465](https://github.com/juspay/hyperswitch/pull/12465)) ([`58098a2`](https://github.com/juspay/hyperswitch/commit/58098a225006e4142171029894485657eaea4481))
+
+### Documentation
+
+- **api-reference:** Mark additional payments and payout fields as deprecated ([#12682](https://github.com/juspay/hyperswitch/pull/12682)) ([`a4617d8`](https://github.com/juspay/hyperswitch/commit/a4617d83935e943eadd30d9644910eb83e03ba5f))
+
+**Full Changelog:** [`2026.06.12.0...2026.06.15.0`](https://github.com/juspay/hyperswitch/compare/2026.06.12.0...2026.06.15.0)
+
+- - -
+
+## 2026.06.12.0
+
+### Features
+
+- **analytics:** Enable analytics APIs for platform merchants ([#12718](https://github.com/juspay/hyperswitch/pull/12718)) ([`74fce09`](https://github.com/juspay/hyperswitch/commit/74fce09ba0349a3fce2daec86c0895e91a3629db))
+- **core:** Added eligible connector and payment_method as a part of sdk configs api ([#12667](https://github.com/juspay/hyperswitch/pull/12667)) ([`7525026`](https://github.com/juspay/hyperswitch/commit/7525026e448f9d79d95ab6a3e05082a845affc49))
+- **redis_interface:** Redis metrics addition ([#12656](https://github.com/juspay/hyperswitch/pull/12656)) ([`8761391`](https://github.com/juspay/hyperswitch/commit/87613910a0e9309d0131711e8e382012897a2656))
+
+### Bug Fixes
+
+- **connector:**
+  - [Peachpayments] Add 5xx Error Response Structure ([#12706](https://github.com/juspay/hyperswitch/pull/12706)) ([`c1ff3db`](https://github.com/juspay/hyperswitch/commit/c1ff3db1b8965256de40f841dad50e2c33359fb9))
+  - [payload] remove billing descriptor, description and attributes for ACH setup mandate flow ([#12704](https://github.com/juspay/hyperswitch/pull/12704)) ([`e1afcbf`](https://github.com/juspay/hyperswitch/commit/e1afcbfd237244e10d5ce0b184559bc9e7d90993))
+
+**Full Changelog:** [`2026.06.11.1...2026.06.12.0`](https://github.com/juspay/hyperswitch/compare/2026.06.11.1...2026.06.12.0)
+
+- - -
+
 ## 2026.06.11.1
 
 ### Testing

@@ -1268,11 +1268,24 @@ pub async fn save_in_locker_internal(
     domain::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
 )> {
+    let db = &state.store;
     payment_method_request.validate()?;
     let customer_id = payment_method_request
         .customer_id
         .clone()
         .get_required_value("customer_id")?;
+
+    let customer_obj = db
+        .find_customer_by_customer_id_merchant_id(
+            &customer_id,
+            provider.get_account().get_id(),
+            provider.get_key_store(),
+            provider.get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::CustomerNotFound)
+        .attach_printable("Customer not found in db")?;
+
     match (
         payment_method_request.card.clone(),
         card_detail,
@@ -1301,6 +1314,7 @@ pub async fn save_in_locker_internal(
             bank_debit_create_data,
             provider.get_key_store(),
             &customer_id,
+            customer_obj.get_global_customer_id().clone(),
         ))
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1314,6 +1328,7 @@ pub async fn save_in_locker_internal(
             wallet_create_data,
             provider.get_key_store(),
             &customer_id,
+            customer_obj.get_global_customer_id().clone(),
         ))
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

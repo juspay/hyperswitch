@@ -33,9 +33,8 @@ pub struct VaultFingerprintRequest {
     pub key: hyperswitch_domain_models::vault::V1VaultEntityId,
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct VaultFingerprintRequest {
+pub struct VaultFingerprintRequestNew {
     pub data: String,
     pub key: String,
 }
@@ -55,8 +54,8 @@ pub struct AddVaultRequest<D> {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct AddCompatVaultRequest<D> {
-    pub entity_id: id_type::CustomerId,
+pub struct AddVaultRequestNew<D> {
+    pub entity_id: id_type::MerchantId,
     pub vault_id: domain::VaultId,
     pub data: D,
     pub ttl: i64,
@@ -74,7 +73,7 @@ pub struct AddVaultRequest<D> {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultResponse {
     #[cfg(feature = "v2")]
-    pub entity_id: Option<id_type::GlobalCustomerId>,
+    pub entity_id: Option<String>,
     #[cfg(feature = "v1")]
     pub entity_id: Option<id_type::CustomerId>,
     #[cfg(feature = "v2")]
@@ -88,6 +87,14 @@ pub struct AddVaultResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct InternalAddVaultResponse {
     pub entity_id: Option<hyperswitch_domain_models::vault::V1VaultEntityId>,
+    pub vault_id: domain::VaultId,
+    pub fingerprint_id: Option<String>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct InternalAddVaultResponseNew {
+    pub entity_id: Option<id_type::MerchantId>,
     pub vault_id: domain::VaultId,
     pub fingerprint_id: Option<String>,
 }
@@ -160,16 +167,16 @@ pub struct VaultRetrieveRequest {
     pub vault_id: domain::VaultId,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VaultRetrieveRequestNew {
+    pub entity_id: id_type::MerchantId,
+    pub vault_id: domain::VaultId,
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultRetrieveRequest {
     pub entity_id: id_type::GlobalCustomerId,
-    pub vault_id: domain::VaultId,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct GenericVaultRetrieveRequest {
-    pub entity_id: id_type::CustomerId,
     pub vault_id: domain::VaultId,
 }
 
