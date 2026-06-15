@@ -2,15 +2,13 @@ use std::{borrow::Cow, str::FromStr, time::Instant};
 
 use actix_web::ResponseError;
 use api_models::admin;
-#[cfg(feature = "v2")]
 use base64::Engine;
 use common_enums::{
     connector_enums::Connector, AttemptStatus, CallConnectorAction, ConnectorIntegrationType,
     ExecutionMode, ExecutionPath, GatewaySystem, PaymentMethodType, UcsAvailability,
 };
-#[cfg(feature = "v2")]
-use common_utils::consts::BASE64_ENGINE;
 use common_utils::{
+    consts::BASE64_ENGINE,
     errors::{CustomResult, ErrorSwitch},
     ext_traits::ValueExt,
     id_type,
@@ -25,10 +23,9 @@ use external_services::grpc_client::{
 };
 use hyperswitch_connectors::utils::CardData;
 #[cfg(feature = "v2")]
-use hyperswitch_domain_models::merchant_connector_account::{
-    ExternalVaultConnectorMetadata, MerchantConnectorAccountTypeDetails,
-};
+use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails;
 use hyperswitch_domain_models::{
+    merchant_connector_account::ExternalVaultConnectorMetadata,
     platform::Processor,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::refunds,
@@ -43,8 +40,6 @@ use unified_connector_service_client::payments::{
     CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse,
 };
 
-#[cfg(feature = "v2")]
-use crate::types::api::enums as api_enums;
 use crate::{
     consts,
     core::{
@@ -61,9 +56,10 @@ use crate::{
     events::connector_api_logs::ConnectorEvent,
     routes::SessionState,
     types::{
+        api::enums as api_enums,
         transformers::{ForeignFrom, ForeignTryFrom},
-        UcsPaymentAuthorizeResponseData, UcsPaymentSetupRecurringResponseData,
-        UcsRecurringPaymentChargeResponseData,
+        UcsPaymentAuthorizeResponseData, UcsPaymentCaptureResponseData,
+        UcsPaymentSetupRecurringResponseData, UcsRecurringPaymentChargeResponseData,
     },
 };
 
@@ -1435,6 +1431,13 @@ pub fn build_unified_connector_service_payment_method(
                         })),
                     })
                 }
+                hyperswitch_domain_models::payment_method_data::WalletData::GcashRedirect(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::GcashRedirect(
+                            payments_grpc::GcashRedirectWallet {},
+                        )),
+                    })
+                }
                 _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                     "Unimplemented payment method subtype: {payment_method_type:?}"
                 ))
@@ -1866,6 +1869,107 @@ pub fn parse_merchant_payout_reference_id(id: &str) -> Option<id_type::PayoutRef
         .ok()
 }
 
+#[cfg(feature = "v1")]
+pub fn build_unified_connector_service_external_vault_proxy_metadata_v1(
+    external_vault_merchant_connector_account: MerchantConnectorAccountType,
+    connectors: &hyperswitch_domain_models::connector_endpoints::Connectors,
+) -> CustomResult<String, UnifiedConnectorServiceError> {
+    let connector_name = external_vault_merchant_connector_account
+        .get_connector_name()
+        .ok_or(UnifiedConnectorServiceError::InvalidConnectorName)
+        .attach_printable("Connector name not found in MerchantConnectorAccountType")?;
+
+    let external_vault_connector = api_enums::VaultConnectors::try_from(connector_name.clone())
+        .map_err(|err| {
+            error_stack::report!(UnifiedConnectorServiceError::InvalidConnectorName)
+                .attach_printable(format!("Failed to parse Vault connector: {err}"))
+        })?;
+
+    let external_vault_proxy_config = match external_vault_connector {
+        api_enums::VaultConnectors::Vgs => {
+            let external_vault_metadata = external_vault_merchant_connector_account
+                .get_metadata()
+                .ok_or(UnifiedConnectorServiceError::ParsingFailed)
+                .attach_printable("Metadata is required for VGS vault connector")?;
+
+            let external_vault_metadata_parsed: ExternalVaultConnectorMetadata =
+                external_vault_metadata
+                    .expose()
+                    .parse_value("ExternalVaultConnectorMetadata")
+                    .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                    .attach_printable("Failed to parse external vault connector metadata")?;
+
+            external_services::grpc_client::unified_connector_service::ExternalVaultProxyConfig {
+                vault_connector_type:
+                    external_services::grpc_client::unified_connector_service::VaultConnectorType::Proxy,
+                vault_connector_id: Some("vgs".to_string()),
+                metadata: external_services::grpc_client::unified_connector_service::ExternalVaultProxyMetadata::VgsMetadata(
+                    external_services::grpc_client::unified_connector_service::VgsMetadata {
+                        proxy_url: external_vault_metadata_parsed.proxy_url,
+                        certificate: external_vault_metadata_parsed.certificate,
+                    },
+                ),
+            }
+        }
+        api_enums::VaultConnectors::HyperswitchVault => {
+            let base = &connectors.hyperswitch_vault.base_url;
+            let vault_endpoint_url = format!("{}/proxy", base)
+                .parse::<url::Url>()
+                .map(common_utils::types::Url::wrap)
+                .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                .attach_printable("Failed to parse hyperswitch_vault endpoint URL")?;
+
+            let auth_type: ConnectorAuthType = external_vault_merchant_connector_account
+                .get_connector_account_details()
+                .parse_value("ConnectorAuthType")
+                .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
+                .attach_printable("Failed to obtain ConnectorAuthType for HyperswitchVault")?;
+
+            let (api_key, profile_id) = match &auth_type {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    api_secret,
+                    ..
+                } => (api_key.clone(), api_secret.clone()),
+                _ => {
+                    return Err(error_stack::report!(
+                        UnifiedConnectorServiceError::FailedToObtainAuthType
+                    )
+                    .attach_printable("HyperswitchVault requires SignatureKey auth type"))
+                }
+            };
+
+            external_services::grpc_client::unified_connector_service::ExternalVaultProxyConfig {
+                vault_connector_type:
+                    external_services::grpc_client::unified_connector_service::VaultConnectorType::Transformation,
+                vault_connector_id: Some("hyperswitch_vault".to_string()),
+                metadata: external_services::grpc_client::unified_connector_service::ExternalVaultProxyMetadata::HyperswitchVaultMetadata(
+                    external_services::grpc_client::unified_connector_service::HyperswitchVaultMetadata {
+                        vault_endpoint: vault_endpoint_url,
+                        vault_auth_data: external_services::grpc_client::unified_connector_service::VaultConnectorAuth {
+                            api_key,
+                            profile_id,
+                        },
+                    },
+                ),
+            }
+        }
+        api_enums::VaultConnectors::Tokenex => Err(error_stack::report!(
+            UnifiedConnectorServiceError::NotImplemented(
+                "External vault proxy metadata is not supported for Tokenex".to_string(),
+            )
+        ))?,
+    };
+
+    logger::info!(external_vault_proxy_config = ?external_vault_proxy_config, "Built ExternalVaultProxyConfig (v1)");
+
+    let external_vault_config_bytes = serde_json::to_vec(&external_vault_proxy_config)
+        .change_context(UnifiedConnectorServiceError::ParsingFailed)
+        .attach_printable("Failed to serialize ExternalVaultProxyConfig to bytes")?;
+
+    Ok(BASE64_ENGINE.encode(&external_vault_config_bytes))
+}
+
 #[cfg(feature = "v2")]
 pub fn build_unified_connector_service_external_vault_proxy_metadata(
     external_vault_merchant_connector_account: MerchantConnectorAccountTypeDetails,
@@ -1907,7 +2011,7 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
         }
         api_enums::VaultConnectors::HyperswitchVault => {
             let base = &connectors.hyperswitch_vault.base_url;
-            let vault_endpoint_url = format!("{}/v2/proxy", base)
+            let vault_endpoint_url = format!("{}/proxy", base)
                 .parse::<url::Url>()
                 .map(common_utils::types::Url::wrap)
                 .change_context(UnifiedConnectorServiceError::ParsingFailed)
@@ -1953,6 +2057,8 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
             )
         ))?,
     };
+
+    logger::info!(external_vault_proxy_config = ?external_vault_proxy_config, "Built ExternalVaultProxyConfig (v2)");
 
     let external_vault_config_bytes = serde_json::to_vec(&external_vault_proxy_config)
         .change_context(UnifiedConnectorServiceError::ParsingFailed)
@@ -2097,16 +2203,23 @@ pub fn handle_unified_connector_service_response_for_payment_pre_authenticate(
 pub fn handle_unified_connector_service_response_for_payment_capture(
     response: payments_grpc::PaymentServiceCaptureResponse,
     prev_status: AttemptStatus,
-) -> UnifiedConnectorServiceResult {
+) -> CustomResult<UcsPaymentCaptureResponseData, UnifiedConnectorServiceError> {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
         Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
-            response,
+            response.clone(),
             prev_status,
         ))?;
 
-    Ok((router_data_response, status_code))
+    let connector_response =
+        extract_connector_response_from_ucs(response.connector_response.as_ref());
+
+    Ok(UcsPaymentCaptureResponseData {
+        router_data_response,
+        status_code,
+        connector_response,
+    })
 }
 
 pub fn handle_unified_connector_service_response_for_payment_setup_recurring(
@@ -3129,4 +3242,90 @@ pub async fn call_unified_connector_service_for_refund_sync(
     ))
     .await
     .map(|(router_data, _flow_response)| router_data)
+}
+
+/// Execute a surcharge calculation call via UCS SurchargeService.Calculate.
+///
+/// This is a lightweight helper — it does not go through the full RouterData
+/// machinery. It is called from `payments_submit_eligibility` after eligibility
+/// checks pass.
+#[cfg(all(feature = "oltp", feature = "v1"))]
+#[instrument(skip_all, fields(connector_name))]
+pub async fn call_unified_connector_service_for_surcharge_calculate(
+    state: &SessionState,
+    processor: &Processor,
+    #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
+    payments_surcharge_calculate_data: hyperswitch_domain_models::router_request_types::PaymentsSurchargeCalculationData,
+    payment_id: &id_type::PaymentId,
+    profile_id: &id_type::ProfileId,
+    connector_name: String,
+) -> RouterResult<hyperswitch_domain_models::router_response_types::SurchargeCalculationResponseData>
+{
+    let ucs_client = get_ucs_client(state)?;
+
+    let connector_auth_metadata = build_unified_connector_service_auth_metadata(
+        merchant_connector_account,
+        processor,
+        connector_name.clone(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to build UCS auth metadata for surcharge calculate")?;
+
+    // Build the gRPC request directly
+    let amount = payments_grpc::Money {
+        minor_amount: payments_surcharge_calculate_data.amount.get_amount_as_i64(),
+        currency: payments_grpc::Currency::foreign_try_from(
+            payments_surcharge_calculate_data.currency,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to convert currency for surcharge gRPC request")?
+        .into(),
+    };
+    let surcharge_request = payments_grpc::SurchargeServiceCalculateRequest {
+        merchant_surcharge_id: Some(payment_id.get_string_repr().to_owned()),
+        amount: Some(amount),
+        card_bin: payments_surcharge_calculate_data.card_iin.clone(),
+        postal_code: payments_surcharge_calculate_data.postal_code.clone(),
+        previous_connector_surcharge_id: payments_surcharge_calculate_data
+            .previous_connector_surcharge_id
+            .clone(),
+        country: payments_surcharge_calculate_data
+            .country
+            .as_ref()
+            .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+            .map(|c| c.into()),
+        surcharge_strategy: payments_surcharge_calculate_data
+            .external_surcharge_strategy
+            .as_ref()
+            .map(|s| payments_grpc::SurchargeStrategy::foreign_from(*s).into()),
+    };
+
+    // Build gRPC headers
+    let lineage_ids = LineageIds::new(processor.get_account().get_id().clone(), profile_id.clone());
+    let merchant_reference_id = id_type::PaymentReferenceId::from_str(payment_id.get_string_repr())
+        .inspect_err(
+            |err| logger::warn!(error=?err, "Invalid PaymentId for surcharge UCS reference id"),
+        )
+        .ok()
+        .map(ucs_types::UcsReferenceId::Payment);
+
+    let grpc_header_builder = state
+        .get_grpc_headers_ucs(ExecutionMode::Primary)
+        .lineage_ids(lineage_ids)
+        .external_vault_proxy_metadata(None)
+        .merchant_reference_id(merchant_reference_id)
+        .resource_id(None);
+    let grpc_headers = grpc_header_builder.build();
+
+    let response = ucs_client
+        .surcharge_calculate(surcharge_request, connector_auth_metadata, grpc_headers)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("UCS surcharge_calculate gRPC call failed")?;
+
+    hyperswitch_domain_models::router_response_types::SurchargeCalculationResponseData::foreign_try_from(
+        response.into_inner(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to parse UCS surcharge calculate response")
 }
