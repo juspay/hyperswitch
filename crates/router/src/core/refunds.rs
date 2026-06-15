@@ -2061,10 +2061,8 @@ pub async fn sync_refund_with_gateway_workflow(
 
                 let refund_update = diesel_refund::RefundUpdate::ErrorUpdate {
                     refund_status: Some(enums::RefundStatus::Failure),
-                    refund_error_message: Some(
-                        "All retry attempts exhausted for refund sync".to_string(),
-                    ),
-                    refund_error_code: Some("RETRIES_EXHAUSTED".to_string()),
+                    refund_error_message: Some(consts::RETRY_EXHAUSTED_ERROR_MESSAGE.to_string()),
+                    refund_error_code: Some(consts::RETRY_EXHAUSTED_ERROR_CODE.to_string()),
                     updated_by: refund.updated_by.clone(),
                     connector_refund_id: refund.connector_refund_id.clone(),
                     processor_refund_data: refund.processor_refund_data.clone(),
