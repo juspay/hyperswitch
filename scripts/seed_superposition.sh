@@ -17,7 +17,8 @@ echo "Workspace: $WORKSPACE_ID, Org: $ORG_ID"
 # Wait for superposition to be ready
 echo "Waiting for Superposition to be ready..."
 READY=0
-for ((i=1; i<=MAX_RETRIES; i++)); do
+i=1
+while [ "$i" -le "$MAX_RETRIES" ]; do
     if curl -sS -o /dev/null "$SUPERPOSITION_URL/health"; then
         echo "Superposition is ready!"
         READY=1
@@ -25,6 +26,7 @@ for ((i=1; i<=MAX_RETRIES; i++)); do
     fi
     echo "Waiting for Superposition... ($i/$MAX_RETRIES)"
     sleep "$RETRY_INTERVAL"
+    i=$((i + 1))
 done
 
 if [ "$READY" -ne 1 ]; then
