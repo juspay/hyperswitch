@@ -2,9 +2,13 @@
 
 use serde::Serialize;
 
-/// Represents a completed call to an external service.
+/// Represents an attempted call to an external service.
 #[derive(Debug, Clone, Serialize)]
 pub struct ExternalServiceCall {
+    /// Tenant ID associated with the service call
+    pub tenant_id: String,
+    /// Global tenant ID associated with the service call
+    pub global_tenant_id: String,
     /// Name of the external service (e.g., "keymanager", "database", "redis")
     pub service_name: String,
     /// The endpoint or resource accessed (e.g., "key/create", table name, cache key)
@@ -17,6 +21,10 @@ pub struct ExternalServiceCall {
     pub status_code: u16,
     /// Whether the call was successful
     pub success: bool,
+    /// Machine-readable error category when the call failed
+    pub error_type: Option<String>,
+    /// Human-readable error message when the call failed
+    pub error_message: Option<String>,
     /// Latency in milliseconds
     pub latency_ms: u128,
     /// Timestamp when the call completed (nanoseconds since Unix epoch)

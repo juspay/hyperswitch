@@ -28,6 +28,44 @@ static DEFAULT_ENCRYPTION_VERSION: &str = "v1";
 #[cfg(feature = "km_forward_x_request_id")]
 const X_REQUEST_ID: &str = "X-Request-Id";
 
+struct KeyManagerExternalServiceEvent<'a> {
+    endpoint: &'a str,
+    method: String,
+    status_code: u16,
+    success: bool,
+    error_type: Option<String>,
+    error_message: Option<String>,
+    latency_ms: u128,
+}
+
+fn emit_keymanager_external_service_call(
+    state: &KeyManagerState,
+    event: KeyManagerExternalServiceEvent<'_>,
+) {
+    let created_at_timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos();
+
+    if state.request_id.is_none() {
+        logger::warn!("KeyManager call made without request_id");
+    }
+
+    state
+        .event_emitter
+        .emit_external_service_call(ExternalServiceCall {
+            tenant_id: state.tenant_id.get_string_repr().to_string(),
+            global_tenant_id: state.global_tenant_id.get_string_repr().to_string(),
+            service_name: "keymanager".to_string(),
+            endpoint: event.endpoint.to_string(),
+            method: event.method,
+            request_id: state.request_id.clone().unwrap_or_default(),
+            status_code: event.status_code,
+            success: event.success,
+            error_type: event.error_type,
+            error_message: event.error_message,
+            latency_ms: event.latency_ms,
+            created_at_timestamp,
+        });
+}
+
 /// Get keymanager client constructed from the url and state
 #[instrument(skip_all)]
 #[allow(unused_mut)]
@@ -86,35 +124,73 @@ where
     let method_str = method.to_string();
     let start_time = std::time::Instant::now();
 
-    let response = client
+    let request_body = match ConvertRaw::convert_raw(request_body) {
+        Ok(request_body) => request_body,
+        Err(error) => {
+            let latency_ms = start_time.elapsed().as_millis();
+            emit_keymanager_external_service_call(
+                state,
+                KeyManagerExternalServiceEvent {
+                    endpoint,
+                    method: method_str,
+                    status_code: 0,
+                    success: false,
+                    error_type: Some("request_encoding_failed".to_string()),
+                    error_message: Some(format!("{error:?}")),
+                    latency_ms,
+                },
+            );
+            return Err(error.into());
+        }
+    };
+
+    let response = match client
         .request(method, url)
-        .json(&ConvertRaw::convert_raw(request_body)?)
+        .json(&request_body)
         .headers(headers)
         .send()
         .await
-        .change_context(errors::KeyManagerClientError::RequestNotSent(
-            "Unable to send request to encryption service".to_string(),
-        ))?;
+    {
+        Ok(response) => response,
+        Err(error) => {
+            let latency_ms = start_time.elapsed().as_millis();
+            emit_keymanager_external_service_call(
+                state,
+                KeyManagerExternalServiceEvent {
+                    endpoint,
+                    method: method_str,
+                    status_code: 0,
+                    success: false,
+                    error_type: Some("request_not_sent".to_string()),
+                    error_message: Some(error.to_string()),
+                    latency_ms,
+                },
+            );
+            return Err(error).change_context(errors::KeyManagerClientError::RequestNotSent(
+                "Unable to send request to encryption service".to_string(),
+            ));
+        }
+    };
 
     let latency_ms = start_time.elapsed().as_millis();
-    let created_at_timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos();
-
-    if let Some(request_id) = &state.request_id {
-        state
-            .event_emitter
-            .emit_external_service_call(ExternalServiceCall {
-                service_name: "keymanager".to_string(),
-                endpoint: endpoint.to_string(),
-                method: method_str,
-                request_id: request_id.clone(),
-                status_code: response.status().as_u16(),
-                success: response.status().is_success(),
-                latency_ms,
-                created_at_timestamp,
-            });
-    } else {
-        logger::warn!("KeyManager call made without emitting event: request_id missing");
-    }
+    let status = response.status();
+    emit_keymanager_external_service_call(
+        state,
+        KeyManagerExternalServiceEvent {
+            endpoint,
+            method: method_str,
+            status_code: status.as_u16(),
+            success: status.is_success(),
+            error_type: (!status.is_success()).then(|| "http_error_status".to_string()),
+            error_message: (!status.is_success()).then(|| {
+                status
+                    .canonical_reason()
+                    .unwrap_or("KeyManager returned an unsuccessful response")
+                    .to_string()
+            }),
+            latency_ms,
+        },
+    );
 
     Ok(response)
 }
