@@ -120,7 +120,7 @@ services:
 
   ### Application services
   hyperswitch-server:
-    image: docker.juspay.io/juspaydotin/hyperswitch-router:standalone
+    image: docker.juspay.io/juspaydotin/hyperswitch-router:nightly-standalone
     pull_policy: always
     command: /local/bin/router -f /local/config/docker_compose.toml
     ports:
