@@ -89,7 +89,6 @@ impl api::RefundExecute for Deutschebank {}
 impl api::RefundSync for Deutschebank {}
 impl api::PaymentToken for Deutschebank {}
 
-
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Deutschebank
 {
