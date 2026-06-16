@@ -2406,6 +2406,24 @@ payment_method_type = "CartesBancaires"
 payment_method_type = "UnionPay"
 [[dlocal.voucher]]
   payment_method_type = "oxxo"
+[[dlocal.voucher]]
+  payment_method_type = "boleto"
+[[dlocal.voucher]]
+  payment_method_type = "efecty"
+[[dlocal.voucher]]
+  payment_method_type = "pago_efectivo"
+[[dlocal.voucher]]
+  payment_method_type = "red_pagos"
+[[dlocal.voucher]]
+  payment_method_type = "indomaret"
+[[dlocal.wallet]]
+  payment_method_type = "gcash"
+[[dlocal.wallet]]
+  payment_method_type = "dana"
+[[dlocal.bank_transfer]]
+  payment_method_type = "pix"
+[[dlocal.bank_transfer]]
+  payment_method_type = "pse"
 [dlocal.connector_auth.SignatureKey]
 api_key = "X Login"
 key1 = "X Trans Key"
@@ -7184,6 +7202,8 @@ type="Text"
 [worldpayxml_payout]
 [[worldpayxml_payout.wallet]]
   payment_method_type = "apple_pay"
+[[worldpayxml_payout.wallet]]
+  payment_method_type = "google_pay"
 [[worldpayxml_payout.credit]]
   payment_method_type = "Visa"
 [[worldpayxml_payout.debit]]

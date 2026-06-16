@@ -151,6 +151,7 @@ impl ApiEventMetric for PaymentsCancelPostCaptureRequest {
         })
     }
 }
+
 #[cfg(feature = "v1")]
 impl ApiEventMetric for PaymentsExtendAuthorizationRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {

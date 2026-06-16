@@ -81,7 +81,7 @@ use crate::{
     configs::settings,
     core::{
         configs::dimension_state, payment_methods::transformers as pm_transforms,
-        tokenization as tokenization_core,
+        payment_methods::utils as payment_method_utils, tokenization as tokenization_core,
     },
     headers,
     routes::{self, payment_methods as pm_routes},
@@ -1032,169 +1032,201 @@ pub(crate) async fn get_payment_method_create_request(
     customer_id: &Option<id_type::CustomerId>,
     billing_name: Option<Secret<String>>,
     payment_method_billing_address: Option<&hyperswitch_domain_models::address::Address>,
-    payment_method_token: Option<hyperswitch_domain_models::router_data::PaymentMethodToken>,
 ) -> RouterResult<payment_methods::PaymentMethodCreate> {
-    match (payment_method_data, payment_method_token) {
-        (
-            _,
-            Some(hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
-                apple_pay_decrypted_data,
-            )),
-        ) => {
-            let payment_method_data = Some(payment_methods::PaymentMethodCreateData::Wallet(
-                payment_methods::WalletDetail::ApplePayDecryptedData {
-                    application_primary_account_number: apple_pay_decrypted_data
-                        .application_primary_account_number,
-                    expiry_month: apple_pay_decrypted_data.application_expiration_month,
-                    expiry_year: apple_pay_decrypted_data.application_expiration_year,
-                },
-            ));
-            let payment_method_request = payment_methods::PaymentMethodCreate {
-                payment_method,
-                payment_method_type,
-                payment_method_issuer: None,
-                payment_method_issuer_code: None,
-                #[cfg(feature = "payouts")]
-                bank_transfer: None,
-                #[cfg(feature = "payouts")]
-                bank_transfer_data: None,
-                #[cfg(feature = "payouts")]
-                wallet: None,
-                card: None,
-                metadata: None,
-                customer_id: customer_id.clone(),
-                card_network: None,
-                client_secret: None,
-                payment_method_data,
-                //TODO: why are we using api model in router internally
-                billing: payment_method_billing_address.cloned().map(From::from),
-                connector_mandate_details: None,
-                network_transaction_id: None,
-            };
-            Ok(payment_method_request)
-        }
-        (Some(pm_data), _) => match payment_method {
-            Some(payment_method) => match pm_data {
-                domain::PaymentMethodData::Card(card) => {
-                    let card_network = get_card_network_with_us_local_debit_network_override(
-                        card.card_network.clone(),
-                        card.co_badged_card_data.as_ref(),
-                    );
+    match payment_method_data {
+        Some(pm_data) => match payment_method {
+            Some(payment_method) => {
+                let default_payment_method_request = payment_methods::PaymentMethodCreate {
+                    payment_method: Some(payment_method),
+                    payment_method_type,
+                    payment_method_issuer: None,
+                    payment_method_issuer_code: None,
+                    #[cfg(feature = "payouts")]
+                    bank_transfer: None,
+                    #[cfg(feature = "payouts")]
+                    bank_transfer_data: None,
+                    #[cfg(feature = "payouts")]
+                    wallet: None,
+                    card: None,
+                    metadata: None,
+                    customer_id: customer_id.clone(),
+                    card_network: None,
+                    client_secret: None,
+                    payment_method_data: None,
+                    billing: None,
+                    connector_mandate_details: None,
+                    network_transaction_id: None,
+                };
+                match pm_data {
+                    domain::PaymentMethodData::Card(card) => {
+                        let card_network = get_card_network_with_us_local_debit_network_override(
+                            card.card_network.clone(),
+                            card.co_badged_card_data.as_ref(),
+                        );
 
-                    let card_detail = payment_methods::CardDetail {
-                        card_number: card.card_number.clone(),
-                        card_exp_month: card.card_exp_month.clone(),
-                        card_exp_year: card.card_exp_year.clone(),
-                        card_holder_name: billing_name,
-                        nick_name: card.nick_name.clone(),
-                        card_issuing_country: card.card_issuing_country.clone(),
-                        card_issuing_country_code: card.card_issuing_country_code.clone(),
-                        card_network: card_network.clone(),
-                        card_issuer: card.card_issuer.clone(),
-                        card_type: card.card_type.clone(),
-                        card_cvc: None, // DO NOT POPULATE CVC FOR ADDITIONAL PAYMENT METHOD DATA
-                    };
-                    let payment_method_request = payment_methods::PaymentMethodCreate {
-                        payment_method: Some(payment_method),
-                        payment_method_type,
-                        payment_method_issuer: card.card_issuer.clone(),
-                        payment_method_issuer_code: None,
-                        #[cfg(feature = "payouts")]
-                        bank_transfer: None,
-                        #[cfg(feature = "payouts")]
-                        bank_transfer_data: None,
-                        #[cfg(feature = "payouts")]
-                        wallet: None,
-                        card: Some(card_detail),
-                        metadata: None,
-                        customer_id: customer_id.clone(),
-                        card_network: card_network
-                            .clone()
-                            .as_ref()
-                            .map(|card_network| card_network.to_string()),
-                        client_secret: None,
-                        payment_method_data: None,
-                        //TODO: why are we using api model in router internally
-                        billing: payment_method_billing_address.cloned().map(From::from),
-                        connector_mandate_details: None,
-                        network_transaction_id: None,
-                    };
-                    Ok(payment_method_request)
-                }
-                domain::PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
-                    account_number,
-                    routing_number,
-                    bank_account_holder_name,
-                    bank_name: _,
-                    bank_type,
-                    bank_holder_type,
-                }) => {
-                    let payment_method_request = payment_methods::PaymentMethodCreate {
-                        payment_method: Some(payment_method),
-                        payment_method_type,
-                        payment_method_issuer: None,
-                        payment_method_issuer_code: None,
-                        #[cfg(feature = "payouts")]
-                        bank_transfer: None,
-                        #[cfg(feature = "payouts")]
-                        bank_transfer_data: None,
-                        #[cfg(feature = "payouts")]
-                        wallet: None,
-                        card: None,
-                        metadata: None,
-                        customer_id: customer_id.clone(),
-                        card_network: None,
-                        client_secret: None,
-                        payment_method_data: Some(
-                            payment_methods::PaymentMethodCreateData::BankDebit(
-                                payment_methods::BankDebitDetail::Ach {
-                                    account_number: account_number.to_owned(),
-                                    routing_number: routing_number.to_owned(),
-                                    bank_account_holder_name: bank_account_holder_name.clone(),
-                                    bank_type: *bank_type,
-                                    bank_holder_type: *bank_holder_type,
-                                },
+                        let card_detail = payment_methods::CardDetail {
+                            card_number: card.card_number.clone(),
+                            card_exp_month: card.card_exp_month.clone(),
+                            card_exp_year: card.card_exp_year.clone(),
+                            card_holder_name: billing_name,
+                            nick_name: card.nick_name.clone(),
+                            card_issuing_country: card.card_issuing_country.clone(),
+                            card_issuing_country_code: card.card_issuing_country_code.clone(),
+                            card_network: card_network.clone(),
+                            card_issuer: card.card_issuer.clone(),
+                            card_type: card.card_type.clone(),
+                            card_cvc: None, // DO NOT POPULATE CVC FOR ADDITIONAL PAYMENT METHOD DATA
+                        };
+                        let payment_method_request = payment_methods::PaymentMethodCreate {
+                            payment_method: Some(payment_method),
+                            payment_method_type,
+                            payment_method_issuer: card.card_issuer.clone(),
+                            payment_method_issuer_code: None,
+                            #[cfg(feature = "payouts")]
+                            bank_transfer: None,
+                            #[cfg(feature = "payouts")]
+                            bank_transfer_data: None,
+                            #[cfg(feature = "payouts")]
+                            wallet: None,
+                            card: Some(card_detail),
+                            metadata: None,
+                            customer_id: customer_id.clone(),
+                            card_network: card_network
+                                .clone()
+                                .as_ref()
+                                .map(|card_network| card_network.to_string()),
+                            client_secret: None,
+                            payment_method_data: None,
+                            //TODO: why are we using api model in router internally
+                            billing: payment_method_billing_address.cloned().map(From::from),
+                            connector_mandate_details: None,
+                            network_transaction_id: None,
+                        };
+                        Ok(payment_method_request)
+                    }
+                    domain::PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
+                        account_number,
+                        routing_number,
+                        bank_account_holder_name,
+                        bank_name: _,
+                        bank_type,
+                        bank_holder_type,
+                    }) => {
+                        let payment_method_request = payment_methods::PaymentMethodCreate {
+                            payment_method: Some(payment_method),
+                            payment_method_type,
+                            payment_method_issuer: None,
+                            payment_method_issuer_code: None,
+                            #[cfg(feature = "payouts")]
+                            bank_transfer: None,
+                            #[cfg(feature = "payouts")]
+                            bank_transfer_data: None,
+                            #[cfg(feature = "payouts")]
+                            wallet: None,
+                            card: None,
+                            metadata: None,
+                            customer_id: customer_id.clone(),
+                            card_network: None,
+                            client_secret: None,
+                            payment_method_data: Some(
+                                payment_methods::PaymentMethodCreateData::BankDebit(
+                                    payment_methods::BankDebitDetail::Ach {
+                                        account_number: account_number.to_owned(),
+                                        routing_number: routing_number.to_owned(),
+                                        bank_account_holder_name: bank_account_holder_name.clone(),
+                                        bank_type: *bank_type,
+                                        bank_holder_type: *bank_holder_type,
+                                    },
+                                ),
                             ),
-                        ),
-                        billing: payment_method_billing_address.cloned().map(From::from),
-                        connector_mandate_details: None,
-                        network_transaction_id: None,
-                    };
-                    Ok(payment_method_request)
-                }
+                            billing: payment_method_billing_address.cloned().map(From::from),
+                            connector_mandate_details: None,
+                            network_transaction_id: None,
+                        };
+                        Ok(payment_method_request)
+                    }
+                    domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(
+                        apple_pay_data,
+                    )) => {
+                        if let Some(decrypted_data) = apple_pay_data
+                            .payment_data
+                            .get_decrypted_apple_pay_payment_data_optional()
+                        {
+                            Ok(payment_methods::PaymentMethodCreate {
+                                payment_method: Some(payment_method),
+                                payment_method_type,
+                                payment_method_issuer: None,
+                                payment_method_issuer_code: None,
+                                #[cfg(feature = "payouts")]
+                                bank_transfer: None,
+                                #[cfg(feature = "payouts")]
+                                bank_transfer_data: None,
+                                #[cfg(feature = "payouts")]
+                                wallet: None,
+                                card: None,
+                                metadata: None,
+                                customer_id: customer_id.clone(),
+                                card_network: None,
+                                client_secret: None,
+                                payment_method_data: Some(
+                                    payment_methods::PaymentMethodCreateData::Wallet(
+                                        decrypted_data.clone().into(),
+                                    ),
+                                ),
+                                billing: payment_method_billing_address.cloned().map(From::from),
+                                connector_mandate_details: None,
+                                network_transaction_id: None,
+                            })
+                        } else {
+                            Ok(default_payment_method_request)
+                        }
+                    }
+                    domain::PaymentMethodData::Wallet(domain::WalletData::GooglePay(
+                        google_pay_data,
+                    )) => {
+                        if let Some(decrypted_data) = google_pay_data
+                            .tokenization_data
+                            .get_decrypted_google_pay_payment_data_optional()
+                        {
+                            Ok(payment_methods::PaymentMethodCreate {
+                                payment_method: Some(payment_method),
+                                payment_method_type,
+                                payment_method_issuer: None,
+                                payment_method_issuer_code: None,
+                                #[cfg(feature = "payouts")]
+                                bank_transfer: None,
+                                #[cfg(feature = "payouts")]
+                                bank_transfer_data: None,
+                                #[cfg(feature = "payouts")]
+                                wallet: None,
+                                card: None,
+                                metadata: None,
+                                customer_id: customer_id.clone(),
+                                card_network: None,
+                                client_secret: None,
+                                payment_method_data: Some(
+                                    payment_methods::PaymentMethodCreateData::Wallet(
+                                        decrypted_data.clone().into(),
+                                    ),
+                                ),
+                                billing: payment_method_billing_address.cloned().map(From::from),
+                                connector_mandate_details: None,
+                                network_transaction_id: None,
+                            })
+                        } else {
+                            Ok(default_payment_method_request)
+                        }
+                    }
 
-                _ => {
-                    let payment_method_request = payment_methods::PaymentMethodCreate {
-                        payment_method: Some(payment_method),
-                        payment_method_type,
-                        payment_method_issuer: None,
-                        payment_method_issuer_code: None,
-                        #[cfg(feature = "payouts")]
-                        bank_transfer: None,
-                        #[cfg(feature = "payouts")]
-                        bank_transfer_data: None,
-                        #[cfg(feature = "payouts")]
-                        wallet: None,
-                        card: None,
-                        metadata: None,
-                        customer_id: customer_id.clone(),
-                        card_network: None,
-                        client_secret: None,
-                        payment_method_data: None,
-                        billing: None,
-                        connector_mandate_details: None,
-                        network_transaction_id: None,
-                    };
-
-                    Ok(payment_method_request)
+                    _ => Ok(default_payment_method_request),
                 }
-            },
+            }
             None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "payment_method_type"
             })
             .attach_printable("PaymentMethodType Required")),
         },
-        _ => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+        None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
             field_name: "payment_method_data"
         })
         .attach_printable("PaymentMethodData required Or Card is already saved")),
@@ -1673,18 +1705,26 @@ impl LockerOperations for GenericLocker {
     async fn retrieve_payment_method_from_locker(
         &self,
         state: &SessionState,
-        _platform: &domain::Platform,
+        platform: &domain::Platform,
         vault_id: &domain::VaultId,
         customer_id: &id_type::GlobalCustomerId,
         _payment_method_type: Option<enums::PaymentMethod>,
     ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
-        let payload = pm_types::VaultRetrieveRequest {
-            entity_id: customer_id.to_owned(),
-            vault_id: vault_id.to_owned(),
-        }
-        .encode_to_vec()
-        .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode VaultRetrieveRequest")?;
+        let should_trigger_fingerprint_migration =
+            payment_method_utils::get_should_trigger_fingerprint_migration(
+                state,
+                None,
+                platform.get_provider().get_provider_merchant_id(),
+            )
+            .await;
+
+        let payload = cards::encode_vault_retrieve_request(
+            should_trigger_fingerprint_migration,
+            platform.get_provider().get_account().get_id().clone(),
+            customer_id,
+            vault_id.get_string_repr(),
+        )
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
 
         let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
             .await
@@ -2122,7 +2162,7 @@ impl LockerOperations for LegacyLocker {
             .attach_printable("Card Reference not found")?;
 
         let add_vault_response = pm_types::AddVaultResponse {
-            entity_id: Some(customer_id.clone()),
+            entity_id: None,
             vault_id: domain::VaultId::generate(card_reference),
             fingerprint_id: None,
         };
@@ -2191,7 +2231,7 @@ impl LockerOperations for LegacyLocker {
                 .attach_printable("Failed to add payment method to legacy locker")?;
 
                 let add_vault_response = pm_types::AddVaultResponse {
-                    entity_id: Some(customer_id.clone()),
+                    entity_id: None,
                     vault_id: domain::VaultId::generate(legacy_locker_res.card_reference),
                     fingerprint_id: None,
                 };
@@ -4479,6 +4519,7 @@ pub async fn vault_payment_method_external(
         None,
         None,
         None,
+        None,
     )
     .await?;
 
@@ -4633,6 +4674,7 @@ pub async fn vault_payment_method_external_v1(
         None,
         None,
         should_generate_multiple_tokens,
+        None,
     )
     .await?;
 
@@ -4844,7 +4886,7 @@ pub async fn vault_payment_method_in_volatile_storage(
 
     Ok((
         pm_types::AddVaultResponse {
-            entity_id: customer_id.clone(),
+            entity_id: None,
             vault_id,
             fingerprint_id: None,
         },
@@ -6113,7 +6155,11 @@ pub async fn payment_methods_session_create(
     .attach_printable("Failed to insert payment methods session in db")?;
 
     let external_vault_details = payments_core::vault_session::fetch_external_vault_details(
-        &state, &platform, &profile, &customer,
+        &state,
+        &platform,
+        &profile,
+        &customer,
+        payment_method_session_domain_model.storage_type,
     )
     .await
     .unwrap_or_else(|err| {
@@ -6126,13 +6172,13 @@ pub async fn payment_methods_session_create(
 
     let sdk_authorization = Option::<hyperswitch_domain_models::sdk_auth::SdkAuthorization>::from(
         hyperswitch_domain_models::sdk_auth::SdkAuthorizationContext {
-            platform: platform.clone(),
-            profile_id: profile.get_id().clone(),
             publishable_key: platform
                 .get_processor()
                 .get_account()
                 .publishable_key
                 .clone(),
+            platform: platform.clone(),
+            profile_id: profile.get_id().clone(),
             client_secret: client_secret.secret.clone().expose(),
             customer_id: payment_method_session_domain_model.customer_id.clone(),
             payment_method_session_id: Some(payment_method_session_domain_model.id.clone()),

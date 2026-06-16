@@ -16,7 +16,7 @@ describe("Real Time Payment", () => {
   });
 
   context("DuitNow automatic capture flow", () => {
-    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true;
 
     beforeEach(function () {
       if (!shouldContinue) {
@@ -59,12 +59,33 @@ describe("Real Time Payment", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
+    it("Handle Redirection", () => {
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      cy.handleRedirection(globalState, expected_redirection);
+    });
+
     it("Retrieve Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "real_time_payment_pm"
-      ]["DuitNow"];
+      ]["DuitNowRetrieve"];
 
-      cy.retrievePaymentCallTest({ globalState, data });
+      cy.retrievePaymentCallTest({
+        globalState,
+        data,
+        expectedIntentStatus: "succeeded",
+      });
+    });
+
+    it("Sync Payment", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "real_time_payment_pm"
+      ]["DuitNowRetrieve"];
+
+      cy.retrievePaymentCallTest({
+        globalState,
+        data,
+        expectedIntentStatus: "succeeded",
+      });
     });
   });
 });
