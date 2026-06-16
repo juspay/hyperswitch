@@ -10,7 +10,7 @@ license.workspace = true
 [dependencies]
 cargo_metadata = "0.18.1"
 config = { version = "0.14.1", features = ["toml"] }
-error-stack = "0.4.1"
+error-stack = "0.5.0"
 gethostname = "0.4.3"
 opentelemetry = { version = "0.27.1", default-features = false, features = ["internal-logs", "metrics", "trace"] }
 opentelemetry-aws = { version = "0.15.0", default-features = false, features = ["internal-logs", "trace"] }

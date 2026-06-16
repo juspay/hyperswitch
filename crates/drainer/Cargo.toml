@@ -24,7 +24,7 @@ bb8 = "0.8"
 clap = { version = "4.5.38", default-features = false, features = ["std", "derive", "help", "usage"] }
 config = { version = "0.14.1", features = ["toml"] }
 diesel = { version = "2.2.10", features = ["postgres"] }
-error-stack = "0.4.1"
+error-stack = "0.5.0"
 mime = "0.3.17"
 reqwest = { version = "0.11.27" }
 serde = "1.0.219"

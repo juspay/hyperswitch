@@ -10,7 +10,7 @@ license.workspace = true
 [features]
 
 [dependencies]
-error-stack = "0.4.1"
+error-stack = "0.5.0"
 serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "1.0.69"
 time = "0.3.41"
