@@ -341,3 +341,13 @@ export const isCI = () => {
 export const getTimeoutMultiplier = () => {
   return isCI() ? 1.5 : 1;
 };
+
+/**
+ * Detects if running against localhost environment
+ * @param {string} baseUrl - The base URL to check
+ * @returns {boolean} True if running against localhost, false otherwise
+ */
+export const isLocalhost = (baseUrl) => {
+  if (!baseUrl) return false;
+  return baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1");
+};
