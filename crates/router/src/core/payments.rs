@@ -2254,20 +2254,47 @@ where
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-async fn populate_surcharge_details<F>(
+pub async fn populate_surcharge_details<F, D>(
     state: &SessionState,
-    payment_data: &mut PaymentData<F>,
+    processor: &domain::Processor,
+    business_profile: &domain::Profile,
+    payment_data: &mut D,
 ) -> RouterResult<()>
 where
     F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync,
 {
-    let surcharge_mode = payment_data.payment_intent.get_surcharge_mode();
+    // MIT off-session: no /eligibility ran, so compute inline when a surcharge connector is configured.
+    if payment_data.get_payment_intent().off_session == Some(true) {
+        let mit_surcharge_enabled = business_profile
+            .surcharge_connector_details
+            .as_ref()
+            .and_then(|details| details.surcharge_connector_id.as_ref())
+            .is_some();
+        if mit_surcharge_enabled {
+            let surcharge_details =
+                compute_mit_external_surcharge(state, processor, business_profile, payment_data)
+                    .await;
+            let mut attempt = payment_data.get_payment_attempt().clone();
+            attempt
+                .net_amount
+                .set_surcharge_details(surcharge_details.clone());
+            payment_data.set_payment_attempt(attempt);
+            payment_data.set_surcharge_details(surcharge_details);
+        }
+        return Ok(());
+    }
+
+    let surcharge_mode = payment_data.get_payment_intent().get_surcharge_mode();
 
     if surcharge_mode == Some(domain_payments::SurchargeMode::Internal) {
-        if let Some(attempt_surcharge) = payment_data.payment_attempt.get_surcharge_details() {
-            let surcharge_details =
-                types::SurchargeDetails::from((&attempt_surcharge, &payment_data.payment_attempt));
-            payment_data.surcharge_details = Some(surcharge_details);
+        if let Some(attempt_surcharge) = payment_data.get_payment_attempt().get_surcharge_details()
+        {
+            let surcharge_details = types::SurchargeDetails::from((
+                &attempt_surcharge,
+                payment_data.get_payment_attempt(),
+            ));
+            payment_data.set_surcharge_details(Some(surcharge_details));
             return Ok(());
         }
     }
@@ -2277,41 +2304,101 @@ where
             resolve_internal_surcharge_from_dss(state, payment_data).await?
         }
         Some(domain_payments::SurchargeMode::External) => {
-            load_external_surcharge_from_redis(state, &payment_data.payment_attempt)
-                .await
-                .filter(|external| {
-                    external.matches_payment_method(
-                        payment_data.payment_attempt.payment_method,
-                        payment_data.payment_attempt.payment_method_type,
-                    )
-                })
-                .map(|external| {
-                    types::SurchargeDetails::from((&external, &payment_data.payment_attempt))
-                })
+            resolve_external_surcharge(state, payment_data).await
         }
         None => None,
     };
 
-    payment_data
-        .payment_attempt
+    let mut attempt = payment_data.get_payment_attempt().clone();
+    attempt
         .net_amount
         .set_surcharge_details(surcharge_details.clone());
-    payment_data.surcharge_details = surcharge_details;
+    payment_data.set_payment_attempt(attempt);
+    payment_data.set_surcharge_details(surcharge_details);
     Ok(())
 }
 
+// MIT off-session: compute external surcharge inline via UCS. Decodes the saved-PM billing
 #[cfg(feature = "v1")]
-async fn resolve_internal_surcharge_from_dss<F>(
+async fn compute_mit_external_surcharge<F, D>(
     state: &SessionState,
-    payment_data: &PaymentData<F>,
+    processor: &domain::Processor,
+    business_profile: &domain::Profile,
+    payment_data: &D,
+) -> Option<types::SurchargeDetails>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F>,
+{
+    let saved_pm_billing = payment_data
+        .get_payment_method_info()
+        .and_then(|pm| pm.payment_method_billing_address.clone())
+        .and_then(|encryptable| {
+            let value = encryptable.into_inner().expose();
+            match value.parse_value::<hyperswitch_domain_models::address::Address>(
+                "payment_method_billing_address",
+            ) {
+                Ok(address) => Some(address),
+                Err(err) => {
+                    logger::warn!(
+                        error=?err,
+                        "MIT confirm: failed to parse saved payment_method_billing_address"
+                    );
+                    None
+                }
+            }
+        });
+    // Request-side PM billing wins; saved-PM billing is the fallback.
+    let mit_billing = payment_data
+        .get_address()
+        .get_payment_method_billing()
+        .or(saved_pm_billing.as_ref());
+    calculate_mit_external_surcharge(
+        state,
+        processor,
+        business_profile,
+        payment_data.get_payment_intent(),
+        payment_data.get_payment_attempt(),
+        payment_data.get_payment_method_data(),
+        mit_billing,
+    )
+    .await
+}
+
+// CIT external surcharge: read whatever /eligibility cached in Redis, if any.
+#[cfg(feature = "v1")]
+async fn resolve_external_surcharge<F, D>(
+    state: &SessionState,
+    payment_data: &D,
+) -> Option<types::SurchargeDetails>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F>,
+{
+    let payment_attempt = payment_data.get_payment_attempt();
+    load_external_surcharge_from_redis(state, payment_attempt)
+        .await
+        .filter(|external| {
+            external.matches_payment_method(
+                payment_attempt.payment_method,
+                payment_attempt.payment_method_type,
+            )
+        })
+        .map(|external| types::SurchargeDetails::from((&external, payment_attempt)))
+}
+
+#[cfg(feature = "v1")]
+async fn resolve_internal_surcharge_from_dss<F, D>(
+    state: &SessionState,
+    payment_data: &D,
 ) -> RouterResult<Option<types::SurchargeDetails>>
 where
     F: Send + Clone,
+    D: OperationSessionGetters<F>,
 {
     logger::debug!("payment_intent.surcharge_applicable = true");
     let raw_card_key = payment_data
-        .payment_method_data
-        .as_ref()
+        .get_payment_method_data()
         .and_then(helpers::get_key_params_for_surcharge_details)
         .map(|(payment_method, payment_method_type, card_network)| {
             types::SurchargeKey::PaymentMethodData(
@@ -2320,7 +2407,9 @@ where
                 card_network,
             )
         });
-    let saved_card_key = payment_data.token.clone().map(types::SurchargeKey::Token);
+    let saved_card_key = payment_data
+        .get_token()
+        .map(|token| types::SurchargeKey::Token(token.to_string()));
 
     let surcharge_key = raw_card_key
         .or(saved_card_key)
@@ -2330,7 +2419,7 @@ where
     match types::SurchargeMetadata::get_individual_surcharge_detail_from_redis(
         state,
         surcharge_key,
-        &payment_data.payment_attempt.attempt_id,
+        &payment_data.get_payment_attempt().attempt_id,
     )
     .await
     {
@@ -5781,6 +5870,15 @@ where
         )
         .await?;
 
+    // Unified external-surcharge population for CIT and MIT.
+    populate_surcharge_details(
+        state,
+        platform.get_processor(),
+        business_profile,
+        payment_data,
+    )
+    .await?;
+
     let (pd, tokenization_action) = get_connector_tokenization_action_when_confirm_true(
         state,
         operation,
@@ -5793,50 +5891,6 @@ where
     )
     .await?;
     *payment_data = pd;
-
-    // MIT off-session /confirm: calc and apply external surcharge inline before the connector call.
-    if payment_data.get_payment_intent().off_session == Some(true) {
-        // Decode saved-PM billing as a fallback
-        let saved_pm_billing = payment_data
-            .get_payment_method_info()
-            .and_then(|pm| pm.payment_method_billing_address.clone())
-            .and_then(|encryptable| {
-                let value = encryptable.into_inner().expose();
-                match value.parse_value::<hyperswitch_domain_models::address::Address>(
-                    "payment_method_billing_address",
-                ) {
-                    Ok(address) => Some(address),
-                    Err(err) => {
-                        logger::warn!(
-                            error=?err,
-                            "MIT confirm: failed to parse saved payment_method_billing_address"
-                        );
-                        None
-                    }
-                }
-            });
-        let mit_billing = saved_pm_billing
-            .as_ref()
-            .or_else(|| payment_data.get_address().get_payment_method_billing());
-        if let Some(mit_surcharge_details) = calculate_mit_external_surcharge(
-            state,
-            platform.get_processor(),
-            business_profile,
-            payment_data.get_payment_intent(),
-            payment_data.get_payment_attempt(),
-            payment_data.get_payment_method_data(),
-            mit_billing,
-        )
-        .await
-        {
-            let mut attempt = payment_data.get_payment_attempt().clone();
-            attempt
-                .net_amount
-                .set_surcharge_details(Some(mit_surcharge_details.clone()));
-            payment_data.set_payment_attempt(attempt);
-            payment_data.set_surcharge_details(Some(mit_surcharge_details));
-        }
-    }
 
     // This is used to apply any kind of routing decision to the required data,
     // before the call to `connector` is made.
@@ -13548,8 +13602,9 @@ async fn run_external_surcharge_ucs(
             key_store,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch SurchargeProcessor MCA by id")?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: surcharge_connector_id.get_string_repr().to_string(),
+        })?;
 
     let previous_connector_surcharge_id = previous_connector_surcharge_id(
         state,
