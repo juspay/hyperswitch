@@ -2878,21 +2878,21 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 let authentication_update = hyperswitch_domain_models::authentication::AuthenticationUpdate::PostAuthorizationUpdate {
                 authentication_lifecycle_status: enums::AuthenticationLifecycleStatus::Used,
             };
-            let updated_authentication = state
-                .store
-                .update_authentication_by_merchant_id_authentication_id(
-                    authentication_store.authentication,
-                    authentication_update,
-                    processor.get_key_store(),
-                    &key_manager_state,
-                    processor.get_account().storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            authentication_store.authentication = updated_authentication;
-            Some(authentication_store)
-        }
-        None => None,
+                let updated_authentication = state
+                    .store
+                    .update_authentication_by_merchant_id_authentication_id(
+                        authentication_store.authentication,
+                        authentication_update,
+                        processor.get_key_store(),
+                        &key_manager_state,
+                        processor.get_account().storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                authentication_store.authentication = updated_authentication;
+                Some(authentication_store)
+            }
+            None => None,
         };
     }
 
