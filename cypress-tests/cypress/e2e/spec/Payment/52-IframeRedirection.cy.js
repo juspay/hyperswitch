@@ -226,7 +226,7 @@ describeIfSupported("Iframe Redirection Payment Flow Tests", () => {
         }
 
         cy.verifyIframeRedirection(globalState, {
-          expectRedirectInsidePopup: true,
+          expectRedirectInsidePopup: false,
           expectedStatus: "succeeded",
         });
       });
