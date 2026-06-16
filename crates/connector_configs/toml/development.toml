@@ -5926,6 +5926,15 @@ key1 = "Wise Account Id"
 merchant_secret="Source verification key"
 
 
+[deutschebank_payout]
+[[deutschebank_payout.bank_transfer]]
+  payment_method_type = "sepa_bank_transfer"
+[deutschebank_payout.connector_auth.MultiAuthKey]
+api_key="Customer Identifier"
+key1="Key ID"
+api_secret="Signing Private Key (PEM)"
+key2="Client Certificate Bundle (PEM cert + key concatenated)"
+
 [itaubank_payout]
 [[itaubank_payout.bank_transfer]]
   payment_method_type = "pix"

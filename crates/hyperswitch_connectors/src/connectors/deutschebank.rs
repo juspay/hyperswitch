@@ -89,6 +89,12 @@ impl api::RefundExecute for Deutschebank {}
 impl api::RefundSync for Deutschebank {}
 impl api::PaymentToken for Deutschebank {}
 
+// Note: payouts marker traits (`api::Payouts`, `PayoutSync`, `PayoutEligibility`,
+// `PayoutFulfill`) are supplied by the workspace's `default_imp_for_payouts*!`
+// blanket macros in `default_implementations.rs`. The real payout flow lives in
+// the prism (UCS) connector at hyperswitch-prism; hyperswitch only needs DB
+// recognised as a payout connector, which the blanket macros already cover.
+
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Deutschebank
 {
