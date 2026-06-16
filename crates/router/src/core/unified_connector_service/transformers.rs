@@ -421,6 +421,25 @@ impl
                         }
                     }),
                 }),
+            adyen_split_payment: match router_data.request.split_payments.as_ref() {
+                Some(common_types::payments::SplitPaymentsRequest::AdyenSplitPayment(
+                    adyen_split,
+                )) => Some(payments_grpc::AdyenSplitData {
+                    store: adyen_split.store.clone(),
+                    split_items: adyen_split
+                        .split_items
+                        .iter()
+                        .map(|item| payments_grpc::AdyenSplitItem {
+                            amount: item.amount.map(|a| a.get_amount_as_i64()),
+                            split_type: item.split_type.to_string(),
+                            account: item.account.clone(),
+                            reference: item.reference.clone(),
+                            description: item.description.clone(),
+                        })
+                        .collect(),
+                }),
+                _ => None,
+            },
         })
     }
 }
@@ -618,6 +637,7 @@ impl
             connector_order_id: None,
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
+            adyen_split_payment: None,
         })
     }
 }
@@ -1384,6 +1404,7 @@ impl
             l2_l3_data: None,
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
+            adyen_split_payment: None,
         })
     }
 }
@@ -1569,6 +1590,7 @@ impl
             l2_l3_data: None,
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
+            adyen_split_payment: None,
         })
     }
 }
@@ -1734,6 +1756,7 @@ impl
             l2_l3_data: None,
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
+            adyen_split_payment: None,
         })
     }
 }
