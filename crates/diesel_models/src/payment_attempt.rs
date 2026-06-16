@@ -4854,6 +4854,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_details: None,
                 sender_payment_instrument_id: None,
                 external_surcharge_details: Some(external_surcharge_details),
+                external_threeds_authentication_type: None,
             },
         }
     }
