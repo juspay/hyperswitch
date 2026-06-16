@@ -9,7 +9,6 @@ use common_utils::{
     id_type::{self, GenerateId},
 };
 use error_stack::ResultExt;
-use router_env::tracing::{self, instrument};
 use hyperswitch_connectors::connector_relay::RelayConnectors;
 use hyperswitch_domain_models::relay;
 use hyperswitch_interfaces::{
@@ -17,7 +16,7 @@ use hyperswitch_interfaces::{
     relay::{ConnectorRelayIntegration, UnreferencedRefundRouterData},
 };
 use hyperswitch_masking::Secret;
-use router_env::tracing::instrument;
+use router_env::tracing::{self, instrument};
 
 use super::errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt};
 use crate::{
