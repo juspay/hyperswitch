@@ -17,7 +17,7 @@ use api_models::{
     },
 };
 use base64::Engine;
-use common_enums::{enums::ExecutionMode, ConnectorType};
+use common_enums::{enums::ExecutionMode, ConnectorType, WalletDecryptedToken};
 use common_types::payments::InstallmentOption;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GenerateId;
@@ -646,7 +646,9 @@ pub async fn get_token_pm_type_mandate_details(
                         .payment_method_type
                         .map(|payment_method_type_value| {
                             payment_method_type_value
-                                .should_check_for_customer_saved_payment_method_type(false)
+                                .should_check_for_customer_saved_payment_method_type(
+                                    WalletDecryptedToken::None,
+                                )
                         })
                         .unwrap_or(false)
                     {
@@ -5385,6 +5387,8 @@ impl AttemptType {
             net_amount: old_payment_attempt.net_amount,
             external_three_ds_authentication_attempted: old_payment_attempt
                 .external_three_ds_authentication_attempted,
+            external_threeds_authentication_type: old_payment_attempt
+                .external_threeds_authentication_type,
             authentication_connector: None,
             authentication_id: None,
             mandate_data: old_payment_attempt.mandate_data,
@@ -7152,7 +7156,6 @@ impl GooglePayTokenDecryptor {
 
         // decrypt the message
         let decrypted = self.decrypt_message(symmetric_encryption_key, encrypted_message)?;
-
         // parse the decrypted data
         let decrypted_data: hyperswitch_domain_models::router_data::GooglePayPredecryptDataInternal =
             decrypted
@@ -7160,6 +7163,7 @@ impl GooglePayTokenDecryptor {
                 .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
         // check the expiration date of the decrypted data
+
         if matches!(
             check_expiration_date_is_valid(&decrypted_data.message_expiration),
             Ok(true)
@@ -8494,22 +8498,27 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                 .get_metadata()
                 .as_ref()
                 .and_then(|metadata| {
-                    metadata
-                    .peek()
-                    .clone()
-                    .parse_value::<authentication::types::AcquirerDetails>("AcquirerDetails")
-                    .change_context(errors::ApiErrorResponse::PreconditionFailed {
-                        message:
-                            "acquirer_bin and acquirer_merchant_id not found in Payment Connector's Metadata"
-                                .to_string(),
-                    })
-                    .inspect_err(|err| {
-                        logger::error!(
-                            "Failed to parse acquirer details from Payment Connector's Metadata: {:?}",
-                            err
-                        );
-                    })
-                    .ok()
+                    let metadata_val = metadata.peek();
+                    metadata_val
+                        .get("acquirer_details")
+                        .cloned()
+                        .or_else(|| metadata_val.get("acquirer_bin").map(|_| metadata_val.clone()))
+                        .and_then(|val| {
+                            val.parse_value::<authentication::types::AcquirerDetails>(
+                                "AcquirerDetails",
+                            )
+                            .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                                message: "acquirer_bin and acquirer_merchant_id not found in Payment Connector's Metadata"
+                                    .to_string(),
+                            })
+                            .inspect_err(|err| {
+                                logger::error!(
+                                    "Failed to parse acquirer details from Payment Connector's Metadata: {:?}",
+                                    err
+                                );
+                            })
+                            .ok()
+                        })
                 }) {
                 Some(details) => Some(details),
                 None => {

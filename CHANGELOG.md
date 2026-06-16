@@ -4,6 +4,58 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.06.16.0
+
+### Features
+
+- **core:** Allow JWT authentication for Payments Capture flow ([#12761](https://github.com/juspay/hyperswitch/pull/12761)) ([`9a5b6f2`](https://github.com/juspay/hyperswitch/commit/9a5b6f22437a20fdb219175a89178865aace58c6))
+
+### Bug Fixes
+
+- **connector:** [Nexixpay] Update Status Mapping for Automatic Capture in Nexixpay ([#12668](https://github.com/juspay/hyperswitch/pull/12668)) ([`8abe4af`](https://github.com/juspay/hyperswitch/commit/8abe4af3b4f23b13b173b110e3916ed3b049b693))
+
+**Full Changelog:** [`2026.06.15.1...2026.06.16.0`](https://github.com/juspay/hyperswitch/compare/2026.06.15.1...2026.06.16.0)
+
+- - -
+
+## 2026.06.15.1
+
+### Features
+
+- **connector:** [worldpayxml] Googlepay predecrypt | hyperswitch decrypt ([#12181](https://github.com/juspay/hyperswitch/pull/12181)) ([`a24086d`](https://github.com/juspay/hyperswitch/commit/a24086d8f3f736a9185075993ef0b71199057f97))
+- **superposition:** Add db fallback for pt configs ([#12702](https://github.com/juspay/hyperswitch/pull/12702)) ([`22cad13`](https://github.com/juspay/hyperswitch/commit/22cad1348c62c2d1ad2d94af4e588f5afd1522cc))
+
+**Full Changelog:** [`2026.06.15.0...2026.06.15.1`](https://github.com/juspay/hyperswitch/compare/2026.06.15.0...2026.06.15.1)
+
+- - -
+
+## 2026.06.15.0
+
+### Features
+
+- **authentication:** Add Oss calling SaaS functionality for modular authentication ([#12690](https://github.com/juspay/hyperswitch/pull/12690)) ([`95a3617`](https://github.com/juspay/hyperswitch/commit/95a3617a06e6d75609ff7bda5f1fbce2a61ffb6d))
+- **core/connector:** [SANTANDER] Add PreAuthorizeVoid Flow for Payments Cancel API ([#12436](https://github.com/juspay/hyperswitch/pull/12436)) ([`c2757ea`](https://github.com/juspay/hyperswitch/commit/c2757eadeeb0f87c772d11324fc58f13b6f2c4ec))
+- **kv:** Add Redis KV support for captures table ([#12630](https://github.com/juspay/hyperswitch/pull/12630)) ([`392809c`](https://github.com/juspay/hyperswitch/commit/392809c7a325fcc82208da723cb061199a7e0cfa))
+- **vault:** Add runtime flag for entity_id and fingerprint data and refactor FingerprintWalletData and FingerprintBankDebitData ([#12554](https://github.com/juspay/hyperswitch/pull/12554)) ([`7aa380f`](https://github.com/juspay/hyperswitch/commit/7aa380fed08731ff41fafc5fb600a0d639a988ba))
+
+### Bug Fixes
+
+- **connector:** [checkout] populate network_txn_link_id from payments response ([#12738](https://github.com/juspay/hyperswitch/pull/12738)) ([`e6fcccc`](https://github.com/juspay/hyperswitch/commit/e6fcccc095687ec62ed89c7f2516215bad7502e2))
+- **payments:** Resolve payment_token to payment_method_id in modular service fetch ([#12655](https://github.com/juspay/hyperswitch/pull/12655)) ([`cdba3c1`](https://github.com/juspay/hyperswitch/commit/cdba3c16e93f22f657e791fb865f88a4e4c550c3))
+- **unified_connector_service:** Populate connector_response in payment capture readback ([#12693](https://github.com/juspay/hyperswitch/pull/12693)) ([`5e9358e`](https://github.com/juspay/hyperswitch/commit/5e9358e7b69edabeed3a07a73a7db1c695bb6379))
+
+### Testing
+
+- Add Client Session Validation Cypress tests ([#12465](https://github.com/juspay/hyperswitch/pull/12465)) ([`58098a2`](https://github.com/juspay/hyperswitch/commit/58098a225006e4142171029894485657eaea4481))
+
+### Documentation
+
+- **api-reference:** Mark additional payments and payout fields as deprecated ([#12682](https://github.com/juspay/hyperswitch/pull/12682)) ([`a4617d8`](https://github.com/juspay/hyperswitch/commit/a4617d83935e943eadd30d9644910eb83e03ba5f))
+
+**Full Changelog:** [`2026.06.12.0...2026.06.15.0`](https://github.com/juspay/hyperswitch/compare/2026.06.12.0...2026.06.15.0)
+
+- - -
+
 ## 2026.06.12.0
 
 ### Features
