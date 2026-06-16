@@ -74,7 +74,7 @@ http = "0.2.12"
 url = { version = "2.5.4", features = ["serde"] }
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "18502e58738ed3a0b56bc90fc0de1c9317c88ff9", package = "rust-grpc-client" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "1c429a62f5dc29b1aec0ada154c7e1cfda40d480", package = "rust-grpc-client" }
 open-feature = { version = "0.2.5", optional = true }
 superposition_provider = { version = "0.102.0", optional = true}
 superposition_types = "0.102.0"
