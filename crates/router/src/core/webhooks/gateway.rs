@@ -330,7 +330,7 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
 
         let ack_creds = match reference {
             Some(ref reference) => {
-                let mca = resolve_mca(ctx, &reference).await?;
+                let mca = resolve_mca(ctx, reference).await?;
                 Some(mca.connector_account_details.clone())
             }
             None => ctx
