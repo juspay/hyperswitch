@@ -1404,6 +1404,7 @@ where
                         &business_profile,
                         &mut payment_data,
                         header_payload.clone(),
+                        feature_config.is_payment_method_modular_allowed,
                     )
                     .await?;
 
