@@ -22802,6 +22802,18 @@
           "revenue_growth_management_platform"
         ]
       },
+      "HyperswitchVaultData": {
+        "type": "object",
+        "required": [
+          "sdk_authorization"
+        ],
+        "properties": {
+          "sdk_authorization": {
+            "type": "string",
+            "description": "Base64-encoded SDK authorization token for the Hyperswitch Vault session"
+          }
+        }
+      },
       "HyperswitchVaultSessionDetails": {
         "type": "object",
         "required": [
@@ -34270,7 +34282,7 @@
           "vault_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/VaultDetails"
+                "$ref": "#/components/schemas/VaultDetailsResponse"
               }
             ],
             "nullable": true
@@ -43663,6 +43675,50 @@
           }
         }
       },
+      "VaultDetailsResponse": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "vault_type",
+              "vault_data"
+            ],
+            "properties": {
+              "vault_type": {
+                "type": "string",
+                "enum": [
+                  "hyperswitch"
+                ]
+              },
+              "vault_data": {
+                "$ref": "#/components/schemas/HyperswitchVaultData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "vault_type",
+              "vault_data"
+            ],
+            "properties": {
+              "vault_type": {
+                "type": "string",
+                "enum": [
+                  "vgs"
+                ]
+              },
+              "vault_data": {
+                "$ref": "#/components/schemas/VgsVaultData"
+              }
+            }
+          }
+        ],
+        "description": "V1-facing vault details for the session-tokens response, serialized as a tagged\n`{ \"vault_type\": ..., \"vault_data\": { ... } }` object. Exactly one variant is returned:\nexternal vault details when configured, otherwise the internal Hyperswitch vault session.",
+        "discriminator": {
+          "propertyName": "vault_type"
+        }
+      },
       "VaultSdk": {
         "type": "string",
         "enum": [
@@ -43760,6 +43816,23 @@
             "description": "The identifier of the external vault"
           },
           "sdk_env": {
+            "type": "string",
+            "description": "The environment for the external vault initiation"
+          }
+        }
+      },
+      "VgsVaultData": {
+        "type": "object",
+        "required": [
+          "vault_id",
+          "environment"
+        ],
+        "properties": {
+          "vault_id": {
+            "type": "string",
+            "description": "The identifier of the external vault"
+          },
+          "environment": {
             "type": "string",
             "description": "The environment for the external vault initiation"
           }
