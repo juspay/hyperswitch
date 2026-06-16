@@ -149,6 +149,27 @@ impl ForeignFrom<&AccessToken> for ConnectorState {
     }
 }
 
+/// Build the gRPC Stripe split-payment field from the domain `split_payments`, so UCS
+/// can emit the `Stripe-Account` header in parity with the Direct gateway.
+fn build_stripe_split_payment(
+    split_payments: Option<&common_types::payments::SplitPaymentsRequest>,
+) -> Option<payments_grpc::StripeSplitPaymentRequest> {
+    match split_payments {
+        Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(stripe_split)) => {
+            Some(payments_grpc::StripeSplitPaymentRequest {
+                charge_type: match &stripe_split.charge_type {
+                    common_enums::PaymentChargeType::Stripe(charge_type) => charge_type.to_string(),
+                },
+                application_fees: stripe_split
+                    .application_fees
+                    .map(|fees| fees.get_amount_as_i64()),
+                transfer_account_id: stripe_split.transfer_account_id.clone(),
+            })
+        }
+        _ => None,
+    }
+}
+
 impl
     transformers::ForeignTryFrom<
         &RouterData<
@@ -214,6 +235,9 @@ impl
                 .access_token
                 .as_ref()
                 .map(ConnectorState::foreign_from),
+            stripe_split_payment: build_stripe_split_payment(
+                router_data.request.split_payments.as_ref(),
+            ),
         })
     }
 }
@@ -440,6 +464,9 @@ impl
                 }),
                 _ => None,
             },
+            stripe_split_payment: build_stripe_split_payment(
+                router_data.request.split_payments.as_ref(),
+            ),
         })
     }
 }
@@ -638,6 +665,7 @@ impl
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
             adyen_split_payment: None,
+            stripe_split_payment: None,
         })
     }
 }
@@ -735,6 +763,9 @@ impl
             metadata: None,
             connector_feature_data: None,
             test_mode: router_data.test_mode,
+            stripe_split_payment: build_stripe_split_payment(
+                router_data.request.split_payments.as_ref(),
+            ),
         })
     }
 }
@@ -1405,6 +1436,7 @@ impl
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
             adyen_split_payment: None,
+            stripe_split_payment: None,
         })
     }
 }
@@ -1591,6 +1623,7 @@ impl
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
             adyen_split_payment: None,
+            stripe_split_payment: None,
         })
     }
 }
@@ -1757,6 +1790,7 @@ impl
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
             adyen_split_payment: None,
+            stripe_split_payment: None,
         })
     }
 }
