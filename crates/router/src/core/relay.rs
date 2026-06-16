@@ -1126,7 +1126,7 @@ async fn process_unreferenced_refund(
                 status: relay_status,
                 error_code: connector_resp.error_code,
                 error_message: connector_resp.error_message,
-                response_data: connector_resp.raw_response,
+                response_data: None,
             };
             (bytes, relay_update)
         }
