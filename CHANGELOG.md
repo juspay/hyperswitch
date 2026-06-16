@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.25.0-hotfix10
+
+### Features
+
+- **relay:** Add unreferenced refund API support for FiservCommerceHub ([#12697](https://github.com/juspay/hyperswitch/pull/12697)) ([`ecf0f59`](https://github.com/juspay/hyperswitch/commit/ecf0f59eb4dd32761e7c0ccb8e34197a88582bad))
+
+**Full Changelog:** [`2026.05.25.0-hotfix9...2026.05.25.0-hotfix10`](https://github.com/juspay/hyperswitch/compare/2026.05.25.0-hotfix9...2026.05.25.0-hotfix10)
+
+- - -
+
 ## 2026.05.25.0-hotfix9
 
 ### Features
