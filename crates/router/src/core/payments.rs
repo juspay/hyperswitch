@@ -2264,28 +2264,9 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync,
 {
-    // MIT off-session: no /eligibility ran, so compute inline when a surcharge connector is configured.
-    if payment_data.get_payment_intent().off_session == Some(true) {
-        let mit_surcharge_enabled = business_profile
-            .surcharge_connector_details
-            .as_ref()
-            .and_then(|details| details.surcharge_connector_id.as_ref())
-            .is_some();
-        if mit_surcharge_enabled {
-            let surcharge_details =
-                compute_mit_external_surcharge(state, processor, business_profile, payment_data)
-                    .await;
-            let mut attempt = payment_data.get_payment_attempt().clone();
-            attempt
-                .net_amount
-                .set_surcharge_details(surcharge_details.clone());
-            payment_data.set_payment_attempt(attempt);
-            payment_data.set_surcharge_details(surcharge_details);
-        }
-        return Ok(());
-    }
-
-    let surcharge_mode = payment_data.get_payment_intent().get_surcharge_mode();
+    let surcharge_mode = payment_data
+        .get_payment_intent()
+        .get_surcharge_mode(business_profile);
 
     if surcharge_mode == Some(domain_payments::SurchargeMode::Internal) {
         if let Some(attempt_surcharge) = payment_data.get_payment_attempt().get_surcharge_details()
@@ -2304,7 +2285,13 @@ where
             resolve_internal_surcharge_from_dss(state, payment_data).await?
         }
         Some(domain_payments::SurchargeMode::External) => {
-            resolve_external_surcharge(state, payment_data).await
+            // MIT off-session computes inline; CIT reads what /eligibility cached in Redis.
+            if payment_data.get_payment_intent().off_session == Some(true) {
+                compute_mit_external_surcharge(state, processor, business_profile, payment_data)
+                    .await
+            } else {
+                resolve_external_surcharge(state, payment_data).await
+            }
         }
         None => None,
     };
