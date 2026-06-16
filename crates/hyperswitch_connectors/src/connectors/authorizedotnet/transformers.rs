@@ -117,6 +117,21 @@ struct CreditCardDetails {
     card_code: Option<Secret<String>>,
 }
 
+/// Authorize.net expects `expirationDate` in canonical `YYYY-MM` form with a
+/// zero-padded 2-digit month. `get_expiry_date_as_yyyymm` emits the raw request
+/// month, so a single-digit month (e.g. "3") yields "2050-3" — diverging from the
+/// equivalent UCS request ("2050-03"), which builds the month via a 2-digit helper.
+/// Pad the month component so both produce identical, spec-compliant values.
+fn pad_yyyymm_month(date: Secret<String>) -> Secret<String> {
+    let raw = date.peek().clone();
+    if let Some((year, month)) = raw.split_once('-') {
+        if month.len() == 1 {
+            return Secret::new(format!("{year}-0{month}"));
+        }
+    }
+    date
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 enum PaymentDetails {
@@ -478,7 +493,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
                 bill_to,
                 payment: PaymentDetails::CreditCard(CreditCardDetails {
                     card_number: (*ccard.card_number).clone(),
-                    expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
+                    expiration_date: pad_yyyymm_month(ccard.get_expiry_date_as_yyyymm("-")),
                     card_code: Some(ccard.card_cvc.clone()),
                 }),
             }),
@@ -898,7 +913,7 @@ impl
                 PaymentMethodData::Card(ref ccard) => {
                     PaymentDetails::CreditCard(CreditCardDetails {
                         card_number: (*ccard.card_number).clone(),
-                        expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
+                        expiration_date: pad_yyyymm_month(ccard.get_expiry_date_as_yyyymm("-")),
                         card_code: None,
                     })
                 }
@@ -1127,7 +1142,7 @@ impl
             currency_code: item.router_data.request.currency,
             payment: Some(PaymentDetails::CreditCard(CreditCardDetails {
                 card_number: (*ccard.card_number).clone(),
-                expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
+                expiration_date: pad_yyyymm_month(ccard.get_expiry_date_as_yyyymm("-")),
                 card_code: Some(ccard.card_cvc.clone()),
             })),
             profile,
