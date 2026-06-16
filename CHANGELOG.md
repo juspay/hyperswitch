@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.25.0-hotfix11
+
+### Bug Fixes
+
+- **infra:** Switch base images from Docker Hub to AWS ECR ([#12790](https://github.com/juspay/hyperswitch/pull/12790)) ([`b5cd5f8`](https://github.com/juspay/hyperswitch/commit/b5cd5f8cfd3a8dfcb956e7d7896302ed7af6e72b))
+
+**Full Changelog:** [`2026.05.25.0-hotfix10...2026.05.25.0-hotfix11`](https://github.com/juspay/hyperswitch/compare/2026.05.25.0-hotfix10...2026.05.25.0-hotfix11)
+
+- - -
+
 ## 2026.05.25.0-hotfix10
 
 ### Features
