@@ -31,17 +31,13 @@ pub struct SdkPaymentMethod {
     pub payment_method_types: Vec<SdkPaymentMethodType>,
 }
 
-/// Tells the SDK which vault strategy to use before collecting card details.
+/// Tells the SDK whether to tokenize payment method details before calling confirm.
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-pub enum SdkVaultStrategy {
-    /// Hyperswitch vault — our own SDK, load the card form fast.
-    Internal,
-    /// Non-Hyperswitch vault (e.g. VGS) — wait for the `/session` call to fetch creds before
-    /// loading.
-    External,
-    /// Skip vaulting and call confirm directly. Used when payment-method-modular is not allowed,
-    /// or when external vault is enabled but no vault SDK is configured.
+pub enum VaultingAction {
+    /// Tokenize payment method details through the modular vaulting flow.
+    Tokenize,
+    /// Skip tokenization and call confirm directly.
     Skip,
 }
 
@@ -52,8 +48,8 @@ pub struct ProfileAccountConfig {
     pub collect_billing_details_from_wallet_connector: bool,
     pub always_collect_billing_details_from_wallet_connector: bool,
     pub always_collect_shipping_details_from_wallet_connector: bool,
-    /// Which vault strategy the SDK should use before collecting card details.
-    pub vault_sdk: SdkVaultStrategy,
+    /// Whether the SDK should tokenize payment method details before calling confirm.
+    pub vaulting_action: VaultingAction,
 }
 
 /// Account level configuration surfaced to the SDK.

@@ -2,12 +2,11 @@ use api_models::{
     enums as api_enums,
     superposition_sdk_config::{
         AccountConfig, PaymentMethodCriteria, ProfileAccountConfig, SdkCriteriaRule,
-        SdkPaymentMethod, SdkPaymentMethodType, SdkVaultStrategy, SuperPositionConfigResponse,
+        SdkPaymentMethod, SdkPaymentMethodType, SuperPositionConfigResponse, VaultingAction,
     },
 };
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::business_profile::ExternalVaultDetails;
 use serde_json::Map;
 
 use crate::{
@@ -264,30 +263,19 @@ fn build_profile_account_config(
         always_collect_shipping_details_from_wallet_connector: business_profile
             .always_collect_shipping_details_from_wallet_connector
             .unwrap_or(false),
-        vault_sdk: resolve_vault_sdk(business_profile, is_payment_method_modular_allowed),
+        vaulting_action: resolve_vaulting_action(is_payment_method_modular_allowed),
     }
 }
 
-/// Determine which vault SDK flow the SDK should use for this profile.
+/// Determine whether the SDK should tokenize payment method details.
 ///
-/// - payment-method-modular not allowed: `Skip`.
-/// - external vault disabled (modular allowed): `Internal`.
-/// - external vault enabled: `Internal` for the Hyperswitch vault, `External` for VGS,
-///   `Skip` when no `vault_sdk` is configured.
-fn resolve_vault_sdk(
-    business_profile: &domain::Profile,
-    is_payment_method_modular_allowed: bool,
-) -> SdkVaultStrategy {
-    match is_payment_method_modular_allowed {
-        false => SdkVaultStrategy::Skip,
-        true => match &business_profile.external_vault_details {
-            ExternalVaultDetails::Skip => SdkVaultStrategy::Internal,
-            ExternalVaultDetails::ExternalVaultEnabled(details) => match details.vault_sdk {
-                Some(common_enums::VaultSdk::HyperswitchSdk) => SdkVaultStrategy::Internal,
-                Some(common_enums::VaultSdk::VgsSdk) => SdkVaultStrategy::External,
-                None => SdkVaultStrategy::Skip,
-            },
-        },
+/// Driven solely by whether the modular vaulting flow should be invoked: `Tokenize` when it
+/// should, `Skip` otherwise.
+fn resolve_vaulting_action(should_call_modular: bool) -> VaultingAction {
+    if should_call_modular {
+        VaultingAction::Tokenize
+    } else {
+        VaultingAction::Skip
     }
 }
 
