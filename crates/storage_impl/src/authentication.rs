@@ -242,7 +242,7 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
                     .await
                     .change_context(errors::StorageError::EncryptionError)?;
 
-                let mut query_gen_conn = pg_connection_read(self).await?;
+                let mut query_gen_conn = pg_connection_write(self).await?;
                 let drainer_query = authentication_to_insert
                     .generate_drainer_insert_query(&mut query_gen_conn)
                     .await
@@ -518,11 +518,11 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
             common_enums::MerchantStorageScheme::RedisKv => {
                 let key_str = key.to_string();
 
-                let current_authentication_as_new = previous_state
-                    .clone()
-                    .construct_new()
-                    .await
-                    .change_context(errors::StorageError::EncryptionError)?;
+                let current_authentication = <Authentication as Conversion>::convert(
+                    previous_state.clone(),
+                )
+                .await
+                .change_context(errors::StorageError::EncryptionError)?;
 
                 // Captured before the changeset to detect a connector-authentication-id change.
                 let old_connector_authentication_id =
@@ -537,7 +537,7 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
 
                 let updated_authentication = authentication_update_internal
                     .clone()
-                    .apply_changeset(current_authentication_as_new);
+                    .apply_changeset(current_authentication);
 
                 // Add the connector reverse lookup when the update sets/changes that id.
                 match (
@@ -575,7 +575,7 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
                     .encode_to_string_of_json()
                     .change_context(errors::StorageError::SerializationFailed)?;
 
-                let mut query_gen_conn = pg_connection_read(self).await?;
+                let mut query_gen_conn = pg_connection_write(self).await?;
                 let drainer_query = authentication_update_internal
                     .generate_drainer_update_query(
                         &mut query_gen_conn,
@@ -711,9 +711,7 @@ impl AuthenticationInterface for MockDb {
                 previous_state.authentication_id.get_string_repr()
             )))?;
 
-        let diesel_authentication_new = previous_state
-            .clone()
-            .construct_new()
+        let current_authentication = <Authentication as Conversion>::convert(previous_state.clone())
             .await
             .change_context(errors::StorageError::EncryptionError)?;
 
@@ -721,7 +719,7 @@ impl AuthenticationInterface for MockDb {
             diesel_models::authentication::AuthenticationUpdateInternal::from(
                 diesel_models::authentication::AuthenticationUpdate::from(authentication_update),
             )
-            .apply_changeset(diesel_authentication_new);
+            .apply_changeset(current_authentication);
 
         *item = Authentication::convert_back(
             state,

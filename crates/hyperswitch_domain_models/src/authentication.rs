@@ -246,7 +246,7 @@ impl behaviour::Conversion for Authentication {
         state: &KeyManagerState,
         other: Self::DstType,
         key: &Secret<Vec<u8>>,
-        _key_manager_identifier: Identifier,
+        key_manager_identifier: Identifier,
     ) -> CustomResult<Self, ValidationError> {
         let encrypted_data = crypto_operation(
             state,
@@ -257,7 +257,7 @@ impl behaviour::Conversion for Authentication {
                     shipping_address: other.shipping_address,
                 },
             )),
-            Identifier::Merchant(other.merchant_id.clone()),
+            key_manager_identifier.clone(),
             key.peek(),
         )
         .await
@@ -279,7 +279,7 @@ impl behaviour::Conversion for Authentication {
                     state,
                     common_utils::type_name!(Self),
                     CryptoOperation::DecryptOptional(inner),
-                    Identifier::Merchant(other.merchant_id.clone()),
+                    key_manager_identifier.clone(),
                     key.peek(),
                 )
                 .await

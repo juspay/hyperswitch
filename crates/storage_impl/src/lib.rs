@@ -526,7 +526,7 @@ impl UniqueConstraints for diesel_models::Mandate {
 impl UniqueConstraints for diesel_models::authentication::Authentication {
     fn unique_constraints(&self) -> Vec<String> {
         // Mirror the DB's only uniqueness: the `authentication_id` primary key.
-        vec![self.authentication_id.get_string_repr().to_owned()]
+        vec![format!( "authentication_{}", self.authentication_id.get_string_repr() )]
     }
     fn table_name(&self) -> &str {
         "Authentication"

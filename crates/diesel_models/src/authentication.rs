@@ -410,7 +410,7 @@ pub struct AuthenticationUpdateInternal {
 }
 
 impl AuthenticationUpdateInternal {
-    pub fn apply_changeset(self, source: AuthenticationNew) -> Authentication {
+    pub fn apply_changeset(self, source: Authentication) -> Authentication {
         let Self {
             connector_authentication_id,
             payment_method_id,
