@@ -13247,6 +13247,17 @@
           {
             "type": "object",
             "required": [
+              "pix_qr"
+            ],
+            "properties": {
+              "pix_qr": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "pix_automatico_push"
             ],
             "properties": {
@@ -13640,6 +13651,17 @@
             ],
             "properties": {
               "pix_emv": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix_qr"
+            ],
+            "properties": {
+              "pix_qr": {
                 "type": "object"
               }
             }
@@ -30065,6 +30087,7 @@
           "pix",
           "pix_key",
           "pix_emv",
+          "pix_qr",
           "pix_automatico_qr",
           "pix_automatico_push",
           "pay_safe_card",
