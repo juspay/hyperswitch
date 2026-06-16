@@ -713,7 +713,7 @@ pub struct GooglePayDecrypt {
     pub card_network: Option<CardNetwork>,
 }
 
-#[derive(Debug, ToSchema, Clone, Serialize, router_derive::PolymorphicSchema)]
+#[derive(Debug, ToSchema, Clone, Serialize, Deserialize, router_derive::PolymorphicSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PayoutCreateResponse {
     /// Unique identifier for the payout. This ensures idempotency for multiple payouts
