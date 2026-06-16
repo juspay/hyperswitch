@@ -5,7 +5,6 @@ import getConnectorDetails, {
   shouldIncludeConnector,
 } from "../../configs/Payment/Utils";
 import * as utils from "../../configs/Payment/Utils";
-import { isCI } from "../../../utils/RequestBodyUtils";
 
 let globalState;
 
@@ -102,8 +101,9 @@ describe("Bank Debit tests", () => {
 
   context("ACH Bank Debit Create and Confirm flow test", () => {
     before(function () {
-      if (isCI()) {
-        cy.task("cli_log", "Skipping ACH Bank Debit tests in CI environment");
+      const baseUrl = globalState.get("baseUrl") || "";
+      if (baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1")) {
+        cy.task("cli_log", "Skipping ACH Bank Debit tests on localhost - vault setup required. These tests run on integ/sandbox environments.");
         this.skip();
       }
     });
@@ -370,10 +370,11 @@ describe("Bank Debit tests", () => {
 
   context("ACH Bank Debit Mandate flow test", () => {
     before(function () {
-      if (isCI()) {
+      const baseUrl = globalState.get("baseUrl") || "";
+      if (baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1")) {
         cy.task(
           "cli_log",
-          "Skipping ACH Bank Debit Mandate tests in CI environment"
+          "Skipping ACH Bank Debit Mandate tests on localhost - vault setup required. These tests run on integ/sandbox environments."
         );
         this.skip();
       }

@@ -204,8 +204,5 @@ export default defineConfig({
     videoCompression: 32,
     videosFolder: `cypress/videos/${connectorId}`,
     chromeWebSecurity: false,
-    env: {
-      CI: process.env.CI === "true",
-    },
   },
 });
