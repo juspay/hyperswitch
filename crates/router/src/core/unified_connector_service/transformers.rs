@@ -2078,6 +2078,7 @@ impl
                 phone_country_code: None,
                 customer_document_details: to_grpc_customer_document_details(router_data),
             }),
+            additional_payment_data: None,
         })
     }
 }
@@ -5848,6 +5849,139 @@ pub fn build_handle_event_request(
 }
 
 // ============================================================================
+// SPLIT REFUND TYPES
+// ============================================================================
+
+impl ForeignFrom<&router_request_types::SplitRefundsRequest>
+    for payments_grpc::SplitRefundsRequest
+{
+    fn foreign_from(split_refunds: &router_request_types::SplitRefundsRequest) -> Self {
+        let split_refund_type = match split_refunds {
+            router_request_types::SplitRefundsRequest::StripeSplitRefund(stripe) => Some(
+                payments_grpc::split_refunds_request::SplitRefundType::StripeSplitRefund(
+                    payments_grpc::StripeSplitRefund::foreign_from(stripe),
+                ),
+            ),
+            router_request_types::SplitRefundsRequest::AdyenSplitRefund(adyen) => Some(
+                payments_grpc::split_refunds_request::SplitRefundType::AdyenSplitRefund(
+                    payments_grpc::AdyenSplitData::foreign_from(adyen),
+                ),
+            ),
+            router_request_types::SplitRefundsRequest::XenditSplitRefund(_) => None,
+        };
+        Self { split_refund_type }
+    }
+}
+
+impl ForeignFrom<&router_request_types::StripeSplitRefund> for payments_grpc::StripeSplitRefund {
+    fn foreign_from(stripe: &router_request_types::StripeSplitRefund) -> Self {
+        Self {
+            charge_id: stripe.charge_id.clone(),
+            transfer_account_id: stripe.transfer_account_id.clone(),
+            charge_type: payments_grpc::PaymentChargeType::foreign_from(&stripe.charge_type).into(),
+            options: Some(payments_grpc::ChargeRefundsOptions::foreign_from(
+                &stripe.options,
+            )),
+        }
+    }
+}
+
+impl ForeignFrom<&api_models::enums::PaymentChargeType> for payments_grpc::PaymentChargeType {
+    fn foreign_from(charge_type: &api_models::enums::PaymentChargeType) -> Self {
+        match charge_type {
+            api_models::enums::PaymentChargeType::Stripe(
+                common_enums::StripeChargeType::Direct,
+            ) => Self::StripeDirect,
+            api_models::enums::PaymentChargeType::Stripe(
+                common_enums::StripeChargeType::Destination,
+            ) => Self::StripeDestination,
+        }
+    }
+}
+
+impl ForeignFrom<&router_request_types::ChargeRefundsOptions>
+    for payments_grpc::ChargeRefundsOptions
+{
+    fn foreign_from(options: &router_request_types::ChargeRefundsOptions) -> Self {
+        let option = match options {
+            router_request_types::ChargeRefundsOptions::Destination(dest) => {
+                Some(payments_grpc::charge_refunds_options::Option::Destination(
+                    payments_grpc::DestinationChargeRefund::foreign_from(dest),
+                ))
+            }
+            router_request_types::ChargeRefundsOptions::Direct(direct) => {
+                Some(payments_grpc::charge_refunds_options::Option::Direct(
+                    payments_grpc::DirectChargeRefund::foreign_from(direct),
+                ))
+            }
+        };
+        Self { option }
+    }
+}
+
+impl ForeignFrom<&router_request_types::DestinationChargeRefund>
+    for payments_grpc::DestinationChargeRefund
+{
+    fn foreign_from(dest: &router_request_types::DestinationChargeRefund) -> Self {
+        Self {
+            revert_platform_fee: dest.revert_platform_fee,
+            revert_transfer: dest.revert_transfer,
+        }
+    }
+}
+
+impl ForeignFrom<&router_request_types::DirectChargeRefund> for payments_grpc::DirectChargeRefund {
+    fn foreign_from(direct: &router_request_types::DirectChargeRefund) -> Self {
+        Self {
+            revert_platform_fee: direct.revert_platform_fee,
+        }
+    }
+}
+
+impl ForeignFrom<&common_types::domain::AdyenSplitData> for payments_grpc::AdyenSplitData {
+    fn foreign_from(adyen: &common_types::domain::AdyenSplitData) -> Self {
+        Self {
+            store: adyen.store.clone(),
+            split_items: adyen
+                .split_items
+                .iter()
+                .map(payments_grpc::AdyenSplitItem::foreign_from)
+                .collect(),
+        }
+    }
+}
+
+impl ForeignFrom<&common_types::domain::AdyenSplitItem> for payments_grpc::AdyenSplitItem {
+    fn foreign_from(item: &common_types::domain::AdyenSplitItem) -> Self {
+        Self {
+            amount: item.amount.clone().map(|a| a.get_amount_as_i64()),
+            split_type: payments_grpc::AdyenSplitType::foreign_from(&item.split_type).into(),
+            account: item.account.clone(),
+            reference: item.reference.clone(),
+            description: item.description.clone(),
+        }
+    }
+}
+
+impl ForeignFrom<&common_enums::AdyenSplitType> for payments_grpc::AdyenSplitType {
+    fn foreign_from(split_type: &common_enums::AdyenSplitType) -> Self {
+        match split_type {
+            common_enums::AdyenSplitType::BalanceAccount => Self::BalanceAccount,
+            common_enums::AdyenSplitType::AcquiringFees => Self::AcquiringFees,
+            common_enums::AdyenSplitType::PaymentFee => Self::PaymentFee,
+            common_enums::AdyenSplitType::AdyenFees => Self::AdyenFees,
+            common_enums::AdyenSplitType::AdyenCommission => Self::AdyenCommission,
+            common_enums::AdyenSplitType::AdyenMarkup => Self::AdyenMarkup,
+            common_enums::AdyenSplitType::Interchange => Self::Interchange,
+            common_enums::AdyenSplitType::SchemeFee => Self::SchemeFee,
+            common_enums::AdyenSplitType::Commission => Self::Commission,
+            common_enums::AdyenSplitType::TopUp => Self::TopUp,
+            common_enums::AdyenSplitType::Vat => Self::Vat,
+        }
+    }
+}
+
+// ============================================================================
 // REFUND TRANSFORMERS
 // ============================================================================
 
@@ -5943,6 +6077,11 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             merchant_request_id: None,
             connector_order_id: None,
             payment_method: None,
+            split_refunds: router_data
+                .request
+                .split_refunds
+                .as_ref()
+                .map(payments_grpc::SplitRefundsRequest::foreign_from),
         })
     }
 }
