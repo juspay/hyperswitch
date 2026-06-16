@@ -588,7 +588,10 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
 
                 Box::pin(kv_wrapper::<(), _, _>(
                     self,
-                    KvOperation::<diesel_authentication>::Hset((&field, redis_value), drainer_query),
+                    KvOperation::<diesel_authentication>::Hset(
+                        (&field, redis_value),
+                        drainer_query,
+                    ),
                     key,
                 ))
                 .await
