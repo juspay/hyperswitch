@@ -17,7 +17,7 @@ use api_models::{
     },
 };
 use base64::Engine;
-use common_enums::{enums::ExecutionMode, ConnectorType};
+use common_enums::{enums::ExecutionMode, ConnectorType, WalletDecryptedToken};
 use common_types::payments::InstallmentOption;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GenerateId;
@@ -646,7 +646,9 @@ pub async fn get_token_pm_type_mandate_details(
                         .payment_method_type
                         .map(|payment_method_type_value| {
                             payment_method_type_value
-                                .should_check_for_customer_saved_payment_method_type(false)
+                                .should_check_for_customer_saved_payment_method_type(
+                                    WalletDecryptedToken::None,
+                                )
                         })
                         .unwrap_or(false)
                     {
@@ -7151,7 +7153,6 @@ impl GooglePayTokenDecryptor {
 
         // decrypt the message
         let decrypted = self.decrypt_message(symmetric_encryption_key, encrypted_message)?;
-
         // parse the decrypted data
         let decrypted_data: hyperswitch_domain_models::router_data::GooglePayPredecryptDataInternal =
             decrypted
@@ -7159,6 +7160,7 @@ impl GooglePayTokenDecryptor {
                 .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
         // check the expiration date of the decrypted data
+
         if matches!(
             check_expiration_date_is_valid(&decrypted_data.message_expiration),
             Ok(true)
