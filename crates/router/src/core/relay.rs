@@ -994,6 +994,7 @@ pub async fn sync_relay_refund_with_gateway(
     Ok(relay_response)
 }
 
+#[instrument(skip_all)]
 async fn process_unreferenced_refund(
     state: &SessionState,
     platform: &domain::Platform,
