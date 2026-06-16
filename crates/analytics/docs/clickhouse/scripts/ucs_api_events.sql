@@ -1,4 +1,4 @@
-CREATE TABLE connector_events_queue
+CREATE TABLE ucs_api_events_queue
 (
     `merchant_id` String,
     `payment_id` Nullable(String),
@@ -19,9 +19,9 @@ CREATE TABLE connector_events_queue
     `execution_mode` LowCardinality(Nullable(String))
 )
 ENGINE = Kafka
-SETTINGS kafka_broker_list = 'kafka0:29092', kafka_topic_list = 'hyperswitch-outgoing-connector-events', kafka_group_name = 'hyper', kafka_format = 'JSONEachRow', kafka_handle_error_mode = 'stream';
+SETTINGS kafka_broker_list = 'kafka0:29092', kafka_topic_list = 'hyperswitch-ucs-api-events', kafka_group_name = 'hyper', kafka_format = 'JSONEachRow', kafka_handle_error_mode = 'stream';
 
-CREATE MATERIALIZED VIEW connector_events_parse_errors (
+CREATE MATERIALIZED VIEW ucs_api_events_parse_errors (
     `topic` String,
     `partition` Int64,
     `offset` Int64,
@@ -37,11 +37,11 @@ SELECT
     _raw_message AS raw,
     _error AS error
 FROM
-    connector_events_queue
+    ucs_api_events_queue
 WHERE
     length(_error) > 0;
 
-CREATE TABLE connector_events (
+CREATE TABLE ucs_api_events (
     `merchant_id` LowCardinality(String),
     `payment_id` Nullable(String),
     `connector_name` LowCardinality(String),
@@ -74,7 +74,7 @@ ORDER BY
         status_code
     ) TTL inserted_at + toIntervalMonth(18) SETTINGS index_granularity = 8192;
 
-CREATE TABLE connector_events_audit (
+CREATE TABLE ucs_api_events_audit (
     `merchant_id` LowCardinality(String),
     `payment_id` String,
     `connector_name` LowCardinality(String),
@@ -100,7 +100,7 @@ CREATE TABLE connector_events_audit (
 ORDER BY
     (merchant_id, payment_id) TTL inserted_at + toIntervalMonth(18) SETTINGS index_granularity = 8192;
 
-CREATE TABLE connector_events_payout_audit (
+CREATE TABLE ucs_api_events_payout_audit (
     `merchant_id` LowCardinality(String),
     `payout_id` String,
     `connector_name` LowCardinality(String),
@@ -124,7 +124,7 @@ CREATE TABLE connector_events_payout_audit (
 ORDER BY
     (merchant_id, payout_id) TTL inserted_at + toIntervalMonth(18) SETTINGS index_granularity = 8192;
 
-CREATE MATERIALIZED VIEW connector_events_audit_mv TO connector_events_audit (
+CREATE MATERIALIZED VIEW ucs_api_events_audit_mv TO ucs_api_events_audit (
     `merchant_id` String,
     `payment_id` Nullable(String),
     `connector_name` LowCardinality(String),
@@ -164,12 +164,12 @@ SELECT
     source,
     execution_mode
 FROM
-    connector_events_queue
+    ucs_api_events_queue
 WHERE
     (length(_error) = 0)
     AND (payment_id IS NOT NULL);
 
-CREATE MATERIALIZED VIEW connector_events_payout_audit_mv TO connector_events_payout_audit (
+CREATE MATERIALIZED VIEW ucs_api_events_payout_audit_mv TO ucs_api_events_payout_audit (
     `merchant_id` String,
     `payout_id` Nullable(String),
     `connector_name` LowCardinality(String),
@@ -205,12 +205,12 @@ SELECT
     source,
     execution_mode
 FROM
-    connector_events_queue
+    ucs_api_events_queue
 WHERE
     (length(_error) = 0)
     AND (payout_id IS NOT NULL);
 
-CREATE MATERIALIZED VIEW connector_events_mv TO connector_events (
+CREATE MATERIALIZED VIEW ucs_api_events_mv TO ucs_api_events (
     `merchant_id` String,
     `payment_id` Nullable(String),
     `connector_name` LowCardinality(String),
@@ -252,6 +252,6 @@ SELECT
     source,
     execution_mode
 FROM
-    connector_events_queue
+    ucs_api_events_queue
 WHERE
     length(_error) = 0;

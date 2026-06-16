@@ -53,7 +53,7 @@ use crate::{
         },
         utils::get_flow_name,
     },
-    events::connector_api_logs::ConnectorEvent,
+    events::connector_api_logs::UcsApiEvent,
     routes::SessionState,
     types::{
         api::enums as api_enums,
@@ -2610,12 +2610,10 @@ pub fn build_webhook_secrets_from_merchant_connector_account(
     }
 }
 
-/// Build and emit the connector audit event for a UCS gRPC call.
+/// Build and emit the audit event for a Hyperswitch -> UCS gRPC call, as a `UcsApiEvent`.
 ///
 /// Shared by `ucs_logging_wrapper` and `ucs_logging_wrapper_granular`, which differ only in
-/// the error type they propagate (router vs `UnifiedConnectorServiceError`), not in how the
-/// event is recorded. The event is always the `service` leg from `hyperswitch`; `execution_mode`
-/// records whether this was the primary or the shadow leg.
+/// the error type they propagate (router vs `UnifiedConnectorServiceError`).
 #[allow(clippy::too_many_arguments)]
 fn emit_ucs_connector_event(
     state: &SessionState,
@@ -2632,7 +2630,7 @@ fn emit_ucs_connector_event(
     external_latency: u128,
     execution_mode: ExecutionMode,
 ) {
-    let mut connector_event = ConnectorEvent::new(
+    let mut ucs_api_event = UcsApiEvent::new(
         state.tenant.tenant_id.clone(),
         connector_name,
         flow_type,
@@ -2647,18 +2645,17 @@ fn emit_ucs_connector_event(
         dispute_id,
         payout_id,
         status_code,
-        common_enums::CallType::Service,
         common_enums::EventExecutionMode::from(execution_mode),
     );
 
     if let Some(body) = response_body {
         match status_code {
-            400..=599 => connector_event.set_error_response_body(&body),
-            _ => connector_event.set_response_body(&body),
+            400..=599 => ucs_api_event.set_error_response_body(&body),
+            _ => ucs_api_event.set_response_body(&body),
         }
     }
 
-    state.event_handler.log_event(&connector_event);
+    state.event_handler.log_event(&ucs_api_event);
 }
 
 /// UCS Event Logging Wrapper Function
@@ -2762,9 +2759,8 @@ where
         }
     };
 
-    // Build and emit the connector audit event for this UCS gRPC call (shared with the
-    // other wrapper). Runs for every real UCS leg — primary or shadow — and `execution_mode`
-    // records which, so the shadow leg lands as `hyperswitch / service / shadow`.
+    // Emit the Hyperswitch -> UCS audit event (shared with the other wrapper); `execution_mode`
+    // is primary or shadow, so a shadow run lands as `hyperswitch / shadow` in ucs_api_events.
     emit_ucs_connector_event(
         state,
         std::any::type_name::<T>(),
@@ -2894,9 +2890,8 @@ where
         }
     };
 
-    // Build and emit the connector audit event for this UCS gRPC call (shared with the
-    // other wrapper). Runs for every real UCS leg — primary or shadow — and `execution_mode`
-    // records which, so the shadow leg lands as `hyperswitch / service / shadow`.
+    // Emit the Hyperswitch -> UCS audit event (shared with the other wrapper); `execution_mode`
+    // is primary or shadow, so a shadow run lands as `hyperswitch / shadow` in ucs_api_events.
     emit_ucs_connector_event(
         state,
         std::any::type_name::<T>(),

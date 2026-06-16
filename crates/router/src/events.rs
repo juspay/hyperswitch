@@ -31,6 +31,7 @@ pub enum EventType {
     Refund,
     ApiLogs,
     ConnectorApiLogs,
+    UcsApiLogs,
     OutgoingWebhookLogs,
     Dispute,
     AuditEvent,

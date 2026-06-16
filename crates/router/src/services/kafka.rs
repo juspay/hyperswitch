@@ -154,6 +154,7 @@ pub struct KafkaSettings {
     refund_analytics_topic: String,
     api_logs_topic: String,
     connector_logs_topic: String,
+    ucs_api_logs_topic: String,
     outgoing_webhook_logs_topic: String,
     dispute_analytics_topic: String,
     audit_events_topic: String,
@@ -287,6 +288,7 @@ pub struct KafkaProducer {
     refund_analytics_topic: String,
     api_logs_topic: String,
     connector_logs_topic: String,
+    ucs_api_logs_topic: String,
     outgoing_webhook_logs_topic: String,
     dispute_analytics_topic: String,
     audit_events_topic: String,
@@ -339,6 +341,7 @@ impl KafkaProducer {
             refund_analytics_topic: conf.refund_analytics_topic.clone(),
             api_logs_topic: conf.api_logs_topic.clone(),
             connector_logs_topic: conf.connector_logs_topic.clone(),
+            ucs_api_logs_topic: conf.ucs_api_logs_topic.clone(),
             outgoing_webhook_logs_topic: conf.outgoing_webhook_logs_topic.clone(),
             dispute_analytics_topic: conf.dispute_analytics_topic.clone(),
             audit_events_topic: conf.audit_events_topic.clone(),
@@ -680,6 +683,12 @@ impl KafkaProducer {
             EventType::PaymentIntent => &self.intent_analytics_topic,
             EventType::Refund => &self.refund_analytics_topic,
             EventType::ConnectorApiLogs => &self.connector_logs_topic,
+            // Unset -> fall back to the connector topic: preserves pre-split behavior for
+            // existing deployments that have not configured the new ucs_api_events stream.
+            EventType::UcsApiLogs if self.ucs_api_logs_topic.is_empty() => {
+                &self.connector_logs_topic
+            }
+            EventType::UcsApiLogs => &self.ucs_api_logs_topic,
             EventType::OutgoingWebhookLogs => &self.outgoing_webhook_logs_topic,
             EventType::Dispute => &self.dispute_analytics_topic,
             EventType::AuditEvent => &self.audit_events_topic,
