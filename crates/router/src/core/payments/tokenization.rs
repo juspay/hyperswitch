@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use ::payment_methods::controller::PaymentMethodsController;
-use common_enums::{ConnectorMandateStatus, PaymentMethod};
+use common_enums::{ConnectorMandateStatus, PaymentMethod, WalletDecryptedToken};
 use common_types::{self, callback_mapper::CallbackMapperData};
 use common_utils::{
     crypto::Encryptable,
@@ -21,6 +21,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{
     mandates::ConnectorMandateReferenceId,
     payment_method_data::{get_applepay_wallet_info, get_googlepay_wallet_info},
+    transformers::ForeignFrom as _,
 };
 use hyperswitch_interfaces::api::gateway;
 use hyperswitch_masking::{ExposeInterface, Secret};
@@ -291,7 +292,6 @@ where
                         &customer_id.clone(),
                         billing_name,
                         payment_method_billing_address,
-                        save_payment_method_data.payment_method_token.clone(),
                     )
                     .await?;
                 let payment_methods_data =
@@ -858,18 +858,20 @@ where
                         }
                     },
                     None => {
-                        let customer_saved_pm_option = if payment_method_type
+                        let wallet_decrypt_preference = WalletDecryptedToken::foreign_from(
+                            save_payment_method_data.payment_method_token.as_ref(),
+                        );
+
+                        let check_for_customer_pm = payment_method_type
                             .map(|payment_method_type_value| {
                                 payment_method_type_value
                                     .should_check_for_customer_saved_payment_method_type(
-                                        save_payment_method_data
-                                            .payment_method_token
-                                            .as_ref()
-                                            .is_some_and(|pmt| pmt.is_apple_pay_decrypt()),
+                                        wallet_decrypt_preference,
                                     )
                             })
-                            .unwrap_or(false)
-                        {
+                            .unwrap_or(false);
+
+                        let customer_saved_pm_option = if check_for_customer_pm {
                             match state
                                 .store
                                 .find_payment_method_by_customer_id_merchant_id_list(
@@ -925,7 +927,7 @@ where
                             locker_id = resp.payment_method.and_then(|pm| {
                                 if pm == PaymentMethod::Card
                                     || pm == PaymentMethod::BankDebit
-                                    || pm == PaymentMethod::Wallet
+                                    || (pm == PaymentMethod::Wallet && !check_for_customer_pm)
                                 {
                                     Some(resp.payment_method_id)
                                 } else {
@@ -1262,11 +1264,24 @@ pub async fn save_in_locker_internal(
     domain::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
 )> {
+    let db = &state.store;
     payment_method_request.validate()?;
     let customer_id = payment_method_request
         .customer_id
         .clone()
         .get_required_value("customer_id")?;
+
+    let customer_obj = db
+        .find_customer_by_customer_id_merchant_id(
+            &customer_id,
+            provider.get_account().get_id(),
+            provider.get_key_store(),
+            provider.get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::CustomerNotFound)
+        .attach_printable("Customer not found in db")?;
+
     match (
         payment_method_request.card.clone(),
         card_detail,
@@ -1295,6 +1310,7 @@ pub async fn save_in_locker_internal(
             bank_debit_create_data,
             provider.get_key_store(),
             &customer_id,
+            customer_obj.get_global_customer_id().clone(),
         ))
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1308,6 +1324,7 @@ pub async fn save_in_locker_internal(
             wallet_create_data,
             provider.get_key_store(),
             &customer_id,
+            customer_obj.get_global_customer_id().clone(),
         ))
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2126,7 +2143,6 @@ async fn generate_network_token_and_update_payment_method(
                 &customer_id.clone(),
                 billing_name,
                 payment_method_billing_address,
-                None,
             )
             .await?;
 

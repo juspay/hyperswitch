@@ -44,8 +44,11 @@ use crate::{
 #[cfg(feature = "v2")]
 use crate::{
     core::{
+        configs::dimension_state,
         errors::StorageErrorExt,
-        payment_methods::{cards as pm_cards, utils, LockerOperations, LockerType},
+        payment_methods::{
+            cards as pm_cards, utils, utils as payment_method_utils, LockerOperations, LockerType,
+        },
         payments::{self as payments_core, helpers as payment_helpers},
         utils::create_encrypted_data,
     },
@@ -607,6 +610,20 @@ impl Vaultable for api::WalletPayout {
                 expiry_year: Some(apple_pay_decrypt_data.expiry_year.clone()),
                 card_holder_name: apple_pay_decrypt_data.card_holder_name.clone(),
             },
+            Self::GooglePayDecrypt(google_pay_decrypt_data) => TokenizedWalletSensitiveValues {
+                email: None,
+                telephone_number: None,
+                wallet_id: None,
+                wallet_type: PaymentMethodType::GooglePay,
+                dpan: Some(
+                    google_pay_decrypt_data
+                        .application_primary_account_number
+                        .clone(),
+                ),
+                expiry_month: Some(google_pay_decrypt_data.expiry_month.clone()),
+                expiry_year: Some(google_pay_decrypt_data.expiry_year.clone()),
+                card_holder_name: google_pay_decrypt_data.card_holder_name.clone(),
+            },
         };
 
         value1
@@ -631,6 +648,10 @@ impl Vaultable for api::WalletPayout {
             Self::ApplePayDecrypt(apple_pay_decrypt_data) => TokenizedWalletInsensitiveValues {
                 customer_id,
                 card_network: apple_pay_decrypt_data.card_network.clone(),
+            },
+            Self::GooglePayDecrypt(google_pay_decrypt_data) => TokenizedWalletInsensitiveValues {
+                customer_id,
+                card_network: google_pay_decrypt_data.card_network.clone(),
             },
         };
 
@@ -2023,10 +2044,10 @@ async fn get_fingerprint_id_from_vault<D: serde::Serialize>(
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode Vaulting data to string")?;
 
-    let payload = pm_types::VaultFingerprintRequest { key, data }
+    let payload = pm_types::VaultFingerprintRequestNew { key, data }
         .encode_to_vec()
         .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode VaultFingerprintRequest")?;
+        .attach_printable("Failed to encode VaultFingerprintRequestNew")?;
 
     let resp = call_to_vault::<pm_types::GetVaultFingerprint>(state, payload, None)
         .await
@@ -2051,16 +2072,21 @@ pub async fn add_payment_method_to_vault(
     customer_id: &id_type::GlobalCustomerId,
     write_mode: Option<pm_types::WriteMode>,
 ) -> CustomResult<pm_types::AddVaultResponse, errors::VaultError> {
-    let payload = pm_types::AddVaultRequest {
-        entity_id: customer_id.to_owned(),
-        vault_id: existing_vault_id
-            .unwrap_or(domain::VaultId::generate(uuid::Uuid::now_v7().to_string())),
-        data: pmd,
-        ttl: state.conf.locker.ttl_for_storage_in_secs,
-    }
-    .encode_to_vec()
-    .change_context(errors::VaultError::RequestEncodingFailed)
-    .attach_printable("Failed to encode AddVaultRequest")?;
+    let should_trigger_fingerprint_migration =
+        payment_method_utils::get_should_trigger_fingerprint_migration(
+            state,
+            None,
+            platform.get_provider().get_provider_merchant_id(),
+        )
+        .await;
+
+    let payload = pm_cards::encode_add_vault_request(
+        should_trigger_fingerprint_migration,
+        platform.get_provider().get_account().get_id().clone(),
+        customer_id,
+        pmd.clone(),
+        state.conf.locker.ttl_for_storage_in_secs,
+    )?;
 
     let query_params = write_mode.map(pm_types::VaultQueryParam::from);
 
@@ -2069,7 +2095,7 @@ pub async fn add_payment_method_to_vault(
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")?;
 
-    let stored_pm_resp: pm_types::AddVaultResponse = resp
+    let stored_pm_resp = resp
         .parse_struct("AddVaultResponse")
         .change_context(errors::VaultError::ResponseDeserializationFailed)
         .attach_printable("Failed to parse data into AddVaultResponse")?;

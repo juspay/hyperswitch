@@ -212,7 +212,6 @@ where
             router_env::logger::info!(
                 config_key = %config_type,
                 source = "superposition",
-                value = %value.to_config_string().unwrap_or_default(),
                 "Config resolved from superposition"
             );
             value
@@ -235,7 +234,6 @@ where
                             config_key = %config_type,
                             db_key = %db_key,
                             source = "database",
-                            value = %value.to_config_string().unwrap_or_default(),
                             "Config resolved from database"
                         );
                         metrics::CONFIG_DATABASE_FETCH.add(

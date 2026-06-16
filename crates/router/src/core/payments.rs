@@ -140,9 +140,7 @@ use crate::{
             DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         },
         errors::{self, CustomResult, RouterResponse, RouterResult},
-        payment_methods::{
-            cards, network_tokenization, transformers as pm_transformers, utils as pm_utils,
-        },
+        payment_methods::{cards, network_tokenization, transformers as pm_transformers},
         payments::helpers::{
             get_applepay_metadata, is_applepay_predecrypted_flow_supported,
             is_googlepay_predecrypted_flow_supported,
@@ -798,7 +796,7 @@ where
     )
     .await?;
 
-    let payment_method_token = get_decrypted_wallet_payment_method_token(
+    let payment_method_token = get_decrypted_wallet_pm_token_and_set_pm_data(
         &operation,
         state,
         platform,
@@ -5234,8 +5232,47 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
     }
 }
 
+fn set_decrypted_wallet_payment_method_data<F, D>(token: &PaymentMethodToken, payment_data: &mut D)
+where
+    F: Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F>,
+{
+    let wallet_data = payment_data
+        .get_payment_method_data()
+        .and_then(|pmd| pmd.get_wallet_data());
+
+    if let Some(wallet_data) = wallet_data {
+        let updated_pmd = match (token, wallet_data) {
+            (
+                PaymentMethodToken::ApplePayDecrypt(decrypted_data),
+                domain::WalletData::ApplePay(apple_pay_data),
+            ) => Some(domain::PaymentMethodData::Wallet(
+                domain::WalletData::ApplePay(domain::ApplePayWalletData {
+                    payment_data: common_payments_types::ApplePayPaymentData::Decrypted(
+                        (**decrypted_data).clone(),
+                    ),
+                    ..apple_pay_data.clone()
+                }),
+            )),
+            (
+                PaymentMethodToken::GooglePayDecrypt(decrypted_data),
+                domain::WalletData::GooglePay(google_pay_data),
+            ) => Some(domain::PaymentMethodData::Wallet(
+                domain::WalletData::GooglePay(domain::GooglePayWalletData {
+                    tokenization_data: common_payments_types::GpayTokenizationData::Decrypted(
+                        (**decrypted_data).clone(),
+                    ),
+                    ..google_pay_data.clone()
+                }),
+            )),
+            _ => None,
+        };
+        updated_pmd.map(|pmd| payment_data.set_payment_method_data(Some(pmd)));
+    }
+}
+
 #[cfg(feature = "v1")]
-pub async fn get_decrypted_wallet_payment_method_token<F, Req, D>(
+pub async fn get_decrypted_wallet_pm_token_and_set_pm_data<F, Req, D>(
     operation: &BoxedOperation<'_, F, Req, D>,
     state: &SessionState,
     platform: &domain::Platform,
@@ -5244,7 +5281,7 @@ pub async fn get_decrypted_wallet_payment_method_token<F, Req, D>(
 ) -> CustomResult<Option<PaymentMethodToken>, errors::ApiErrorResponse>
 where
     F: Send + Clone + Sync,
-    D: OperationSessionGetters<F> + Send + Sync + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     if is_operation_confirm(operation)
         && payment_data.get_payment_attempt().payment_method
@@ -5281,18 +5318,25 @@ where
             return Ok(Some(predecrypted_token));
         }
 
-        let decide_wallet_flow = &wallet
+        let decide_wallet_flow = wallet
             .decide_wallet_flow(state, payment_data, &merchant_connector_account)
-            .attach_printable("Failed to decide wallet flow")?
-            .async_map(|payment_price_data| async move {
-                wallet
+            .attach_printable("Failed to decide wallet flow")?;
+
+        let payment_method_token = match decide_wallet_flow {
+            Some(payment_price_data) => {
+                let token = wallet
                     .decrypt_wallet_token(&payment_price_data, payment_data)
                     .await
-            })
-            .await
-            .transpose()
-            .attach_printable("Failed to decrypt Wallet token")?;
-        Ok(decide_wallet_flow.clone())
+                    .attach_printable("Failed to decrypt Wallet token")?;
+
+                set_decrypted_wallet_payment_method_data(&token, payment_data);
+
+                Some(token)
+            }
+            None => None,
+        };
+
+        Ok(payment_method_token)
     } else {
         Ok(None)
     }
@@ -9431,8 +9475,11 @@ impl PaymentEligibilityData {
         })
     }
 
-    /// Resolves a `payment_token` to raw card data for blocklist checks.
-    /// Uses modular PM service if enabled for the org, otherwise falls back to locker.
+    /// Resolves a `payment_token` to raw card data for blocklist checks: modular
+    /// organizations fetch from the PM Modular Service directly; legacy organizations
+    /// resolve the Redis token to the payment method DB record, escalating to the
+    /// modular service when the record itself is modular, and reading raw card data
+    /// from the locker otherwise.
     async fn resolve_payment_token_to_method_data(
         state: &SessionState,
         platform: &domain::Platform,
@@ -9440,29 +9487,36 @@ impl PaymentEligibilityData {
         payment_method_type: common_enums::PaymentMethod,
         profile_id: &id_type::ProfileId,
     ) -> CustomResult<Option<domain::EligibilityPaymentMethodData>, errors::ApiErrorResponse> {
-        let pm_modular_dimensions = Dimensions::new().with_organization_id(
-            platform
-                .get_processor()
-                .get_account()
-                .organization_id
-                .clone(),
-        );
+        let dimensions = Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+        let feature_config = core_utils::get_feature_config(state, platform, &dimensions).await;
 
-        let is_modular_flow = pm_utils::get_organization_eligibility_config_for_pm_modular_service(
-            state,
-            &pm_modular_dimensions,
-        )
-        .await;
-
-        if is_modular_flow {
-            // Modular path: payment_token IS the payment_method_id in the modular service.
+        if feature_config.is_payment_method_modular_allowed {
             logger::info!("Resolving payment token via PM Modular Service for eligibility check");
+            // Permanent tokens carry the underlying payment_method_id; any other token
+            // type (or a Redis miss) is treated as the payment_method_id itself.
+            let payment_token = payment_token.peek();
+            let payment_method_id = match helpers::retrieve_payment_token_data(
+                state,
+                payment_token.clone(),
+                Some(payment_method_type),
+            )
+            .await
+            {
+                Ok(storage::PaymentTokenData::Permanent(card_token_data))
+                | Ok(storage::PaymentTokenData::PermanentCard(card_token_data)) => card_token_data
+                    .payment_method_id
+                    .unwrap_or_else(|| payment_token.clone()),
+                _ => payment_token.clone(),
+            };
+
             let pm_response = pm_transformers::fetch_payment_method_from_modular_service(
                 state,
                 platform,
                 profile_id,
-                payment_token.clone().expose().as_str(),
-                None, // CVC token data is not passed in create api
+                payment_method_id.as_str(),
+                None, // CVC is not collected during the eligibility check
                 true, // fetch raw card detail from the internal vault
             )
             .await
@@ -9473,40 +9527,75 @@ impl PaymentEligibilityData {
                 .raw_payment_method_data
                 .map(domain::EligibilityPaymentMethodData::from))
         } else {
-            // Legacy path: resolve via Redis token → DB → locker.
-            Self::resolve_payment_token_via_db(state, platform, payment_token, payment_method_type)
-                .await
+            let token_data = helpers::retrieve_payment_token_data(
+                state,
+                payment_token.peek().clone(),
+                Some(payment_method_type),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::UnprocessableEntity {
+                message: "Invalid or expired payment token".to_string(),
+            })
+            .attach_printable("Failed to retrieve payment token data from storage")?;
+
+            let payment_method_record = helpers::retrieve_payment_method_from_db_with_token_data(
+                state,
+                platform.get_provider().get_key_store(),
+                &token_data,
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+            .attach_printable("Failed to retrieve payment method from DB")?;
+
+            match payment_method_record {
+                Some(payment_method)
+                    if feature_config.should_use_modular_pm_path(
+                        Some(payment_method.version),
+                        payment_method.compatibility_updated_at,
+                        Some(payment_method.last_modified),
+                    ) =>
+                {
+                    logger::debug!(
+                        "Payment method is modular, fetching payment method from PM Modular Service"
+                    );
+                    let pm_response = pm_transformers::fetch_payment_method_from_modular_service(
+                        state,
+                        platform,
+                        profile_id,
+                        payment_method.get_id(),
+                        None, // CVC is not collected during the eligibility check
+                        true, // fetch raw card detail from the internal vault
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+                    .attach_printable("Failed to fetch payment method from modular service")?;
+
+                    Ok(pm_response
+                        .raw_payment_method_data
+                        .map(domain::EligibilityPaymentMethodData::from))
+                }
+                payment_method_record => {
+                    Self::read_payment_method_data_from_locker(
+                        state,
+                        platform,
+                        &token_data,
+                        payment_method_record,
+                    )
+                    .await
+                }
+            }
         }
     }
 
-    /// Legacy token resolution: Redis → DB → locker.
-    async fn resolve_payment_token_via_db(
+    /// Reads raw card data from the locker for permanent card tokens using the
+    /// prefetched token data and payment method DB record.
+    async fn read_payment_method_data_from_locker(
         state: &SessionState,
         platform: &domain::Platform,
-        payment_token: &Secret<String>,
-        payment_method_type: common_enums::PaymentMethod,
+        token_data: &storage::PaymentTokenData,
+        payment_method_record: Option<domain::PaymentMethod>,
     ) -> CustomResult<Option<domain::EligibilityPaymentMethodData>, errors::ApiErrorResponse> {
-        let token_data = helpers::retrieve_payment_token_data(
-            state,
-            payment_token.clone().expose(),
-            Some(payment_method_type),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::UnprocessableEntity {
-            message: "Invalid or expired payment token".to_string(),
-        })
-        .attach_printable("Failed to retrieve payment token data from storage")?;
-
-        let payment_method_record = helpers::retrieve_payment_method_from_db_with_token_data(
-            state,
-            platform.get_provider().get_key_store(),
-            &token_data,
-            platform.get_processor().get_account().storage_scheme,
-        )
-        .await
-        .attach_printable("Failed to retrieve payment method from DB")?;
-
-        let payment_method_data = match &token_data {
+        let payment_method_data = match token_data {
             storage::PaymentTokenData::PermanentCard(card_token) => {
                 // Read full card data from the locker using the DB record.
                 let pm_record = payment_method_record
@@ -9545,16 +9634,11 @@ impl PaymentEligibilityData {
                 ))
             }
             // Wallet and other token types: no raw card data available via this path.
-            #[cfg(feature = "v1")]
             storage::PaymentTokenData::Temporary(_)
             | storage::PaymentTokenData::TemporaryGeneric(_)
             | storage::PaymentTokenData::Permanent(_)
             | storage::PaymentTokenData::AuthBankDebit(_)
             | storage::PaymentTokenData::WalletToken(_)
-            | storage::PaymentTokenData::BankDebit(_) => None,
-            #[cfg(feature = "v2")]
-            storage::PaymentTokenData::TemporaryGeneric(_)
-            | storage::PaymentTokenData::AuthBankDebit(_)
             | storage::PaymentTokenData::BankDebit(_) => None,
         };
 
