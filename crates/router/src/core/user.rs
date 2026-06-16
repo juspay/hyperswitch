@@ -3896,13 +3896,6 @@ pub async fn clone_connector(
         .into());
     };
 
-    let cloneable_payment_method_types = state
-        .conf
-        .connector_clone_config
-        .as_ref()
-        .map(|config| config.cloneable_payment_method_types.clone())
-        .unwrap_or_default();
-
     // Restricted to predefined org/merchant admins
     let is_allowed_role = matches!(
         user_from_token.role_id.as_str(),
@@ -3984,7 +3977,7 @@ pub async fn clone_connector(
         source_mca,
         request.destination_profile_id.clone(),
         request.connector_label,
-        &cloneable_payment_method_types,
+        &allowlist.payment_method_types,
     )
     .await?;
 

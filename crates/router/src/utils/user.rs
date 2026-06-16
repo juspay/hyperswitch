@@ -409,7 +409,7 @@ pub async fn build_cloned_connector_create_request(
     source_mca: DomainMerchantConnectorAccount,
     destination_profile_id: id_type::ProfileId,
     destination_connector_label: Option<String>,
-    cloneable_payment_method_types: &std::collections::HashMap<
+    payment_method_types: &std::collections::HashMap<
         common_enums::PaymentMethod,
         std::collections::HashSet<common_enums::PaymentMethodType>,
     >,
@@ -436,7 +436,7 @@ pub async fn build_cloned_connector_create_request(
                 .into_iter()
                 .filter_map(|mut payment_method| {
                     let allowed_subtypes =
-                        cloneable_payment_method_types.get(&payment_method.payment_method)?;
+                        payment_method_types.get(&payment_method.payment_method)?;
                     payment_method.payment_method_types =
                         payment_method.payment_method_types.map(|subtypes| {
                             subtypes

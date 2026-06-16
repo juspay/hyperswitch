@@ -1381,7 +1381,7 @@ redis_ttl_buffer_in_seconds= 300 # buffer time in seconds to be added to redis t
 [clone_connector_allowlist]
 connector_names = "connector_names"     # Comma-separated list of cloneable connector names
 
-[connector_clone_config.cloneable_payment_method_types]
+[clone_connector_allowlist.payment_method_types]
 payment_method = "payment_method_types" # <payment_method> = comma-separated cloneable payment_method_types
 
 [infra_values]
