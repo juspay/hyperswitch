@@ -11724,7 +11724,7 @@ pub struct BoletoAdditionalDetails {
     pub due_date: Option<PrimitiveDateTime>,
     /// It tells the bank what type of commercial document created the boleto. Why does this boleto exist? What kind of transaction or contract caused it?
     /// Deprecated since it has been moved to connector_metadata
-    #[schema(value_type = Option<BoletoDocumentKind>, example="commercial_invoice", deprecated)]
+    #[schema(value_type = Option<BoletoDocumentKind>, example="commercial_invoice")]
     pub document_kind: Option<common_enums::BoletoDocumentKind>,
     /// This field tells the bank how the boleto can be paid — whether the payer must pay the exact amount, can pay a different amount, or pay in parts.
     /// Deprecated since it has been moved to connector_metadata
@@ -11741,6 +11741,25 @@ pub struct BoletoAdditionalDetails {
         })
     )]
     pub pix_key: Option<enums::PixKey>,
+    /// Rules for applying discounts
+    #[schema(value_type = Option<SantanderPaymentDiscountRules>)]
+    #[serde(default)]
+    pub discount_rules: Option<SantanderPaymentDiscountRules>,
+    /// Rules for late payments (Interest and Fines)
+    #[schema(value_type = Option<PenaltyRules>)]
+    #[serde(default)]
+    pub penalties: Option<PenaltyRules>,
+    /// Legal or administrative actions for non-payment (Protest/Write-off)
+    #[schema(value_type = Option<CollectionActions>)]
+    #[serde(default)]
+    pub collection_actions: Option<CollectionActions>,
+    /// Constraints on how the payment can be made (Partial payments/Limits)
+    #[schema(value_type = Option<BoletoPaymentTypeConstraints>)]
+    #[serde(default)]
+    pub payment_constraints: Option<BoletoPaymentTypeConstraints>,
+    #[schema(value_type = Option<BeneficiaryDetails>)]
+    #[serde(default)]
+    pub beneficiary: Option<BeneficiaryDetails>,
 }
 
 impl BoletoAdditionalDetails {
@@ -11751,6 +11770,11 @@ impl BoletoAdditionalDetails {
             payment_type: self.payment_type.or(other.payment_type),
             covenant_code: self.covenant_code.or(other.covenant_code),
             pix_key: self.pix_key.or(other.pix_key),
+            discount_rules: self.discount_rules.or(other.discount_rules),
+            penalties: self.penalties.or(other.penalties),
+            collection_actions: self.collection_actions.or(other.collection_actions),
+            payment_constraints: self.payment_constraints.or(other.payment_constraints),
+            beneficiary: self.beneficiary.or(other.beneficiary),
         }
     }
 

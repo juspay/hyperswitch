@@ -793,16 +793,17 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         let conn = pg_connection_write(self).await?;
         let diesel_payment_intent_update = PaymentIntentUpdateInternal::try_from(payment_intent)
             .change_context(StorageError::DeserializationFailed)?;
-        let diesel_payment_intent = this
-            .convert()
-            .await
-            .change_context(StorageError::EncryptionError)?
-            .update(&conn, diesel_payment_intent_update)
-            .await
-            .map_err(|er| {
-                let new_err = diesel_error_to_data_error(*er.current_context());
-                er.change_context(new_err)
-            })?;
+        let diesel_payment_intent = Box::pin(
+            this.convert()
+                .await
+                .change_context(StorageError::EncryptionError)?
+                .update(&conn, diesel_payment_intent_update),
+        )
+        .await
+        .map_err(|er| {
+            let new_err = diesel_error_to_data_error(*er.current_context());
+            er.change_context(new_err)
+        })?;
 
         PaymentIntent::convert_back(
             self.get_keymanager_state()
