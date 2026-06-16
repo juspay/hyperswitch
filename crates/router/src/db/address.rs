@@ -481,7 +481,7 @@ mod storage {
                         AddressUpdateInternal::from(address_update.clone());
                     let updated_address = address_update_internal
                         .clone()
-                        .create_address(address.clone());
+                        .apply_changeset(address.clone());
                     let redis_value = serde_json::to_string(&updated_address)
                         .change_context(errors::StorageError::KVError)?;
 
@@ -776,7 +776,7 @@ impl AddressInterface for MockDb {
             .find(|address| address.address_id == address_id)
             .map(|a| {
                 let address_updated =
-                    AddressUpdateInternal::from(address_update).create_address(a.clone());
+                    AddressUpdateInternal::from(address_update).apply_changeset(a.clone());
                 *a = address_updated.clone();
                 address_updated
             });
@@ -813,7 +813,7 @@ impl AddressInterface for MockDb {
             .find(|address| address.address_id == this.address.address_id)
             .map(|a| {
                 let address_updated =
-                    AddressUpdateInternal::from(address_update).create_address(a.clone());
+                    AddressUpdateInternal::from(address_update).apply_changeset(a.clone());
                 *a = address_updated.clone();
                 address_updated
             });
@@ -902,7 +902,7 @@ impl AddressInterface for MockDb {
             })
             .map(|a| {
                 let address_updated =
-                    AddressUpdateInternal::from(address_update).create_address(a.clone());
+                    AddressUpdateInternal::from(address_update).apply_changeset(a.clone());
                 *a = address_updated.clone();
                 address_updated
             });
