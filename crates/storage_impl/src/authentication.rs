@@ -221,6 +221,9 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
                     .await
             }
             common_enums::MerchantStorageScheme::RedisKv => {
+                // Record which layer wrote this row; drives KV-vs-Postgres routing on later updates.
+                let authentication = authentication.update_storage_scheme(storage_scheme);
+
                 let merchant_id = &authentication.merchant_id;
                 let authentication_id = &authentication.authentication_id;
                 let payment_id = &authentication.payment_id;
@@ -494,8 +497,8 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
         };
         let field = authentication_id.get_hash_key_for_kv_store();
 
-        // No `updated_by` column on authentication; use the scheme as the soft-kill KV-presence hint.
-        let updated_by = storage_scheme.to_string();
+        // The previous write location drives KV-vs-Postgres routing in decide_storage_scheme.
+        let updated_by = previous_state.updated_by.clone();
         let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_authentication>(
             self,
             storage_scheme,
@@ -527,12 +530,14 @@ impl<T: DatabaseStore> AuthenticationInterface for KVRouterStore<T> {
                 let old_connector_authentication_id =
                     previous_state.connector_authentication_id.clone();
 
-                let authentication_update_internal =
+                let mut authentication_update_internal =
                     diesel_models::authentication::AuthenticationUpdateInternal::from(
                         diesel_models::authentication::AuthenticationUpdate::from(
                             authentication_update,
                         ),
                     );
+                // Stamp the new write location onto the changeset.
+                authentication_update_internal.updated_by = Some(storage_scheme.to_string());
 
                 let updated_authentication = authentication_update_internal
                     .clone()

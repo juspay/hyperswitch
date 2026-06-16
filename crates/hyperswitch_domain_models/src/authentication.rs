@@ -103,9 +103,18 @@ pub struct Authentication {
     pub merchant_country_code: Option<String>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<common_utils::types::CreatedBy>,
+    pub updated_by: String,
 }
 
 impl Authentication {
+    /// Records which storage layer (KV / Postgres) wrote this row; the previous value
+    /// drives KV-vs-Postgres routing on later updates in `decide_storage_scheme`.
+    pub fn update_storage_scheme( mut self, storage_scheme: common_enums::MerchantStorageScheme, ) 
+    -> Self {
+        self.updated_by = storage_scheme.to_string();
+        self
+    }
+
     pub fn is_separate_authn_required(&self) -> bool {
         self.maximum_supported_version
             .as_ref()
@@ -239,6 +248,7 @@ impl behaviour::Conversion for Authentication {
             shipping_country: self.shipping_country,
             processor_merchant_id: self.processor_merchant_id,
             created_by: self.created_by.map(|created_by| created_by.to_string()),
+            updated_by: self.updated_by,
         })
     }
 
@@ -378,6 +388,7 @@ impl behaviour::Conversion for Authentication {
             created_by: other
                 .created_by
                 .and_then(|created_by| created_by.parse::<common_utils::types::CreatedBy>().ok()),
+            updated_by: other.updated_by,
         })
     }
 
@@ -458,6 +469,7 @@ impl behaviour::Conversion for Authentication {
             shipping_country: self.shipping_country,
             processor_merchant_id: self.processor_merchant_id,
             created_by: self.created_by.map(|created_by| created_by.to_string()),
+            updated_by: self.updated_by,
         })
     }
 }

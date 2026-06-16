@@ -466,6 +466,8 @@ pub async fn create_new_authentication(
         merchant_country_code: None,
         processor_merchant_id: Some(processor.get_account().get_id().clone()),
         created_by: initiator.and_then(|initiator| initiator.to_created_by()),
+        // Seed with the configured scheme; the insert layer overwrites with the decided one.
+        updated_by: processor.get_account().storage_scheme.to_string(),
     };
 
     state

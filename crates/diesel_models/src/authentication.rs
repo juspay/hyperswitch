@@ -86,6 +86,7 @@ pub struct Authentication {
     pub shipping_country: Option<String>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
+    pub updated_by: String,
 }
 
 impl Authentication {
@@ -187,6 +188,7 @@ pub struct AuthenticationNew {
     pub shipping_country: Option<String>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
+    pub updated_by: String,
 }
 
 #[derive(Debug)]
@@ -340,6 +342,7 @@ impl Default for AuthenticationUpdateInternal {
             merchant_country_code: Default::default(),
             billing_country: Default::default(),
             shipping_country: Default::default(),
+            updated_by: Default::default(),
         }
     }
 }
@@ -407,6 +410,7 @@ pub struct AuthenticationUpdateInternal {
     pub merchant_country_code: Option<String>,
     pub billing_country: Option<String>,
     pub shipping_country: Option<String>,
+    pub updated_by: Option<String>,
 }
 
 impl AuthenticationUpdateInternal {
@@ -471,6 +475,7 @@ impl AuthenticationUpdateInternal {
             merchant_country_code,
             billing_country,
             shipping_country,
+            updated_by,
         } = self;
         Authentication {
             connector_authentication_id: connector_authentication_id
@@ -553,6 +558,7 @@ impl AuthenticationUpdateInternal {
             shipping_country: shipping_country.or(source.shipping_country),
             processor_merchant_id: source.processor_merchant_id,
             created_by: source.created_by,
+            updated_by: updated_by.unwrap_or(source.updated_by),
         }
     }
 }

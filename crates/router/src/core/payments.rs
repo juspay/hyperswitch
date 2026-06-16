@@ -4980,7 +4980,8 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("missing authentication_id in payment_attempt")?;
         let key_manager_state = &(state).into();
-        let authentication = state
+        // Validates the authentication exists (errors if not); the record itself isn't needed here.
+        let _authentication = state
             .store
             .find_authentication_by_merchant_id_authentication_id(
                 platform.get_processor().get_account().get_id(),
